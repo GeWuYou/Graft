@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	buildcontract "graft/server/modules/build/contract"
+	buildstore "graft/server/modules/build/store"
 )
 
 const buildJobsRoute = "/jobs"
@@ -37,6 +39,30 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group("/api/build")
 	group.Use(httpx.RequestIDMiddleware())
+	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		limit, offset, ok := buildListQuery(c)
+		if !ok {
+			return
+		}
+		result, err := service.ListJobs(c.Request.Context(), limit, offset)
+		if err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, toBuildJobList(result, limit, offset))
+	})
+	group.GET(buildJobsRoute+"/:buildId", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		job, err := service.GetJob(c.Request.Context(), c.Param("buildId"))
+		if errors.Is(err, buildstore.ErrNotFound) {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
+			return
+		}
+		if err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, toBuildJobDetail(job))
+	})
 	group.POST(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
 		var request openapigen.PostBuildJobJSONRequestBody
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -79,4 +105,22 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
 	})
 	return nil
+}
+
+func buildListQuery(c *gin.Context) (int, int, bool) {
+	limit, offset := 20, 0
+	var err error
+	if raw := c.Query("limit"); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit < 1 || limit > 100 {
+			return 0, 0, false
+		}
+	}
+	if raw := c.Query("offset"); raw != "" {
+		offset, err = strconv.Atoi(raw)
+		if err != nil || offset < 0 {
+			return 0, 0, false
+		}
+	}
+	return limit, offset, true
 }

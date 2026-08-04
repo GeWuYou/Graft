@@ -3094,10 +3094,28 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /** List Build-owned job projections */
+    get: operations['getBuildJobs'];
     put?: never;
     /** Submit a Dockerfile build Task for an authorized Application */
     post: operations['postBuildJob'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/jobs/{buildId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a Build-owned job projection */
+    get: operations['getBuildJob'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -8908,6 +8926,41 @@ export interface components {
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
     };
+    'build-artifact': {
+      artifact_id: string;
+      image_id: string;
+      digest?: string;
+      repository: string;
+      tag: string;
+      /** Format: int64 */
+      size_bytes?: number;
+      platform?: string;
+    };
+    'build-job-summary': {
+      build_id: string;
+      /** Format: int64 */
+      task_id: number;
+      /** Format: int64 */
+      application_id: number;
+      application_name: string;
+      context_path: string;
+      dockerfile_path: string;
+      image_repository: string;
+      image_tag: string;
+      /** Format: date-time */
+      created_at: string;
+      artifact?: components['schemas']['build-artifact'];
+    };
+    'build-job-list': {
+      items: components['schemas']['build-job-summary'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-build-job-list': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-job-list'];
+    };
     'build-job-create-request': {
       /** Format: int64 */
       application_id: number;
@@ -8919,6 +8972,16 @@ export interface components {
         name: string;
         value: string;
       }[];
+    };
+    'build-job-detail': components['schemas']['build-job-summary'] & {
+      runtime_provider: string;
+      build_args: {
+        name: string;
+        value: string;
+      }[];
+    };
+    'enveloped-build-job-detail': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-job-detail'];
     };
     'docker-image-pull-request': {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
@@ -19831,6 +19894,40 @@ export interface operations {
       };
     };
   };
+  getBuildJobs: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build job projection page. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-job-list'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postBuildJob: {
     parameters: {
       query?: never;
@@ -19866,6 +19963,46 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Idempotency-Key was previously used with different build input. */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildJob: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        buildId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build job projection including its settled primary artifact when available. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-job-detail'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Build job was not found. */
+      404: {
         headers: {
           [name: string]: unknown;
         };

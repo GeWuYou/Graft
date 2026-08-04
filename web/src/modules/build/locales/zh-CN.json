@@ -2,10 +2,28 @@
   "build": {
     "jobs": {
       "title": "构建任务",
-      "placeholder": "构建任务历史将在此显示。",
+      "description": "提交并查看 Dockerfile 构建任务。",
+      "refresh": "刷新",
+      "empty": "暂无构建任务。",
+      "loadFailed": "无法加载构建任务。",
+      "columns": {
+        "build": "构建",
+        "application": "应用",
+        "image": "镜像",
+        "artifact": "产物",
+        "createdAt": "创建时间"
+      },
+      "detail": { "title": "构建任务", "summary": "冻结快照", "artifact": "构建产物", "noArtifact": "尚无已结算产物" },
       "create": {
         "title": "创建构建任务",
-        "placeholder": "构建配置将在此提供。"
+        "submit": "提交构建",
+        "submitted": "构建任务已提交。",
+        "submitFailed": "无法提交构建任务。",
+        "applicationId": "应用 ID",
+        "contextPath": "构建上下文路径",
+        "dockerfilePath": "Dockerfile 路径",
+        "repository": "镜像仓库",
+        "tag": "镜像标签"
       }
     }
   }

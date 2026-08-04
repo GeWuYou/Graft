@@ -30,6 +30,12 @@ func (r *recordingBuildRepository) SettleDockerArtifact(_ context.Context, taskI
 	r.settledID = taskID
 	return nil
 }
+func (*recordingBuildRepository) ListJobs(context.Context, int, int) (buildstore.ListResult, error) {
+	return buildstore.ListResult{}, nil
+}
+func (*recordingBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
+	return buildstore.JobProjection{}, buildstore.ErrNotFound
+}
 
 type recordingBuildContexts struct{ calls int }
 

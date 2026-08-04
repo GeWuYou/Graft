@@ -8092,6 +8092,17 @@ type BootstrapResponse struct {
 	User               LoginUser       `json:"user"`
 }
 
+// BuildArtifact defines model for build-artifact.
+type BuildArtifact struct {
+	ArtifactId string  `json:"artifact_id"`
+	Digest     *string `json:"digest,omitempty"`
+	ImageId    string  `json:"image_id"`
+	Platform   *string `json:"platform,omitempty"`
+	Repository string  `json:"repository"`
+	SizeBytes  *int64  `json:"size_bytes,omitempty"`
+	Tag        string  `json:"tag"`
+}
+
 // BuildJobCreateRequest defines model for build-job-create-request.
 type BuildJobCreateRequest struct {
 	ApplicationId int64 `json:"application_id"`
@@ -8103,6 +8114,47 @@ type BuildJobCreateRequest struct {
 	DockerfilePath  string `json:"dockerfile_path"`
 	ImageRepository string `json:"image_repository"`
 	ImageTag        string `json:"image_tag"`
+}
+
+// BuildJobDetail defines model for build-job-detail.
+type BuildJobDetail struct {
+	ApplicationId   int64          `json:"application_id"`
+	ApplicationName string         `json:"application_name"`
+	Artifact        *BuildArtifact `json:"artifact,omitempty"`
+	BuildArgs       []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"build_args"`
+	BuildId         string    `json:"build_id"`
+	ContextPath     string    `json:"context_path"`
+	CreatedAt       time.Time `json:"created_at"`
+	DockerfilePath  string    `json:"dockerfile_path"`
+	ImageRepository string    `json:"image_repository"`
+	ImageTag        string    `json:"image_tag"`
+	RuntimeProvider string    `json:"runtime_provider"`
+	TaskId          int64     `json:"task_id"`
+}
+
+// BuildJobList defines model for build-job-list.
+type BuildJobList struct {
+	Items  []BuildJobSummary `json:"items"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int64             `json:"total"`
+}
+
+// BuildJobSummary defines model for build-job-summary.
+type BuildJobSummary struct {
+	ApplicationId   int64          `json:"application_id"`
+	ApplicationName string         `json:"application_name"`
+	Artifact        *BuildArtifact `json:"artifact,omitempty"`
+	BuildId         string         `json:"build_id"`
+	ContextPath     string         `json:"context_path"`
+	CreatedAt       time.Time      `json:"created_at"`
+	DockerfilePath  string         `json:"dockerfile_path"`
+	ImageRepository string         `json:"image_repository"`
+	ImageTag        string         `json:"image_tag"`
+	TaskId          int64          `json:"task_id"`
 }
 
 // ChangePasswordRequest defines model for change-password-request.
@@ -10249,6 +10301,46 @@ type EnvelopedBootstrapResponse struct {
 	// Code Existing canonical response code.
 	Code string            `json:"code"`
 	Data BootstrapResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
+type EnvelopedBuildJobDetail struct {
+	// Code Existing canonical response code.
+	Code string         `json:"code"`
+	Data BuildJobDetail `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedBuildJobList defines model for enveloped-build-job-list.
+type EnvelopedBuildJobList struct {
+	// Code Existing canonical response code.
+	Code string       `json:"code"`
+	Data BuildJobList `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -15315,9 +15407,32 @@ type PostAuthSessionRevokeParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetBuildJobsParams defines parameters for GetBuildJobs.
+type GetBuildJobsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostBuildJobParams defines parameters for PostBuildJob.
 type PostBuildJobParams struct {
 	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// GetBuildJobParams defines parameters for GetBuildJob.
+type GetBuildJobParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
 // GetDashboardSummaryParams defines parameters for GetDashboardSummary.

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
@@ -30,11 +31,121 @@ type JobSnapshot struct {
 	RequestedBy     uint64
 }
 
+// Artifact 是 Build 作业完成后由 Docker 结果结算的只读产物证据。
+type Artifact struct {
+	ArtifactID, ImageID, Digest, Repository, Tag, Platform string
+	SizeBytes                                              int64
+}
+
+// JobProjection 是 API 消费的 Build-owned 快照投影，不包含 Project 或 Container 内部数据。
+type JobProjection struct {
+	JobSnapshot
+	CreatedAt time.Time
+	Artifact  *Artifact
+}
+
+// ListResult 保存 Build 作业分页投影。
+type ListResult struct {
+	Items []JobProjection
+	Total int64
+}
+
+const (
+	defaultListLimit = 20
+	maxListLimit     = 100
+)
+
 // Repository 是提交与执行器路径使用的窄 Build 持久化边界。
 type Repository interface {
 	CreateJob(context.Context, JobSnapshot) error
 	GetJobByTaskID(context.Context, uint64) (JobSnapshot, error)
 	SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error
+	ListJobs(context.Context, int, int) (ListResult, error)
+	GetJobByBuildID(context.Context, string) (JobProjection, error)
+}
+
+// ListJobs 读取 Build 域自己的作业与已结算 artifact，不联结 Task、Project 或 Container 内部表。
+func (r *SQLRepository) ListJobs(ctx context.Context, limit, offset int) (result ListResult, err error) {
+	if r == nil || r.db == nil {
+		return result, errors.New("build repository is unavailable")
+	}
+	limit, offset = normalizedPagination(limit, offset)
+	if result.Total, err = r.countJobs(ctx); err != nil {
+		return result, err
+	}
+	result.Items, err = r.listJobProjections(ctx, limit, offset)
+	return result, err
+}
+
+func normalizedPagination(limit, offset int) (int, int) {
+	if limit < 1 {
+		limit = defaultListLimit
+	} else if limit > maxListLimit {
+		limit = maxListLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
+}
+
+func (r *SQLRepository) countJobs(ctx context.Context) (int64, error) {
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_jobs`).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count build jobs: %w", err)
+	}
+	return total, nil
+}
+
+func (r *SQLRepository) listJobProjections(ctx context.Context, limit, offset int) (items []JobProjection, err error) {
+	rows, err := r.db.QueryContext(ctx, jobProjectionQuery+` ORDER BY j.created_at DESC, j.id DESC LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list build jobs: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close build job rows: %w", closeErr)
+		}
+	}()
+	for rows.Next() {
+		item, scanErr := scanJobProjection(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate build jobs: %w", err)
+	}
+	return items, nil
+}
+
+// GetJobByBuildID 读取一个 Build-owned job projection。
+func (r *SQLRepository) GetJobByBuildID(ctx context.Context, buildID string) (JobProjection, error) {
+	row := r.db.QueryRowContext(ctx, jobProjectionQuery+` WHERE j.build_id = $1`, buildID)
+	item, err := scanJobProjection(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return JobProjection{}, ErrNotFound
+	}
+	return item, err
+}
+
+const jobProjectionQuery = `SELECT j.build_id, j.task_id, j.application_id, j.application_name_snapshot, j.workspace_context_path, j.workspace_root, j.dockerfile_path, j.runtime_target_id, j.runtime_provider, j.image_repository, j.image_tag, COALESCE(j.created_by, 0), j.created_at, a.artifact_id, a.image_id, COALESCE(a.digest, ''), a.repository, a.tag, a.size_bytes, CONCAT_WS('/', NULLIF(a.os, ''), NULLIF(a.architecture, '')) FROM build_jobs j LEFT JOIN build_artifacts a ON a.build_job_id = j.id AND a.role = 'primary'`
+
+type rowScanner interface{ Scan(...any) error }
+
+func scanJobProjection(row rowScanner) (JobProjection, error) {
+	var item JobProjection
+	var artifactID, imageID, digest, repository, tag, platform sql.NullString
+	var size sql.NullInt64
+	err := row.Scan(&item.BuildID, &item.TaskID, &item.ApplicationID, &item.ApplicationName, &item.ContextPath, &item.WorkspaceRoot, &item.DockerfilePath, &item.RuntimeTargetID, &item.RuntimeProvider, &item.ImageRepository, &item.ImageTag, &item.RequestedBy, &item.CreatedAt, &artifactID, &imageID, &digest, &repository, &tag, &size, &platform)
+	if err != nil {
+		return JobProjection{}, err
+	}
+	if artifactID.Valid {
+		item.Artifact = &Artifact{ArtifactID: artifactID.String, ImageID: imageID.String, Digest: digest.String, Repository: repository.String, Tag: tag.String, SizeBytes: size.Int64, Platform: platform.String}
+	}
+	return item, nil
 }
 
 // SQLRepository 持久化 Build 事实而不拥有 Task 执行状态。

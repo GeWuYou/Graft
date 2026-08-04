@@ -46,6 +46,12 @@ func (testBuildRepository) GetJobByTaskID(context.Context, uint64) (buildstore.J
 func (testBuildRepository) SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error {
 	return nil
 }
+func (testBuildRepository) ListJobs(context.Context, int, int) (buildstore.ListResult, error) {
+	return buildstore.ListResult{}, nil
+}
+func (testBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
+	return buildstore.JobProjection{}, buildstore.ErrNotFound
+}
 
 type testBuildRegistrar struct{}
 

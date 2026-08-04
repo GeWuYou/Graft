@@ -1,0 +1,15 @@
+allOf:
+  - $ref: ./build-job-summary.yaml
+  - type: object
+    required: [runtime_provider, build_args]
+    properties:
+      runtime_provider: { type: string }
+      build_args:
+        type: array
+        items:
+          type: object
+          required: [name, value]
+          properties:
+            name: { type: string }
+            value: { type: string }
+          additionalProperties: false

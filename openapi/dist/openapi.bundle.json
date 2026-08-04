@@ -16061,6 +16061,66 @@
       }
     },
     "/api/build/jobs": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildJobs",
+        "summary": "List Build-owned job projections",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Build job projection page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-job-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
       "post": {
         "tags": [
           "build"
@@ -16111,6 +16171,62 @@
           },
           "409": {
             "description": "Idempotency-Key was previously used with different build input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/jobs/{buildId}": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildJob",
+        "summary": "Read a Build-owned job projection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "buildId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Build job projection including its settled primary artifact when available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-job-detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Build job was not found."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -35839,6 +35955,142 @@
           }
         ]
       },
+      "build-artifact": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "image_id",
+          "repository",
+          "tag"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "digest": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "platform": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-job-summary": {
+        "type": "object",
+        "required": [
+          "build_id",
+          "task_id",
+          "application_id",
+          "application_name",
+          "context_path",
+          "dockerfile_path",
+          "image_repository",
+          "image_tag",
+          "created_at"
+        ],
+        "properties": {
+          "build_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "application_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "application_name": {
+            "type": "string"
+          },
+          "context_path": {
+            "type": "string"
+          },
+          "dockerfile_path": {
+            "type": "string"
+          },
+          "image_repository": {
+            "type": "string"
+          },
+          "image_tag": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/build-artifact"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-job-list": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-job-summary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-build-job-list": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-job-list"
+              }
+            }
+          }
+        ]
+      },
       "build-job-create-request": {
         "type": "object",
         "required": [
@@ -35899,6 +36151,62 @@
           }
         },
         "additionalProperties": false
+      },
+      "build-job-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/build-job-summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "runtime_provider",
+              "build_args"
+            ],
+            "properties": {
+              "runtime_provider": {
+                "type": "string"
+              },
+              "build_args": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "value"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-build-job-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-job-detail"
+              }
+            }
+          }
+        ]
       },
       "docker-image-pull-request": {
         "type": "object",

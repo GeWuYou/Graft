@@ -29,6 +29,13 @@
 
 ## Locked Decisions
 
+## 2026-08-01 Read API And Web Workflow Recovery
+
+- The initial worker completed the Build-owned read contracts, generated projections, module read projection, and standalone Build Jobs UI, but completion validation found only Build-scope lint/style issues.
+- Controller preserved `phase-1-build-read-api-and-web-workflow` and its uncommitted diff. The authorized repair scope is limited to `server/modules/build/store/store.go`, `server/modules/build/mapper_http.go`, and the two Build page SFCs.
+- The authorized repair passed focused Build tests, backend lint, `bun run check`, OpenAPI validation, and diff checks. Full backend validation plus the SQL migration validator then found that Build's `202608010001` and `202608010002` live migration versions duplicate Update-module default-chain versions. The controller preserved the batch and requires separate authorization to allocate globally unique Build migration versions and refresh dependent metadata.
+- The authorized migration recovery renamed the Build migrations to `202608040003` and `202608040004`, refreshed `atlas.sum` and the embedded module registry, and passed `python3 scripts/validate_sql_migrations.py`, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `just openapi-check`, and `git diff --check`. The Phase 1 read API and Build Jobs workflow is accepted and recorded in its scoped commit.
+
 - Canonical route: `/build/jobs`.
 - No changes to Application deployment lifecycle.
 - No compatibility adapter before repairing the actual authority.
@@ -38,11 +45,11 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration", "phase-1-build-execution-foundation"],
-  "pending_batches": ["phase-1-build-read-api-and-web-workflow"],
-  "current_batch": "phase-1-build-read-api-and-web-workflow",
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration", "phase-1-build-execution-foundation", "phase-1-build-read-api-and-web-workflow"],
+  "pending_batches": [],
+  "current_batch": null,
   "next_batch": null,
-  "closeout_status": "active",
+  "closeout_status": "phase-1-accepted",
   "stop_reason": null
 }
 ```

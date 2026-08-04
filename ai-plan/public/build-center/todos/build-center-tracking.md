@@ -43,8 +43,7 @@ closeout:
 ## Current Recovery Point
 
 - `phase-1-build-execution-foundation` is complete in `e6d0f5c4` after one controller-managed recovery repair.
-- The accepted scope freezes the Project-authorized workspace/source/runtime context onto Build jobs, makes the Task executor consume that persisted Build-owned snapshot without a request actor, and settles Docker image evidence onto Build artifacts.
-- Remaining Phase 1 scope is deliberately separate: Build-owned read API contracts and the Build Jobs web workflow. It must not create independent Task execution/log/realtime authority or expose Container/Project internals.
+- `phase-1-build-read-api-and-web-workflow` is accepted after the authorized migration repair assigned Build versions `202608040003` and `202608040004`, refreshed Atlas and embedded-registry artifacts, and passed the full cross-boundary validation chain.
 
 ## Task Checklist
 
@@ -53,7 +52,7 @@ closeout:
 - [x] Add Build module descriptor, permissions/menu skeleton, and foundation migration.
 - [x] Add Build module to the canonical generated registry and validate migration/dependency/permission/menu registration.
 - [x] Add Build-owned frozen snapshot, Docker executor runtime identity repair, artifact settlement, and module-owned persistence.
-- [ ] Add Build read API contracts and Build Jobs list/create/detail web workflow.
+- [x] Add Build read API contracts and Build Jobs list/create/detail web workflow.
 
 ## Acceptance Conditions
 
@@ -67,16 +66,16 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration", "phase-1-build-execution-foundation"],
-  "pending_batches": ["phase-1-build-read-api-and-web-workflow"],
-  "current_batch": "phase-1-build-read-api-and-web-workflow",
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration", "phase-1-build-execution-foundation", "phase-1-build-read-api-and-web-workflow"],
+  "pending_batches": [],
+  "current_batch": null,
   "next_batch": null,
-  "closeout_status": "active",
+  "closeout_status": "phase-1-accepted",
   "stop_reason": null,
   "recovery": {
-    "status": "complete",
+    "status": "none",
     "resume_target": null,
-    "repair_authority": "explicitly approved and consumed",
+    "repair_authority": "Build live migration chain",
     "repair_eligible": false
   }
 }

@@ -39,6 +39,25 @@ type Service struct {
 	repository buildstore.Repository
 }
 
+// ListJobs returns a bounded Build-owned job page.
+func (s *Service) ListJobs(ctx context.Context, limit, offset int) (buildstore.ListResult, error) {
+	if s == nil || s.repository == nil {
+		return buildstore.ListResult{}, errors.New("build service is unavailable")
+	}
+	return s.repository.ListJobs(ctx, limit, offset)
+}
+
+// GetJob returns the Build-owned detail projection for one public build ID.
+func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobProjection, error) {
+	if s == nil || s.repository == nil {
+		return buildstore.JobProjection{}, errors.New("build service is unavailable")
+	}
+	if strings.TrimSpace(buildID) == "" {
+		return buildstore.JobProjection{}, errors.New("build id is required")
+	}
+	return s.repository.GetJobByBuildID(ctx, buildID)
+}
+
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
 func NewService(contexts moduleapi.ApplicationBuildContextResolver, tasks moduleapi.TaskService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
 	if contexts == nil || tasks == nil || docker == nil || repository == nil {

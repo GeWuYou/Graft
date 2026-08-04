@@ -2,10 +2,33 @@
   "build": {
     "jobs": {
       "title": "Build Jobs",
-      "placeholder": "Build job history will appear here.",
+      "description": "Submit and inspect Dockerfile build jobs.",
+      "refresh": "Refresh",
+      "empty": "No build jobs yet.",
+      "loadFailed": "Unable to load build jobs.",
+      "columns": {
+        "build": "Build",
+        "application": "Application",
+        "image": "Image",
+        "artifact": "Artifact",
+        "createdAt": "Created"
+      },
+      "detail": {
+        "title": "Build job",
+        "summary": "Snapshot",
+        "artifact": "Artifact",
+        "noArtifact": "No settled artifact"
+      },
       "create": {
         "title": "Create Build Job",
-        "placeholder": "Build configuration will be available here."
+        "submit": "Submit build",
+        "submitted": "Build job submitted.",
+        "submitFailed": "Unable to submit build job.",
+        "applicationId": "Application ID",
+        "contextPath": "Build context path",
+        "dockerfilePath": "Dockerfile path",
+        "repository": "Image repository",
+        "tag": "Image tag"
       }
     }
   }

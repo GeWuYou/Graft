@@ -393,6 +393,8 @@ paths:
     $ref: ./paths/docker-images.saved-view.yaml
   /api/build/jobs:
     $ref: ./paths/build-jobs.collection.yaml
+  /api/build/jobs/{buildId}:
+    $ref: ./paths/build-jobs.detail.yaml
   /api/ops/docker/images/pull:
     $ref: ./paths/ops-docker-images.pull.yaml
   /api/ops/docker/images/{id}:
