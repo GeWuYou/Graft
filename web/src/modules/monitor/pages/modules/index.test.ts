@@ -671,6 +671,12 @@ describe('monitor module runtime page', () => {
       health: 'degraded',
       module_key: 'monitor',
     });
+    snapshot.items.push({
+      ...snapshot.items[0],
+      enabled: true,
+      module_key: 'unregistered',
+      registered: false,
+    });
     moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(snapshot);
     moduleRuntimeApiMocks.getModuleRuntimeDetail.mockResolvedValue(snapshot.items[0]);
 
@@ -678,7 +684,7 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     const cards = wrapper.findAll('.module-runtime-card');
-    expect(cards).toHaveLength(3);
+    expect(cards).toHaveLength(4);
     expect(cards[0].text()).toContain('audit');
     expect(cards[0].text()).toContain('Normal');
     expect(cards[0].text()).toContain('Status details');
@@ -692,6 +698,11 @@ describe('monitor module runtime page', () => {
     expect(cards[0].text()).toContain('Config');
     expect(cards[1].text()).toContain('Unavailable');
     expect(cards[2].text()).toContain('Abnormal');
+    expect(cards[0].attributes('role')).toBe('button');
+    expect(cards[0].attributes('tabindex')).toBe('0');
+    expect(cards[0].find('button').exists()).toBe(false);
+    expect(cards[1].find('.monitor-status-tag--disabled').exists()).toBe(true);
+    expect(cards[3].find('.monitor-status-tag--error').exists()).toBe(true);
     expect(wrapper.find('[data-table-columns]').exists()).toBe(false);
     expect(wrapper.find('button[aria-label="More actions"]').exists()).toBe(true);
     expect(wrapper.find('.responsive-toolbar').exists()).toBe(false);

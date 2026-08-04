@@ -73,6 +73,7 @@
                 :key="row.module_key"
                 class="module-runtime-card"
                 :aria-label="t('monitor.moduleRuntime.detail.titleWithKey', { key: row.module_key })"
+                role="button"
                 tabindex="0"
                 @click="openDetail(row)"
                 @keydown.enter.prevent="openDetail(row)"
@@ -136,9 +137,9 @@
                 </section>
 
                 <footer class="module-runtime-card__actions">
-                  <t-button theme="primary" variant="text" @click.stop="openDetail(row)">
+                  <span class="module-runtime-card__detail-affordance" aria-hidden="true">
                     {{ t('monitor.moduleRuntime.actions.detail') }} &gt;
-                  </t-button>
+                  </span>
                 </footer>
               </article>
             </responsive-card-list>
@@ -909,7 +910,11 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
 }
 
 function overallStatus(item: ModuleRuntimeItem): { label: string; tone: ServerStatusTone } {
-  if (!item.enabled || !item.registered) {
+  if (!item.enabled) {
+    return { label: t('monitor.moduleRuntime.mobile.overall.unavailable'), tone: 'disabled' };
+  }
+
+  if (!item.registered) {
     return { label: t('monitor.moduleRuntime.mobile.overall.unavailable'), tone: 'error' };
   }
 
@@ -973,6 +978,13 @@ function toggleTableDensity() {
 
 .module-runtime-card:focus-visible {
   box-shadow: 0 0 0 2px var(--td-brand-color-focus);
+}
+
+@media (forced-colors: active) {
+  .module-runtime-card:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
 }
 
 .module-runtime-card__header,
@@ -1058,6 +1070,11 @@ function toggleTableDensity() {
   justify-content: flex-end;
   margin-top: calc(-1 * var(--graft-density-gap-2));
   padding-top: var(--graft-density-gap-10);
+}
+
+.module-runtime-card__detail-affordance {
+  color: var(--td-brand-color);
+  font: var(--td-font-body-medium);
 }
 
 .module-runtime-table__note {
@@ -1331,10 +1348,6 @@ function toggleTableDensity() {
 
   .module-runtime-summary-card__description--mobile {
     display: inline;
-  }
-
-  .module-runtime-card__actions :deep(.t-button) {
-    min-height: 44px;
   }
 
   .module-runtime-card-list--small .module-runtime-card {
