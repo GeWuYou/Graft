@@ -3416,24 +3416,6 @@ func (e PlatformDeploymentStrategy) Valid() bool {
 	}
 }
 
-// Defines values for PlatformNetworkDiagnosticResultStatus.
-const (
-	PlatformNetworkDiagnosticResultStatusConnected PlatformNetworkDiagnosticResultStatus = "connected"
-	PlatformNetworkDiagnosticResultStatusFailed    PlatformNetworkDiagnosticResultStatus = "failed"
-)
-
-// Valid indicates whether the value is a known member of the PlatformNetworkDiagnosticResultStatus enum.
-func (e PlatformNetworkDiagnosticResultStatus) Valid() bool {
-	switch e {
-	case PlatformNetworkDiagnosticResultStatusConnected:
-		return true
-	case PlatformNetworkDiagnosticResultStatusFailed:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PlatformNetworkOutboundPolicySource.
 const (
 	PlatformNetworkOutboundPolicySourceDefault  PlatformNetworkOutboundPolicySource = "default"
@@ -4855,19 +4837,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case RestartRequired:
+	case SystemConfigItemRuntimeApplyModeRestartRequired:
 		return true
-	case RuntimeHot:
+	case SystemConfigItemRuntimeApplyModeRuntimeHot:
 		return true
-	case Unknown:
+	case SystemConfigItemRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -10832,28 +10814,6 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedPlatformNetworkDiagnosticHistory defines model for enveloped-platform-network-diagnostic-history.
-type EnvelopedPlatformNetworkDiagnosticHistory struct {
-	Code string `json:"code"`
-
-	// Data Bounded persisted diagnostic history for one fixed registered outbound-network target.
-	Data    PlatformNetworkDiagnosticHistory `json:"data"`
-	Message string                           `json:"message"`
-	Success bool                             `json:"success"`
-	TraceId string                           `json:"traceId"`
-}
-
-// EnvelopedPlatformNetworkDiagnosticResult defines model for enveloped-platform-network-diagnostic-result.
-type EnvelopedPlatformNetworkDiagnosticResult struct {
-	Code string `json:"code"`
-
-	// Data Sanitized evidence from one bounded outbound-network diagnostic execution.
-	Data    PlatformNetworkDiagnosticResult `json:"data"`
-	Message string                          `json:"message"`
-	Success bool                            `json:"success"`
-	TraceId string                          `json:"traceId"`
-}
-
 // EnvelopedPlatformNetworkOverview defines model for enveloped-platform-network-overview.
 type EnvelopedPlatformNetworkOverview struct {
 	Code    string                  `json:"code"`
@@ -12024,32 +11984,6 @@ type PlatformNetworkConsumer struct {
 	Id       string `json:"id"`
 	TitleKey string `json:"title_key"`
 }
-
-// PlatformNetworkDiagnosticHistory Bounded persisted diagnostic history for one fixed registered outbound-network target.
-type PlatformNetworkDiagnosticHistory struct {
-	Items    []PlatformNetworkDiagnosticResult `json:"items"`
-	TargetId string                            `json:"target_id"`
-}
-
-// PlatformNetworkDiagnosticResult Sanitized evidence from one bounded outbound-network diagnostic execution.
-type PlatformNetworkDiagnosticResult struct {
-	// Error Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies.
-	Error *string `json:"error,omitempty"`
-
-	// HttpStatus Upstream HTTP status when a response was received.
-	HttpStatus *int `json:"http_status,omitempty"`
-
-	// LatencyMs Measured request latency when a response or transport result was obtained.
-	LatencyMs *int64                                `json:"latency_ms,omitempty"`
-	Status    PlatformNetworkDiagnosticResultStatus `json:"status"`
-	TargetId  string                                `json:"target_id"`
-
-	// TestedAt UTC completion time for this diagnostic execution.
-	TestedAt time.Time `json:"tested_at"`
-}
-
-// PlatformNetworkDiagnosticResultStatus defines model for PlatformNetworkDiagnosticResult.Status.
-type PlatformNetworkDiagnosticResultStatus string
 
 // PlatformNetworkDiagnosticTarget A fixed, module-registered outbound-network diagnostic target. It never accepts a caller-supplied URL.
 type PlatformNetworkDiagnosticTarget struct {
@@ -16206,6 +16140,11 @@ type GetPlatformBackupParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformConnectivityHistoryParams defines parameters for GetPlatformConnectivityHistory.
+type GetPlatformConnectivityHistoryParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetPlatformNetworkOutboundParams defines parameters for GetPlatformNetworkOutbound.
 type GetPlatformNetworkOutboundParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -16227,28 +16166,6 @@ type PutPlatformNetworkOutboundParams struct {
 
 	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
 	IfMatch IfMatchHeader `json:"If-Match"`
-}
-
-// PostPlatformNetworkDiagnosticParams defines parameters for PostPlatformNetworkDiagnostic.
-type PostPlatformNetworkDiagnosticParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetPlatformNetworkDiagnosticHistoryParams defines parameters for GetPlatformNetworkDiagnosticHistory.
-type GetPlatformNetworkDiagnosticHistoryParams struct {
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
 // ResetPlatformNetworkOutboundParams defines parameters for ResetPlatformNetworkOutbound.

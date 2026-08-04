@@ -10,3 +10,7 @@ rbac.permissionCatalog.platform-network.write.display: Manage Outbound Network P
 rbac.permissionCatalog.platform-network.write.description: Allows changing and resetting the platform outbound network policy.
 rbac.permissionCatalog.platform-network.diagnose.display: Test Outbound Network Connectivity
 rbac.permissionCatalog.platform-network.diagnose.description: Allows testing a fixed registered outbound network diagnostic target.
+rbac.permissionCatalog.platform-network.targets.manage.display: Manage Connectivity Targets
+rbac.permissionCatalog.platform-network.targets.manage.description: Reserved for custom connectivity target management protected by SSRF policy.
+rbac.permissionCatalog.platform-network.exit-ip.read.display: View Full Exit IP
+rbac.permissionCatalog.platform-network.exit-ip.read.description: Reserved for audited live exit-IP disclosure; history reports always remain masked.

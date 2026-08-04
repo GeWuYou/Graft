@@ -9440,26 +9440,116 @@
         }
       }
     },
-    "/api/platform/network/outbound/diagnostics/{targetId}": {
+    "/api/platform/network/connectivity/targets": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "List registered platform connectivity targets",
+        "operationId": "getPlatformConnectivityTargets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry descriptors without network destinations or secrets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/latest": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read latest batch connectivity checks",
+        "operationId": "getPlatformConnectivityLatest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest check per registered target, with status, latency, and completion time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/aggregate": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read platform connectivity aggregate health",
+        "operationId": "getPlatformConnectivityAggregate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate over the current latest checks only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/run": {
       "post": {
         "tags": [
           "platform-network"
         ],
-        "summary": "Execute one fixed platform outbound-network diagnostic target",
-        "operationId": "postPlatformNetworkDiagnostic",
-        "description": "The target is module-registered. The endpoint accepts no URL, host, DNS name, or other caller-controlled network destination.",
+        "summary": "Run connectivity diagnostics for one target",
+        "operationId": "postPlatformConnectivityRun",
+        "description": "The URL identifies the target. It never accepts a caller-provided network destination.",
         "security": [
           {
             "bearerAuth": []
           }
         ],
         "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
           {
             "name": "targetId",
             "in": "path",
@@ -9473,16 +9563,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Sanitized diagnostic result.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Sanitized persisted report and check projection.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-result"
+                  "type": "object"
                 }
               }
             }
@@ -9494,42 +9579,24 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Diagnostic target not registered.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "description": "Target not registered."
           }
         }
       }
     },
-    "/api/platform/network/outbound/diagnostics/{targetId}/history": {
+    "/api/platform/network/connectivity/{targetId}/history": {
       "get": {
         "tags": [
           "platform-network"
         ],
-        "summary": "Read bounded persisted history for one fixed outbound-network diagnostic target",
-        "operationId": "getPlatformNetworkDiagnosticHistory",
+        "summary": "Read one target's connectivity history",
+        "operationId": "getPlatformConnectivityHistory",
         "security": [
           {
             "bearerAuth": []
           }
         ],
         "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
           {
             "name": "targetId",
             "in": "path",
@@ -9543,7 +9610,6 @@
           {
             "name": "limit",
             "in": "query",
-            "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -9554,31 +9620,67 @@
         ],
         "responses": {
           "200": {
-            "description": "Recent sanitized diagnostic results in descending completion order.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Bounded history for the named target.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
+                  "type": "object"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid diagnostic history limit.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Invalid limit."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read one sanitized connectivity report",
+        "operationId": "getPlatformConnectivityReport",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Versioned report with extensible probes, route explanation, and only a masked exit IP.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/error-response"
+                  "type": "object"
                 }
               }
             }
@@ -9590,19 +9692,113 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Diagnostic target not registered.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Target or report not found."
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}/trace": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read sanitized connectivity probe trace",
+        "operationId": "getPlatformConnectivityTrace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered sanitized ProbeResult projection.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/error-response"
+                  "type": "object"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}/export": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Export one sanitized connectivity report",
+        "operationId": "getPlatformConnectivityExport",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized report JSON. Full exit IPs are never exported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           }
         }
       }
@@ -29314,125 +29510,6 @@
           }
         }
       },
-      "platform-network-diagnostic-result": {
-        "type": "object",
-        "description": "Sanitized evidence from one bounded outbound-network diagnostic execution.",
-        "required": [
-          "target_id",
-          "status",
-          "tested_at"
-        ],
-        "properties": {
-          "target_id": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "connected",
-              "failed"
-            ]
-          },
-          "latency_ms": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 0,
-            "description": "Measured request latency when a response or transport result was obtained."
-          },
-          "http_status": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599,
-            "description": "Upstream HTTP status when a response was received."
-          },
-          "tested_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "UTC completion time for this diagnostic execution."
-          },
-          "error": {
-            "type": "string",
-            "maxLength": 512,
-            "description": "Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies."
-          }
-        }
-      },
-      "enveloped-platform-network-diagnostic-result": {
-        "type": "object",
-        "required": [
-          "success",
-          "code",
-          "message",
-          "traceId",
-          "data"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "traceId": {
-            "type": "string"
-          },
-          "data": {
-            "$ref": "#/components/schemas/platform-network-diagnostic-result"
-          }
-        }
-      },
-      "platform-network-diagnostic-history": {
-        "type": "object",
-        "description": "Bounded persisted diagnostic history for one fixed registered outbound-network target.",
-        "required": [
-          "target_id",
-          "items"
-        ],
-        "properties": {
-          "target_id": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "items": {
-            "type": "array",
-            "maxItems": 100,
-            "items": {
-              "$ref": "#/components/schemas/platform-network-diagnostic-result"
-            }
-          }
-        }
-      },
-      "enveloped-platform-network-diagnostic-history": {
-        "type": "object",
-        "required": [
-          "success",
-          "code",
-          "message",
-          "traceId",
-          "data"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "traceId": {
-            "type": "string"
-          },
-          "data": {
-            "$ref": "#/components/schemas/platform-network-diagnostic-history"
-          }
-        }
-      },
       "platform-deployment-strategy": {
         "type": "string",
         "description": "Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.",
@@ -40146,6 +40223,125 @@
           },
           "confirm_application_id": {
             "$ref": "#/components/schemas/application-id"
+          }
+        }
+      },
+      "platform-network-diagnostic-result": {
+        "type": "object",
+        "description": "Sanitized evidence from one bounded outbound-network diagnostic execution.",
+        "required": [
+          "target_id",
+          "status",
+          "tested_at"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "failed"
+            ]
+          },
+          "latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Measured request latency when a response or transport result was obtained."
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "description": "Upstream HTTP status when a response was received."
+          },
+          "tested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC completion time for this diagnostic execution."
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies."
+          }
+        }
+      },
+      "platform-network-diagnostic-history": {
+        "type": "object",
+        "description": "Bounded persisted diagnostic history for one fixed registered outbound-network target.",
+        "required": [
+          "target_id",
+          "items"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/platform-network-diagnostic-result"
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-diagnostic-result": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-diagnostic-result"
+          }
+        }
+      },
+      "enveloped-platform-network-diagnostic-history": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-diagnostic-history"
           }
         }
       },

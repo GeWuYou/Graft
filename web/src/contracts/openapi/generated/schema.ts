@@ -1651,7 +1651,58 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/platform/network/outbound/diagnostics/{targetId}': {
+  '/api/platform/network/connectivity/targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List registered platform connectivity targets */
+    get: operations['getPlatformConnectivityTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/latest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read latest batch connectivity checks */
+    get: operations['getPlatformConnectivityLatest'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/aggregate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read platform connectivity aggregate health */
+    get: operations['getPlatformConnectivityAggregate'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/run': {
     parameters: {
       query?: never;
       header?: never;
@@ -1661,25 +1712,76 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Execute one fixed platform outbound-network diagnostic target
-     * @description The target is module-registered. The endpoint accepts no URL, host, DNS name, or other caller-controlled network destination.
+     * Run connectivity diagnostics for one target
+     * @description The URL identifies the target. It never accepts a caller-provided network destination.
      */
-    post: operations['postPlatformNetworkDiagnostic'];
+    post: operations['postPlatformConnectivityRun'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/platform/network/outbound/diagnostics/{targetId}/history': {
+  '/api/platform/network/connectivity/{targetId}/history': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Read bounded persisted history for one fixed outbound-network diagnostic target */
-    get: operations['getPlatformNetworkDiagnosticHistory'];
+    /** Read one target's connectivity history */
+    get: operations['getPlatformConnectivityHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read one sanitized connectivity report */
+    get: operations['getPlatformConnectivityReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}/trace': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read sanitized connectivity probe trace */
+    get: operations['getPlatformConnectivityTrace'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export one sanitized connectivity report */
+    get: operations['getPlatformConnectivityExport'];
     put?: never;
     post?: never;
     delete?: never;
@@ -6906,45 +7008,6 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-network-overview'];
     };
-    /** @description Sanitized evidence from one bounded outbound-network diagnostic execution. */
-    'platform-network-diagnostic-result': {
-      target_id: string;
-      /** @enum {string} */
-      status: 'connected' | 'failed';
-      /**
-       * Format: int64
-       * @description Measured request latency when a response or transport result was obtained.
-       */
-      latency_ms?: number;
-      /** @description Upstream HTTP status when a response was received. */
-      http_status?: number;
-      /**
-       * Format: date-time
-       * @description UTC completion time for this diagnostic execution.
-       */
-      tested_at: string;
-      /** @description Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies. */
-      error?: string;
-    };
-    'enveloped-platform-network-diagnostic-result': {
-      success: boolean;
-      code: string;
-      message: string;
-      traceId: string;
-      data: components['schemas']['platform-network-diagnostic-result'];
-    };
-    /** @description Bounded persisted diagnostic history for one fixed registered outbound-network target. */
-    'platform-network-diagnostic-history': {
-      target_id: string;
-      items: components['schemas']['platform-network-diagnostic-result'][];
-    };
-    'enveloped-platform-network-diagnostic-history': {
-      success: boolean;
-      code: string;
-      message: string;
-      traceId: string;
-      data: components['schemas']['platform-network-diagnostic-history'];
-    };
     /**
      * @description Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
      * @enum {string}
@@ -9885,6 +9948,45 @@ export interface components {
       /** @default false */
       delete_workspace: boolean;
       confirm_application_id: components['schemas']['application-id'];
+    };
+    /** @description Sanitized evidence from one bounded outbound-network diagnostic execution. */
+    'platform-network-diagnostic-result': {
+      target_id: string;
+      /** @enum {string} */
+      status: 'connected' | 'failed';
+      /**
+       * Format: int64
+       * @description Measured request latency when a response or transport result was obtained.
+       */
+      latency_ms?: number;
+      /** @description Upstream HTTP status when a response was received. */
+      http_status?: number;
+      /**
+       * Format: date-time
+       * @description UTC completion time for this diagnostic execution.
+       */
+      tested_at: string;
+      /** @description Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies. */
+      error?: string;
+    };
+    /** @description Bounded persisted diagnostic history for one fixed registered outbound-network target. */
+    'platform-network-diagnostic-history': {
+      target_id: string;
+      items: components['schemas']['platform-network-diagnostic-result'][];
+    };
+    'enveloped-platform-network-diagnostic-result': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-diagnostic-result'];
+    };
+    'enveloped-platform-network-diagnostic-history': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-diagnostic-history'];
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -15092,18 +15194,76 @@ export interface operations {
       428: components['responses']['precondition-required'];
     };
   };
-  postPlatformNetworkDiagnostic: {
+  getPlatformConnectivityTargets: {
     parameters: {
       query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry descriptors without network destinations or secrets. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
+        };
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityLatest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Latest check per registered target, with status, latency, and completion time. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityAggregate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Aggregate over the current latest checks only. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postPlatformConnectivityRun: {
+    parameters: {
+      query?: never;
+      header?: never;
       path: {
         targetId: string;
       };
@@ -15111,44 +15271,32 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Sanitized diagnostic result. */
+      /** @description Sanitized persisted report and check projection. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-platform-network-diagnostic-result'];
+          'application/json': Record<string, never>;
         };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Diagnostic target not registered. */
+      /** @description Target not registered. */
       404: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
+        content?: never;
       };
     };
   };
-  getPlatformNetworkDiagnosticHistory: {
+  getPlatformConnectivityHistory: {
     parameters: {
       query?: {
         limit?: number;
       };
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
+      header?: never;
       path: {
         targetId: string;
       };
@@ -15156,38 +15304,106 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Recent sanitized diagnostic results in descending completion order. */
+      /** @description Bounded history for the named target. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-platform-network-diagnostic-history'];
+          'application/json': Record<string, never>;
         };
       };
-      /** @description Invalid diagnostic history limit. */
+      /** @description Invalid limit. */
       400: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Versioned report with extensible probes, route explanation, and only a masked exit IP. */
+      200: {
+        headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['error-response'];
+          'application/json': Record<string, never>;
         };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Diagnostic target not registered. */
+      /** @description Target or report not found. */
       404: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPlatformConnectivityTrace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ordered sanitized ProbeResult projection. */
+      200: {
+        headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['error-response'];
+          'application/json': Record<string, never>;
         };
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized report JSON. Full exit IPs are never exported. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
     };
   };
   getPlatformUpdateStatus: {

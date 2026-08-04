@@ -1,6 +1,7 @@
 package network
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
@@ -45,29 +46,15 @@ func registerNetworkRoutes(ctx *module.Context, service *Service) error {
 	group.GET(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleGet)
 	group.PUT(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handlePut)
 	group.POST(networkcontract.OutboundNetworkResetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handleReset)
-	group.POST(networkcontract.OutboundNetworkDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleDiagnostic)
-	group.GET(networkcontract.OutboundNetworkDiagnosticHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleDiagnosticHistory)
+	group.GET(networkcontract.ConnectivityTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTargets)
+	group.GET(networkcontract.ConnectivityLatestRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityLatest)
+	group.GET(networkcontract.ConnectivityAggregateRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityAggregate)
+	group.POST(networkcontract.ConnectivityRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleConnectivityRun)
+	group.GET(networkcontract.ConnectivityHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityHistory)
+	group.GET(networkcontract.ConnectivityReportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityReport)
+	group.GET(networkcontract.ConnectivityTraceRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTrace)
+	group.GET(networkcontract.ConnectivityExportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityExport)
 	return nil
-}
-
-func (r routeRuntime) handleDiagnosticHistory(ginCtx *gin.Context) {
-	targetName := strings.TrimSpace(ginCtx.Param("targetId"))
-	params, limit, ok := bindDiagnosticHistoryParams(ginCtx)
-	if !ok {
-		r.badRequest(ginCtx)
-		return
-	}
-	networkGeneratedHandler{}.GetPlatformNetworkDiagnosticHistory(targetName, params)
-	items, err := r.service.DiagnosticHistory(ginCtx.Request.Context(), targetName, limit)
-	if err != nil {
-		r.writeError(ginCtx, err)
-		return
-	}
-	results := make([]generated.PlatformNetworkDiagnosticResult, 0, len(items))
-	for _, item := range items {
-		results = append(results, toDiagnosticResult(targetName, item))
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.PlatformNetworkDiagnosticHistory{TargetId: targetName, Items: results})
 }
 
 func (r routeRuntime) handleGet(ginCtx *gin.Context) {
@@ -116,17 +103,6 @@ func (r routeRuntime) handleReset(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toOverview(overview))
 }
 
-func (r routeRuntime) handleDiagnostic(ginCtx *gin.Context) {
-	targetName := strings.TrimSpace(ginCtx.Param("targetId"))
-	networkGeneratedHandler{}.PostPlatformNetworkDiagnostic(targetName, bindDiagnosticParams(ginCtx))
-	result, err := r.service.Diagnose(ginCtx.Request.Context(), targetName)
-	if err != nil {
-		r.writeError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toDiagnosticResult(targetName, result))
-}
-
 func (r routeRuntime) badRequest(ginCtx *gin.Context) {
 	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, errInvalidOutboundPolicy)
 }
@@ -141,6 +117,10 @@ func (r routeRuntime) writeError(ginCtx *gin.Context, err error) {
 	}
 	if errors.Is(err, errDiagnosticTargetNotFound) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "outbound diagnostic target"})
+		return
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "connectivity report"})
 		return
 	}
 	if errors.Is(err, errInvalidOutboundPolicy) {
@@ -197,25 +177,6 @@ func toOverview(value Overview) generated.PlatformNetworkOverview {
 	return generated.PlatformNetworkOverview{Policy: policy, DiagnosticTargets: targets, Consumers: consumers}
 }
 
-func toDiagnosticResult(targetName string, value moduleapi.OutboundDiagnosticResult) generated.PlatformNetworkDiagnosticResult {
-	status := generated.PlatformNetworkDiagnosticResultStatusFailed
-	if value.Connected {
-		status = generated.PlatformNetworkDiagnosticResultStatusConnected
-	}
-	result := generated.PlatformNetworkDiagnosticResult{TargetId: targetName, Status: status, TestedAt: value.TestedAt.UTC()}
-	if value.Latency >= 0 {
-		milliseconds := value.Latency.Milliseconds()
-		result.LatencyMs = &milliseconds
-	}
-	if value.HTTPStatus >= http.StatusContinue && value.HTTPStatus <= 599 {
-		result.HttpStatus = &value.HTTPStatus
-	}
-	if message := strings.TrimSpace(value.Message); message != "" {
-		result.Error = &message
-	}
-	return result
-}
-
 func currentUserID(ginCtx *gin.Context) *uint64 {
 	if ginCtx == nil || ginCtx.Request == nil {
 		return nil
@@ -236,10 +197,6 @@ func (networkGeneratedHandler) PutPlatformNetworkOutbound(generated.PutPlatformN
 }
 func (networkGeneratedHandler) ResetPlatformNetworkOutbound(generated.ResetPlatformNetworkOutboundParams) {
 }
-func (networkGeneratedHandler) PostPlatformNetworkDiagnostic(string, generated.PostPlatformNetworkDiagnosticParams) {
-}
-func (networkGeneratedHandler) GetPlatformNetworkDiagnosticHistory(string, generated.GetPlatformNetworkDiagnosticHistoryParams) {
-}
 
 func bindGetParams(ginCtx *gin.Context) generated.GetPlatformNetworkOutboundParams {
 	locale, requestID := commonHeaders(ginCtx)
@@ -254,26 +211,6 @@ func bindPutParams(ginCtx *gin.Context) generated.PutPlatformNetworkOutboundPara
 func bindResetParams(ginCtx *gin.Context) generated.ResetPlatformNetworkOutboundParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.ResetPlatformNetworkOutboundParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindDiagnosticParams(ginCtx *gin.Context) generated.PostPlatformNetworkDiagnosticParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostPlatformNetworkDiagnosticParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindDiagnosticHistoryParams(ginCtx *gin.Context) (generated.GetPlatformNetworkDiagnosticHistoryParams, int, bool) {
-	locale, requestID := commonHeaders(ginCtx)
-	params := generated.GetPlatformNetworkDiagnosticHistoryParams{XGraftLocale: locale, XRequestId: requestID}
-	limit := 20
-	if raw := strings.TrimSpace(ginCtx.Query("limit")); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 1 || parsed > maxDiagnosticHistoryLimit {
-			return generated.GetPlatformNetworkDiagnosticHistoryParams{}, 0, false
-		}
-		limit = parsed
-		params.Limit = &limit
-	}
-	return params, limit, true
 }
 
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {
