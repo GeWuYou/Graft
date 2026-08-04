@@ -7,6 +7,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	rbaccontract "graft/server/modules/rbac/contract"
 )
@@ -171,9 +172,10 @@ func registerManagementRoutes(
 	reader readManagementService,
 	writer writeManagementService,
 	guards managementGuards,
+	savedViews moduleapi.SavedViewService,
 ) {
-	registerRoleRoutes(ctx, moduleName, reader, writer, guards)
-	registerPermissionRoutes(ctx, moduleName, reader, guards.permissionRead)
+	registerRoleRoutes(ctx, moduleName, reader, writer, guards, savedViews)
+	registerPermissionRoutes(ctx, moduleName, reader, guards.permissionRead, savedViews)
 	registerUserRoleRoutes(ctx, moduleName, reader, writer, guards)
 }
 
@@ -183,10 +185,12 @@ func registerRoleRoutes(
 	reader readManagementService,
 	writer writeManagementService,
 	guards managementGuards,
+	savedViews moduleapi.SavedViewService,
 ) {
 	group := ctx.Router.Group(rbaccontract.RolesGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.RoleCollection, guards.roleRead, handleListRoles(ctx, moduleName, reader))
+	registerRBACSavedViewRoutes(group, ctx, savedViews, guards.roleRead, roleSavedViewDefinition)
 	group.GET(rbaccontract.RoleDetailRoute, guards.roleRead, handleGetRole(ctx, moduleName, reader))
 	group.GET(rbaccontract.RolePermissionBindingRoute, guards.permissionRead, handleListRolePermissionBindings(ctx, moduleName, reader))
 	registerRoleWriteRoutes(group, ctx, moduleName, writer, guards)
@@ -197,10 +201,12 @@ func registerPermissionRoutes(
 	moduleName string,
 	reader readManagementService,
 	authenticated gin.HandlerFunc,
+	savedViews moduleapi.SavedViewService,
 ) {
 	group := ctx.Router.Group(rbaccontract.PermissionsGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.PermissionCollection, authenticated, handleListPermissions(ctx, moduleName, reader))
+	registerRBACSavedViewRoutes(group, ctx, savedViews, authenticated, permissionSavedViewDefinition)
 	group.GET(rbaccontract.PermissionDetailRoute, authenticated, handleGetPermission(ctx, moduleName, reader))
 }
 

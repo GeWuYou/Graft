@@ -12,7 +12,11 @@ import UserPage from './index.vue';
 const userApiMocks = vi.hoisted(() => ({
   createUser: vi.fn(),
   deleteUser: vi.fn(),
+  deleteUserSavedView: vi.fn(),
   getUsers: vi.fn(),
+  getUserSavedViews: vi.fn(),
+  postUserSavedView: vi.fn(),
+  putUserSavedView: vi.fn(),
   resetUserPassword: vi.fn(),
   updateUser: vi.fn(),
   updateUserStatus: vi.fn(),
@@ -38,7 +42,11 @@ const permissionState = vi.hoisted(() => ({
 vi.mock('@/modules/user/api/users', () => ({
   createUser: userApiMocks.createUser,
   deleteUser: userApiMocks.deleteUser,
+  deleteUserSavedView: userApiMocks.deleteUserSavedView,
   getUsers: userApiMocks.getUsers,
+  getUserSavedViews: userApiMocks.getUserSavedViews,
+  postUserSavedView: userApiMocks.postUserSavedView,
+  putUserSavedView: userApiMocks.putUserSavedView,
   resetUserPassword: userApiMocks.resetUserPassword,
   updateUser: userApiMocks.updateUser,
   updateUserStatus: userApiMocks.updateUserStatus,
@@ -720,7 +728,11 @@ describe('UserPage', () => {
     permissionState.grantedCodes = [];
     userApiMocks.createUser.mockReset();
     userApiMocks.deleteUser.mockReset();
+    userApiMocks.deleteUserSavedView.mockReset();
     userApiMocks.getUsers.mockReset();
+    userApiMocks.getUserSavedViews.mockResolvedValue([]);
+    userApiMocks.postUserSavedView.mockReset();
+    userApiMocks.putUserSavedView.mockReset();
     userApiMocks.resetUserPassword.mockReset();
     userApiMocks.updateUser.mockReset();
     userApiMocks.updateUserStatus.mockReset();
@@ -750,6 +762,39 @@ describe('UserPage', () => {
     expect(wrapper.find('.management-statistics-bar').text()).toContain('user.userList.statistics.total');
     expect(wrapper.find('.management-statistics-bar').text()).toContain('🟢');
     expect(wrapper.find('[data-testid="user-detail"]').exists()).toBe(true);
+  });
+
+  it('restores saved user filters, presentation preferences, and the selected view', async () => {
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    userApiMocks.getUserSavedViews.mockResolvedValue([
+      {
+        id: 9,
+        name: 'Disabled editors',
+        page_size: 25,
+        query_state: { keyword: 'alice', role_id: 2, status: 'disabled' },
+        visible_columns: ['user', 'status', 'unknown-column'],
+        is_default: false,
+      },
+    ]);
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    const savedViewControl = wrapper.findComponent({ name: 'SavedQueryViewControl' });
+    const controller = savedViewControl.props('controller') as {
+      select: (id: number) => Promise<boolean>;
+      selectedId: { value: number | undefined };
+    };
+
+    await controller.select(9);
+    await flushPromises();
+
+    const filterBuilder = wrapper.findComponent({ name: 'AdvancedQueryFilterBuilder' });
+    const pagedTable = wrapper.findComponent({ name: 'ManagementPagedTable' });
+    expect(filterBuilder.props('keyword')).toBe('alice');
+    expect(filterBuilder.props('fieldValues')).toMatchObject({ roleId: '2', status: 'disabled' });
+    expect(pagedTable.props('pageSize')).toBe(25);
+    expect(controller.selectedId.value).toBe(9);
+    expect(userApiMocks.getUserSavedViews).toHaveBeenCalledTimes(1);
   });
 
   it('switches user records to the shared card presentation on compact screens', async () => {
@@ -1317,8 +1362,7 @@ describe('UserPage', () => {
     await wrapper.get('[data-testid="user-batch-manage-roles"]').trigger('click');
     await flushPromises();
 
-    const selects = wrapper.findAll('select');
-    await selects[2]?.setValue('add');
+    await wrapper.get('select.assignment-toolbar__select').setValue('add');
     await flushPromises();
     updateRoleSelection(wrapper, [2]);
     await flushPromises();
@@ -1403,6 +1447,10 @@ describe('UserPage', () => {
     expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(false);
 
     await wrapper.get('input[placeholder="user.userList.toolbar.searchPlaceholder"]').setValue('alice');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'user.userList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(true);

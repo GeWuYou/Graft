@@ -13,26 +13,44 @@
         </template>
       </management-page-header>
 
-      <management-toolbar>
-        <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            clearable
-            class="management-list-search"
-            :placeholder="t('rbac.permissionList.toolbar.searchPlaceholder')"
-          />
-          <t-select
-            v-model="filters.module"
-            clearable
-            class="toolbar__select"
-            :options="moduleOptions"
-            :placeholder="t('rbac.permissionList.toolbar.modulePlaceholder')"
-          />
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('rbac.permissionList.toolbar.clearFilters') }}
-          </t-button>
-        </template>
-      </management-toolbar>
+      <advanced-query-filter-builder
+        active-preset="all"
+        :add-filter-label="`+ ${t('rbac.permissionList.toolbar.addFilter')}`"
+        add-sorter-label=""
+        :builder-hint="t('rbac.permissionList.hint')"
+        :builder-title="t('rbac.permissionList.toolbar.filterPanelTitle')"
+        :field-values="permissionFilterFieldValues"
+        :fields="permissionFilterDefinitions"
+        :filters-group-label="t('rbac.permissionList.toolbar.filterPanelTitle')"
+        :keyword="filters.keyword"
+        :keyword-placeholder="t('rbac.permissionList.toolbar.searchPlaceholder')"
+        :loading="loading"
+        move-down-label=""
+        move-up-label=""
+        preset-label=""
+        :presets="[]"
+        remove-sorter-label=""
+        :reset-label="t('rbac.permissionList.toolbar.clearFilters')"
+        :search-label="t('rbac.permissionList.toolbar.query')"
+        selected-field-key="module"
+        :sort-direction-options="[]"
+        sort-direction-placeholder=""
+        sort-field-key="sorter"
+        :sort-field-options-by-index="[]"
+        sort-field-placeholder=""
+        :sorters="[]"
+        :show-sorter-builder="false"
+        :tags="permissionFilterTags"
+        time-field-key="timeRange"
+        :time-fields="[]"
+        @close-tag="clearPermissionFilterTag"
+        @reset="resetFilters"
+        @search="applyPermissionFilters"
+        @update:field="updatePermissionFilterField"
+        @update:keyword="filters.keyword = $event"
+      >
+        <template #saved-query-views><saved-query-view-control :controller="savedViews" /></template>
+      </advanced-query-filter-builder>
 
       <management-empty-state
         v-if="listError && !loading"
@@ -227,7 +245,7 @@
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -244,18 +262,33 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
-  ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import {
+  AdvancedQueryFilterBuilder,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useTabPageSnapshot } from '@/shared/composables/useTabPageSnapshot';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';
 
-import { getPermissionDetail } from '../../api/rbac';
+import {
+  deletePermissionSavedView,
+  getPermissionDetail,
+  getPermissionSavedViews,
+  postPermissionSavedView,
+  putPermissionSavedView,
+} from '../../api/rbac';
 import {
   localizedPermissionDescription as localizePermissionDescription,
   localizedPermissionDisplay as localizePermissionDisplay,
@@ -276,8 +309,15 @@ type PermissionFilterState = {
   module: string;
 };
 
+type PermissionSavedViewState = {
+  pageSize: number;
+  queryState: PermissionFilterState;
+  visibleColumns: string[];
+};
+
 type PermissionPageSnapshot = {
   columnDrawerVisible: boolean;
+  appliedFilters: PermissionFilterState;
   filters: PermissionFilterState;
   pagination: {
     current: number;
@@ -291,6 +331,7 @@ const filters = ref<PermissionFilterState>({
   keyword: '',
   module: '',
 });
+const appliedFilters = ref<PermissionFilterState>({ ...filters.value });
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref(['permission', 'module', 'code', 'role_count', 'updated_at', 'operation']);
 const detailDrawerVisible = ref(false);
@@ -303,7 +344,7 @@ const pagination = ref({
   pageSize: 10,
 });
 const permissionListQuery = usePermissionListQuery(
-  computed(() => ({ keyword: filters.value.keyword, module: filters.value.module })),
+  computed(() => ({ keyword: appliedFilters.value.keyword, module: appliedFilters.value.module })),
 );
 const permissions = computed(() => permissionListQuery.data.value?.items ?? []);
 const loading = computed(() => permissionListQuery.isFetching.value);
@@ -316,6 +357,7 @@ const listError = computed(() =>
 useTabPageSnapshot<PermissionPageSnapshot>({
   apply(snapshot) {
     filters.value = { ...snapshot.filters };
+    appliedFilters.value = { ...(snapshot.appliedFilters ?? snapshot.filters) };
     visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
     pagination.value = { ...snapshot.pagination };
     columnDrawerVisible.value = snapshot.columnDrawerVisible;
@@ -323,6 +365,7 @@ useTabPageSnapshot<PermissionPageSnapshot>({
   read() {
     return {
       columnDrawerVisible: columnDrawerVisible.value,
+      appliedFilters: { ...appliedFilters.value },
       filters: { ...filters.value },
       pagination: { ...pagination.value },
       visibleColumnKeys: [...visibleColumnKeys.value],
@@ -337,7 +380,26 @@ const moduleOptions = computed(() => {
   return modules.map((module) => ({ label: module, value: module }));
 });
 
-const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim() || filters.value.module));
+const hasActiveFilters = computed(() => Boolean(appliedFilters.value.keyword.trim() || appliedFilters.value.module));
+const permissionFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
+  {
+    key: 'module',
+    kind: 'select',
+    label: t('rbac.permissionList.toolbar.modulePlaceholder'),
+    options: moduleOptions.value,
+  },
+]);
+const permissionFilterFieldValues = computed(() => ({ module: filters.value.module }));
+const permissionFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const tags: AdvancedQueryFilterTag[] = [];
+  if (appliedFilters.value.keyword.trim()) tags.push({ key: 'keyword', label: appliedFilters.value.keyword.trim() });
+  if (appliedFilters.value.module)
+    tags.push({
+      key: 'module',
+      label: `${t('rbac.permissionList.toolbar.modulePlaceholder')}: ${appliedFilters.value.module}`,
+    });
+  return tags;
+});
 
 const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.permission'), value: 'permission' },
@@ -349,6 +411,43 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.updatedAt'), value: 'updated_at' },
   { label: t('rbac.permissionList.columns.operation'), value: 'operation' },
 ]);
+
+const savedViews = useSavedQueryViews<PermissionSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getPermissionSavedViews()).map((view) =>
+        normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(view),
+      ),
+    create: async (input) =>
+      normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(
+        await postPermissionSavedView(serializeSavedQueryViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(
+        await putPermissionSavedView(id, serializeSavedQueryViewRequest(input)),
+      ),
+    remove: deletePermissionSavedView,
+  },
+  applyView: (view) => {
+    const savedFilters = view.state.queryState;
+    filters.value = {
+      keyword: savedFilters.keyword ?? '',
+      module: savedFilters.module ?? '',
+    };
+    appliedFilters.value = { ...filters.value };
+    applySavedQueryViewPresentation(view.state, {
+      pagination: pagination.value,
+      supportedColumns: columnSettingOptions.value.map((option) => option.value),
+      visibleColumnKeys,
+    });
+  },
+  onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'))),
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: { ...appliedFilters.value },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 const filteredPermissions = computed(() => permissions.value);
 
@@ -394,7 +493,24 @@ function resetFilters() {
     keyword: '',
     module: '',
   };
+  appliedFilters.value = { ...filters.value };
   pagination.value.current = 1;
+}
+
+function applyPermissionFilters() {
+  appliedFilters.value = { ...filters.value };
+  pagination.value.current = 1;
+}
+
+function updatePermissionFilterField(payload: { key: string; value: string | string[] }) {
+  if (payload.key !== 'module') return;
+  filters.value.module = Array.isArray(payload.value) ? (payload.value[0] ?? '') : payload.value;
+}
+
+function clearPermissionFilterTag(key: string) {
+  if (key === 'keyword') filters.value.keyword = '';
+  if (key === 'module') filters.value.module = '';
+  applyPermissionFilters();
 }
 
 function localizedPermissionDisplay(permission: PermissionListItem) {
@@ -460,11 +576,13 @@ function formatTimestamp(value?: string | null) {
 }
 
 watch(
-  () => [filters.value.keyword, filters.value.module] as const,
+  () => [appliedFilters.value.keyword, appliedFilters.value.module] as const,
   () => {
     pagination.value.current = 1;
   },
 );
+
+onMounted(() => void savedViews.load());
 </script>
 <style scoped lang="less">
 @import '../../shared/list-page.less';

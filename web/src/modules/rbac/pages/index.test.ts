@@ -12,10 +12,14 @@ const rbacApiMocks = vi.hoisted(() => ({
   cloneRole: vi.fn(),
   createRole: vi.fn(),
   deleteRole: vi.fn(),
+  deleteRoleSavedView: vi.fn(),
   getPermissions: vi.fn(),
   getRoleDetail: vi.fn(),
   getRolePermissionBindings: vi.fn(),
+  getRoleSavedViews: vi.fn(),
   getRoles: vi.fn(),
+  postRoleSavedView: vi.fn(),
+  putRoleSavedView: vi.fn(),
   removeRolePermissions: vi.fn(),
   replaceRolePermissions: vi.fn(),
   updateRoleStatus: vi.fn(),
@@ -42,10 +46,14 @@ vi.mock('../api/rbac', () => ({
   cloneRole: rbacApiMocks.cloneRole,
   createRole: rbacApiMocks.createRole,
   deleteRole: rbacApiMocks.deleteRole,
+  deleteRoleSavedView: rbacApiMocks.deleteRoleSavedView,
   getPermissions: rbacApiMocks.getPermissions,
   getRoleDetail: rbacApiMocks.getRoleDetail,
   getRolePermissionBindings: rbacApiMocks.getRolePermissionBindings,
+  getRoleSavedViews: rbacApiMocks.getRoleSavedViews,
   getRoles: rbacApiMocks.getRoles,
+  postRoleSavedView: rbacApiMocks.postRoleSavedView,
+  putRoleSavedView: rbacApiMocks.putRoleSavedView,
   removeRolePermissions: rbacApiMocks.removeRolePermissions,
   replaceRolePermissions: rbacApiMocks.replaceRolePermissions,
   updateRoleStatus: rbacApiMocks.updateRoleStatus,
@@ -814,10 +822,14 @@ describe('RolePage', () => {
     rbacApiMocks.addRolePermissions.mockReset();
     rbacApiMocks.createRole.mockReset();
     rbacApiMocks.deleteRole.mockReset();
+    rbacApiMocks.deleteRoleSavedView.mockReset();
     rbacApiMocks.getPermissions.mockReset();
     rbacApiMocks.getRoleDetail.mockReset();
     rbacApiMocks.getRolePermissionBindings.mockReset();
+    rbacApiMocks.getRoleSavedViews.mockResolvedValue([]);
     rbacApiMocks.getRoles.mockReset();
+    rbacApiMocks.postRoleSavedView.mockReset();
+    rbacApiMocks.putRoleSavedView.mockReset();
     rbacApiMocks.removeRolePermissions.mockReset();
     rbacApiMocks.replaceRolePermissions.mockReset();
     rbacApiMocks.updateRoleStatus.mockReset();
@@ -845,6 +857,38 @@ describe('RolePage', () => {
     expect(wrapper.text()).toContain('Editor');
     expect(wrapper.get('[data-testid="role-row-0"]').text()).toContain('rbac.roleList.form.type.custom');
     expect(wrapper.text()).not.toContain('rbac.roleList.stats.totalRoles');
+  });
+
+  it('restores a saved role view using the backend query-state shape', async () => {
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getRoleSavedViews.mockResolvedValue([
+      {
+        id: 9,
+        name: 'System roles',
+        page_size: 25,
+        query_state: { keyword: 'admin', type: 'builtin' },
+        visible_columns: ['role', 'builtin', 'unknown-column'],
+        is_default: false,
+      },
+    ]);
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+    const savedViewControl = wrapper.findComponent({ name: 'SavedQueryViewControl' });
+    const controller = savedViewControl.props('controller') as {
+      select: (id: number) => Promise<boolean>;
+      selectedId: { value: number | undefined };
+    };
+
+    await controller.select(9);
+    await flushPromises();
+
+    const filterBuilder = wrapper.findComponent({ name: 'AdvancedQueryFilterBuilder' });
+    const pagedTable = wrapper.findComponent({ name: 'ManagementPagedTable' });
+    expect(filterBuilder.props('keyword')).toBe('admin');
+    expect(filterBuilder.props('fieldValues')).toMatchObject({ type: 'builtin' });
+    expect(pagedTable.props('pageSize')).toBe(25);
+    expect(controller.selectedId.value).toBe(9);
   });
 
   it('renders role cards with the complete mobile summary on compact screens', async () => {
@@ -1727,6 +1771,10 @@ describe('RolePage', () => {
     expect(wrapper.find('[data-testid="role-empty-clear-filters"]').exists()).toBe(false);
 
     await wrapper.get('input[placeholder="rbac.roleList.toolbar.searchPlaceholder"]').setValue('editor');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.roleList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(wrapper.find('[data-testid="role-empty-clear-filters"]').exists()).toBe(true);

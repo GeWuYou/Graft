@@ -15,7 +15,7 @@ const moduleID = "saved-view"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user"},
+		Dependencies:  nil,
 		MigrationPath: []string{"modules/saved-view/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

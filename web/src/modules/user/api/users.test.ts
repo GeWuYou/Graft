@@ -6,8 +6,12 @@ import { request } from '@/utils/request';
 import {
   createUser,
   deleteUser,
+  deleteUserSavedView,
   getUserById,
   getUsers,
+  getUserSavedViews,
+  postUserSavedView,
+  putUserSavedView,
   resetUserPassword,
   updateUser,
   updateUserStatus,
@@ -15,8 +19,10 @@ import {
 
 vi.mock('@/utils/request', () => ({
   request: {
+    delete: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -123,6 +129,39 @@ describe('users api', () => {
 
     expect(requestPost).toHaveBeenCalledWith({
       url: buildOpenApiRuntimePath('postUserDelete', { id: 1 }),
+    });
+  });
+
+  it('uses canonical user saved-view endpoints and payloads', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    const requestPut = vi.mocked(request.put);
+    const requestDelete = vi.mocked(request.delete);
+    const payload = {
+      name: 'Enabled users',
+      page_size: 25,
+      query_state: { status: 'enabled' },
+      visible_columns: ['user', 'status'],
+      is_default: false,
+    };
+    requestGet.mockResolvedValueOnce({ items: [] } as never);
+    requestPost.mockResolvedValueOnce({ id: 7, ...payload } as never);
+    requestPut.mockResolvedValueOnce({ id: 7, ...payload } as never);
+    requestDelete.mockResolvedValueOnce(undefined as never);
+
+    await getUserSavedViews();
+    await postUserSavedView(payload);
+    await putUserSavedView(7, payload);
+    await deleteUserSavedView(7);
+
+    expect(requestGet).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.getUserSavedViews });
+    expect(requestPost).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.postUserSavedView, data: payload });
+    expect(requestPut).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('putUserSavedView', { viewId: 7 }),
+      data: payload,
+    });
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deleteUserSavedView', { viewId: 7 }),
     });
   });
 });

@@ -1,5 +1,5 @@
 import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
-import type { paths } from '@/contracts/openapi/generated/schema';
+import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import { USER_STATUS } from '../contract/status';
@@ -34,6 +34,20 @@ type PostUserDeleteResponse = PostUserDeleteOperation['responses']['200']['conte
 type GetUsersResponseData = NonNullable<GetUsersResponse['data']>;
 type GetUserByIdResponseData = NonNullable<GetUserByIdResponse['data']>;
 type PostUserDeleteResponseData = NonNullable<PostUserDeleteResponse['data']>;
+type UserSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getUserSavedViews;
+type GetUserSavedViewsOperation = paths[UserSavedViewsPath]['get'];
+type GetUserSavedViewsResponse = GetUserSavedViewsOperation['responses'][200]['content']['application/json'];
+type GetUserSavedViewsResponseData = NonNullable<GetUserSavedViewsResponse['data']>;
+type PostUserSavedViewOperation = paths[UserSavedViewsPath]['post'];
+type PostUserSavedViewResponse = PostUserSavedViewOperation['responses'][201]['content']['application/json'];
+type PostUserSavedViewResponseData = NonNullable<PostUserSavedViewResponse['data']>;
+type UserSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putUserSavedView;
+type PutUserSavedViewOperation = paths[UserSavedViewPath]['put'];
+type PutUserSavedViewResponse = PutUserSavedViewOperation['responses'][200]['content']['application/json'];
+type PutUserSavedViewResponseData = NonNullable<PutUserSavedViewResponse['data']>;
+
+export type UserSavedView = components['schemas']['saved-view'];
+type UserSavedViewRequest = components['schemas']['saved-view-request'];
 
 function normalizeUserStatus(status?: string | null) {
   return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
@@ -104,4 +118,27 @@ export function deleteUser(userId: number) {
   return request.post<PostUserDeleteResponseData>({
     url: buildOpenApiRuntimePath('postUserDelete', { id: userId }),
   });
+}
+
+export async function getUserSavedViews(): Promise<UserSavedView[]> {
+  const data = await request.get<GetUserSavedViewsResponseData>({ url: OPENAPI_RUNTIME_PATH.getUserSavedViews });
+  return data.items;
+}
+
+export function postUserSavedView(payload: UserSavedViewRequest): Promise<UserSavedView> {
+  return request.post<PostUserSavedViewResponseData>({
+    url: OPENAPI_RUNTIME_PATH.postUserSavedView,
+    data: payload,
+  }) as Promise<UserSavedView>;
+}
+
+export function putUserSavedView(viewId: number, payload: UserSavedViewRequest): Promise<UserSavedView> {
+  return request.put<PutUserSavedViewResponseData>({
+    url: buildOpenApiRuntimePath('putUserSavedView', { viewId }),
+    data: payload,
+  }) as Promise<UserSavedView>;
+}
+
+export async function deleteUserSavedView(viewId: number): Promise<void> {
+  await request.delete({ url: buildOpenApiRuntimePath('deleteUserSavedView', { viewId }) });
 }

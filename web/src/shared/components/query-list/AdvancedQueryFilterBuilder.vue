@@ -5,7 +5,7 @@
         <div class="query-filter-builder__top-row">
           <t-input
             :model-value="keyword"
-            class="query-filter-builder__keyword management-query-search"
+            class="query-filter-builder__keyword management-query-search management-list-search"
             clearable
             :placeholder="keywordPlaceholder"
             :title="keyword || keywordPlaceholder"
@@ -256,7 +256,11 @@
           </t-button>
         </div>
 
-        <div class="query-filter-builder__tag-row graft-scrollbar" data-testid="query-filter-builder-tags">
+        <div
+          v-if="tags.length"
+          class="query-filter-builder__tag-row graft-scrollbar"
+          data-testid="query-filter-builder-tags"
+        >
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -265,7 +269,7 @@
             size="small"
             theme="primary"
             variant="light-outline"
-            @close="$emit('reset')"
+            @close="$emit('close-tag', tag.key)"
           >
             {{ tag.label }}
           </t-tag>

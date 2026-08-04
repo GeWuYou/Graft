@@ -17,11 +17,15 @@ import type {
 
 type PermissionsPath = typeof OPENAPI_RUNTIME_PATH.getPermissions;
 type RolesPath = typeof OPENAPI_RUNTIME_PATH.getRoles;
+type PermissionSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getPermissionSavedViews;
+type RoleSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getRoleSavedViews;
 type RolePermissionsPath = typeof OPENAPI_RUNTIME_PATH.getRolePermissions;
 type RolePermissionsReplacePath = typeof OPENAPI_RUNTIME_PATH.postRolePermissionsReplace;
 type GetPermissionsOperation = paths[PermissionsPath]['get'];
 type GetRolesOperation = paths[RolesPath]['get'];
 type GetRolePermissionsOperation = paths[RolePermissionsPath]['get'];
+type PermissionSavedViewsOperation = paths[PermissionSavedViewsPath];
+type RoleSavedViewsOperation = paths[RoleSavedViewsPath];
 type PostRolesOperation = paths[RolesPath]['post'];
 type PostRoleCloneOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRoleClone]['post'];
 type PostRoleUpdateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRoleUpdate]['post'];
@@ -37,12 +41,39 @@ type PostRoleCloneRequest = PostRoleCloneOperation['requestBody']['content']['ap
 type PostRoleUpdateRequest = PostRoleUpdateOperation['requestBody']['content']['application/json'];
 type PostRolePermissionsReplaceRequest =
   PostRolePermissionsReplaceOperation['requestBody']['content']['application/json'];
+export type PermissionSavedViewPayload = NonNullable<
+  PermissionSavedViewsOperation['post']['requestBody']
+>['content']['application/json'];
+export type RoleSavedViewPayload = NonNullable<
+  RoleSavedViewsOperation['post']['requestBody']
+>['content']['application/json'];
+export type PermissionSavedViewRecord = NonNullable<
+  PermissionSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>['items'][number];
+export type RoleSavedViewRecord = NonNullable<
+  RoleSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>['items'][number];
+type PermissionSavedViewList = NonNullable<
+  PermissionSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>;
+type RoleSavedViewList = NonNullable<
+  RoleSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>;
 
 export function getRoles() {
   return request.get<GetRolesData>({
     url: OPENAPI_RUNTIME_PATH.getRoles,
   }) as Promise<RoleListResponse>;
 }
+
+export const getRoleSavedViews = () =>
+  request.get<RoleSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getRoleSavedViews }).then((response) => response.items);
+export const postRoleSavedView = (data: RoleSavedViewPayload) =>
+  request.post<RoleSavedViewRecord>({ url: OPENAPI_RUNTIME_PATH.postRoleSavedView, data });
+export const putRoleSavedView = (id: number, data: RoleSavedViewPayload) =>
+  request.put<RoleSavedViewRecord>({ url: buildOpenApiRuntimePath('putRoleSavedView', { viewId: id }), data });
+export const deleteRoleSavedView = (id: number) =>
+  request.delete({ url: buildOpenApiRuntimePath('deleteRoleSavedView', { viewId: id }) }).then(() => undefined);
 
 export function getRoleDetail(roleId: number) {
   return request.get<RoleDetailResponse>({
@@ -56,6 +87,20 @@ export function getPermissions(filters?: PermissionFilters) {
     params: filters,
   }) as Promise<PermissionListResponse>;
 }
+
+export const getPermissionSavedViews = () =>
+  request
+    .get<PermissionSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getPermissionSavedViews })
+    .then((response) => response.items);
+export const postPermissionSavedView = (data: PermissionSavedViewPayload) =>
+  request.post<PermissionSavedViewRecord>({ url: OPENAPI_RUNTIME_PATH.postPermissionSavedView, data });
+export const putPermissionSavedView = (id: number, data: PermissionSavedViewPayload) =>
+  request.put<PermissionSavedViewRecord>({
+    url: buildOpenApiRuntimePath('putPermissionSavedView', { viewId: id }),
+    data,
+  });
+export const deletePermissionSavedView = (id: number) =>
+  request.delete({ url: buildOpenApiRuntimePath('deletePermissionSavedView', { viewId: id }) }).then(() => undefined);
 
 export function getPermissionDetail(permissionId: number) {
   return request.get<PermissionDetailResponse>({

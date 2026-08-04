@@ -70,6 +70,9 @@
         "statusAll": "全部状态",
         "statusPlaceholder": "筛选状态",
         "rolePlaceholder": "筛选角色",
+        "addFilter": "添加筛选条件",
+        "filterPanelTitle": "筛选用户",
+        "query": "查询",
         "clearFilters": "重置"
       },
       "status": {

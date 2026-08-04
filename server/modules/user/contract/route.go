@@ -16,6 +16,12 @@ const (
 	// UserCollection 标识用户集合接口在用户路由组下的路径片段。
 	UserCollection = ""
 
+	// UserSavedViewsRoute 标识用户列表私有保存筛选集合接口的路径片段。
+	UserSavedViewsRoute = "/saved-views"
+
+	// UserSavedViewRoute 标识单个用户列表私有保存筛选接口的路径片段。
+	UserSavedViewRoute = "/saved-views/:viewId"
+
 	// UserByID 标识单个用户查询接口的路径片段。
 	UserByID = "/:id"
 

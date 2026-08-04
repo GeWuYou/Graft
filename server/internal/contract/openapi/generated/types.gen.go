@@ -3562,7 +3562,6 @@ const (
 	RunnerLost             PlatformUpdateOperationStateSource = "runner_lost"
 	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
 	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
-	RunnerTerminated       PlatformUpdateOperationStateSource = "runner_terminated"
 	TerminalHistory        PlatformUpdateOperationStateSource = "terminal_history"
 )
 
@@ -3574,8 +3573,6 @@ func (e PlatformUpdateOperationStateSource) Valid() bool {
 	case RunnerState:
 		return true
 	case RunnerStateUnavailable:
-		return true
-	case RunnerTerminated:
 		return true
 	case TerminalHistory:
 		return true
@@ -12169,10 +12166,10 @@ type PlatformUpdateOperation struct {
 	SourceVersion string                           `json:"source_version"`
 	StartedAt     time.Time                        `json:"started_at"`
 
-	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields.
+	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_lost is explicitly unavailable even when it retains the last verified snapshot fields.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+	// StateSource Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -12184,7 +12181,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.
@@ -16117,6 +16114,46 @@ type GetPermissionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPermissionSavedViewsParams defines parameters for GetPermissionSavedViews.
+type GetPermissionSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPermissionSavedViewParams defines parameters for PostPermissionSavedView.
+type PostPermissionSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeletePermissionSavedViewParams defines parameters for DeletePermissionSavedView.
+type DeletePermissionSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutPermissionSavedViewParams defines parameters for PutPermissionSavedView.
+type PutPermissionSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPermissionParams defines parameters for GetPermission.
 type GetPermissionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -16354,6 +16391,46 @@ type GetRolesParamsStatus string
 
 // PostRolesParams defines parameters for PostRoles.
 type PostRolesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRoleSavedViewsParams defines parameters for GetRoleSavedViews.
+type GetRoleSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRoleSavedViewParams defines parameters for PostRoleSavedView.
+type PostRoleSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteRoleSavedViewParams defines parameters for DeleteRoleSavedView.
+type DeleteRoleSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutRoleSavedViewParams defines parameters for PutRoleSavedView.
+type PutRoleSavedViewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -16885,6 +16962,46 @@ type PostUsersRolesReplaceParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetUserSavedViewsParams defines parameters for GetUserSavedViews.
+type GetUserSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserSavedViewParams defines parameters for PostUserSavedView.
+type PostUserSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteUserSavedViewParams defines parameters for DeleteUserSavedView.
+type DeleteUserSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutUserSavedViewParams defines parameters for PutUserSavedView.
+type PutUserSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetUserByIdParams defines parameters for GetUserById.
 type GetUserByIdParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17223,6 +17340,12 @@ type PutDockerVolumeSavedViewJSONRequestBody = SavedViewRequest
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
 
+// PostPermissionSavedViewJSONRequestBody defines body for PostPermissionSavedView for application/json ContentType.
+type PostPermissionSavedViewJSONRequestBody = SavedViewRequest
+
+// PutPermissionSavedViewJSONRequestBody defines body for PutPermissionSavedView for application/json ContentType.
+type PutPermissionSavedViewJSONRequestBody = SavedViewRequest
+
 // PostPlatformBackupJSONRequestBody defines body for PostPlatformBackup for application/json ContentType.
 type PostPlatformBackupJSONRequestBody = CreatePlatformBackupRequest
 
@@ -17237,6 +17360,12 @@ type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest
+
+// PostRoleSavedViewJSONRequestBody defines body for PostRoleSavedView for application/json ContentType.
+type PostRoleSavedViewJSONRequestBody = SavedViewRequest
+
+// PutRoleSavedViewJSONRequestBody defines body for PutRoleSavedView for application/json ContentType.
+type PutRoleSavedViewJSONRequestBody = SavedViewRequest
 
 // PostRoleCloneJSONRequestBody defines body for PostRoleClone for application/json ContentType.
 type PostRoleCloneJSONRequestBody = CloneRoleRequest
@@ -17288,6 +17417,12 @@ type PostUsersRolesRemoveJSONRequestBody = BatchUserRolesRequest
 
 // PostUsersRolesReplaceJSONRequestBody defines body for PostUsersRolesReplace for application/json ContentType.
 type PostUsersRolesReplaceJSONRequestBody = BatchUserRolesRequest
+
+// PostUserSavedViewJSONRequestBody defines body for PostUserSavedView for application/json ContentType.
+type PostUserSavedViewJSONRequestBody = SavedViewRequest
+
+// PutUserSavedViewJSONRequestBody defines body for PutUserSavedView for application/json ContentType.
+type PutUserSavedViewJSONRequestBody = SavedViewRequest
 
 // PostUserResetPasswordJSONRequestBody defines body for PostUserResetPassword for application/json ContentType.
 type PostUserResetPasswordJSONRequestBody = ResetUserPasswordRequest

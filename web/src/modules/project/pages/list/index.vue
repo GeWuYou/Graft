@@ -32,7 +32,7 @@
 
       <advanced-query-filter-builder
         active-preset="all"
-        :add-filter-label="`+ ${t('project.list.filters.query')}`"
+        :add-filter-label="`+ ${t('project.list.filters.addFilter')}`"
         :add-sorter-label="t('project.list.filters.sortAdd')"
         :builder-hint="t('project.list.description')"
         :builder-title="t('project.list.filters.query')"

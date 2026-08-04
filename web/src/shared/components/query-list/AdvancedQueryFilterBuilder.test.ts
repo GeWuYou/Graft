@@ -88,7 +88,7 @@ const defaultProps = {
 };
 
 describe('AdvancedQueryFilterBuilder', () => {
-  it('emits reset when any active filter tag is closed', async () => {
+  it('emits the closed filter tag key', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: defaultProps,
       global: {
@@ -105,10 +105,10 @@ describe('AdvancedQueryFilterBuilder', () => {
 
     await wrapper.get('[data-testid="close-filter-tag"]').trigger('click');
 
-    expect(wrapper.emitted('reset')).toHaveLength(1);
+    expect(wrapper.emitted('close-tag')).toEqual([['keyword']]);
   });
 
-  it('always renders the active-filter row, including when no tags are active', async () => {
+  it('renders the active-filter row only when tags are active', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: { ...defaultProps, compactMode: true, tags: [] },
       global: {
@@ -123,11 +123,11 @@ describe('AdvancedQueryFilterBuilder', () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
-    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toBe('');
+    expect(wrapper.find('[data-testid="query-filter-builder-tags"]').exists()).toBe(false);
 
     await wrapper.setProps({ tags: defaultProps.tags });
 
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
     expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toContain('Keyword: active');
   });
 

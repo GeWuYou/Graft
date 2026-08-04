@@ -88,6 +88,8 @@
         "typePlaceholder": "Filter role type",
         "moreFilters": "More Filters",
         "filterPanelTitle": "Filter Roles",
+        "addFilter": "Add Filter",
+        "query": "Query",
         "clearFilters": "Reset"
       },
       "form": {
@@ -225,6 +227,9 @@
       "toolbar": {
         "searchPlaceholder": "Search permission code or name",
         "modulePlaceholder": "Filter module",
+        "addFilter": "Add Filter",
+        "filterPanelTitle": "Filter Permissions",
+        "query": "Query",
         "clearFilters": "Reset"
       }
     },

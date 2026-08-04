@@ -88,6 +88,8 @@
         "typePlaceholder": "筛选角色类型",
         "moreFilters": "更多筛选",
         "filterPanelTitle": "筛选角色",
+        "addFilter": "添加筛选条件",
+        "query": "查询",
         "clearFilters": "重置"
       },
       "form": {
@@ -225,6 +227,9 @@
       "toolbar": {
         "searchPlaceholder": "搜索权限编码、权限名称",
         "modulePlaceholder": "筛选模块",
+        "addFilter": "添加筛选条件",
+        "filterPanelTitle": "筛选权限",
+        "query": "查询",
         "clearFilters": "重置"
       }
     },

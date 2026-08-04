@@ -24,8 +24,8 @@ operation. It starts after `server` accepts and persists an authorization/audita
 not an execution phase. The runner writes the first authoritative execution state and continues independently while
 `server` and `web` are recreated.
 
-The official Compose installation provides one named update-state volume. The runner is its only writer; `server`
-mounts it read-only. The volume stores a versioned atomic `current.json` snapshot and operation-scoped append-only
+The official Compose installation provides one named update-state volume. After the beta cutover completes, the runner
+is its only schema-v2 runtime writer; `server` mounts it read-only. The volume stores a versioned atomic `current.json` snapshot and operation-scoped append-only
 event records. Snapshot writes use a temporary file, durable flush, and atomic rename; each update has a monotonically
 increasing revision. Event records contain the operation binding, sequence, timestamp, phase transition, and snapshot
 integrity digest so a restarted server can validate and reconstruct the latest durable state. The state store never
@@ -73,15 +73,23 @@ non-terminal operation by rejecting a write for a different `OperationID` while 
 Invalid state or an integrity mismatch fails closed. `update_operations` remains an authorization and recovery-launch
 coordination record, not a lease table or active-state authority.
 
-`server` derives `runner_lost` without querying Docker container inventory, existence, exit code, or logs. For a v2
-snapshot, an unexpired lease is active and an expired `lease_expires_at` projects
+`server` derives `runner_lost` without querying Docker container inventory, existence, exit code, or logs. Runtime
+state is schema-v2 only. An unexpired lease is active and an expired `lease_expires_at` projects
 `state_source=runner_lost`, `state_available=false`, and `PLATFORM_UPDATE_RUNNER_LOST`; the last verified phase,
 progress, and safe message remain diagnostic context only. If the first snapshot was never written, the same
 projection begins five minutes after the database authorization record was created. Existing v1 snapshots remain
-read-compatible only through a 30-minute bridge (15-minute execution limit plus 15-minute grace), after which they
-also project `runner_lost`. The v1 branch may be removed only after every minimum-supported upgrade source writes a
-schema-v2 lease snapshot. `runner_terminated` remains a wire-consumption compatibility value during that bridge, but
-is not produced from Docker observation.
+readable only by the one-shot beta cutover described below; they are never consumed by normal runtime code. Unknown,
+malformed, missing-version, future-version, or otherwise unsafe state fails closed before server startup. The
+`runner_terminated` compatibility value is removed from the runtime contract.
+
+Before `graft migrate up`, official Compose bootstrap invokes `graft update cutover-v1` with the named state volume
+read-write. This is a one-time legacy schema-v1 writer only: it must not create or modify schema-v2 `current.json`
+snapshots or event records. The command is idempotent: an empty volume or valid schema-v2 state is left untouched; a valid schema-v1
+state cancels related Task and planned Backup handoffs through their owner services, marks only explicitly identified
+non-terminal Update rows for legacy purge, and deletes the v1 snapshot/event tree. The following forward-only SQL
+migration deletes those marked Update rows and their linked diagnostics while preserving Task and Backup audit facts and
+completed backup evidence. Bootstrap aborts on any unknown or unsafe state, so server never starts against an
+unclassified state volume. After cutover, the server mounts the volume read-only and accepts schema-v2 only.
 
 Recovery is an explicit `platform-update.manage` action, exposed as `POST /api/platform/updates/operations/{operationID}/recovery`.
 It can launch exactly one recovery runner only for a `runner_lost`, pre-migration operation. When a verified snapshot

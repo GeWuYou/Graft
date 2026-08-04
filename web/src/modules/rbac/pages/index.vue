@@ -18,37 +18,44 @@
         </template>
       </management-page-header>
 
-      <management-toolbar>
-        <template #filters>
-          <responsive-filter-panel
-            density-scope="viewport"
-            :close-label="t('components.common.close')"
-            :more-label="t('rbac.roleList.toolbar.moreFilters')"
-            :panel-title="t('rbac.roleList.toolbar.filterPanelTitle')"
-          >
-            <template #search>
-              <t-input
-                v-model="filters.keyword"
-                clearable
-                class="management-list-search"
-                :placeholder="t('rbac.roleList.toolbar.searchPlaceholder')"
-              />
-            </template>
-            <template #filters>
-              <t-select
-                v-model="filters.type"
-                clearable
-                class="toolbar__select"
-                :options="roleTypeOptions"
-                :placeholder="t('rbac.roleList.toolbar.typePlaceholder')"
-              />
-              <t-button theme="default" variant="text" @click="resetFilters">
-                {{ t('rbac.roleList.toolbar.clearFilters') }}
-              </t-button>
-            </template>
-          </responsive-filter-panel>
-        </template>
-      </management-toolbar>
+      <advanced-query-filter-builder
+        active-preset="all"
+        :add-filter-label="`+ ${t('rbac.roleList.toolbar.addFilter')}`"
+        add-sorter-label=""
+        :builder-hint="t('rbac.roleList.hint')"
+        :builder-title="t('rbac.roleList.toolbar.filterPanelTitle')"
+        :field-values="roleFilterFieldValues"
+        :fields="roleFilterDefinitions"
+        :filters-group-label="t('rbac.roleList.toolbar.filterPanelTitle')"
+        :keyword="filters.keyword"
+        :keyword-placeholder="t('rbac.roleList.toolbar.searchPlaceholder')"
+        :loading="loading"
+        move-down-label=""
+        move-up-label=""
+        preset-label=""
+        :presets="[]"
+        remove-sorter-label=""
+        :reset-label="t('rbac.roleList.toolbar.clearFilters')"
+        :search-label="t('rbac.roleList.toolbar.query')"
+        selected-field-key="type"
+        :sort-direction-options="[]"
+        sort-direction-placeholder=""
+        sort-field-key="sorter"
+        :sort-field-options-by-index="[]"
+        sort-field-placeholder=""
+        :sorters="[]"
+        :show-sorter-builder="false"
+        :tags="roleFilterTags"
+        time-field-key="timeRange"
+        :time-fields="[]"
+        @close-tag="clearRoleFilterTag"
+        @reset="resetFilters"
+        @search="applyRoleFilters"
+        @update:field="updateRoleFilterField"
+        @update:keyword="filters.keyword = $event"
+      >
+        <template #saved-query-views><saved-query-view-control :controller="savedViews" /></template>
+      </advanced-query-filter-builder>
 
       <management-empty-state
         v-if="listError && !loading"
@@ -566,7 +573,7 @@
 <script setup lang="ts">
 import type { FormRule, FormValidateMessage, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -593,14 +600,22 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
-  ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import {
+  AdvancedQueryFilterBuilder,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
-import ResponsiveFilterPanel from '@/shared/components/responsive/ResponsiveFilterPanel.vue';
 import { useAssignmentSelection } from '@/shared/composables';
 import { useTabPageSnapshot } from '@/shared/composables/useTabPageSnapshot';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
@@ -614,8 +629,12 @@ import {
   cloneRole,
   createRole,
   deleteRole,
+  deleteRoleSavedView,
   getRoleDetail,
   getRolePermissionBindings,
+  getRoleSavedViews,
+  postRoleSavedView,
+  putRoleSavedView,
   removeRolePermissions,
   replaceRolePermissions,
   updateRole,
@@ -657,6 +676,12 @@ type RoleDrawerMode = 'create' | 'detail' | 'update';
 type RoleFilters = {
   keyword: string;
   type: '' | 'builtin' | 'custom';
+};
+
+type RoleSavedViewState = {
+  pageSize: number;
+  queryState: RoleFilters;
+  visibleColumns: string[];
 };
 
 type RoleFormState = {
@@ -709,6 +734,7 @@ type PermissionDomain = {
 
 type RolePageSnapshot = {
   columnDrawerVisible: boolean;
+  appliedFilters: RoleFilters;
   filters: RoleFilters;
   pagination: {
     current: number;
@@ -738,6 +764,7 @@ const filters = ref<RoleFilters>({
   keyword: '',
   type: '',
 });
+const appliedFilters = ref<RoleFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const roleDrawerVisible = ref(false);
 const roleDrawerMode = ref<RoleDrawerMode>('create');
@@ -768,6 +795,7 @@ const pagination = ref({
 useTabPageSnapshot<RolePageSnapshot>({
   apply(snapshot) {
     filters.value = { ...snapshot.filters };
+    appliedFilters.value = { ...(snapshot.appliedFilters ?? snapshot.filters) };
     visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
     pagination.value = { ...snapshot.pagination };
     columnDrawerVisible.value = snapshot.columnDrawerVisible;
@@ -781,6 +809,7 @@ useTabPageSnapshot<RolePageSnapshot>({
   read() {
     return {
       columnDrawerVisible: columnDrawerVisible.value,
+      appliedFilters: { ...appliedFilters.value },
       filters: { ...filters.value },
       pagination: { ...pagination.value },
       roleDrawer: {
@@ -858,7 +887,9 @@ const isPermissionDirty = computed(() => {
 const canSubmitPermissionAssignment = computed(() => {
   return !permissionDrawerReadonly.value && canAssignPermissions.value && isPermissionDirty.value;
 });
-const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.type));
+const hasActiveFilters = computed(
+  () => Boolean(appliedFilters.value.keyword.trim()) || Boolean(appliedFilters.value.type),
+);
 const permissionDialogStatusMessage = computed(() =>
   loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
 );
@@ -967,6 +998,27 @@ const roleTypeOptions = computed(() => [
   { label: t('rbac.roleList.builtinYes'), value: 'builtin' },
   { label: t('rbac.roleList.builtinNo'), value: 'custom' },
 ]);
+const roleFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
+  {
+    key: 'type',
+    kind: 'select',
+    label: t('rbac.roleList.toolbar.typePlaceholder'),
+    options: roleTypeOptions.value.map((option) => ({ label: String(option.label), value: String(option.value) })),
+  },
+]);
+const roleFilterFieldValues = computed(() => ({ type: filters.value.type }));
+const roleFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const tags: AdvancedQueryFilterTag[] = [];
+  if (appliedFilters.value.keyword.trim()) tags.push({ key: 'keyword', label: appliedFilters.value.keyword.trim() });
+  if (appliedFilters.value.type) {
+    const label = roleTypeOptions.value.find((option) => option.value === appliedFilters.value.type)?.label;
+    tags.push({
+      key: 'type',
+      label: `${t('rbac.roleList.toolbar.typePlaceholder')}: ${label ?? appliedFilters.value.type}`,
+    });
+  }
+  return tags;
+});
 
 const columnSettingOptions = computed(() => [
   { label: t('rbac.roleList.columns.role'), value: 'role' },
@@ -978,8 +1030,45 @@ const columnSettingOptions = computed(() => [
   { label: t('components.commonTable.operation'), value: 'operation' },
 ]);
 
+const savedViews = useSavedQueryViews<RoleSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getRoleSavedViews()).map((view) =>
+        normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(view),
+      ),
+    create: async (input) =>
+      normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(
+        await postRoleSavedView(serializeSavedQueryViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(
+        await putRoleSavedView(id, serializeSavedQueryViewRequest(input)),
+      ),
+    remove: deleteRoleSavedView,
+  },
+  applyView: (view) => {
+    const savedFilters = view.state.queryState;
+    filters.value = {
+      keyword: savedFilters.keyword ?? '',
+      type: savedFilters.type === 'builtin' || savedFilters.type === 'custom' ? savedFilters.type : '',
+    };
+    appliedFilters.value = { ...filters.value };
+    applySavedQueryViewPresentation(view.state, {
+      pagination: pagination.value,
+      supportedColumns: columnSettingOptions.value.map((option) => option.value),
+      visibleColumnKeys,
+    });
+  },
+  onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.loadFailed'))),
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: { ...appliedFilters.value },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
+
 const filteredRoles = computed(() => {
-  const keyword = filters.value.keyword.trim().toLowerCase();
+  const keyword = appliedFilters.value.keyword.trim().toLowerCase();
 
   return roles.value.filter((role) => {
     if (keyword) {
@@ -989,11 +1078,11 @@ const filteredRoles = computed(() => {
       }
     }
 
-    if (filters.value.type === 'builtin' && !isSystemRole(role)) {
+    if (appliedFilters.value.type === 'builtin' && !isSystemRole(role)) {
       return false;
     }
 
-    if (filters.value.type === 'custom' && isSystemRole(role)) {
+    if (appliedFilters.value.type === 'custom' && isSystemRole(role)) {
       return false;
     }
 
@@ -1241,7 +1330,25 @@ function resetFilters() {
     keyword: '',
     type: '',
   };
+  appliedFilters.value = { ...filters.value };
   pagination.value.current = 1;
+}
+
+function applyRoleFilters() {
+  appliedFilters.value = { ...filters.value };
+  pagination.value.current = 1;
+}
+
+function updateRoleFilterField(payload: { key: string; value: string | string[] }) {
+  if (payload.key !== 'type') return;
+  const value = Array.isArray(payload.value) ? (payload.value[0] ?? '') : payload.value;
+  filters.value.type = value === 'builtin' || value === 'custom' ? value : '';
+}
+
+function clearRoleFilterTag(key: string) {
+  if (key === 'keyword') filters.value.keyword = '';
+  if (key === 'type') filters.value.type = '';
+  applyRoleFilters();
 }
 
 function formatTimestamp(value?: string | null) {
@@ -1932,11 +2039,13 @@ async function removeRoleFromDrawer() {
 }
 
 watch(
-  () => [filters.value.keyword, filters.value.type] as const,
+  () => [appliedFilters.value.keyword, appliedFilters.value.type] as const,
   () => {
     pagination.value.current = 1;
   },
 );
+
+onMounted(() => void savedViews.load());
 
 watch(
   () => [route.query.action, canCreateRoles.value, roleDrawerVisible.value] as const,

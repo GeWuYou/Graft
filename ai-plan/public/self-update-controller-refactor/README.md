@@ -49,9 +49,9 @@ Out of scope:
 ## Current Recovery Point
 
 - ADR-009 replaces only ADR-006's server-owned lifecycle/log-receipt premise and preserves Compose trust boundaries.
-- Docker container existence, exit state and inventory no longer decide liveness: an expired v2 lease, missing first
-  state after five minutes, or v1's 30-minute bridge projects `runner_lost`; recovery is only pre-migration and must
-  conclude terminally.
+- Docker container existence, exit state and inventory no longer decide liveness: an expired v2 lease or missing first
+  state after five minutes projects `runner_lost`; recovery is only pre-migration and must conclude terminally. The
+  beta bootstrap cutover removes runtime v1 compatibility before migration and rejects unsafe state fail-closed.
 - Durable lease/fencing convergence is complete across runner, server/OpenAPI, and Update Center.
 - Next step: rerun the required cross-boundary validation and archive-readiness review. Do not restart an already-completed batch.
 

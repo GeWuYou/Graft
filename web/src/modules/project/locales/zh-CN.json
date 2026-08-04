@@ -256,6 +256,7 @@
         "allDriftStatuses": "全部同步状态",
         "allRefreshStatuses": "全部刷新状态",
         "filter": "筛选",
+        "addFilter": "添加筛选条件",
         "query": "查询",
         "reset": "重置",
         "sorterBuilder": "排序方式",

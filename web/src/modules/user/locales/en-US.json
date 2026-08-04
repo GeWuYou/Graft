@@ -70,6 +70,9 @@
         "statusAll": "All Statuses",
         "statusPlaceholder": "Filter status",
         "rolePlaceholder": "Filter role",
+        "addFilter": "Add Filter",
+        "filterPanelTitle": "Filter Users",
+        "query": "Query",
         "clearFilters": "Reset"
       },
       "status": {

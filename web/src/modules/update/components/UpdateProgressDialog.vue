@@ -119,9 +119,7 @@ const stageStatus = computed(() => {
   if (progress.lastActivePhase) return progress.lastActivePhase;
   return progress.operation?.phase ?? 'READY';
 });
-const runnerDisconnected = computed(() =>
-  ['runner_lost', 'runner_terminated'].includes(progress.operation?.state_source ?? ''),
-);
+const runnerDisconnected = computed(() => progress.operation?.state_source === 'runner_lost');
 const canRecoverTerminatedRunner = computed(
   () =>
     progress.operation?.state_source === 'runner_lost' &&

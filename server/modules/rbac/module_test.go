@@ -387,6 +387,11 @@ func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context,
 	}); err != nil {
 		t.Fatalf("register user service: %v", err)
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.SavedViewService)(nil), func(container.Resolver) (any, error) {
+		return &recordedRBACSavedViewService{}, nil
+	}); err != nil {
+		t.Fatalf("register saved-view service: %v", err)
+	}
 
 	if err := NewModule(repo).Register(ctx); err != nil {
 		t.Fatalf("register rbac module: %v", err)

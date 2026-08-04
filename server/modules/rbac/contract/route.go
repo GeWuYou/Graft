@@ -15,6 +15,10 @@ const (
 	RolesGroup = "/roles"
 	// RoleCollection 标识角色集合接口在角色路由组下的路径片段。
 	RoleCollection = ""
+	// RoleSavedViewsRoute 标识角色列表私有保存筛选集合接口的路径片段。
+	RoleSavedViewsRoute = "/saved-views"
+	// RoleSavedViewRoute 标识单个角色列表私有保存筛选接口的路径片段。
+	RoleSavedViewRoute = "/saved-views/:viewId"
 	// RoleDetailRoute 标识单个角色详情接口的路径片段。
 	RoleDetailRoute = "/:id"
 	// RoleUpdateRoute 标识角色更新接口的路径片段。
@@ -38,6 +42,10 @@ const (
 	PermissionsGroup = "/permissions"
 	// PermissionCollection 标识权限集合接口在权限路由组下的路径片段。
 	PermissionCollection = ""
+	// PermissionSavedViewsRoute 标识权限列表私有保存筛选集合接口的路径片段。
+	PermissionSavedViewsRoute = "/saved-views"
+	// PermissionSavedViewRoute 标识单个权限列表私有保存筛选接口的路径片段。
+	PermissionSavedViewRoute = "/saved-views/:viewId"
 	// PermissionDetailRoute 标识单个权限详情接口的路径片段。
 	PermissionDetailRoute = "/:id"
 

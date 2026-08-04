@@ -20,34 +20,46 @@
 
       <management-statistics-bar :items="userStatistics" :label="t('user.userList.statistics.label')" />
 
-      <management-toolbar>
-        <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            clearable
-            class="management-list-search"
-            :placeholder="t('user.userList.toolbar.searchPlaceholder')"
-          />
-          <t-select
-            v-model="filters.status"
-            clearable
-            class="toolbar__select"
-            :options="statusOptions"
-            :placeholder="t('user.userList.toolbar.statusPlaceholder')"
-          />
-          <t-select
-            v-model="filters.roleId"
-            clearable
-            class="toolbar__select"
-            :options="roleOptions"
-            :loading="roleCatalogLoading"
-            :placeholder="t('user.userList.toolbar.rolePlaceholder')"
-          />
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('user.userList.toolbar.clearFilters') }}
-          </t-button>
+      <advanced-query-filter-builder
+        active-preset="all"
+        :add-filter-label="`+ ${t('user.userList.toolbar.addFilter')}`"
+        add-sorter-label=""
+        :builder-hint="t('user.userList.hint')"
+        :builder-title="t('user.userList.toolbar.filterPanelTitle')"
+        :field-values="userFilterFieldValues"
+        :fields="userFilterDefinitions"
+        :filters-group-label="t('user.userList.toolbar.filterPanelTitle')"
+        :keyword="filters.keyword"
+        :keyword-placeholder="t('user.userList.toolbar.searchPlaceholder')"
+        :loading="loading"
+        move-down-label=""
+        move-up-label=""
+        preset-label=""
+        :presets="[]"
+        remove-sorter-label=""
+        :reset-label="t('user.userList.toolbar.clearFilters')"
+        :search-label="t('user.userList.toolbar.query')"
+        selected-field-key="status"
+        :sort-direction-options="[]"
+        sort-direction-placeholder=""
+        sort-field-key="sorter"
+        :sort-field-options-by-index="[]"
+        sort-field-placeholder=""
+        :sorters="[]"
+        :show-sorter-builder="false"
+        :tags="userFilterTags"
+        time-field-key="timeRange"
+        :time-fields="[]"
+        @close-tag="clearUserFilterTag"
+        @reset="resetFilters"
+        @search="applyFilters"
+        @update:field="updateUserFilterField"
+        @update:keyword="filters.keyword = $event"
+      >
+        <template #saved-query-views>
+          <saved-query-view-control :controller="savedViews" />
         </template>
-      </management-toolbar>
+      </advanced-query-filter-builder>
 
       <management-paged-table
         v-model:current="pagination.current"
@@ -593,11 +605,19 @@ import {
   ManagementPageContent,
   ManagementPageHeader,
   ManagementStatisticsBar,
-  ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import {
+  AdvancedQueryFilterBuilder,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useAssignmentSelection } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
@@ -607,7 +627,17 @@ import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from '../api/user-roles';
-import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
+import {
+  createUser,
+  deleteUser,
+  deleteUserSavedView,
+  getUserSavedViews,
+  postUserSavedView,
+  putUserSavedView,
+  resetUserPassword,
+  updateUser,
+  updateUserStatus,
+} from '../api/users';
 import UserIdentity from '../components/UserIdentity.vue';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
@@ -635,6 +665,18 @@ type UserFilters = {
   keyword: string;
   roleId: number | undefined;
   status: '' | UserStatus;
+};
+
+type UserSavedQueryState = {
+  keyword?: string;
+  role_id?: number;
+  status?: UserStatus;
+};
+
+type UserSavedViewState = {
+  pageSize: number;
+  queryState: UserSavedQueryState;
+  visibleColumns: string[];
 };
 
 type UserRow = UserListItem & {
@@ -711,6 +753,7 @@ const filters = ref<UserFilters>({
   roleId: undefined,
   status: '',
 });
+const appliedFilters = ref<UserFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const columnDrawerVisible = ref(false);
 const userRoleDrawerVisible = ref(false);
@@ -728,6 +771,30 @@ const selectedRowKeys = ref<Array<string | number>>([]);
 const pagination = ref({
   current: 1,
   pageSize: 10,
+});
+
+const savedViews = useSavedQueryViews<UserSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getUserSavedViews()).map((view) => normalizeSavedQueryView<UserSavedQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<UserSavedQueryState, number>(await postUserSavedView(toUserSavedViewRequest(input))),
+    update: async (id, input) =>
+      normalizeSavedQueryView<UserSavedQueryState, number>(await putUserSavedView(id, toUserSavedViewRequest(input))),
+    remove: deleteUserSavedView,
+  },
+  applyView: (view) => {
+    applyUserSavedView(view.state);
+  },
+  onError: (error) => {
+    logger.error('failed to manage user saved view', error);
+    MessagePlugin.error(t('app.request.failed'));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentUserSavedQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
 });
 
 const userPermissionCodes = USER_PERMISSION_CODE;
@@ -782,7 +849,10 @@ const canSubmitRoleAssignment = computed(
     (roleMutationMode.value === 'replace' || effectiveRoleMutationIds.value.length > 0),
 );
 const hasActiveFilters = computed(
-  () => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.status) || filters.value.roleId !== undefined,
+  () =>
+    Boolean(appliedFilters.value.keyword.trim()) ||
+    Boolean(appliedFilters.value.status) ||
+    appliedFilters.value.roleId !== undefined,
 );
 const selectedBatchUserIds = computed(() =>
   selectedRowKeys.value.map((item) => Number(item)).filter((item) => Number.isInteger(item)),
@@ -844,6 +914,40 @@ const roleOptions = computed(() =>
     value: role.id,
   })),
 );
+const userFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
+  {
+    key: 'status',
+    kind: 'select',
+    label: t('user.userList.toolbar.statusPlaceholder'),
+    options: statusOptions.value.map((option) => ({ label: String(option.label), value: String(option.value ?? '') })),
+  },
+  {
+    key: 'roleId',
+    kind: 'select',
+    label: t('user.userList.toolbar.rolePlaceholder'),
+    options: roleOptions.value.map((option) => ({ label: String(option.label), value: String(option.value ?? '') })),
+  },
+]);
+const userFilterFieldValues = computed(() => ({
+  status: filters.value.status,
+  roleId: filters.value.roleId === undefined ? '' : String(filters.value.roleId),
+}));
+const userFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const tags: AdvancedQueryFilterTag[] = [];
+  if (appliedFilters.value.keyword.trim()) tags.push({ key: 'keyword', label: appliedFilters.value.keyword.trim() });
+  for (const field of userFilterDefinitions.value) {
+    const value =
+      field.key === 'status'
+        ? appliedFilters.value.status
+        : appliedFilters.value.roleId === undefined
+          ? ''
+          : String(appliedFilters.value.roleId);
+    if (!value) continue;
+    const label = field.options?.find((option) => option.value === value)?.label ?? value;
+    tags.push({ key: field.key, label: `${field.label}: ${label}` });
+  }
+  return tags;
+});
 const roleMutationOptions = computed(() => [
   { label: t('user.userList.roleActions.replace'), value: 'replace' },
   { label: t('user.userList.roleActions.add'), value: 'add' },
@@ -882,7 +986,7 @@ const columnSettingOptions = computed(() => [
 ]);
 
 const filteredUsers = computed(() => {
-  const keyword = filters.value.keyword.trim().toLowerCase();
+  const keyword = appliedFilters.value.keyword.trim().toLowerCase();
 
   return users.value.filter((user) => {
     if (keyword) {
@@ -892,13 +996,13 @@ const filteredUsers = computed(() => {
       }
     }
 
-    if (filters.value.status && normalizeUserStatus(user.status) !== filters.value.status) {
+    if (appliedFilters.value.status && normalizeUserStatus(user.status) !== appliedFilters.value.status) {
       return false;
     }
 
-    if (filters.value.roleId !== undefined) {
+    if (appliedFilters.value.roleId !== undefined) {
       const assignedRoleIds = user.roles.map((role) => role.id);
-      if (!assignedRoleIds.includes(filters.value.roleId)) {
+      if (!assignedRoleIds.includes(appliedFilters.value.roleId)) {
         return false;
       }
     }
@@ -1261,7 +1365,68 @@ function resetFilters() {
     roleId: undefined,
     status: '',
   };
+  appliedFilters.value = { ...filters.value };
+  savedViews.selectedId.value = undefined;
   pagination.value.current = 1;
+}
+
+function applyFilters() {
+  appliedFilters.value = { ...filters.value };
+  pagination.value.current = 1;
+}
+
+function updateUserFilterField(payload: { key: string; value: string | string[] }) {
+  const value = Array.isArray(payload.value) ? (payload.value[0] ?? '') : payload.value;
+  if (payload.key === 'status') filters.value.status = value as UserStatus | '';
+  if (payload.key === 'roleId') {
+    const roleId = Number(value);
+    filters.value.roleId = Number.isInteger(roleId) && roleId > 0 ? roleId : undefined;
+  }
+}
+
+function clearUserFilterTag(key: string) {
+  if (key === 'keyword') filters.value.keyword = '';
+  if (key === 'status') filters.value.status = '';
+  if (key === 'roleId') filters.value.roleId = undefined;
+  applyFilters();
+}
+
+function currentUserSavedQueryState(): UserSavedQueryState {
+  return {
+    ...(appliedFilters.value.keyword.trim() ? { keyword: appliedFilters.value.keyword.trim() } : {}),
+    ...(appliedFilters.value.roleId === undefined ? {} : { role_id: appliedFilters.value.roleId }),
+    ...(appliedFilters.value.status ? { status: appliedFilters.value.status } : {}),
+  };
+}
+
+function toUserSavedViewRequest(input: {
+  name: string;
+  isDefault: boolean;
+  state: UserSavedViewState;
+}): Parameters<typeof postUserSavedView>[0] {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState,
+    visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
+  };
+}
+
+function applyUserSavedView(state: UserSavedViewState) {
+  const query = state.queryState;
+  const nextFilters: UserFilters = {
+    keyword: query.keyword ?? '',
+    roleId: Number.isInteger(query.role_id) && (query.role_id ?? 0) > 0 ? query.role_id : undefined,
+    status: query.status === USER_STATUS.DISABLED || query.status === USER_STATUS.ENABLED ? query.status : '',
+  };
+  filters.value = nextFilters;
+  appliedFilters.value = { ...nextFilters };
+  applySavedQueryViewPresentation(state, {
+    pagination: pagination.value,
+    supportedColumns: DEFAULT_VISIBLE_COLUMNS,
+    visibleColumnKeys,
+  });
 }
 
 function formatTimestamp(value?: string | null) {
@@ -2072,10 +2237,11 @@ defineExpose({
 
 onMounted(() => {
   void loadRoleCatalog();
+  void savedViews.load();
 });
 
 watch(
-  () => [filters.value.keyword, filters.value.status, filters.value.roleId] as const,
+  () => [appliedFilters.value.keyword, appliedFilters.value.status, appliedFilters.value.roleId] as const,
   () => {
     pagination.value.current = 1;
   },

@@ -1638,6 +1638,199 @@
         }
       }
     },
+    "/api/users/saved-views": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List private user-list saved views",
+        "operationId": "getUserSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's user-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create a private user-list saved view",
+        "operationId": "postUserSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/users/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update a private user-list saved view",
+        "operationId": "putUserSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a private user-list saved view",
+        "operationId": "deleteUserSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/users/{id}": {
       "get": {
         "tags": [
@@ -3006,6 +3199,199 @@
         }
       }
     },
+    "/api/roles/saved-views": {
+      "get": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "List private role-list saved views",
+        "operationId": "getRoleSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's role-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Create a private role-list saved view",
+        "operationId": "postRoleSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/roles/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Update a private role-list saved view",
+        "operationId": "putRoleSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Delete a private role-list saved view",
+        "operationId": "deleteRoleSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/roles/{id}": {
       "get": {
         "tags": [
@@ -4046,6 +4432,199 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/permissions/saved-views": {
+      "get": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "List private permission-list saved views",
+        "operationId": "getPermissionSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's permission-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Create a private permission-list saved view",
+        "operationId": "postPermissionSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/permissions/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Update a private permission-list saved view",
+        "operationId": "putPermissionSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Delete a private permission-list saved view",
+        "operationId": "deletePermissionSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }
@@ -9267,7 +9846,7 @@
         ],
         "summary": "Read the active self-update operation",
         "operationId": "getPlatformUpdateActiveOperation",
-        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.",
+        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.",
         "security": [
           {
             "bearerAuth": []
@@ -22843,6 +23422,145 @@
           }
         ]
       },
+      "saved-view": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns",
+          "is_default",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "visible_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this user view is applied by default for its list surface."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "saved-view-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/saved-view"
+            }
+          }
+        }
+      },
+      "enveloped-saved-view-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/saved-view-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "saved-view-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "visible_columns": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_default": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this view becomes the user's default for this list surface."
+          }
+        }
+      },
+      "enveloped-saved-view": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/saved-view"
+              }
+            }
+          }
+        ]
+      },
       "update-user-request": {
         "type": "object",
         "required": [
@@ -23822,145 +24540,6 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-log-detail-response"
-              }
-            }
-          }
-        ]
-      },
-      "saved-view": {
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "query_state",
-          "page_size",
-          "visible_columns",
-          "is_default",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "query_state": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "page_size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 200
-          },
-          "visible_columns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "is_default": {
-            "type": "boolean",
-            "description": "Whether this user view is applied by default for its list surface."
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "saved-view-list-response": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/saved-view"
-            }
-          }
-        }
-      },
-      "enveloped-saved-view-list-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/saved-view-list-response"
-              }
-            }
-          }
-        ]
-      },
-      "saved-view-request": {
-        "type": "object",
-        "required": [
-          "name",
-          "query_state",
-          "page_size",
-          "visible_columns"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "query_state": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "page_size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 200
-          },
-          "visible_columns": {
-            "type": "array",
-            "maxItems": 100,
-            "items": {
-              "type": "string"
-            }
-          },
-          "is_default": {
-            "type": "boolean",
-            "default": false,
-            "description": "Whether this view becomes the user's default for this list surface."
-          }
-        }
-      },
-      "enveloped-saved-view": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/saved-view"
               }
             }
           }
@@ -29444,14 +30023,13 @@
               "runner_state",
               "terminal_history",
               "runner_state_unavailable",
-              "runner_lost",
-              "runner_terminated"
+              "runner_lost"
             ],
-            "description": "Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot."
+            "description": "Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot."
           },
           "state_available": {
             "type": "boolean",
-            "description": "Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields."
+            "description": "Whether runner lifecycle state was available to verify this projection. runner_lost is explicitly unavailable even when it retains the last verified snapshot fields."
           },
           "error": {
             "type": "string",
