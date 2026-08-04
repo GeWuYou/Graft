@@ -13,8 +13,10 @@ Follow root `AGENTS.md` startup governance before using this skill. For frontend
 
 Browser QA is a developer-owned primary-checkout activity. Do not use this skill from a numbered agent worktree, and
 do not start services, invoke Playwright, capture screenshots, or run browser interactions there. Before browser
-interaction, obtain user or developer approval and confirm that the runtime serves the branch and HEAD under review;
-a different branch, dirty checkout, or error response is not valid evidence. A worktree closeout records this as a
+interaction, obtain user or developer approval, first confirm the runtime identity, and then confirm it serves the
+primary checkout branch and HEAD under review; a different branch, dirty checkout, or error response is not valid
+evidence. Pass the confirmed, non-secret runtime label with `--runtime-identity`; `summary.json` records that label
+alongside the primary checkout repository, branch, and full HEAD. A worktree closeout records this as a
 primary-checkout follow-up and does not block a validated scoped implementation commit.
 
 Playwright MCP can be used as an optional exploration layer for this skill when it is available in `codex mcp list`.
@@ -51,6 +53,7 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://172.21.235.129:3002 \
+  --runtime-identity "primary-web feature/example full-head" \
   --login \
   --credentials temp/username-passward.yaml \
   --session auth-check \
