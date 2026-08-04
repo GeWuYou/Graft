@@ -1955,7 +1955,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -7519,11 +7519,16 @@ export interface components {
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
       /**
-       * @description Authority that produced this projection. runner_state_unavailable, runner_state_corrupt, and runner_lost never represent live runner progress; corrupt state is quarantined only through protected recovery.
+       * @description Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
        * @enum {string}
        */
       state_source:
-        'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_state_corrupt' | 'runner_lost';
+        | 'runner_state'
+        | 'terminal_history'
+        | 'task_recovery'
+        | 'runner_state_unavailable'
+        | 'runner_state_corrupt'
+        | 'runner_lost';
       /** @description Whether runner lifecycle state was available to verify this projection. runner_state_corrupt and runner_lost are explicitly unavailable. */
       state_available: boolean;
       /** @description Controlled runner failure code; never raw command output or deployment secrets. */
@@ -16063,7 +16068,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists. */
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
       200: {
         headers: {
           [name: string]: unknown;

@@ -112,6 +112,13 @@ DeploymentContext {
 
 server 每分钟 reconcile state volume，并在 API 查询时直接计算 lease。schema-v2 非终态 snapshot 的 `lease_expires_at` 已过期时，server 必须返回 `state_source=runner_lost`、`state_available=false`、`error=PLATFORM_UPDATE_RUNNER_LOST`，并只保留最后可信的 `phase`、`progress` 与 safe `message` 作为诊断上下文；该投影不是运行中的 `READY` 或其他 phase。若首次 snapshot 尚未写出，数据库授权记录创建五分钟后也投影为 `runner_lost`。schema-v1 只由 beta bootstrap 的 `graft update cutover-v1` 一次性识别和清理：它只修改 legacy schema-v1 状态，不创建或更新 schema-v2 `current.json` snapshot 或 event records，不能被 server 解释为运行状态；`runner_terminated` 不再属于 runtime contract。浏览器必须停止轮询，并为持有 `platform-update.manage` 的管理员显示受控诊断入口；server 只持久化一条 allowlisted 诊断，绝不将 Docker stderr、命令、host path、凭证或 state-store 原始 I/O 错误返回给 API/UI。
 
+`GET /api/platform/updates/active-operation` 还必须以关联 Task Runtime 状态过滤旧 operation：仅
+`pending`、`scheduled`、`running` Task 可占用活动恢复入口。`needs_attention` operation 仅在指定历史读取时以
+`state_source=task_recovery` 返回，前端清除对应 sessionStorage 并回到更新中心；它不得被误投影为
+`runner_lost` 或重新阻塞新的升级。`failure_diagnostic_available` 仅在 Update 的受控诊断记录确实存在时为
+true，客户端不得猜测并请求不存在的诊断。Task Runtime 的保守 `recovery_required` 审计记录保留不变；有效 runner
+receipt 的结算仍优先成为 Task 和 Update 终态事实。
+
 管理员可调用 `POST /api/platform/updates/operations/{operationID}/recovery` 启动一次性恢复 runner。该操作要求 `platform-update.manage`，且只接受 `runner_lost`、snapshot 已验证为 non-terminal、并且 migration 尚未开始的操作；运行中、已终态、非失联、已恢复、state 不可读或 migration 已开始均 fail closed。已有 state 时 server 向 recovery runner 传入绑定 snapshot；首次 state 缺失时仅传入授权身份和冻结版本/部署输入，recovery runner 自己写安全 terminal result，server 不伪造执行 phase。服务端在 recovery image 拉取前原子写入不透明恢复认领，作为授权和重复启动协调证据，而不是 runner phase 或 lease；只有已证明 recovery runner 尚未创建时才会撤销认领，创建尝试后的不确定结果必须保留认领并返回冲突。恢复容器使用部署时显式配置的 `GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE`，该值必须是官方 `graft-compose-runner` 的 immutable SHA-256 reference；不得复用可能尚未支持恢复协议的故障 runner 镜像，缺失或无效配置必须明确拒绝恢复。恢复 runner 只写入安全 terminal failure/rollback 结果，绝不继续被中断的升级；terminal projection 完成后才允许新升级重新进行资格检查。
 
 `platform.update.operations.<operationID>` 是 Update 进度的 canonical realtime topic。Update 只发布已授权读取、已验证的 runner snapshot 和 allowlisted 节点事件；它不单独维护 SSE 或 WebSocket endpoint。`server/internal/realtime` 统一签发受 topic 和调用者绑定的一次性 ticket；同一 ticket 可由 WebSocket 或 SSE gateway 任一方单次消费。升级重建中断连接或用户打开新标签页时，浏览器先通过 API 发现 active operation、读取当前状态与指定 revision 之后的受限事件，再重新申请 ticket 并订阅。SSE/WebSocket 是 transport，不是事实源；server 不可用期间 runner 继续写 state volume，server 恢复后重新 reconcile 最新 snapshot 或 terminal result。活动请求尚未产生可验证 runner state 时，server 必须显式返回状态源不可用，前端不得将其伪装成持续 `READY` 进度；`runner_lost` 不是 live progress，必须终止当前浏览器会话的进度轮询。

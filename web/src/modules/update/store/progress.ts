@@ -30,8 +30,14 @@ const runnerDisconnectedStateSources = new Set<UpdateOperation['state_source']>(
   'runner_state_corrupt',
 ]);
 
+const historicalTaskStateSources = new Set<UpdateOperation['state_source']>(['task_recovery']);
+
 function isRunnerDisconnected(operation: UpdateOperation | null | undefined) {
   return Boolean(operation && runnerDisconnectedStateSources.has(operation.state_source));
+}
+
+function isHistoricalTaskOperation(operation: UpdateOperation | null | undefined) {
+  return Boolean(operation && historicalTaskStateSources.has(operation.state_source));
 }
 
 function isUnrecoverableSnapshotError(error: unknown) {
@@ -201,6 +207,10 @@ export const useUpdateProgressStore = defineStore('update-progress', {
     async applyOperation(session: number, operation: UpdateOperation) {
       if (session !== this.session) return;
       if (this.operationID && operation.operation_id !== this.operationID) return;
+      if (isHistoricalTaskOperation(operation)) {
+        this.reset();
+        return;
+      }
       if (isRunnerDisconnected(operation)) {
         this.operation = operation;
         this.operationID = operation.operation_id;

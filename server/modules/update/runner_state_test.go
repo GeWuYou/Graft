@@ -13,6 +13,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
+
+	"graft/server/internal/moduleapi"
 )
 
 type runnerOwnershipCall struct {
@@ -376,6 +378,46 @@ func TestRolloutReadsActiveRunnerStateWithoutHistoryStore(t *testing.T) {
 	}
 }
 
+func TestRolloutDoesNotRestoreHistoricalTaskAsActiveOperation(t *testing.T) {
+	operation := ComposeUpdateOperation{OperationID: "update-task-recovery", RunnerID: "runner-task-recovery", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 20, Outcome: ExecutionOutcomePlanning, StartedAt: time.Now().UTC().Add(-time.Hour)}
+	stateStore, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	state := NewRunnerState(RunnerInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Preflight: ComposePreflight{DeploymentStrategy: operation.DeploymentStrategy}}, operation.RunnerID, RunnerPhaseBackup, 15, "creating_backup", "", RunnerState{})
+	if err := stateStore.Write(state); err != nil {
+		t.Fatalf("write old runner state: %v", err)
+	}
+	rollout := &RolloutService{
+		stateStore: stateStore,
+		operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}},
+		taskQuery:  taskQueryStub{tasks: map[uint64]moduleapi.TaskView{20: {ID: 20, Status: moduleapi.TaskStatusNeedsAttention}}},
+	}
+
+	active, err := rollout.GetActiveOperation(t.Context())
+	if !errors.Is(err, errActiveUpdateOperationNotFound) || active != nil {
+		t.Fatalf("historical task must not occupy active operation recovery: active=%#v err=%v", active, err)
+	}
+
+	view, err := rollout.GetOperation(t.Context(), operation.OperationID)
+	if err != nil || view.StateSource != "task_recovery" || view.FailureDiagnosticAvailable {
+		t.Fatalf("task recovery history projection = %#v, %v", view, err)
+	}
+}
+
+func TestRolloutUsesTaskReceiptSuccessBeforeStaleOperationStatus(t *testing.T) {
+	operation := ComposeUpdateOperation{OperationID: "update-task-success", RunnerID: "runner-task-success", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 21, Outcome: ExecutionOutcomePlanning}
+	rollout := &RolloutService{
+		operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}},
+		taskQuery:  taskQueryStub{tasks: map[uint64]moduleapi.TaskView{21: {ID: 21, Status: moduleapi.TaskStatusSuccess}}},
+	}
+
+	view, err := rollout.GetOperation(t.Context(), operation.OperationID)
+	if err != nil || view.Phase != RunnerPhaseSuccess || view.StateSource != "terminal_history" {
+		t.Fatalf("settled task receipt must project success before stale operation status: %#v, %v", view, err)
+	}
+}
+
 func TestRolloutRecoverBindsExpiredLeaseSnapshot(t *testing.T) {
 	t.Setenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE", "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64))
 	store, err := NewFileRunnerStateStore(t.TempDir())
@@ -522,7 +564,7 @@ func TestRolloutProjectsExpiredRunnerStatesAsLost(t *testing.T) {
 			operation := ComposeUpdateOperation{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}
 			rollout := &RolloutService{stateStore: store, operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}}}
 			view, err := rollout.GetOperation(t.Context(), state.OperationID)
-			if err != nil || view.StateSource != "runner_lost" || view.StateAvailable || view.Error != "PLATFORM_UPDATE_RUNNER_LOST" {
+			if err != nil || view.StateSource != "runner_lost" || view.StateAvailable || view.Error != "PLATFORM_UPDATE_RUNNER_LOST" || view.FailureDiagnosticAvailable {
 				t.Fatalf("runner lost projection = %#v, %v", view, err)
 			}
 		})

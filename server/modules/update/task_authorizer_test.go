@@ -97,6 +97,9 @@ func newPlatformUpdateRegisterTestContext(t *testing.T) platformUpdateRegisterTe
 	if err := services.RegisterSingleton((*moduleapi.TaskService)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
 		t.Fatalf("register task service: %v", err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.TaskQueryService)(nil), func(container.Resolver) (any, error) { return taskQueryStub{}, nil }); err != nil {
+		t.Fatalf("register task query service: %v", err)
+	}
 	if err := services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
 		t.Fatalf("register task runtime registrar: %v", err)
 	}

@@ -28,6 +28,7 @@ type RolloutService struct {
 	operations         OperationStore
 	diagnostics        FailureDiagnosticStore
 	coordinator        *ComposeExecutionCoordinator
+	taskQuery          moduleapi.TaskQueryService
 	launcher           ComposeRunnerLauncher
 	deployment         moduleapi.DeploymentRuntime
 	newOperation       func() string
@@ -137,6 +138,13 @@ func (s *RolloutService) SetFailureDiagnosticStore(store FailureDiagnosticStore)
 	}
 }
 
+// SetTaskQueryService 注入 Task Runtime 的只读事实，使未结算的 Update operation 不会绕过其关联 Task 的终态。
+func (s *RolloutService) SetTaskQueryService(service moduleapi.TaskQueryService) {
+	if s != nil {
+		s.taskQuery = service
+	}
+}
+
 // StartRolloutInput 承载一次 Compose 更新启动的显式请求语义，避免候选 Compose 根与更新策略共享位置参数。
 type StartRolloutInput struct {
 	RequestedBy   uint64
@@ -211,8 +219,21 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 		state, err := s.stateStore.Read()
 		switch {
 		case err == nil && state.OperationID == operationID:
+			if s.operations != nil {
+				operation, operationErr := s.operations.Get(ctx, operationID)
+				if operationErr != nil {
+					return OperationView{}, operationErr
+				}
+				if view, resolved, resolveErr := s.taskTerminalOperationView(ctx, operation); resolveErr != nil {
+					return OperationView{}, resolveErr
+				} else if resolved {
+					return view, nil
+				}
+			}
 			if runnerLeaseLost(state, time.Now().UTC()) {
-				return updateOperationViewFromLostRunner(state), nil
+				view := updateOperationViewFromLostRunner(state)
+				s.applyFailureDiagnosticAvailability(ctx, &view)
+				return view, nil
 			}
 			return updateOperationViewFromRunnerState(state), nil
 		case err != nil && !errors.Is(err, os.ErrNotExist):
@@ -236,6 +257,11 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 		return OperationView{}, err
 	}
 	if !isTerminalOutcome(operation.Outcome) {
+		if view, resolved, resolveErr := s.taskTerminalOperationView(ctx, operation); resolveErr != nil {
+			return OperationView{}, resolveErr
+		} else if resolved {
+			return view, nil
+		}
 		if operation.StartedAt.Add(missingRunnerStateLostAfter).Before(time.Now().UTC()) {
 			return updateOperationViewFromMissingLostRunner(operation), nil
 		}
@@ -255,8 +281,16 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 		state, err := s.stateStore.Read()
 		switch {
 		case err == nil && !isTerminalRunnerPhase(state.Phase):
+			active, taskErr := s.runnerStateTaskActive(ctx, state.OperationID)
+			if taskErr != nil {
+				return nil, taskErr
+			}
+			if !active {
+				break
+			}
 			if runnerLeaseLost(state, time.Now().UTC()) {
 				view := updateOperationViewFromLostRunner(state)
+				s.applyFailureDiagnosticAvailability(ctx, &view)
 				return &view, nil
 			}
 			view := updateOperationViewFromRunnerState(state)
@@ -277,6 +311,13 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 	}
 	for _, operation := range items {
 		if !isTerminalOutcome(operation.Outcome) {
+			active, err := s.taskIsActive(ctx, operation)
+			if err != nil {
+				return nil, err
+			}
+			if !active {
+				continue
+			}
 			if s.stateStore != nil {
 				if _, stateErr := s.stateStore.Read(); errors.Is(stateErr, ErrRunnerStateCorrupt) {
 					view := updateOperationViewFromCorruptRunnerState(operation)
@@ -292,6 +333,68 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 		}
 	}
 	return nil, errActiveUpdateOperationNotFound
+}
+
+func (s *RolloutService) runnerStateTaskActive(ctx context.Context, operationID string) (bool, error) {
+	if s == nil || s.operations == nil {
+		return true, nil
+	}
+	operation, err := s.operations.Get(ctx, operationID)
+	if err != nil {
+		return false, err
+	}
+	return s.taskIsActive(ctx, operation)
+}
+
+func (s *RolloutService) taskIsActive(ctx context.Context, operation ComposeUpdateOperation) (bool, error) {
+	if s == nil || s.taskQuery == nil {
+		// Direct service unit tests may omit module wiring; production registration always injects this capability.
+		return true, nil
+	}
+	task, err := s.taskQuery.GetTask(ctx, operation.TaskID)
+	if err != nil {
+		return false, fmt.Errorf("read update operation task: %w", err)
+	}
+	switch task.Status {
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func (s *RolloutService) taskTerminalOperationView(ctx context.Context, operation ComposeUpdateOperation) (OperationView, bool, error) {
+	if s == nil || s.taskQuery == nil {
+		return OperationView{}, false, nil
+	}
+	task, err := s.taskQuery.GetTask(ctx, operation.TaskID)
+	if err != nil {
+		return OperationView{}, false, fmt.Errorf("read update operation task: %w", err)
+	}
+	switch task.Status {
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
+		return OperationView{}, false, nil
+	case moduleapi.TaskStatusNeedsAttention:
+		return updateOperationViewFromTaskRecovery(operation), true, nil
+	case moduleapi.TaskStatusSuccess:
+		operation.Outcome = ExecutionOutcomeSuccess
+		return updateOperationViewFromHistory(operation), true, nil
+	case moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
+		operation.Outcome = ExecutionOutcomeFailed
+		return updateOperationViewFromHistory(operation), true, nil
+	default:
+		return OperationView{}, false, fmt.Errorf("update operation task has unsupported status %q", task.Status)
+	}
+}
+
+func (s *RolloutService) applyFailureDiagnosticAvailability(ctx context.Context, view *OperationView) {
+	if s == nil || view == nil || s.operations == nil {
+		return
+	}
+	operation, err := s.operations.Get(ctx, view.OperationID)
+	if err == nil {
+		view.FailureDiagnosticAvailable = operation.FailureDiagnosticAvailable
+	}
 }
 
 // Recover 只在已验证 runner 异常退出且尚未迁移时，启动一次性终态恢复 runner。

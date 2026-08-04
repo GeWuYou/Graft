@@ -23,6 +23,24 @@ describe('PageHeader', () => {
     expect(wrapper.find('.t-breadcrumb').exists()).toBe(false);
   });
 
+  it('renders a compact description that replaces the regular copy below the mobile breakpoint', () => {
+    const wrapper = mount(PageHeader, {
+      props: {
+        titleFallback: 'Connectivity',
+        descriptionFallback: 'Review platform outbound network health and enter target diagnostics.',
+        compactDescriptionFallback: 'Review outbound connection health.',
+      },
+    });
+
+    expect(wrapper.get('.page-header__description--desktop').text()).toBe(
+      'Review platform outbound network health and enter target diagnostics.',
+    );
+    expect(wrapper.get('.page-header__description--compact').text()).toBe('Review outbound connection health.');
+    expect(wrapper.classes()).toContain('page-header--has-compact-description');
+    expect(PAGE_HEADER_SOURCE).toContain('@media (width < 768px)');
+    expect(PAGE_HEADER_SOURCE).toContain('.page-header__description--compact');
+  });
+
   it('keeps action slots in the header side region', () => {
     const wrapper = mount(PageHeader, {
       props: { titleFallback: 'Server status' },

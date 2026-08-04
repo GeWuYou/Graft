@@ -2,6 +2,8 @@ package update
 
 import "time"
 
+const completedOperationProgress = 100
+
 // OperationView 是 server 对 runner 状态卷或终态历史的只读 API 投影。
 // 活动操作始终由 RunnerState 生成；数据库只为已结算终态提供历史读取。
 type OperationView struct {
@@ -40,11 +42,11 @@ func updateOperationViewFromHistory(operation ComposeUpdateOperation) OperationV
 	message := "runner_starting"
 	switch operation.Outcome {
 	case ExecutionOutcomeSuccess:
-		phase, progress, message = RunnerPhaseSuccess, 100, "update_completed"
+		phase, progress, message = RunnerPhaseSuccess, completedOperationProgress, "update_completed"
 	case ExecutionOutcomeRecovered:
-		phase, progress, message = RunnerPhaseRollback, 100, "rollback_completed"
+		phase, progress, message = RunnerPhaseRollback, completedOperationProgress, "rollback_completed"
 	case ExecutionOutcomeFailed, ExecutionOutcomeNeedsAttention:
-		phase, progress, message = RunnerPhaseFailed, 100, "update_failed"
+		phase, progress, message = RunnerPhaseFailed, completedOperationProgress, "update_failed"
 	}
 	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: phase, Progress: progress, Message: message, StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, FinishedAt: operation.FinishedAt, Error: operation.FailureCode, FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable, StateSource: "terminal_history", StateAvailable: true}
 }
@@ -54,13 +56,17 @@ func updateOperationViewFromUnavailableRunnerState(operation ComposeUpdateOperat
 }
 
 func updateOperationViewFromCorruptRunnerState(operation ComposeUpdateOperation) OperationView {
-	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_corrupt", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_STATE_CORRUPT", FailureDiagnosticAvailable: true, StateSource: "runner_state_corrupt", StateAvailable: false}
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_corrupt", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_STATE_CORRUPT", FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable, StateSource: "runner_state_corrupt", StateAvailable: false}
 }
 
 func updateOperationViewFromLostRunner(state RunnerState) OperationView {
-	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_LOST", FailureDiagnosticAvailable: true, StateSource: "runner_lost", StateAvailable: false}
+	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_LOST", StateSource: "runner_lost", StateAvailable: false}
 }
 
 func updateOperationViewFromMissingLostRunner(operation ComposeUpdateOperation) OperationView {
-	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_unavailable", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_LOST", FailureDiagnosticAvailable: true, StateSource: "runner_lost", StateAvailable: false}
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_unavailable", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_LOST", FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable, StateSource: "runner_lost", StateAvailable: false}
+}
+
+func updateOperationViewFromTaskRecovery(operation ComposeUpdateOperation) OperationView {
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseFailed, Progress: completedOperationProgress, Message: "task_recovery", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_TASK_RECOVERY_REQUIRED", FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable, StateSource: "task_recovery", StateAvailable: true}
 }

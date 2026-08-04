@@ -1,7 +1,11 @@
 <template>
   <header
     class="page-header"
-    :class="{ 'page-header--compact': compact, 'page-header--inline-actions': actionLayout === 'inline' }"
+    :class="{
+      'page-header--compact': compact,
+      'page-header--has-compact-description': resolvedCompactDescription,
+      'page-header--inline-actions': actionLayout === 'inline',
+    }"
   >
     <div v-if="resolvedSource" class="page-header__source">
       <span class="page-header__source-dot" :style="{ background: resolvedSource.color || defaultSourceColor }" />
@@ -11,8 +15,11 @@
     <div class="page-header__main">
       <div class="page-header__copy">
         <h1 class="page-header__title">{{ resolvedTitle }}</h1>
-        <p v-if="resolvedDescription" class="page-header__description">
+        <p v-if="resolvedDescription" class="page-header__description page-header__description--desktop">
           {{ resolvedDescription }}
+        </p>
+        <p v-if="resolvedCompactDescription" class="page-header__description page-header__description--compact">
+          {{ resolvedCompactDescription }}
         </p>
       </div>
 
@@ -36,7 +43,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PageHeaderSource } from './types';
 
-/** PageHeader 只解析页面文案并编排操作 slots，容器内空间不足时由自身重排，不依赖壳层视口。 */
+/** PageHeader 解析页面文案并编排操作 slots；操作按容器宽度重排，窄屏可选择独立的简短描述。 */
 const props = withDefaults(
   defineProps<{
     source?: PageHeaderSource;
@@ -44,11 +51,15 @@ const props = withDefaults(
     titleFallback?: string;
     descriptionKey?: string;
     descriptionFallback?: string;
+    compactDescriptionKey?: string;
+    compactDescriptionFallback?: string;
     compact?: boolean;
     actionLayout?: 'responsive' | 'inline';
   }>(),
   {
     compact: false,
+    compactDescriptionFallback: '',
+    compactDescriptionKey: '',
     actionLayout: 'responsive',
     descriptionFallback: '',
     descriptionKey: '',
@@ -85,6 +96,13 @@ const resolvedDescription = computed(() => {
   }
 
   return resolveText(props.descriptionKey, props.descriptionFallback || '');
+});
+const resolvedCompactDescription = computed(() => {
+  if (!props.compactDescriptionKey && !props.compactDescriptionFallback) {
+    return '';
+  }
+
+  return resolveText(props.compactDescriptionKey, props.compactDescriptionFallback || '');
 });
 </script>
 <style scoped lang="less">
@@ -144,6 +162,10 @@ const resolvedDescription = computed(() => {
   overflow-wrap: anywhere;
 }
 
+.page-header__description--compact {
+  display: none;
+}
+
 .page-header__side {
   align-items: flex-end;
   display: flex;
@@ -174,6 +196,16 @@ const resolvedDescription = computed(() => {
 
 .page-header--compact .page-header__title {
   font: var(--td-font-headline-small);
+}
+
+@media (width < 768px) {
+  .page-header--has-compact-description .page-header__description--desktop {
+    display: none;
+  }
+
+  .page-header--has-compact-description .page-header__description--compact {
+    display: block;
+  }
 }
 
 @container (width < @screen-sm) {
