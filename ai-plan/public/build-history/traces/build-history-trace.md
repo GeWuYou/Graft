@@ -17,3 +17,8 @@
 - Kept count and list reads on the same filter set with `created_at DESC, id DESC` ordering to prevent page-window instability.
 - Updated the Build Jobs page to retain filter and pagination state without adding Task status/logs, runtime facts, saved views, retention, or a durable projection.
 - Regenerated contract projections and passed focused Build tests, backend validation, web validation, OpenAPI validation, and whitespace validation.
+
+## 2026-08-04 Controller Settlement
+
+- Accepted `fe1ae543 feat(build): filter build history` after verifying its declared Build/OpenAPI/web/topic scope, clean worktree, and complete validation evidence.
+- Settled `phase-2-history-filtering-and-pagination`; no implementation batch remains pending, so the loop advances to the controller-owned archive-readiness check rather than stopping at batch completion.

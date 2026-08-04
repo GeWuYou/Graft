@@ -25,12 +25,13 @@ closeout:
 
 ## Current Recovery Point
 
-- `phase-2-history-filtering-and-pagination` is implemented and validated; outer loop settlement remains responsible for selecting any subsequent bounded batch.
+- Both the discovery and filtering/pagination batches are accepted. The outer controller must now perform the topic-level archive-readiness check before selecting any new work.
 
 ## Task Checklist
 
 - [x] Establish the first justified Build history batch.
 - [x] Add Build-owned history filtering and pagination.
+- [ ] Complete the controller-owned archive-readiness check.
 
 ## Latest Batch Evidence
 
@@ -50,9 +51,9 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-2-history-discovery"],
-  "pending_batches": ["phase-2-history-filtering-and-pagination"],
-  "current_batch": "phase-2-history-filtering-and-pagination",
+  "completed_batches": ["phase-2-history-discovery", "phase-2-history-filtering-and-pagination"],
+  "pending_batches": [],
+  "current_batch": null,
   "next_batch": null,
   "closeout_status": "active",
   "stop_reason": null,

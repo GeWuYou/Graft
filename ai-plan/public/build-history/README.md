@@ -23,4 +23,4 @@
 
 ## Pending Batch Direction
 
-- Establish the smallest Phase 2 history batch from proven query requirements without creating duplicate Task, Container, or Project authority.
+- The implemented Build-owned filter and pagination slice is awaiting the controller-owned archive-readiness check; do not start Task, Container, Project, saved-view, retention, or durable-projection work without a newly justified batch.
