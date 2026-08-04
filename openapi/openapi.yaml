@@ -241,14 +241,24 @@ paths:
     $ref: ./paths/platform-network.outbound.yaml
   /api/platform/network/outbound/reset:
     $ref: ./paths/platform-network.reset.yaml
+  /api/platform/network/diagnostics/{targetId}:
+    $ref: ./paths/platform-network.diagnostic.yaml
+  /api/platform/network/diagnostics/{targetId}/history:
+    $ref: ./paths/platform-network.diagnostic-history.yaml
   /api/platform/network/connectivity/targets:
     $ref: ./paths/platform-network.connectivity-targets.yaml
+  /api/platform/network/connectivity/custom-targets:
+    $ref: ./paths/platform-network.connectivity-custom-targets.yaml
+  /api/platform/network/connectivity/custom-targets/{targetId}:
+    $ref: ./paths/platform-network.connectivity-custom-target.yaml
   /api/platform/network/connectivity/latest:
     $ref: ./paths/platform-network.connectivity-latest.yaml
   /api/platform/network/connectivity/aggregate:
     $ref: ./paths/platform-network.connectivity-aggregate.yaml
   /api/platform/network/connectivity/{targetId}/run:
     $ref: ./paths/platform-network.connectivity-run.yaml
+  /api/platform/network/connectivity/run:
+    $ref: ./paths/platform-network.connectivity-batch-run.yaml
   /api/platform/network/connectivity/{targetId}/history:
     $ref: ./paths/platform-network.connectivity-history.yaml
   /api/platform/network/connectivity/{targetId}/reports/{checkId}:

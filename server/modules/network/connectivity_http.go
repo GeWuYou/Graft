@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	networkopenapi "graft/server/internal/contract/openapi/network"
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 )
@@ -72,6 +74,52 @@ type connectivityReportResponse struct {
 	ExitIP         *connectivityExitIPResponse `json:"exit_ip,omitempty"`
 }
 
+type connectivityCustomTargetResponse struct {
+	ID          string    `json:"id"`
+	DisplayName string    `json:"display_name"`
+	Endpoint    string    `json:"endpoint"`
+	Enabled     bool      `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type legacyDiagnosticResponse struct {
+	TargetID   string    `json:"target_id"`
+	Status     string    `json:"status"`
+	LatencyMS  int64     `json:"latency_ms,omitempty"`
+	HTTPStatus int       `json:"http_status,omitempty"`
+	TestedAt   time.Time `json:"tested_at"`
+	Error      string    `json:"error,omitempty"`
+}
+
+func (r routeRuntime) handleLegacyDiagnostic(ginCtx *gin.Context) {
+	targetID := strings.TrimSpace(ginCtx.Param("targetId"))
+	result, err := r.service.Diagnose(ginCtx.Request.Context(), targetID)
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toLegacyDiagnosticResponse(targetID, result))
+}
+
+func (r routeRuntime) handleLegacyDiagnosticHistory(ginCtx *gin.Context) {
+	targetID := strings.TrimSpace(ginCtx.Param("targetId"))
+	limit, ok := connectivityHistoryLimit(ginCtx)
+	if !ok {
+		r.badRequest(ginCtx)
+		return
+	}
+	items, err := r.service.DiagnosticHistory(ginCtx.Request.Context(), targetID, limit)
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	responses := make([]legacyDiagnosticResponse, 0, len(items))
+	for _, item := range items {
+		responses = append(responses, toLegacyDiagnosticResponse(targetID, item))
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"target_id": targetID, "items": responses})
+}
+
 func (r routeRuntime) handleConnectivityTargets(ginCtx *gin.Context) {
 	targets, err := r.service.ConnectivityTargets()
 	if err != nil {
@@ -83,6 +131,51 @@ func (r routeRuntime) handleConnectivityTargets(ginCtx *gin.Context) {
 		items = append(items, toConnectivityTargetResponse(target))
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": items})
+}
+
+func (r routeRuntime) handleConnectivityCustomTargets(ginCtx *gin.Context) {
+	targets, err := r.service.CustomConnectivityTargets(ginCtx.Request.Context())
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	items := make([]connectivityCustomTargetResponse, 0, len(targets))
+	for _, target := range targets {
+		items = append(items, toConnectivityCustomTargetResponse(target))
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": items})
+}
+
+func (r routeRuntime) handleCreateConnectivityCustomTarget(ginCtx *gin.Context) {
+	var request networkopenapi.PostPlatformConnectivityCustomTargetJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		r.badRequest(ginCtx)
+		return
+	}
+	actorID := currentUserID(ginCtx)
+	if actorID == nil {
+		r.writeError(ginCtx, errors.New("authenticated operator is required"))
+		return
+	}
+	target, err := r.service.CreateCustomConnectivityTarget(ginCtx.Request.Context(), CustomConnectivityTargetInput{TargetID: moduleapi.ConnectivityTargetID(request.TargetId), DisplayName: request.DisplayName, Endpoint: request.Endpoint}, *actorID)
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, toConnectivityCustomTargetResponse(target))
+}
+
+func (r routeRuntime) handleDeleteConnectivityCustomTarget(ginCtx *gin.Context) {
+	actorID := currentUserID(ginCtx)
+	if actorID == nil {
+		r.writeError(ginCtx, errors.New("authenticated operator is required"))
+		return
+	}
+	if err := r.service.DeleteCustomConnectivityTarget(ginCtx.Request.Context(), moduleapi.ConnectivityTargetID(strings.TrimSpace(ginCtx.Param("targetId"))), *actorID); err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusNoContent)
 }
 
 func (r routeRuntime) handleConnectivityLatest(ginCtx *gin.Context) {
@@ -111,6 +204,15 @@ func (r routeRuntime) handleConnectivityRun(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"check": toConnectivityCheckResponse(check), "report": toConnectivityReportResponse(report)})
+}
+
+func (r routeRuntime) handleConnectivityBatchRun(ginCtx *gin.Context) {
+	checks, err := r.service.RunAllConnectivity(ginCtx.Request.Context())
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": toConnectivityCheckResponses(checks)})
 }
 
 func (r routeRuntime) handleConnectivityHistory(ginCtx *gin.Context) {
@@ -213,4 +315,16 @@ func toConnectivityReportResponse(value moduleapi.ConnectivityReport) connectivi
 		response.ExitIP = &connectivityExitIPResponse{Masked: value.ExitIP.Masked, Available: value.ExitIP.Available}
 	}
 	return response
+}
+
+func toConnectivityCustomTargetResponse(value CustomConnectivityTarget) connectivityCustomTargetResponse {
+	return connectivityCustomTargetResponse{ID: string(value.ID), DisplayName: value.DisplayName, Endpoint: value.Endpoint, Enabled: value.Enabled, CreatedAt: value.CreatedAt.UTC()}
+}
+
+func toLegacyDiagnosticResponse(targetID string, value moduleapi.OutboundDiagnosticResult) legacyDiagnosticResponse {
+	status := "failed"
+	if value.Connected {
+		status = "connected"
+	}
+	return legacyDiagnosticResponse{TargetID: targetID, Status: status, LatencyMS: value.Latency.Milliseconds(), HTTPStatus: value.HTTPStatus, TestedAt: value.TestedAt.UTC(), Error: value.Message}
 }

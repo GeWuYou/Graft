@@ -184,6 +184,83 @@ func (s *SQLConnectivityStore) Aggregate(ctx context.Context) (ConnectivityAggre
 	return result, nil
 }
 
+// CreateCustomTarget 仅在 service 应用 SSRF 输入策略后持久化目标。
+func (s *SQLConnectivityStore) CreateCustomTarget(ctx context.Context, target CustomConnectivityTarget, actorID uint64) (CustomConnectivityTarget, error) {
+	if s == nil || s.db == nil || target.ID == "" || target.DisplayName == "" || target.Endpoint == "" {
+		return CustomConnectivityTarget{}, errors.New("custom connectivity target is invalid")
+	}
+	var created CustomConnectivityTarget
+	err := s.db.QueryRowContext(ctx, `INSERT INTO platform_connectivity_custom_targets (target_id, display_name, endpoint, created_by, updated_by)
+		VALUES ($1, $2, $3, $4, $4) RETURNING target_id, display_name, endpoint, enabled, created_at`, string(target.ID), target.DisplayName, target.Endpoint, actorID).
+		Scan(&created.ID, &created.DisplayName, &created.Endpoint, &created.Enabled, &created.CreatedAt)
+	if err != nil {
+		return CustomConnectivityTarget{}, fmt.Errorf("create custom connectivity target: %w", err)
+	}
+	created.CreatedAt = created.CreatedAt.UTC()
+	return created, nil
+}
+
+// ListCustomTargets 仅返回有效的管理员管理目标元数据。
+func (s *SQLConnectivityStore) ListCustomTargets(ctx context.Context) ([]CustomConnectivityTarget, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("connectivity store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT target_id, display_name, endpoint, enabled, created_at FROM platform_connectivity_custom_targets WHERE deleted_at = 0 ORDER BY target_id ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list custom connectivity targets: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := []CustomConnectivityTarget{}
+	for rows.Next() {
+		var target CustomConnectivityTarget
+		if err := rows.Scan(&target.ID, &target.DisplayName, &target.Endpoint, &target.Enabled, &target.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan custom connectivity target: %w", err)
+		}
+		target.CreatedAt = target.CreatedAt.UTC()
+		items = append(items, target)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate custom connectivity targets: %w", err)
+	}
+	return items, nil
+}
+
+// CustomTarget 按稳定目标标识读取一个有效自定义目标。
+func (s *SQLConnectivityStore) CustomTarget(ctx context.Context, targetID moduleapi.ConnectivityTargetID) (CustomConnectivityTarget, error) {
+	if s == nil || s.db == nil || strings.TrimSpace(string(targetID)) == "" {
+		return CustomConnectivityTarget{}, errors.New("custom connectivity target query is invalid")
+	}
+	var target CustomConnectivityTarget
+	err := s.db.QueryRowContext(ctx, `SELECT target_id, display_name, endpoint, enabled, created_at FROM platform_connectivity_custom_targets WHERE target_id = $1 AND deleted_at = 0`, string(targetID)).Scan(&target.ID, &target.DisplayName, &target.Endpoint, &target.Enabled, &target.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CustomConnectivityTarget{}, errCustomConnectivityTargetNotFound
+	}
+	if err != nil {
+		return CustomConnectivityTarget{}, fmt.Errorf("read custom connectivity target: %w", err)
+	}
+	target.CreatedAt = target.CreatedAt.UTC()
+	return target, nil
+}
+
+// DeleteCustomTarget 软删除目标，使报告历史仍可归属其稳定标识。
+func (s *SQLConnectivityStore) DeleteCustomTarget(ctx context.Context, targetID moduleapi.ConnectivityTargetID, actorID uint64) error {
+	if s == nil || s.db == nil || strings.TrimSpace(string(targetID)) == "" {
+		return errors.New("custom connectivity target delete is invalid")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE platform_connectivity_custom_targets SET deleted_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT, deleted_by = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE target_id = $1 AND deleted_at = 0`, string(targetID), actorID)
+	if err != nil {
+		return fmt.Errorf("delete custom connectivity target: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read custom connectivity target delete result: %w", err)
+	}
+	if changed == 0 {
+		return errCustomConnectivityTargetNotFound
+	}
+	return nil
+}
+
 func validateConnectivityReport(report moduleapi.ConnectivityReport) error {
 	if strings.TrimSpace(string(report.TargetID)) == "" || report.SchemaVersion < 1 || report.CheckedAt.IsZero() || report.TotalLatency < 0 {
 		return errors.New("connectivity report is invalid")

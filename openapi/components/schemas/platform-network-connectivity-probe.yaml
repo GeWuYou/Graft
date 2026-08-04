@@ -1,0 +1,9 @@
+type: object
+required: [kind, status, duration_ms]
+properties:
+  kind: { type: string }
+  status: { type: string, enum: [succeeded, failed, skipped] }
+  duration_ms: { type: integer, format: int64, minimum: 0 }
+  summary: { type: string }
+  error_code: { type: string }
+  occurred_at: { type: string, format: date-time }

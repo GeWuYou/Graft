@@ -42,10 +42,10 @@ describe('outbound network API', () => {
       headers: { 'If-Match': '"5"' },
     });
     expect(request.post).toHaveBeenCalledWith({
-      url: '/api/platform/network/outbound/diagnostics/platform-update-release',
+      url: '/api/platform/network/diagnostics/platform-update-release',
     });
     expect(request.get).toHaveBeenCalledWith({
-      url: '/api/platform/network/outbound/diagnostics/platform-update-release/history',
+      url: '/api/platform/network/diagnostics/platform-update-release/history',
       params: { limit: 20 },
     });
   });

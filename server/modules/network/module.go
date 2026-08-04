@@ -98,6 +98,11 @@ func buildRuntimeServices(ctx *module.Context) (runtimeServices, *Service, error
 	runtime := runtimeServices{provider: provider, factory: factory, diagnostics: diagnostics, consumers: consumers}
 	service := NewService(configs, diagnostics, consumers, repository, ctx.Logger)
 	service.connectivity = connectivity
+	customTargets, ok := connectivity.(CustomConnectivityTargetStore)
+	if !ok {
+		return runtimeServices{}, nil, errors.New("connectivity store does not support custom targets")
+	}
+	service.customTargets = customTargets
 	return runtime, service, nil
 }
 

@@ -1,0 +1,11 @@
+type: object
+required: [schema_version, target_id, status, checked_at, total_latency_ms, probes]
+properties:
+  schema_version: { type: integer, minimum: 1 }
+  target_id: { type: string, maxLength: 128 }
+  status: { type: string, enum: [healthy, degraded, failed] }
+  checked_at: { type: string, format: date-time }
+  total_latency_ms: { type: integer, format: int64, minimum: 0 }
+  probes: { type: array, items: { $ref: ./platform-network-connectivity-probe.yaml } }
+  route: { $ref: ./platform-network-connectivity-route.yaml }
+  exit_ip: { $ref: ./platform-network-connectivity-exit-ip.yaml }

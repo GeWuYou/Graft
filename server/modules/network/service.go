@@ -20,12 +20,13 @@ var (
 
 // Service 将 module-managed 配置存储适配为 Network 模块的策略和诊断读取模型。
 type Service struct {
-	configs      moduleapi.ModuleConfigManager
-	diagnostics  moduleapi.OutboundDiagnosticRegistry
-	consumers    moduleapi.OutboundNetworkConsumerRegistry
-	history      DiagnosticHistoryStore
-	connectivity ConnectivityStore
-	logger       *zap.Logger
+	configs       moduleapi.ModuleConfigManager
+	diagnostics   moduleapi.OutboundDiagnosticRegistry
+	consumers     moduleapi.OutboundNetworkConsumerRegistry
+	history       DiagnosticHistoryStore
+	connectivity  ConnectivityStore
+	customTargets CustomConnectivityTargetStore
+	logger        *zap.Logger
 }
 
 // NewService 创建 Network 模块服务。
@@ -34,13 +35,24 @@ func NewService(configs moduleapi.ModuleConfigManager, diagnostics moduleapi.Out
 }
 
 // RunConnectivity 执行已注册 target 并持久化净化后的不可变报告。
+//
+//nolint:gocyclo,cyclop // 自定义目标策略、报告身份和持久化是必须按序可审计的安全边界。
 func (s *Service) RunConnectivity(ctx context.Context, targetID moduleapi.ConnectivityTargetID) (ConnectivityCheck, moduleapi.ConnectivityReport, error) {
 	if s == nil || s.diagnostics == nil || s.connectivity == nil {
 		return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, errors.New("connectivity service is unavailable")
 	}
-	target, ok := s.diagnostics.ConnectivityTarget(targetID)
-	if !ok {
-		return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, errDiagnosticTargetNotFound
+	target, isCustom, targetErr := s.connectivityTarget(ctx, targetID)
+	if targetErr != nil {
+		return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, targetErr
+	}
+	if isCustom {
+		policy, policyErr := s.currentPolicy(ctx)
+		if policyErr != nil {
+			return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, policyErr
+		}
+		if policy.Enabled && (policy.HTTPProxy != "" || policy.HTTPSProxy != "") {
+			return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, errors.New("custom connectivity targets cannot run while an outbound proxy is enabled")
+		}
 	}
 	report, err := target.RunConnectivityProbes(ctx)
 	if err != nil {
@@ -54,7 +66,11 @@ func (s *Service) RunConnectivity(ctx context.Context, targetID moduleapi.Connec
 		if policyErr != nil {
 			return ConnectivityCheck{}, moduleapi.ConnectivityReport{}, policyErr
 		}
-		report = withRouteExplanation(report, policy)
+		host := ""
+		if destination, ok := target.(moduleapi.ConnectivityRouteDestination); ok {
+			host = destination.ConnectivityRouteHost()
+		}
+		report = withRouteExplanation(report, policy, host)
 	}
 	check, err := s.connectivity.Append(ctx, report)
 	if err != nil {
@@ -63,12 +79,57 @@ func (s *Service) RunConnectivity(ctx context.Context, targetID moduleapi.Connec
 	return check, report.Snapshot(), nil
 }
 
+// RunAllConnectivity 经由相同的单目标流水线执行当前已注册且已启用的目标集合。
+// 它有意由 registry 和自定义目标管理边界限制，不接受调用方提供的无界 ID 列表。
+func (s *Service) RunAllConnectivity(ctx context.Context) ([]ConnectivityCheck, error) {
+	if s == nil || s.diagnostics == nil {
+		return nil, errors.New("connectivity service is unavailable")
+	}
+	ids := make([]moduleapi.ConnectivityTargetID, 0)
+	for _, target := range s.diagnostics.ConnectivityTargetDescriptors() {
+		ids = append(ids, target.ID)
+	}
+	if s.customTargets != nil {
+		customTargets, err := s.customTargets.ListCustomTargets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, target := range customTargets {
+			if target.Enabled {
+				ids = append(ids, target.ID)
+			}
+		}
+	}
+	checks := make([]ConnectivityCheck, 0, len(ids))
+	for _, targetID := range ids {
+		check, _, err := s.RunConnectivity(ctx, targetID)
+		if err != nil {
+			continue
+		}
+		checks = append(checks, check)
+	}
+	return checks, nil
+}
+
 // ConnectivityTargets 返回 registry 的稳定描述快照，供批量健康检查和 target 诊断共用。
 func (s *Service) ConnectivityTargets() ([]moduleapi.ConnectivityTargetDescriptor, error) {
 	if s == nil || s.diagnostics == nil {
 		return nil, errors.New("connectivity service is unavailable")
 	}
-	return s.diagnostics.ConnectivityTargetDescriptors(), nil
+	targets := s.diagnostics.ConnectivityTargetDescriptors()
+	if s.customTargets == nil {
+		return targets, nil
+	}
+	customTargets, err := s.customTargets.ListCustomTargets(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	for _, target := range customTargets {
+		if target.Enabled {
+			targets = append(targets, target.ConnectivityTargetDescriptor().Snapshot())
+		}
+	}
+	return targets, nil
 }
 
 // ConnectivityLatest 返回每个已执行目标的最新轻量检查投影。
@@ -92,8 +153,8 @@ func (s *Service) ConnectivityHistory(ctx context.Context, targetID moduleapi.Co
 	if s == nil || s.diagnostics == nil || s.connectivity == nil {
 		return nil, errors.New("connectivity service is unavailable")
 	}
-	if _, ok := s.diagnostics.ConnectivityTarget(targetID); !ok {
-		return nil, errDiagnosticTargetNotFound
+	if _, _, err := s.connectivityTarget(ctx, targetID); err != nil {
+		return nil, err
 	}
 	return s.connectivity.History(ctx, targetID, limit)
 }
@@ -103,10 +164,58 @@ func (s *Service) ConnectivityReport(ctx context.Context, targetID moduleapi.Con
 	if s == nil || s.diagnostics == nil || s.connectivity == nil {
 		return moduleapi.ConnectivityReport{}, errors.New("connectivity service is unavailable")
 	}
-	if _, ok := s.diagnostics.ConnectivityTarget(targetID); !ok {
-		return moduleapi.ConnectivityReport{}, errDiagnosticTargetNotFound
+	if _, _, err := s.connectivityTarget(ctx, targetID); err != nil {
+		return moduleapi.ConnectivityReport{}, err
 	}
 	return s.connectivity.Report(ctx, targetID, checkID)
+}
+
+// CreateCustomConnectivityTarget 在自定义目标进入共享流水线前完成校验和持久化。
+func (s *Service) CreateCustomConnectivityTarget(ctx context.Context, input CustomConnectivityTargetInput, actorID uint64) (CustomConnectivityTarget, error) {
+	if s == nil || s.customTargets == nil {
+		return CustomConnectivityTarget{}, errors.New("custom connectivity targets are unavailable")
+	}
+	target, err := validateCustomConnectivityTargetInput(input)
+	if err != nil {
+		return CustomConnectivityTarget{}, err
+	}
+	if _, ok := s.diagnostics.ConnectivityTarget(target.ID); ok {
+		return CustomConnectivityTarget{}, errors.New("custom connectivity target ID conflicts with a registered target")
+	}
+	return s.customTargets.CreateCustomTarget(ctx, target, actorID)
+}
+
+// CustomConnectivityTargets 返回管理所需的全部有效自定义目标元数据。
+func (s *Service) CustomConnectivityTargets(ctx context.Context) ([]CustomConnectivityTarget, error) {
+	if s == nil || s.customTargets == nil {
+		return nil, errors.New("custom connectivity targets are unavailable")
+	}
+	return s.customTargets.ListCustomTargets(ctx)
+}
+
+// DeleteCustomConnectivityTarget 将自定义目标移出未来批量和单目标执行。
+func (s *Service) DeleteCustomConnectivityTarget(ctx context.Context, targetID moduleapi.ConnectivityTargetID, actorID uint64) error {
+	if s == nil || s.customTargets == nil {
+		return errors.New("custom connectivity targets are unavailable")
+	}
+	return s.customTargets.DeleteCustomTarget(ctx, targetID, actorID)
+}
+
+func (s *Service) connectivityTarget(ctx context.Context, targetID moduleapi.ConnectivityTargetID) (moduleapi.ConnectivityTarget, bool, error) {
+	if target, ok := s.diagnostics.ConnectivityTarget(targetID); ok {
+		return target, false, nil
+	}
+	if s.customTargets == nil {
+		return nil, false, errDiagnosticTargetNotFound
+	}
+	target, err := s.customTargets.CustomTarget(ctx, targetID)
+	if errors.Is(err, errCustomConnectivityTargetNotFound) || !target.Enabled {
+		return nil, false, errDiagnosticTargetNotFound
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return target, true, nil
 }
 
 func (s *Service) currentPolicy(ctx context.Context) (moduleapi.OutboundNetworkPolicy, error) {

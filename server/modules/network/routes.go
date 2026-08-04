@@ -46,10 +46,16 @@ func registerNetworkRoutes(ctx *module.Context, service *Service) error {
 	group.GET(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleGet)
 	group.PUT(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handlePut)
 	group.POST(networkcontract.OutboundNetworkResetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handleReset)
+	group.POST(networkcontract.LegacyDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleLegacyDiagnostic)
+	group.GET(networkcontract.LegacyDiagnosticHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleLegacyDiagnosticHistory)
 	group.GET(networkcontract.ConnectivityTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTargets)
+	group.GET(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleConnectivityCustomTargets)
+	group.POST(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleCreateConnectivityCustomTarget)
+	group.DELETE(networkcontract.ConnectivityCustomTargetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleDeleteConnectivityCustomTarget)
 	group.GET(networkcontract.ConnectivityLatestRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityLatest)
 	group.GET(networkcontract.ConnectivityAggregateRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityAggregate)
 	group.POST(networkcontract.ConnectivityRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleConnectivityRun)
+	group.POST(networkcontract.ConnectivityBatchRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleConnectivityBatchRun)
 	group.GET(networkcontract.ConnectivityHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityHistory)
 	group.GET(networkcontract.ConnectivityReportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityReport)
 	group.GET(networkcontract.ConnectivityTraceRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTrace)
@@ -115,7 +121,7 @@ func (r routeRuntime) writeError(ginCtx *gin.Context, err error) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusPreconditionFailed, messagecontract.ModuleConfigPreconditionFailed.String(), nil)
 		return
 	}
-	if errors.Is(err, errDiagnosticTargetNotFound) {
+	if errors.Is(err, errDiagnosticTargetNotFound) || errors.Is(err, errCustomConnectivityTargetNotFound) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "outbound diagnostic target"})
 		return
 	}

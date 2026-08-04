@@ -114,6 +114,9 @@ type ConnectivityTargetID string
 type ConnectivityProbeKind string
 
 const (
+	maxConnectivitySummaryRunes    = 512
+	maxConnectivityErrorCodeLength = 128
+	//nolint:revive // 同一组 Probe 常量共享紧邻的类型语义注释。
 	ConnectivityProbeDNS           ConnectivityProbeKind = "dns"
 	ConnectivityProbeTCP           ConnectivityProbeKind = "tcp"
 	ConnectivityProbeTLS           ConnectivityProbeKind = "tls"
@@ -131,6 +134,7 @@ const (
 type ConnectivityTargetFeature string
 
 const (
+	//nolint:revive // 同一组 feature 常量共享紧邻的类型语义注释。
 	ConnectivityFeatureHistory    ConnectivityTargetFeature = "history"
 	ConnectivityFeatureExport     ConnectivityTargetFeature = "export"
 	ConnectivityFeatureExitIP     ConnectivityTargetFeature = "exit_ip"
@@ -167,6 +171,12 @@ type ConnectivityTarget interface {
 	RunConnectivityProbes(ctx context.Context) (ConnectivityReport, error)
 }
 
+// ConnectivityRouteDestination 由能够安全说明其请求主机的目标实现，供 Network 生成策略解释。
+// 它不携带 URL、端口、凭据或代理地址，也不进入持久化报告。
+type ConnectivityRouteDestination interface {
+	ConnectivityRouteHost() string
+}
+
 // ConnectivityTargetRegistry 注册 canonical 连通性目标，并向消费者提供稳定排序的描述快照。
 type ConnectivityTargetRegistry interface {
 	RegisterConnectivityTarget(target ConnectivityTarget) error
@@ -179,6 +189,7 @@ type ConnectivityTargetRegistry interface {
 type ConnectivityReportStatus string
 
 const (
+	//nolint:revive // 同一组 report status 常量共享紧邻的类型语义注释。
 	ConnectivityReportStatusHealthy  ConnectivityReportStatus = "healthy"
 	ConnectivityReportStatusDegraded ConnectivityReportStatus = "degraded"
 	ConnectivityReportStatusFailed   ConnectivityReportStatus = "failed"
@@ -188,6 +199,7 @@ const (
 type ProbeStatus string
 
 const (
+	//nolint:revive // 同一组 Probe status 常量共享紧邻的类型语义注释。
 	ProbeStatusSucceeded ProbeStatus = "succeeded"
 	ProbeStatusFailed    ProbeStatus = "failed"
 	ProbeStatusSkipped   ProbeStatus = "skipped"
@@ -229,6 +241,8 @@ type ConnectivityReport struct {
 }
 
 // NewConnectivityReport 构造净化后的报告快照。该边界没有原始报文或完整出口 IP 字段，避免未来持久化层误接收敏感网络数据。
+//
+//nolint:revive // 该构造函数完整保留固定的跨模块报告字段，拆分参数会弱化调用处审计性。
 func NewConnectivityReport(targetID ConnectivityTargetID, status ConnectivityReportStatus, checkedAt time.Time, totalLatency time.Duration, probes []ProbeResult, route *RouteExplanation, exitIP *ExitIPDisclosure) ConnectivityReport {
 	probeSnapshots := make([]ProbeResult, 0, len(probes))
 	for _, probe := range probes {
@@ -276,12 +290,13 @@ func sanitizeConnectivityText(value string) string {
 		return "sanitized diagnostic detail"
 	}
 	runes := []rune(value)
-	if len(runes) > 512 {
-		return string(runes[:512])
+	if len(runes) > maxConnectivitySummaryRunes {
+		return string(runes[:maxConnectivitySummaryRunes])
 	}
 	return value
 }
 
+//nolint:cyclop // 错误码仅允许稳定 ASCII 字符的白名单需保持直观可审计。
 func sanitizeConnectivityErrorCode(value string) string {
 	value = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
@@ -289,8 +304,8 @@ func sanitizeConnectivityErrorCode(value string) string {
 		}
 		return -1
 	}, strings.TrimSpace(value))
-	if len(value) > 128 {
-		return value[:128]
+	if len(value) > maxConnectivityErrorCodeLength {
+		return value[:maxConnectivityErrorCodeLength]
 	}
 	return value
 }

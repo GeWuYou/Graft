@@ -56,6 +56,8 @@ func NewDiagnosticRegistry() *DiagnosticRegistry {
 }
 
 // RegisterOutboundDiagnosticTarget 注册唯一的固定诊断目标。
+//
+//nolint:cyclop // legacy 与 Connectivity registry 的双重注册顺序属于迁移期显式边界。
 func (r *DiagnosticRegistry) RegisterOutboundDiagnosticTarget(target moduleapi.OutboundDiagnosticTarget) error {
 	if r == nil || r.entries == nil {
 		return errors.New("outbound diagnostic registry is unavailable")

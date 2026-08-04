@@ -31,6 +31,9 @@ func (t platformUpdateDiagnosticTarget) DisplayName() string {
 	return "network.diagnosticTargets.platformUpdate"
 }
 
+// ConnectivityRouteHost 返回用于出站策略解释的固定远端主机，不向报告暴露完整请求 URL。
+func (platformUpdateDiagnosticTarget) ConnectivityRouteHost() string { return "api.github.com" }
+
 // ConnectivityTargetDescriptor 声明平台更新的稳定连通性目标能力；后续持久化和 UI 只消费此声明，不解析更新模块内部 URL。
 func (t platformUpdateDiagnosticTarget) ConnectivityTargetDescriptor() moduleapi.ConnectivityTargetDescriptor {
 	return moduleapi.ConnectivityTargetDescriptor{
