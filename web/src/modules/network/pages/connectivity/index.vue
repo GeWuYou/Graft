@@ -203,7 +203,7 @@
                   <template #icon><ellipsis-icon /></template>
                 </t-button>
                 <t-dropdown-menu>
-                  <t-dropdown-item @click="openTarget({ row })">{{
+                  <t-dropdown-item :disabled="store.running" @click="runTarget(row.id)">{{
                     t('network.outbound.connectivity.run')
                   }}</t-dropdown-item>
                   <t-popconfirm
@@ -348,7 +348,12 @@ const rows = computed<ConnectivityTargetProjection[]>(() => {
       return (
         statusOrder(left.status) - statusOrder(right.status) || targetTitle(left).localeCompare(targetTitle(right))
       );
-    if (sortBy.value === 'recent') return Date.parse(right.checked_at ?? '') - Date.parse(left.checked_at ?? '');
+    if (sortBy.value === 'recent') {
+      return (
+        checkedAtSortValue(right.checked_at) - checkedAtSortValue(left.checked_at) ||
+        targetTitle(left).localeCompare(targetTitle(right))
+      );
+    }
     return (left.latency_ms ?? Number.MAX_SAFE_INTEGER) - (right.latency_ms ?? Number.MAX_SAFE_INTEGER);
   });
 });
@@ -379,7 +384,9 @@ const overallStatus = computed<ConnectivityCheck['status'] | undefined>(() => {
 const connectionStatusLabel = computed(() => t('network.outbound.connectivity.connectionStatus'));
 const overallStatusExplanation = computed(() => {
   if (!targetCount.value || !overallStatus.value) return t('network.outbound.connectivity.noCheckResults');
-  if (healthyCount.value === targetCount.value) return t('network.outbound.connectivity.allTargetsNormal');
+  if (healthyCount.value === targetCount.value) {
+    return t('network.outbound.connectivity.allTargetsNormal', { count: targetCount.value });
+  }
   if (failedCount.value) return t('network.outbound.connectivity.targetsFailed', { count: failedCount.value });
   return t('network.outbound.connectivity.targetsNormal', { count: healthyCount.value, total: targetCount.value });
 });
@@ -406,6 +413,12 @@ function targetTitle(target: ConnectivityTarget) {
 
 function formatTime(value?: string | null) {
   return formatLocaleDateTime(value, locale.value);
+}
+
+// 无效或缺失时间统一排在有效检查记录之后，避免比较器返回 NaN。
+function checkedAtSortValue(value?: string | null) {
+  const timestamp = Date.parse(value ?? '');
+  return Number.isNaN(timestamp) ? Number.MIN_SAFE_INTEGER : timestamp;
 }
 
 function statusOrder(status?: ConnectivityCheck['status']) {
@@ -450,6 +463,15 @@ async function runAll() {
   error.value = '';
   try {
     await store.runAll();
+  } catch (value) {
+    error.value = String(value);
+  }
+}
+
+async function runTarget(targetId: string) {
+  error.value = '';
+  try {
+    await store.runTarget(targetId);
   } catch (value) {
     error.value = String(value);
   }

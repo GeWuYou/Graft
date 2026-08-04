@@ -9,7 +9,7 @@ get:
     - $ref: ../components/parameters/request-id-header.yaml
   responses:
     '200':
-      description: Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists.
+      description: Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active.
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-active-operation.yaml }

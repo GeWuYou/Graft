@@ -16068,7 +16068,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists. */
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
       200: {
         headers: {
           [name: string]: unknown;
