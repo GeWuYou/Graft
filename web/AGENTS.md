@@ -416,6 +416,15 @@ UI 约束：
 
 ## 7. 验证与工具链
 
+### Browser QA 边界
+
+- 编号 agent worktree 禁止执行 browser QA、Playwright 交互、截图取证或启动前端/后端服务；不得通过工作树访问
+  浏览器来替代静态验证。
+- `bun run check` 是 agent worktree 中 web 改动的完成态验证入口。需要浏览器证据时，worktree closeout 必须记录为
+  主检出区 follow-up，不能因此阻塞已验证的工作树 scoped commit。
+- 浏览器 QA 只允许在开发者拥有的主检出区执行，且必须先获得用户或开发者许可，并确认运行时实际服务的是待验收分支和
+  HEAD；不得把其它分支、脏工作区或返回错误的服务当作证据。
+
 前端完成态的强制校验入口是：
 
 ```bash

@@ -10,11 +10,16 @@ Use this skill after or during Graft web UI changes when behavior, layout, visib
 ## Workflow
 
 1. Start from repository governance. For web changes, `bun run check` is the completion entrypoint.
-2. Use `$graft-web-browser-agent` for local Graft browser interaction, authentication, screenshots, DOM text snapshots, and simple click/fill/wait checks.
-3. Use Playwright MCP only as an exploratory browser aid when it is already configured; do not add a Playwright test dependency or generate a new test baseline.
-4. Inspect console errors, failed network requests, broken auth flows, layout overlap, unreadable text, missing affordances, and focus/keyboard traps.
-5. Check desktop and mobile-sized viewports when the changed surface is responsive or visually material.
-6. Keep evidence auditable: record the command or browser path used, the page/surface inspected, and any validation gaps.
+2. Run browser QA only in the developer-owned primary checkout after a user or developer approves a runtime proven to
+   serve the branch and HEAD under review. Numbered agent worktrees must not start services or use browser agents,
+   Playwright, screenshots, or browser interaction; record primary-checkout browser QA as follow-up rather than
+   blocking a validated scoped worktree commit.
+3. Use `$graft-web-browser-agent` for eligible primary-checkout interaction, authentication, screenshots, DOM text
+   snapshots, and simple click/fill/wait checks.
+4. Use Playwright MCP only as an exploratory browser aid when it is already configured; do not add a Playwright test dependency or generate a new test baseline.
+5. Inspect console errors, failed network requests, broken auth flows, layout overlap, unreadable text, missing affordances, and focus/keyboard traps.
+6. Check desktop and mobile-sized viewports when the changed surface is responsive or visually material.
+7. Keep evidence auditable: record the branch/HEAD, command or browser path, page/surface inspected, and any validation gaps.
 
 ## Accessibility-Oriented Review
 

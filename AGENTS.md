@@ -596,6 +596,11 @@ For repository work:
 - if the actual merge or cherry-pick command differs from the authorized operation record, stop immediately and fail closed
 - numbered agent worktrees are non-runtime execution environments: agents must not start frontend or backend services,
   development servers, Docker/Compose stacks, or other long-running runtime processes from a worktree
+- browser QA is disabled in numbered agent worktrees: agents must not use Playwright, browser agents, screenshots, or
+  interactive browser inspection there, and must not treat browser evidence as a worktree completion gate
+- browser QA belongs only to the developer-owned primary checkout, after a user or developer approves a runtime proven
+  to serve the branch and HEAD under review; worktree closeout records it as a primary-checkout follow-up rather than
+  starting a service or blocking a validated scoped implementation commit
 - agents must not apply SQL migrations or execute state-changing database operations from a worktree, including
   `graft migrate up`, `atlas migrate apply`, manual DDL/DML, or migration replay; tests, builds, lint, static migration
   validation, and migration checksum generation remain allowed when they do not target a live database

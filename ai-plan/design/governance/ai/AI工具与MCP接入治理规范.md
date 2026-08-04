@@ -160,6 +160,9 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 
   - 采用条件：页面结构未知、交互复杂、需要先探索再固化为可复现 browser artifact。
   - 约束：MCP 只负责探索；可审计截图、文本、登录状态和 summary 仍由 `graft-web-browser-agent` 脚本产出。
+    编号 agent worktree 禁止使用 Playwright MCP 或 browser agent，也不得启动服务来获得浏览器证据；浏览器 QA 只允许
+    在经用户或开发者许可、且已确认服务待验收分支和 HEAD 的主检出区执行。工作树只记录该主检出区 follow-up，不把它
+    作为 scoped commit 的阻塞条件。
 - `headroom`
   - 等级：`L1` 默认；启用 memory / learn 的受控本地试点时仍不得越过本节目录隔离和人工确认边界。
   - 定位：optional / local / user-level / MCP-based AI context compression tool。

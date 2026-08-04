@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft Web Browser Agent"
   short_description: "Inspect and log in to Graft web UI"
-  default_prompt: "Use $graft-web-browser-agent to explore the local Graft web UI with Playwright MCP when useful, then capture reproducible browser_agent.py evidence."
+  default_prompt: "From an approved developer-owned primary checkout, use $graft-web-browser-agent to inspect the runtime serving the current branch and HEAD, then capture reproducible browser_agent.py evidence. Do not use it from a numbered agent worktree."
