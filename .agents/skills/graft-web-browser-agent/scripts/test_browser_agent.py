@@ -134,7 +134,7 @@ class RuntimeIdentityTest(unittest.TestCase):
         checkout = {"repository_root": "/repo", "branch": "feature/test", "head": "abc123"}
 
         with self.assertRaisesRegex(ValueError, "non-secret deployment"):
-            browser_agent.runtime_identity("https://admin:secret@example.test", checkout)
+            browser_agent.runtime_identity("unsafe:label", checkout)
 
 
 if __name__ == "__main__":
