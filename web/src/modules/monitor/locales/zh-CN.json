@@ -361,17 +361,23 @@
       },
       "actions": {
         "refresh": "刷新",
-        "detail": "详情"
+        "detail": "详情",
+        "closeDetail": "收起详情",
+        "more": "更多操作"
       },
       "summary": {
         "total": "总数",
         "totalDescription": "运行时注册表已知模块",
+        "totalDescriptionCompact": "已识别模块",
         "enabled": "已启用",
         "enabledDescription": "当前进程启用的模块",
+        "enabledDescriptionCompact": "进程已启用",
         "healthy": "健康",
         "healthyDescription": "运行状态健康的模块",
+        "healthyDescriptionCompact": "运行健康",
         "degradedUnknown": "降级 / 未知",
-        "degradedUnknownDescription": "需要运维关注的模块"
+        "degradedUnknownDescription": "需要运维关注的模块",
+        "degradedUnknownDescriptionCompact": "需要关注"
       },
       "table": {
         "title": "运行时模块列表",
@@ -465,6 +471,16 @@
       "enablementSource": {
         "all": "全部模块",
         "allowlist": "允许列表"
+      },
+      "mobile": {
+        "cardAccessibleName": "{key} 运行时详情。运行状态：{runtimeStatus}。总体状态：{overallStatus}。已启用：{enabled}。已注册：{registered}。健康状态：{health}。",
+        "statusDetails": "状态详情",
+        "resourceStatus": "资源状态",
+        "overall": {
+          "normal": "正常",
+          "abnormal": "异常",
+          "unavailable": "不可用"
+        }
       }
     },
     "evidence": {

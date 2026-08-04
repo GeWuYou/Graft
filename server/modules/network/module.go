@@ -161,6 +161,6 @@ func registerMenu(registry *menu.Registry) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
-	registry.Register(menu.Item{Code: "platform-network", ParentCode: "domain.platform", Kind: menu.NodeKindEntry, TitleKey: "menu.platform.network", Path: networkcontract.NetworkMenuPath, Icon: "network", Order: networkMenuOrder, Permission: networkcontract.NetworkReadPermission.String(), Module: moduleID})
+	registry.Register(menu.Item{Code: "platform-network", ParentCode: "domain.platform", Kind: menu.NodeKindEntry, TitleKey: "menu.platform.network", Path: networkcontract.NetworkMenuPath, Icon: "platform-network", Order: networkMenuOrder, Permission: networkcontract.NetworkReadPermission.String(), Module: moduleID})
 	return nil
 }

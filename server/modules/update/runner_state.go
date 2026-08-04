@@ -23,6 +23,9 @@ const runnerStateEventSchemaVersion = 1
 const maxRunnerStateEventReplay = 100
 const runnerLeaseDuration = 5 * time.Minute
 
+// ErrRunnerStateCorrupt 表示状态卷存在但其内容无法作为 runner 生命周期事实信任。
+var ErrRunnerStateCorrupt = errors.New("runner state is corrupt")
+
 const (
 	runnerStateServerUID                       = 10001
 	runnerStateServerGID                       = 10001
@@ -83,6 +86,7 @@ type RunnerRecoveryInput struct {
 	TargetVersion string       `json:"target_version"`
 	Strategy      string       `json:"deployment_strategy"`
 	State         *RunnerState `json:"state,omitempty"`
+	Corrupt       bool         `json:"corrupt,omitempty"`
 }
 
 // RunnerStateStore 是 server 投影与 runner 共用的只读状态卷边界。
@@ -90,11 +94,21 @@ type RunnerStateStore interface {
 	Read() (RunnerState, error)
 }
 
+// RunnerStateStoreIdentity 为投影诊断提供状态根标识；它不授予读取方写入权限。
+type RunnerStateStoreIdentity interface {
+	RunnerStateRoot() string
+}
+
 // RunnerStateWriter 仅供 runner 进程发布阶段、lease 和终态；server 不持有该写能力。
 type RunnerStateWriter interface {
 	RunnerStateStore
 	Write(RunnerState) error
 	Heartbeat(RunnerState) (RunnerState, error)
+}
+
+// RunnerStateQuarantiner 仅由受保护恢复 runner 使用，用于保留无法验证的状态证据。
+type RunnerStateQuarantiner interface {
+	Quarantine(string) error
 }
 
 // RunnerStateEventReader 读取按 operation 隔离的受控节点事件；事件是重连回放事实，不能由 Docker 日志替代。
@@ -136,6 +150,14 @@ func NewFileRunnerStateStore(root string) (*FileRunnerStateStore, error) {
 	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot, renameFile: os.Rename, chown: os.Chown, now: func() time.Time { return time.Now().UTC() }}, nil
 }
 
+// RunnerStateRoot 返回状态卷根路径，仅供有界诊断标识使用。
+func (s *FileRunnerStateStore) RunnerStateRoot() string {
+	if s == nil {
+		return ""
+	}
+	return s.root
+}
+
 // Read 读取并校验最近一次原子写入的快照。
 func (s *FileRunnerStateStore) Read() (RunnerState, error) {
 	if s == nil {
@@ -147,23 +169,50 @@ func (s *FileRunnerStateStore) Read() (RunnerState, error) {
 	}
 	var state RunnerState
 	if err := json.Unmarshal(contents, &state); err != nil {
-		return RunnerState{}, fmt.Errorf("decode runner state: %w", err)
+		return RunnerState{}, fmt.Errorf("%w: decode runner state: %v", ErrRunnerStateCorrupt, err)
 	}
 	if err := validateRunnerState(state); err != nil {
-		return RunnerState{}, err
+		return RunnerState{}, fmt.Errorf("%w: %v", ErrRunnerStateCorrupt, err)
 	}
 	digest := state.Digest
 	state.Digest = ""
 	payload, err := json.Marshal(state)
 	if err != nil {
-		return RunnerState{}, fmt.Errorf("encode runner state integrity: %w", err)
+		return RunnerState{}, fmt.Errorf("%w: encode runner state integrity: %v", ErrRunnerStateCorrupt, err)
 	}
 	want := sha256.Sum256(payload)
 	if digest != hex.EncodeToString(want[:]) {
-		return RunnerState{}, errors.New("runner state integrity check failed")
+		return RunnerState{}, fmt.Errorf("%w: integrity check failed", ErrRunnerStateCorrupt)
 	}
 	state.Digest = digest
 	return state, nil
+}
+
+// Quarantine 隔离当前快照和同一操作的事件，供恢复 runner 再写入可信终态。
+// 若事件隔离失败，会恢复已移动的快照，避免后续恢复尝试丢失待隔离的状态证据。
+func (s *FileRunnerStateStore) Quarantine(operationID string) error {
+	if s == nil || !runnerOperationID.MatchString(operationID) {
+		return errors.New("runner state quarantine is unavailable")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	quarantine := filepath.Join(s.root, "quarantine", operationID+"-"+strconv.FormatInt(s.currentTime().UnixNano(), 10))
+	if err := os.MkdirAll(quarantine, runnerStateDirectoryPermission); err != nil {
+		return fmt.Errorf("create runner state quarantine: %w", err)
+	}
+	currentPath := filepath.Join(s.root, "current.json")
+	quarantinedCurrentPath := filepath.Join(quarantine, "current.json")
+	if err := s.renameFile(currentPath, quarantinedCurrentPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("quarantine runner state snapshot: %w", err)
+	}
+	if err := s.renameFile(filepath.Join(s.root, "events", operationID), filepath.Join(quarantine, "events")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		quarantineErr := fmt.Errorf("quarantine runner state events: %w", err)
+		if restoreErr := s.renameFile(quarantinedCurrentPath, currentPath); restoreErr != nil && !errors.Is(restoreErr, os.ErrNotExist) {
+			return errors.Join(quarantineErr, fmt.Errorf("restore runner state snapshot: %w", restoreErr))
+		}
+		return quarantineErr
+	}
+	return nil
 }
 
 // Write 仅供一次性 runner 调用；它拒绝阶段倒退并持久化快照与事件。
@@ -467,7 +516,7 @@ func validRunnerStateMessage(message string) bool {
 
 func validRunnerStateFailure(failure string) bool {
 	switch failure {
-	case "", RunnerFailureCodeInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
+	case "", RunnerFailureCodeInvalidInput, RunnerFailureCodeStateCorrupt, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
 		return true
 	default:
 		return false

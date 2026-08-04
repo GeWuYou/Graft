@@ -11,6 +11,14 @@ Use this skill to give Codex an eyes-on-browser loop for Graft `web` work. It is
 
 Follow root `AGENTS.md` startup governance before using this skill. For frontend implementation tasks, also follow `web/AGENTS.md` and `graft-web-vibe-coding`; this skill only adds browser inspection capability after the normal frontend authority and design rules are in force.
 
+Browser QA is a developer-owned primary-checkout activity. Do not use this skill from a numbered agent worktree, and
+do not start services, invoke Playwright, capture screenshots, or run browser interactions there. Before browser
+interaction, obtain user or developer approval, first confirm the runtime identity, and then confirm it serves the
+primary checkout branch and HEAD under review; a different branch, dirty checkout, or error response is not valid
+evidence. Pass the confirmed, non-secret runtime label with `--runtime-identity`; `summary.json` records that label
+alongside the primary checkout repository, branch, and full HEAD. A worktree closeout records this as a
+primary-checkout follow-up and does not block a validated scoped implementation commit.
+
 Playwright MCP can be used as an optional exploration layer for this skill when it is available in `codex mcp list`.
 Use MCP to discover page structure, accessible names, role selectors, and complex TDesign interactions quickly. Then
 turn the stable path into a `browser_agent.py` command so the final evidence is reproducible and written under
@@ -18,9 +26,10 @@ turn the stable path into a `browser_agent.py` command so the final evidence is 
 
 ## Workflow
 
-1. Confirm the local web app is running, usually with `cd web && bun run dev`.
+1. From the approved developer-owned primary checkout, confirm the local web app is already running.
    - Default local targets are backend `127.0.0.1:8080` through the Vite proxy and frontend `http://172.21.235.129:3002`.
-   - If those ports are occupied, assume the user may already have the services running; do not start duplicate servers.
+   - If those ports are occupied, verify that the process serves the branch and HEAD under review; do not start or use
+     an unrelated runtime as evidence.
 2. Bootstrap the project-local browser environment if `.ai/venv/bin/python` or Playwright is missing:
 
 ```bash
@@ -34,6 +43,7 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://localhost:5173 \
+  --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session ui-inspection \
   --screenshot \
   --snapshot-text
@@ -44,12 +54,16 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://172.21.235.129:3002 \
+  --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --login \
   --credentials temp/username-passward.yaml \
   --session auth-check \
   --screenshot \
   --snapshot-text
 ```
+
+Replace both placeholders with the branch and full `HEAD` verified in the clean primary checkout before running the
+command. The script rejects missing, mismatched, or unsafe labels before importing or launching Playwright.
 
 The login helper reads a YAML mapping of named profiles and defaults to `dev` when present; use
 `--credential-profile <name>` to select another profile. Each profile accepts `username` / `account` / `user` and

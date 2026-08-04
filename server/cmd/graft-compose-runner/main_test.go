@@ -113,7 +113,8 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 }
 
 func TestRecoverTerminatedRunnerWritesARecoveryRunnerIdentity(t *testing.T) {
-	store, err := update.NewFileRunnerStateStore(t.TempDir())
+	root := t.TempDir()
+	store, err := update.NewFileRunnerStateStore(root)
 	if err != nil {
 		t.Fatalf("new runner state store: %v", err)
 	}
@@ -164,6 +165,46 @@ func TestRecoverTerminatedRunnerWritesTerminalStateWhenInitialSnapshotIsMissing(
 	state, err := store.Read()
 	if err != nil || !isTerminalPhase(state.Phase) || state.Receipt == nil {
 		t.Fatalf("terminal recovery state = %#v, %v", state, err)
+	}
+}
+
+func TestRecoverTerminatedRunnerQuarantinesCorruptSnapshot(t *testing.T) {
+	root := t.TempDir()
+	store, err := update.NewFileRunnerStateStore(root)
+	if err != nil {
+		t.Fatalf("new runner state store: %v", err)
+	}
+	state := update.NewRunnerState(update.RunnerInput{OperationID: "update-recovery-corrupt", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategyBetaTracking}}, "runner-recovery-corrupt", update.RunnerPhaseReady, 0, "runner_accepted", "", update.RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write initial state: %v", err)
+	}
+	corruptSnapshot := []byte(`{"schema_version":2}`)
+	if err := os.WriteFile(filepath.Join(root, "current.json"), corruptSnapshot, 0o600); err != nil {
+		t.Fatalf("corrupt state: %v", err)
+	}
+	recovery := update.RunnerRecoveryInput{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Strategy: state.Strategy, Corrupt: true}
+	contents, err := json.Marshal(recovery)
+	if err != nil {
+		t.Fatalf("marshal recovery input: %v", err)
+	}
+	if err := recoverTerminatedRunnerWithStore(base64.RawStdEncoding.EncodeToString(contents), store, io.Discard); err != nil {
+		t.Fatalf("recover corrupt state: %v", err)
+	}
+	recovered, err := store.Read()
+	if err != nil || recovered.Receipt == nil || recovered.Receipt.FailureCode != update.RunnerFailureCodeStateCorrupt {
+		t.Fatalf("recovered state = %#v, %v", recovered, err)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "quarantine"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("quarantine entries = %#v, %v", entries, err)
+	}
+	// #nosec G304 -- path is under this test's temporary state root and uses the directory just created by Quarantine.
+	quarantinedSnapshot, err := os.ReadFile(filepath.Join(root, "quarantine", entries[0].Name(), "current.json"))
+	if err != nil {
+		t.Fatalf("read quarantined snapshot: %v", err)
+	}
+	if !bytes.Equal(quarantinedSnapshot, corruptSnapshot) {
+		t.Fatalf("quarantined snapshot = %q, want %q", quarantinedSnapshot, corruptSnapshot)
 	}
 }
 

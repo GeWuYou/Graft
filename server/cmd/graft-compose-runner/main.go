@@ -96,7 +96,7 @@ func recoverTerminatedRunner(encoded string) error {
 	return recoverTerminatedRunnerWithStore(encoded, store, os.Stdout)
 }
 
-//nolint:cyclop,gocyclo // 两种恢复输入需要在同一原子状态边界内完成严格绑定校验。
+//nolint:cyclop,gocyclo,gocognit // 两种恢复输入需要在同一原子状态边界内完成严格绑定校验。
 func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWriter, writer io.Writer) error {
 	contents, err := base64.RawStdEncoding.DecodeString(encoded)
 	if err != nil {
@@ -110,14 +110,24 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 		return errors.New("recovery runner state binding changed")
 	}
 	persisted, err := store.Read()
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) && (!input.Corrupt || !errors.Is(err, update.ErrRunnerStateCorrupt)) {
 		return fmt.Errorf("read persisted recovery runner state: %w", err)
 	}
 	if input.State != nil && (errors.Is(err, os.ErrNotExist) || persisted.OperationID != input.OperationID || persisted.RunnerID != input.RunnerID || persisted.Revision != input.State.Revision || persisted.Digest != input.State.Digest) {
 		return errors.New("recovery runner state binding changed")
 	}
 	if input.State == nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.New("recovery runner unexpectedly found a state snapshot")
+		if !input.Corrupt {
+			return errors.New("recovery runner unexpectedly found a state snapshot")
+		}
+		quarantiner, ok := store.(update.RunnerStateQuarantiner)
+		if !ok {
+			return errors.New("recovery runner cannot quarantine state snapshot")
+		}
+		if err := quarantiner.Quarantine(input.OperationID); err != nil {
+			return err
+		}
+		persisted = update.RunnerState{}
 	}
 	if input.State == nil {
 		persisted = update.RunnerState{}
@@ -127,7 +137,11 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 		return err
 	}
 	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: update.RunnerFailureCodeInvalidInput, FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
+	failureCode, failureDetail := update.RunnerFailureCodeInvalidInput, "interrupted_before_migration"
+	if input.Corrupt {
+		failureCode, failureDetail = update.RunnerFailureCodeStateCorrupt, "state_snapshot_quarantined"
+	}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}

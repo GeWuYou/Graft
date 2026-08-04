@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -29,6 +30,7 @@ DEFAULT_OUTPUT_DIR = ROOT_DIR / ".ai" / "artifacts" / "browser"
 DEFAULT_BROWSERS_DIR = ROOT_DIR / ".ai" / "ms-playwright"
 DEFAULT_CREDENTIALS_FILE = ROOT_DIR / "temp" / "username-passward.yaml"
 AUTH_PATH_PREFIX = "/api/auth/"
+SAFE_RUNTIME_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._/-]*")
 
 
 def parse_viewport(raw: str) -> tuple[int, int]:
@@ -50,6 +52,87 @@ def safe_session_name(raw: str | None) -> str:
     value = raw.strip() if raw else f"session-{timestamp()}"
     safe = re.sub(r"[^a-zA-Z0-9_.-]+", "-", value).strip(".-")
     return safe or f"session-{timestamp()}"
+
+
+def checkout_identity() -> dict[str, str]:
+    """Return non-secret Git metadata that ties browser evidence to its checkout."""
+    commands = {
+        "repository_root": ["rev-parse", "--show-toplevel"],
+        "branch": ["branch", "--show-current"],
+        "head": ["rev-parse", "HEAD"],
+    }
+    identity: dict[str, str] = {}
+    for name, arguments in commands.items():
+        result = subprocess.run(
+            ["git", "-C", str(ROOT_DIR), *arguments],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        value = result.stdout.strip()
+        identity[name] = value or "detached"
+    return identity
+
+
+def primary_checkout_root() -> Path:
+    """Return the repository's developer-owned primary checkout path."""
+    result = subprocess.run(
+        ["git", "-C", str(ROOT_DIR), "worktree", "list", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            return Path(line.removeprefix("worktree ")).resolve()
+    raise RuntimeError("Git did not report a primary checkout.")
+
+
+def working_tree_is_clean() -> bool:
+    """Report whether the checkout has no tracked or untracked changes."""
+    result = subprocess.run(
+        ["git", "-C", str(ROOT_DIR), "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return not result.stdout.strip()
+
+
+def runtime_identity(raw: str | None, checkout: dict[str, str]) -> dict[str, str]:
+    """Keep a caller-supplied runtime label auditable without storing credentials."""
+    explicit = raw.strip() if raw else ""
+    if not explicit or not SAFE_RUNTIME_IDENTITY.fullmatch(explicit):
+        raise ValueError("--runtime-identity must be a non-secret label containing the current branch and full HEAD.")
+    tokens = set(explicit.split())
+    if checkout["branch"] not in tokens or checkout["head"] not in tokens:
+        raise ValueError("--runtime-identity must include the current branch and full HEAD as separate values.")
+    return {"value": explicit, "source": "explicit"}
+
+
+def browser_preflight(raw_runtime_identity: str | None) -> dict[str, Any]:
+    """Reject unapproved checkout state before importing or launching Playwright."""
+    checkout = checkout_identity()
+    primary_root = primary_checkout_root()
+    if Path(checkout["repository_root"]).resolve() != primary_root:
+        raise ValueError("Browser QA is allowed only from the developer-owned primary checkout.")
+    if checkout["branch"] == "detached":
+        raise ValueError("Browser QA requires a checked-out branch under review.")
+    if not working_tree_is_clean():
+        raise ValueError("Browser QA requires a clean primary checkout so evidence has a stable HEAD.")
+    return {
+        "checkout": checkout,
+        "runtime_identity": runtime_identity(raw_runtime_identity, checkout),
+        "primary_checkout_root": str(primary_root),
+        "working_tree_clean": True,
+    }
+
+
+def load_sync_playwright() -> Any:
+    """Load Playwright only after checkout and runtime evidence are validated."""
+    from playwright.sync_api import sync_playwright
+
+    return sync_playwright
 
 
 def parse_fill_action(value: str) -> dict[str, str]:
@@ -217,6 +300,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Inspect the local Graft web UI with project-local Playwright."
     )
     parser.add_argument("--url", required=True, help="URL to open, for example http://localhost:5173")
+    parser.add_argument(
+        "--runtime-identity",
+        help="Non-secret identity confirmed for the runtime under review; recorded in summary.json.",
+    )
     parser.add_argument("--session", help="Stable session id used for artifact directory naming.")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Artifact root directory.")
     parser.add_argument("--viewport", default="1440x1000", type=parse_viewport, help="Viewport as WIDTHxHEIGHT.")
@@ -249,9 +336,14 @@ def main() -> int:
     session_dir.mkdir(parents=True, exist_ok=True)
 
     os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(DEFAULT_BROWSERS_DIR))
+    try:
+        preflight = browser_preflight(args.runtime_identity)
+    except (RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"Browser preflight failed: {exc}", file=sys.stderr)
+        return 2
 
     try:
-        from playwright.sync_api import sync_playwright
+        sync_playwright = load_sync_playwright()
     except ModuleNotFoundError:
         print(
             "Playwright is not installed. Run "
@@ -263,6 +355,7 @@ def main() -> int:
     actions = list(getattr(args, "actions", None) or [])
     width, height = args.viewport
     started_at = datetime.now(timezone.utc).isoformat()
+    checkout = preflight["checkout"]
     credentials, credential_profile = (
         parse_credentials(Path(args.credentials).resolve(), args.credential_profile) if args.login else (None, None)
     )
@@ -324,6 +417,12 @@ def main() -> int:
             "final_url": page.url,
             "started_at": started_at,
             "finished_at": datetime.now(timezone.utc).isoformat(),
+            "checkout": checkout,
+            "runtime_identity": preflight["runtime_identity"],
+            "browser_preflight": {
+                "primary_checkout_root": preflight["primary_checkout_root"],
+                "working_tree_clean": preflight["working_tree_clean"],
+            },
             "viewport": {"width": width, "height": height},
             "headless": not args.headful,
             "actions": redact_actions(actions),

@@ -29,6 +29,7 @@ import shield from '@iconify-icons/lucide/shield';
 import slidersHorizontal from '@iconify-icons/lucide/sliders-horizontal';
 import target from '@iconify-icons/lucide/target';
 import users from '@iconify-icons/lucide/users';
+import waypoints from '@iconify-icons/lucide/waypoints';
 import workflow from '@iconify-icons/lucide/workflow';
 import wrench from '@iconify-icons/lucide/wrench';
 import docker from '@iconify-icons/tabler/brand-docker';
@@ -64,7 +65,7 @@ const menuIcons = {
   'audit-trail': history,
   'scheduled-automation': scheduledTasks,
   'platform-configuration': settings,
-  'platform-network': network,
+  'platform-network': waypoints,
   'system-maintenance': wrench,
   'platform-update': downloadCloud,
   backup: archive,

@@ -361,17 +361,23 @@
       },
       "actions": {
         "refresh": "Refresh",
-        "detail": "Detail"
+        "detail": "Detail",
+        "closeDetail": "Close detail",
+        "more": "More actions"
       },
       "summary": {
         "total": "Total",
         "totalDescription": "Modules known to the runtime registry",
+        "totalDescriptionCompact": "Known modules",
         "enabled": "Enabled",
         "enabledDescription": "Modules enabled for this process",
+        "enabledDescriptionCompact": "Process enabled",
         "healthy": "Healthy",
         "healthyDescription": "Modules reporting healthy runtime status",
+        "healthyDescriptionCompact": "Runtime healthy",
         "degradedUnknown": "Degraded / unknown",
-        "degradedUnknownDescription": "Modules needing operator attention"
+        "degradedUnknownDescription": "Modules needing operator attention",
+        "degradedUnknownDescriptionCompact": "Needs attention"
       },
       "table": {
         "title": "Runtime Module List",
@@ -465,6 +471,16 @@
       "enablementSource": {
         "all": "All modules",
         "allowlist": "Allowlist"
+      },
+      "mobile": {
+        "cardAccessibleName": "{key} runtime detail. Runtime status: {runtimeStatus}. Overall status: {overallStatus}. Enabled: {enabled}. Registered: {registered}. Health: {health}.",
+        "statusDetails": "Status details",
+        "resourceStatus": "Resource status",
+        "overall": {
+          "normal": "Normal",
+          "abnormal": "Abnormal",
+          "unavailable": "Unavailable"
+        }
       }
     },
     "evidence": {

@@ -1,8 +1,8 @@
 post:
   tags: [platform-update]
-  summary: Recover a lost self-update runner
+  summary: Recover a lost or corrupt self-update runner
   operationId: postPlatformUpdateOperationRecovery
-  description: Starts one protected, one-shot recovery runner for a `runner_lost` operation caused by an expired durable lease or a missing runner-state snapshot beyond the loss window. A snapshot, when present, must be verified as pre-migration and non-terminal; missing-state recovery is also fenced by the operation claim. The server never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
+  description: Starts one protected, one-shot recovery runner for a `runner_lost` or `runner_state_corrupt` operation after the loss window. A verified snapshot must be pre-migration and non-terminal; a missing or corrupt snapshot is quarantined by the state-volume-only recovery runner. The server never resumes the upgrade or fabricates a lifecycle phase.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

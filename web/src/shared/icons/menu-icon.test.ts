@@ -3,6 +3,7 @@ import container from '@iconify-icons/lucide/container';
 import downloadCloud from '@iconify-icons/lucide/download-cloud';
 import hardDrive from '@iconify-icons/lucide/hard-drive';
 import imageIcon from '@iconify-icons/lucide/image';
+import waypoints from '@iconify-icons/lucide/waypoints';
 import wrench from '@iconify-icons/lucide/wrench';
 import docker from '@iconify-icons/tabler/brand-docker';
 import { describe, expect, it } from 'vitest';
@@ -37,6 +38,11 @@ describe('resolveMenuIcon', () => {
 
   it('keeps application and runtime targets semantically distinct', () => {
     expect(resolveMenuIcon('application-portfolio')).not.toEqual(resolveMenuIcon('runtime-target'));
+  });
+
+  it('uses a distinct route icon for platform outbound network navigation', () => {
+    expect(resolveMenuIcon('platform-network')).toEqual(waypoints);
+    expect(resolveMenuIcon('platform-network')).not.toEqual(resolveMenuIcon('infrastructure-domain'));
   });
 
   it('keeps visible observability entries from falling back to one generic glyph', () => {

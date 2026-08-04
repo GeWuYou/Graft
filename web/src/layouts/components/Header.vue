@@ -16,9 +16,12 @@
             </t-button>
           </t-tooltip>
         </div>
-        <span v-else-if="showLogo" class="header-logo-container" @click="goHome">
-          <brand-identity class="t-logo" :label="t('common.appName')" />
-        </span>
+        <div v-else-if="showLogo" class="header-brand-container">
+          <span class="header-logo-container" @click="goHome">
+            <brand-identity class="t-logo" :label="t('common.appName')" />
+          </span>
+          <component :is="updateVersionEntry" v-if="layout !== 'side'" class="header-version-entry" />
+        </div>
         <div v-else class="header-operate-left">
           <t-tooltip v-if="navigationPresentation !== 'compact'" placement="bottom" :content="navigationToggleLabel">
             <t-button
@@ -195,6 +198,7 @@ import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { updateVersionEntry } from '@/modules/update';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
 import { BrandIdentity } from '@/shared/components/brand';
@@ -485,6 +489,17 @@ const navToHelper = () => {
   &:hover {
     cursor: pointer;
   }
+}
+
+.header-brand-container {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--graft-density-gap-8);
+}
+
+.header-version-entry {
+  flex: 0 0 auto;
 }
 
 .header-user-account {

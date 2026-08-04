@@ -169,6 +169,7 @@
           "startFailed": "The upgrade task could not be started. Use the request ID to inspect the server logs.",
           "runnerTerminalFailed": "The upgrade did not complete. Review the sanitized cause and application logs.",
           "runnerLost": "The update runner lease expired. Review the sanitized cause and application logs.",
+          "runnerStateCorrupt": "The update runner state could not be verified. Start protected recovery to preserve the evidence and close the operation.",
           "runnerTerminated": "The update runner exited early. Review the sanitized cause and application logs.",
           "generic": "The upgrade request could not be started. Try again later."
         }

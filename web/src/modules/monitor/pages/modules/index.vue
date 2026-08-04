@@ -26,7 +26,10 @@
     <template #summary>
       <div v-for="metric in summaryMetrics" :key="metric.key" class="module-runtime-summary-card">
         <t-statistic :title="metric.label" :value="metric.value" :loading="initialLoading" />
-        <p>{{ metric.description }}</p>
+        <p>
+          <span class="module-runtime-summary-card__description--desktop">{{ metric.description }}</span>
+          <span class="module-runtime-summary-card__description--mobile">{{ metric.compactDescription }}</span>
+        </p>
       </div>
     </template>
 
@@ -47,6 +50,7 @@
         <table-view-toolbar
           :column-settings-label="t('monitor.moduleRuntime.table.columnSettings')"
           :density-label="tableDensityLabel"
+          :more-label="t('monitor.moduleRuntime.actions.more')"
           :refresh-label="t('monitor.moduleRuntime.actions.refresh')"
           :refresh-loading="refreshing"
           @column-settings="columnDrawerVisible = true"
@@ -57,94 +61,190 @@
 
       <p class="module-runtime-table__note">{{ t('monitor.moduleRuntime.table.note') }}</p>
 
-      <div ref="tableHostRef" class="module-runtime-table-host" :data-table-mode="tableWidthPolicy.mode">
-        <t-table
-          row-key="module_key"
-          hover
-          :data="items"
-          :columns="visibleColumns"
-          :loading="initialLoading"
-          :empty="emptyTableContent"
-          :size="tableDensity"
-          :table-content-width="tableWidthPolicy.tableContentWidth"
-          table-layout="fixed"
-          cell-empty-content="-"
-        >
-          <template #module_key="{ row }">
-            <div class="module-runtime-table__identity">
-              <strong class="module-runtime-table__key">{{ row.module_key }}</strong>
-              <span>{{ runtimeStatusLabel(row.runtime_status) }}</span>
-            </div>
-          </template>
-
-          <template #enabled="{ row }">
-            <status-tag :label="booleanLabel(row.enabled)" :status="row.enabled ? 'healthy' : 'disabled'" />
-          </template>
-
-          <template #registered="{ row }">
-            <status-tag :label="booleanLabel(row.registered)" :status="row.registered ? 'healthy' : 'unknown'" />
-          </template>
-
-          <template #health="{ row }">
-            <status-tag :label="healthLabel(row.health)" :status="healthTone(row.health)" />
-          </template>
-
-          <template #dependencies="{ row }">
-            <t-popup placement="top-left" :disabled="!row.dependencies.length" show-arrow>
-              <span class="module-runtime-table__dependency-summary">
-                {{ dependencySummary(row.dependencies) }}
-              </span>
-              <template #content>
-                <div class="module-runtime-table__dependency-popover">
-                  <div
-                    v-for="dependency in row.dependencies"
-                    :key="dependency.module_key"
-                    class="module-runtime-table__dependency-line"
-                  >
-                    <strong>{{ dependency.module_key }}</strong>
-                    <status-tag
-                      :label="dependencyStatusLabel(dependency.status)"
-                      :status="dependencyTone(dependency.status)"
-                    />
+      <responsive-table density-scope="viewport" presentation="entity">
+        <template #cards>
+          <t-loading :loading="initialLoading">
+            <responsive-card-list
+              v-if="items.length"
+              :class="['module-runtime-card-list', `module-runtime-card-list--${tableDensity}`]"
+            >
+              <article
+                v-for="row in items"
+                :key="row.module_key"
+                class="module-runtime-card"
+                :aria-label="
+                  t('monitor.moduleRuntime.mobile.cardAccessibleName', {
+                    key: row.module_key,
+                    runtimeStatus: runtimeStatusLabel(row.runtime_status),
+                    overallStatus: overallStatus(row).label,
+                    enabled: booleanLabel(row.enabled),
+                    registered: booleanLabel(row.registered),
+                    health: healthLabel(row.health),
+                  })
+                "
+                role="button"
+                tabindex="0"
+                @click="openDetail(row)"
+                @keydown.enter.prevent="openDetail(row)"
+                @keydown.space.prevent="openDetail(row)"
+              >
+                <header class="module-runtime-card__header">
+                  <div class="module-runtime-card__identity">
+                    <strong>{{ row.module_key }}</strong>
+                    <span>{{ runtimeStatusLabel(row.runtime_status) }}</span>
                   </div>
-                </div>
-              </template>
-            </t-popup>
-          </template>
+                  <status-tag :label="overallStatus(row).label" :status="overallStatus(row).tone" />
+                </header>
 
-          <template #resource_status="{ row }">
-            <div class="module-runtime-table__resource-status">
-              <span class="module-runtime-table__resource-status-item">
-                <span>{{ t('monitor.moduleRuntime.columns.migration') }}</span>
-                <status-tag
-                  :label="migrationStatusLabel(row.migration_status.status)"
-                  :status="declaredTone(row.migration_status.status)"
-                />
-              </span>
-              <span class="module-runtime-table__resource-status-item">
-                <span>{{ t('monitor.moduleRuntime.columns.schema') }}</span>
-                <status-tag
-                  :label="schemaStatusLabel(row.schema_status.status)"
-                  :status="declaredTone(row.schema_status.status)"
-                />
-              </span>
-              <span class="module-runtime-table__resource-status-item">
-                <span>{{ t('monitor.moduleRuntime.columns.config') }}</span>
-                <status-tag
-                  :label="configStatusLabel(row.config_status.status)"
-                  :status="configTone(row.config_status.status)"
-                />
-              </span>
-            </div>
-          </template>
+                <section class="module-runtime-card__section">
+                  <h3>{{ t('monitor.moduleRuntime.mobile.statusDetails') }}</h3>
+                  <dl class="module-runtime-card__status-list">
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.enabled') }}</dt>
+                      <dd :data-tone="row.enabled ? 'healthy' : 'disabled'">{{ booleanLabel(row.enabled) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.registered') }}</dt>
+                      <dd :data-tone="row.registered ? 'healthy' : 'unknown'">{{ booleanLabel(row.registered) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.health') }}</dt>
+                      <dd :data-tone="healthTone(row.health)">{{ healthLabel(row.health) }}</dd>
+                    </div>
+                  </dl>
+                </section>
 
-          <template #operation="{ row }">
-            <t-button variant="text" theme="primary" size="small" @click="openDetail(row)">
-              {{ t('monitor.moduleRuntime.actions.detail') }}
-            </t-button>
-          </template>
-        </t-table>
-      </div>
+                <dl class="module-runtime-card__description-list">
+                  <div>
+                    <dt>{{ t('monitor.moduleRuntime.columns.dependencies') }}</dt>
+                    <dd>{{ dependencySummary(row.dependencies) }}</dd>
+                  </div>
+                </dl>
+
+                <section class="module-runtime-card__section">
+                  <h3>{{ t('monitor.moduleRuntime.mobile.resourceStatus') }}</h3>
+                  <dl class="module-runtime-card__resource-list">
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.migration') }}</dt>
+                      <dd :data-tone="declaredTone(row.migration_status.status)">
+                        {{ migrationStatusLabel(row.migration_status.status) }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.schema') }}</dt>
+                      <dd :data-tone="declaredTone(row.schema_status.status)">
+                        {{ schemaStatusLabel(row.schema_status.status) }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('monitor.moduleRuntime.columns.config') }}</dt>
+                      <dd :data-tone="configTone(row.config_status.status)">
+                        {{ configStatusLabel(row.config_status.status) }}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <footer class="module-runtime-card__actions">
+                  <span class="module-runtime-card__detail-affordance" aria-hidden="true">
+                    {{ t('monitor.moduleRuntime.actions.detail') }} &gt;
+                  </span>
+                </footer>
+              </article>
+            </responsive-card-list>
+            <t-empty v-else-if="initialized && !errorMessage" :title="t('monitor.moduleRuntime.empty')" />
+          </t-loading>
+        </template>
+
+        <div ref="tableHostRef" class="module-runtime-table-host" :data-table-mode="tableWidthPolicy.mode">
+          <t-table
+            row-key="module_key"
+            hover
+            :data="items"
+            :columns="visibleColumns"
+            :loading="initialLoading"
+            :empty="emptyTableContent"
+            :size="tableDensity"
+            :table-content-width="tableWidthPolicy.tableContentWidth"
+            table-layout="fixed"
+            cell-empty-content="-"
+          >
+            <template #module_key="{ row }">
+              <div class="module-runtime-table__identity">
+                <strong class="module-runtime-table__key">{{ row.module_key }}</strong>
+                <span>{{ runtimeStatusLabel(row.runtime_status) }}</span>
+              </div>
+            </template>
+
+            <template #enabled="{ row }">
+              <status-tag :label="booleanLabel(row.enabled)" :status="row.enabled ? 'healthy' : 'disabled'" />
+            </template>
+
+            <template #registered="{ row }">
+              <status-tag :label="booleanLabel(row.registered)" :status="row.registered ? 'healthy' : 'unknown'" />
+            </template>
+
+            <template #health="{ row }">
+              <status-tag :label="healthLabel(row.health)" :status="healthTone(row.health)" />
+            </template>
+
+            <template #dependencies="{ row }">
+              <t-popup placement="top-left" :disabled="!row.dependencies.length" show-arrow>
+                <span class="module-runtime-table__dependency-summary">
+                  {{ dependencySummary(row.dependencies) }}
+                </span>
+                <template #content>
+                  <div class="module-runtime-table__dependency-popover">
+                    <div
+                      v-for="dependency in row.dependencies"
+                      :key="dependency.module_key"
+                      class="module-runtime-table__dependency-line"
+                    >
+                      <strong>{{ dependency.module_key }}</strong>
+                      <status-tag
+                        :label="dependencyStatusLabel(dependency.status)"
+                        :status="dependencyTone(dependency.status)"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </t-popup>
+            </template>
+
+            <template #resource_status="{ row }">
+              <div class="module-runtime-table__resource-status">
+                <span class="module-runtime-table__resource-status-item">
+                  <span>{{ t('monitor.moduleRuntime.columns.migration') }}</span>
+                  <status-tag
+                    :label="migrationStatusLabel(row.migration_status.status)"
+                    :status="declaredTone(row.migration_status.status)"
+                  />
+                </span>
+                <span class="module-runtime-table__resource-status-item">
+                  <span>{{ t('monitor.moduleRuntime.columns.schema') }}</span>
+                  <status-tag
+                    :label="schemaStatusLabel(row.schema_status.status)"
+                    :status="declaredTone(row.schema_status.status)"
+                  />
+                </span>
+                <span class="module-runtime-table__resource-status-item">
+                  <span>{{ t('monitor.moduleRuntime.columns.config') }}</span>
+                  <status-tag
+                    :label="configStatusLabel(row.config_status.status)"
+                    :status="configTone(row.config_status.status)"
+                  />
+                </span>
+              </div>
+            </template>
+
+            <template #operation="{ row }">
+              <t-button variant="text" theme="primary" size="small" @click="openDetail(row)">
+                {{ t('monitor.moduleRuntime.actions.detail') }}
+              </t-button>
+            </template>
+          </t-table>
+        </div>
+      </responsive-table>
     </management-table-card>
 
     <advanced-query-column-drawer
@@ -159,12 +259,29 @@
 
     <t-drawer
       v-model:visible="detailVisible"
-      :header="detailHeader"
+      :close-btn="false"
       :footer="false"
       size="520px"
       attach="body"
       destroy-on-close
     >
+      <template #header>
+        <div class="module-runtime-detail__header">
+          <t-tooltip :content="t('monitor.moduleRuntime.actions.closeDetail')" placement="bottom">
+            <t-button
+              shape="square"
+              theme="default"
+              variant="text"
+              :aria-label="t('monitor.moduleRuntime.actions.closeDetail')"
+              @click="closeDetail"
+            >
+              <template #icon><chevron-left-icon /></template>
+            </t-button>
+          </t-tooltip>
+          <span>{{ detailHeader }}</span>
+        </div>
+      </template>
+
       <div v-if="selectedModule" class="module-runtime-detail">
         <section class="module-runtime-detail__section">
           <h3>{{ t('monitor.moduleRuntime.detail.basicInfo') }}</h3>
@@ -317,6 +434,7 @@
 </template>
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
+import { ChevronLeftIcon } from 'tdesign-icons-vue-next';
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -330,6 +448,8 @@ import {
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { RefreshControlBar } from '@/shared/components/refresh';
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
+import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { useRealtimeSchedulerStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
@@ -347,6 +467,7 @@ import type {
   ModuleRuntimeSchemaStatus,
 } from '../../types/module-runtime';
 
+// 模块状态页只消费运行时快照；桌面列和移动端卡片共享同一数据来源，详情仍按模块键单独加载。
 const { t } = useI18n();
 const moduleRuntimeLogger = createLogger('monitor.module-runtime.page');
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
@@ -408,24 +529,28 @@ const summaryMetrics = computed(() => [
     label: t('monitor.moduleRuntime.summary.total'),
     value: summary.value?.total_modules ?? 0,
     description: t('monitor.moduleRuntime.summary.totalDescription'),
+    compactDescription: t('monitor.moduleRuntime.summary.totalDescriptionCompact'),
   },
   {
     key: 'enabled',
     label: t('monitor.moduleRuntime.summary.enabled'),
     value: summary.value?.enabled_modules ?? 0,
     description: t('monitor.moduleRuntime.summary.enabledDescription'),
+    compactDescription: t('monitor.moduleRuntime.summary.enabledDescriptionCompact'),
   },
   {
     key: 'healthy',
     label: t('monitor.moduleRuntime.summary.healthy'),
     value: summary.value?.healthy_modules ?? 0,
     description: t('monitor.moduleRuntime.summary.healthyDescription'),
+    compactDescription: t('monitor.moduleRuntime.summary.healthyDescriptionCompact'),
   },
   {
     key: 'degradedUnknown',
     label: t('monitor.moduleRuntime.summary.degradedUnknown'),
     value: (summary.value?.degraded_modules ?? 0) + (summary.value?.unknown_modules ?? 0),
     description: t('monitor.moduleRuntime.summary.degradedUnknownDescription'),
+    compactDescription: t('monitor.moduleRuntime.summary.degradedUnknownDescriptionCompact'),
   },
 ]);
 
@@ -686,6 +811,10 @@ async function openDetail(row: ModuleRuntimeItem) {
   }
 }
 
+function closeDetail() {
+  detailVisible.value = false;
+}
+
 function booleanLabel(value: boolean) {
   return value ? t('monitor.moduleRuntime.values.yes') : t('monitor.moduleRuntime.values.no');
 }
@@ -789,6 +918,22 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
     : t('monitor.moduleRuntime.values.unknownConfig');
 }
 
+function overallStatus(item: ModuleRuntimeItem): { label: string; tone: ServerStatusTone } {
+  if (!item.enabled) {
+    return { label: t('monitor.moduleRuntime.mobile.overall.unavailable'), tone: 'disabled' };
+  }
+
+  if (!item.registered) {
+    return { label: t('monitor.moduleRuntime.mobile.overall.unavailable'), tone: 'error' };
+  }
+
+  if (item.health === 'healthy') {
+    return { label: t('monitor.moduleRuntime.mobile.overall.normal'), tone: 'healthy' };
+  }
+
+  return { label: t('monitor.moduleRuntime.mobile.overall.abnormal'), tone: 'warning' };
+}
+
 function toggleTableDensity() {
   tableDensity.value = tableDensity.value === 'medium' ? 'small' : 'medium';
 }
@@ -814,6 +959,131 @@ function toggleTableDensity() {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-8) 0 0;
+}
+
+.module-runtime-summary-card__description--mobile {
+  display: none;
+}
+
+.module-runtime-mobile-toolbar {
+  padding: 0;
+}
+
+.module-runtime-card-list {
+  gap: var(--graft-density-gap-12);
+}
+
+.module-runtime-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  cursor: pointer;
+  display: grid;
+  gap: var(--graft-density-gap-14);
+  min-width: 0;
+  outline: none;
+  padding: var(--graft-density-gap-16);
+}
+
+.module-runtime-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--td-brand-color-focus);
+}
+
+@media (forced-colors: active) {
+  .module-runtime-card:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+.module-runtime-card__header,
+.module-runtime-card__status-list > div,
+.module-runtime-card__description-list > div,
+.module-runtime-card__resource-list > div {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.module-runtime-card__identity {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.module-runtime-card__identity strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow-wrap: anywhere;
+}
+
+.module-runtime-card__identity span,
+.module-runtime-card__section h3,
+.module-runtime-card dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.module-runtime-card__section {
+  border-top: 1px solid var(--td-border-level-1-color);
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  padding-top: var(--graft-density-gap-14);
+}
+
+.module-runtime-card__section h3 {
+  font-weight: 600;
+  margin: 0;
+}
+
+.module-runtime-card__status-list,
+.module-runtime-card__description-list,
+.module-runtime-card__resource-list {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  margin: 0;
+}
+
+.module-runtime-card dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  font-weight: 500;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.module-runtime-card dd[data-tone='healthy'] {
+  color: var(--td-success-color);
+}
+
+.module-runtime-card dd[data-tone='warning'] {
+  color: var(--td-warning-color);
+}
+
+.module-runtime-card dd[data-tone='error'] {
+  color: var(--td-error-color);
+}
+
+.module-runtime-card dd[data-tone='disabled'],
+.module-runtime-card dd[data-tone='unknown'] {
+  color: var(--td-text-color-secondary);
+}
+
+.module-runtime-card__actions {
+  border-top: 1px solid var(--td-border-level-1-color);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(-1 * var(--graft-density-gap-2));
+  padding-top: var(--graft-density-gap-10);
+}
+
+.module-runtime-card__detail-affordance {
+  color: var(--td-brand-color);
+  font: var(--td-font-body-medium);
 }
 
 .module-runtime-table__note {
@@ -918,6 +1188,21 @@ function toggleTableDensity() {
 .module-runtime-detail__section {
   border-bottom: 1px solid var(--td-border-level-1-color);
   padding: var(--graft-density-gap-16) 0;
+}
+
+.module-runtime-detail__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.module-runtime-detail__header span {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .module-runtime-detail__section:first-child {
@@ -1052,8 +1337,9 @@ function toggleTableDensity() {
 }
 
 @media (width <= 767px) {
-  .module-runtime-toolbar {
-    justify-content: flex-start;
+  :deep(.governance-dashboard-shell__summary) {
+    gap: var(--graft-density-gap-12);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .module-runtime-table__note {
@@ -1062,6 +1348,20 @@ function toggleTableDensity() {
 
   .module-runtime-summary-card {
     min-height: 96px;
+    padding: var(--graft-density-gap-12);
+  }
+
+  .module-runtime-summary-card__description--desktop {
+    display: none;
+  }
+
+  .module-runtime-summary-card__description--mobile {
+    display: inline;
+  }
+
+  .module-runtime-card-list--small .module-runtime-card {
+    gap: var(--graft-density-gap-12);
+    padding: var(--graft-density-gap-12);
   }
 
   .module-runtime-detail__grid {

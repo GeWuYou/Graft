@@ -78,6 +78,11 @@ checkout do not block relocation.
   when that information is useful for resumption.
 - Numbered agent worktrees are non-runtime environments: do not start frontend/backend services, development servers,
   Docker/Compose stacks, or other long-running runtime processes from them.
+- Browser QA is disabled in numbered agent worktrees. Do not run browser agents, Playwright interaction, screenshots,
+  or browser-facing authentication checks there; a worktree's web completion evidence is its repository validation.
+- Browser QA is a developer-owned primary-checkout activity. It may run only after a user or developer approves a
+  runtime proven to serve the branch and HEAD being reviewed; record it as a primary-checkout follow-up instead of
+  blocking a validated worktree commit.
 - Do not apply SQL migrations or execute state-changing database operations from a worktree. Static migration
   validation, checksum generation, tests, builds, and lint remain allowed when they do not target a live database.
 - Runtime services and migration application belong to the developer-owned primary checkout with the necessary user or
