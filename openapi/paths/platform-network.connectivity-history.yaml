@@ -1,0 +1,18 @@
+get:
+  tags: [platform-network]
+  summary: Read one target's connectivity history
+  operationId: getPlatformConnectivityHistory
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - name: targetId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    '200': { description: Bounded history for the named target., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-history.yaml } } } }
+    '400': { $ref: ../components/responses/bad-request.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

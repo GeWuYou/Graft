@@ -1,0 +1,6 @@
+type: object
+required: [matched_strategy, decision, reason]
+properties:
+  matched_strategy: { type: string }
+  decision: { $ref: ./platform-network-connectivity-route-decision.yaml }
+  reason: { type: string }

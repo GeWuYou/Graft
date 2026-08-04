@@ -1,0 +1,11 @@
+get:
+  tags: [platform-network]
+  summary: List up to 100 registered platform connectivity targets
+  operationId: getPlatformConnectivityTargets
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200':
+      description: Registry descriptors without network destinations or secrets.
+      content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-targets.yaml } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

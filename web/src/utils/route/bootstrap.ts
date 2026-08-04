@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router';
+import type { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { getBootstrapRouteRegistration } from '@/modules';
@@ -73,6 +73,12 @@ export function transformGlobalRegistrationsToRoutes(
       path: registration.path,
       name: registration.routeName,
       component: LAYOUT,
+      redirect: (to: RouteLocationNormalized) => ({
+        name: `${registration.routeName}Index`,
+        params: to.params,
+        query: to.query,
+        hash: to.hash,
+      }),
       meta: {
         ...withNavigationContext(registration.meta, ancestorsByEntryPath.get(registration.navigationParentPath ?? '')),
         navigationTargetPath: registration.navigationParentPath,

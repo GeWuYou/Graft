@@ -32,6 +32,31 @@ func TestPlatformUpdateDiagnosticUsesDefaultReleaseRepository(t *testing.T) {
 	}
 }
 
+func TestPlatformUpdateConnectivityTargetDeclaresCapabilitiesAndAdaptsHTTPResult(t *testing.T) {
+	transport := &recordingRoundTripper{response: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}}
+	target := platformUpdateDiagnosticTarget{factory: &outboundHTTPClientFactoryStub{client: &http.Client{Transport: transport}}}
+	descriptor := target.ConnectivityTargetDescriptor()
+	if descriptor.ID != platformUpdateConnectivityTargetID || descriptor.ModuleID != "platform-update" || descriptor.Category != "platform" {
+		t.Fatalf("unexpected connectivity descriptor: %#v", descriptor)
+	}
+	containsHTTP := false
+	for _, kind := range descriptor.Capabilities.ProbeKinds {
+		if kind == moduleapi.ConnectivityProbeHTTP {
+			containsHTTP = true
+		}
+	}
+	if !containsHTTP {
+		t.Fatalf("expected HTTP diagnostics capabilities, got %#v", descriptor.Capabilities)
+	}
+	report, err := target.RunConnectivityProbes(context.Background())
+	if err != nil {
+		t.Fatalf("run connectivity probes: %v", err)
+	}
+	if report.TargetID != platformUpdateConnectivityTargetID || report.Status != moduleapi.ConnectivityReportStatusHealthy || len(report.Probes) != 1 || report.Probes[0].Kind != moduleapi.ConnectivityProbeHTTP || report.Probes[0].HTTPStatus == nil || *report.Probes[0].HTTPStatus != http.StatusOK {
+		t.Fatalf("unexpected adapted connectivity report: %#v", report)
+	}
+}
+
 type outboundHTTPClientFactoryStub struct {
 	client  *http.Client
 	timeout time.Duration

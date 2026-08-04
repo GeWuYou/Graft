@@ -1,0 +1,13 @@
+get:
+  tags: [platform-network]
+  summary: Export one sanitized connectivity report
+  operationId: getPlatformConnectivityExport
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - { name: targetId, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+    - { name: checkId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+  responses:
+    '200': { description: Sanitized report JSON. Full exit IPs are never exported., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-report.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { $ref: ../components/responses/not-found.yaml }

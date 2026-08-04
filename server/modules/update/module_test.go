@@ -21,11 +21,15 @@ type deploymentProfileRuntimeStub struct {
 }
 
 type outboundDiagnosticRegistryStub struct {
-	targets []moduleapi.OutboundDiagnosticTarget
+	targets             []moduleapi.OutboundDiagnosticTarget
+	connectivityTargets []moduleapi.ConnectivityTarget
 }
 
 func (s *outboundDiagnosticRegistryStub) RegisterOutboundDiagnosticTarget(target moduleapi.OutboundDiagnosticTarget) error {
 	s.targets = append(s.targets, target)
+	if connectivityTarget, ok := target.(moduleapi.ConnectivityTarget); ok {
+		return s.RegisterConnectivityTarget(connectivityTarget)
+	}
 	return nil
 }
 
@@ -40,6 +44,32 @@ func (s *outboundDiagnosticRegistryStub) OutboundDiagnosticTarget(name string) (
 
 func (s *outboundDiagnosticRegistryStub) OutboundDiagnosticTargets() []moduleapi.OutboundDiagnosticTarget {
 	return append([]moduleapi.OutboundDiagnosticTarget(nil), s.targets...)
+}
+
+func (s *outboundDiagnosticRegistryStub) RegisterConnectivityTarget(target moduleapi.ConnectivityTarget) error {
+	s.connectivityTargets = append(s.connectivityTargets, target)
+	return nil
+}
+
+func (s *outboundDiagnosticRegistryStub) ConnectivityTarget(id moduleapi.ConnectivityTargetID) (moduleapi.ConnectivityTarget, bool) {
+	for _, target := range s.connectivityTargets {
+		if target.ConnectivityTargetDescriptor().ID == id {
+			return target, true
+		}
+	}
+	return nil, false
+}
+
+func (s *outboundDiagnosticRegistryStub) ConnectivityTargets() []moduleapi.ConnectivityTarget {
+	return append([]moduleapi.ConnectivityTarget(nil), s.connectivityTargets...)
+}
+
+func (s *outboundDiagnosticRegistryStub) ConnectivityTargetDescriptors() []moduleapi.ConnectivityTargetDescriptor {
+	items := make([]moduleapi.ConnectivityTargetDescriptor, 0, len(s.connectivityTargets))
+	for _, target := range s.connectivityTargets {
+		items = append(items, target.ConnectivityTargetDescriptor().Snapshot())
+	}
+	return items
 }
 
 type outboundNetworkConsumerRegistryStub struct {

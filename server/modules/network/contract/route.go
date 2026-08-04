@@ -7,10 +7,38 @@ const (
 	OutboundNetworkRoute = "/outbound"
 	// OutboundNetworkResetRoute 恢复出站网络策略的模块默认值。
 	OutboundNetworkResetRoute = "/outbound/reset"
-	// OutboundNetworkDiagnosticRoute 执行固定注册的出站网络诊断。
-	OutboundNetworkDiagnosticRoute = "/outbound/diagnostics/:targetId"
-	// OutboundNetworkDiagnosticHistoryRoute 返回固定注册目标的有限诊断历史。
-	OutboundNetworkDiagnosticHistoryRoute = "/outbound/diagnostics/:targetId/history"
+	// LegacyDiagnosticRoute 是 Phase 3 完成前旧 Network 页面使用的临时固定诊断适配路径。
+	// COMPAT(owner=platform-network connectivity authority, reason=外部旧客户端仍依赖固定 HTTP 诊断契约，当前不能在消费者迁移完成前直接删除,
+	// consumers=旧 Network Web 页面和已发布的诊断 API 客户端, cleanup=Phase 3 web consumer migrates to target-addressed connectivity APIs,
+	// validation=legacy route contract tests plus target-addressed server/web integration checks).
+	LegacyDiagnosticRoute = "/diagnostics/:targetId"
+	// LegacyDiagnosticHistoryRoute 是临时固定诊断历史适配路径；清理条件和验证范围与 LegacyDiagnosticRoute 相同。
+	// COMPAT(owner=platform-network connectivity authority, reason=旧客户端仍读取固定诊断历史路径,
+	// consumers=旧 Network Web 页面和已发布的诊断 API 客户端, cleanup=Phase 3 web consumer migrates to target-addressed connectivity APIs,
+	// validation=legacy history route tests plus target-addressed history integration checks).
+	LegacyDiagnosticHistoryRoute = "/diagnostics/:targetId/history"
+	// ConnectivityTargetsRoute 返回已注册连通性目标。
+	ConnectivityTargetsRoute = "/connectivity/targets"
+	// ConnectivityCustomTargetsRoute 管理经过 SSRF 校验的自定义 HTTP(S) 目标。
+	ConnectivityCustomTargetsRoute = "/connectivity/custom-targets"
+	// ConnectivityCustomTargetRoute 删除一个自定义目标。
+	ConnectivityCustomTargetRoute = "/connectivity/custom-targets/:targetId"
+	// ConnectivityLatestRoute 返回每个目标的最新健康检查。
+	ConnectivityLatestRoute = "/connectivity/latest"
+	// ConnectivityAggregateRoute 返回批量连通性聚合摘要。
+	ConnectivityAggregateRoute = "/connectivity/aggregate"
+	// ConnectivityRunRoute 为一个 target 执行诊断；页面身份始终是 target，而不是一次执行 ID。
+	ConnectivityRunRoute = "/connectivity/:targetId/run"
+	// ConnectivityBatchRunRoute 为当前所有已启用目标执行一次有界健康检查。
+	ConnectivityBatchRunRoute = "/connectivity/run"
+	// ConnectivityHistoryRoute 返回 target 的最近检查摘要。
+	ConnectivityHistoryRoute = "/connectivity/:targetId/history"
+	// ConnectivityReportRoute 返回 target 内某次检查的报告。
+	ConnectivityReportRoute = "/connectivity/:targetId/reports/:checkId"
+	// ConnectivityTraceRoute 返回与报告相同的已净化 Probe Trace 投影。
+	ConnectivityTraceRoute = "/connectivity/:targetId/reports/:checkId/trace"
+	// ConnectivityExportRoute 导出不含完整出口 IP 的报告 JSON。
+	ConnectivityExportRoute = "/connectivity/:targetId/reports/:checkId/export"
 	// NetworkMenuPath 是平台网络页面的稳定前端路由。
 	NetworkMenuPath = "/platform/network"
 )

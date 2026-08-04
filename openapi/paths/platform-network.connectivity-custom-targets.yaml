@@ -1,0 +1,23 @@
+get:
+  tags: [platform-network]
+  summary: List up to 100 custom connectivity targets
+  operationId: getPlatformConnectivityCustomTargets
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: Live custom target metadata., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-custom-targets.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+post:
+  tags: [platform-network]
+  summary: Create a custom connectivity target
+  operationId: postPlatformConnectivityCustomTarget
+  description: Only public HTTP(S) destinations on ports 80 or 443 are accepted. Execution resolves and validates every dial and never follows redirects.
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content: { application/json: { schema: { $ref: ../components/schemas/create-platform-network-connectivity-custom-target-request.yaml } } }
+  responses:
+    '201': { description: Created custom target., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-custom-target.yaml } } } }
+    '400': { $ref: ../components/responses/bad-request.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

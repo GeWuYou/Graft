@@ -1651,7 +1651,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/platform/network/outbound/diagnostics/{targetId}': {
+  '/api/platform/network/diagnostics/{targetId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1671,7 +1671,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/platform/network/outbound/diagnostics/{targetId}/history': {
+  '/api/platform/network/diagnostics/{targetId}/history': {
     parameters: {
       query?: never;
       header?: never;
@@ -1680,6 +1680,203 @@ export interface paths {
     };
     /** Read bounded persisted history for one fixed outbound-network diagnostic target */
     get: operations['getPlatformNetworkDiagnosticHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List up to 100 registered platform connectivity targets */
+    get: operations['getPlatformConnectivityTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/custom-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List up to 100 custom connectivity targets */
+    get: operations['getPlatformConnectivityCustomTargets'];
+    put?: never;
+    /**
+     * Create a custom connectivity target
+     * @description Only public HTTP(S) destinations on ports 80 or 443 are accepted. Execution resolves and validates every dial and never follows redirects.
+     */
+    post: operations['postPlatformConnectivityCustomTarget'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/custom-targets/{targetId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a custom connectivity target */
+    delete: operations['deletePlatformConnectivityCustomTarget'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/latest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read latest batch connectivity checks */
+    get: operations['getPlatformConnectivityLatest'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/aggregate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read platform connectivity aggregate health */
+    get: operations['getPlatformConnectivityAggregate'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run connectivity diagnostics for one target
+     * @description The URL identifies the target. It never accepts a caller-provided network destination.
+     */
+    post: operations['postPlatformConnectivityRun'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run the bounded platform connectivity health check
+     * @description Runs the current registry and enabled custom targets. The caller cannot supply network destinations or an unbounded target list.
+     */
+    post: operations['postPlatformConnectivityBatchRun'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read one target's connectivity history */
+    get: operations['getPlatformConnectivityHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read one sanitized connectivity report */
+    get: operations['getPlatformConnectivityReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}/trace': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read sanitized connectivity probe trace */
+    get: operations['getPlatformConnectivityTrace'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/connectivity/{targetId}/reports/{checkId}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export one sanitized connectivity report */
+    get: operations['getPlatformConnectivityExport'];
     put?: never;
     post?: never;
     delete?: never;
@@ -4339,6 +4536,11 @@ export interface components {
     EnvelopedPlatformNetworkOverview: components['schemas']['enveloped-platform-network-overview'];
     EnvelopedPlatformNetworkDiagnosticResult: components['schemas']['enveloped-platform-network-diagnostic-result'];
     EnvelopedPlatformNetworkDiagnosticHistory: components['schemas']['enveloped-platform-network-diagnostic-history'];
+    PlatformNetworkConnectivityTargetCategory: components['schemas']['platform-network-connectivity-target-category'];
+    PlatformNetworkConnectivityTargetFeature: components['schemas']['platform-network-connectivity-target-feature'];
+    PlatformNetworkConnectivityProbeKind: components['schemas']['platform-network-connectivity-probe-kind'];
+    PlatformNetworkConnectivityRouteDecision: components['schemas']['platform-network-connectivity-route-decision'];
+    PlatformNetworkConnectivityTarget: components['schemas']['platform-network-connectivity-target'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
     PlatformDeploymentStrategy: components['schemas']['platform-deployment-strategy'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
@@ -6944,6 +7146,202 @@ export interface components {
       message: string;
       traceId: string;
       data: components['schemas']['platform-network-diagnostic-history'];
+    };
+    /**
+     * @description Stable category declared by a connectivity target owner.
+     * @enum {string}
+     */
+    'platform-network-connectivity-target-category': 'platform' | 'oci' | 'git' | 'general' | 'custom';
+    /**
+     * @description Typed connectivity probe stage.
+     * @enum {string}
+     */
+    'platform-network-connectivity-probe-kind':
+      | 'dns'
+      | 'tcp'
+      | 'tls'
+      | 'certificate'
+      | 'http'
+      | 'smtp_banner'
+      | 'smtp_ehlo'
+      | 'ldap_bind'
+      | 'oidc_discovery'
+      | 'webhook_post'
+      | 'oci_ping';
+    /**
+     * @description Report affordance declared by a connectivity target.
+     * @enum {string}
+     */
+    'platform-network-connectivity-target-feature': 'history' | 'export' | 'exit_ip' | 'proxy_route';
+    'platform-network-connectivity-target': {
+      id: string;
+      module_id: string;
+      category: components['schemas']['platform-network-connectivity-target-category'];
+      title_key: string;
+      probe_kinds: components['schemas']['platform-network-connectivity-probe-kind'][];
+      features: components['schemas']['platform-network-connectivity-target-feature'][];
+    };
+    'enveloped-platform-network-connectivity-targets': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        items: components['schemas']['platform-network-connectivity-target'][];
+      };
+    };
+    'platform-network-connectivity-custom-target': {
+      id: string;
+      display_name: string;
+      /** Format: uri */
+      endpoint: string;
+      enabled: boolean;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'enveloped-platform-network-connectivity-custom-targets': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        items: components['schemas']['platform-network-connectivity-custom-target'][];
+      };
+    };
+    'create-platform-network-connectivity-custom-target-request': {
+      target_id: string;
+      display_name: string;
+      /** Format: uri */
+      endpoint: string;
+    };
+    'enveloped-platform-network-connectivity-custom-target': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-connectivity-custom-target'];
+    };
+    'platform-network-connectivity-check': {
+      /** Format: int64 */
+      check_id: number;
+      target_id: string;
+      /** @enum {string} */
+      status: 'healthy' | 'degraded' | 'failed';
+      /** Format: int64 */
+      latency_ms: number;
+      /** @description HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable. */
+      http_status?: number | null;
+      /** Format: date-time */
+      checked_at: string;
+    };
+    'enveloped-platform-network-connectivity-checks': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        items: components['schemas']['platform-network-connectivity-check'][];
+      };
+    };
+    'platform-network-connectivity-aggregate': {
+      /** Format: date-time */
+      last_run_at?: string | null;
+      target_count: number;
+      healthy_count: number;
+      degraded_count: number;
+      failed_count: number;
+      /** Format: int64 */
+      average_latency_ms: number;
+      worst_target_id?: string;
+      /** Format: int64 */
+      worst_latency_ms: number;
+    };
+    'enveloped-platform-network-connectivity-aggregate': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-connectivity-aggregate'];
+    };
+    'platform-network-connectivity-probe': {
+      kind: string;
+      /** @enum {string} */
+      status: 'succeeded' | 'failed' | 'skipped';
+      /** Format: int64 */
+      duration_ms: number;
+      /** @description HTTP response status when this probe received a response. */
+      http_status?: number | null;
+      summary?: string;
+      error_code?: string;
+      /** Format: date-time */
+      occurred_at?: string;
+    };
+    /**
+     * @description Administrator-facing route decision for a connectivity report.
+     * @enum {string}
+     */
+    'platform-network-connectivity-route-decision': 'Direct' | 'HTTP Proxy';
+    'platform-network-connectivity-route': {
+      matched_strategy: string;
+      decision: components['schemas']['platform-network-connectivity-route-decision'];
+      reason: string;
+    };
+    /** @description Historical reports only contain a masked exit IP. This schema never carries a full IP address. */
+    'platform-network-connectivity-exit-ip': {
+      masked: string;
+      available: boolean;
+    };
+    'platform-network-connectivity-report': {
+      schema_version: number;
+      target_id: string;
+      /** @enum {string} */
+      status: 'healthy' | 'degraded' | 'failed';
+      /** Format: date-time */
+      checked_at: string;
+      /** Format: int64 */
+      total_latency_ms: number;
+      probes: components['schemas']['platform-network-connectivity-probe'][];
+      route?: components['schemas']['platform-network-connectivity-route'];
+      exit_ip?: components['schemas']['platform-network-connectivity-exit-ip'];
+    };
+    'enveloped-platform-network-connectivity-run': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        check: components['schemas']['platform-network-connectivity-check'];
+        report: components['schemas']['platform-network-connectivity-report'];
+      };
+    };
+    'enveloped-platform-network-connectivity-history': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        target_id: string;
+        items: components['schemas']['platform-network-connectivity-check'][];
+      };
+    };
+    'enveloped-platform-network-connectivity-report': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-connectivity-report'];
+    };
+    'enveloped-platform-network-connectivity-trace': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: {
+        target_id: string;
+        /** Format: int64 */
+        check_id: number;
+        probes: components['schemas']['platform-network-connectivity-probe'][];
+      };
     };
     /**
      * @description Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
@@ -10047,6 +10445,16 @@ export interface components {
     };
     /** @description A strong If-Match header is required for Module Config mutations. */
     'precondition-required': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description Requested resource was not found under existing error envelope semantics. */
+    'not-found': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -15188,6 +15596,296 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+    };
+  };
+  getPlatformConnectivityTargets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry descriptors without network destinations or secrets. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-targets'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityCustomTargets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Live custom target metadata. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-custom-targets'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postPlatformConnectivityCustomTarget: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-platform-network-connectivity-custom-target-request'];
+      };
+    };
+    responses: {
+      /** @description Created custom target. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-custom-target'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  deletePlatformConnectivityCustomTarget: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Target deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+    };
+  };
+  getPlatformConnectivityLatest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Latest check per registered target, with status, latency, and completion time. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-checks'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityAggregate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Aggregate over the current latest checks only. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-aggregate'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postPlatformConnectivityRun: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized persisted report and check projection. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-run'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+    };
+  };
+  postPlatformConnectivityBatchRun: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Completed checks for targets that could execute. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-checks'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityHistory: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        targetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Bounded history for the named target. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-history'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getPlatformConnectivityReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Versioned report with extensible probes, route explanation, and only a masked exit IP. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-report'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+    };
+  };
+  getPlatformConnectivityTrace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ordered sanitized ProbeResult projection. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-trace'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+    };
+  };
+  getPlatformConnectivityExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        targetId: string;
+        checkId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized report JSON. Full exit IPs are never exported. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-connectivity-report'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
     };
   };
   getPlatformUpdateStatus: {

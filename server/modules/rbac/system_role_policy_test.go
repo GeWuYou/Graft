@@ -59,6 +59,23 @@ func TestSystemRolePolicyCriticalEntriesHaveReviewMetadata(t *testing.T) {
 	}
 }
 
+func TestSystemRolePolicyRestrictsConnectivitySensitivePermissionsToAdmin(t *testing.T) {
+	entries := make(map[string]SystemRolePolicyEntry)
+	for _, entry := range SystemRolePolicy() {
+		entries[entry.Code] = entry
+	}
+
+	for _, code := range []string{"platform-network.targets.manage", "platform-network.exit-ip.read"} {
+		entry, exists := entries[code]
+		if !exists {
+			t.Fatalf("system role policy does not cover %s", code)
+		}
+		if len(entry.Grants) != 1 || entry.Grants[roleAdmin] != moduleapi.PermissionScopeAll {
+			t.Fatalf("%s grants = %#v, want Admin all only", code, entry.Grants)
+		}
+	}
+}
+
 func policyTestItems() []permission.Item {
 	entries := SystemRolePolicy()
 	items := make([]permission.Item, 0, len(entries))

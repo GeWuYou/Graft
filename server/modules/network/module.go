@@ -90,9 +90,28 @@ func buildRuntimeServices(ctx *module.Context) (runtimeServices, *Service, error
 	if err != nil {
 		return runtimeServices{}, nil, err
 	}
+	connectivity, err := newSQLConnectivityStore(ctx)
+	if err != nil {
+		return runtimeServices{}, nil, err
+	}
 	diagnostics, consumers := NewDiagnosticRegistry(), NewConsumerRegistry()
 	runtime := runtimeServices{provider: provider, factory: factory, diagnostics: diagnostics, consumers: consumers}
-	return runtime, NewService(configs, diagnostics, consumers, repository, ctx.Logger), nil
+	service := NewService(configs, diagnostics, consumers, repository, ctx.Logger)
+	service.connectivity = connectivity
+	service.customTargets = connectivity
+	return runtime, service, nil
+}
+
+func newSQLConnectivityStore(ctx *module.Context) (*SQLConnectivityStore, error) {
+	db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve sql db: %w", err)
+	}
+	store, err := NewSQLConnectivityStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("build connectivity store: %w", err)
+	}
+	return store, nil
 }
 
 func newSQLDiagnosticHistoryStore(ctx *module.Context) (DiagnosticHistoryStore, error) {
@@ -131,6 +150,10 @@ func registerMessages(localizer *i18n.Service) error {
 			"rbac.permissionCatalog.platform-network.write.description",
 			"rbac.permissionCatalog.platform-network.diagnose.display",
 			"rbac.permissionCatalog.platform-network.diagnose.description",
+			"rbac.permissionCatalog.platform-network.targets.manage.display",
+			"rbac.permissionCatalog.platform-network.targets.manage.description",
+			"rbac.permissionCatalog.platform-network.exit-ip.read.display",
+			"rbac.permissionCatalog.platform-network.exit-ip.read.description",
 		} {
 			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
 				return fmt.Errorf("platform-network locale resource missing %s for %s", key, locale)
@@ -151,6 +174,8 @@ func registerPermissions(registry *permission.Registry) error {
 		{networkcontract.NetworkReadPermission, "read", permission.RiskLevelLow, permission.RiskCategoryRead},
 		{networkcontract.NetworkWritePermission, "write", permission.RiskLevelHigh, permission.RiskCategorySecurity},
 		{networkcontract.NetworkDiagnosePermission, "diagnose", permission.RiskLevelMedium, permission.RiskCategoryWrite},
+		{networkcontract.NetworkManageTargetsPermission, "manage_targets", permission.RiskLevelHigh, permission.RiskCategorySecurity},
+		{networkcontract.NetworkExitIPReadPermission, "read_exit_ip", permission.RiskLevelHigh, permission.RiskCategorySecurity},
 	} {
 		registry.Register(permission.Item{Code: item.code.String(), DisplayKey: "rbac.permissionCatalog." + string(item.code) + ".display", DescriptionKey: "rbac.permissionCatalog." + string(item.code) + ".description", Module: moduleID, Resource: "platform-network", Action: item.action, RiskLevel: item.riskLevel, RiskCategory: item.riskCategory})
 	}

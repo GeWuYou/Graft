@@ -1,0 +1,6 @@
+description: Requested resource was not found under existing error envelope semantics.
+headers:
+  X-Request-Id: { $ref: ../headers/request-id.yaml }
+content:
+  application/json:
+    schema: { $ref: ../schemas/error-response.yaml }

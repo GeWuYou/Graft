@@ -1,0 +1,9 @@
+type: object
+required: [check_id, target_id, status, latency_ms, checked_at]
+properties:
+  check_id: { type: integer, format: int64, minimum: 1 }
+  target_id: { type: string, maxLength: 128 }
+  status: { type: string, enum: [healthy, degraded, failed] }
+  latency_ms: { type: integer, format: int64, minimum: 0 }
+  http_status: { type: integer, minimum: 100, maximum: 599, nullable: true, description: HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable. }
+  checked_at: { type: string, format: date-time }
