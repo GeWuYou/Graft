@@ -1,0 +1,9 @@
+get:
+  tags: [platform-network]
+  summary: Read latest batch connectivity checks
+  operationId: getPlatformConnectivityLatest
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: "Latest check per registered target, with status, latency, and completion time.", content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-checks.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

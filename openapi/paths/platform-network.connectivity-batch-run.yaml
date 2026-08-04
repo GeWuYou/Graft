@@ -1,0 +1,10 @@
+post:
+  tags: [platform-network]
+  summary: Run the bounded platform connectivity health check
+  operationId: postPlatformConnectivityBatchRun
+  description: Runs the current registry and enabled custom targets. The caller cannot supply network destinations or an unbounded target list.
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: Completed checks for targets that could execute., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-checks.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

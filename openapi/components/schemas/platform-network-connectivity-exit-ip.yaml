@@ -1,0 +1,6 @@
+type: object
+required: [masked, available]
+description: Historical reports only contain a masked exit IP. This schema never carries a full IP address.
+properties:
+  masked: { type: string }
+  available: { type: boolean }

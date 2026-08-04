@@ -1,0 +1,14 @@
+type: object
+required: [success, code, message, traceId, data]
+properties:
+  success: { type: boolean }
+  code: { type: string }
+  message: { type: string }
+  traceId: { type: string }
+  data:
+    type: object
+    required: [target_id, check_id, probes]
+    properties:
+      target_id: { type: string }
+      check_id: { type: integer, format: int64 }
+      probes: { type: array, items: { $ref: ./platform-network-connectivity-probe.yaml } }

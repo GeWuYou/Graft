@@ -1,0 +1,9 @@
+get:
+  tags: [platform-network]
+  summary: Read platform connectivity aggregate health
+  operationId: getPlatformConnectivityAggregate
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: Aggregate over the current latest checks only., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-aggregate.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

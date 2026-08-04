@@ -9440,7 +9440,7 @@
         }
       }
     },
-    "/api/platform/network/outbound/diagnostics/{targetId}": {
+    "/api/platform/network/diagnostics/{targetId}": {
       "post": {
         "tags": [
           "platform-network"
@@ -9511,7 +9511,7 @@
         }
       }
     },
-    "/api/platform/network/outbound/diagnostics/{targetId}/history": {
+    "/api/platform/network/diagnostics/{targetId}/history": {
       "get": {
         "tags": [
           "platform-network"
@@ -9603,6 +9603,518 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/targets": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "List registered platform connectivity targets",
+        "operationId": "getPlatformConnectivityTargets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry descriptors without network destinations or secrets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-targets"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/custom-targets": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "List custom connectivity targets",
+        "operationId": "getPlatformConnectivityCustomTargets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live custom target metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-custom-targets"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Create a custom connectivity target",
+        "operationId": "postPlatformConnectivityCustomTarget",
+        "description": "Only public HTTP(S) destinations on ports 80 or 443 are accepted. Execution resolves and validates every dial and never follows redirects.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create-platform-network-connectivity-custom-target-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created custom target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-custom-target"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unsafe target."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/custom-targets/{targetId}": {
+      "delete": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Delete a custom connectivity target",
+        "operationId": "deletePlatformConnectivityCustomTarget",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Target deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Target not found."
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/latest": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read latest batch connectivity checks",
+        "operationId": "getPlatformConnectivityLatest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest check per registered target, with status, latency, and completion time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-checks"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/aggregate": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read platform connectivity aggregate health",
+        "operationId": "getPlatformConnectivityAggregate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate over the current latest checks only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-aggregate"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/run": {
+      "post": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Run connectivity diagnostics for one target",
+        "operationId": "postPlatformConnectivityRun",
+        "description": "The URL identifies the target. It never accepts a caller-provided network destination.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized persisted report and check projection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-run"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Target not registered."
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/run": {
+      "post": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Run the bounded platform connectivity health check",
+        "operationId": "postPlatformConnectivityBatchRun",
+        "description": "Runs the current registry and enabled custom targets. The caller cannot supply network destinations or an unbounded target list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed checks for targets that could execute.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-checks"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/history": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read one target's connectivity history",
+        "operationId": "getPlatformConnectivityHistory",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded history for the named target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-history"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid limit."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read one sanitized connectivity report",
+        "operationId": "getPlatformConnectivityReport",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Versioned report with extensible probes, route explanation, and only a masked exit IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-report"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Target or report not found."
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}/trace": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read sanitized connectivity probe trace",
+        "operationId": "getPlatformConnectivityTrace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered sanitized ProbeResult projection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-trace"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/platform/network/connectivity/{targetId}/reports/{checkId}/export": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Export one sanitized connectivity report",
+        "operationId": "getPlatformConnectivityExport",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "checkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized report JSON. Full exit IPs are never exported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-connectivity-report"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           }
         }
       }
@@ -29430,6 +29942,645 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-network-diagnostic-history"
+          }
+        }
+      },
+      "platform-network-connectivity-target": {
+        "type": "object",
+        "required": [
+          "id",
+          "module_id",
+          "category",
+          "title_key",
+          "probe_kinds",
+          "features"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "module_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "title_key": {
+            "type": "string"
+          },
+          "probe_kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-targets": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/platform-network-connectivity-target"
+                }
+              }
+            }
+          }
+        }
+      },
+      "platform-network-connectivity-custom-target": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "endpoint",
+          "enabled",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^custom-[a-z0-9][a-z0-9-]{0,120}$"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-custom-targets": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/platform-network-connectivity-custom-target"
+                }
+              }
+            }
+          }
+        }
+      },
+      "create-platform-network-connectivity-custom-target-request": {
+        "type": "object",
+        "required": [
+          "target_id",
+          "display_name",
+          "endpoint"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^custom-[a-z0-9][a-z0-9-]{0,120}$"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-custom-target": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-connectivity-custom-target"
+          }
+        }
+      },
+      "platform-network-connectivity-check": {
+        "type": "object",
+        "required": [
+          "check_id",
+          "target_id",
+          "status",
+          "latency_ms",
+          "checked_at"
+        ],
+        "properties": {
+          "check_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "failed"
+            ]
+          },
+          "latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "nullable": true,
+            "description": "HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable."
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-checks": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/platform-network-connectivity-check"
+                }
+              }
+            }
+          }
+        }
+      },
+      "platform-network-connectivity-aggregate": {
+        "type": "object",
+        "required": [
+          "target_count",
+          "healthy_count",
+          "degraded_count",
+          "failed_count",
+          "average_latency_ms",
+          "worst_latency_ms"
+        ],
+        "properties": {
+          "last_run_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "target_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "degraded_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "average_latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "worst_target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "worst_latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-aggregate": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-connectivity-aggregate"
+          }
+        }
+      },
+      "platform-network-connectivity-probe": {
+        "type": "object",
+        "required": [
+          "kind",
+          "status",
+          "duration_ms"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "skipped"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "nullable": true,
+            "description": "HTTP response status when this probe received a response."
+          },
+          "summary": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "platform-network-connectivity-route": {
+        "type": "object",
+        "required": [
+          "matched_strategy",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "matched_strategy": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "platform-network-connectivity-exit-ip": {
+        "type": "object",
+        "required": [
+          "masked",
+          "available"
+        ],
+        "description": "Historical reports only contain a masked exit IP. This schema never carries a full IP address.",
+        "properties": {
+          "masked": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          }
+        }
+      },
+      "platform-network-connectivity-report": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "target_id",
+          "status",
+          "checked_at",
+          "total_latency_ms",
+          "probes"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "failed"
+            ]
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total_latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "probes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-network-connectivity-probe"
+            }
+          },
+          "route": {
+            "$ref": "#/components/schemas/platform-network-connectivity-route"
+          },
+          "exit_ip": {
+            "$ref": "#/components/schemas/platform-network-connectivity-exit-ip"
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-run": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "check",
+              "report"
+            ],
+            "properties": {
+              "check": {
+                "$ref": "#/components/schemas/platform-network-connectivity-check"
+              },
+              "report": {
+                "$ref": "#/components/schemas/platform-network-connectivity-report"
+              }
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-history": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "target_id",
+              "items"
+            ],
+            "properties": {
+              "target_id": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/platform-network-connectivity-check"
+                }
+              }
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-report": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-connectivity-report"
+          }
+        }
+      },
+      "enveloped-platform-network-connectivity-trace": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "target_id",
+              "check_id",
+              "probes"
+            ],
+            "properties": {
+              "target_id": {
+                "type": "string"
+              },
+              "check_id": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "probes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/platform-network-connectivity-probe"
+                }
+              }
+            }
           }
         }
       },

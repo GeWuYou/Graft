@@ -18,6 +18,7 @@ RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generate
 USER_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/user/zz_generated.management.go")
 AUTH_TARGET = Path("server/internal/contract/openapi/auth/zz_generated.auth.go")
 MODULES_TARGET = Path("server/internal/contract/openapi/modules/zz_generated.modules.go")
+NETWORK_CONNECTIVITY_TARGET = Path("server/internal/contract/openapi/network/zz_generated.connectivity.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -68,6 +69,14 @@ MODULES_ARGS = [
     "--package",
     "modulesopenapi",
 ]
+NETWORK_CONNECTIVITY_ARGS = [
+    "--include-operation-ids",
+    "getPlatformConnectivityTargets,getPlatformConnectivityCustomTargets,postPlatformConnectivityCustomTarget,deletePlatformConnectivityCustomTarget,getPlatformConnectivityLatest,getPlatformConnectivityAggregate,postPlatformConnectivityRun,postPlatformConnectivityBatchRun,getPlatformConnectivityHistory,getPlatformConnectivityReport,getPlatformConnectivityTrace,getPlatformConnectivityExport",
+    "--generate",
+    "types",
+    "--package",
+    "networkopenapi",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,7 +85,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session", "backend-modules-runtime"],
+        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session", "backend-modules-runtime", "backend-network-connectivity"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -189,6 +198,17 @@ def run_backend_modules_runtime(repo_root: Path, mode: str) -> int:
     )
 
 
+def run_backend_network_connectivity(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=NETWORK_CONNECTIVITY_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=NETWORK_CONNECTIVITY_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-network-connectivity-",
+    )
+
+
 def run_generated_target(
     repo_root: Path,
     target: Path,
@@ -250,6 +270,8 @@ def main() -> int:
         return run_backend_auth_session(repo_root, args.mode)
     if args.target == "backend-modules-runtime":
         return run_backend_modules_runtime(repo_root, args.mode)
+    if args.target == "backend-network-connectivity":
+        return run_backend_network_connectivity(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 

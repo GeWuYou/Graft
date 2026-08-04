@@ -20,6 +20,7 @@ var backendOpenAPIFreshnessTargets = []string{
 	"backend-user-write",
 	"backend-auth-session",
 	"backend-modules-runtime",
+	"backend-network-connectivity",
 }
 
 // runValidateMigrationVersions 执行迁移版本校验。它会解析仓库根目录，并运行 `scripts/check_migration_versions.py` 的 `--mode all` 校验。

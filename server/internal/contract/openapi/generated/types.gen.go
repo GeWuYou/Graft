@@ -3416,6 +3416,69 @@ func (e PlatformDeploymentStrategy) Valid() bool {
 	}
 }
 
+// Defines values for PlatformNetworkConnectivityCheckStatus.
+const (
+	PlatformNetworkConnectivityCheckStatusDegraded PlatformNetworkConnectivityCheckStatus = "degraded"
+	PlatformNetworkConnectivityCheckStatusFailed   PlatformNetworkConnectivityCheckStatus = "failed"
+	PlatformNetworkConnectivityCheckStatusHealthy  PlatformNetworkConnectivityCheckStatus = "healthy"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityCheckStatus enum.
+func (e PlatformNetworkConnectivityCheckStatus) Valid() bool {
+	switch e {
+	case PlatformNetworkConnectivityCheckStatusDegraded:
+		return true
+	case PlatformNetworkConnectivityCheckStatusFailed:
+		return true
+	case PlatformNetworkConnectivityCheckStatusHealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkConnectivityProbeStatus.
+const (
+	PlatformNetworkConnectivityProbeStatusFailed    PlatformNetworkConnectivityProbeStatus = "failed"
+	PlatformNetworkConnectivityProbeStatusSkipped   PlatformNetworkConnectivityProbeStatus = "skipped"
+	PlatformNetworkConnectivityProbeStatusSucceeded PlatformNetworkConnectivityProbeStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityProbeStatus enum.
+func (e PlatformNetworkConnectivityProbeStatus) Valid() bool {
+	switch e {
+	case PlatformNetworkConnectivityProbeStatusFailed:
+		return true
+	case PlatformNetworkConnectivityProbeStatusSkipped:
+		return true
+	case PlatformNetworkConnectivityProbeStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkConnectivityReportStatus.
+const (
+	PlatformNetworkConnectivityReportStatusDegraded PlatformNetworkConnectivityReportStatus = "degraded"
+	PlatformNetworkConnectivityReportStatusFailed   PlatformNetworkConnectivityReportStatus = "failed"
+	PlatformNetworkConnectivityReportStatusHealthy  PlatformNetworkConnectivityReportStatus = "healthy"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityReportStatus enum.
+func (e PlatformNetworkConnectivityReportStatus) Valid() bool {
+	switch e {
+	case PlatformNetworkConnectivityReportStatusDegraded:
+		return true
+	case PlatformNetworkConnectivityReportStatusFailed:
+		return true
+	case PlatformNetworkConnectivityReportStatusHealthy:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformNetworkDiagnosticResultStatus.
 const (
 	PlatformNetworkDiagnosticResultStatusConnected PlatformNetworkDiagnosticResultStatus = "connected"
@@ -4855,19 +4918,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case RestartRequired:
+	case SystemConfigItemRuntimeApplyModeRestartRequired:
 		return true
-	case RuntimeHot:
+	case SystemConfigItemRuntimeApplyModeRuntimeHot:
 		return true
-	case Unknown:
+	case SystemConfigItemRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -8659,6 +8722,13 @@ type CreatePlatformBackupRequest struct {
 // CreatePlatformBackupRequestRetention Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.
 type CreatePlatformBackupRequestRetention string
 
+// CreatePlatformNetworkConnectivityCustomTargetRequest defines model for create-platform-network-connectivity-custom-target-request.
+type CreatePlatformNetworkConnectivityCustomTargetRequest struct {
+	DisplayName string `json:"display_name"`
+	Endpoint    string `json:"endpoint"`
+	TargetId    string `json:"target_id"`
+}
+
 // CreatePlatformUpdateOperationRequest defines model for create-platform-update-operation-request.
 type CreatePlatformUpdateOperationRequest struct {
 	// ComposeCandidateKey Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery.
@@ -10832,6 +10902,103 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformNetworkConnectivityAggregate defines model for enveloped-platform-network-connectivity-aggregate.
+type EnvelopedPlatformNetworkConnectivityAggregate struct {
+	Code    string                               `json:"code"`
+	Data    PlatformNetworkConnectivityAggregate `json:"data"`
+	Message string                               `json:"message"`
+	Success bool                                 `json:"success"`
+	TraceId string                               `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityChecks defines model for enveloped-platform-network-connectivity-checks.
+type EnvelopedPlatformNetworkConnectivityChecks struct {
+	Code string `json:"code"`
+	Data struct {
+		Items []PlatformNetworkConnectivityCheck `json:"items"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityCustomTarget defines model for enveloped-platform-network-connectivity-custom-target.
+type EnvelopedPlatformNetworkConnectivityCustomTarget struct {
+	Code    string                                  `json:"code"`
+	Data    PlatformNetworkConnectivityCustomTarget `json:"data"`
+	Message string                                  `json:"message"`
+	Success bool                                    `json:"success"`
+	TraceId string                                  `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityCustomTargets defines model for enveloped-platform-network-connectivity-custom-targets.
+type EnvelopedPlatformNetworkConnectivityCustomTargets struct {
+	Code string `json:"code"`
+	Data struct {
+		Items []PlatformNetworkConnectivityCustomTarget `json:"items"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityHistory defines model for enveloped-platform-network-connectivity-history.
+type EnvelopedPlatformNetworkConnectivityHistory struct {
+	Code string `json:"code"`
+	Data struct {
+		Items    []PlatformNetworkConnectivityCheck `json:"items"`
+		TargetId string                             `json:"target_id"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityReport defines model for enveloped-platform-network-connectivity-report.
+type EnvelopedPlatformNetworkConnectivityReport struct {
+	Code    string                            `json:"code"`
+	Data    PlatformNetworkConnectivityReport `json:"data"`
+	Message string                            `json:"message"`
+	Success bool                              `json:"success"`
+	TraceId string                            `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityRun defines model for enveloped-platform-network-connectivity-run.
+type EnvelopedPlatformNetworkConnectivityRun struct {
+	Code string `json:"code"`
+	Data struct {
+		Check  PlatformNetworkConnectivityCheck  `json:"check"`
+		Report PlatformNetworkConnectivityReport `json:"report"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityTargets defines model for enveloped-platform-network-connectivity-targets.
+type EnvelopedPlatformNetworkConnectivityTargets struct {
+	Code string `json:"code"`
+	Data struct {
+		Items []PlatformNetworkConnectivityTarget `json:"items"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkConnectivityTrace defines model for enveloped-platform-network-connectivity-trace.
+type EnvelopedPlatformNetworkConnectivityTrace struct {
+	Code string `json:"code"`
+	Data struct {
+		CheckId  int64                              `json:"check_id"`
+		Probes   []PlatformNetworkConnectivityProbe `json:"probes"`
+		TargetId string                             `json:"target_id"`
+	} `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedPlatformNetworkDiagnosticHistory defines model for enveloped-platform-network-diagnostic-history.
 type EnvelopedPlatformNetworkDiagnosticHistory struct {
 	Code string `json:"code"`
@@ -12018,6 +12185,98 @@ type PlatformBackupSummaryStatus string
 
 // PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 type PlatformDeploymentStrategy string
+
+// PlatformNetworkConnectivityAggregate defines model for platform-network-connectivity-aggregate.
+type PlatformNetworkConnectivityAggregate struct {
+	AverageLatencyMs int64      `json:"average_latency_ms"`
+	DegradedCount    int        `json:"degraded_count"`
+	FailedCount      int        `json:"failed_count"`
+	HealthyCount     int        `json:"healthy_count"`
+	LastRunAt        *time.Time `json:"last_run_at,omitempty"`
+	TargetCount      int        `json:"target_count"`
+	WorstLatencyMs   int64      `json:"worst_latency_ms"`
+	WorstTargetId    *string    `json:"worst_target_id,omitempty"`
+}
+
+// PlatformNetworkConnectivityCheck defines model for platform-network-connectivity-check.
+type PlatformNetworkConnectivityCheck struct {
+	CheckId   int64     `json:"check_id"`
+	CheckedAt time.Time `json:"checked_at"`
+
+	// HttpStatus HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable.
+	HttpStatus *int                                   `json:"http_status,omitempty"`
+	LatencyMs  int64                                  `json:"latency_ms"`
+	Status     PlatformNetworkConnectivityCheckStatus `json:"status"`
+	TargetId   string                                 `json:"target_id"`
+}
+
+// PlatformNetworkConnectivityCheckStatus defines model for PlatformNetworkConnectivityCheck.Status.
+type PlatformNetworkConnectivityCheckStatus string
+
+// PlatformNetworkConnectivityCustomTarget defines model for platform-network-connectivity-custom-target.
+type PlatformNetworkConnectivityCustomTarget struct {
+	CreatedAt   time.Time `json:"created_at"`
+	DisplayName string    `json:"display_name"`
+	Enabled     bool      `json:"enabled"`
+	Endpoint    string    `json:"endpoint"`
+	Id          string    `json:"id"`
+}
+
+// PlatformNetworkConnectivityExitIp Historical reports only contain a masked exit IP. This schema never carries a full IP address.
+type PlatformNetworkConnectivityExitIp struct {
+	Available bool   `json:"available"`
+	Masked    string `json:"masked"`
+}
+
+// PlatformNetworkConnectivityProbe defines model for platform-network-connectivity-probe.
+type PlatformNetworkConnectivityProbe struct {
+	DurationMs int64   `json:"duration_ms"`
+	ErrorCode  *string `json:"error_code,omitempty"`
+
+	// HttpStatus HTTP response status when this probe received a response.
+	HttpStatus *int                                   `json:"http_status,omitempty"`
+	Kind       string                                 `json:"kind"`
+	OccurredAt *time.Time                             `json:"occurred_at,omitempty"`
+	Status     PlatformNetworkConnectivityProbeStatus `json:"status"`
+	Summary    *string                                `json:"summary,omitempty"`
+}
+
+// PlatformNetworkConnectivityProbeStatus defines model for PlatformNetworkConnectivityProbe.Status.
+type PlatformNetworkConnectivityProbeStatus string
+
+// PlatformNetworkConnectivityReport defines model for platform-network-connectivity-report.
+type PlatformNetworkConnectivityReport struct {
+	CheckedAt time.Time `json:"checked_at"`
+
+	// ExitIp Historical reports only contain a masked exit IP. This schema never carries a full IP address.
+	ExitIp         *PlatformNetworkConnectivityExitIp      `json:"exit_ip,omitempty"`
+	Probes         []PlatformNetworkConnectivityProbe      `json:"probes"`
+	Route          *PlatformNetworkConnectivityRoute       `json:"route,omitempty"`
+	SchemaVersion  int                                     `json:"schema_version"`
+	Status         PlatformNetworkConnectivityReportStatus `json:"status"`
+	TargetId       string                                  `json:"target_id"`
+	TotalLatencyMs int64                                   `json:"total_latency_ms"`
+}
+
+// PlatformNetworkConnectivityReportStatus defines model for PlatformNetworkConnectivityReport.Status.
+type PlatformNetworkConnectivityReportStatus string
+
+// PlatformNetworkConnectivityRoute defines model for platform-network-connectivity-route.
+type PlatformNetworkConnectivityRoute struct {
+	Decision        string `json:"decision"`
+	MatchedStrategy string `json:"matched_strategy"`
+	Reason          string `json:"reason"`
+}
+
+// PlatformNetworkConnectivityTarget defines model for platform-network-connectivity-target.
+type PlatformNetworkConnectivityTarget struct {
+	Category   string   `json:"category"`
+	Features   []string `json:"features"`
+	Id         string   `json:"id"`
+	ModuleId   string   `json:"module_id"`
+	ProbeKinds []string `json:"probe_kinds"`
+	TitleKey   string   `json:"title_key"`
+}
 
 // PlatformNetworkConsumer A module explicitly registered as a consumer of the platform outbound-network policy.
 type PlatformNetworkConsumer struct {
@@ -16206,27 +16465,9 @@ type GetPlatformBackupParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// GetPlatformNetworkOutboundParams defines parameters for GetPlatformNetworkOutbound.
-type GetPlatformNetworkOutboundParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PutPlatformNetworkOutboundParams defines parameters for PutPlatformNetworkOutbound.
-type PutPlatformNetworkOutboundParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-
-	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
-	IfMatch IfMatchHeader `json:"If-Match"`
+// GetPlatformConnectivityHistoryParams defines parameters for GetPlatformConnectivityHistory.
+type GetPlatformConnectivityHistoryParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // PostPlatformNetworkDiagnosticParams defines parameters for PostPlatformNetworkDiagnostic.
@@ -16249,6 +16490,29 @@ type GetPlatformNetworkDiagnosticHistoryParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformNetworkOutboundParams defines parameters for GetPlatformNetworkOutbound.
+type GetPlatformNetworkOutboundParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutPlatformNetworkOutboundParams defines parameters for PutPlatformNetworkOutbound.
+type PutPlatformNetworkOutboundParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
+	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
 // ResetPlatformNetworkOutboundParams defines parameters for ResetPlatformNetworkOutbound.
@@ -17354,6 +17618,9 @@ type PutPermissionSavedViewJSONRequestBody = SavedViewRequest
 
 // PostPlatformBackupJSONRequestBody defines body for PostPlatformBackup for application/json ContentType.
 type PostPlatformBackupJSONRequestBody = CreatePlatformBackupRequest
+
+// PostPlatformConnectivityCustomTargetJSONRequestBody defines body for PostPlatformConnectivityCustomTarget for application/json ContentType.
+type PostPlatformConnectivityCustomTargetJSONRequestBody = CreatePlatformNetworkConnectivityCustomTargetRequest
 
 // PutPlatformNetworkOutboundJSONRequestBody defines body for PutPlatformNetworkOutbound for application/json ContentType.
 type PutPlatformNetworkOutboundJSONRequestBody = PlatformNetworkOutboundConfig

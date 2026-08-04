@@ -10,3 +10,7 @@ rbac.permissionCatalog.platform-network.write.display: 管理出站网络策略
 rbac.permissionCatalog.platform-network.write.description: 允许修改和恢复平台出站网络策略。
 rbac.permissionCatalog.platform-network.diagnose.display: 测试出站网络连通性
 rbac.permissionCatalog.platform-network.diagnose.description: 允许测试一个固定注册的出站网络诊断目标。
+rbac.permissionCatalog.platform-network.targets.manage.display: 管理连通性目标
+rbac.permissionCatalog.platform-network.targets.manage.description: 保留给受 SSRF 策略保护的自定义连通性目标管理。
+rbac.permissionCatalog.platform-network.exit-ip.read.display: 查看完整出口 IP
+rbac.permissionCatalog.platform-network.exit-ip.read.description: 保留给经过审计的实时出口 IP 披露；历史报告始终只显示掩码。

@@ -1,0 +1,11 @@
+type: object
+required: [target_count, healthy_count, degraded_count, failed_count, average_latency_ms, worst_latency_ms]
+properties:
+  last_run_at: { type: string, format: date-time, nullable: true }
+  target_count: { type: integer, minimum: 0 }
+  healthy_count: { type: integer, minimum: 0 }
+  degraded_count: { type: integer, minimum: 0 }
+  failed_count: { type: integer, minimum: 0 }
+  average_latency_ms: { type: integer, format: int64, minimum: 0 }
+  worst_target_id: { type: string, maxLength: 128 }
+  worst_latency_ms: { type: integer, format: int64, minimum: 0 }
