@@ -43,6 +43,7 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://localhost:5173 \
+  --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session ui-inspection \
   --screenshot \
   --snapshot-text
@@ -53,13 +54,16 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://172.21.235.129:3002 \
-  --runtime-identity "primary-web feature/example full-head" \
+  --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --login \
   --credentials temp/username-passward.yaml \
   --session auth-check \
   --screenshot \
   --snapshot-text
 ```
+
+Replace both placeholders with the branch and full `HEAD` verified in the clean primary checkout before running the
+command. The script rejects missing, mismatched, or unsafe labels before importing or launching Playwright.
 
 The login helper reads a YAML mapping of named profiles and defaults to `dev` when present; use
 `--credential-profile <name>` to select another profile. Each profile accepts `username` / `account` / `user` and

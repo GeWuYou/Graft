@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -122,19 +123,45 @@ class RuntimeIdentityTest(unittest.TestCase):
             {"value": "primary-web feature/test abc123", "source": "explicit"},
         )
 
-    def test_defaults_to_recorded_checkout_identity(self) -> None:
+    def test_requires_explicit_runtime_label(self) -> None:
         checkout = {"repository_root": "/repo", "branch": "feature/test", "head": "abc123"}
 
-        self.assertEqual(
-            browser_agent.runtime_identity(None, checkout),
-            {"value": "feature/test@abc123", "source": "checkout-default"},
-        )
+        with self.assertRaisesRegex(ValueError, "must be a non-secret label"):
+            browser_agent.runtime_identity(None, checkout)
+
+    def test_rejects_runtime_label_for_a_different_checkout(self) -> None:
+        checkout = {"repository_root": "/repo", "branch": "feature/test", "head": "abc123"}
+
+        with self.assertRaisesRegex(ValueError, "current branch and full HEAD"):
+            browser_agent.runtime_identity("primary-web feature/other abc123", checkout)
 
     def test_rejects_url_like_runtime_label(self) -> None:
         checkout = {"repository_root": "/repo", "branch": "feature/test", "head": "abc123"}
 
-        with self.assertRaisesRegex(ValueError, "non-secret deployment"):
+        with self.assertRaisesRegex(ValueError, "non-secret label"):
             browser_agent.runtime_identity("unsafe:label", checkout)
+
+
+class BrowserPreflightTest(unittest.TestCase):
+    def test_rejects_non_primary_checkout(self) -> None:
+        checkout = {"repository_root": "/repo/worktree", "branch": "feature/test", "head": "abc123"}
+
+        with (
+            patch.object(browser_agent, "checkout_identity", return_value=checkout),
+            patch.object(browser_agent, "primary_checkout_root", return_value=Path("/repo/primary")),
+        ):
+            with self.assertRaisesRegex(ValueError, "developer-owned primary checkout"):
+                browser_agent.browser_preflight("primary-web feature/test abc123")
+
+    def test_invalid_preflight_does_not_import_playwright(self) -> None:
+        with (
+            patch.object(browser_agent, "browser_preflight", side_effect=ValueError("invalid runtime label")),
+            patch.object(browser_agent, "load_sync_playwright") as load_playwright,
+            patch.object(sys, "argv", ["browser_agent.py", "--url", "http://localhost:5173"]),
+        ):
+            self.assertEqual(browser_agent.main(), 2)
+
+        load_playwright.assert_not_called()
 
 
 if __name__ == "__main__":
