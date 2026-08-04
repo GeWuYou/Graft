@@ -43,6 +43,8 @@ type RolloutService struct {
 	statePollDone      chan struct{}
 	statePollClosed    bool
 	statePollEvery     time.Duration
+	lastStateErrorKey  string
+	lastStateErrorAt   time.Time
 	receiptPollMu      sync.Mutex
 	receiptPollCancel  context.CancelFunc
 	receiptPollDone    chan struct{}
@@ -200,7 +202,7 @@ func (s *RolloutService) ensureNoActiveRunner() error {
 
 // GetOperation 返回活动 runner 快照，或已结算的数据库终态历史。
 //
-//nolint:cyclop // runner 状态读取、不可用投影和终态历史有不同 authority，必须保留可审计分支。
+//nolint:cyclop,gocyclo,gocognit,nestif // runner 状态读取、损坏/不可用投影和终态历史有不同 authority，必须保留可审计分支。
 func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (OperationView, error) {
 	if s == nil || !runnerOperationID.MatchString(operationID) {
 		return OperationView{}, errors.New("update operation identity is invalid")
@@ -214,6 +216,12 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 			}
 			return updateOperationViewFromRunnerState(state), nil
 		case err != nil && !errors.Is(err, os.ErrNotExist):
+			if errors.Is(err, ErrRunnerStateCorrupt) && s.operations != nil {
+				operation, operationErr := s.operations.Get(ctx, operationID)
+				if operationErr == nil && !isTerminalOutcome(operation.Outcome) {
+					return updateOperationViewFromCorruptRunnerState(operation), nil
+				}
+			}
 			if s.logger != nil {
 				s.logger.Warn("platform update runner state read failed", zap.Error(err))
 			}
@@ -238,7 +246,7 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 
 // GetActiveOperation 返回 runner 当前接管的操作；缺失状态卷时保留受控不可用投影，不能伪造 READY 进度。
 //
-//nolint:cyclop // runner 快照优先，状态缺失时才回退到受限数据库请求记录，分支对应不同事实来源。
+//nolint:cyclop,gocyclo,gocognit,nestif // runner 快照优先，损坏或缺失时才回退到受限数据库请求记录，分支对应不同事实来源。
 func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView, error) {
 	if s == nil {
 		return nil, errors.New("update operation service is unavailable")
@@ -254,6 +262,9 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 			view := updateOperationViewFromRunnerState(state)
 			return &view, nil
 		case err != nil && !errors.Is(err, os.ErrNotExist):
+			if errors.Is(err, ErrRunnerStateCorrupt) {
+				break
+			}
 			return nil, fmt.Errorf("%w: %v", errRunnerStateUnavailable, err)
 		}
 	}
@@ -266,6 +277,12 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 	}
 	for _, operation := range items {
 		if !isTerminalOutcome(operation.Outcome) {
+			if s.stateStore != nil {
+				if _, stateErr := s.stateStore.Read(); errors.Is(stateErr, ErrRunnerStateCorrupt) {
+					view := updateOperationViewFromCorruptRunnerState(operation)
+					return &view, nil
+				}
+			}
 			if operation.StartedAt.Add(missingRunnerStateLostAfter).Before(time.Now().UTC()) {
 				view := updateOperationViewFromMissingLostRunner(operation)
 				return &view, nil
@@ -307,6 +324,10 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 		if !operation.StartedAt.Add(missingRunnerStateLostAfter).Before(time.Now().UTC()) {
 			return ComposeUpdateOperation{}, errRecoveryConflict
 		}
+	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
+		if !operation.StartedAt.Add(missingRunnerStateLostAfter).Before(time.Now().UTC()) {
+			return ComposeUpdateOperation{}, errRecoveryConflict
+		}
 	} else {
 		return ComposeUpdateOperation{}, fmt.Errorf("%w: %v", errRunnerStateUnavailable, stateErr)
 	}
@@ -330,6 +351,8 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy)}
 	if stateErr == nil {
 		recoveryInput.State = &state
+	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
+		recoveryInput.Corrupt = true
 	}
 	if err := recoveryLauncher.LaunchRecovery(ctx, recoveryInput, recoveryImage, claimID); err != nil {
 		if recoveryLaunchFailedBeforeContainerStart(err) {
@@ -575,6 +598,8 @@ func (s *RolloutService) runRunnerStateProjection(ctx context.Context, interval 
 				s.logRunnerStateProjectionError(err)
 				continue
 			}
+			s.lastStateErrorKey = ""
+			s.lastStateErrorAt = time.Time{}
 			if state.OperationID != publishedOperation || state.Revision != publishedRevision {
 				s.publishRunnerState(state)
 				publishedOperation, publishedRevision = state.OperationID, state.Revision
@@ -585,7 +610,26 @@ func (s *RolloutService) runRunnerStateProjection(ctx context.Context, interval 
 }
 
 func (s *RolloutService) logRunnerStateProjectionError(err error) {
-	if s.logger != nil && !errors.Is(err, os.ErrNotExist) {
+	if s.logger == nil || errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	classification := "unavailable"
+	if errors.Is(err, ErrRunnerStateCorrupt) {
+		classification = "corrupt"
+	}
+	root := "unknown"
+	if identifiable, ok := s.stateStore.(RunnerStateStoreIdentity); ok {
+		if candidate := strings.TrimSpace(identifiable.RunnerStateRoot()); candidate != "" {
+			root = candidate
+		}
+	}
+	key := root + ":" + classification
+	now := time.Now().UTC()
+	if key == s.lastStateErrorKey && now.Sub(s.lastStateErrorAt) < time.Minute {
+		return
+	}
+	s.lastStateErrorKey, s.lastStateErrorAt = key, now
+	if s.logger != nil {
 		s.logger.Warn("platform update runner state projection deferred", zap.Error(err))
 	}
 }

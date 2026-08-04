@@ -93,6 +93,8 @@ const (
 	RunnerFailureCodeStateWriteFailed = "runner_state_write_failed"
 	// RunnerFailureCodeExited identifies a retained runner that exited without a protocol failure marker.
 	RunnerFailureCodeExited = "runner_exited"
+	// RunnerFailureCodeStateCorrupt identifies a recovery that quarantined an unverifiable runner snapshot.
+	RunnerFailureCodeStateCorrupt = "runner_state_corrupt"
 	// RunnerFailureStagePermissionDenied identifies state-volume permission failures.
 	RunnerFailureStagePermissionDenied = "permission_denied"
 	// RunnerFailureStageIOFailed identifies non-permission state-volume write failures.

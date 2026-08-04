@@ -2,12 +2,17 @@ package update
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 type runnerOwnershipCall struct {
@@ -266,8 +271,8 @@ func TestFileRunnerStateStoreRejectsDigestMismatch(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(store.root, "current.json"), contents, 0o600); err != nil {
 		t.Fatalf("tamper state: %v", err)
 	}
-	if _, err := store.Read(); err == nil || !strings.Contains(err.Error(), "integrity") {
-		t.Fatalf("expected digest mismatch, got %v", err)
+	if _, err := store.Read(); !errors.Is(err, ErrRunnerStateCorrupt) {
+		t.Fatalf("digest mismatch error = %v, want ErrRunnerStateCorrupt", err)
 	}
 }
 
@@ -541,7 +546,32 @@ func (l *noFailureRecoveryLauncher) LaunchRecovery(_ context.Context, input Runn
 	return nil
 }
 
-func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
+type identifiedFailingRunnerStateStore struct{ root string }
+
+func (s identifiedFailingRunnerStateStore) Read() (RunnerState, error) {
+	return RunnerState{}, fmt.Errorf("%w: integrity check failed", ErrRunnerStateCorrupt)
+}
+
+func (s identifiedFailingRunnerStateStore) RunnerStateRoot() string { return s.root }
+
+func TestRolloutRunnerStateProjectionDeduplicatesByRootAndErrorClass(t *testing.T) {
+	core, observed := observer.New(zap.WarnLevel)
+	rollout := &RolloutService{logger: zap.New(core), stateStore: identifiedFailingRunnerStateStore{root: "/state-a"}}
+	err := fmt.Errorf("read runner state: %w", ErrRunnerStateCorrupt)
+	rollout.logRunnerStateProjectionError(err)
+	rollout.logRunnerStateProjectionError(err)
+	if logs := observed.All(); len(logs) != 1 {
+		t.Fatalf("same root and error class log count = %d, want 1", len(logs))
+	}
+
+	rollout.SetRunnerStateStore(identifiedFailingRunnerStateStore{root: "/state-b"})
+	rollout.logRunnerStateProjectionError(err)
+	if logs := observed.All(); len(logs) != 2 {
+		t.Fatalf("different root log count = %d, want 2", len(logs))
+	}
+}
+
+func TestRolloutProjectsCorruptRunnerStateForProtectedRecovery(t *testing.T) {
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {
 		t.Fatalf("new state store: %v", err)
@@ -549,9 +579,40 @@ func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(store.root, "current.json"), []byte(`{"schema_version":1}`), 0o600); err != nil {
 		t.Fatalf("write corrupt state: %v", err)
 	}
-	rollout := &RolloutService{stateStore: store}
-	if _, err := rollout.GetOperation(t.Context(), "update-state-corrupt"); err == nil || !errors.Is(err, errRunnerStateUnavailable) {
-		t.Fatalf("get corrupt runner state error = %v", err)
+	operation := ComposeUpdateOperation{OperationID: "update-state-corrupt", RunnerID: "runner-state-corrupt", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning, StartedAt: time.Now().Add(-missingRunnerStateLostAfter - time.Second)}
+	rollout := &RolloutService{stateStore: store, operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}}}
+	view, err := rollout.GetOperation(t.Context(), operation.OperationID)
+	if err != nil || view.StateSource != "runner_state_corrupt" || view.StateAvailable || view.Error != "PLATFORM_UPDATE_RUNNER_STATE_CORRUPT" {
+		t.Fatalf("corrupt runner state view = %#v, %v", view, err)
+	}
+}
+
+func TestRolloutRecoversSchemaV2DigestMismatchThroughProtectedRunner(t *testing.T) {
+	t.Setenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE", "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64))
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-state-digest-corrupt", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-state-digest-corrupt", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	state.Digest = strings.Repeat("0", len(state.Digest))
+	contents, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal corrupt state: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(store.root, "current.json"), contents, 0o600); err != nil {
+		t.Fatalf("write corrupt state: %v", err)
+	}
+	operation := ComposeUpdateOperation{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning, StartedAt: time.Now().UTC().Add(-missingRunnerStateLostAfter - time.Second)}
+	launcher := &noFailureRecoveryLauncher{}
+	if _, err := (&RolloutService{stateStore: store, operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}}, launcher: launcher}).Recover(t.Context(), operation.OperationID); err != nil {
+		t.Fatalf("recover corrupt state: %v", err)
+	}
+	if !launcher.input.Corrupt || launcher.input.State != nil || launcher.input.OperationID != operation.OperationID {
+		t.Fatalf("recovery input = %#v", launcher.input)
 	}
 }
 

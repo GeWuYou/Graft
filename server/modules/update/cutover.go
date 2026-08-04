@@ -63,17 +63,8 @@ func CutoverV1(ctx context.Context, root string, db *sql.DB, tasks moduleapi.Tas
 		return fmt.Errorf("decode legacy update state: %w", err)
 	}
 	if raw.SchemaVersion != 1 {
-		if raw.SchemaVersion == runnerStateSchemaVersion {
-			store, storeErr := NewFileRunnerStateStore(root)
-			if storeErr != nil {
-				return fmt.Errorf("prepare schema-v2 state validation: %w", storeErr)
-			}
-			if _, storeErr = store.Read(); storeErr != nil {
-				return fmt.Errorf("validate schema-v2 update state: %w", storeErr)
-			}
-			return nil
-		}
-		return errors.New("unsupported update state schema version")
+		// 该 bootstrap 只迁移 v1；其它快照保留给运行期的受保护恢复流程处理。
+		return nil
 	}
 	if !runnerOperationID.MatchString(raw.OperationID) || !runnerOperationID.MatchString(raw.RunnerID) || raw.Operation != "self_update" || raw.Progress < 0 || raw.Progress > 100 || raw.Revision == 0 || !validRunnerPhase(raw.Phase) || strings.TrimSpace(raw.SourceVersion) == "" || strings.TrimSpace(raw.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(raw.Strategy)) {
 		return errors.New("legacy update state is unsafe")

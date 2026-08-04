@@ -53,6 +53,10 @@ func updateOperationViewFromUnavailableRunnerState(operation ComposeUpdateOperat
 	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_unavailable", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, StateSource: "runner_state_unavailable", StateAvailable: false}
 }
 
+func updateOperationViewFromCorruptRunnerState(operation ComposeUpdateOperation) OperationView {
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_corrupt", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_STATE_CORRUPT", FailureDiagnosticAvailable: true, StateSource: "runner_state_corrupt", StateAvailable: false}
+}
+
 func updateOperationViewFromLostRunner(state RunnerState) OperationView {
 	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, Error: "PLATFORM_UPDATE_RUNNER_LOST", FailureDiagnosticAvailable: true, StateSource: "runner_lost", StateAvailable: false}
 }

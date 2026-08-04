@@ -67,14 +67,20 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.moduleRuntime.status.unknown': 'Unknown',
   'monitor.moduleRuntime.actions.refresh': 'Refresh',
   'monitor.moduleRuntime.actions.detail': 'Detail',
+  'monitor.moduleRuntime.actions.closeDetail': 'Close detail',
+  'monitor.moduleRuntime.actions.more': 'More actions',
   'monitor.moduleRuntime.summary.total': 'Total',
   'monitor.moduleRuntime.summary.totalDescription': 'Modules known to the runtime registry',
+  'monitor.moduleRuntime.summary.totalDescriptionCompact': 'Known modules',
   'monitor.moduleRuntime.summary.enabled': 'Enabled',
   'monitor.moduleRuntime.summary.enabledDescription': 'Modules enabled for this process',
+  'monitor.moduleRuntime.summary.enabledDescriptionCompact': 'Process enabled',
   'monitor.moduleRuntime.summary.healthy': 'Healthy',
   'monitor.moduleRuntime.summary.healthyDescription': 'Modules reporting healthy runtime status',
+  'monitor.moduleRuntime.summary.healthyDescriptionCompact': 'Runtime healthy',
   'monitor.moduleRuntime.summary.degradedUnknown': 'Degraded / unknown',
   'monitor.moduleRuntime.summary.degradedUnknownDescription': 'Modules needing operator attention',
+  'monitor.moduleRuntime.summary.degradedUnknownDescriptionCompact': 'Needs attention',
   'monitor.moduleRuntime.table.title': 'Runtime Module List',
   'monitor.moduleRuntime.table.description': 'Read-only view of the current process module registry.',
   'monitor.moduleRuntime.table.note': 'Read-only view. Module write operations are unavailable.',
@@ -147,6 +153,11 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.moduleRuntime.dependencyStatus.disabled': 'Disabled',
   'monitor.moduleRuntime.enablementSource.all': 'All modules',
   'monitor.moduleRuntime.enablementSource.allowlist': 'Allowlist',
+  'monitor.moduleRuntime.mobile.statusDetails': 'Status details',
+  'monitor.moduleRuntime.mobile.resourceStatus': 'Resource status',
+  'monitor.moduleRuntime.mobile.overall.normal': 'Normal',
+  'monitor.moduleRuntime.mobile.overall.abnormal': 'Abnormal',
+  'monitor.moduleRuntime.mobile.overall.unavailable': 'Unavailable',
 }));
 
 vi.mock('../../api/module-runtime', () => ({
@@ -368,7 +379,8 @@ const drawerStub = defineComponent({
     },
   },
   setup(props, { slots }) {
-    return () => (props.visible ? h('aside', { 'data-drawer': 'true' }, [props.header, slots.default?.()]) : null);
+    return () =>
+      props.visible ? h('aside', { 'data-drawer': 'true' }, [slots.header?.(), props.header, slots.default?.()]) : null;
   },
 });
 
@@ -427,6 +439,26 @@ const tooltipStub = defineComponent({
   },
 });
 
+const dropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  props: {
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['click'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('span', { 'data-dropdown': 'true' }, [
+        slots.default?.(),
+        ...(props.options as Array<{ content: string; value: string }>).map((option) =>
+          h('button', { onClick: () => emit('click', { value: option.value }) }, option.content),
+        ),
+      ]);
+  },
+});
+
 const collapseStub = defineComponent({
   name: 'TCollapseStub',
   setup(_props, { slots }) {
@@ -462,7 +494,9 @@ function mountModulesPage() {
         't-descriptions': passthroughStub,
         't-descriptions-item': passthroughStub,
         't-drawer': drawerStub,
+        't-dropdown': dropdownStub,
         't-empty': passthroughStub,
+        't-loading': passthroughStub,
         't-popup': popupStub,
         't-select': selectStub,
         't-statistic': passthroughStub,
@@ -483,6 +517,7 @@ afterEach(() => {
   moduleRuntimeApiMocks.getModuleRuntimeDetail.mockReset();
   loggerMocks.error.mockReset();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 function createSnapshot() {
@@ -588,6 +623,10 @@ describe('monitor module runtime page', () => {
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('Raw runtime JSON');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('"module_key": "audit"');
     expect(wrapper.find('[data-drawer="true"] pre').classes()).toContain('graft-scrollbar');
+    const closeButton = wrapper.find('button[aria-label="Close detail"]');
+    expect(closeButton.exists()).toBe(true);
+    await closeButton.trigger('click');
+    expect(wrapper.find('[data-drawer="true"]').exists()).toBe(false);
     expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledWith('audit');
   });
 
@@ -622,6 +661,54 @@ describe('monitor module runtime page', () => {
 
     expect(wrapper.find('[data-table-columns]').attributes('data-table-size')).toBe('small');
     expect(wrapper.find('button[aria-label="Default density"]').exists()).toBe(true);
+  });
+
+  it('uses complete mobile cards with an overall status instead of a visible table', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const snapshot = createSnapshot();
+    snapshot.items.push({
+      ...snapshot.items[0],
+      health: 'degraded',
+      module_key: 'monitor',
+    });
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(snapshot);
+    moduleRuntimeApiMocks.getModuleRuntimeDetail.mockResolvedValue(snapshot.items[0]);
+
+    const wrapper = mountModulesPage();
+    await flushPromises();
+
+    const cards = wrapper.findAll('.module-runtime-card');
+    expect(cards).toHaveLength(3);
+    expect(cards[0].text()).toContain('audit');
+    expect(cards[0].text()).toContain('Normal');
+    expect(cards[0].text()).toContain('Status details');
+    expect(cards[0].text()).toContain('Enabled');
+    expect(cards[0].text()).toContain('Registered');
+    expect(cards[0].text()).toContain('Health');
+    expect(cards[0].text()).toContain('1 / 1 satisfied');
+    expect(cards[0].text()).toContain('Resource status');
+    expect(cards[0].text()).toContain('Migrations');
+    expect(cards[0].text()).toContain('Schema');
+    expect(cards[0].text()).toContain('Config');
+    expect(cards[1].text()).toContain('Unavailable');
+    expect(cards[2].text()).toContain('Abnormal');
+    expect(wrapper.find('[data-table-columns]').exists()).toBe(false);
+    expect(wrapper.find('button[aria-label="More actions"]').exists()).toBe(true);
+    expect(wrapper.find('.responsive-toolbar').exists()).toBe(false);
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Compact density'))
+      ?.trigger('click');
+    expect(wrapper.find('.module-runtime-card-list').classes()).toContain('module-runtime-card-list--small');
+
+    await cards[0].trigger('click');
+    await flushPromises();
+    expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledWith('audit');
+
+    await cards[0].trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes the snapshot on demand', async () => {

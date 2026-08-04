@@ -119,10 +119,14 @@ const stageStatus = computed(() => {
   if (progress.lastActivePhase) return progress.lastActivePhase;
   return progress.operation?.phase ?? 'READY';
 });
-const runnerDisconnected = computed(() => progress.operation?.state_source === 'runner_lost');
+const runnerDisconnected = computed(
+  () =>
+    progress.operation?.state_source === 'runner_lost' || progress.operation?.state_source === 'runner_state_corrupt',
+);
 const canRecoverTerminatedRunner = computed(
   () =>
-    progress.operation?.state_source === 'runner_lost' &&
+    (progress.operation?.state_source === 'runner_lost' ||
+      progress.operation?.state_source === 'runner_state_corrupt') &&
     !progress.recoveryPending &&
     permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
 );

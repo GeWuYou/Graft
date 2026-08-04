@@ -1817,7 +1817,7 @@ export interface paths {
     put?: never;
     /**
      * Recover a lost self-update runner
-     * @description Starts one protected, one-shot recovery runner for a `runner_lost` operation caused by an expired durable lease or a missing runner-state snapshot beyond the loss window. A snapshot, when present, must be verified as pre-migration and non-terminal; missing-state recovery is also fenced by the operation claim. The server never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
+     * @description Starts one protected, one-shot recovery runner for a `runner_lost` or `runner_state_corrupt` operation after the loss window. A verified snapshot must be pre-migration and non-terminal; a missing or corrupt snapshot is quarantined by the state-volume-only recovery runner. The server never resumes the upgrade or fabricates a lifecycle phase.
      */
     post: operations['postPlatformUpdateOperationRecovery'];
     delete?: never;
@@ -7121,11 +7121,12 @@ export interface components {
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
       /**
-       * @description Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+       * @description Authority that produced this projection. runner_state_unavailable, runner_state_corrupt, and runner_lost never represent live runner progress; corrupt state is quarantined only through protected recovery.
        * @enum {string}
        */
-      state_source: 'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_lost';
-      /** @description Whether runner lifecycle state was available to verify this projection. runner_lost is explicitly unavailable even when it retains the last verified snapshot fields. */
+      state_source:
+        'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_state_corrupt' | 'runner_lost';
+      /** @description Whether runner lifecycle state was available to verify this projection. runner_state_corrupt and runner_lost are explicitly unavailable. */
       state_available: boolean;
       /** @description Controlled runner failure code; never raw command output or deployment secrets. */
       error?: string;
@@ -7180,6 +7181,7 @@ export interface components {
       | 'PLATFORM_UPDATE_OPERATION_START_FAILED'
       | 'PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED'
       | 'PLATFORM_UPDATE_RUNNER_LOST'
+      | 'PLATFORM_UPDATE_RUNNER_STATE_CORRUPT'
       | 'PLATFORM_UPDATE_RUNNER_TERMINATED';
     'platform-update-rollout-failure-data': {
       reason: components['schemas']['platform-update-rollout-failure-code'];
