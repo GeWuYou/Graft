@@ -3,13 +3,19 @@ import { defineStore } from 'pinia';
 import {
   type ConnectivityAggregate,
   type ConnectivityCheck,
+  type ConnectivityCustomTarget,
   type ConnectivityReport,
   type ConnectivityTarget,
+  createConnectivityCustomTarget,
+  deleteConnectivityCustomTarget,
   getConnectivityAggregate,
+  getConnectivityCustomTargets,
+  getConnectivityExport,
   getConnectivityHistory,
   getConnectivityLatest,
   getConnectivityReport,
   getConnectivityTargets,
+  getConnectivityTrace,
   runConnectivityBatch,
   runConnectivityTarget,
 } from '../api/connectivity';
@@ -17,6 +23,7 @@ import {
 export const useConnectivityStore = defineStore('network-connectivity', {
   state: () => ({
     targets: [] as ConnectivityTarget[],
+    customTargets: [] as ConnectivityCustomTarget[],
     latest: [] as ConnectivityCheck[],
     aggregate: null as ConnectivityAggregate | null,
     history: new Map<string, ConnectivityCheck[]>(),
@@ -28,12 +35,14 @@ export const useConnectivityStore = defineStore('network-connectivity', {
     async refresh() {
       this.loading = true;
       try {
-        const [targets, latest, aggregate] = await Promise.all([
+        const [targets, customTargets, latest, aggregate] = await Promise.all([
           getConnectivityTargets(),
+          getConnectivityCustomTargets(),
           getConnectivityLatest(),
           getConnectivityAggregate(),
         ]);
         this.targets = targets.items;
+        this.customTargets = customTargets.items;
         this.latest = latest.items;
         this.aggregate = aggregate;
       } finally {
@@ -72,6 +81,26 @@ export const useConnectivityStore = defineStore('network-connectivity', {
       const report = await getConnectivityReport(targetId, checkId);
       this.reports.set(key, report);
       return report;
+    },
+    async loadTrace(targetId: string, checkId: number) {
+      return getConnectivityTrace(targetId, checkId);
+    },
+    async exportReport(targetId: string, checkId: number) {
+      return getConnectivityExport(targetId, checkId);
+    },
+    async createCustomTarget(data: Parameters<typeof createConnectivityCustomTarget>[0]) {
+      const target = await createConnectivityCustomTarget(data);
+      this.customTargets = [...this.customTargets.filter((item) => item.id !== target.id), target];
+      return target;
+    },
+    async deleteCustomTarget(targetId: string) {
+      await deleteConnectivityCustomTarget(targetId);
+      this.customTargets = this.customTargets.filter((item) => item.id !== targetId);
+      this.latest = this.latest.filter((item) => item.target_id !== targetId);
+      this.history.delete(targetId);
+      for (const key of this.reports.keys()) {
+        if (key.startsWith(`${targetId}:`)) this.reports.delete(key);
+      }
     },
   },
 });

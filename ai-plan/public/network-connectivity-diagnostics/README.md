@@ -3,15 +3,15 @@
 ## Current Status Summary
 
 - Topic objective: deliver target-based platform connectivity diagnostics and a batch health-check surface.
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `cross-boundary`
 - Intake summary: long-running feature with design, roadmap, ADR, and loop-managed implementation phases.
 - Canonical authority:
   - `server/modules/network/**`
   - `openapi/**`
   - `web/src/modules/network/**`
-- Completed so far: Work Intake bootstrap and Phase 1 authority/probe-core contract.
-- In progress next: Phase 2 persistence, APIs, and security boundary.
+- Completed so far: all three planned delivery phases, including the shared ConnectivityStore and target-addressed web experience.
+- Archive readiness: acceptance conditions are met. The only remaining web validation limitation is the repository-wide Monaco release-build dependency failure, which is outside this topic's owned scope.
 
 ## Recovery Receipt
 
@@ -46,8 +46,8 @@ Out of scope:
 ## Current Recovery Point
 
 - Loop mode: `topic-completion-loop`.
-- Current batch: controller-owned; consult the tracking document after startup preflight.
-- Next step: the loop controller evaluates this round's closeout before dispatching the next bounded worker.
+- Current batch: none; consult the tracking document after startup preflight for the final validation record.
+- Next step: archive the topic when the developer is ready to close the completed branch work.
 
 ## Work Intake
 

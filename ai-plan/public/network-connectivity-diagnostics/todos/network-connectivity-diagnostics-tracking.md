@@ -43,16 +43,17 @@ closeout:
 
 ## Current Recovery Point
 
-- Phase 1 accepted: `ca21f69a` established the canonical registry, typed capabilities, extensible sanitized report
-  envelope, and Platform Update adapter without changing persistence, APIs, routes, RBAC, migrations, or web consumers.
-- No unresolved authority escalation is known.
-- Next step: Phase 2 replaces the legacy persistence/API boundary with target/check/report storage and secure batch execution.
+- Phase 3 implementation is complete in the current branch worktree: the shared ConnectivityStore serves batch health,
+  target diagnostics, history, trace, export, and custom-target management through the canonical OpenAPI paths.
+- No unresolved authority escalation is known. Full web release build remains blocked by the pre-existing missing
+  `monaco-editor` Dockerfile registration module; focused Network validation and all non-build frontend governance gates pass.
+- Archive readiness is satisfied; no further product implementation batch is pending.
 
 ## Task Checklist
 
 - [x] Phase 1: authority, registry, capabilities, and probe/report core
 - [x] Phase 2: persistence, batch APIs, route explanation, and security boundary
-- [ ] Phase 3: ConnectivityStore, batch UI, target diagnostics UI, and integrated validation
+- [x] Phase 3: ConnectivityStore, batch UI, target diagnostics UI, and integrated validation
 
 ## Acceptance Conditions
 
@@ -68,13 +69,12 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-1-authority-registry-probe-core",
-    "phase-2-persistence-api-security"
-  ],
-  "pending_batches": [
+    "phase-2-persistence-api-security",
     "phase-3-web-experience-integration"
   ],
-  "current_batch": "phase-3-web-experience-integration",
+  "pending_batches": [],
+  "current_batch": null,
   "next_batch": null,
-  "closeout_status": "phase-2-settled"
+  "closeout_status": "archive-ready"
 }
 ```

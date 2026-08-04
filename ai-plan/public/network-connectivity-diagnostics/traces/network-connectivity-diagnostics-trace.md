@@ -32,6 +32,20 @@
   live-only, audited disclosure surface; Phase 3 must not infer or display an unmasked value.
 - Advanced the active batch to the shared ConnectivityStore and platform connectivity web experience.
 
+## 2026-08-04 Controller Settle: Phase 3 And Archive Readiness
+
+- Completed a single Network-owned ConnectivityStore that shares targets, latest checks, aggregates, reports, trace,
+  history, export, and custom target state between the batch and target-detail pages.
+- Batch health now provides aggregate context (last run, success rate, average and worst latency), automatic reruns,
+  latency/status sorting, compact health status, and permission-gated custom HTTP(S) target management.
+- Target diagnostics remains target-addressed across reruns and history selection; it renders typed trace evidence,
+  capability-driven route/Exit-IP/history surfaces, and exports only the sanitized report representation.
+- Focused Network Vitest, TypeScript, i18n, OpenAPI frontend governance, stylelint, hygiene, and diff checks pass.
+- `bun run build:release` remains blocked by an unrelated repository dependency: Monaco imports a missing
+  `monaco-editor/esm/vs/languages/definitions/dockerfile/register.js` file. No Network source is in that error path.
+- Final acceptance review confirms target identity, shared execution/persistence model, extensible probe/report shape,
+  and masked Exit-IP behavior. The topic is archive-ready.
+
 ## Loop Batch State
 
 ```json
@@ -39,13 +53,12 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-1-authority-registry-probe-core",
-    "phase-2-persistence-api-security"
-  ],
-  "pending_batches": [
+    "phase-2-persistence-api-security",
     "phase-3-web-experience-integration"
   ],
-  "current_batch": "phase-3-web-experience-integration",
+  "pending_batches": [],
+  "current_batch": null,
   "next_batch": null,
-  "closeout_status": "phase-2-settled"
+  "closeout_status": "archive-ready"
 }
 ```
