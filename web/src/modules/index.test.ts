@@ -25,13 +25,19 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/observability/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
     expect(getBootstrapRouteRegistration('/platform/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
     expect(getBootstrapRouteRegistration('/platform/system-config')?.routeName).toBe('SystemConfigList');
-    expect(getBootstrapRouteRegistration('/platform/network')?.routeName).toBe('PlatformNetworkOutbound');
+    expect(getBootstrapRouteRegistration('/platform/network')?.routeName).toBe('PlatformNetworkConnectivity');
     expect(getBootstrapRouteRegistration('/infrastructure/images')?.routeName).toBe('DockerImageList');
     expect(getBootstrapRouteRegistration('/audit/overview')).toBeUndefined();
     expect(getBootstrapRouteRegistration('/security/audit')?.routeName).toBe('AuditLogList');
     expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();
     expect(getGlobalRouteRegistrations().find((route) => route.path === '/notifications')?.routeName).toBe(
       'NotificationList',
+    );
+    expect(getGlobalRouteRegistrations().find((route) => route.path === '/platform/network/outbound')?.routeName).toBe(
+      'PlatformNetworkOutbound',
+    );
+    expect(getGlobalRouteRegistrations().find((route) => route.path === '/platform/network/:targetId')?.routeName).toBe(
+      'PlatformNetworkConnectivityDiagnostics',
     );
   });
 

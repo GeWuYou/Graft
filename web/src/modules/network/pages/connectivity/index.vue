@@ -12,6 +12,9 @@
     >
       <template #actions>
         <t-space>
+          <t-button v-permission="NETWORK_PERMISSION.WRITE" variant="outline" @click="openOutboundPolicy">
+            {{ t('network.outbound.connectivity.outboundPolicy') }}
+          </t-button>
           <t-button
             v-permission="NETWORK_PERMISSION.MANAGE_TARGETS"
             variant="outline"
@@ -132,7 +135,10 @@ import type { ConnectivityCheck, ConnectivityTarget } from '../../api/connectivi
 import { useConnectivityStore } from '../../store/connectivity';
 
 /** 批量健康页只消费共享 ConnectivityStore 的摘要投影；目标详情和完整诊断报告始终由 target 路由承载。 */
-const NETWORK_PERMISSION = { MANAGE_TARGETS: 'platform-network.targets.manage' } as const;
+const NETWORK_PERMISSION = {
+  WRITE: 'platform-network.write',
+  MANAGE_TARGETS: 'platform-network.targets.manage',
+} as const;
 const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 type ConnectivityRow = ConnectivityTarget & Partial<ConnectivityCheck>;
@@ -220,6 +226,10 @@ function isCustomTarget(targetId: string) {
 function openTarget({ row }: { row: unknown }) {
   const target = row as ConnectivityRow;
   void router.push({ name: 'PlatformNetworkConnectivityDiagnostics', params: { targetId: target.id } });
+}
+
+function openOutboundPolicy() {
+  void router.push({ name: 'PlatformNetworkOutbound' });
 }
 
 async function runAll() {

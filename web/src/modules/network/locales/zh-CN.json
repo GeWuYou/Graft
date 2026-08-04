@@ -104,6 +104,7 @@
         "description": "查看平台出站健康状态并进入目标诊断。",
         "runAll": "全部检查",
         "run": "运行诊断",
+        "outboundPolicy": "出站网络策略",
         "addTarget": "添加目标",
         "add": "添加",
         "delete": "删除",

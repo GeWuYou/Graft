@@ -104,6 +104,7 @@
         "description": "Review platform outbound health and open target diagnostics.",
         "runAll": "Run All Checks",
         "run": "Run Diagnostics",
+        "outboundPolicy": "Outbound Network Policy",
         "addTarget": "Add Target",
         "add": "Add",
         "delete": "Delete",

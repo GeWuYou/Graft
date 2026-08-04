@@ -11,8 +11,9 @@ LDAP, OCI, OIDC, webhook, Kubernetes, and runtime checks cannot be represented s
 
 ## Decision
 
-1. Keep `Platform > Network` as the single entry. `/:targetId` identifies Target Diagnostics; a report/check ID is
-   data selected within that page and never its primary route identity.
+1. Keep `Platform > Network` as the single entry: `/platform/network` is the Connectivity health page and
+   `/platform/network/outbound` is the secondary outbound-policy workflow. `/:targetId` identifies Target
+   Diagnostics; a report/check ID is data selected within that page and never its primary route identity.
 2. Make `server/internal/moduleapi` plus `server/modules/network` the canonical Connectivity Target Registry and
    Probe/Report boundary. The target descriptor includes stable target identity, owning module identity, category,
    ordered probe kinds, and typed features.

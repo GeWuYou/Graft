@@ -71,6 +71,14 @@
 - The topic remains archive-ready. The release build limitation is confined to the pre-existing missing Monaco
   Dockerfile registration module and is recorded without attributing it to Network.
 
+## 2026-08-04 Navigation Entry Correction
+
+- Corrected the Network entry-point drift found during local UI verification: `/platform/network` now owns the
+  Connectivity health page, `/platform/network/outbound` owns the secondary policy workflow, and `/:targetId` remains
+  the target-addressed diagnostics identity.
+- This removes the short-lived `/platform/network/connectivity` path rather than retaining an alias that would conflict
+  with target IDs and violate the canonical route migration rule.
+
 ## Loop Batch State
 
 ```json

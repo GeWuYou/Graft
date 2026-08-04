@@ -105,6 +105,7 @@ const trace = ref<ConnectivityProbe[]>([]);
 const history = ref<ConnectivityCheck[]>([]);
 const selectedCheckId = ref<number>();
 const targetId = computed(() => String(route.params.targetId ?? ''));
+const isDiagnosticsRoute = computed(() => route.name === 'PlatformNetworkConnectivityDiagnosticsIndex');
 const target = computed(() => store.targets.find((item) => item.id === targetId.value));
 const targetTitle = computed(() => {
   const custom = store.customTargets.find((item) => item.id === targetId.value);
@@ -211,7 +212,9 @@ async function exportReport() {
   }
 }
 
-watch(targetId, () => void load());
+watch(targetId, () => {
+  if (isDiagnosticsRoute.value) void load();
+});
 onMounted(() => void load());
 </script>
 <style scoped>

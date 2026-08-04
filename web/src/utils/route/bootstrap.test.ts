@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { getBootstrapRouteRegistration } from '@/modules';
 
@@ -281,6 +282,34 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.children?.[0]?.meta?.hiddenMenu).toBe(true);
     expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(true);
     expect(routes[0]?.meta?.navigationTargetPath).toBeUndefined();
+  });
+
+  it('redirects named global route navigation to the page child while preserving route state', async () => {
+    const routes = transformGlobalRegistrationsToRoutes([
+      {
+        path: '/platform/network/:targetId',
+        routeName: 'PlatformNetworkConnectivityDiagnostics',
+        loadPage: () => import('@/modules/network/pages/connectivity/diagnostics.vue'),
+        meta: { title: { 'zh-CN': '连通性诊断', 'en-US': 'Connectivity Diagnostics' } },
+      },
+    ]);
+    const router = createRouter({ history: createMemoryHistory(), routes });
+
+    await router.push({
+      name: 'PlatformNetworkConnectivityDiagnostics',
+      params: { targetId: 'platform-update' },
+      query: { source: 'connectivity' },
+      hash: '#report',
+    });
+    await router.isReady();
+
+    expect(router.currentRoute.value).toMatchObject({
+      name: 'PlatformNetworkConnectivityDiagnosticsIndex',
+      path: '/platform/network/platform-update',
+      params: { targetId: 'platform-update' },
+      query: { source: 'connectivity' },
+      hash: '#report',
+    });
   });
 
   it('attaches an explicitly declared parent resource trail to global detail routes', () => {

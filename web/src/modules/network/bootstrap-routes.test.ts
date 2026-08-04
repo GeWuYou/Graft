@@ -1,20 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
-import { networkBootstrapRouteRegistrations } from './bootstrap-routes';
+import { networkBootstrapRouteRegistrations, networkGlobalRouteRegistrations } from './bootstrap-routes';
 
 describe('network bootstrap route registrations', () => {
-  it('registers outbound settings, connectivity health, and target diagnostics routes', () => {
-    expect(networkBootstrapRouteRegistrations).toEqual(
+  it('uses Connectivity as the Network entry and exposes policy and diagnostics as visible global details', () => {
+    expect(networkBootstrapRouteRegistrations).toEqual([
+      expect.objectContaining({ menuPath: '/platform/network', routeName: 'PlatformNetworkConnectivity' }),
+    ]);
+    expect(networkGlobalRouteRegistrations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ menuPath: '/platform/network', routeName: 'PlatformNetworkOutbound' }),
         expect.objectContaining({
-          menuPath: '/platform/network/connectivity',
-          routeName: 'PlatformNetworkConnectivity',
+          path: '/platform/network/outbound',
+          routeName: 'PlatformNetworkOutbound',
+          navigationParentPath: '/platform/network',
+          meta: expect.objectContaining({
+            hidden: false,
+            hiddenMenu: true,
+            tabTitle: { 'en-US': 'Outbound Network', 'zh-CN': '出站网络' },
+          }),
         }),
         expect.objectContaining({
-          menuPath: '/platform/network/connectivity/:targetId',
+          path: '/platform/network/:targetId',
           routeName: 'PlatformNetworkConnectivityDiagnostics',
-          meta: expect.objectContaining({ hidden: true }),
+          navigationParentPath: '/platform/network',
+          meta: expect.objectContaining({
+            hidden: false,
+            hiddenMenu: true,
+            tabTitle: { 'en-US': 'Connectivity Diagnostics', 'zh-CN': '连通性诊断' },
+          }),
         }),
       ]),
     );
