@@ -3740,6 +3740,7 @@ const (
 	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
 	RunnerStateCorrupt     PlatformUpdateOperationStateSource = "runner_state_corrupt"
 	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
+	TaskRecovery           PlatformUpdateOperationStateSource = "task_recovery"
 	TerminalHistory        PlatformUpdateOperationStateSource = "terminal_history"
 )
 
@@ -3753,6 +3754,8 @@ func (e PlatformUpdateOperationStateSource) Valid() bool {
 	case RunnerStateCorrupt:
 		return true
 	case RunnerStateUnavailable:
+		return true
+	case TaskRecovery:
 		return true
 	case TerminalHistory:
 		return true
@@ -12562,7 +12565,7 @@ type PlatformUpdateOperation struct {
 	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_state_corrupt and runner_lost are explicitly unavailable.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. runner_state_unavailable, runner_state_corrupt, and runner_lost never represent live runner progress; corrupt state is quarantined only through protected recovery.
+	// StateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -12574,7 +12577,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable, runner_state_corrupt, and runner_lost never represent live runner progress; corrupt state is quarantined only through protected recovery.
+// PlatformUpdateOperationStateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.

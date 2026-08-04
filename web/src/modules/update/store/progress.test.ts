@@ -194,6 +194,23 @@ describe('update progress store', () => {
     expect(store.pollTimer).not.toBeNull();
   });
 
+  it('clears a historical task-recovery operation without requesting diagnostics', async () => {
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+
+    await callback({
+      ...operation('operation-1', 'FAILED', 100),
+      state_source: 'task_recovery' as const,
+      failure_diagnostic_available: false,
+    });
+
+    expect(store.phase).toBe('idle');
+    expect(store.operationID).toBeNull();
+    expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+    expect(getUpdateOperationDiagnostic).not.toHaveBeenCalled();
+  });
+
   it('ends the browser session and loads protected diagnostics when the runner has terminated', async () => {
     const store = useUpdateProgressStore();
     await store.begin(acknowledgement('operation-1'));

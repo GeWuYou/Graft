@@ -99,6 +99,12 @@ The recovery runner concludes the interrupted operation with a safe terminal res
 Running, terminal, non-lost, already-recovered, unavailable, or post-migration operations fail closed. After that
 terminal result is projected, the normal new-update path may evaluate eligibility again.
 
+An Update operation is eligible for the active browser-recovery entry only while its associated Task Runtime record is
+`pending`, `scheduled`, or `running`. A historical `needs_attention` Task is returned only by its operation-history
+endpoint as `state_source=task_recovery`; it must not reclaim the active-operation endpoint, runner-loss recovery, or
+browser session storage. `success`, `failed`, and `cancelled` Task outcomes likewise remain historical. This keeps the
+Task Runtime's terminal receipt settlement authoritative when an older `update_operations` status was not settled.
+
 Before the potentially slow recovery image pull, server atomically records an opaque recovery-launch coordination
 claim on the request record. This is authorization and duplicate-launch evidence only, not a runner phase, lease, or
 progress projection. A claim is released only when launch is proven not to have created a recovery runner; after a

@@ -2,7 +2,7 @@ get:
   tags: [platform-update]
   summary: Read the active self-update operation
   operationId: getPlatformUpdateActiveOperation
-  description: Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
+  description: Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

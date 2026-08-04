@@ -585,8 +585,15 @@ func (s *memoryOperationStore) Get(_ context.Context, id string) (ComposeUpdateO
 	}
 	return item, nil
 }
-func (s *memoryOperationStore) List(context.Context, int) ([]ComposeUpdateOperation, error) {
-	return nil, nil
+func (s *memoryOperationStore) List(_ context.Context, limit int) ([]ComposeUpdateOperation, error) {
+	items := make([]ComposeUpdateOperation, 0, len(s.items))
+	for _, item := range s.items {
+		items = append(items, item)
+		if len(items) == limit {
+			break
+		}
+	}
+	return items, nil
 }
 func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOperation) error {
 	s.items[item.OperationID] = item
@@ -736,6 +743,35 @@ func (s *stubTaskService) Cancel(_ context.Context, taskID uint64) error {
 	return nil
 }
 func (*stubTaskService) RetryStage(context.Context, uint64, uint64) error { return nil }
+
+type taskQueryStub struct {
+	tasks map[uint64]moduleapi.TaskView
+	err   error
+}
+
+func (s taskQueryStub) GetTask(_ context.Context, taskID uint64) (moduleapi.TaskView, error) {
+	if s.err != nil {
+		return moduleapi.TaskView{}, s.err
+	}
+	task, ok := s.tasks[taskID]
+	if !ok {
+		return moduleapi.TaskView{}, errors.New("task not found")
+	}
+	return task, nil
+}
+
+func (taskQueryStub) ListTasks(context.Context, moduleapi.TaskListFilter, int, int) ([]moduleapi.TaskView, int64, error) {
+	return nil, 0, nil
+}
+func (taskQueryStub) ListTaskStages(context.Context, uint64) ([]moduleapi.TaskStageView, error) {
+	return nil, nil
+}
+func (taskQueryStub) ListTaskEvents(context.Context, uint64, int64, int) ([]moduleapi.TaskEventView, error) {
+	return nil, nil
+}
+func (taskQueryStub) ListTaskLogs(context.Context, uint64, int64, int) ([]moduleapi.TaskLogView, error) {
+	return nil, nil
+}
 
 type stubBackupService struct {
 	plan       moduleapi.BackupRunnerHandoffPlan

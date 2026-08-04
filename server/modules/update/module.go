@@ -152,11 +152,16 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve backup service: %w", err)
 	}
+	taskQuery, err := module.ResolveService[moduleapi.TaskQueryService](ctx.Services, (*moduleapi.TaskQueryService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task query service: %w", err)
+	}
 	launcher, err := NewDockerComposeRunnerLauncher()
 	if err != nil {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
+	m.rollout.SetTaskQueryService(taskQuery)
 	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve deployment runtime: %w", err)
