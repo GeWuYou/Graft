@@ -25,11 +25,12 @@ closeout:
 
 ## Current Recovery Point
 
-- The Phase 2 query need and smallest history batch are not yet selected.
+- `phase-2-history-discovery` selected Build-owned filtering and pagination as the smallest justified implementation batch.
 
 ## Task Checklist
 
-- [ ] Establish the first justified Build history batch.
+- [x] Establish the first justified Build history batch.
+- [ ] Add Build-owned history filtering and pagination.
 
 ## Acceptance Conditions
 
@@ -42,9 +43,9 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
-  "pending_batches": ["phase-2-history-discovery"],
-  "current_batch": "phase-2-history-discovery",
+  "completed_batches": ["phase-2-history-discovery"],
+  "pending_batches": ["phase-2-history-filtering-and-pagination"],
+  "current_batch": "phase-2-history-filtering-and-pagination",
   "next_batch": null,
   "closeout_status": "active",
   "stop_reason": null,
