@@ -71,4 +71,26 @@ describe('connectivity diagnostics page', () => {
 
     expect(connectivityStore.loadHistory).not.toHaveBeenCalled();
   });
+
+  it('discards a stale target history response after navigating to another target', async () => {
+    let resolveFirstHistory: (value: Array<{ check_id: number }>) => void;
+    const firstHistory = new Promise<Array<{ check_id: number }>>((resolve) => {
+      resolveFirstHistory = resolve;
+    });
+    connectivityStore.loadHistory.mockImplementationOnce(() => firstHistory).mockResolvedValueOnce([]);
+    const router = createRouterForTest();
+    await router.push('/platform/network/platform-update');
+    await router.isReady();
+    mount(DiagnosticsPage, { global: { plugins: [router] } });
+    await flushPromises();
+
+    await router.push('/platform/network/marketplace');
+    await flushPromises();
+    resolveFirstHistory!([{ check_id: 42 }]);
+    await flushPromises();
+
+    expect(connectivityStore.loadHistory).toHaveBeenNthCalledWith(1, 'platform-update');
+    expect(connectivityStore.loadHistory).toHaveBeenNthCalledWith(2, 'marketplace');
+    expect(connectivityStore.loadReport).not.toHaveBeenCalledWith('platform-update', 42);
+  });
 });

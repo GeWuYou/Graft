@@ -118,6 +118,8 @@ const report = ref<ConnectivityReport>();
 const trace = ref<ConnectivityProbe[]>([]);
 const history = ref<ConnectivityCheck[]>([]);
 const selectedCheckId = ref<number>();
+// 请求序号将异步结果绑定到发起时的 target，避免路由切换后的旧响应覆盖当前诊断状态。
+let diagnosticsRequestSequence = 0;
 const targetId = computed(() => String(route.params.targetId ?? ''));
 const isDiagnosticsRoute = computed(() => route.name === 'PlatformNetworkConnectivityDiagnosticsIndex');
 const target = computed(() => store.targets.find((item) => item.id === targetId.value));
@@ -157,53 +159,69 @@ function probeStatusLabel(status: ConnectivityProbe['status']) {
   return t(`network.outbound.connectivity.probeStatuses.${status}`);
 }
 
-async function loadReport(checkId: number) {
+function isCurrentDiagnosticsRequest(sequence: number, currentTargetId: string) {
+  return sequence === diagnosticsRequestSequence && currentTargetId === targetId.value && isDiagnosticsRoute.value;
+}
+
+async function loadReport(currentTargetId: string, checkId: number, sequence: number) {
   const [nextReport, nextTrace] = await Promise.all([
-    store.loadReport(targetId.value, checkId),
-    store.loadTrace(targetId.value, checkId),
+    store.loadReport(currentTargetId, checkId),
+    store.loadTrace(currentTargetId, checkId),
   ]);
+  if (!isCurrentDiagnosticsRequest(sequence, currentTargetId)) return;
   report.value = nextReport;
   trace.value = nextTrace.probes;
   selectedCheckId.value = checkId;
 }
 
 async function load() {
+  const sequence = ++diagnosticsRequestSequence;
+  const currentTargetId = targetId.value;
   loading.value = true;
   error.value = '';
   try {
     await store.refresh();
-    history.value = await store.loadHistory(targetId.value);
-    if (history.value[0]) await loadReport(history.value[0].check_id);
+    if (!isCurrentDiagnosticsRequest(sequence, currentTargetId)) return;
+    const nextHistory = await store.loadHistory(currentTargetId);
+    if (!isCurrentDiagnosticsRequest(sequence, currentTargetId)) return;
+    history.value = nextHistory;
+    if (nextHistory[0]) await loadReport(currentTargetId, nextHistory[0].check_id, sequence);
     else {
       report.value = undefined;
       trace.value = [];
       selectedCheckId.value = undefined;
     }
   } catch (value) {
-    error.value = String(value);
+    if (isCurrentDiagnosticsRequest(sequence, currentTargetId)) error.value = String(value);
   } finally {
-    loading.value = false;
+    if (isCurrentDiagnosticsRequest(sequence, currentTargetId)) loading.value = false;
   }
 }
 
 async function run() {
+  const sequence = ++diagnosticsRequestSequence;
+  const currentTargetId = targetId.value;
   error.value = '';
   try {
-    const result = await store.runTarget(targetId.value);
+    const result = await store.runTarget(currentTargetId);
+    if (!isCurrentDiagnosticsRequest(sequence, currentTargetId)) return;
     report.value = result.report;
     trace.value = result.report.probes;
     selectedCheckId.value = result.check.check_id;
-    history.value = await store.loadHistory(targetId.value);
+    const nextHistory = await store.loadHistory(currentTargetId);
+    if (isCurrentDiagnosticsRequest(sequence, currentTargetId)) history.value = nextHistory;
   } catch (value) {
-    error.value = String(value);
+    if (isCurrentDiagnosticsRequest(sequence, currentTargetId)) error.value = String(value);
   }
 }
 
 async function selectReport({ row }: { row: ConnectivityCheck }) {
+  const sequence = ++diagnosticsRequestSequence;
+  const currentTargetId = targetId.value;
   try {
-    await loadReport(row.check_id);
+    await loadReport(currentTargetId, row.check_id, sequence);
   } catch (value) {
-    error.value = String(value);
+    if (isCurrentDiagnosticsRequest(sequence, currentTargetId)) error.value = String(value);
   }
 }
 
