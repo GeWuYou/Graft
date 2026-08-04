@@ -26,6 +26,7 @@ type legacyCutoverOperation struct {
 // CutoverV1 validates and removes a legacy state volume before SQL migration.
 // It deliberately preserves Task and Backup facts by cancelling them through
 // their owning capabilities before marking the Update operation for purge.
+//
 //nolint:cyclop,gocognit,gocyclo,nestif // cutover 必须在一个 fail-closed 流程中完成状态判定、事实保留和文件清理。
 func CutoverV1(ctx context.Context, root string, db *sql.DB, tasks moduleapi.TaskService, backups moduleapi.BackupService) error {
 	if ctx == nil {
@@ -38,12 +39,8 @@ func CutoverV1(ctx context.Context, root string, db *sql.DB, tasks moduleapi.Tas
 	currentPath := filepath.Join(root, "current.json")
 	contents, err := os.ReadFile(currentPath)
 	if errors.Is(err, os.ErrNotExist) {
-		entries, readErr := os.ReadDir(filepath.Join(root, "events"))
-		if readErr == nil && len(entries) > 0 {
-			return errors.New("update state has events without current snapshot")
-		}
-		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
-			return fmt.Errorf("inspect update state events: %w", readErr)
+		if removeErr := os.RemoveAll(filepath.Join(root, "events")); removeErr != nil {
+			return fmt.Errorf("remove legacy update events: %w", removeErr)
 		}
 		return nil
 	}
@@ -116,7 +113,7 @@ func CutoverV1(ctx context.Context, root string, db *sql.DB, tasks moduleapi.Tas
 	if err := os.Remove(currentPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove legacy update snapshot: %w", err)
 	}
-	if err := os.RemoveAll(filepath.Join(root, "events", raw.OperationID)); err != nil {
+	if err := os.RemoveAll(filepath.Join(root, "events")); err != nil {
 		return fmt.Errorf("remove legacy update events: %w", err)
 	}
 	return nil
