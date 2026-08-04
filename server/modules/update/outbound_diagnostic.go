@@ -76,7 +76,11 @@ func (t platformUpdateDiagnosticTarget) RunConnectivityProbes(ctx context.Contex
 	} else if result.Message != "" {
 		summary = result.Message
 	}
-	return moduleapi.NewConnectivityReport(platformUpdateConnectivityTargetID, status, result.TestedAt, result.Latency, []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: probeStatus, Duration: result.Latency, Summary: summary}}, nil, nil), nil
+	var httpStatus *int
+	if result.HTTPStatus >= http.StatusContinue && result.HTTPStatus <= 599 {
+		httpStatus = &result.HTTPStatus
+	}
+	return moduleapi.NewConnectivityReport(platformUpdateConnectivityTargetID, status, result.TestedAt, result.Latency, []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: probeStatus, Duration: result.Latency, HTTPStatus: httpStatus, Summary: summary}}, nil, nil), nil
 }
 
 func (t platformUpdateDiagnosticTarget) ExecuteOutboundDiagnostic(ctx context.Context) (moduleapi.OutboundDiagnosticResult, error) {

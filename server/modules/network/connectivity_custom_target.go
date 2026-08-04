@@ -98,7 +98,7 @@ func (t CustomConnectivityTarget) RunCustomConnectivityProbes(ctx context.Contex
 		if response.StatusCode >= http.StatusBadRequest {
 			status, probeStatus = moduleapi.ConnectivityReportStatusDegraded, moduleapi.ProbeStatusFailed
 		}
-		probes = append(probes, moduleapi.ProbeResult{Kind: moduleapi.ConnectivityProbeHTTP, Status: probeStatus, Duration: total - dnsDuration, Summary: "HTTP " + strconv.Itoa(response.StatusCode), OccurredAt: time.Now()})
+		probes = append(probes, moduleapi.ProbeResult{Kind: moduleapi.ConnectivityProbeHTTP, Status: probeStatus, Duration: total - dnsDuration, HTTPStatus: &response.StatusCode, Summary: "HTTP " + strconv.Itoa(response.StatusCode), OccurredAt: time.Now()})
 	}
 	route := moduleapi.RouteExplanation{MatchedStrategy: "Direct", Decision: "Direct", Reason: "Custom targets use validated direct dialing; proxy execution is intentionally disabled"}
 	return moduleapi.NewConnectivityReport(t.ID, status, time.Now(), total, probes, &route, nil), nil

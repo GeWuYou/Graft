@@ -71,6 +71,9 @@
           ><t-tag :theme="statusTheme(row.status)" variant="light">{{ statusLabel(row.status) }}</t-tag></template
         >
         <template #latency="{ row }">{{ row.latency_ms === undefined ? '-' : `${row.latency_ms} ms` }}</template>
+        <template #httpStatus="{ row }">{{
+          row.http_status ?? t('network.outbound.connectivity.unavailable')
+        }}</template>
         <template #checked="{ row }">{{ formatTime(row.checked_at) }}</template>
         <template #actions="{ row }">
           <t-popconfirm
@@ -161,6 +164,7 @@ const columns = computed(() => [
   { colKey: 'target', title: t('network.outbound.connectivity.target') },
   { colKey: 'status', title: t('network.outbound.connectivity.status') },
   { colKey: 'latency', title: t('network.outbound.connectivity.latency') },
+  { colKey: 'httpStatus', title: t('network.outbound.connectivity.httpStatus') },
   { colKey: 'checked', title: t('network.outbound.connectivity.lastChecked') },
   { colKey: 'actions', title: t('network.outbound.connectivity.actions'), width: 96 },
 ]);

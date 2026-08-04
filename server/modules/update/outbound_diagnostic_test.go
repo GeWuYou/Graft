@@ -46,7 +46,7 @@ func TestPlatformUpdateConnectivityTargetDeclaresCapabilitiesAndAdaptsHTTPResult
 	if err != nil {
 		t.Fatalf("run connectivity probes: %v", err)
 	}
-	if report.TargetID != platformUpdateConnectivityTargetID || report.Status != moduleapi.ConnectivityReportStatusHealthy || len(report.Probes) != 1 || report.Probes[0].Kind != moduleapi.ConnectivityProbeHTTP {
+	if report.TargetID != platformUpdateConnectivityTargetID || report.Status != moduleapi.ConnectivityReportStatusHealthy || len(report.Probes) != 1 || report.Probes[0].Kind != moduleapi.ConnectivityProbeHTTP || report.Probes[0].HTTPStatus == nil || *report.Probes[0].HTTPStatus != http.StatusOK {
 		t.Fatalf("unexpected adapted connectivity report: %#v", report)
 	}
 }

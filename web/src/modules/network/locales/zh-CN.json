@@ -133,6 +133,8 @@
         "target": "目标",
         "status": "状态",
         "latency": "延迟",
+        "httpStatus": "HTTP 状态",
+        "unavailable": "不可用",
         "lastChecked": "最后检查",
         "notChecked": "尚未检查",
         "latestResult": "最新结果",

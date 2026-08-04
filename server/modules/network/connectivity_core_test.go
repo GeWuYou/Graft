@@ -43,12 +43,14 @@ func TestDiagnosticRegistryRegistersCanonicalTargetFromLegacyAdapter(t *testing.
 func TestConnectivityReportSnapshotDoesNotRetainMutableProbeOrDisclosurePointers(t *testing.T) {
 	route := &moduleapi.RouteExplanation{MatchedStrategy: "platform_default", Decision: "http_proxy", Reason: "host_not_matched_by_no_proxy"}
 	exitIP := &moduleapi.ExitIPDisclosure{Masked: "***.***.45.19", Available: true}
-	probes := []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: moduleapi.ProbeStatusSucceeded, Duration: 18 * time.Millisecond, Summary: "HTTP 200"}}
+	httpStatus := 200
+	probes := []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: moduleapi.ProbeStatusSucceeded, Duration: 18 * time.Millisecond, HTTPStatus: &httpStatus, Summary: "HTTP 200"}}
 	report := moduleapi.NewConnectivityReport("github", moduleapi.ConnectivityReportStatusHealthy, time.Date(2026, 8, 4, 12, 0, 0, 0, time.FixedZone("CST", 8*3600)), 18*time.Millisecond, probes, route, exitIP)
 	probes[0].Summary = "mutated"
+	*probes[0].HTTPStatus = 503
 	route.Decision = "direct"
 	exitIP.Masked = "unmasked-value-must-not-leak"
-	if report.Probes[0].Summary != "HTTP 200" || report.Route.Decision != "http_proxy" || report.ExitIP.Masked != "***.***.45.19" {
+	if report.Probes[0].Summary != "HTTP 200" || report.Probes[0].HTTPStatus == nil || *report.Probes[0].HTTPStatus != 200 || report.Route.Decision != "http_proxy" || report.ExitIP.Masked != "***.***.45.19" {
 		t.Fatalf("expected report construction to snapshot mutable inputs, got %#v", report)
 	}
 	if report.SchemaVersion != 1 || report.CheckedAt.Location() != time.UTC {
@@ -56,8 +58,9 @@ func TestConnectivityReportSnapshotDoesNotRetainMutableProbeOrDisclosurePointers
 	}
 	snapshot := report.Snapshot()
 	snapshot.Probes[0].Summary = "changed snapshot"
+	*snapshot.Probes[0].HTTPStatus = 404
 	snapshot.Route.Reason = "changed snapshot"
-	if report.Probes[0].Summary != "HTTP 200" || report.Route.Reason != "host_not_matched_by_no_proxy" {
+	if report.Probes[0].Summary != "HTTP 200" || report.Probes[0].HTTPStatus == nil || *report.Probes[0].HTTPStatus != 200 || report.Route.Reason != "host_not_matched_by_no_proxy" {
 		t.Fatalf("expected report snapshot to avoid shared mutation, got %#v", report)
 	}
 }

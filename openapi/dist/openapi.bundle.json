@@ -30175,6 +30175,13 @@
             "format": "int64",
             "minimum": 0
           },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "nullable": true,
+            "description": "HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable."
+          },
           "checked_at": {
             "type": "string",
             "format": "date-time"
@@ -30317,6 +30324,13 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "nullable": true,
+            "description": "HTTP response status when this probe received a response."
           },
           "summary": {
             "type": "string"

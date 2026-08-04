@@ -7198,6 +7198,8 @@ export interface components {
       status: 'healthy' | 'degraded' | 'failed';
       /** Format: int64 */
       latency_ms: number;
+      /** @description HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable. */
+      http_status?: number | null;
       /** Format: date-time */
       checked_at: string;
     };
@@ -7236,6 +7238,8 @@ export interface components {
       status: 'succeeded' | 'failed' | 'skipped';
       /** Format: int64 */
       duration_ms: number;
+      /** @description HTTP response status when this probe received a response. */
+      http_status?: number | null;
       summary?: string;
       error_code?: string;
       /** Format: date-time */

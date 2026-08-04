@@ -12200,11 +12200,14 @@ type PlatformNetworkConnectivityAggregate struct {
 
 // PlatformNetworkConnectivityCheck defines model for platform-network-connectivity-check.
 type PlatformNetworkConnectivityCheck struct {
-	CheckId   int64                                  `json:"check_id"`
-	CheckedAt time.Time                              `json:"checked_at"`
-	LatencyMs int64                                  `json:"latency_ms"`
-	Status    PlatformNetworkConnectivityCheckStatus `json:"status"`
-	TargetId  string                                 `json:"target_id"`
+	CheckId   int64     `json:"check_id"`
+	CheckedAt time.Time `json:"checked_at"`
+
+	// HttpStatus HTTP response status when the latest HTTP probe received a response; null when unavailable or not applicable.
+	HttpStatus *int                                   `json:"http_status,omitempty"`
+	LatencyMs  int64                                  `json:"latency_ms"`
+	Status     PlatformNetworkConnectivityCheckStatus `json:"status"`
+	TargetId   string                                 `json:"target_id"`
 }
 
 // PlatformNetworkConnectivityCheckStatus defines model for PlatformNetworkConnectivityCheck.Status.
@@ -12227,8 +12230,11 @@ type PlatformNetworkConnectivityExitIp struct {
 
 // PlatformNetworkConnectivityProbe defines model for platform-network-connectivity-probe.
 type PlatformNetworkConnectivityProbe struct {
-	DurationMs int64                                  `json:"duration_ms"`
-	ErrorCode  *string                                `json:"error_code,omitempty"`
+	DurationMs int64   `json:"duration_ms"`
+	ErrorCode  *string `json:"error_code,omitempty"`
+
+	// HttpStatus HTTP response status when this probe received a response.
+	HttpStatus *int                                   `json:"http_status,omitempty"`
 	Kind       string                                 `json:"kind"`
 	OccurredAt *time.Time                             `json:"occurred_at,omitempty"`
 	Status     PlatformNetworkConnectivityProbeStatus `json:"status"`

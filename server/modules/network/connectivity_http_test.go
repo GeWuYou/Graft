@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -43,4 +45,24 @@ func (httpDiagnosticTargetStub) Name() string        { return "legacy" }
 func (httpDiagnosticTargetStub) DisplayName() string { return "legacy" }
 func (httpDiagnosticTargetStub) ExecuteOutboundDiagnostic(context.Context) (moduleapi.OutboundDiagnosticResult, error) {
 	return moduleapi.OutboundDiagnosticResult{Connected: true, HTTPStatus: http.StatusOK}, nil
+}
+
+func TestConnectivityCheckResponseKeepsOptionalHTTPStatusInSummaryProjection(t *testing.T) {
+	httpStatus := 503
+	withResponse, err := json.Marshal(toConnectivityCheckResponse(ConnectivityCheck{
+		ID:         42,
+		TargetID:   "github",
+		Status:     moduleapi.ConnectivityReportStatusDegraded,
+		Latency:    183 * time.Millisecond,
+		HTTPStatus: &httpStatus,
+		CheckedAt:  time.Date(2026, 8, 4, 14, 33, 0, 0, time.UTC),
+	}))
+	if err != nil || !strings.Contains(string(withResponse), `"http_status":503`) {
+		t.Fatalf("expected HTTP status in summary response, body=%s err=%v", withResponse, err)
+	}
+
+	withoutResponse, err := json.Marshal(toConnectivityCheckResponse(ConnectivityCheck{ID: 43, TargetID: "smtp", Status: moduleapi.ConnectivityReportStatusFailed, CheckedAt: time.Now()}))
+	if err != nil || !strings.Contains(string(withoutResponse), `"http_status":null`) {
+		t.Fatalf("expected unavailable HTTP status to remain explicit, body=%s err=%v", withoutResponse, err)
+	}
 }

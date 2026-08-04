@@ -25,11 +25,12 @@ type connectivityTargetResponse struct {
 }
 
 type connectivityCheckResponse struct {
-	CheckID   int64     `json:"check_id"`
-	TargetID  string    `json:"target_id"`
-	Status    string    `json:"status"`
-	LatencyMS int64     `json:"latency_ms"`
-	CheckedAt time.Time `json:"checked_at"`
+	CheckID    int64     `json:"check_id"`
+	TargetID   string    `json:"target_id"`
+	Status     string    `json:"status"`
+	LatencyMS  int64     `json:"latency_ms"`
+	HTTPStatus *int      `json:"http_status"`
+	CheckedAt  time.Time `json:"checked_at"`
 }
 
 type connectivityAggregateResponse struct {
@@ -47,6 +48,7 @@ type connectivityProbeResponse struct {
 	Kind       string    `json:"kind"`
 	Status     string    `json:"status"`
 	DurationMS int64     `json:"duration_ms"`
+	HTTPStatus *int      `json:"http_status,omitempty"`
 	Summary    string    `json:"summary,omitempty"`
 	ErrorCode  string    `json:"error_code,omitempty"`
 	OccurredAt time.Time `json:"occurred_at,omitempty"`
@@ -297,7 +299,7 @@ func toConnectivityCheckResponses(values []ConnectivityCheck) []connectivityChec
 	return items
 }
 func toConnectivityCheckResponse(value ConnectivityCheck) connectivityCheckResponse {
-	return connectivityCheckResponse{CheckID: value.ID, TargetID: string(value.TargetID), Status: string(value.Status), LatencyMS: value.Latency.Milliseconds(), CheckedAt: value.CheckedAt.UTC()}
+	return connectivityCheckResponse{CheckID: value.ID, TargetID: string(value.TargetID), Status: string(value.Status), LatencyMS: value.Latency.Milliseconds(), HTTPStatus: value.HTTPStatus, CheckedAt: value.CheckedAt.UTC()}
 }
 func toConnectivityAggregateResponse(value ConnectivityAggregate) connectivityAggregateResponse {
 	return connectivityAggregateResponse{LastRunAt: value.LastRunAt, TargetCount: value.TargetCount, HealthyCount: value.HealthyCount, DegradedCount: value.DegradedCount, FailedCount: value.FailedCount, AverageLatencyMS: value.AverageLatency.Milliseconds(), WorstTargetID: string(value.WorstTargetID), WorstLatencyMS: value.WorstLatency.Milliseconds()}
@@ -305,7 +307,7 @@ func toConnectivityAggregateResponse(value ConnectivityAggregate) connectivityAg
 func toConnectivityReportResponse(value moduleapi.ConnectivityReport) connectivityReportResponse {
 	probes := make([]connectivityProbeResponse, 0, len(value.Probes))
 	for _, probe := range value.Probes {
-		probes = append(probes, connectivityProbeResponse{Kind: string(probe.Kind), Status: string(probe.Status), DurationMS: probe.Duration.Milliseconds(), Summary: probe.Summary, ErrorCode: probe.ErrorCode, OccurredAt: probe.OccurredAt.UTC()})
+		probes = append(probes, connectivityProbeResponse{Kind: string(probe.Kind), Status: string(probe.Status), DurationMS: probe.Duration.Milliseconds(), HTTPStatus: probe.HTTPStatus, Summary: probe.Summary, ErrorCode: probe.ErrorCode, OccurredAt: probe.OccurredAt.UTC()})
 	}
 	response := connectivityReportResponse{SchemaVersion: value.SchemaVersion, TargetID: string(value.TargetID), Status: string(value.Status), CheckedAt: value.CheckedAt.UTC(), TotalLatencyMS: value.TotalLatency.Milliseconds(), Probes: probes}
 	if value.Route != nil {

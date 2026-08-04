@@ -16,11 +16,12 @@ const maxConnectivityHistoryLimit = 100
 
 // ConnectivityCheck 是批量和单目标执行共享的轻量查询投影。
 type ConnectivityCheck struct {
-	ID        int64
-	TargetID  moduleapi.ConnectivityTargetID
-	Status    moduleapi.ConnectivityReportStatus
-	Latency   time.Duration
-	CheckedAt time.Time
+	ID         int64
+	TargetID   moduleapi.ConnectivityTargetID
+	Status     moduleapi.ConnectivityReportStatus
+	Latency    time.Duration
+	HTTPStatus *int
+	CheckedAt  time.Time
 }
 
 // ConnectivityAggregate 是最近一轮已完成检查的有界健康摘要。
@@ -74,9 +75,9 @@ func (s *SQLConnectivityStore) Append(ctx context.Context, report moduleapi.Conn
 	}
 	defer func() { _ = tx.Rollback() }()
 	var check ConnectivityCheck
-	check.TargetID, check.Status, check.Latency, check.CheckedAt = report.TargetID, report.Status, report.TotalLatency, report.CheckedAt
-	err = tx.QueryRowContext(ctx, `INSERT INTO platform_connectivity_checks (target_id, status, latency_ms, checked_at)
-		VALUES ($1, $2, $3, $4) RETURNING id`, string(report.TargetID), string(report.Status), report.TotalLatency.Milliseconds(), report.CheckedAt).Scan(&check.ID)
+	check.TargetID, check.Status, check.Latency, check.HTTPStatus, check.CheckedAt = report.TargetID, report.Status, report.TotalLatency, connectivityReportHTTPStatus(report), report.CheckedAt
+	err = tx.QueryRowContext(ctx, `INSERT INTO platform_connectivity_checks (target_id, status, latency_ms, http_status, checked_at)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, string(report.TargetID), string(report.Status), report.TotalLatency.Milliseconds(), check.HTTPStatus, report.CheckedAt).Scan(&check.ID)
 	if err != nil {
 		return ConnectivityCheck{}, fmt.Errorf("append connectivity check: %w", err)
 	}
@@ -96,7 +97,7 @@ func (s *SQLConnectivityStore) Append(ctx context.Context, report moduleapi.Conn
 
 // Latest 返回每个目标最近一次检查，按目标稳定排序。
 func (s *SQLConnectivityStore) Latest(ctx context.Context) ([]ConnectivityCheck, error) {
-	return s.list(ctx, `SELECT DISTINCT ON (target_id) id, target_id, status, latency_ms, checked_at
+	return s.list(ctx, `SELECT DISTINCT ON (target_id) id, target_id, status, latency_ms, http_status, checked_at
 		FROM platform_connectivity_checks ORDER BY target_id, checked_at DESC, id DESC`, nil)
 }
 
@@ -105,7 +106,7 @@ func (s *SQLConnectivityStore) History(ctx context.Context, targetID moduleapi.C
 	if strings.TrimSpace(string(targetID)) == "" || limit < 1 || limit > maxConnectivityHistoryLimit {
 		return nil, errors.New("connectivity history query is invalid")
 	}
-	return s.list(ctx, `SELECT id, target_id, status, latency_ms, checked_at FROM platform_connectivity_checks
+	return s.list(ctx, `SELECT id, target_id, status, latency_ms, http_status, checked_at FROM platform_connectivity_checks
 		WHERE target_id = $1 ORDER BY checked_at DESC, id DESC LIMIT $2`, []any{string(targetID), limit})
 }
 
@@ -123,16 +124,37 @@ func (s *SQLConnectivityStore) list(ctx context.Context, query string, args []an
 		var item ConnectivityCheck
 		var targetID, status string
 		var latencyMS int64
-		if err := rows.Scan(&item.ID, &targetID, &status, &latencyMS, &item.CheckedAt); err != nil {
+		var httpStatus sql.NullInt32
+		if err := rows.Scan(&item.ID, &targetID, &status, &latencyMS, &httpStatus, &item.CheckedAt); err != nil {
 			return nil, fmt.Errorf("scan connectivity check: %w", err)
 		}
 		item.TargetID, item.Status, item.Latency, item.CheckedAt = moduleapi.ConnectivityTargetID(targetID), moduleapi.ConnectivityReportStatus(status), time.Duration(latencyMS)*time.Millisecond, item.CheckedAt.UTC()
+		if httpStatus.Valid && httpStatus.Int32 >= 100 && httpStatus.Int32 <= 599 {
+			value := int(httpStatus.Int32)
+			item.HTTPStatus = &value
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate connectivity checks: %w", err)
 	}
 	return items, nil
+}
+
+// connectivityReportHTTPStatus 返回最后一个 HTTP 探针已收到的有效响应码；没有 HTTP 响应时保留空值。
+func connectivityReportHTTPStatus(report moduleapi.ConnectivityReport) *int {
+	for index := len(report.Probes) - 1; index >= 0; index-- {
+		probe := report.Probes[index]
+		if probe.Kind != moduleapi.ConnectivityProbeHTTP {
+			continue
+		}
+		if probe.HTTPStatus == nil || *probe.HTTPStatus < 100 || *probe.HTTPStatus > 599 {
+			return nil
+		}
+		value := *probe.HTTPStatus
+		return &value
+	}
+	return nil
 }
 
 // Report 返回一个持久化报告。报告中没有完整出口 IP 或原始网络数据。

@@ -45,6 +45,9 @@ closeout:
 
 - Phase 3 implementation is complete in the current branch worktree: the shared ConnectivityStore serves batch health,
   target diagnostics, history, trace, export, and custom-target management through the canonical OpenAPI paths.
+- Phase 4 implementation adds a nullable, sanitized HTTP-status projection to each persisted connectivity check. The
+  projection comes only from the final valid HTTP `ProbeResult`, remains absent for non-HTTP/no-response targets, and
+  is available to latest, history, batch, and single-run consumers without widening the batch list into a trace view.
 - No unresolved authority escalation is known. Full web release build remains blocked by the pre-existing missing
   `monaco-editor` Dockerfile registration module; focused Network validation and all non-build frontend governance gates pass.
 - Archive readiness is satisfied; no further product implementation batch is pending.
@@ -54,6 +57,9 @@ closeout:
 - [x] Phase 1: authority, registry, capabilities, and probe/report core
 - [x] Phase 2: persistence, batch APIs, route explanation, and security boundary
 - [x] Phase 3: ConnectivityStore, batch UI, target diagnostics UI, and integrated validation
+
+Phase 4 implementation evidence is recorded in the trace for controller settlement; controller-owned loop state is
+unchanged in this worker round.
 
 ## Acceptance Conditions
 

@@ -133,6 +133,8 @@
         "target": "Target",
         "status": "Status",
         "latency": "Latency",
+        "httpStatus": "HTTP Status",
+        "unavailable": "Unavailable",
         "lastChecked": "Last Checked",
         "notChecked": "Not Checked",
         "latestResult": "Latest Result",

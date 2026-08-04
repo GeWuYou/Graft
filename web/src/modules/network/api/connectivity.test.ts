@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import {
+  type ConnectivityCheck,
   createConnectivityCustomTarget,
   deleteConnectivityCustomTarget,
   getConnectivityCustomTargets,
@@ -15,6 +16,19 @@ vi.mock('@/utils/request', () => ({
 }));
 
 describe('connectivity API', () => {
+  it('keeps the optional HTTP status projection in the check contract without loading a report', () => {
+    const check: ConnectivityCheck = {
+      check_id: 42,
+      target_id: 'github',
+      status: 'healthy',
+      latency_ms: 183,
+      http_status: 200,
+      checked_at: '2026-08-04T14:33:00Z',
+    };
+    expect(check.http_status).toBe(200);
+    expect({ ...check, http_status: null }.http_status).toBeNull();
+  });
+
   it('keeps custom target management, trace, and export on target-addressed OpenAPI paths', () => {
     getConnectivityCustomTargets();
     createConnectivityCustomTarget({

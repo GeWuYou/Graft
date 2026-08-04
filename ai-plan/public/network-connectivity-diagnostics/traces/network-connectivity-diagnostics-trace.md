@@ -46,6 +46,20 @@
 - Final acceptance review confirms target identity, shared execution/persistence model, extensible probe/report shape,
   and masked Exit-IP behavior. The topic is archive-ready.
 
+## 2026-08-04 Phase 4 HTTP Status Summary Projection
+
+- Added a nullable `http_status` field to the Network-owned `platform_connectivity_checks` summary table through a
+  forward-only migration, with a database constraint limiting stored response codes to 100–599.
+- Extended the sanitized `ProbeResult` contract with an optional HTTP response code. The constructor removes the field
+  from non-HTTP probes, invalid values, and caller-owned pointers before reports are persisted or projected.
+- The SQL store derives the summary only from the final HTTP probe: a received valid response is persisted and read
+  through latest/history/batch/run responses; a target without HTTP or without a response remains explicitly null.
+- The canonical OpenAPI schemas, bundle, generated Go types, runtime path artifacts, module migration embed, and web
+  generated schema were regenerated together. Batch Connectivity now renders a compact HTTP Status column with an
+  explicit unavailable value, while detailed traces remain target-detail only.
+- Focused and full Go tests, Network Vitest, web type/i18n checks, SQL migration validation, and OpenAPI checks pass.
+  `bun run build:release` remains blocked by the unrelated absent Monaco Dockerfile registration module.
+
 ## Loop Batch State
 
 ```json

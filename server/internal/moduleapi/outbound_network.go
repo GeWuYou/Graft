@@ -210,6 +210,7 @@ type ProbeResult struct {
 	Kind       ConnectivityProbeKind
 	Status     ProbeStatus
 	Duration   time.Duration
+	HTTPStatus *int
 	Summary    string
 	ErrorCode  string
 	OccurredAt time.Time
@@ -248,6 +249,12 @@ func NewConnectivityReport(targetID ConnectivityTargetID, status ConnectivityRep
 	for _, probe := range probes {
 		if probe.Duration < 0 {
 			probe.Duration = 0
+		}
+		if probe.Kind != ConnectivityProbeHTTP || probe.HTTPStatus == nil || *probe.HTTPStatus < 100 || *probe.HTTPStatus > 599 {
+			probe.HTTPStatus = nil
+		} else {
+			httpStatus := *probe.HTTPStatus
+			probe.HTTPStatus = &httpStatus
 		}
 		probe.Summary = sanitizeConnectivityText(probe.Summary)
 		probe.ErrorCode = sanitizeConnectivityErrorCode(probe.ErrorCode)
