@@ -22,3 +22,8 @@
 
 - Accepted `fe1ae543 feat(build): filter build history` after verifying its declared Build/OpenAPI/web/topic scope, clean worktree, and complete validation evidence.
 - Settled `phase-2-history-filtering-and-pagination`; no implementation batch remains pending, so the loop advances to the controller-owned archive-readiness check rather than stopping at batch completion.
+
+## 2026-08-04 Archive Readiness
+
+- `ARCHIVE_CHECK` passed: Build remains the owner of job/artifact history, the feature did not duplicate Task/Container/Project authority, and the persistence, OpenAPI, and web changes have complete validation evidence.
+- No additional bounded batch is justified. The topic is `archive-ready`; lessons review found no new reusable item beyond existing governance.

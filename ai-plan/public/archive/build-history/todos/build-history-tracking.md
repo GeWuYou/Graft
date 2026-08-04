@@ -31,7 +31,7 @@ closeout:
 
 - [x] Establish the first justified Build history batch.
 - [x] Add Build-owned history filtering and pagination.
-- [ ] Complete the controller-owned archive-readiness check.
+- [x] Complete the controller-owned archive-readiness check.
 
 ## Latest Batch Evidence
 
@@ -46,6 +46,11 @@ closeout:
 - No duplicate Task execution/log/realtime authority is introduced.
 - Any persistence, OpenAPI, and web changes pass the applicable completion validation.
 
+## Archive Readiness
+
+- `ARCHIVE_READY`: all acceptance conditions pass. Build retains history authority, no Task/Container/Project authority is duplicated, and the committed cross-boundary implementation passed its required validation.
+- Experience capture: none. The completed work did not produce a new reusable lesson beyond the existing authority-first and topic-completion-loop governance.
+
 ## Loop Batch State
 
 ```json
@@ -55,8 +60,8 @@ closeout:
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "active",
-  "stop_reason": null,
+  "closeout_status": "archive-ready",
+  "stop_reason": "All Build History acceptance conditions passed; no further bounded batch is justified.",
   "recovery": {"status": "none", "resume_target": null, "repair_authority": null, "repair_eligible": false}
 }
 ```
