@@ -72,7 +72,16 @@
                 v-for="row in items"
                 :key="row.module_key"
                 class="module-runtime-card"
-                :aria-label="t('monitor.moduleRuntime.detail.titleWithKey', { key: row.module_key })"
+                :aria-label="
+                  t('monitor.moduleRuntime.mobile.cardAccessibleName', {
+                    key: row.module_key,
+                    runtimeStatus: runtimeStatusLabel(row.runtime_status),
+                    overallStatus: overallStatus(row).label,
+                    enabled: booleanLabel(row.enabled),
+                    registered: booleanLabel(row.registered),
+                    health: healthLabel(row.health),
+                  })
+                "
                 role="button"
                 tabindex="0"
                 @click="openDetail(row)"

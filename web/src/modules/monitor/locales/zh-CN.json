@@ -473,6 +473,7 @@
         "allowlist": "允许列表"
       },
       "mobile": {
+        "cardAccessibleName": "{key} 运行时详情。运行状态：{runtimeStatus}。总体状态：{overallStatus}。已启用：{enabled}。已注册：{registered}。健康状态：{health}。",
         "statusDetails": "状态详情",
         "resourceStatus": "资源状态",
         "overall": {

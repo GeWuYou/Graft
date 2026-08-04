@@ -154,6 +154,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.moduleRuntime.enablementSource.all': 'All modules',
   'monitor.moduleRuntime.enablementSource.allowlist': 'Allowlist',
   'monitor.moduleRuntime.mobile.statusDetails': 'Status details',
+  'monitor.moduleRuntime.mobile.cardAccessibleName':
+    '{key} runtime detail. Runtime status: {runtimeStatus}. Overall status: {overallStatus}. Enabled: {enabled}. Registered: {registered}. Health: {health}.',
   'monitor.moduleRuntime.mobile.resourceStatus': 'Resource status',
   'monitor.moduleRuntime.mobile.overall.normal': 'Normal',
   'monitor.moduleRuntime.mobile.overall.abnormal': 'Abnormal',
@@ -700,6 +702,9 @@ describe('monitor module runtime page', () => {
     expect(cards[2].text()).toContain('Abnormal');
     expect(cards[0].attributes('role')).toBe('button');
     expect(cards[0].attributes('tabindex')).toBe('0');
+    expect(cards[0].attributes('aria-label')).toBe(
+      'audit runtime detail. Runtime status: Registered. Overall status: Normal. Enabled: Yes. Registered: Yes. Health: Healthy.',
+    );
     expect(cards[0].find('button').exists()).toBe(false);
     expect(cards[1].find('.monitor-status-tag--disabled').exists()).toBe(true);
     expect(cards[3].find('.monitor-status-tag--error').exists()).toBe(true);

@@ -473,6 +473,7 @@
         "allowlist": "Allowlist"
       },
       "mobile": {
+        "cardAccessibleName": "{key} runtime detail. Runtime status: {runtimeStatus}. Overall status: {overallStatus}. Enabled: {enabled}. Registered: {registered}. Health: {health}.",
         "statusDetails": "Status details",
         "resourceStatus": "Resource status",
         "overall": {
