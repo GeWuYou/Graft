@@ -108,7 +108,7 @@ describe('AdvancedQueryFilterBuilder', () => {
     expect(wrapper.emitted('close-tag')).toEqual([['keyword']]);
   });
 
-  it('always renders the active-filter row, including when no tags are active', async () => {
+  it('renders the active-filter row only when tags are active', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: { ...defaultProps, compactMode: true, tags: [] },
       global: {
@@ -123,11 +123,11 @@ describe('AdvancedQueryFilterBuilder', () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
-    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toBe('');
+    expect(wrapper.find('[data-testid="query-filter-builder-tags"]').exists()).toBe(false);
 
     await wrapper.setProps({ tags: defaultProps.tags });
 
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
     expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toContain('Keyword: active');
   });
 

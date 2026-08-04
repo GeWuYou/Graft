@@ -29,8 +29,12 @@ const i18nMessages: Record<string, string> = {
 };
 
 const rbacApiMocks = vi.hoisted(() => ({
+  deletePermissionSavedView: vi.fn(),
   getPermissionDetail: vi.fn(),
   getPermissions: vi.fn(),
+  getPermissionSavedViews: vi.fn(),
+  postPermissionSavedView: vi.fn(),
+  putPermissionSavedView: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({
@@ -44,8 +48,12 @@ const tabSnapshotState = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/rbac', () => ({
+  deletePermissionSavedView: rbacApiMocks.deletePermissionSavedView,
   getPermissionDetail: rbacApiMocks.getPermissionDetail,
   getPermissions: rbacApiMocks.getPermissions,
+  getPermissionSavedViews: rbacApiMocks.getPermissionSavedViews,
+  postPermissionSavedView: rbacApiMocks.postPermissionSavedView,
+  putPermissionSavedView: rbacApiMocks.putPermissionSavedView,
 }));
 
 vi.mock('@/store', () => ({
@@ -277,8 +285,12 @@ describe('PermissionPage', () => {
   beforeEach(() => {
     queryClient.clear();
     tabSnapshotState.snapshots = {};
+    rbacApiMocks.deletePermissionSavedView.mockReset();
     rbacApiMocks.getPermissionDetail.mockReset();
     rbacApiMocks.getPermissions.mockReset();
+    rbacApiMocks.getPermissionSavedViews.mockResolvedValue([]);
+    rbacApiMocks.postPermissionSavedView.mockReset();
+    rbacApiMocks.putPermissionSavedView.mockReset();
     messageMocks.error.mockReset();
     messageMocks.warning.mockReset();
   });
@@ -315,6 +327,38 @@ describe('PermissionPage', () => {
     expect(wrapper.get('[data-testid="permission-created-at-0"]').text()).toBeTruthy();
     expect(wrapper.text()).toContain('rbac.permissionList.factSourceHint');
     expect(wrapper.text()).toContain('Permission Details');
+  });
+
+  it('restores a saved permission view using the backend query-state shape', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
+    rbacApiMocks.getPermissionSavedViews.mockResolvedValue([
+      {
+        id: 8,
+        name: 'RBAC permissions',
+        page_size: 25,
+        query_state: { keyword: 'read', module: 'rbac' },
+        visible_columns: ['permission', 'module', 'unknown-column'],
+        is_default: false,
+      },
+    ]);
+
+    const wrapper = await mountPermissionPage();
+    await flushPromises();
+    const savedViewControl = wrapper.findComponent({ name: 'SavedQueryViewControl' });
+    const controller = savedViewControl.props('controller') as {
+      select: (id: number) => Promise<boolean>;
+      selectedId: { value: number | undefined };
+    };
+
+    await controller.select(8);
+    await flushPromises();
+
+    const filterBuilder = wrapper.findComponent({ name: 'AdvancedQueryFilterBuilder' });
+    const pagedTable = wrapper.findComponent({ name: 'ManagementPagedTable' });
+    expect(filterBuilder.props('keyword')).toBe('read');
+    expect(filterBuilder.props('fieldValues')).toMatchObject({ module: 'rbac' });
+    expect(pagedTable.props('pageSize')).toBe(25);
+    expect(controller.selectedId.value).toBe(8);
   });
 
   it('keeps the permission catalog as a compact data table with only identity, module, and operations', async () => {

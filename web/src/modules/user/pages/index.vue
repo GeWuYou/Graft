@@ -55,7 +55,11 @@
         @search="applyFilters"
         @update:field="updateUserFilterField"
         @update:keyword="filters.keyword = $event"
-      />
+      >
+        <template #saved-query-views>
+          <saved-query-view-control :controller="savedViews" />
+        </template>
+      </advanced-query-filter-builder>
 
       <management-paged-table
         v-model:current="pagination.current"
@@ -609,6 +613,10 @@ import {
   AdvancedQueryFilterBuilder,
   type AdvancedQueryFilterFieldDefinition,
   type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  useSavedQueryViews,
 } from '@/shared/components/query-list';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useAssignmentSelection } from '@/shared/composables';
@@ -619,7 +627,17 @@ import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from '../api/user-roles';
-import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
+import {
+  createUser,
+  deleteUser,
+  deleteUserSavedView,
+  getUserSavedViews,
+  postUserSavedView,
+  putUserSavedView,
+  resetUserPassword,
+  updateUser,
+  updateUserStatus,
+} from '../api/users';
 import UserIdentity from '../components/UserIdentity.vue';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
@@ -647,6 +665,18 @@ type UserFilters = {
   keyword: string;
   roleId: number | undefined;
   status: '' | UserStatus;
+};
+
+type UserSavedQueryState = {
+  keyword?: string;
+  role_id?: number;
+  status?: UserStatus;
+};
+
+type UserSavedViewState = {
+  pageSize: number;
+  queryState: UserSavedQueryState;
+  visibleColumns: string[];
 };
 
 type UserRow = UserListItem & {
@@ -741,6 +771,30 @@ const selectedRowKeys = ref<Array<string | number>>([]);
 const pagination = ref({
   current: 1,
   pageSize: 10,
+});
+
+const savedViews = useSavedQueryViews<UserSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getUserSavedViews()).map((view) => normalizeSavedQueryView<UserSavedQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<UserSavedQueryState, number>(await postUserSavedView(toUserSavedViewRequest(input))),
+    update: async (id, input) =>
+      normalizeSavedQueryView<UserSavedQueryState, number>(await putUserSavedView(id, toUserSavedViewRequest(input))),
+    remove: deleteUserSavedView,
+  },
+  applyView: (view) => {
+    applyUserSavedView(view.state);
+  },
+  onError: (error) => {
+    logger.error('failed to manage user saved view', error);
+    MessagePlugin.error(t('app.request.failed'));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentUserSavedQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
 });
 
 const userPermissionCodes = USER_PERMISSION_CODE;
@@ -1312,6 +1366,7 @@ function resetFilters() {
     status: '',
   };
   appliedFilters.value = { ...filters.value };
+  savedViews.selectedId.value = undefined;
   pagination.value.current = 1;
 }
 
@@ -1334,6 +1389,44 @@ function clearUserFilterTag(key: string) {
   if (key === 'status') filters.value.status = '';
   if (key === 'roleId') filters.value.roleId = undefined;
   applyFilters();
+}
+
+function currentUserSavedQueryState(): UserSavedQueryState {
+  return {
+    ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
+    ...(filters.value.roleId === undefined ? {} : { role_id: filters.value.roleId }),
+    ...(filters.value.status ? { status: filters.value.status } : {}),
+  };
+}
+
+function toUserSavedViewRequest(input: {
+  name: string;
+  isDefault: boolean;
+  state: UserSavedViewState;
+}): Parameters<typeof postUserSavedView>[0] {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState,
+    visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
+  };
+}
+
+function applyUserSavedView(state: UserSavedViewState) {
+  const query = state.queryState;
+  const nextFilters: UserFilters = {
+    keyword: query.keyword ?? '',
+    roleId: Number.isInteger(query.role_id) && (query.role_id ?? 0) > 0 ? query.role_id : undefined,
+    status: query.status === USER_STATUS.DISABLED || query.status === USER_STATUS.ENABLED ? query.status : '',
+  };
+  filters.value = nextFilters;
+  appliedFilters.value = { ...nextFilters };
+  applySavedQueryViewPresentation(state, {
+    pagination: pagination.value,
+    supportedColumns: DEFAULT_VISIBLE_COLUMNS,
+    visibleColumnKeys,
+  });
 }
 
 function formatTimestamp(value?: string | null) {
@@ -2144,6 +2237,7 @@ defineExpose({
 
 onMounted(() => {
   void loadRoleCatalog();
+  void savedViews.load();
 });
 
 watch(

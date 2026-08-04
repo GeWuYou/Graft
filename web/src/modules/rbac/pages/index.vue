@@ -53,7 +53,9 @@
         @search="applyRoleFilters"
         @update:field="updateRoleFilterField"
         @update:keyword="filters.keyword = $event"
-      />
+      >
+        <template #saved-query-views><saved-query-view-control :controller="savedViews" /></template>
+      </advanced-query-filter-builder>
 
       <management-empty-state
         v-if="listError && !loading"
@@ -571,7 +573,7 @@
 <script setup lang="ts">
 import type { FormRule, FormValidateMessage, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -606,6 +608,11 @@ import {
   AdvancedQueryFilterBuilder,
   type AdvancedQueryFilterFieldDefinition,
   type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
 } from '@/shared/components/query-list';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
@@ -622,8 +629,12 @@ import {
   cloneRole,
   createRole,
   deleteRole,
+  deleteRoleSavedView,
   getRoleDetail,
   getRolePermissionBindings,
+  getRoleSavedViews,
+  postRoleSavedView,
+  putRoleSavedView,
   removeRolePermissions,
   replaceRolePermissions,
   updateRole,
@@ -665,6 +676,12 @@ type RoleDrawerMode = 'create' | 'detail' | 'update';
 type RoleFilters = {
   keyword: string;
   type: '' | 'builtin' | 'custom';
+};
+
+type RoleSavedViewState = {
+  pageSize: number;
+  queryState: RoleFilters;
+  visibleColumns: string[];
 };
 
 type RoleFormState = {
@@ -1010,6 +1027,43 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.roleList.columns.updatedAt'), value: 'updated_at' },
   { label: t('components.commonTable.operation'), value: 'operation' },
 ]);
+
+const savedViews = useSavedQueryViews<RoleSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getRoleSavedViews()).map((view) =>
+        normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(view),
+      ),
+    create: async (input) =>
+      normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(
+        await postRoleSavedView(serializeSavedQueryViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<RoleSavedViewState['queryState'], number>(
+        await putRoleSavedView(id, serializeSavedQueryViewRequest(input)),
+      ),
+    remove: deleteRoleSavedView,
+  },
+  applyView: (view) => {
+    const savedFilters = view.state.queryState;
+    filters.value = {
+      keyword: savedFilters.keyword ?? '',
+      type: savedFilters.type === 'builtin' || savedFilters.type === 'custom' ? savedFilters.type : '',
+    };
+    appliedFilters.value = { ...filters.value };
+    applySavedQueryViewPresentation(view.state, {
+      pagination: pagination.value,
+      supportedColumns: columnSettingOptions.value.map((option) => option.value),
+      visibleColumnKeys,
+    });
+  },
+  onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.loadFailed'))),
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: { ...filters.value },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 const filteredRoles = computed(() => {
   const keyword = appliedFilters.value.keyword.trim().toLowerCase();
@@ -1988,6 +2042,8 @@ watch(
     pagination.value.current = 1;
   },
 );
+
+onMounted(() => void savedViews.load());
 
 watch(
   () => [route.query.action, canCreateRoles.value, roleDrawerVisible.value] as const,

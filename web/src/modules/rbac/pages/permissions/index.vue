@@ -48,7 +48,9 @@
         @search="applyPermissionFilters"
         @update:field="updatePermissionFilterField"
         @update:keyword="filters.keyword = $event"
-      />
+      >
+        <template #saved-query-views><saved-query-view-control :controller="savedViews" /></template>
+      </advanced-query-filter-builder>
 
       <management-empty-state
         v-if="listError && !loading"
@@ -243,7 +245,7 @@
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -268,6 +270,11 @@ import {
   AdvancedQueryFilterBuilder,
   type AdvancedQueryFilterFieldDefinition,
   type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
 } from '@/shared/components/query-list';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useTabPageSnapshot } from '@/shared/composables/useTabPageSnapshot';
@@ -275,7 +282,13 @@ import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';
 
-import { getPermissionDetail } from '../../api/rbac';
+import {
+  deletePermissionSavedView,
+  getPermissionDetail,
+  getPermissionSavedViews,
+  postPermissionSavedView,
+  putPermissionSavedView,
+} from '../../api/rbac';
 import {
   localizedPermissionDescription as localizePermissionDescription,
   localizedPermissionDisplay as localizePermissionDisplay,
@@ -294,6 +307,12 @@ const router = useRouter();
 type PermissionFilterState = {
   keyword: string;
   module: string;
+};
+
+type PermissionSavedViewState = {
+  pageSize: number;
+  queryState: PermissionFilterState;
+  visibleColumns: string[];
 };
 
 type PermissionPageSnapshot = {
@@ -390,6 +409,43 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.updatedAt'), value: 'updated_at' },
   { label: t('rbac.permissionList.columns.operation'), value: 'operation' },
 ]);
+
+const savedViews = useSavedQueryViews<PermissionSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getPermissionSavedViews()).map((view) =>
+        normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(view),
+      ),
+    create: async (input) =>
+      normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(
+        await postPermissionSavedView(serializeSavedQueryViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<PermissionSavedViewState['queryState'], number>(
+        await putPermissionSavedView(id, serializeSavedQueryViewRequest(input)),
+      ),
+    remove: deletePermissionSavedView,
+  },
+  applyView: (view) => {
+    const savedFilters = view.state.queryState;
+    filters.value = {
+      keyword: savedFilters.keyword ?? '',
+      module: savedFilters.module ?? '',
+    };
+    appliedFilters.value = { ...filters.value };
+    applySavedQueryViewPresentation(view.state, {
+      pagination: pagination.value,
+      supportedColumns: columnSettingOptions.value.map((option) => option.value),
+      visibleColumnKeys,
+    });
+  },
+  onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'))),
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: { ...filters.value },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 const filteredPermissions = computed(() => permissions.value);
 
@@ -523,6 +579,8 @@ watch(
     pagination.value.current = 1;
   },
 );
+
+onMounted(() => void savedViews.load());
 </script>
 <style scoped lang="less">
 @import '../../shared/list-page.less';

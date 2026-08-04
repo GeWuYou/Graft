@@ -6,12 +6,20 @@ import { request } from '@/utils/request';
 import {
   addRolePermissions,
   createRole,
+  deletePermissionSavedView,
   deleteRole,
+  deleteRoleSavedView,
   getPermissionDetail,
   getPermissions,
+  getPermissionSavedViews,
   getRoleDetail,
   getRolePermissionBindings,
   getRoles,
+  getRoleSavedViews,
+  postPermissionSavedView,
+  postRoleSavedView,
+  putPermissionSavedView,
+  putRoleSavedView,
   removeRolePermissions,
   replaceRolePermissions,
   updateRole,
@@ -20,8 +28,10 @@ import {
 
 vi.mock('@/utils/request', () => ({
   request: {
+    delete: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -168,6 +178,72 @@ describe('rbac api', () => {
     expect(requestPost).toHaveBeenCalledWith({
       url: buildOpenApiRuntimePath('postRoleUpdate', { id: 42 }),
       data: payload,
+    });
+  });
+
+  it('calls the canonical role saved-view paths through request.ts', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    const requestPut = vi.mocked(request.put);
+    const requestDelete = vi.mocked(request.delete);
+    const payload = {
+      name: 'System roles',
+      page_size: 25,
+      query_state: { keyword: 'admin', type: 'builtin' },
+      visible_columns: ['role', 'builtin'],
+      is_default: false,
+    };
+    requestGet.mockResolvedValueOnce({ items: [] } as never);
+    requestPost.mockResolvedValueOnce({ id: 7, ...payload } as never);
+    requestPut.mockResolvedValueOnce({ id: 7, ...payload } as never);
+    requestDelete.mockResolvedValueOnce(undefined as never);
+
+    await getRoleSavedViews();
+    await postRoleSavedView(payload);
+    await putRoleSavedView(7, payload);
+    await deleteRoleSavedView(7);
+
+    expect(requestGet).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.getRoleSavedViews });
+    expect(requestPost).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.postRoleSavedView, data: payload });
+    expect(requestPut).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('putRoleSavedView', { viewId: 7 }),
+      data: payload,
+    });
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deleteRoleSavedView', { viewId: 7 }),
+    });
+  });
+
+  it('calls the canonical permission saved-view paths through request.ts', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    const requestPut = vi.mocked(request.put);
+    const requestDelete = vi.mocked(request.delete);
+    const payload = {
+      name: 'RBAC permissions',
+      page_size: 25,
+      query_state: { keyword: 'read', module: 'rbac' },
+      visible_columns: ['permission', 'module'],
+      is_default: false,
+    };
+    requestGet.mockResolvedValueOnce({ items: [] } as never);
+    requestPost.mockResolvedValueOnce({ id: 8, ...payload } as never);
+    requestPut.mockResolvedValueOnce({ id: 8, ...payload } as never);
+    requestDelete.mockResolvedValueOnce(undefined as never);
+
+    await getPermissionSavedViews();
+    await postPermissionSavedView(payload);
+    await putPermissionSavedView(8, payload);
+    await deletePermissionSavedView(8);
+
+    expect(requestGet).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.getPermissionSavedViews });
+    expect(requestPost).toHaveBeenCalledWith({ url: OPENAPI_RUNTIME_PATH.postPermissionSavedView, data: payload });
+    expect(requestPut).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('putPermissionSavedView', { viewId: 8 }),
+      data: payload,
+    });
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deletePermissionSavedView', { viewId: 8 }),
     });
   });
 });
