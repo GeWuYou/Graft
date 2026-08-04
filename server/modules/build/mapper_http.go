@@ -7,12 +7,12 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
-func toBuildJobList(result buildstore.ListResult, limit, offset int) openapigen.BuildJobList {
+func toBuildJobList(result buildstore.ListResult, query buildstore.ListQuery) openapigen.BuildJobList {
 	items := make([]openapigen.BuildJobSummary, 0, len(result.Items))
 	for _, item := range result.Items {
 		items = append(items, toBuildJobSummary(item))
 	}
-	return openapigen.BuildJobList{Items: items, Total: result.Total, Limit: limit, Offset: offset}
+	return openapigen.BuildJobList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset}
 }
 func toBuildJobDetail(item buildstore.JobProjection) openapigen.BuildJobDetail {
 	args := make([]struct {

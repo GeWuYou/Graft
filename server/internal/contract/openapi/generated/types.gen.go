@@ -15412,6 +15412,21 @@ type GetBuildJobsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 
+	// ApplicationId Optional exact Build snapshot application identifier.
+	ApplicationId *int64 `form:"application_id,omitempty" json:"application_id,omitempty"`
+
+	// ImageRepository Optional exact Build snapshot image repository.
+	ImageRepository *string `form:"image_repository,omitempty" json:"image_repository,omitempty"`
+
+	// ImageTag Optional exact Build snapshot image tag.
+	ImageTag *string `form:"image_tag,omitempty" json:"image_tag,omitempty"`
+
+	// CreatedAfter Optional inclusive RFC 3339 lower bound for the Build snapshot creation time.
+	CreatedAfter *time.Time `form:"created_after,omitempty" json:"created_after,omitempty"`
+
+	// CreatedBefore Optional inclusive RFC 3339 upper bound for the Build snapshot creation time.
+	CreatedBefore *time.Time `form:"created_before,omitempty" json:"created_before,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

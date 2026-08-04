@@ -6,6 +6,15 @@
       "refresh": "Refresh",
       "empty": "No build jobs yet.",
       "loadFailed": "Unable to load build jobs.",
+      "filters": {
+        "applicationId": "Application ID",
+        "all": "All",
+        "createdAfter": "Created after",
+        "createdBefore": "Created before",
+        "rfc3339": "RFC 3339 timestamp",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
       "columns": {
         "build": "Build",
         "application": "Application",

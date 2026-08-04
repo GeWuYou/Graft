@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"graft/server/internal/moduleapi"
@@ -50,9 +52,19 @@ type ListResult struct {
 	Total int64
 }
 
+// ListQuery 描述 Build 历史列表支持的冻结快照过滤条件和分页窗口。
+type ListQuery struct {
+	Limit, Offset               int
+	ApplicationID               *uint64
+	ImageRepository, ImageTag   *string
+	CreatedAfter, CreatedBefore *time.Time
+}
+
 const (
-	defaultListLimit = 20
-	maxListLimit     = 100
+	defaultListLimit  = 20
+	maxListLimit      = 100
+	pageArgumentCount = 2
+	jobListFilterCap  = 5
 )
 
 // Repository 是提交与执行器路径使用的窄 Build 持久化边界。
@@ -60,20 +72,21 @@ type Repository interface {
 	CreateJob(context.Context, JobSnapshot) error
 	GetJobByTaskID(context.Context, uint64) (JobSnapshot, error)
 	SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error
-	ListJobs(context.Context, int, int) (ListResult, error)
+	ListJobs(context.Context, ListQuery) (ListResult, error)
 	GetJobByBuildID(context.Context, string) (JobProjection, error)
 }
 
 // ListJobs 读取 Build 域自己的作业与已结算 artifact，不联结 Task、Project 或 Container 内部表。
-func (r *SQLRepository) ListJobs(ctx context.Context, limit, offset int) (result ListResult, err error) {
+func (r *SQLRepository) ListJobs(ctx context.Context, query ListQuery) (result ListResult, err error) {
 	if r == nil || r.db == nil {
 		return result, errors.New("build repository is unavailable")
 	}
-	limit, offset = normalizedPagination(limit, offset)
-	if result.Total, err = r.countJobs(ctx); err != nil {
+	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
+	where, args := jobListFilters(query)
+	if result.Total, err = r.countJobs(ctx, where, args); err != nil {
 		return result, err
 	}
-	result.Items, err = r.listJobProjections(ctx, limit, offset)
+	result.Items, err = r.listJobProjections(ctx, where, args, query.Limit, query.Offset)
 	return result, err
 }
 
@@ -89,16 +102,22 @@ func normalizedPagination(limit, offset int) (int, int) {
 	return limit, offset
 }
 
-func (r *SQLRepository) countJobs(ctx context.Context) (int64, error) {
+func (r *SQLRepository) countJobs(ctx context.Context, where []string, args []any) (int64, error) {
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_jobs`).Scan(&total); err != nil {
+	query := `SELECT COUNT(*) FROM build_jobs j WHERE ` + strings.Join(where, " AND ")
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&total); err != nil {
 		return 0, fmt.Errorf("count build jobs: %w", err)
 	}
 	return total, nil
 }
 
-func (r *SQLRepository) listJobProjections(ctx context.Context, limit, offset int) (items []JobProjection, err error) {
-	rows, err := r.db.QueryContext(ctx, jobProjectionQuery+` ORDER BY j.created_at DESC, j.id DESC LIMIT $1 OFFSET $2`, limit, offset)
+func (r *SQLRepository) listJobProjections(ctx context.Context, where []string, args []any, limit, offset int) (items []JobProjection, err error) {
+	pageArgs := append(append([]any{}, args...), limit, offset)
+	limitPlaceholder := len(args) + 1
+	offsetPlaceholder := len(args) + pageArgumentCount
+	// #nosec G202 -- where clauses are assembled only from static column fragments in jobListFilters.
+	query := jobProjectionQuery + ` WHERE ` + strings.Join(where, " AND ") + ` ORDER BY j.created_at DESC, j.id DESC LIMIT $` + strconv.Itoa(limitPlaceholder) + ` OFFSET $` + strconv.Itoa(offsetPlaceholder)
+	rows, err := r.db.QueryContext(ctx, query, pageArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("list build jobs: %w", err)
 	}
@@ -118,6 +137,32 @@ func (r *SQLRepository) listJobProjections(ctx context.Context, limit, offset in
 		return nil, fmt.Errorf("iterate build jobs: %w", err)
 	}
 	return items, nil
+}
+
+func jobListFilters(query ListQuery) ([]string, []any) {
+	where := []string{"1 = 1"}
+	args := make([]any, 0, jobListFilterCap)
+	if query.ApplicationID != nil {
+		where = append(where, `j.application_id = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ApplicationID)
+	}
+	if query.ImageRepository != nil {
+		where = append(where, `j.image_repository = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageRepository)
+	}
+	if query.ImageTag != nil {
+		where = append(where, `j.image_tag = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageTag)
+	}
+	if query.CreatedAfter != nil {
+		where = append(where, `j.created_at >= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedAfter)
+	}
+	if query.CreatedBefore != nil {
+		where = append(where, `j.created_at <= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedBefore)
+	}
+	return where, args
 }
 
 // GetJobByBuildID 读取一个 Build-owned job projection。

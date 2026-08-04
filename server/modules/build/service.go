@@ -39,12 +39,12 @@ type Service struct {
 	repository buildstore.Repository
 }
 
-// ListJobs returns a bounded Build-owned job page.
-func (s *Service) ListJobs(ctx context.Context, limit, offset int) (buildstore.ListResult, error) {
+// ListJobs 返回一个按 Build 冻结快照字段过滤的受限作业页。
+func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.ListResult{}, errors.New("build service is unavailable")
 	}
-	return s.repository.ListJobs(ctx, limit, offset)
+	return s.repository.ListJobs(ctx, query)
 }
 
 // GetJob returns the Build-owned detail projection for one public build ID.

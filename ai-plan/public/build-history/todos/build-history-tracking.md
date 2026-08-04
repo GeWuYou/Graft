@@ -25,12 +25,19 @@ closeout:
 
 ## Current Recovery Point
 
-- `phase-2-history-discovery` selected Build-owned filtering and pagination as the smallest justified implementation batch.
+- `phase-2-history-filtering-and-pagination` is implemented and validated; outer loop settlement remains responsible for selecting any subsequent bounded batch.
 
 ## Task Checklist
 
 - [x] Establish the first justified Build history batch.
-- [ ] Add Build-owned history filtering and pagination.
+- [x] Add Build-owned history filtering and pagination.
+
+## Latest Batch Evidence
+
+- Build list queries now support exact `application_id`, `image_repository`, and `image_tag` filters plus inclusive RFC 3339 `created_after` and `created_before` bounds.
+- The repository computes total and items from the same Build-owned filter set and keeps `created_at DESC, id DESC` ordering stable across pagination windows.
+- The Jobs page submits the generated OpenAPI query shape and retains filter, page, and page-size state locally.
+- Validation passed: `cd server && go test ./modules/build/...`, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `just openapi-check`, and `git diff --check`.
 
 ## Acceptance Conditions
 

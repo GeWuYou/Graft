@@ -10,3 +10,10 @@
 
 - Selected filters for Build-owned immutable fields: application ID, image repository, image tag, and creation-time range.
 - Deferred saved views, Task projections, runtime drift, retention, and durable projections because current evidence does not justify their authority or integration scope.
+
+## 2026-08-04 History Filtering And Pagination
+
+- Implemented Build-owned immutable snapshot filters for application ID, image repository, image tag, and inclusive creation-time bounds through the canonical OpenAPI query contract.
+- Kept count and list reads on the same filter set with `created_at DESC, id DESC` ordering to prevent page-window instability.
+- Updated the Build Jobs page to retain filter and pagination state without adding Task status/logs, runtime facts, saved views, retention, or a durable projection.
+- Regenerated contract projections and passed focused Build tests, backend validation, web validation, OpenAPI validation, and whitespace validation.

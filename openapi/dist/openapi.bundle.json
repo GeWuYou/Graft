@@ -16092,6 +16092,54 @@
               "minimum": 0,
               "default": 0
             }
+          },
+          {
+            "in": "query",
+            "name": "application_id",
+            "description": "Optional exact Build snapshot application identifier.",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "image_repository",
+            "description": "Optional exact Build snapshot image repository.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "image_tag",
+            "description": "Optional exact Build snapshot image tag.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_after",
+            "description": "Optional inclusive RFC 3339 lower bound for the Build snapshot creation time.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_before",
+            "description": "Optional inclusive RFC 3339 upper bound for the Build snapshot creation time.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           }
         ],
         "security": [

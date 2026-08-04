@@ -19899,6 +19899,16 @@ export interface operations {
       query?: {
         limit?: number;
         offset?: number;
+        /** @description Optional exact Build snapshot application identifier. */
+        application_id?: number;
+        /** @description Optional exact Build snapshot image repository. */
+        image_repository?: string;
+        /** @description Optional exact Build snapshot image tag. */
+        image_tag?: string;
+        /** @description Optional inclusive RFC 3339 lower bound for the Build snapshot creation time. */
+        created_after?: string;
+        /** @description Optional inclusive RFC 3339 upper bound for the Build snapshot creation time. */
+        created_before?: string;
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

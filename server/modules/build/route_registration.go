@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,10 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
-const buildJobsRoute = "/jobs"
+const (
+	buildJobsRoute        = "/jobs"
+	buildListDefaultLimit = 20
+)
 
 //nolint:gocognit,gocyclo,cyclop // 单一 HTTP 提交边界将身份、幂等键与生成契约的转换保持在一起。
 func registerRoutes(ctx *module.Context, service *Service) error {
@@ -40,16 +44,16 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group := ctx.Router.Group("/api/build")
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
-		limit, offset, ok := buildListQuery(c)
+		query, ok := buildListQuery(c)
 		if !ok {
 			return
 		}
-		result, err := service.ListJobs(c.Request.Context(), limit, offset)
+		result, err := service.ListJobs(c.Request.Context(), query)
 		if err != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, toBuildJobList(result, limit, offset))
+		httpx.WriteSuccess(c, http.StatusOK, toBuildJobList(result, query))
 	})
 	group.GET(buildJobsRoute+"/:buildId", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		job, err := service.GetJob(c.Request.Context(), c.Param("buildId"))
@@ -107,20 +111,100 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	return nil
 }
 
-func buildListQuery(c *gin.Context) (int, int, bool) {
-	limit, offset := 20, 0
-	var err error
+func buildListQuery(c *gin.Context) (buildstore.ListQuery, bool) {
+	query, ok := buildPaginationQuery(c)
+	if !ok {
+		return buildstore.ListQuery{}, false
+	}
+	if !bindBuildHistoryFilters(c, &query) {
+		return buildstore.ListQuery{}, false
+	}
+	if query.CreatedAfter != nil && query.CreatedBefore != nil && query.CreatedAfter.After(*query.CreatedBefore) {
+		return buildstore.ListQuery{}, false
+	}
+	return query, true
+}
+
+func buildPaginationQuery(c *gin.Context) (buildstore.ListQuery, bool) {
+	query := buildstore.ListQuery{Limit: buildListDefaultLimit}
 	if raw := c.Query("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
+		limit, err := strconv.Atoi(raw)
 		if err != nil || limit < 1 || limit > 100 {
-			return 0, 0, false
+			return buildstore.ListQuery{}, false
 		}
+		query.Limit = limit
 	}
 	if raw := c.Query("offset"); raw != "" {
-		offset, err = strconv.Atoi(raw)
+		offset, err := strconv.Atoi(raw)
 		if err != nil || offset < 0 {
-			return 0, 0, false
+			return buildstore.ListQuery{}, false
 		}
+		query.Offset = offset
 	}
-	return limit, offset, true
+	return query, true
+}
+
+func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
+	applicationID, ok := buildApplicationIDQuery(c)
+	if !ok {
+		return false
+	}
+	query.ApplicationID = applicationID
+	imageRepository, ok := buildExactStringQuery(c, "image_repository")
+	if !ok {
+		return false
+	}
+	query.ImageRepository = imageRepository
+	imageTag, ok := buildExactStringQuery(c, "image_tag")
+	if !ok {
+		return false
+	}
+	query.ImageTag = imageTag
+	createdAfter, ok := buildTimeQuery(c, "created_after")
+	if !ok {
+		return false
+	}
+	query.CreatedAfter = createdAfter
+	createdBefore, ok := buildTimeQuery(c, "created_before")
+	if !ok {
+		return false
+	}
+	query.CreatedBefore = createdBefore
+	return true
+}
+
+func buildApplicationIDQuery(c *gin.Context) (*uint64, bool) {
+	raw, present := c.GetQuery("application_id")
+	if !present {
+		return nil, true
+	}
+	value, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil || value == 0 {
+		return nil, false
+	}
+	return &value, true
+}
+
+func buildExactStringQuery(c *gin.Context, key string) (*string, bool) {
+	raw, present := c.GetQuery(key)
+	if !present {
+		return nil, true
+	}
+	value := strings.TrimSpace(raw)
+	if value == "" || len(value) > 255 {
+		return nil, false
+	}
+	return &value, true
+}
+
+func buildTimeQuery(c *gin.Context, key string) (*time.Time, bool) {
+	raw, present := c.GetQuery(key)
+	if !present {
+		return nil, true
+	}
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, false
+	}
+	return &value, true
 }

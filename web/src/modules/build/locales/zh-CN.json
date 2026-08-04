@@ -6,6 +6,15 @@
       "refresh": "刷新",
       "empty": "暂无构建任务。",
       "loadFailed": "无法加载构建任务。",
+      "filters": {
+        "applicationId": "应用 ID",
+        "all": "全部",
+        "createdAfter": "创建时间下限",
+        "createdBefore": "创建时间上限",
+        "rfc3339": "RFC 3339 时间戳",
+        "apply": "应用筛选",
+        "reset": "重置"
+      },
       "columns": {
         "build": "构建",
         "application": "应用",
