@@ -317,6 +317,7 @@ type PermissionSavedViewState = {
 
 type PermissionPageSnapshot = {
   columnDrawerVisible: boolean;
+  appliedFilters: PermissionFilterState;
   filters: PermissionFilterState;
   pagination: {
     current: number;
@@ -356,7 +357,7 @@ const listError = computed(() =>
 useTabPageSnapshot<PermissionPageSnapshot>({
   apply(snapshot) {
     filters.value = { ...snapshot.filters };
-    appliedFilters.value = { ...snapshot.filters };
+    appliedFilters.value = { ...(snapshot.appliedFilters ?? snapshot.filters) };
     visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
     pagination.value = { ...snapshot.pagination };
     columnDrawerVisible.value = snapshot.columnDrawerVisible;
@@ -364,6 +365,7 @@ useTabPageSnapshot<PermissionPageSnapshot>({
   read() {
     return {
       columnDrawerVisible: columnDrawerVisible.value,
+      appliedFilters: { ...appliedFilters.value },
       filters: { ...filters.value },
       pagination: { ...pagination.value },
       visibleColumnKeys: [...visibleColumnKeys.value],
@@ -442,7 +444,7 @@ const savedViews = useSavedQueryViews<PermissionSavedViewState, number>({
   onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'))),
   serializeCurrentState: () => ({
     pageSize: pagination.value.pageSize,
-    queryState: { ...filters.value },
+    queryState: { ...appliedFilters.value },
     visibleColumns: [...visibleColumnKeys.value],
   }),
 });

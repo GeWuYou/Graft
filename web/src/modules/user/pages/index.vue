@@ -1393,9 +1393,9 @@ function clearUserFilterTag(key: string) {
 
 function currentUserSavedQueryState(): UserSavedQueryState {
   return {
-    ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
-    ...(filters.value.roleId === undefined ? {} : { role_id: filters.value.roleId }),
-    ...(filters.value.status ? { status: filters.value.status } : {}),
+    ...(appliedFilters.value.keyword.trim() ? { keyword: appliedFilters.value.keyword.trim() } : {}),
+    ...(appliedFilters.value.roleId === undefined ? {} : { role_id: appliedFilters.value.roleId }),
+    ...(appliedFilters.value.status ? { status: appliedFilters.value.status } : {}),
   };
 }
 

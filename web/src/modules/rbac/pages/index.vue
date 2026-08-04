@@ -734,6 +734,7 @@ type PermissionDomain = {
 
 type RolePageSnapshot = {
   columnDrawerVisible: boolean;
+  appliedFilters: RoleFilters;
   filters: RoleFilters;
   pagination: {
     current: number;
@@ -794,7 +795,7 @@ const pagination = ref({
 useTabPageSnapshot<RolePageSnapshot>({
   apply(snapshot) {
     filters.value = { ...snapshot.filters };
-    appliedFilters.value = { ...snapshot.filters };
+    appliedFilters.value = { ...(snapshot.appliedFilters ?? snapshot.filters) };
     visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
     pagination.value = { ...snapshot.pagination };
     columnDrawerVisible.value = snapshot.columnDrawerVisible;
@@ -808,6 +809,7 @@ useTabPageSnapshot<RolePageSnapshot>({
   read() {
     return {
       columnDrawerVisible: columnDrawerVisible.value,
+      appliedFilters: { ...appliedFilters.value },
       filters: { ...filters.value },
       pagination: { ...pagination.value },
       roleDrawer: {
@@ -1060,7 +1062,7 @@ const savedViews = useSavedQueryViews<RoleSavedViewState, number>({
   onError: (error) => MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.loadFailed'))),
   serializeCurrentState: () => ({
     pageSize: pagination.value.pageSize,
-    queryState: { ...filters.value },
+    queryState: { ...appliedFilters.value },
     visibleColumns: [...visibleColumnKeys.value],
   }),
 });

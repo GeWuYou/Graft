@@ -175,6 +175,12 @@ describe('AppLogFilters', () => {
     ]);
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
-    expect(wrapper.emitted('reset')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      sorters: [
+        { field: 'severity', direction: 'asc' },
+        { field: 'component', direction: 'desc' },
+      ],
+    });
   });
 });

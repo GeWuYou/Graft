@@ -242,7 +242,10 @@ describe('AccessLogFilters', () => {
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
-    expect(wrapper.emitted('reset')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      sorters: [],
+    });
   });
 
   it('routes builder preset clicks through the page apply-preset event', async () => {

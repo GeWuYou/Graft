@@ -226,7 +226,10 @@ describe('AuditFilters', () => {
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
-    expect(wrapper.emitted('reset')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1);
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      sorters: [],
+    });
   });
 
   it('normalizes duplicate created_at sorters and hard-disables add and move controls', () => {
