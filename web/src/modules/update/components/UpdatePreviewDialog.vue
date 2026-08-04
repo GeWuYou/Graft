@@ -4,6 +4,7 @@
     :header="t('update.preview.title')"
     :cancel-btn="null"
     :confirm-btn="null"
+    attach="body"
     width="480px"
     @close="emit('update:visible', false)"
   >

@@ -45,6 +45,10 @@ vi.mock('@/locales/useLocale', () => ({
 vi.mock('@/modules/auth/store', () => ({
   useAuthSessionStore: () => ({ logout: vi.fn(), userInfo: { name: 'Graft Admin' } }),
 }));
+vi.mock('@/modules/update', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/modules/update')>()),
+  updateVersionEntry: defineComponent({ template: '<span data-testid="header-version-entry">version</span>' }),
+}));
 vi.mock('@/router', () => ({ getActive: () => '', useRouter: () => ({ push: vi.fn() }) }));
 
 const headMenuStub = defineComponent({
@@ -213,6 +217,7 @@ describe('Header', () => {
       'layout.header.openNavigation',
     );
     expect(wrapper.find('.header-logo-container').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="header-version-entry"]').exists()).toBe(false);
     expect(wrapper.find('.header-menu').exists()).toBe(false);
     expect(wrapper.find('[data-testid="header-document-fullscreen-toggle"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="header-more-tools"]').attributes('aria-label')).toBe('layout.header.moreTools');
@@ -239,6 +244,21 @@ describe('Header', () => {
     const wrapper = mountHeader({ navigationPresentation: 'drawer' });
 
     expect(wrapper.find('[data-testid="header-navigation-toggle"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it.each(['top', 'mix'])('renders the version entry beside the desktop %s layout brand', (layout) => {
+    const wrapper = mountHeader({ layout, navigationPresentation: 'desktop' });
+
+    expect(wrapper.find('.header-brand-container .header-logo-container').exists()).toBe(true);
+    expect(wrapper.find('.header-brand-container [data-testid="header-version-entry"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('keeps the version entry out of the side layout header because the side navigation owns it', () => {
+    const wrapper = mountHeader({ layout: 'side', navigationPresentation: 'desktop' });
+
+    expect(wrapper.find('[data-testid="header-version-entry"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
