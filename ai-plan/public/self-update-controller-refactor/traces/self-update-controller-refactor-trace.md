@@ -71,6 +71,14 @@
   recovery materials with missing-state `runner_lost` behavior; the beta cutover removes legacy runtime compatibility.
 - Validation passed: `go run ./cmd/graft validate backend`, `just openapi-check`, and `bun run check`.
 
+## 2026-08-04 PR Review Clarification
+
+- Clarified ADR-009 and the release design: bootstrap has read-write access only for the one-time legacy schema-v1
+  cutover before migration. It cannot create or modify schema-v2 `current.json` snapshots or event records; after
+  cutover, the runner is the sole schema-v2 runtime writer and server remains read-only.
+- Extended the RBAC Saved View handler regression test so unauthenticated GET, POST, PUT, and DELETE requests all
+  return the expected error response before reaching the service boundary.
+
 ## Loop Batch State
 
 ```json

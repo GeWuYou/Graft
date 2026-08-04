@@ -107,12 +107,25 @@ func TestRBACSavedViewHandlersServeCRUDAndRequireOwner(t *testing.T) {
 		t.Fatalf("delete args = (%d, %q, %d)", service.deleteOwner, service.deleteSurface, service.deleteID)
 	}
 
-	unauthenticated := httptest.NewRecorder()
 	missingOwner := gin.New()
 	missingOwner.GET("/saved-views", handleRBACSavedViewList(nil, service, roleSavedViewDefinition))
-	missingOwner.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/saved-views", nil))
-	if unauthenticated.Code != http.StatusBadRequest {
-		t.Fatalf("unauthenticated GET status = %d, want %d", unauthenticated.Code, http.StatusBadRequest)
+	missingOwner.POST("/saved-views", handleRBACSavedViewCreate(nil, service, roleSavedViewDefinition))
+	missingOwner.PUT("/saved-views/:viewId", handleRBACSavedViewUpdate(nil, service, roleSavedViewDefinition))
+	missingOwner.DELETE("/saved-views/:viewId", handleRBACSavedViewDelete(nil, service, roleSavedViewDefinition))
+	for _, test := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/saved-views"},
+		{method: http.MethodPost, path: "/saved-views"},
+		{method: http.MethodPut, path: "/saved-views/42"},
+		{method: http.MethodDelete, path: "/saved-views/42"},
+	} {
+		unauthenticated := httptest.NewRecorder()
+		missingOwner.ServeHTTP(unauthenticated, httptest.NewRequest(test.method, test.path, nil))
+		if unauthenticated.Code != http.StatusBadRequest {
+			t.Fatalf("unauthenticated %s status = %d, want %d", test.method, unauthenticated.Code, http.StatusBadRequest)
+		}
 	}
 }
 

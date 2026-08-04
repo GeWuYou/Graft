@@ -24,8 +24,8 @@ operation. It starts after `server` accepts and persists an authorization/audita
 not an execution phase. The runner writes the first authoritative execution state and continues independently while
 `server` and `web` are recreated.
 
-The official Compose installation provides one named update-state volume. The runner is its only writer; `server`
-mounts it read-only. The volume stores a versioned atomic `current.json` snapshot and operation-scoped append-only
+The official Compose installation provides one named update-state volume. After the beta cutover completes, the runner
+is its only schema-v2 runtime writer; `server` mounts it read-only. The volume stores a versioned atomic `current.json` snapshot and operation-scoped append-only
 event records. Snapshot writes use a temporary file, durable flush, and atomic rename; each update has a monotonically
 increasing revision. Event records contain the operation binding, sequence, timestamp, phase transition, and snapshot
 integrity digest so a restarted server can validate and reconstruct the latest durable state. The state store never
@@ -83,7 +83,8 @@ malformed, missing-version, future-version, or otherwise unsafe state fails clos
 `runner_terminated` compatibility value is removed from the runtime contract.
 
 Before `graft migrate up`, official Compose bootstrap invokes `graft update cutover-v1` with the named state volume
-read-write. The command is idempotent: an empty volume or valid schema-v2 state is left untouched; a valid schema-v1
+read-write. This is a one-time legacy schema-v1 writer only: it must not create or modify schema-v2 `current.json`
+snapshots or event records. The command is idempotent: an empty volume or valid schema-v2 state is left untouched; a valid schema-v1
 state cancels related Task and planned Backup handoffs through their owner services, marks only explicitly identified
 non-terminal Update rows for legacy purge, and deletes the v1 snapshot/event tree. The following forward-only SQL
 migration deletes those marked Update rows and their linked diagnostics while preserving Task and Backup audit facts and
