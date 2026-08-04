@@ -10007,7 +10007,7 @@
         "tags": [
           "platform-update"
         ],
-        "summary": "Recover a lost self-update runner",
+        "summary": "Recover a lost or corrupt self-update runner",
         "operationId": "postPlatformUpdateOperationRecovery",
         "description": "Starts one protected, one-shot recovery runner for a `runner_lost` or `runner_state_corrupt` operation after the loss window. A verified snapshot must be pre-migration and non-terminal; a missing or corrupt snapshot is quarantined by the state-volume-only recovery runner. The server never resumes the upgrade or fabricates a lifecycle phase.",
         "security": [

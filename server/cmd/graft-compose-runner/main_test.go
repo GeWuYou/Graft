@@ -178,7 +178,8 @@ func TestRecoverTerminatedRunnerQuarantinesCorruptSnapshot(t *testing.T) {
 	if err := store.Write(state); err != nil {
 		t.Fatalf("write initial state: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "current.json"), []byte(`{"schema_version":2}`), 0o600); err != nil {
+	corruptSnapshot := []byte(`{"schema_version":2}`)
+	if err := os.WriteFile(filepath.Join(root, "current.json"), corruptSnapshot, 0o600); err != nil {
 		t.Fatalf("corrupt state: %v", err)
 	}
 	recovery := update.RunnerRecoveryInput{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Strategy: state.Strategy, Corrupt: true}
@@ -196,6 +197,14 @@ func TestRecoverTerminatedRunnerQuarantinesCorruptSnapshot(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join(root, "quarantine"))
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("quarantine entries = %#v, %v", entries, err)
+	}
+	// #nosec G304 -- path is under this test's temporary state root and uses the directory just created by Quarantine.
+	quarantinedSnapshot, err := os.ReadFile(filepath.Join(root, "quarantine", entries[0].Name(), "current.json"))
+	if err != nil {
+		t.Fatalf("read quarantined snapshot: %v", err)
+	}
+	if !bytes.Equal(quarantinedSnapshot, corruptSnapshot) {
+		t.Fatalf("quarantined snapshot = %q, want %q", quarantinedSnapshot, corruptSnapshot)
 	}
 }
 

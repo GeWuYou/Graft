@@ -121,6 +121,45 @@ func TestFileRunnerStateStoreRetriesAfterEventPublishFailure(t *testing.T) {
 	assertRunnerStateEventMatchesCurrent(t, store, eventPath, next)
 }
 
+func TestFileRunnerStateStoreRestoresSnapshotWhenEventQuarantineFails(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-state-quarantine-retry", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-state-quarantine-retry", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	currentPath := filepath.Join(store.root, "current.json")
+	// #nosec G304 -- currentPath is derived from this test's t.TempDir-backed state store.
+	original, err := os.ReadFile(currentPath)
+	if err != nil {
+		t.Fatalf("read current snapshot: %v", err)
+	}
+	eventPath := filepath.Join(store.root, "events", input.OperationID)
+	store.renameFile = func(oldPath, newPath string) error {
+		if oldPath == eventPath {
+			return errors.New("event quarantine unavailable")
+		}
+		return os.Rename(oldPath, newPath)
+	}
+	if err := store.Quarantine(input.OperationID); err == nil || !strings.Contains(err.Error(), "quarantine runner state events") {
+		t.Fatalf("quarantine error = %v", err)
+	}
+	// #nosec G304 -- currentPath is derived from this test's t.TempDir-backed state store.
+	restored, err := os.ReadFile(currentPath)
+	if err != nil {
+		t.Fatalf("read restored snapshot: %v", err)
+	}
+	if string(restored) != string(original) {
+		t.Fatalf("restored snapshot = %q, want %q", restored, original)
+	}
+	if _, err := os.Stat(eventPath); err != nil {
+		t.Fatalf("event directory after failed quarantine: %v", err)
+	}
+}
+
 func assertRunnerStateEventMatchesCurrent(t *testing.T, store *FileRunnerStateStore, eventPath string, want RunnerState) {
 	t.Helper()
 	current, err := os.ReadFile(filepath.Join(store.root, "current.json"))

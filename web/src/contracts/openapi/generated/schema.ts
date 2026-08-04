@@ -1816,7 +1816,7 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Recover a lost self-update runner
+     * Recover a lost or corrupt self-update runner
      * @description Starts one protected, one-shot recovery runner for a `runner_lost` or `runner_state_corrupt` operation after the loss window. A verified snapshot must be pre-migration and non-terminal; a missing or corrupt snapshot is quarantined by the state-volume-only recovery runner. The server never resumes the upgrade or fabricates a lifecycle phase.
      */
     post: operations['postPlatformUpdateOperationRecovery'];

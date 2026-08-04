@@ -188,7 +188,8 @@ func (s *FileRunnerStateStore) Read() (RunnerState, error) {
 	return state, nil
 }
 
-// Quarantine 原子保留当前快照和同一操作的事件，供恢复 runner 再写入可信终态。
+// Quarantine 隔离当前快照和同一操作的事件，供恢复 runner 再写入可信终态。
+// 若事件隔离失败，会恢复已移动的快照，避免后续恢复尝试丢失待隔离的状态证据。
 func (s *FileRunnerStateStore) Quarantine(operationID string) error {
 	if s == nil || !runnerOperationID.MatchString(operationID) {
 		return errors.New("runner state quarantine is unavailable")
@@ -199,11 +200,17 @@ func (s *FileRunnerStateStore) Quarantine(operationID string) error {
 	if err := os.MkdirAll(quarantine, runnerStateDirectoryPermission); err != nil {
 		return fmt.Errorf("create runner state quarantine: %w", err)
 	}
-	if err := os.Rename(filepath.Join(s.root, "current.json"), filepath.Join(quarantine, "current.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+	currentPath := filepath.Join(s.root, "current.json")
+	quarantinedCurrentPath := filepath.Join(quarantine, "current.json")
+	if err := s.renameFile(currentPath, quarantinedCurrentPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("quarantine runner state snapshot: %w", err)
 	}
-	if err := os.Rename(filepath.Join(s.root, "events", operationID), filepath.Join(quarantine, "events")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("quarantine runner state events: %w", err)
+	if err := s.renameFile(filepath.Join(s.root, "events", operationID), filepath.Join(quarantine, "events")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		quarantineErr := fmt.Errorf("quarantine runner state events: %w", err)
+		if restoreErr := s.renameFile(quarantinedCurrentPath, currentPath); restoreErr != nil && !errors.Is(restoreErr, os.ErrNotExist) {
+			return errors.Join(quarantineErr, fmt.Errorf("restore runner state snapshot: %w", restoreErr))
+		}
+		return quarantineErr
 	}
 	return nil
 }
