@@ -60,6 +60,17 @@
 - Focused and full Go tests, Network Vitest, web type/i18n checks, SQL migration validation, and OpenAPI checks pass.
   `bun run build:release` remains blocked by the unrelated absent Monaco Dockerfile registration module.
 
+## 2026-08-04 Controller Settle: Phase 4 And Final Archive Readiness
+
+- Independently re-ran the Network/Update/moduleapi tests, full server test suite, vet, SQL migration validation,
+  OpenAPI closure, Network Vitest, web typecheck, and strict i18n validation for `4c61b485`.
+- Accepted the structured nullable HTTP-status summary as the final missing batch-health field. It retains the compact
+  batch projection while trace data remains available only from target diagnostics.
+- All product acceptance conditions are met: target identity, shared store/execution model, capability-driven probes,
+  route explanation, history/trace/export, custom target management, aggregate health, and masked Exit-IP handling.
+- The topic remains archive-ready. The release build limitation is confined to the pre-existing missing Monaco
+  Dockerfile registration module and is recorded without attributing it to Network.
+
 ## Loop Batch State
 
 ```json
@@ -68,7 +79,8 @@
   "completed_batches": [
     "phase-1-authority-registry-probe-core",
     "phase-2-persistence-api-security",
-    "phase-3-web-experience-integration"
+    "phase-3-web-experience-integration",
+    "phase-4-http-status-summary-projection"
   ],
   "pending_batches": [],
   "current_batch": null,

@@ -57,6 +57,7 @@ closeout:
 - [x] Phase 1: authority, registry, capabilities, and probe/report core
 - [x] Phase 2: persistence, batch APIs, route explanation, and security boundary
 - [x] Phase 3: ConnectivityStore, batch UI, target diagnostics UI, and integrated validation
+- [x] Phase 4: HTTP-status summary projection for batch/latest/history checks
 
 Phase 4 implementation evidence is recorded in the trace for controller settlement; controller-owned loop state is
 unchanged in this worker round.
@@ -76,7 +77,8 @@ unchanged in this worker round.
   "completed_batches": [
     "phase-1-authority-registry-probe-core",
     "phase-2-persistence-api-security",
-    "phase-3-web-experience-integration"
+    "phase-3-web-experience-integration",
+    "phase-4-http-status-summary-projection"
   ],
   "pending_batches": [],
   "current_batch": null,
