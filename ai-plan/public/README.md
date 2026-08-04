@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `build-history`
+  - Recovery entry: `ai-plan/public/build-history/README.md`
+
 - `network-connectivity-diagnostics`
   - Recovery entry: `ai-plan/public/network-connectivity-diagnostics/README.md`
 
