@@ -377,6 +377,34 @@ describe('update progress store', () => {
     expect(store.operation?.phase).toBe('FAILED');
   });
 
+  it('replays missed events when a reopened stream observes a terminal snapshot', async () => {
+    vi.mocked(getUpdateOperation)
+      .mockResolvedValueOnce(operation('operation-1'))
+      .mockResolvedValueOnce(operation('operation-1', 'SUCCESS', 100));
+    vi.mocked(getUpdateOperationEvents)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          operation_id: 'operation-1',
+          revision: 1,
+          phase: 'SUCCESS',
+          message: 'update_complete',
+          occurred_at: '',
+        },
+      ] as never);
+    const store = useUpdateProgressStore();
+
+    await store.begin(acknowledgement('operation-1'));
+    const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
+    onStateChange?.('open');
+    await flushPromises();
+
+    expect(store.phase).toBe('success');
+    expect(store.events.map((event) => event.revision)).toEqual([1]);
+    expect(store.latestEventRevision).toBe(1);
+    expect(getUpdateOperationEvents).toHaveBeenLastCalledWith('operation-1', 0);
+  });
+
   it('keeps polling when recovery initially observes the stale runner-lost projection', async () => {
     vi.mocked(getUpdateOperation)
       .mockResolvedValueOnce({

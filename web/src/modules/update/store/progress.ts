@@ -138,7 +138,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       try {
         const operation = await getUpdateOperation(operationID);
         await this.applyOperation(session, operation);
-        if (!this.isTerminal()) await this.refreshEvents(session);
+        await this.refreshEvents(session, operationID);
         if (session === this.session && !this.isTerminal() && !this.stream) this.connect(session);
       } catch (error) {
         if (session !== this.session || this.isTerminal()) return;
@@ -175,11 +175,11 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       }
       await this.applyOperation(session, message);
     },
-    async refreshEvents(session: number) {
-      const operationID = this.operationID;
-      if (!operationID || session !== this.session) return;
+    async refreshEvents(session: number, operationID?: string | null) {
+      const trackedOperationID = operationID ?? this.operationID;
+      if (!trackedOperationID || session !== this.session) return;
       try {
-        const events = await getUpdateOperationEvents(operationID, this.latestEventRevision);
+        const events = await getUpdateOperationEvents(trackedOperationID, this.latestEventRevision);
         if (session !== this.session) return;
         events.forEach((event) => this.appendEvent(event));
       } catch (error) {
