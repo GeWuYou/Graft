@@ -67,9 +67,19 @@
         <t-select v-model="sortBy" :options="sortOptions" :aria-label="t('network.outbound.connectivity.sortBy')" />
       </div>
       <t-table row-key="id" :data="rows" :columns="columns" :hover="true" @row-click="openTarget">
-        <template #target="{ row }"
-          ><strong>{{ targetTitle(row) }}</strong></template
-        >
+        <template #target="{ row }">
+          <t-link
+            theme="primary"
+            hover="color"
+            :href="
+              router.resolve({ name: 'PlatformNetworkConnectivityDiagnostics', params: { targetId: row.id } }).href
+            "
+            @click.stop.prevent="openTarget({ row })"
+            @keydown.enter.stop.prevent="openTarget({ row })"
+          >
+            {{ targetTitle(row) }}
+          </t-link>
+        </template>
         <template #status="{ row }"
           ><t-tag :theme="statusTheme(row.status)" variant="light">{{ statusLabel(row.status) }}</t-tag></template
         >
@@ -277,7 +287,10 @@ async function removeTarget(targetId: string) {
 
 function startAutoRefresh() {
   stopAutoRefresh();
-  autoRefreshTimer = setInterval(() => void runAll(), AUTO_REFRESH_INTERVAL_MS);
+  autoRefreshTimer = setInterval(
+    () => void store.refresh().catch((value) => (error.value = String(value))),
+    AUTO_REFRESH_INTERVAL_MS,
+  );
 }
 
 function stopAutoRefresh() {

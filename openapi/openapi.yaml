@@ -828,6 +828,16 @@ components:
       $ref: ./components/schemas/enveloped-platform-network-diagnostic-result.yaml
     EnvelopedPlatformNetworkDiagnosticHistory:
       $ref: ./components/schemas/enveloped-platform-network-diagnostic-history.yaml
+    PlatformNetworkConnectivityTargetCategory:
+      $ref: ./components/schemas/platform-network-connectivity-target-category.yaml
+    PlatformNetworkConnectivityTargetFeature:
+      $ref: ./components/schemas/platform-network-connectivity-target-feature.yaml
+    PlatformNetworkConnectivityProbeKind:
+      $ref: ./components/schemas/platform-network-connectivity-probe-kind.yaml
+    PlatformNetworkConnectivityRouteDecision:
+      $ref: ./components/schemas/platform-network-connectivity-route-decision.yaml
+    PlatformNetworkConnectivityTarget:
+      $ref: ./components/schemas/platform-network-connectivity-target.yaml
     PlatformUpdateStatus:
       $ref: ./components/schemas/platform-update-status.yaml
     PlatformDeploymentStrategy:

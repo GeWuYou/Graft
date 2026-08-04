@@ -9,4 +9,4 @@ properties:
     type: object
     required: [items]
     properties:
-      items: { type: array, items: { $ref: ./platform-network-connectivity-target.yaml } }
+      items: { type: array, maxItems: 100, items: { $ref: ./platform-network-connectivity-target.yaml } }

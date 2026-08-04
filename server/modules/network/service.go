@@ -81,6 +81,8 @@ func (s *Service) RunConnectivity(ctx context.Context, targetID moduleapi.Connec
 
 // RunAllConnectivity 经由相同的单目标流水线执行当前已注册且已启用的目标集合。
 // 它有意由 registry 和自定义目标管理边界限制，不接受调用方提供的无界 ID 列表。
+//
+//nolint:cyclop // 内建与自定义目标的受限聚合、失败审计及持久化调用必须保持单一可审计的顺序。
 func (s *Service) RunAllConnectivity(ctx context.Context) ([]ConnectivityCheck, error) {
 	if s == nil || s.diagnostics == nil {
 		return nil, errors.New("connectivity service is unavailable")
@@ -104,6 +106,9 @@ func (s *Service) RunAllConnectivity(ctx context.Context) ([]ConnectivityCheck, 
 	for _, targetID := range ids {
 		check, _, err := s.RunConnectivity(ctx, targetID)
 		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("connectivity target failed", zap.String("target_id", string(targetID)), zap.Error(err))
+			}
 			continue
 		}
 		checks = append(checks, check)
@@ -112,21 +117,27 @@ func (s *Service) RunAllConnectivity(ctx context.Context) ([]ConnectivityCheck, 
 }
 
 // ConnectivityTargets 返回 registry 的稳定描述快照，供批量健康检查和 target 诊断共用。
-func (s *Service) ConnectivityTargets() ([]moduleapi.ConnectivityTargetDescriptor, error) {
+func (s *Service) ConnectivityTargets(ctx context.Context) ([]moduleapi.ConnectivityTargetDescriptor, error) {
 	if s == nil || s.diagnostics == nil {
 		return nil, errors.New("connectivity service is unavailable")
 	}
 	targets := s.diagnostics.ConnectivityTargetDescriptors()
+	if len(targets) >= maxConnectivityTargetListSize {
+		return targets[:maxConnectivityTargetListSize], nil
+	}
 	if s.customTargets == nil {
 		return targets, nil
 	}
-	customTargets, err := s.customTargets.ListCustomTargets(context.Background())
+	customTargets, err := s.customTargets.ListCustomTargets(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, target := range customTargets {
 		if target.Enabled {
 			targets = append(targets, target.ConnectivityTargetDescriptor().Snapshot())
+			if len(targets) == maxConnectivityTargetListSize {
+				break
+			}
 		}
 	}
 	return targets, nil
@@ -209,11 +220,14 @@ func (s *Service) connectivityTarget(ctx context.Context, targetID moduleapi.Con
 		return nil, false, errDiagnosticTargetNotFound
 	}
 	target, err := s.customTargets.CustomTarget(ctx, targetID)
-	if errors.Is(err, errCustomConnectivityTargetNotFound) || !target.Enabled {
+	if errors.Is(err, errCustomConnectivityTargetNotFound) {
 		return nil, false, errDiagnosticTargetNotFound
 	}
 	if err != nil {
 		return nil, false, err
+	}
+	if !target.Enabled {
+		return nil, false, errDiagnosticTargetNotFound
 	}
 	return target, true, nil
 }

@@ -121,7 +121,11 @@ func (r routeRuntime) writeError(ginCtx *gin.Context, err error) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusPreconditionFailed, messagecontract.ModuleConfigPreconditionFailed.String(), nil)
 		return
 	}
-	if errors.Is(err, errDiagnosticTargetNotFound) || errors.Is(err, errCustomConnectivityTargetNotFound) {
+	if errors.Is(err, errCustomConnectivityTargetNotFound) {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "custom connectivity target"})
+		return
+	}
+	if errors.Is(err, errDiagnosticTargetNotFound) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "outbound diagnostic target"})
 		return
 	}

@@ -1,0 +1,3 @@
+type: string
+description: Administrator-facing route decision for a connectivity report.
+enum: [Direct, HTTP Proxy]

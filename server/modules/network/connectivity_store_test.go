@@ -57,6 +57,11 @@ func TestConnectivityReportHTTPStatusUsesLastHTTPProbeAndRejectsInvalidValues(t 
 	if report.Probes[1].HTTPStatus != nil {
 		t.Fatalf("expected non-HTTP status to be removed, got %#v", report.Probes[1])
 	}
+	invalidHTTP := 700
+	invalidReport := moduleapi.NewConnectivityReport("github", moduleapi.ConnectivityReportStatusFailed, time.Now(), time.Millisecond, []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: moduleapi.ProbeStatusFailed, HTTPStatus: &invalidHTTP}}, nil, nil)
+	if status := connectivityReportHTTPStatus(invalidReport); status != nil {
+		t.Fatalf("expected invalid HTTP response status to be rejected, got %#v", status)
+	}
 
 	withoutResponse := moduleapi.NewConnectivityReport("smtp", moduleapi.ConnectivityReportStatusFailed, time.Now(), time.Millisecond, []moduleapi.ProbeResult{{Kind: moduleapi.ConnectivityProbeHTTP, Status: moduleapi.ProbeStatusFailed}}, nil, nil)
 	if status := connectivityReportHTTPStatus(withoutResponse); status != nil {

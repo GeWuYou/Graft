@@ -12,4 +12,4 @@ delete:
     '204': { description: Target deleted. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Target not found. }
+    '404': { $ref: ../components/responses/not-found.yaml }

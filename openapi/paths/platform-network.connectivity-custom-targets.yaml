@@ -1,6 +1,6 @@
 get:
   tags: [platform-network]
-  summary: List custom connectivity targets
+  summary: List up to 100 custom connectivity targets
   operationId: getPlatformConnectivityCustomTargets
   security: [{ bearerAuth: [] }]
   responses:
@@ -18,6 +18,6 @@ post:
     content: { application/json: { schema: { $ref: ../components/schemas/create-platform-network-connectivity-custom-target-request.yaml } } }
   responses:
     '201': { description: Created custom target., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-custom-target.yaml } } } }
-    '400': { description: Invalid or unsafe target. }
+    '400': { $ref: ../components/responses/bad-request.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

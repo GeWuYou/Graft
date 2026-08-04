@@ -1,0 +1,3 @@
+type: string
+description: Typed connectivity probe stage.
+enum: [dns, tcp, tls, certificate, http, smtp_banner, smtp_ehlo, ldap_bind, oidc_discovery, webhook_post, oci_ping]

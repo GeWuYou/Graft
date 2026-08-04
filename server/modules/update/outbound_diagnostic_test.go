@@ -39,7 +39,13 @@ func TestPlatformUpdateConnectivityTargetDeclaresCapabilitiesAndAdaptsHTTPResult
 	if descriptor.ID != platformUpdateConnectivityTargetID || descriptor.ModuleID != "platform-update" || descriptor.Category != "platform" {
 		t.Fatalf("unexpected connectivity descriptor: %#v", descriptor)
 	}
-	if len(descriptor.Capabilities.ProbeKinds) != 5 || descriptor.Capabilities.ProbeKinds[4] != moduleapi.ConnectivityProbeHTTP {
+	containsHTTP := false
+	for _, kind := range descriptor.Capabilities.ProbeKinds {
+		if kind == moduleapi.ConnectivityProbeHTTP {
+			containsHTTP = true
+		}
+	}
+	if !containsHTTP {
 		t.Fatalf("expected HTTP diagnostics capabilities, got %#v", descriptor.Capabilities)
 	}
 	report, err := target.RunConnectivityProbes(context.Background())

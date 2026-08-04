@@ -10,3 +10,4 @@ get:
     '200': { description: Sanitized report JSON. Full exit IPs are never exported., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-report.yaml } } } }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { $ref: ../components/responses/not-found.yaml }

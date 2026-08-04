@@ -93,6 +93,39 @@ type legacyDiagnosticResponse struct {
 	Error      string    `json:"error,omitempty"`
 }
 
+type legacyDiagnosticHistoryResponse struct {
+	TargetID string                     `json:"target_id"`
+	Items    []legacyDiagnosticResponse `json:"items"`
+}
+
+type connectivityTargetsResponse struct {
+	Items []connectivityTargetResponse `json:"items"`
+}
+
+type connectivityCustomTargetsResponse struct {
+	Items []connectivityCustomTargetResponse `json:"items"`
+}
+
+type connectivityChecksResponse struct {
+	Items []connectivityCheckResponse `json:"items"`
+}
+
+type connectivityRunResponse struct {
+	Check  connectivityCheckResponse  `json:"check"`
+	Report connectivityReportResponse `json:"report"`
+}
+
+type connectivityHistoryResponse struct {
+	TargetID string                      `json:"target_id"`
+	Items    []connectivityCheckResponse `json:"items"`
+}
+
+type connectivityTraceResponse struct {
+	TargetID string                      `json:"target_id"`
+	CheckID  int64                       `json:"check_id"`
+	Probes   []connectivityProbeResponse `json:"probes"`
+}
+
 func (r routeRuntime) handleLegacyDiagnostic(ginCtx *gin.Context) {
 	targetID := strings.TrimSpace(ginCtx.Param("targetId"))
 	result, err := r.service.Diagnose(ginCtx.Request.Context(), targetID)
@@ -119,11 +152,11 @@ func (r routeRuntime) handleLegacyDiagnosticHistory(ginCtx *gin.Context) {
 	for _, item := range items {
 		responses = append(responses, toLegacyDiagnosticResponse(targetID, item))
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"target_id": targetID, "items": responses})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, legacyDiagnosticHistoryResponse{TargetID: targetID, Items: responses})
 }
 
 func (r routeRuntime) handleConnectivityTargets(ginCtx *gin.Context) {
-	targets, err := r.service.ConnectivityTargets()
+	targets, err := r.service.ConnectivityTargets(ginCtx.Request.Context())
 	if err != nil {
 		r.writeError(ginCtx, err)
 		return
@@ -132,7 +165,7 @@ func (r routeRuntime) handleConnectivityTargets(ginCtx *gin.Context) {
 	for _, target := range targets {
 		items = append(items, toConnectivityTargetResponse(target))
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": items})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityTargetsResponse{Items: items})
 }
 
 func (r routeRuntime) handleConnectivityCustomTargets(ginCtx *gin.Context) {
@@ -145,7 +178,7 @@ func (r routeRuntime) handleConnectivityCustomTargets(ginCtx *gin.Context) {
 	for _, target := range targets {
 		items = append(items, toConnectivityCustomTargetResponse(target))
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": items})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityCustomTargetsResponse{Items: items})
 }
 
 func (r routeRuntime) handleCreateConnectivityCustomTarget(ginCtx *gin.Context) {
@@ -186,7 +219,7 @@ func (r routeRuntime) handleConnectivityLatest(ginCtx *gin.Context) {
 		r.writeError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": toConnectivityCheckResponses(items)})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityChecksResponse{Items: toConnectivityCheckResponses(items)})
 }
 
 func (r routeRuntime) handleConnectivityAggregate(ginCtx *gin.Context) {
@@ -205,7 +238,7 @@ func (r routeRuntime) handleConnectivityRun(ginCtx *gin.Context) {
 		r.writeError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"check": toConnectivityCheckResponse(check), "report": toConnectivityReportResponse(report)})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityRunResponse{Check: toConnectivityCheckResponse(check), Report: toConnectivityReportResponse(report)})
 }
 
 func (r routeRuntime) handleConnectivityBatchRun(ginCtx *gin.Context) {
@@ -214,7 +247,7 @@ func (r routeRuntime) handleConnectivityBatchRun(ginCtx *gin.Context) {
 		r.writeError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": toConnectivityCheckResponses(checks)})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityChecksResponse{Items: toConnectivityCheckResponses(checks)})
 }
 
 func (r routeRuntime) handleConnectivityHistory(ginCtx *gin.Context) {
@@ -229,7 +262,7 @@ func (r routeRuntime) handleConnectivityHistory(ginCtx *gin.Context) {
 		r.writeError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"target_id": targetID, "items": toConnectivityCheckResponses(items)})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityHistoryResponse{TargetID: string(targetID), Items: toConnectivityCheckResponses(items)})
 }
 
 func (r routeRuntime) handleConnectivityReport(ginCtx *gin.Context) {
@@ -239,7 +272,7 @@ func (r routeRuntime) handleConnectivityTrace(ginCtx *gin.Context) {
 	r.writeConnectivityReport(ginCtx, true)
 }
 func (r routeRuntime) handleConnectivityExport(ginCtx *gin.Context) {
-	report, ok := r.loadConnectivityReport(ginCtx)
+	report, _, ok := r.loadConnectivityReport(ginCtx)
 	if !ok {
 		return
 	}
@@ -248,30 +281,30 @@ func (r routeRuntime) handleConnectivityExport(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) writeConnectivityReport(ginCtx *gin.Context, traceOnly bool) {
-	report, ok := r.loadConnectivityReport(ginCtx)
+	report, checkID, ok := r.loadConnectivityReport(ginCtx)
 	if !ok {
 		return
 	}
 	response := toConnectivityReportResponse(report)
 	if traceOnly {
-		httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"target_id": response.TargetID, "check_id": ginCtx.Param("checkId"), "probes": response.Probes})
+		httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityTraceResponse{TargetID: response.TargetID, CheckID: checkID, Probes: response.Probes})
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
-func (r routeRuntime) loadConnectivityReport(ginCtx *gin.Context) (moduleapi.ConnectivityReport, bool) {
+func (r routeRuntime) loadConnectivityReport(ginCtx *gin.Context) (moduleapi.ConnectivityReport, int64, bool) {
 	checkID, err := strconv.ParseInt(ginCtx.Param("checkId"), 10, 64)
 	if err != nil || checkID < 1 {
 		r.badRequest(ginCtx)
-		return moduleapi.ConnectivityReport{}, false
+		return moduleapi.ConnectivityReport{}, 0, false
 	}
 	report, err := r.service.ConnectivityReport(ginCtx.Request.Context(), moduleapi.ConnectivityTargetID(strings.TrimSpace(ginCtx.Param("targetId"))), checkID)
 	if err != nil {
 		r.writeError(ginCtx, err)
-		return moduleapi.ConnectivityReport{}, false
+		return moduleapi.ConnectivityReport{}, 0, false
 	}
-	return report, true
+	return report, checkID, true
 }
 
 func connectivityHistoryLimit(ginCtx *gin.Context) (int, bool) {

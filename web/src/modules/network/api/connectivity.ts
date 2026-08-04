@@ -1,5 +1,5 @@
 import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
-import type { components } from '@/contracts/openapi/generated/schema';
+import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 type Target = components['schemas']['platform-network-connectivity-target'];
@@ -8,6 +8,38 @@ type Check = components['schemas']['platform-network-connectivity-check'];
 type Aggregate = components['schemas']['platform-network-connectivity-aggregate'];
 type Report = components['schemas']['platform-network-connectivity-report'];
 type Probe = components['schemas']['platform-network-connectivity-probe'];
+type TargetsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityTargets]['get'];
+type CustomTargetsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityCustomTargets]['get'];
+type CreateCustomTargetOperation = paths[typeof OPENAPI_RUNTIME_PATH.postPlatformConnectivityCustomTarget]['post'];
+type LatestOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityLatest]['get'];
+type AggregateOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityAggregate]['get'];
+type BatchRunOperation = paths[typeof OPENAPI_RUNTIME_PATH.postPlatformConnectivityBatchRun]['post'];
+type RunOperation = paths[typeof OPENAPI_RUNTIME_PATH.postPlatformConnectivityRun]['post'];
+type HistoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityHistory]['get'];
+type ReportOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityReport]['get'];
+type TraceOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityTrace]['get'];
+type ExportOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformConnectivityExport]['get'];
+type ResponseData<Operation> =
+  NonNullable<
+    Operation extends { responses: { 200: { content: { 'application/json': infer Response } } } } ? Response : never
+  > extends infer Envelope
+    ? Envelope extends { data: infer Data }
+      ? Data
+      : never
+    : never;
+type TargetsResponse = ResponseData<TargetsOperation>;
+type CustomTargetsResponse = ResponseData<CustomTargetsOperation>;
+type CreateCustomTargetResponse = NonNullable<
+  CreateCustomTargetOperation['responses'][201]['content']['application/json']['data']
+>;
+type LatestResponse = ResponseData<LatestOperation>;
+type AggregateResponse = ResponseData<AggregateOperation>;
+type BatchRunResponse = ResponseData<BatchRunOperation>;
+type RunResponse = ResponseData<RunOperation>;
+type HistoryResponse = ResponseData<HistoryOperation>;
+type ReportResponse = ResponseData<ReportOperation>;
+type TraceResponse = ResponseData<TraceOperation>;
+type ExportResponse = ResponseData<ExportOperation>;
 
 export type ConnectivityTarget = Target;
 export type ConnectivityCustomTarget = CustomTarget;
@@ -15,20 +47,23 @@ export type ConnectivityCheck = Check;
 export type ConnectivityAggregate = Aggregate;
 export type ConnectivityReport = Report;
 export type ConnectivityProbe = Probe;
-export type ConnectivityTrace = { check_id: number; probes: Probe[]; target_id: string };
+export type ConnectivityTrace = TraceResponse;
 
 export function getConnectivityTargets() {
-  return request.get<{ items: Target[] }>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityTargets });
+  return request.get<TargetsResponse>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityTargets });
 }
 
 export function getConnectivityCustomTargets() {
-  return request.get<{ items: CustomTarget[] }>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityCustomTargets });
+  return request.get<CustomTargetsResponse>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityCustomTargets });
 }
 
 export function createConnectivityCustomTarget(
   data: components['schemas']['create-platform-network-connectivity-custom-target-request'],
 ) {
-  return request.post<CustomTarget>({ url: OPENAPI_RUNTIME_PATH.postPlatformConnectivityCustomTarget, data });
+  return request.post<CreateCustomTargetResponse>({
+    url: OPENAPI_RUNTIME_PATH.postPlatformConnectivityCustomTarget,
+    data,
+  });
 }
 
 export function deleteConnectivityCustomTarget(targetId: string) {
@@ -38,44 +73,44 @@ export function deleteConnectivityCustomTarget(targetId: string) {
 }
 
 export function getConnectivityLatest() {
-  return request.get<{ items: Check[] }>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityLatest });
+  return request.get<LatestResponse>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityLatest });
 }
 
 export function getConnectivityAggregate() {
-  return request.get<Aggregate>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityAggregate });
+  return request.get<AggregateResponse>({ url: OPENAPI_RUNTIME_PATH.getPlatformConnectivityAggregate });
 }
 
 export function runConnectivityBatch() {
-  return request.post<{ items: Check[] }>({ url: OPENAPI_RUNTIME_PATH.postPlatformConnectivityBatchRun });
+  return request.post<BatchRunResponse>({ url: OPENAPI_RUNTIME_PATH.postPlatformConnectivityBatchRun });
 }
 
 export function runConnectivityTarget(targetId: string) {
-  return request.post<{ check: Check; report: Report }>({
+  return request.post<RunResponse>({
     url: buildOpenApiRuntimePath('postPlatformConnectivityRun', { targetId }),
   });
 }
 
 export function getConnectivityHistory(targetId: string, limit = 20) {
-  return request.get<{ items: Check[] }>({
+  return request.get<HistoryResponse>({
     url: buildOpenApiRuntimePath('getPlatformConnectivityHistory', { targetId }),
     params: { limit },
   });
 }
 
 export function getConnectivityReport(targetId: string, checkId: number) {
-  return request.get<Report>({
+  return request.get<ReportResponse>({
     url: buildOpenApiRuntimePath('getPlatformConnectivityReport', { targetId, checkId }),
   });
 }
 
 export function getConnectivityTrace(targetId: string, checkId: number) {
-  return request.get<ConnectivityTrace>({
+  return request.get<TraceResponse>({
     url: buildOpenApiRuntimePath('getPlatformConnectivityTrace', { targetId, checkId }),
   });
 }
 
 export function getConnectivityExport(targetId: string, checkId: number) {
-  return request.get<Report>({
+  return request.get<ExportResponse>({
     url: buildOpenApiRuntimePath('getPlatformConnectivityExport', { targetId, checkId }),
   });
 }

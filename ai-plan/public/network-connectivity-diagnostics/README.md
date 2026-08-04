@@ -10,7 +10,7 @@
   - `server/modules/network/**`
   - `openapi/**`
   - `web/src/modules/network/**`
-- Completed so far: all three planned delivery phases, including the shared ConnectivityStore and target-addressed web experience.
+- Completed so far: all four planned delivery phases, including the shared ConnectivityStore, target-addressed web experience, and HTTP-status summary projection.
 - Archive readiness: acceptance conditions are met. The only remaining web validation limitation is the repository-wide Monaco release-build dependency failure, which is outside this topic's owned scope.
 
 ## Recovery Receipt
@@ -33,7 +33,7 @@ Out of scope:
 
 ## Locked Decisions
 
-1. Diagnostics routes identify a target: `/platform/network/connectivity/:targetId`; reports are data, not page identity.
+1. Diagnostics routes identify a target: `/platform/network/:targetId`; reports are data, not page identity. `/platform/network/outbound` is the secondary policy workflow.
 2. Batch and diagnostics share one target registry, probe pipeline, report store, and web ConnectivityStore.
 3. Probe results are capability-driven and extensible; Exit IP is masked by default and protected by a dedicated permission.
 
@@ -42,6 +42,7 @@ Out of scope:
 - Phase 1: design authority, target registry, capabilities, and extensible probe/report core.
 - Phase 2: persistence, batch execution, diagnostics APIs, SSRF protection, and permissions.
 - Phase 3: shared web ConnectivityStore, batch health UI, target diagnostics UI, and cross-boundary validation.
+- Phase 4: nullable HTTP-status summary projection for compact checks, latest, history, and single-run responses.
 
 ## Current Recovery Point
 

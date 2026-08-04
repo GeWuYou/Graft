@@ -67,6 +67,21 @@ func (e GetPlatformConnectivityCustomTargets403JSONResponseBodySuccess) Valid() 
 	}
 }
 
+// Defines values for PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess.
+const (
+	PostPlatformConnectivityCustomTarget400JSONResponseBodySuccessFalse PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess enum.
+func (e PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostPlatformConnectivityCustomTarget400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostPlatformConnectivityCustomTarget401JSONResponseBodySuccess.
 const (
 	PostPlatformConnectivityCustomTarget401JSONResponseBodySuccessFalse PostPlatformConnectivityCustomTarget401JSONResponseBodySuccess = false
@@ -121,6 +136,21 @@ const (
 func (e DeletePlatformConnectivityCustomTarget403JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case DeletePlatformConnectivityCustomTarget403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess.
+const (
+	DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccessFalse DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess enum.
+func (e DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -229,6 +259,102 @@ func (e PostPlatformConnectivityBatchRun403JSONResponseBodySuccess) Valid() bool
 	}
 }
 
+// Defines values for GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory.
+const (
+	Custom   GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory = "custom"
+	General  GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory = "general"
+	Git      GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory = "git"
+	Oci      GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory = "oci"
+	Platform GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory = "platform"
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory enum.
+func (e GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory) Valid() bool {
+	switch e {
+	case Custom:
+		return true
+	case General:
+		return true
+	case Git:
+		return true
+	case Oci:
+		return true
+	case Platform:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures.
+const (
+	ExitIp     GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures = "exit_ip"
+	Export     GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures = "export"
+	History    GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures = "history"
+	ProxyRoute GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures = "proxy_route"
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures enum.
+func (e GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures) Valid() bool {
+	switch e {
+	case ExitIp:
+		return true
+	case Export:
+		return true
+	case History:
+		return true
+	case ProxyRoute:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds.
+const (
+	Certificate   GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "certificate"
+	Dns           GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "dns"
+	Http          GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "http"
+	LdapBind      GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "ldap_bind"
+	OciPing       GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "oci_ping"
+	OidcDiscovery GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "oidc_discovery"
+	SmtpBanner    GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "smtp_banner"
+	SmtpEhlo      GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "smtp_ehlo"
+	Tcp           GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "tcp"
+	Tls           GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "tls"
+	WebhookPost   GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds = "webhook_post"
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds enum.
+func (e GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds) Valid() bool {
+	switch e {
+	case Certificate:
+		return true
+	case Dns:
+		return true
+	case Http:
+		return true
+	case LdapBind:
+		return true
+	case OciPing:
+		return true
+	case OidcDiscovery:
+		return true
+	case SmtpBanner:
+		return true
+	case SmtpEhlo:
+		return true
+	case Tcp:
+		return true
+	case Tls:
+		return true
+	case WebhookPost:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetPlatformConnectivityTargets401JSONResponseBodySuccess.
 const (
 	GetPlatformConnectivityTargets401JSONResponseBodySuccessFalse GetPlatformConnectivityTargets401JSONResponseBodySuccess = false
@@ -274,6 +400,21 @@ func (e GetPlatformConnectivityHistory200JSONResponseBodyDataItemsStatus) Valid(
 	case GetPlatformConnectivityHistory200JSONResponseBodyDataItemsStatusFailed:
 		return true
 	case GetPlatformConnectivityHistory200JSONResponseBodyDataItemsStatusHealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPlatformConnectivityHistory400JSONResponseBodySuccess.
+const (
+	GetPlatformConnectivityHistory400JSONResponseBodySuccessFalse GetPlatformConnectivityHistory400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityHistory400JSONResponseBodySuccess enum.
+func (e GetPlatformConnectivityHistory400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityHistory400JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -331,6 +472,24 @@ func (e GetPlatformConnectivityReport200JSONResponseBodyDataProbesStatus) Valid(
 	}
 }
 
+// Defines values for GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision.
+const (
+	GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecisionDirect    GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision = "Direct"
+	GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecisionHTTPProxy GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision = "HTTP Proxy"
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision enum.
+func (e GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecisionDirect:
+		return true
+	case GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecisionHTTPProxy:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetPlatformConnectivityReport200JSONResponseBodyDataStatus.
 const (
 	GetPlatformConnectivityReport200JSONResponseBodyDataStatusDegraded GetPlatformConnectivityReport200JSONResponseBodyDataStatus = "degraded"
@@ -382,6 +541,21 @@ func (e GetPlatformConnectivityReport403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetPlatformConnectivityReport404JSONResponseBodySuccess.
+const (
+	GetPlatformConnectivityReport404JSONResponseBodySuccessFalse GetPlatformConnectivityReport404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityReport404JSONResponseBodySuccess enum.
+func (e GetPlatformConnectivityReport404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityReport404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatus.
 const (
 	GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatusFailed    GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatus = "failed"
@@ -397,6 +571,24 @@ func (e GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatus) Valid(
 	case GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatusSkipped:
 		return true
 	case GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision.
+const (
+	GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecisionDirect    GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision = "Direct"
+	GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecisionHTTPProxy GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision = "HTTP Proxy"
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision enum.
+func (e GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecisionDirect:
+		return true
+	case GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecisionHTTPProxy:
 		return true
 	default:
 		return false
@@ -454,6 +646,21 @@ func (e GetPlatformConnectivityExport403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetPlatformConnectivityExport404JSONResponseBodySuccess.
+const (
+	GetPlatformConnectivityExport404JSONResponseBodySuccessFalse GetPlatformConnectivityExport404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityExport404JSONResponseBodySuccess enum.
+func (e GetPlatformConnectivityExport404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityExport404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetPlatformConnectivityTrace200JSONResponseBodyDataProbesStatus.
 const (
 	GetPlatformConnectivityTrace200JSONResponseBodyDataProbesStatusFailed    GetPlatformConnectivityTrace200JSONResponseBodyDataProbesStatus = "failed"
@@ -505,6 +712,21 @@ func (e GetPlatformConnectivityTrace403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetPlatformConnectivityTrace404JSONResponseBodySuccess.
+const (
+	GetPlatformConnectivityTrace404JSONResponseBodySuccessFalse GetPlatformConnectivityTrace404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetPlatformConnectivityTrace404JSONResponseBodySuccess enum.
+func (e GetPlatformConnectivityTrace404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetPlatformConnectivityTrace404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostPlatformConnectivityRun200JSONResponseBodyDataCheckStatus.
 const (
 	PostPlatformConnectivityRun200JSONResponseBodyDataCheckStatusDegraded PostPlatformConnectivityRun200JSONResponseBodyDataCheckStatus = "degraded"
@@ -541,6 +763,24 @@ func (e PostPlatformConnectivityRun200JSONResponseBodyDataReportProbesStatus) Va
 	case PostPlatformConnectivityRun200JSONResponseBodyDataReportProbesStatusSkipped:
 		return true
 	case PostPlatformConnectivityRun200JSONResponseBodyDataReportProbesStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision.
+const (
+	Direct    PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision = "Direct"
+	HTTPProxy PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision = "HTTP Proxy"
+)
+
+// Valid indicates whether the value is a known member of the PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision enum.
+func (e PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision) Valid() bool {
+	switch e {
+	case Direct:
+		return true
+	case HTTPProxy:
 		return true
 	default:
 		return false
@@ -598,6 +838,21 @@ func (e PostPlatformConnectivityRun403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostPlatformConnectivityRun404JSONResponseBodySuccess.
+const (
+	False PostPlatformConnectivityRun404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostPlatformConnectivityRun404JSONResponseBodySuccess enum.
+func (e PostPlatformConnectivityRun404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case False:
+		return true
+	default:
+		return false
+	}
+}
+
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
@@ -626,6 +881,9 @@ type PostPlatformConnectivityCustomTargetJSONBody struct {
 	TargetId    string `json:"target_id"`
 }
 
+// PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess defines parameters for PostPlatformConnectivityCustomTarget.
+type PostPlatformConnectivityCustomTarget400JSONResponseBodySuccess bool
+
 // PostPlatformConnectivityCustomTarget401JSONResponseBodySuccess defines parameters for PostPlatformConnectivityCustomTarget.
 type PostPlatformConnectivityCustomTarget401JSONResponseBodySuccess bool
 
@@ -637,6 +895,9 @@ type DeletePlatformConnectivityCustomTarget401JSONResponseBodySuccess bool
 
 // DeletePlatformConnectivityCustomTarget403JSONResponseBodySuccess defines parameters for DeletePlatformConnectivityCustomTarget.
 type DeletePlatformConnectivityCustomTarget403JSONResponseBodySuccess bool
+
+// DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess defines parameters for DeletePlatformConnectivityCustomTarget.
+type DeletePlatformConnectivityCustomTarget404JSONResponseBodySuccess bool
 
 // GetPlatformConnectivityLatest200JSONResponseBodyDataItemsStatus defines parameters for GetPlatformConnectivityLatest.
 type GetPlatformConnectivityLatest200JSONResponseBodyDataItemsStatus string
@@ -656,6 +917,15 @@ type PostPlatformConnectivityBatchRun401JSONResponseBodySuccess bool
 // PostPlatformConnectivityBatchRun403JSONResponseBodySuccess defines parameters for PostPlatformConnectivityBatchRun.
 type PostPlatformConnectivityBatchRun403JSONResponseBodySuccess bool
 
+// GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory defines parameters for GetPlatformConnectivityTargets.
+type GetPlatformConnectivityTargets200JSONResponseBodyDataItemsCategory string
+
+// GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures defines parameters for GetPlatformConnectivityTargets.
+type GetPlatformConnectivityTargets200JSONResponseBodyDataItemsFeatures string
+
+// GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds defines parameters for GetPlatformConnectivityTargets.
+type GetPlatformConnectivityTargets200JSONResponseBodyDataItemsProbeKinds string
+
 // GetPlatformConnectivityTargets401JSONResponseBodySuccess defines parameters for GetPlatformConnectivityTargets.
 type GetPlatformConnectivityTargets401JSONResponseBodySuccess bool
 
@@ -670,6 +940,9 @@ type GetPlatformConnectivityHistoryParams struct {
 // GetPlatformConnectivityHistory200JSONResponseBodyDataItemsStatus defines parameters for GetPlatformConnectivityHistory.
 type GetPlatformConnectivityHistory200JSONResponseBodyDataItemsStatus string
 
+// GetPlatformConnectivityHistory400JSONResponseBodySuccess defines parameters for GetPlatformConnectivityHistory.
+type GetPlatformConnectivityHistory400JSONResponseBodySuccess bool
+
 // GetPlatformConnectivityHistory401JSONResponseBodySuccess defines parameters for GetPlatformConnectivityHistory.
 type GetPlatformConnectivityHistory401JSONResponseBodySuccess bool
 
@@ -678,6 +951,9 @@ type GetPlatformConnectivityHistory403JSONResponseBodySuccess bool
 
 // GetPlatformConnectivityReport200JSONResponseBodyDataProbesStatus defines parameters for GetPlatformConnectivityReport.
 type GetPlatformConnectivityReport200JSONResponseBodyDataProbesStatus string
+
+// GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision defines parameters for GetPlatformConnectivityReport.
+type GetPlatformConnectivityReport200JSONResponseBodyDataRouteDecision string
 
 // GetPlatformConnectivityReport200JSONResponseBodyDataStatus defines parameters for GetPlatformConnectivityReport.
 type GetPlatformConnectivityReport200JSONResponseBodyDataStatus string
@@ -688,8 +964,14 @@ type GetPlatformConnectivityReport401JSONResponseBodySuccess bool
 // GetPlatformConnectivityReport403JSONResponseBodySuccess defines parameters for GetPlatformConnectivityReport.
 type GetPlatformConnectivityReport403JSONResponseBodySuccess bool
 
+// GetPlatformConnectivityReport404JSONResponseBodySuccess defines parameters for GetPlatformConnectivityReport.
+type GetPlatformConnectivityReport404JSONResponseBodySuccess bool
+
 // GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatus defines parameters for GetPlatformConnectivityExport.
 type GetPlatformConnectivityExport200JSONResponseBodyDataProbesStatus string
+
+// GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision defines parameters for GetPlatformConnectivityExport.
+type GetPlatformConnectivityExport200JSONResponseBodyDataRouteDecision string
 
 // GetPlatformConnectivityExport200JSONResponseBodyDataStatus defines parameters for GetPlatformConnectivityExport.
 type GetPlatformConnectivityExport200JSONResponseBodyDataStatus string
@@ -700,6 +982,9 @@ type GetPlatformConnectivityExport401JSONResponseBodySuccess bool
 // GetPlatformConnectivityExport403JSONResponseBodySuccess defines parameters for GetPlatformConnectivityExport.
 type GetPlatformConnectivityExport403JSONResponseBodySuccess bool
 
+// GetPlatformConnectivityExport404JSONResponseBodySuccess defines parameters for GetPlatformConnectivityExport.
+type GetPlatformConnectivityExport404JSONResponseBodySuccess bool
+
 // GetPlatformConnectivityTrace200JSONResponseBodyDataProbesStatus defines parameters for GetPlatformConnectivityTrace.
 type GetPlatformConnectivityTrace200JSONResponseBodyDataProbesStatus string
 
@@ -709,11 +994,17 @@ type GetPlatformConnectivityTrace401JSONResponseBodySuccess bool
 // GetPlatformConnectivityTrace403JSONResponseBodySuccess defines parameters for GetPlatformConnectivityTrace.
 type GetPlatformConnectivityTrace403JSONResponseBodySuccess bool
 
+// GetPlatformConnectivityTrace404JSONResponseBodySuccess defines parameters for GetPlatformConnectivityTrace.
+type GetPlatformConnectivityTrace404JSONResponseBodySuccess bool
+
 // PostPlatformConnectivityRun200JSONResponseBodyDataCheckStatus defines parameters for PostPlatformConnectivityRun.
 type PostPlatformConnectivityRun200JSONResponseBodyDataCheckStatus string
 
 // PostPlatformConnectivityRun200JSONResponseBodyDataReportProbesStatus defines parameters for PostPlatformConnectivityRun.
 type PostPlatformConnectivityRun200JSONResponseBodyDataReportProbesStatus string
+
+// PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision defines parameters for PostPlatformConnectivityRun.
+type PostPlatformConnectivityRun200JSONResponseBodyDataReportRouteDecision string
 
 // PostPlatformConnectivityRun200JSONResponseBodyDataReportStatus defines parameters for PostPlatformConnectivityRun.
 type PostPlatformConnectivityRun200JSONResponseBodyDataReportStatus string
@@ -723,6 +1014,9 @@ type PostPlatformConnectivityRun401JSONResponseBodySuccess bool
 
 // PostPlatformConnectivityRun403JSONResponseBodySuccess defines parameters for PostPlatformConnectivityRun.
 type PostPlatformConnectivityRun403JSONResponseBodySuccess bool
+
+// PostPlatformConnectivityRun404JSONResponseBodySuccess defines parameters for PostPlatformConnectivityRun.
+type PostPlatformConnectivityRun404JSONResponseBodySuccess bool
 
 // PostPlatformConnectivityCustomTargetJSONRequestBody defines body for PostPlatformConnectivityCustomTarget for application/json ContentType.
 type PostPlatformConnectivityCustomTargetJSONRequestBody PostPlatformConnectivityCustomTargetJSONBody

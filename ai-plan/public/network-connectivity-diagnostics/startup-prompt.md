@@ -1,10 +1,10 @@
-Continue the Network Connectivity Diagnostics topic in `topic-completion-loop` mode.
+Continue the Network Connectivity Diagnostics topic only to verify or archive its completed scope.
 
 Round context:
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `parent topic`
+- recovery source: `none`
 - recovery entry: `ai-plan/public/network-connectivity-diagnostics/README.md`
 - local execution truth: `server/AGENTS.md`, `web/AGENTS.md`, and `ai-plan/AGENTS.md`
 - design authority: `ai-plan/design/domains/network/平台网络连通性诊断设计.md`
@@ -23,4 +23,5 @@ Implementation guardrails:
 
 - Repair canonical OpenAPI and module contracts before derived web consumers.
 - Keep probe evidence sanitized and do not persist secrets or unmasked Exit IP values.
-- Advance exactly one accepted phase per loop round and update topic tracking and trace in the same change.
+- The topic is `archive-ready`; do not create or advance a product phase. Record only verification, archive, or explicitly
+  scoped remediation work in the tracking and trace materials.

@@ -42,13 +42,7 @@ func (t platformUpdateDiagnosticTarget) ConnectivityTargetDescriptor() moduleapi
 		Category: "platform",
 		TitleKey: "network.diagnosticTargets.platformUpdate",
 		Capabilities: moduleapi.ConnectivityTargetCapabilities{
-			ProbeKinds: []moduleapi.ConnectivityProbeKind{
-				moduleapi.ConnectivityProbeDNS,
-				moduleapi.ConnectivityProbeTCP,
-				moduleapi.ConnectivityProbeTLS,
-				moduleapi.ConnectivityProbeCertificate,
-				moduleapi.ConnectivityProbeHTTP,
-			},
+			ProbeKinds: []moduleapi.ConnectivityProbeKind{moduleapi.ConnectivityProbeHTTP},
 			Features: []moduleapi.ConnectivityTargetFeature{
 				moduleapi.ConnectivityFeatureHistory,
 				moduleapi.ConnectivityFeatureExport,

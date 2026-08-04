@@ -9612,7 +9612,7 @@
         "tags": [
           "platform-network"
         ],
-        "summary": "List registered platform connectivity targets",
+        "summary": "List up to 100 registered platform connectivity targets",
         "operationId": "getPlatformConnectivityTargets",
         "security": [
           {
@@ -9644,7 +9644,7 @@
         "tags": [
           "platform-network"
         ],
-        "summary": "List custom connectivity targets",
+        "summary": "List up to 100 custom connectivity targets",
         "operationId": "getPlatformConnectivityCustomTargets",
         "security": [
           {
@@ -9704,7 +9704,7 @@
             }
           },
           "400": {
-            "description": "Invalid or unsafe target."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -9750,7 +9750,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Target not found."
+            "$ref": "#/components/responses/not-found"
           }
         }
       }
@@ -9862,7 +9862,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Target not registered."
+            "$ref": "#/components/responses/not-found"
           }
         }
       }
@@ -9946,7 +9946,7 @@
             }
           },
           "400": {
-            "description": "Invalid limit."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -10008,7 +10008,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Target or report not found."
+            "$ref": "#/components/responses/not-found"
           }
         }
       }
@@ -10062,6 +10062,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
           }
         }
       }
@@ -10115,6 +10118,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
           }
         }
       }
@@ -22330,6 +22336,21 @@
       "EnvelopedPlatformNetworkDiagnosticHistory": {
         "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
       },
+      "PlatformNetworkConnectivityTargetCategory": {
+        "$ref": "#/components/schemas/platform-network-connectivity-target-category"
+      },
+      "PlatformNetworkConnectivityTargetFeature": {
+        "$ref": "#/components/schemas/platform-network-connectivity-target-feature"
+      },
+      "PlatformNetworkConnectivityProbeKind": {
+        "$ref": "#/components/schemas/platform-network-connectivity-probe-kind"
+      },
+      "PlatformNetworkConnectivityRouteDecision": {
+        "$ref": "#/components/schemas/platform-network-connectivity-route-decision"
+      },
+      "PlatformNetworkConnectivityTarget": {
+        "$ref": "#/components/schemas/platform-network-connectivity-target"
+      },
       "PlatformUpdateStatus": {
         "$ref": "#/components/schemas/platform-update-status"
       },
@@ -29945,6 +29966,44 @@
           }
         }
       },
+      "platform-network-connectivity-target-category": {
+        "type": "string",
+        "description": "Stable category declared by a connectivity target owner.",
+        "enum": [
+          "platform",
+          "oci",
+          "git",
+          "general",
+          "custom"
+        ]
+      },
+      "platform-network-connectivity-probe-kind": {
+        "type": "string",
+        "description": "Typed connectivity probe stage.",
+        "enum": [
+          "dns",
+          "tcp",
+          "tls",
+          "certificate",
+          "http",
+          "smtp_banner",
+          "smtp_ehlo",
+          "ldap_bind",
+          "oidc_discovery",
+          "webhook_post",
+          "oci_ping"
+        ]
+      },
+      "platform-network-connectivity-target-feature": {
+        "type": "string",
+        "description": "Report affordance declared by a connectivity target.",
+        "enum": [
+          "history",
+          "export",
+          "exit_ip",
+          "proxy_route"
+        ]
+      },
       "platform-network-connectivity-target": {
         "type": "object",
         "required": [
@@ -29964,7 +30023,7 @@
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "$ref": "#/components/schemas/platform-network-connectivity-target-category"
           },
           "title_key": {
             "type": "string"
@@ -29972,13 +30031,13 @@
           "probe_kinds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/platform-network-connectivity-probe-kind"
             }
           },
           "features": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/platform-network-connectivity-target-feature"
             }
           }
         }
@@ -30013,6 +30072,7 @@
             "properties": {
               "items": {
                 "type": "array",
+                "maxItems": 100,
                 "items": {
                   "$ref": "#/components/schemas/platform-network-connectivity-target"
                 }
@@ -30084,6 +30144,7 @@
             "properties": {
               "items": {
                 "type": "array",
+                "maxItems": 100,
                 "items": {
                   "$ref": "#/components/schemas/platform-network-connectivity-custom-target"
                 }
@@ -30344,6 +30405,14 @@
           }
         }
       },
+      "platform-network-connectivity-route-decision": {
+        "type": "string",
+        "description": "Administrator-facing route decision for a connectivity report.",
+        "enum": [
+          "Direct",
+          "HTTP Proxy"
+        ]
+      },
       "platform-network-connectivity-route": {
         "type": "object",
         "required": [
@@ -30356,7 +30425,7 @@
             "type": "string"
           },
           "decision": {
-            "type": "string"
+            "$ref": "#/components/schemas/platform-network-connectivity-route-decision"
           },
           "reason": {
             "type": "string"
@@ -42937,6 +43006,21 @@
       },
       "precondition-required": {
         "description": "A strong If-Match header is required for Module Config mutations.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "not-found": {
+        "description": "Requested resource was not found under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

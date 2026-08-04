@@ -1695,7 +1695,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List registered platform connectivity targets */
+    /** List up to 100 registered platform connectivity targets */
     get: operations['getPlatformConnectivityTargets'];
     put?: never;
     post?: never;
@@ -1712,7 +1712,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List custom connectivity targets */
+    /** List up to 100 custom connectivity targets */
     get: operations['getPlatformConnectivityCustomTargets'];
     put?: never;
     /**
@@ -4536,6 +4536,11 @@ export interface components {
     EnvelopedPlatformNetworkOverview: components['schemas']['enveloped-platform-network-overview'];
     EnvelopedPlatformNetworkDiagnosticResult: components['schemas']['enveloped-platform-network-diagnostic-result'];
     EnvelopedPlatformNetworkDiagnosticHistory: components['schemas']['enveloped-platform-network-diagnostic-history'];
+    PlatformNetworkConnectivityTargetCategory: components['schemas']['platform-network-connectivity-target-category'];
+    PlatformNetworkConnectivityTargetFeature: components['schemas']['platform-network-connectivity-target-feature'];
+    PlatformNetworkConnectivityProbeKind: components['schemas']['platform-network-connectivity-probe-kind'];
+    PlatformNetworkConnectivityRouteDecision: components['schemas']['platform-network-connectivity-route-decision'];
+    PlatformNetworkConnectivityTarget: components['schemas']['platform-network-connectivity-target'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
     PlatformDeploymentStrategy: components['schemas']['platform-deployment-strategy'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
@@ -7142,13 +7147,39 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-network-diagnostic-history'];
     };
+    /**
+     * @description Stable category declared by a connectivity target owner.
+     * @enum {string}
+     */
+    'platform-network-connectivity-target-category': 'platform' | 'oci' | 'git' | 'general' | 'custom';
+    /**
+     * @description Typed connectivity probe stage.
+     * @enum {string}
+     */
+    'platform-network-connectivity-probe-kind':
+      | 'dns'
+      | 'tcp'
+      | 'tls'
+      | 'certificate'
+      | 'http'
+      | 'smtp_banner'
+      | 'smtp_ehlo'
+      | 'ldap_bind'
+      | 'oidc_discovery'
+      | 'webhook_post'
+      | 'oci_ping';
+    /**
+     * @description Report affordance declared by a connectivity target.
+     * @enum {string}
+     */
+    'platform-network-connectivity-target-feature': 'history' | 'export' | 'exit_ip' | 'proxy_route';
     'platform-network-connectivity-target': {
       id: string;
       module_id: string;
-      category: string;
+      category: components['schemas']['platform-network-connectivity-target-category'];
       title_key: string;
-      probe_kinds: string[];
-      features: string[];
+      probe_kinds: components['schemas']['platform-network-connectivity-probe-kind'][];
+      features: components['schemas']['platform-network-connectivity-target-feature'][];
     };
     'enveloped-platform-network-connectivity-targets': {
       success: boolean;
@@ -7245,9 +7276,14 @@ export interface components {
       /** Format: date-time */
       occurred_at?: string;
     };
+    /**
+     * @description Administrator-facing route decision for a connectivity report.
+     * @enum {string}
+     */
+    'platform-network-connectivity-route-decision': 'Direct' | 'HTTP Proxy';
     'platform-network-connectivity-route': {
       matched_strategy: string;
-      decision: string;
+      decision: components['schemas']['platform-network-connectivity-route-decision'];
       reason: string;
     };
     /** @description Historical reports only contain a masked exit IP. This schema never carries a full IP address. */
@@ -10409,6 +10445,16 @@ export interface components {
     };
     /** @description A strong If-Match header is required for Module Config mutations. */
     'precondition-required': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description Requested resource was not found under existing error envelope semantics. */
+    'not-found': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -15618,13 +15664,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-network-connectivity-custom-target'];
         };
       };
-      /** @description Invalid or unsafe target. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };
@@ -15649,13 +15689,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Target not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
     };
   };
   getPlatformConnectivityLatest: {
@@ -15724,13 +15758,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Target not registered. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
     };
   };
   postPlatformConnectivityBatchRun: {
@@ -15777,13 +15805,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-network-connectivity-history'];
         };
       };
-      /** @description Invalid limit. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };
@@ -15811,13 +15833,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Target or report not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
     };
   };
   getPlatformConnectivityTrace: {
@@ -15843,6 +15859,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
     };
   };
   getPlatformConnectivityExport: {
@@ -15868,6 +15885,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
     };
   };
   getPlatformUpdateStatus: {

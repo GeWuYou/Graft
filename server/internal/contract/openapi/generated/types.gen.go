@@ -3458,6 +3458,51 @@ func (e PlatformNetworkConnectivityProbeStatus) Valid() bool {
 	}
 }
 
+// Defines values for PlatformNetworkConnectivityProbeKind.
+const (
+	Certificate   PlatformNetworkConnectivityProbeKind = "certificate"
+	Dns           PlatformNetworkConnectivityProbeKind = "dns"
+	Http          PlatformNetworkConnectivityProbeKind = "http"
+	LdapBind      PlatformNetworkConnectivityProbeKind = "ldap_bind"
+	OciPing       PlatformNetworkConnectivityProbeKind = "oci_ping"
+	OidcDiscovery PlatformNetworkConnectivityProbeKind = "oidc_discovery"
+	SmtpBanner    PlatformNetworkConnectivityProbeKind = "smtp_banner"
+	SmtpEhlo      PlatformNetworkConnectivityProbeKind = "smtp_ehlo"
+	Tcp           PlatformNetworkConnectivityProbeKind = "tcp"
+	Tls           PlatformNetworkConnectivityProbeKind = "tls"
+	WebhookPost   PlatformNetworkConnectivityProbeKind = "webhook_post"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityProbeKind enum.
+func (e PlatformNetworkConnectivityProbeKind) Valid() bool {
+	switch e {
+	case Certificate:
+		return true
+	case Dns:
+		return true
+	case Http:
+		return true
+	case LdapBind:
+		return true
+	case OciPing:
+		return true
+	case OidcDiscovery:
+		return true
+	case SmtpBanner:
+		return true
+	case SmtpEhlo:
+		return true
+	case Tcp:
+		return true
+	case Tls:
+		return true
+	case WebhookPost:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformNetworkConnectivityReportStatus.
 const (
 	PlatformNetworkConnectivityReportStatusDegraded PlatformNetworkConnectivityReportStatus = "degraded"
@@ -3473,6 +3518,75 @@ func (e PlatformNetworkConnectivityReportStatus) Valid() bool {
 	case PlatformNetworkConnectivityReportStatusFailed:
 		return true
 	case PlatformNetworkConnectivityReportStatusHealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkConnectivityRouteDecision.
+const (
+	Direct    PlatformNetworkConnectivityRouteDecision = "Direct"
+	HTTPProxy PlatformNetworkConnectivityRouteDecision = "HTTP Proxy"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityRouteDecision enum.
+func (e PlatformNetworkConnectivityRouteDecision) Valid() bool {
+	switch e {
+	case Direct:
+		return true
+	case HTTPProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkConnectivityTargetCategory.
+const (
+	PlatformNetworkConnectivityTargetCategoryCustom   PlatformNetworkConnectivityTargetCategory = "custom"
+	PlatformNetworkConnectivityTargetCategoryGeneral  PlatformNetworkConnectivityTargetCategory = "general"
+	PlatformNetworkConnectivityTargetCategoryGit      PlatformNetworkConnectivityTargetCategory = "git"
+	PlatformNetworkConnectivityTargetCategoryOci      PlatformNetworkConnectivityTargetCategory = "oci"
+	PlatformNetworkConnectivityTargetCategoryPlatform PlatformNetworkConnectivityTargetCategory = "platform"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityTargetCategory enum.
+func (e PlatformNetworkConnectivityTargetCategory) Valid() bool {
+	switch e {
+	case PlatformNetworkConnectivityTargetCategoryCustom:
+		return true
+	case PlatformNetworkConnectivityTargetCategoryGeneral:
+		return true
+	case PlatformNetworkConnectivityTargetCategoryGit:
+		return true
+	case PlatformNetworkConnectivityTargetCategoryOci:
+		return true
+	case PlatformNetworkConnectivityTargetCategoryPlatform:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkConnectivityTargetFeature.
+const (
+	ExitIp     PlatformNetworkConnectivityTargetFeature = "exit_ip"
+	Export     PlatformNetworkConnectivityTargetFeature = "export"
+	History    PlatformNetworkConnectivityTargetFeature = "history"
+	ProxyRoute PlatformNetworkConnectivityTargetFeature = "proxy_route"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkConnectivityTargetFeature enum.
+func (e PlatformNetworkConnectivityTargetFeature) Valid() bool {
+	switch e {
+	case ExitIp:
+		return true
+	case Export:
+		return true
+	case History:
+		return true
+	case ProxyRoute:
 		return true
 	default:
 		return false
@@ -5041,19 +5155,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
-	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
-	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
+	Stderr TaskLogEntryStream = "stderr"
+	Stdout TaskLogEntryStream = "stdout"
+	System TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case TaskLogEntryStreamStderr:
+	case Stderr:
 		return true
-	case TaskLogEntryStreamStdout:
+	case Stdout:
 		return true
-	case TaskLogEntryStreamSystem:
+	case System:
 		return true
 	default:
 		return false
@@ -12244,6 +12358,9 @@ type PlatformNetworkConnectivityProbe struct {
 // PlatformNetworkConnectivityProbeStatus defines model for PlatformNetworkConnectivityProbe.Status.
 type PlatformNetworkConnectivityProbeStatus string
 
+// PlatformNetworkConnectivityProbeKind Typed connectivity probe stage.
+type PlatformNetworkConnectivityProbeKind string
+
 // PlatformNetworkConnectivityReport defines model for platform-network-connectivity-report.
 type PlatformNetworkConnectivityReport struct {
 	CheckedAt time.Time `json:"checked_at"`
@@ -12263,20 +12380,31 @@ type PlatformNetworkConnectivityReportStatus string
 
 // PlatformNetworkConnectivityRoute defines model for platform-network-connectivity-route.
 type PlatformNetworkConnectivityRoute struct {
-	Decision        string `json:"decision"`
-	MatchedStrategy string `json:"matched_strategy"`
-	Reason          string `json:"reason"`
+	// Decision Administrator-facing route decision for a connectivity report.
+	Decision        PlatformNetworkConnectivityRouteDecision `json:"decision"`
+	MatchedStrategy string                                   `json:"matched_strategy"`
+	Reason          string                                   `json:"reason"`
 }
+
+// PlatformNetworkConnectivityRouteDecision Administrator-facing route decision for a connectivity report.
+type PlatformNetworkConnectivityRouteDecision string
 
 // PlatformNetworkConnectivityTarget defines model for platform-network-connectivity-target.
 type PlatformNetworkConnectivityTarget struct {
-	Category   string   `json:"category"`
-	Features   []string `json:"features"`
-	Id         string   `json:"id"`
-	ModuleId   string   `json:"module_id"`
-	ProbeKinds []string `json:"probe_kinds"`
-	TitleKey   string   `json:"title_key"`
+	// Category Stable category declared by a connectivity target owner.
+	Category   PlatformNetworkConnectivityTargetCategory  `json:"category"`
+	Features   []PlatformNetworkConnectivityTargetFeature `json:"features"`
+	Id         string                                     `json:"id"`
+	ModuleId   string                                     `json:"module_id"`
+	ProbeKinds []PlatformNetworkConnectivityProbeKind     `json:"probe_kinds"`
+	TitleKey   string                                     `json:"title_key"`
 }
+
+// PlatformNetworkConnectivityTargetCategory Stable category declared by a connectivity target owner.
+type PlatformNetworkConnectivityTargetCategory string
+
+// PlatformNetworkConnectivityTargetFeature Report affordance declared by a connectivity target.
+type PlatformNetworkConnectivityTargetFeature string
 
 // PlatformNetworkConsumer A module explicitly registered as a consumer of the platform outbound-network policy.
 type PlatformNetworkConsumer struct {
@@ -14505,6 +14633,9 @@ type Forbidden = ErrorResponse
 
 // InternalServerError defines model for internal-server-error.
 type InternalServerError = ErrorResponse
+
+// NotFound defines model for not-found.
+type NotFound = ErrorResponse
 
 // PreconditionFailed defines model for precondition-failed.
 type PreconditionFailed = ErrorResponse

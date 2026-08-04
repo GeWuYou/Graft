@@ -3,7 +3,7 @@ required: [id, module_id, category, title_key, probe_kinds, features]
 properties:
   id: { type: string, maxLength: 128 }
   module_id: { type: string }
-  category: { type: string }
+  category: { $ref: ./platform-network-connectivity-target-category.yaml }
   title_key: { type: string }
-  probe_kinds: { type: array, items: { type: string } }
-  features: { type: array, items: { type: string } }
+  probe_kinds: { type: array, items: { $ref: ./platform-network-connectivity-probe-kind.yaml } }
+  features: { type: array, items: { $ref: ./platform-network-connectivity-target-feature.yaml } }

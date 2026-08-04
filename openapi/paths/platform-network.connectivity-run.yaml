@@ -13,4 +13,4 @@ post:
     '200': { description: Sanitized persisted report and check projection., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-run.yaml } } } }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Target not registered. }
+    '404': { $ref: ../components/responses/not-found.yaml }

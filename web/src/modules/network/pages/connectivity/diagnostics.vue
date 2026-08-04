@@ -71,11 +71,20 @@
         </t-card>
         <t-card v-if="supports('history')" :title="t('network.outbound.connectivity.history')">
           <t-table row-key="check_id" :data="history" :columns="historyColumns" @row-click="handleSelectReport">
+            <template #checked="{ row }">
+              <t-link
+                theme="primary"
+                hover="color"
+                tabindex="0"
+                @click.stop="selectReport({ row })"
+                @keydown.enter.stop.prevent="selectReport({ row })"
+                >{{ formatTime(row.checked_at) }}</t-link
+              >
+            </template>
             <template #status="{ row }"
               ><t-tag :theme="statusTheme(row.status)" variant="light">{{ statusLabel(row.status) }}</t-tag></template
             >
             <template #latency="{ row }">{{ row.latency_ms }} ms</template>
-            <template #checked="{ row }">{{ formatTime(row.checked_at) }}</template>
           </t-table>
           <t-empty v-if="!history.length" :description="t('network.outbound.connectivity.noHistory')" />
         </t-card>
@@ -91,7 +100,12 @@ import { useRoute } from 'vue-router';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime } from '@/shared/observability';
 
-import type { ConnectivityCheck, ConnectivityProbe, ConnectivityReport } from '../../api/connectivity';
+import type {
+  ConnectivityCheck,
+  ConnectivityProbe,
+  ConnectivityReport,
+  ConnectivityTarget,
+} from '../../api/connectivity';
 import { useConnectivityStore } from '../../store/connectivity';
 
 /** 单目标诊断页以 target 为稳定页面身份，报告 ID 只在页面内切换历史、Trace 与导出数据。 */
@@ -124,7 +138,7 @@ const historyColumns = computed(() => [
   { colKey: 'latency', title: t('network.outbound.connectivity.latency') },
 ]);
 
-function supports(feature: string) {
+function supports(feature: ConnectivityTarget['features'][number]) {
   return target.value?.features.includes(feature) ?? false;
 }
 function formatTime(value?: string | null) {

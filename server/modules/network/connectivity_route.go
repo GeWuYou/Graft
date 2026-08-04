@@ -33,12 +33,18 @@ func resolveRouteExplanation(policy moduleapi.OutboundNetworkPolicy, host string
 	reason := "Matched NO_PROXY"
 	if match := matchedNoProxyPattern(host, policy.NoProxy); match != "" {
 		reason += " " + match
+	} else if policy.HTTPSProxy == "" {
+		reason = "No HTTPS proxy is configured"
 	}
 	return moduleapi.RouteExplanation{MatchedStrategy: "Direct", Decision: "Direct", Reason: reason}
 }
 
 func matchedNoProxyPattern(host string, patterns []string) string {
-	host = strings.Trim(strings.ToLower(host), "[]")
+	host = strings.TrimSpace(strings.ToLower(host))
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = parsedHost
+	}
+	host = strings.Trim(host, "[]")
 	for _, pattern := range patterns {
 		pattern = strings.TrimSpace(strings.ToLower(pattern))
 		if pattern == "" {

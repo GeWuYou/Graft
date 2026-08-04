@@ -14,6 +14,8 @@ import (
 
 const maxConnectivityHistoryLimit = 100
 
+const maxConnectivityTargetListSize = 100
+
 // ConnectivityCheck 是批量和单目标执行共享的轻量查询投影。
 type ConnectivityCheck struct {
 	ID         int64
@@ -227,7 +229,7 @@ func (s *SQLConnectivityStore) ListCustomTargets(ctx context.Context) ([]CustomC
 	if s == nil || s.db == nil {
 		return nil, errors.New("connectivity store is unavailable")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT target_id, display_name, endpoint, enabled, created_at FROM platform_connectivity_custom_targets WHERE deleted_at = 0 ORDER BY target_id ASC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT target_id, display_name, endpoint, enabled, created_at FROM platform_connectivity_custom_targets WHERE deleted_at = 0 ORDER BY target_id ASC LIMIT $1`, maxConnectivityTargetListSize)
 	if err != nil {
 		return nil, fmt.Errorf("list custom connectivity targets: %w", err)
 	}

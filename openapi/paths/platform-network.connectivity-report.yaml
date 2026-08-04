@@ -16,4 +16,4 @@ get:
     '200': { description: "Versioned report with extensible probes, route explanation, and only a masked exit IP.", content: { application/json: { schema: { $ref: ../components/schemas/enveloped-platform-network-connectivity-report.yaml } } } }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Target or report not found. }
+    '404': { $ref: ../components/responses/not-found.yaml }

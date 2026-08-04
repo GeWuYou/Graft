@@ -51,8 +51,8 @@ closeout:
 - No unresolved authority escalation is known. Full web release build remains blocked by the pre-existing missing
   `monaco-editor` Dockerfile registration module; focused Network validation and all non-build frontend governance gates pass.
 - Archive readiness is satisfied; no further product implementation batch is pending.
-- The canonical Network entry is `/platform/network` for Connectivity; outbound policy remains reachable through the
-  secondary `/platform/network/outbound` workflow, avoiding an undiscoverable batch-health page.
+- The canonical Network entry is `/platform/network` for Connectivity; target diagnostics use `/platform/network/:targetId`,
+  while outbound policy remains reachable through the secondary `/platform/network/outbound` workflow.
 
 ## Task Checklist
 

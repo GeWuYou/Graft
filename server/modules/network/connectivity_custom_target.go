@@ -20,6 +20,13 @@ const (
 	customConnectivityTimeout      = 15 * time.Second
 )
 
+var blockedConnectivityPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("192.0.2.0/24"), netip.MustParsePrefix("198.18.0.0/15"), netip.MustParsePrefix("198.51.100.0/24"),
+	netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("224.0.0.0/4"), netip.MustParsePrefix("240.0.0.0/4"),
+	netip.MustParsePrefix("2001:db8::/32"),
+}
+
 var errCustomConnectivityTargetNotFound = errors.New("custom connectivity target not found")
 
 // CustomConnectivityTarget 是持久化的自定义 HTTP(S) 健康检查目标。Endpoint 仅能经由本文件的
@@ -47,6 +54,10 @@ type CustomConnectivityTargetStore interface {
 	DeleteCustomTarget(context.Context, moduleapi.ConnectivityTargetID, uint64) error
 }
 
+type connectivityResolver interface {
+	LookupNetIP(context.Context, string, string) ([]netip.Addr, error)
+}
+
 // ConnectivityTargetDescriptor 返回 capability 驱动的自定义 HTTP 目标描述。
 func (t CustomConnectivityTarget) ConnectivityTargetDescriptor() moduleapi.ConnectivityTargetDescriptor {
 	return moduleapi.ConnectivityTargetDescriptor{
@@ -55,7 +66,7 @@ func (t CustomConnectivityTarget) ConnectivityTargetDescriptor() moduleapi.Conne
 		Category: "general",
 		TitleKey: t.DisplayName,
 		Capabilities: moduleapi.ConnectivityTargetCapabilities{
-			ProbeKinds: []moduleapi.ConnectivityProbeKind{moduleapi.ConnectivityProbeDNS, moduleapi.ConnectivityProbeTCP, moduleapi.ConnectivityProbeTLS, moduleapi.ConnectivityProbeHTTP},
+			ProbeKinds: []moduleapi.ConnectivityProbeKind{moduleapi.ConnectivityProbeDNS, moduleapi.ConnectivityProbeHTTP},
 			Features:   []moduleapi.ConnectivityTargetFeature{moduleapi.ConnectivityFeatureHistory, moduleapi.ConnectivityFeatureExport, moduleapi.ConnectivityFeatureProxyRoute},
 		},
 	}
@@ -147,7 +158,7 @@ func validateCustomConnectivityEndpoint(raw string) (*url.URL, error) {
 	return endpoint, nil
 }
 
-func resolvePublicEndpoint(ctx context.Context, resolver *net.Resolver, host string) ([]netip.Addr, error) {
+func resolvePublicEndpoint(ctx context.Context, resolver connectivityResolver, host string) ([]netip.Addr, error) {
 	if address, err := netip.ParseAddr(host); err == nil {
 		if !isPublicConnectivityAddress(address) {
 			return nil, errors.New("custom connectivity endpoint address is not public")
@@ -166,7 +177,7 @@ func resolvePublicEndpoint(ctx context.Context, resolver *net.Resolver, host str
 	return addresses, nil
 }
 
-func newCustomConnectivityHTTPClient(endpoint *url.URL, resolver *net.Resolver) *http.Client {
+func newCustomConnectivityHTTPClient(endpoint *url.URL, resolver connectivityResolver) *http.Client {
 	expectedHost := endpoint.Hostname()
 	transport := newDefaultTransport()
 	transport.Proxy = nil
@@ -183,7 +194,16 @@ func newCustomConnectivityHTTPClient(endpoint *url.URL, resolver *net.Resolver) 
 			return nil, err
 		}
 		// 拨号器只接收已校验的字面 IP，绝不将可变化的 hostname 交给底层网络调用。
-		return (&net.Dialer{Timeout: defaultDialTimeout, KeepAlive: defaultDialKeepAlive}).DialContext(ctx, network, net.JoinHostPort(addresses[0].String(), port))
+		dialer := &net.Dialer{Timeout: defaultDialTimeout, KeepAlive: defaultDialKeepAlive}
+		var lastErr error
+		for _, address := range addresses {
+			conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(address.String(), port))
+			if dialErr == nil {
+				return conn, nil
+			}
+			lastErr = dialErr
+		}
+		return nil, lastErr
 	}
 	return &http.Client{Transport: transport, Timeout: customConnectivityTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
@@ -193,9 +213,7 @@ func isPublicConnectivityAddress(address netip.Addr) bool {
 	if !address.IsValid() || !address.IsGlobalUnicast() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() || address.IsMulticast() || address.IsUnspecified() {
 		return false
 	}
-	for _, blocked := range []netip.Prefix{
-		netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("192.0.0.0/24"), netip.MustParsePrefix("192.0.2.0/24"), netip.MustParsePrefix("198.18.0.0/15"), netip.MustParsePrefix("198.51.100.0/24"), netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("224.0.0.0/4"), netip.MustParsePrefix("240.0.0.0/4"), netip.MustParsePrefix("2001:db8::/32"),
-	} {
+	for _, blocked := range blockedConnectivityPrefixes {
 		if blocked.Contains(address) {
 			return false
 		}

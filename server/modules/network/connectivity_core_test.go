@@ -40,6 +40,20 @@ func TestDiagnosticRegistryRegistersCanonicalTargetFromLegacyAdapter(t *testing.
 	}
 }
 
+func TestDiagnosticRegistryRollsBackLegacyRegistrationWhenCanonicalRegistrationFails(t *testing.T) {
+	registry := NewDiagnosticRegistry()
+	if err := registry.RegisterConnectivityTarget(connectivityTargetStub{descriptor: connectivityDescriptor("platform-update")}); err != nil {
+		t.Fatalf("register canonical target: %v", err)
+	}
+	target := connectivityLegacyTargetStub{connectivityTargetStub: connectivityTargetStub{descriptor: connectivityDescriptor("platform-update")}}
+	if err := registry.RegisterOutboundDiagnosticTarget(target); err == nil {
+		t.Fatal("expected duplicate canonical target to fail")
+	}
+	if _, found := registry.OutboundDiagnosticTarget(target.Name()); found {
+		t.Fatal("expected failed dual registration to roll back the legacy target")
+	}
+}
+
 func TestConnectivityReportSnapshotDoesNotRetainMutableProbeOrDisclosurePointers(t *testing.T) {
 	route := &moduleapi.RouteExplanation{MatchedStrategy: "platform_default", Decision: "http_proxy", Reason: "host_not_matched_by_no_proxy"}
 	exitIP := &moduleapi.ExitIPDisclosure{Masked: "***.***.45.19", Available: true}

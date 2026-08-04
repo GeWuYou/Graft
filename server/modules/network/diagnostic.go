@@ -66,12 +66,13 @@ func (r *DiagnosticRegistry) RegisterOutboundDiagnosticTarget(target moduleapi.O
 		return errors.New("outbound diagnostic target is invalid")
 	}
 	var connectivityTarget moduleapi.ConnectivityTarget
+	var connectivityDescriptor moduleapi.ConnectivityTargetDescriptor
 	if candidate, ok := target.(moduleapi.ConnectivityTarget); ok {
-		descriptor := connectivityTargetDescriptorSnapshot(candidate.ConnectivityTargetDescriptor())
-		if !validConnectivityTargetDescriptor(descriptor) {
+		connectivityDescriptor = connectivityTargetDescriptorSnapshot(candidate.ConnectivityTargetDescriptor())
+		if !validConnectivityTargetDescriptor(connectivityDescriptor) {
 			return errors.New("connectivity target descriptor is invalid")
 		}
-		if r.connectivityEntries == nil || r.connectivityEntries.has(descriptor.ID) {
+		if r.connectivityEntries == nil || r.connectivityEntries.has(connectivityDescriptor.ID) {
 			return errors.New("connectivity target is already registered")
 		}
 		connectivityTarget = candidate
@@ -80,7 +81,8 @@ func (r *DiagnosticRegistry) RegisterOutboundDiagnosticTarget(target moduleapi.O
 		return err
 	}
 	if connectivityTarget != nil {
-		if err := r.RegisterConnectivityTarget(connectivityTarget); err != nil {
+		if err := r.connectivityEntries.register(connectivityDescriptor, connectivityTarget); err != nil {
+			r.entries.unregister(target.Name())
 			return err
 		}
 	}
@@ -196,12 +198,13 @@ func (r *connectivityRegistrationRegistry) get(id moduleapi.ConnectivityTargetID
 func (r *connectivityRegistrationRegistry) has(id moduleapi.ConnectivityTargetID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	_, ok := r.entries[id]
+	_, ok := r.entries[moduleapi.ConnectivityTargetID(strings.TrimSpace(string(id)))]
 	return ok
 }
 
 func (r *connectivityRegistrationRegistry) items() []moduleapi.ConnectivityTarget {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	ids := make([]string, 0, len(r.entries))
 	for id := range r.entries {
 		ids = append(ids, string(id))
@@ -211,12 +214,12 @@ func (r *connectivityRegistrationRegistry) items() []moduleapi.ConnectivityTarge
 	for _, id := range ids {
 		items = append(items, r.entries[moduleapi.ConnectivityTargetID(id)].target)
 	}
-	r.mu.RUnlock()
 	return items
 }
 
 func (r *connectivityRegistrationRegistry) descriptors() []moduleapi.ConnectivityTargetDescriptor {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	ids := make([]string, 0, len(r.entries))
 	for id := range r.entries {
 		ids = append(ids, string(id))
@@ -226,7 +229,6 @@ func (r *connectivityRegistrationRegistry) descriptors() []moduleapi.Connectivit
 	for _, id := range ids {
 		items = append(items, r.entries[moduleapi.ConnectivityTargetID(id)].descriptor.Snapshot())
 	}
-	r.mu.RUnlock()
 	return items
 }
 
@@ -254,6 +256,12 @@ func (r *outboundRegistrationRegistry) register(name string, displayName string,
 	}
 	r.entries[name] = entry
 	return nil
+}
+
+func (r *outboundRegistrationRegistry) unregister(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.entries, strings.TrimSpace(name))
 }
 
 func (r *outboundRegistrationRegistry) get(name string) (any, bool) {

@@ -1,6 +1,6 @@
 get:
   tags: [platform-network]
-  summary: List registered platform connectivity targets
+  summary: List up to 100 registered platform connectivity targets
   operationId: getPlatformConnectivityTargets
   security: [{ bearerAuth: [] }]
   responses:

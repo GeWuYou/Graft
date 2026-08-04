@@ -8,9 +8,14 @@ const (
 	// OutboundNetworkResetRoute 恢复出站网络策略的模块默认值。
 	OutboundNetworkResetRoute = "/outbound/reset"
 	// LegacyDiagnosticRoute 是 Phase 3 完成前旧 Network 页面使用的临时固定诊断适配路径。
-	// COMPAT(owner=platform-network connectivity authority, cleanup=Phase 3 web consumer migrates to target-addressed connectivity APIs).
+	// COMPAT(owner=platform-network connectivity authority, reason=外部旧客户端仍依赖固定 HTTP 诊断契约，当前不能在消费者迁移完成前直接删除,
+	// consumers=旧 Network Web 页面和已发布的诊断 API 客户端, cleanup=Phase 3 web consumer migrates to target-addressed connectivity APIs,
+	// validation=legacy route contract tests plus target-addressed server/web integration checks).
 	LegacyDiagnosticRoute = "/diagnostics/:targetId"
-	// LegacyDiagnosticHistoryRoute 是临时固定诊断历史适配路径。
+	// LegacyDiagnosticHistoryRoute 是临时固定诊断历史适配路径；清理条件和验证范围与 LegacyDiagnosticRoute 相同。
+	// COMPAT(owner=platform-network connectivity authority, reason=旧客户端仍读取固定诊断历史路径,
+	// consumers=旧 Network Web 页面和已发布的诊断 API 客户端, cleanup=Phase 3 web consumer migrates to target-addressed connectivity APIs,
+	// validation=legacy history route tests plus target-addressed history integration checks).
 	LegacyDiagnosticHistoryRoute = "/diagnostics/:targetId/history"
 	// ConnectivityTargetsRoute 返回已注册连通性目标。
 	ConnectivityTargetsRoute = "/connectivity/targets"
