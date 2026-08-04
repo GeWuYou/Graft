@@ -20,20 +20,32 @@
 - Independently verified `ca21f69a`, including focused Network/Update tests and vet.
 - Accepted Phase 1 into the completed batch set and advanced the active batch to persistence, APIs, and security.
 
+## 2026-08-04 Controller Settle: Phase 2
+
+- Accepted `5e932f1c` and `a0677d65` after independent targeted verification.
+- The Network module now owns target/check/report persistence, target-addressed batch and detailed APIs, typed OpenAPI
+  contracts, bounded report retention, route explanation, and custom HTTP(S) target management.
+- Custom targets reject non-public destinations and redirect traversal, pin each direct dial to a freshly validated
+  literal address, and are deliberately unavailable while an outbound proxy is enabled because proxy resolution would
+  invalidate the DNS-rebinding control.
+- Exit IP remains masked in storage, history, and exports. The reserved read permission is retained for a future
+  live-only, audited disclosure surface; Phase 3 must not infer or display an unmasked value.
+- Advanced the active batch to the shared ConnectivityStore and platform connectivity web experience.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-1-authority-registry-probe-core"
+    "phase-1-authority-registry-probe-core",
+    "phase-2-persistence-api-security"
   ],
   "pending_batches": [
-    "phase-2-persistence-api-security",
     "phase-3-web-experience-integration"
   ],
-  "current_batch": "phase-2-persistence-api-security",
-  "next_batch": "phase-3-web-experience-integration",
-  "closeout_status": "phase-1-settled"
+  "current_batch": "phase-3-web-experience-integration",
+  "next_batch": null,
+  "closeout_status": "phase-2-settled"
 }
 ```

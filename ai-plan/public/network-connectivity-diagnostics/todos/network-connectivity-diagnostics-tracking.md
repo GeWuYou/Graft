@@ -51,7 +51,7 @@ closeout:
 ## Task Checklist
 
 - [x] Phase 1: authority, registry, capabilities, and probe/report core
-- [ ] Phase 2: persistence, batch APIs, route explanation, and security boundary
+- [x] Phase 2: persistence, batch APIs, route explanation, and security boundary
 - [ ] Phase 3: ConnectivityStore, batch UI, target diagnostics UI, and integrated validation
 
 ## Acceptance Conditions
@@ -67,14 +67,14 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-1-authority-registry-probe-core"
+    "phase-1-authority-registry-probe-core",
+    "phase-2-persistence-api-security"
   ],
   "pending_batches": [
-    "phase-2-persistence-api-security",
     "phase-3-web-experience-integration"
   ],
-  "current_batch": "phase-2-persistence-api-security",
-  "next_batch": "phase-3-web-experience-integration",
-  "closeout_status": "phase-1-settled"
+  "current_batch": "phase-3-web-experience-integration",
+  "next_batch": null,
+  "closeout_status": "phase-2-settled"
 }
 ```
