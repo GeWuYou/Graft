@@ -21,9 +21,6 @@ Overlay note:
 - `configuration-governance`
   - Recovery entry: `ai-plan/public/configuration-governance/README.md`
 
-- `build-center`
-  - Recovery entry: `ai-plan/public/build-center/README.md`
-
 - `self-update-controller-refactor`
   - Recovery entry: `ai-plan/public/self-update-controller-refactor/README.md`
 
