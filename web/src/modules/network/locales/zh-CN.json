@@ -97,6 +97,31 @@
         "failedMessage": "连通性诊断未能完成。",
         "history": "近期诊断",
         "noHistory": "此目标还没有已保存的诊断记录。"
+      },
+      "connectivity": {
+        "eyebrow": "平台连通性",
+        "title": "连通性检查",
+        "description": "查看平台出站健康状态并进入目标诊断。",
+        "runAll": "全部检查",
+        "run": "运行诊断",
+        "healthy": "健康",
+        "degraded": "降级",
+        "failed": "失败",
+        "average": "平均延迟",
+        "target": "目标",
+        "status": "状态",
+        "latency": "延迟",
+        "lastChecked": "最后检查",
+        "diagnosticsTitle": "连通性诊断",
+        "diagnosticsDescription": "查看该网络消费者的详细净化诊断证据。",
+        "probes": "诊断过程",
+        "probe": "探测项",
+        "result": "结果",
+        "route": "路由说明",
+        "strategy": "匹配策略",
+        "decision": "最终决策",
+        "reason": "原因",
+        "history": "近期历史"
       }
     }
   }

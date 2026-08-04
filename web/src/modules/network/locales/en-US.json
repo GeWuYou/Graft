@@ -97,6 +97,31 @@
         "failedMessage": "The connectivity diagnostic could not be completed.",
         "history": "Recent Diagnostics",
         "noHistory": "This target has no saved diagnostic records."
+      },
+      "connectivity": {
+        "eyebrow": "Platform Connectivity",
+        "title": "Connectivity",
+        "description": "Review platform outbound health and open target diagnostics.",
+        "runAll": "Run All Checks",
+        "run": "Run Diagnostics",
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "failed": "Failed",
+        "average": "Average Latency",
+        "target": "Target",
+        "status": "Status",
+        "latency": "Latency",
+        "lastChecked": "Last Checked",
+        "diagnosticsTitle": "Connectivity Diagnostics",
+        "diagnosticsDescription": "Detailed, sanitized evidence for this network consumer.",
+        "probes": "Diagnostics",
+        "probe": "Probe",
+        "result": "Result",
+        "route": "Route Explanation",
+        "strategy": "Strategy",
+        "decision": "Decision",
+        "reason": "Reason",
+        "history": "Recent History"
       }
     }
   }
