@@ -177,7 +177,7 @@ describe('update progress store', () => {
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
   });
 
-  it('does not render runner-state-unavailable as live READY progress', async () => {
+  it('keeps the last verified runner snapshot and polls through a transient unavailable projection', async () => {
     const store = useUpdateProgressStore();
     await store.begin(acknowledgement('operation-1'));
     const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
@@ -188,8 +188,10 @@ describe('update progress store', () => {
       state_source: 'runner_state_unavailable' as const,
     });
 
-    expect(store.phase).toBe('unavailable');
+    expect(store.phase).toBe('reconnecting');
     expect(store.operation?.operation_id).toBe('operation-1');
+    expect(store.operation?.state_available).toBe(true);
+    expect(store.pollTimer).not.toBeNull();
   });
 
   it('ends the browser session and loads protected diagnostics when the runner has terminated', async () => {
@@ -343,7 +345,7 @@ describe('update progress store', () => {
     expect(getUpdateOperation).not.toHaveBeenCalled();
   });
 
-  it('keeps polling when the recovery acknowledgement is followed by the stale lost projection', async () => {
+  it('settles a recovery session when the reopened stream refreshes its terminal snapshot', async () => {
     vi.mocked(getUpdateOperation)
       .mockResolvedValueOnce({
         ...operation('operation-1'),
@@ -369,9 +371,6 @@ describe('update progress store', () => {
     const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
     onStateChange?.('open');
     await flushPromises();
-
-    expect(store.phase).toBe('reconnecting');
-    await vi.advanceTimersByTimeAsync(3000);
 
     expect(store.phase).toBe('failed');
     expect(store.recoveryPending).toBe(false);
@@ -454,7 +453,7 @@ describe('update progress store', () => {
     await vi.advanceTimersByTimeAsync(3000);
 
     expect(store.phase).toBe('running');
-    expect(getUpdateOperation).toHaveBeenCalledOnce();
+    expect(getUpdateOperation).toHaveBeenCalledTimes(2);
   });
 
   it('keeps a persisted operation visible when its runner snapshot is unavailable', async () => {
@@ -470,15 +469,16 @@ describe('update progress store', () => {
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBe('operation-1');
   });
 
-  it('stops retrying after repeated recoverable snapshot errors', async () => {
+  it('continues polling after repeated recoverable snapshot errors while the server is rebuilding', async () => {
     vi.mocked(getUpdateOperation).mockRejectedValue(new Error('service unavailable'));
     const store = useUpdateProgressStore();
 
     await store.begin(acknowledgement('operation-1'));
-    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(18_000);
 
-    expect(store.phase).toBe('unavailable');
+    expect(store.phase).toBe('reconnecting');
     expect(store.operationID).toBe('operation-1');
-    expect(getUpdateOperation).toHaveBeenCalledTimes(5);
+    expect(store.pollTimer).not.toBeNull();
+    expect(getUpdateOperation).toHaveBeenCalledTimes(7);
   });
 });

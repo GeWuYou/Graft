@@ -25,7 +25,6 @@ const SESSION_STORAGE_KEY = 'graft.platform-update.operation-id';
 const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
 const terminalFailure = new Set<UpdateOperation['phase']>(['FAILED', 'ROLLBACK']);
 const POLL_INTERVAL_MS = 3000;
-const MAX_SNAPSHOT_RETRIES = 5;
 const runnerDisconnectedStateSources = new Set<UpdateOperation['state_source']>([
   'runner_lost',
   'runner_state_corrupt',
@@ -75,7 +74,6 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       session: 0,
       stream: null as RealtimeTopicEventStreamController | null,
       pollTimer: null as number | null,
-      snapshotRetryCount: 0,
       events: [] as UpdateOperationEvent[],
       failureDiagnostic: null as UpdateFailureDiagnostic | null,
       failureDiagnosticLoading: false,
@@ -99,7 +97,6 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operationID = acknowledgement.operation_id;
       this.operation = null;
       this.lastActivePhase = null;
-      this.snapshotRetryCount = 0;
       this.events = [];
       this.failureDiagnostic = null;
       this.failureDiagnosticLoading = false;
@@ -140,14 +137,12 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       if (!operationID || session !== this.session) return;
       try {
         const operation = await getUpdateOperation(operationID);
-        this.snapshotRetryCount = 0;
         await this.applyOperation(session, operation);
         if (!this.isTerminal()) await this.refreshEvents(session);
         if (session === this.session && !this.isTerminal() && !this.stream) this.connect(session);
       } catch (error) {
         if (session !== this.session || this.isTerminal()) return;
-        this.snapshotRetryCount += 1;
-        if (isUnrecoverableSnapshotError(error) || this.snapshotRetryCount >= MAX_SNAPSHOT_RETRIES) {
+        if (isUnrecoverableSnapshotError(error)) {
           this.failSnapshotRecovery();
           return;
         }
@@ -163,17 +158,8 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         onStateChange: (state) => {
           if (session !== this.session || this.isTerminal()) return;
           if (state === 'open') {
-            void this.refreshEvents(session).finally(() => {
-              if (session === this.session && !this.isTerminal()) {
-                if (this.recoveryPending && isRunnerDisconnected(this.operation)) {
-                  this.phase = 'reconnecting';
-                  this.startPolling(session);
-                  return;
-                }
-                this.phase = 'running';
-                this.stopPolling();
-              }
-            });
+            // 服务重建后先读取同一份 runner 快照，再恢复实时事件，避免连接已打开却错过终态。
+            void this.refreshSnapshot(session);
           } else if (state !== 'idle') {
             this.phase = 'reconnecting';
             this.startPolling(session);
@@ -215,9 +201,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
     async applyOperation(session: number, operation: UpdateOperation) {
       if (session !== this.session) return;
       if (this.operationID && operation.operation_id !== this.operationID) return;
-      this.operation = operation;
-      this.operationID = operation.operation_id;
       if (isRunnerDisconnected(operation)) {
+        this.operation = operation;
+        this.operationID = operation.operation_id;
         if (this.recoveryPending) {
           this.phase = 'reconnecting';
           this.startPolling(session);
@@ -239,9 +225,14 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       }
       this.recoveryPending = false;
       if (!operation.state_available || operation.state_source === 'runner_state_unavailable') {
-        this.failSnapshotRecovery();
+        // server 重建窗口内的不可用投影不是 runner 失联。保留最后可信快照与事件并持续轮询状态卷投影。
+        this.operationID = operation.operation_id;
+        this.phase = 'reconnecting';
+        this.startPolling(session);
         return;
       }
+      this.operation = operation;
+      this.operationID = operation.operation_id;
       if (terminalSuccess.has(operation.phase)) {
         this.phase = 'success';
         this.stopStream();
@@ -263,6 +254,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       }
       this.lastActivePhase = operation.phase;
       this.phase = 'running';
+      if (this.stream) this.stopPolling();
     },
     async recoverTerminatedRunner() {
       const operation = this.operation;
@@ -322,7 +314,6 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operation = null;
       this.operationID = null;
       this.lastActivePhase = null;
-      this.snapshotRetryCount = 0;
       this.events = [];
       this.failureDiagnostic = null;
       this.failureDiagnosticLoading = false;
