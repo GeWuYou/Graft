@@ -123,7 +123,7 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.DockerImageBuildCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return service, nil
+		return containerImageBuilder{service: service}, nil
 	}); err != nil {
 		return err
 	}

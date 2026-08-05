@@ -15,6 +15,15 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
+type containerImageBuilder struct{ service *service }
+
+func (b containerImageBuilder) BuildImage(ctx context.Context, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	if b.service == nil {
+		return moduleapi.DockerImageBuildResult{}, errRuntimeDisabled
+	}
+	return b.service.BuildImage(ctx, input, sink)
+}
+
 // BuildImage 在已授权应用工作区内执行受限的本地 Dockerfile 构建，不接受外部 daemon 或自由 CLI 参数。
 //
 //nolint:cyclop // Docker 进程、日志和 iid 文件的生命周期需要在同一受控执行边界内收束。

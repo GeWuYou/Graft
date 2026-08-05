@@ -222,25 +222,38 @@ func (r *SQLRepository) CreateJob(ctx context.Context, value JobSnapshot) error 
 	if r == nil || r.db == nil || !validJobSnapshot(value) {
 		return errors.New("invalid build job snapshot")
 	}
+	for attempt := 0; attempt < 2; attempt++ {
+		err, retry := r.createJobAttempt(ctx, value)
+		if !retry || err == nil {
+			return err
+		}
+	}
+	return ErrNotFound
+}
+
+func (r *SQLRepository) createJobAttempt(ctx context.Context, value JobSnapshot) (error, bool) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin build job: %w", err)
+		return fmt.Errorf("begin build job: %w", err), false
 	}
-	defer func() { _ = tx.Rollback() }()
 	jobID, created, err := insertJob(ctx, tx, value)
 	if err != nil {
-		return err
+		_ = tx.Rollback()
+		return err, false
 	}
 	if !created {
-		return r.verifyExistingJob(ctx, tx, value)
+		err = r.verifyExistingJob(ctx, tx, value)
+		_ = tx.Rollback()
+		return err, errors.Is(err, ErrNotFound)
 	}
 	if err := insertBuildArgs(ctx, tx, jobID, value.BuildArgs); err != nil {
-		return err
+		_ = tx.Rollback()
+		return err, false
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit build job: %w", err)
+		return fmt.Errorf("commit build job: %w", err), false
 	}
-	return nil
+	return nil, false
 }
 
 func validJobSnapshot(value JobSnapshot) bool {
@@ -249,16 +262,18 @@ func validJobSnapshot(value JobSnapshot) bool {
 
 func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
 	var jobID uint64
+	var created bool
 	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14, 0))
-		ON CONFLICT (task_id) DO NOTHING RETURNING id`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID)
+		ON CONFLICT (task_id) DO UPDATE SET task_id = EXCLUDED.task_id
+		RETURNING id, (xmax = 0)`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, nil
+		return 0, false, errors.New("insert build job returned no row")
 	}
 	if err != nil {
 		return 0, false, fmt.Errorf("insert build job: %w", err)
 	}
-	return jobID, true, nil
+	return jobID, created, nil
 }
 
 func (r *SQLRepository) verifyExistingJob(ctx context.Context, query jobQueryer, value JobSnapshot) error {
