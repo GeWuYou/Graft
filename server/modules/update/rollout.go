@@ -356,7 +356,7 @@ func (s *RolloutService) taskIsActive(ctx context.Context, operation ComposeUpda
 		return false, fmt.Errorf("read update operation task: %w", err)
 	}
 	switch task.Status {
-	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
 		return true, nil
 	default:
 		return false, nil
@@ -372,7 +372,7 @@ func (s *RolloutService) taskTerminalOperationView(ctx context.Context, operatio
 		return OperationView{}, false, fmt.Errorf("read update operation task: %w", err)
 	}
 	switch task.Status {
-	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning:
 		return OperationView{}, false, nil
 	case moduleapi.TaskStatusNeedsAttention:
 		return updateOperationViewFromTaskRecovery(operation), true, nil

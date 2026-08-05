@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `task-submission-lifecycle`
+  - Recovery entry: `ai-plan/public/task-submission-lifecycle/README.md`
+
 - `network-connectivity-diagnostics`
   - Recovery entry: `ai-plan/public/network-connectivity-diagnostics/README.md`
 - `configuration-governance`

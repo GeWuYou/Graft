@@ -407,10 +407,10 @@ func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
 		}
 		id, err := strconv.ParseInt(*guard.Detail, 10, 64)
 		if err == nil && id > 0 {
-			return generated.TaskReceipt{TaskId: id, Status: generated.TaskStatusPending}
+			return generated.TaskReceipt{TaskId: id, Status: generated.TaskStatusReady}
 		}
 	}
-	return generated.TaskReceipt{Status: generated.TaskStatusPending}
+	return generated.TaskReceipt{Status: generated.TaskStatusReady}
 }
 
 // toBatchActionResponse 将批量操作结果转换为 OpenAPI 批量操作响应。

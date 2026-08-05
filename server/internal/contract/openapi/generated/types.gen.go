@@ -625,16 +625,16 @@ func (e ApplicationImportRuntimeCandidateStatus) Valid() bool {
 
 // Defines values for ApplicationImportRuntimeInspectResponseValidationStatus.
 const (
-	Conflict ApplicationImportRuntimeInspectResponseValidationStatus = "conflict"
-	Ready    ApplicationImportRuntimeInspectResponseValidationStatus = "ready"
+	ApplicationImportRuntimeInspectResponseValidationStatusConflict ApplicationImportRuntimeInspectResponseValidationStatus = "conflict"
+	ApplicationImportRuntimeInspectResponseValidationStatusReady    ApplicationImportRuntimeInspectResponseValidationStatus = "ready"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationImportRuntimeInspectResponseValidationStatus enum.
 func (e ApplicationImportRuntimeInspectResponseValidationStatus) Valid() bool {
 	switch e {
-	case Conflict:
+	case ApplicationImportRuntimeInspectResponseValidationStatusConflict:
 		return true
-	case Ready:
+	case ApplicationImportRuntimeInspectResponseValidationStatusReady:
 		return true
 	default:
 		return false
@@ -5104,31 +5104,31 @@ func (e SystemConfigItemType) Valid() bool {
 
 // Defines values for TaskEventType.
 const (
-	TaskEventTypeCancelRequested  TaskEventType = "cancel_requested"
-	TaskEventTypeCancelled        TaskEventType = "cancelled"
-	TaskEventTypeCreated          TaskEventType = "created"
-	TaskEventTypeRecoveryRequired TaskEventType = "recovery_required"
-	TaskEventTypeRecoveryResolved TaskEventType = "recovery_resolved"
-	TaskEventTypeRetryRequested   TaskEventType = "retry_requested"
-	TaskEventTypeRetryScheduled   TaskEventType = "retry_scheduled"
+	CancelRequested  TaskEventType = "cancel_requested"
+	Cancelled        TaskEventType = "cancelled"
+	Created          TaskEventType = "created"
+	RecoveryRequired TaskEventType = "recovery_required"
+	RecoveryResolved TaskEventType = "recovery_resolved"
+	RetryRequested   TaskEventType = "retry_requested"
+	RetryScheduled   TaskEventType = "retry_scheduled"
 )
 
 // Valid indicates whether the value is a known member of the TaskEventType enum.
 func (e TaskEventType) Valid() bool {
 	switch e {
-	case TaskEventTypeCancelRequested:
+	case CancelRequested:
 		return true
-	case TaskEventTypeCancelled:
+	case Cancelled:
 		return true
-	case TaskEventTypeCreated:
+	case Created:
 		return true
-	case TaskEventTypeRecoveryRequired:
+	case RecoveryRequired:
 		return true
-	case TaskEventTypeRecoveryResolved:
+	case RecoveryResolved:
 		return true
-	case TaskEventTypeRetryRequested:
+	case RetryRequested:
 		return true
-	case TaskEventTypeRetryScheduled:
+	case RetryScheduled:
 		return true
 	default:
 		return false
@@ -5234,6 +5234,7 @@ const (
 	TaskStatusFailed         TaskStatus = "failed"
 	TaskStatusNeedsAttention TaskStatus = "needs_attention"
 	TaskStatusPending        TaskStatus = "pending"
+	TaskStatusReady          TaskStatus = "ready"
 	TaskStatusRunning        TaskStatus = "running"
 	TaskStatusScheduled      TaskStatus = "scheduled"
 	TaskStatusSuccess        TaskStatus = "success"
@@ -5249,6 +5250,8 @@ func (e TaskStatus) Valid() bool {
 	case TaskStatusNeedsAttention:
 		return true
 	case TaskStatusPending:
+		return true
+	case TaskStatusReady:
 		return true
 	case TaskStatusRunning:
 		return true

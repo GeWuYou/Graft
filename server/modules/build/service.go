@@ -3,11 +3,13 @@ package build
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/distribution/reference"
 
@@ -16,9 +18,12 @@ import (
 )
 
 const (
-	buildTaskType      = moduleapi.TaskType("build.dockerfile.v1")
-	buildStageExecutor = moduleapi.StageExecutorType("build.dockerfile.v1")
-	buildTaskOwnerType = "build_job"
+	buildTaskType              = moduleapi.TaskType("build.dockerfile.v1")
+	buildStageExecutor         = moduleapi.StageExecutorType("build.dockerfile.v1")
+	buildTaskOwnerType         = "build_job"
+	buildSubmissionLeaseTTL    = 2 * time.Minute
+	buildSubmissionDeadline    = 10 * time.Minute
+	buildSubmissionRenewBefore = 30 * time.Second
 )
 
 var (
@@ -47,10 +52,10 @@ type preparedSubmission struct {
 
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
-	contexts   moduleapi.ApplicationBuildContextResolver
-	tasks      moduleapi.TaskReservationService
-	docker     moduleapi.DockerImageBuildCapability
-	repository buildstore.Repository
+	contexts    moduleapi.ApplicationBuildContextResolver
+	submissions moduleapi.TaskSubmissionService
+	docker      moduleapi.DockerImageBuildCapability
+	repository  buildstore.Repository
 }
 
 // ListJobs 返回一个按 Build 冻结快照字段过滤的受限作业页。
@@ -73,35 +78,34 @@ func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobPro
 }
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
-func NewService(contexts moduleapi.ApplicationBuildContextResolver, tasks moduleapi.TaskReservationService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
-	if contexts == nil || tasks == nil || docker == nil || repository == nil {
+func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
+	if contexts == nil || submissions == nil || docker == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
-	return &Service{contexts: contexts, tasks: tasks, docker: docker, repository: repository}, nil
+	return &Service{contexts: contexts, submissions: submissions, docker: docker, repository: repository}, nil
 }
 
 // Submit 解析服务端授权工作区，并为 Build 请求创建单阶段的 Task 计划。
 func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.TaskReceipt, error) {
-	if s == nil || s.contexts == nil || s.tasks == nil {
+	if s == nil || s.contexts == nil || s.submissions == nil {
 		return moduleapi.TaskReceipt{}, errors.New("build service is unavailable")
 	}
 	prepared, err := s.prepareSubmission(ctx, request)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	reservation, err := s.reserveTask(ctx, prepared.request, prepared.input)
+	taskInput := s.taskInput(prepared.request, prepared.input)
+	handle, err := s.submissions.BeginSubmission(ctx, moduleapi.BeginTaskSubmissionInput{Task: taskInput, Policy: moduleapi.TaskSubmissionPolicy{LeaseTTL: buildSubmissionLeaseTTL, AbsoluteDeadline: buildSubmissionDeadline, RenewBefore: buildSubmissionRenewBefore, AllowRenew: true, PrerequisiteKind: "build.snapshot.v1"}})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	if err := s.freezeSnapshot(ctx, prepared.buildID, reservation.TaskID, prepared.buildContext, prepared.request); err != nil {
-		if discardErr := s.tasks.DiscardTaskReservation(ctx, reservation); discardErr != nil {
-			return moduleapi.TaskReceipt{}, fmt.Errorf("freeze build job snapshot: %w; discard task reservation: %v", err, discardErr)
-		}
-		return moduleapi.TaskReceipt{}, fmt.Errorf("freeze build job snapshot: %w", err)
+	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
+		return moduleapi.TaskReceipt{TaskID: *handle.Submission.TaskID, Status: moduleapi.TaskStatusReady}, nil
 	}
-	receipt, err := s.tasks.ActivateTask(ctx, reservation)
+	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, WorkspaceRoot: prepared.buildContext.WorkspaceRoot, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, BuildArgs: prepared.request.BuildArgs, RequestedBy: prepared.request.RequestedBy}
+	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, taskInput, buildSubmissionWriter{repository: s.repository, snapshot: snapshot})
 	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("activate build task: %w", err)
+		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize build submission: %w", err)
 	}
 	return receipt, nil
 }
@@ -145,12 +149,17 @@ func buildTaskInput(buildID string) (json.RawMessage, error) {
 	return input, nil
 }
 
-func (s *Service) reserveTask(ctx context.Context, request SubmitRequest, input json.RawMessage) (moduleapi.TaskReservation, error) {
-	return s.tasks.ReserveTask(ctx, moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}}})
+func (s *Service) taskInput(request SubmitRequest, input json.RawMessage) moduleapi.SubmitTaskInput {
+	return moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}}}
 }
 
-func (s *Service) freezeSnapshot(ctx context.Context, buildID string, taskID uint64, buildContext moduleapi.ApplicationBuildContext, request SubmitRequest) error {
-	return s.repository.CreateJob(ctx, buildstore.JobSnapshot{BuildID: buildID, TaskID: taskID, ApplicationID: buildContext.ApplicationID, ApplicationRecordID: buildContext.ApplicationRecordID, ApplicationName: buildContext.DisplayName, WorkspaceRoot: buildContext.WorkspaceRoot, ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, RuntimeTargetID: buildContext.RuntimeTargetID, RuntimeProvider: buildContext.RuntimeProvider, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: request.BuildArgs, RequestedBy: request.RequestedBy})
+type buildSubmissionWriter struct {
+	repository buildstore.Repository
+	snapshot   buildstore.JobSnapshot
+}
+
+func (w buildSubmissionWriter) MaterializeTaskSubmission(ctx context.Context, tx *sql.Tx, submission moduleapi.TaskSubmission) (string, error) {
+	return w.repository.MaterializeSubmissionSnapshot(ctx, tx, submission, w.snapshot)
 }
 
 func newBuildID() (string, error) {

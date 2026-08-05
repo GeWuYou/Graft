@@ -1991,7 +1991,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -6797,7 +6797,8 @@ export interface components {
      * @description Canonical persisted Task state-machine state.
      * @enum {string}
      */
-    'task-status': 'pending' | 'scheduled' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
+    'task-status':
+      'pending' | 'scheduled' | 'ready' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
     'task-summary': {
       /** Format: int64 */
       id: number;
@@ -14982,7 +14983,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Retry was accepted and the Task is pending dispatch. */
+      /** @description Retry was accepted and the Task is queued for dispatch. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16404,7 +16405,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
       200: {
         headers: {
           [name: string]: unknown;

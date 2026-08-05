@@ -17,7 +17,7 @@ func CreateSQLite(db *sql.DB) error {
 			started_at TIMESTAMP NULL, finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, failure_code TEXT NULL, failure_message TEXT NULL,
 			created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
 			CHECK (trim(task_type) <> ''), CHECK (trim(owner_type) <> ''), CHECK (trim(owner_id) <> ''),
-			CHECK (status IN ('pending', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')),
+			CHECK (status IN ('pending', 'ready', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')),
 			CHECK (idempotency_key_hash IS NULL OR (length(idempotency_key_hash) = 64 AND idempotency_key_hash NOT GLOB '*[^0-9a-f]*')),
 			CHECK (submission_fingerprint IS NULL OR (length(submission_fingerprint) = 64 AND submission_fingerprint NOT GLOB '*[^0-9a-f]*')),
 			CHECK (duration_ms IS NULL OR duration_ms >= 0)
@@ -27,7 +27,17 @@ func CreateSQLite(db *sql.DB) error {
 			WHERE idempotency_key_hash IS NOT NULL`,
 		`CREATE UNIQUE INDEX uq_tasks_active_owner
 			ON tasks (owner_type, owner_id)
-			WHERE status IN ('pending', 'scheduled', 'running', 'needs_attention')`,
+			WHERE status IN ('pending', 'ready', 'scheduled', 'running', 'needs_attention')`,
+		`CREATE TABLE task_submissions (
+			id TEXT PRIMARY KEY, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL, requested_by INTEGER NULL,
+			idempotency_key_hash TEXT NULL, submission_fingerprint TEXT NULL, state TEXT NOT NULL, submission_version INTEGER NOT NULL, lease_ttl_ms INTEGER NOT NULL, lease_renewable BOOLEAN NOT NULL,
+			lease_token_hash TEXT NOT NULL, lease_expires_at TIMESTAMP NOT NULL, absolute_deadline_at TIMESTAMP NOT NULL, prerequisite_kind TEXT NOT NULL,
+			prerequisite_ref TEXT NULL, task_id INTEGER NULL, terminal_reason TEXT NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
+			activated_at TIMESTAMP NULL, terminal_at TIMESTAMP NULL, FOREIGN KEY(task_id) REFERENCES tasks(id),
+			CHECK (state IN ('reserved', 'activated', 'discarded', 'expired')), CHECK (submission_version > 0), CHECK (lease_ttl_ms > 0), CHECK (lease_expires_at < absolute_deadline_at)
+		)`,
+		`CREATE UNIQUE INDEX uq_task_submissions_reserved_owner ON task_submissions (owner_type, owner_id) WHERE state = 'reserved'`,
+		`CREATE UNIQUE INDEX uq_task_submissions_idempotency ON task_submissions (task_type, owner_type, owner_id, COALESCE(requested_by, 0), idempotency_key_hash) WHERE idempotency_key_hash IS NOT NULL`,
 		`CREATE TABLE task_stages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL,
 			executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,

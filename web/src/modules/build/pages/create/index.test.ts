@@ -83,6 +83,9 @@ describe('BuildCreatePage', () => {
     await flushPromises();
 
     expect(mocks.createBuildJob).toHaveBeenCalledTimes(2);
-    expect(mocks.createBuildJob.mock.calls[1]?.[1]).toBe(mocks.createBuildJob.mock.calls[0]?.[1]);
+    const firstIdempotencyKey = mocks.createBuildJob.mock.calls[0]?.[1];
+    expect(firstIdempotencyKey).toEqual(expect.any(String));
+    expect(firstIdempotencyKey).not.toBe('');
+    expect(mocks.createBuildJob.mock.calls[1]?.[1]).toBe(firstIdempotencyKey);
   });
 });

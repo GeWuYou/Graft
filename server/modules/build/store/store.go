@@ -19,6 +19,7 @@ var ErrNotFound = errors.New("build record not found")
 // JobSnapshot 是请求期授权后冻结的 Build 所有执行输入。
 type JobSnapshot struct {
 	BuildID             string
+	SubmissionID        string
 	TaskID              uint64
 	ApplicationID       string
 	ApplicationRecordID uint64
@@ -73,10 +74,40 @@ const (
 // Repository 是提交与执行器路径使用的窄 Build 持久化边界。
 type Repository interface {
 	CreateJob(context.Context, JobSnapshot) error
+	MaterializeSubmissionSnapshot(context.Context, *sql.Tx, moduleapi.TaskSubmission, JobSnapshot) (string, error)
 	GetJobByTaskID(context.Context, uint64) (JobSnapshot, error)
 	SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error
 	ListJobs(context.Context, ListQuery) (ListResult, error)
 	GetJobByBuildID(context.Context, string) (JobProjection, error)
+}
+
+// MaterializeSubmissionSnapshot 在 Task Runtime 拥有的事务中写入 Build 快照。
+// 调用方只能传入已分配 TaskID 的 reserved Submission，事务提交前 worker 无法观察到该 Task。
+//
+//nolint:cyclop // Idempotent snapshot materialization keeps all validation at the transaction boundary.
+func (r *SQLRepository) MaterializeSubmissionSnapshot(ctx context.Context, tx *sql.Tx, submission moduleapi.TaskSubmission, value JobSnapshot) (string, error) {
+	if r == nil || tx == nil || submission.ID == "" || submission.TaskID == nil || *submission.TaskID == 0 {
+		return "", errors.New("invalid build submission snapshot")
+	}
+	value.SubmissionID = submission.ID
+	value.TaskID = *submission.TaskID
+	if !validJobSnapshot(value) {
+		return "", errors.New("invalid build submission snapshot")
+	}
+	jobID, created, err := insertSubmissionJob(ctx, tx, value)
+	if err != nil {
+		return "", err
+	}
+	if !created {
+		if err := r.verifyExistingJob(ctx, tx, value); err != nil {
+			return "", err
+		}
+		return value.BuildID, nil
+	}
+	if err := insertBuildArgs(ctx, tx, jobID, value.BuildArgs); err != nil {
+		return "", err
+	}
+	return value.BuildID, nil
 }
 
 // ListJobs 读取 Build 域自己的作业与已结算 artifact，不联结 Task、Project 或 Container 内部表。
@@ -258,6 +289,19 @@ func (r *SQLRepository) createJobAttempt(ctx context.Context, value JobSnapshot)
 
 func validJobSnapshot(value JobSnapshot) bool {
 	return value.TaskID != 0 && value.BuildID != "" && value.WorkspaceRoot != ""
+}
+
+func insertSubmissionJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
+	var jobID uint64
+	var created bool
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, submission_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NULLIF($15, 0))
+		ON CONFLICT (submission_id) WHERE submission_id IS NOT NULL DO UPDATE SET task_id = EXCLUDED.task_id
+		RETURNING id, (xmax = 0)`, value.BuildID, value.SubmissionID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
+	if err != nil {
+		return 0, false, fmt.Errorf("insert build submission snapshot: %w", err)
+	}
+	return jobID, created, nil
 }
 
 func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {

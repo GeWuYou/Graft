@@ -34,6 +34,31 @@ type Task struct {
 	UpdatedAt             time.Time
 }
 
+// Submission 是 Task 物化前的持久化提交聚合；它与 Task 执行状态机分离。
+type Submission struct {
+	ID                    string
+	Type                  moduleapi.TaskType
+	Owner                 moduleapi.TaskOwner
+	RequestedBy           *uint64
+	IdempotencyKeyHash    *string
+	SubmissionFingerprint *string
+	State                 moduleapi.TaskSubmissionState
+	Version               int64
+	LeaseTTL              time.Duration
+	LeaseRenewable        bool
+	LeaseTokenHash        string
+	LeaseExpiresAt        time.Time
+	AbsoluteDeadlineAt    time.Time
+	PrerequisiteKind      string
+	PrerequisiteRef       *string
+	TaskID                *uint64
+	TerminalReason        *string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	ActivatedAt           *time.Time
+	TerminalAt            *time.Time
+}
+
 // Stage 表示冻结计划中的一个阶段及其当前执行状态；计划字段创建后不因重试而重写。
 type Stage struct {
 	ID             uint64

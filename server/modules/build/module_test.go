@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"database/sql"
 	"slices"
 	"testing"
 
@@ -22,14 +23,21 @@ func (testBuildContexts) ResolveApplicationBuildContext(context.Context, string)
 
 type testBuildTasks struct{}
 
-func (testBuildTasks) ReserveTask(context.Context, moduleapi.SubmitTaskInput) (moduleapi.TaskReservation, error) {
-	return moduleapi.TaskReservation{TaskID: 1}, nil
+func (testBuildTasks) BeginSubmission(context.Context, moduleapi.BeginTaskSubmissionInput) (moduleapi.TaskSubmissionHandle, error) {
+	return moduleapi.TaskSubmissionHandle{}, nil
 }
-func (testBuildTasks) ActivateTask(context.Context, moduleapi.TaskReservation) (moduleapi.TaskReceipt, error) {
-	return moduleapi.TaskReceipt{TaskID: 1, Status: moduleapi.TaskStatusPending}, nil
+func (testBuildTasks) RenewSubmissionLease(context.Context, moduleapi.TaskSubmissionHandle) (moduleapi.TaskSubmissionHandle, error) {
+	return moduleapi.TaskSubmissionHandle{}, nil
 }
-func (testBuildTasks) DiscardTaskReservation(context.Context, moduleapi.TaskReservation) error {
+func (testBuildTasks) MaterializeSubmission(context.Context, moduleapi.TaskSubmissionHandle, moduleapi.SubmitTaskInput, moduleapi.TaskSubmissionWriter) (moduleapi.TaskReceipt, error) {
+	return moduleapi.TaskReceipt{}, nil
+}
+func (testBuildTasks) DiscardSubmission(context.Context, moduleapi.TaskSubmissionHandle, string) error {
 	return nil
+}
+func (testBuildTasks) ExpireSubmissions(context.Context, int) (int, error) { return 0, nil }
+func (testBuildTasks) GetSubmission(context.Context, string) (moduleapi.TaskSubmission, error) {
+	return moduleapi.TaskSubmission{}, nil
 }
 
 type testBuildDocker struct{}
@@ -41,6 +49,9 @@ func (testBuildDocker) BuildImage(context.Context, moduleapi.DockerImageBuildInp
 type testBuildRepository struct{}
 
 func (testBuildRepository) CreateJob(context.Context, buildstore.JobSnapshot) error { return nil }
+func (testBuildRepository) MaterializeSubmissionSnapshot(context.Context, *sql.Tx, moduleapi.TaskSubmission, buildstore.JobSnapshot) (string, error) {
+	return "", nil
+}
 func (testBuildRepository) GetJobByTaskID(context.Context, uint64) (buildstore.JobSnapshot, error) {
 	return buildstore.JobSnapshot{}, nil
 }
@@ -68,7 +79,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	services := containerdi.New()
 	for key, value := range map[any]any{
 		(*moduleapi.ApplicationBuildContextResolver)(nil): testBuildContexts{},
-		(*moduleapi.TaskReservationService)(nil):          testBuildTasks{},
+		(*moduleapi.TaskSubmissionService)(nil):           testBuildTasks{},
 		(*moduleapi.TaskRuntimeRegistrar)(nil):            testBuildRegistrar{},
 		(*moduleapi.DockerImageBuildCapability)(nil):      testBuildDocker{},
 	} {

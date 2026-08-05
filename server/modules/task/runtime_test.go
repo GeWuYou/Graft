@@ -60,47 +60,68 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	}
 }
 
-func TestRuntimeReservationCannotBeClaimedBeforeActivation(t *testing.T) {
-	t.Parallel()
-	runtime, repository := newRuntimeForTest(t)
-	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
-		t.Fatalf("register executor: %v", err)
-	}
-	reservation, err := runtime.ReserveTask(context.Background(), testSubmitInput(1, 1))
-	if err != nil {
-		t.Fatalf("reserve task: %v", err)
-	}
-	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || found {
-		t.Fatalf("claim before activation = found:%t err:%v", found, err)
-	}
-	if _, err := runtime.ActivateTask(context.Background(), reservation); err != nil {
-		t.Fatalf("activate task: %v", err)
-	}
-	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
-		t.Fatalf("claim after activation = found:%t err:%v", found, err)
-	}
-}
-
-func TestRuntimeDiscardedReservationReleasesOwnerForNewSubmission(t *testing.T) {
+func TestRuntimeSubmissionCannotBeClaimedBeforeMaterialization(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
 	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
 		t.Fatalf("register executor: %v", err)
 	}
 	input := testSubmitInput(1, 1)
-	reservation, err := runtime.ReserveTask(context.Background(), input)
+	submission, err := runtime.BeginSubmission(context.Background(), moduleapi.BeginTaskSubmissionInput{Task: input, Policy: testSubmissionPolicy()})
 	if err != nil {
-		t.Fatalf("reserve task: %v", err)
+		t.Fatalf("begin submission: %v", err)
 	}
-	if err := runtime.DiscardTaskReservation(context.Background(), reservation); err != nil {
-		t.Fatalf("discard task reservation: %v", err)
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || found {
+		t.Fatalf("claim before materialization = found:%t err:%v", found, err)
 	}
-	if _, err := repository.Get(context.Background(), reservation.TaskID); !errors.Is(err, taskstore.ErrNotFound) {
-		t.Fatalf("discarded task lookup error = %v, want not found", err)
+	receipt, err := runtime.MaterializeSubmission(context.Background(), submission, input, taskSubmissionWriterFunc(func(_ context.Context, _ *sql.Tx, got moduleapi.TaskSubmission) (string, error) {
+		if got.TaskID == nil || *got.TaskID == 0 {
+			t.Fatalf("writer task id = %v", got.TaskID)
+		}
+		return "snapshot:test", nil
+	}))
+	if err != nil {
+		t.Fatalf("materialize task: %v", err)
+	}
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
+		t.Fatalf("claim after materialization = found:%t err:%v", found, err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("materialized task status = %q", task.Status)
+	}
+}
+
+func TestRuntimeDiscardedSubmissionReleasesOwnerForNewSubmission(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	submission, err := runtime.BeginSubmission(context.Background(), moduleapi.BeginTaskSubmissionInput{Task: input, Policy: testSubmissionPolicy()})
+	if err != nil {
+		t.Fatalf("begin submission: %v", err)
+	}
+	if err := runtime.DiscardSubmission(context.Background(), submission, "snapshot_failed"); err != nil {
+		t.Fatalf("discard task submission: %v", err)
+	}
+	stored, err := runtime.GetSubmission(context.Background(), submission.Submission.ID)
+	if err != nil || stored.State != moduleapi.TaskSubmissionStateDiscarded {
+		t.Fatalf("discarded submission = %#v err=%v", stored, err)
 	}
 	if _, err := runtime.Submit(context.Background(), input); err != nil {
 		t.Fatalf("submit after discard: %v", err)
 	}
+}
+
+type taskSubmissionWriterFunc func(context.Context, *sql.Tx, moduleapi.TaskSubmission) (string, error)
+
+func (f taskSubmissionWriterFunc) MaterializeTaskSubmission(ctx context.Context, tx *sql.Tx, submission moduleapi.TaskSubmission) (string, error) {
+	return f(ctx, tx, submission)
+}
+
+func testSubmissionPolicy() moduleapi.TaskSubmissionPolicy {
+	return moduleapi.TaskSubmissionPolicy{LeaseTTL: time.Minute, AbsoluteDeadline: 5 * time.Minute, RenewBefore: 15 * time.Second, AllowRenew: true, PrerequisiteKind: "test.snapshot"}
 }
 
 func TestRuntimeUpdatesCurrentStageWhenClaimingLaterStage(t *testing.T) {

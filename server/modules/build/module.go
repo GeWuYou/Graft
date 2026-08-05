@@ -44,7 +44,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve application build context resolver: %w", err)
 	}
-	tasks, err := module.ResolveService[moduleapi.TaskReservationService](ctx.Services, (*moduleapi.TaskReservationService)(nil))
+	submissions, err := module.ResolveService[moduleapi.TaskSubmissionService](ctx.Services, (*moduleapi.TaskSubmissionService)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve task service: %w", err)
 	}
@@ -56,7 +56,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve Docker image build capability: %w", err)
 	}
-	service, err := NewService(contexts, tasks, docker, m.repository)
+	service, err := NewService(contexts, submissions, docker, m.repository)
 	if err != nil {
 		return err
 	}

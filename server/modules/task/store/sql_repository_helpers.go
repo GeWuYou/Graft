@@ -93,6 +93,12 @@ func taskColumnsFor(alias string) string {
 		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
+func submissionColumns() string {
+	return `id, task_type, owner_type, owner_id, requested_by, idempotency_key_hash, submission_fingerprint,
+		state, submission_version, lease_ttl_ms, lease_renewable, lease_token_hash, lease_expires_at, absolute_deadline_at, prerequisite_kind,
+		prerequisite_ref, task_id, terminal_reason, created_at, updated_at, activated_at, terminal_at`
+}
+
 // stageColumns 返回从 Stage 表选择的逗号分隔列名。
 func stageColumns() string {
 	return `id, task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
@@ -151,6 +157,28 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	item.DurationMS = nullableInt64(durationMS)
 	item.FailureCode = nullableString(failureCode)
 	item.FailureMessage = nullableString(failureMessage)
+	return item, nil
+}
+
+func scanSubmission(scanner interface{ Scan(dest ...any) error }) (taskmodel.Submission, error) {
+	var item taskmodel.Submission
+	var taskType, state string
+	var requestedBy, taskID sql.NullInt64
+	var idempotencyKeyHash, fingerprint, prerequisiteRef, terminalReason sql.NullString
+	var leaseTTLMS int64
+	var activatedAt, terminalAt sql.NullTime
+	if err := scanner.Scan(&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &requestedBy, &idempotencyKeyHash, &fingerprint,
+		&state, &item.Version, &leaseTTLMS, &item.LeaseRenewable, &item.LeaseTokenHash, &item.LeaseExpiresAt, &item.AbsoluteDeadlineAt, &item.PrerequisiteKind,
+		&prerequisiteRef, &taskID, &terminalReason, &item.CreatedAt, &item.UpdatedAt, &activatedAt, &terminalAt); err != nil {
+		return taskmodel.Submission{}, err
+	}
+	item.Type, item.State, item.LeaseTTL = moduleapi.TaskType(taskType), moduleapi.TaskSubmissionState(state), time.Duration(leaseTTLMS)*time.Millisecond
+	item.RequestedBy, item.IdempotencyKeyHash, item.SubmissionFingerprint = nullableUint64(requestedBy), nullableString(idempotencyKeyHash), nullableString(fingerprint)
+	item.PrerequisiteRef, item.TerminalReason, item.ActivatedAt, item.TerminalAt = nullableString(prerequisiteRef), nullableString(terminalReason), nullableTime(activatedAt), nullableTime(terminalAt)
+	if taskID.Valid && taskID.Int64 > 0 {
+		value := uint64(taskID.Int64)
+		item.TaskID = &value
+	}
 	return item, nil
 }
 

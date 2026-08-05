@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -27,6 +28,18 @@ func (r *recordingBuildRepository) CreateJob(_ context.Context, value buildstore
 	r.created = value
 	r.snapshot = value
 	return nil
+}
+func (r *recordingBuildRepository) MaterializeSubmissionSnapshot(_ context.Context, _ *sql.Tx, submission moduleapi.TaskSubmission, value buildstore.JobSnapshot) (string, error) {
+	if r.createErr != nil {
+		return "", r.createErr
+	}
+	value.SubmissionID = submission.ID
+	if submission.TaskID != nil {
+		value.TaskID = *submission.TaskID
+	}
+	r.created = value
+	r.snapshot = value
+	return value.BuildID, nil
 }
 func (r *recordingBuildRepository) GetJobByTaskID(_ context.Context, taskID uint64) (buildstore.JobSnapshot, error) {
 	if taskID != r.snapshot.TaskID {
@@ -59,28 +72,43 @@ func (r *recordingBuildContexts) ResolveApplicationBuildContext(context.Context,
 }
 
 type recordingBuildTasks struct {
-	input         moduleapi.SubmitTaskInput
-	reserveCalls  int
-	activateCalls int
-	discardCalls  int
-	err           error
+	input            moduleapi.SubmitTaskInput
+	beginCalls       int
+	materializeCalls int
+	discardCalls     int
+	err              error
 }
 
-func (r *recordingBuildTasks) ReserveTask(_ context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReservation, error) {
-	r.reserveCalls++
+func (r *recordingBuildTasks) BeginSubmission(_ context.Context, input moduleapi.BeginTaskSubmissionInput) (moduleapi.TaskSubmissionHandle, error) {
+	r.beginCalls++
+	r.input = input.Task
+	if r.err != nil {
+		return moduleapi.TaskSubmissionHandle{}, r.err
+	}
+	return moduleapi.TaskSubmissionHandle{Submission: moduleapi.TaskSubmission{ID: "submission_test", TaskType: input.Task.Type, Owner: input.Task.Owner, State: moduleapi.TaskSubmissionStateReserved, SubmissionVersion: 1}, LeaseToken: "lease"}, nil
+}
+func (r *recordingBuildTasks) RenewSubmissionLease(context.Context, moduleapi.TaskSubmissionHandle) (moduleapi.TaskSubmissionHandle, error) {
+	return moduleapi.TaskSubmissionHandle{}, errors.New("not implemented")
+}
+func (r *recordingBuildTasks) MaterializeSubmission(ctx context.Context, handle moduleapi.TaskSubmissionHandle, input moduleapi.SubmitTaskInput, writer moduleapi.TaskSubmissionWriter) (moduleapi.TaskReceipt, error) {
+	r.materializeCalls++
 	r.input = input
 	if r.err != nil {
-		return moduleapi.TaskReservation{}, r.err
+		return moduleapi.TaskReceipt{}, r.err
 	}
-	return moduleapi.TaskReservation{TaskID: 42}, nil
+	taskID := uint64(42)
+	if _, err := writer.MaterializeTaskSubmission(ctx, nil, moduleapi.TaskSubmission{ID: handle.Submission.ID, TaskID: &taskID}); err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	return moduleapi.TaskReceipt{TaskID: taskID, Status: moduleapi.TaskStatusReady}, nil
 }
-func (r *recordingBuildTasks) ActivateTask(_ context.Context, reservation moduleapi.TaskReservation) (moduleapi.TaskReceipt, error) {
-	r.activateCalls++
-	return moduleapi.TaskReceipt{TaskID: reservation.TaskID, Status: moduleapi.TaskStatusPending}, nil
-}
-func (r *recordingBuildTasks) DiscardTaskReservation(context.Context, moduleapi.TaskReservation) error {
+func (r *recordingBuildTasks) DiscardSubmission(context.Context, moduleapi.TaskSubmissionHandle, string) error {
 	r.discardCalls++
 	return nil
+}
+func (*recordingBuildTasks) ExpireSubmissions(context.Context, int) (int, error) { return 0, nil }
+func (*recordingBuildTasks) GetSubmission(context.Context, string) (moduleapi.TaskSubmission, error) {
+	return moduleapi.TaskSubmission{}, errors.New("not implemented")
 }
 
 type recordingBuildDocker struct {
@@ -116,8 +144,8 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	if contexts.calls != 1 || repository.created.TaskID != 42 || repository.created.WorkspaceRoot != "/workspace/app" || len(repository.created.BuildArgs) != 1 {
 		t.Fatalf("unexpected frozen snapshot: %#v calls=%d", repository.created, contexts.calls)
 	}
-	if tasks.reserveCalls != 1 || tasks.activateCalls != 1 || tasks.discardCalls != 0 {
-		t.Fatalf("reservation lifecycle = reserve:%d activate:%d discard:%d", tasks.reserveCalls, tasks.activateCalls, tasks.discardCalls)
+	if tasks.beginCalls != 1 || tasks.materializeCalls != 1 || tasks.discardCalls != 0 {
+		t.Fatalf("submission lifecycle = begin:%d materialize:%d discard:%d", tasks.beginCalls, tasks.materializeCalls, tasks.discardCalls)
 	}
 	var input moduleapi.BuildTaskInput
 	if err := json.Unmarshal(tasks.input.Input, &input); err != nil || input.BuildID == "" {
@@ -125,7 +153,7 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	}
 }
 
-func TestSubmitDiscardsReservationWhenSnapshotFreezeFails(t *testing.T) {
+func TestSubmitReturnsErrorWhenAtomicSnapshotMaterializationFails(t *testing.T) {
 	tasks := &recordingBuildTasks{}
 	repository := &recordingBuildRepository{createErr: errors.New("snapshot write failed")}
 	service, err := NewService(&recordingBuildContexts{}, tasks, &recordingBuildDocker{}, repository)
@@ -135,8 +163,8 @@ func TestSubmitDiscardsReservationWhenSnapshotFreezeFails(t *testing.T) {
 	if _, err := service.Submit(context.Background(), SubmitRequest{ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContextPath: "src", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1", IdempotencyKey: "key"}); err == nil {
 		t.Fatal("Submit error = nil, want snapshot failure")
 	}
-	if tasks.reserveCalls != 1 || tasks.activateCalls != 0 || tasks.discardCalls != 1 {
-		t.Fatalf("reservation lifecycle = reserve:%d activate:%d discard:%d", tasks.reserveCalls, tasks.activateCalls, tasks.discardCalls)
+	if tasks.beginCalls != 1 || tasks.materializeCalls != 1 || tasks.discardCalls != 0 {
+		t.Fatalf("submission lifecycle = begin:%d materialize:%d discard:%d", tasks.beginCalls, tasks.materializeCalls, tasks.discardCalls)
 	}
 }
 
@@ -190,8 +218,8 @@ func TestSubmitRejectsInvalidInputBeforeTaskSubmission(t *testing.T) {
 			if _, err := service.Submit(context.Background(), request); !errors.Is(err, errInvalidBuildRequest) {
 				t.Fatalf("Submit error = %v, want invalid request", err)
 			}
-			if tasks.reserveCalls != 0 {
-				t.Fatalf("task reservation calls = %d, want 0", tasks.reserveCalls)
+			if tasks.beginCalls != 0 {
+				t.Fatalf("task submission calls = %d, want 0", tasks.beginCalls)
 			}
 		})
 	}
