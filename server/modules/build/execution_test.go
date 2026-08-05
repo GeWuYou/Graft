@@ -20,6 +20,7 @@ type recordingBuildRepository struct {
 	getBuildIDErr  error
 	createErr      error
 	listResult     buildstore.ListResult
+	listQuery      buildstore.ListQuery
 }
 
 func (r *recordingBuildRepository) CreateJob(_ context.Context, value buildstore.JobSnapshot) error {
@@ -54,7 +55,8 @@ func (r *recordingBuildRepository) SettleDockerArtifact(ctx context.Context, tas
 	_, r.settleDeadline = ctx.Deadline()
 	return nil
 }
-func (r *recordingBuildRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
+func (r *recordingBuildRepository) ListJobs(_ context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
+	r.listQuery = query
 	return r.listResult, nil
 }
 
@@ -79,9 +81,16 @@ type recordingBuildTasks struct {
 	discardCalls     int
 	err              error
 	views            []moduleapi.TaskView
+	batchErr         error
+	batchIDs         []uint64
+	beginSubmission  *moduleapi.TaskSubmission
 }
 
-func (r *recordingBuildTasks) GetTasksByIDs(context.Context, []uint64) ([]moduleapi.TaskView, error) {
+func (r *recordingBuildTasks) GetTasksByIDs(_ context.Context, taskIDs []uint64) ([]moduleapi.TaskView, error) {
+	r.batchIDs = append([]uint64(nil), taskIDs...)
+	if r.batchErr != nil {
+		return nil, r.batchErr
+	}
 	return r.views, nil
 }
 
@@ -90,6 +99,9 @@ func (r *recordingBuildTasks) BeginSubmission(_ context.Context, input moduleapi
 	r.input = input.Task
 	if r.err != nil {
 		return moduleapi.TaskSubmissionHandle{}, r.err
+	}
+	if r.beginSubmission != nil {
+		return moduleapi.TaskSubmissionHandle{Submission: *r.beginSubmission, LeaseToken: "lease"}, nil
 	}
 	return moduleapi.TaskSubmissionHandle{Submission: moduleapi.TaskSubmission{ID: "submission_test", TaskType: input.Task.Type, Owner: input.Task.Owner, State: moduleapi.TaskSubmissionStateReserved, SubmissionVersion: 1}, LeaseToken: "lease"}, nil
 }
@@ -121,9 +133,9 @@ type recordingBuildDocker struct {
 	input moduleapi.DockerImageBuildInput
 }
 
-func TestListJobsAddsBatchedTaskExecutionProjectionAndStatusFilter(t *testing.T) {
-	repository := &recordingBuildRepository{listResult: buildstore.ListResult{Items: []buildstore.JobProjection{{JobSnapshot: buildstore.JobSnapshot{BuildID: "build_test", TaskID: 42}}, {JobSnapshot: buildstore.JobSnapshot{BuildID: "build_failed", TaskID: 43}}}, Total: 2}}
-	tasks := &recordingBuildTasks{views: []moduleapi.TaskView{{ID: 42, Status: moduleapi.TaskStatusRunning, CurrentStageKey: stringPtr("dockerfile-build")}, {ID: 43, Status: moduleapi.TaskStatusFailed}}}
+func TestListJobsAddsBatchedTaskExecutionProjectionAfterRepositoryStatusFilter(t *testing.T) {
+	repository := &recordingBuildRepository{listResult: buildstore.ListResult{Items: []buildstore.JobProjection{{JobSnapshot: buildstore.JobSnapshot{BuildID: "build_test", TaskID: 42}}}, Total: 1}}
+	tasks := &recordingBuildTasks{views: []moduleapi.TaskView{{ID: 42, Status: moduleapi.TaskStatusRunning, CurrentStageKey: stringPtr("dockerfile-build")}}}
 	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +149,10 @@ func TestListJobsAddsBatchedTaskExecutionProjectionAndStatusFilter(t *testing.T)
 		t.Fatalf("unexpected execution projection: %#v", result.Items[0].Execution)
 	}
 	if result.Total != 1 {
-		t.Fatalf("filtered total = %d, want 1", result.Total)
+		t.Fatalf("repository filtered total = %d, want 1", result.Total)
+	}
+	if repository.listQuery.BuildStatus == nil || *repository.listQuery.BuildStatus != status || repository.listQuery.Limit != 1 {
+		t.Fatalf("repository query = %#v, want running status and requested pagination", repository.listQuery)
 	}
 }
 
@@ -197,6 +212,67 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	var input moduleapi.BuildTaskInput
 	if err := json.Unmarshal(tasks.input.Input, &input); err != nil || input.BuildID == "" {
 		t.Fatalf("task input must contain build identity: %#v err=%v", input, err)
+	}
+}
+
+func TestSubmitReturnsPersistedTaskStatusForActivatedSubmission(t *testing.T) {
+	taskID := uint64(42)
+	tasks := &recordingBuildTasks{
+		beginSubmission: &moduleapi.TaskSubmission{ID: "submission_test", TaskID: &taskID, State: moduleapi.TaskSubmissionStateActivated},
+		views:           []moduleapi.TaskView{{ID: taskID, Status: moduleapi.TaskStatusRunning}},
+	}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := service.Submit(context.Background(), SubmitRequest{ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContextPath: "src", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1", IdempotencyKey: "key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.TaskID != taskID || receipt.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("replayed receipt = %#v, want running task %d", receipt, taskID)
+	}
+	if tasks.materializeCalls != 0 {
+		t.Fatalf("materialize calls = %d, want 0 for activated submission", tasks.materializeCalls)
+	}
+	if len(tasks.batchIDs) != 1 || tasks.batchIDs[0] != taskID {
+		t.Fatalf("receipt task lookup ids = %v, want [%d]", tasks.batchIDs, taskID)
+	}
+}
+
+func TestSubmitRejectsActivatedSubmissionWithoutPersistedTask(t *testing.T) {
+	taskID := uint64(42)
+	tasks := &recordingBuildTasks{
+		beginSubmission: &moduleapi.TaskSubmission{ID: "submission_test", TaskID: &taskID, State: moduleapi.TaskSubmissionStateActivated},
+		views:           []moduleapi.TaskView{{ID: 43, Status: moduleapi.TaskStatusReady}},
+	}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.Submit(context.Background(), SubmitRequest{ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContextPath: "src", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1", IdempotencyKey: "key"})
+	if !errors.Is(err, buildstore.ErrNotFound) {
+		t.Fatalf("Submit error = %v, want build snapshot not found", err)
+	}
+	if tasks.materializeCalls != 0 {
+		t.Fatalf("materialize calls = %d, want 0 for activated submission", tasks.materializeCalls)
+	}
+}
+
+func TestSubmitReturnsActivatedReceiptLookupError(t *testing.T) {
+	taskID := uint64(42)
+	lookupErr := errors.New("task lookup failed")
+	tasks := &recordingBuildTasks{
+		beginSubmission: &moduleapi.TaskSubmission{ID: "submission_test", TaskID: &taskID, State: moduleapi.TaskSubmissionStateActivated},
+		batchErr:        lookupErr,
+	}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.Submit(context.Background(), SubmitRequest{ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContextPath: "src", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1", IdempotencyKey: "key"})
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("Submit error = %v, want wrapped task lookup error", err)
 	}
 }
 

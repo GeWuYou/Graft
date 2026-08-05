@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,58 @@ func TestJobListFiltersPreserveExactFilterArgumentOrder(t *testing.T) {
 	wantArgs := []any{applicationID, repository, tag, after, before}
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf("unexpected filter arguments: %#v", args)
+	}
+}
+
+func TestJobListFiltersMapProductStatusGroupsToTaskStatuses(t *testing.T) {
+	cases := []struct {
+		name   string
+		filter StatusFilter
+		want   []any
+	}{
+		{name: "queued", filter: StatusFilterQueued, want: []any{moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled}},
+		{name: "running", filter: StatusFilterRunning, want: []any{moduleapi.TaskStatusRunning}},
+		{name: "success", filter: StatusFilterSuccess, want: []any{moduleapi.TaskStatusSuccess}},
+		{name: "failed", filter: StatusFilterFailed, want: []any{moduleapi.TaskStatusFailed, moduleapi.TaskStatusNeedsAttention}},
+		{name: "cancelled", filter: StatusFilterCancelled, want: []any{moduleapi.TaskStatusCancelled}},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			where, args := jobListFilters(ListQuery{BuildStatus: &testCase.filter})
+			if got := where[len(where)-1]; !strings.HasPrefix(got, `EXISTS (SELECT 1 FROM tasks t WHERE t.id = j.task_id AND t.status IN ($1`) {
+				t.Fatalf("status where clause = %q, want Task status projection", got)
+			}
+			if !reflect.DeepEqual(args, testCase.want) {
+				t.Fatalf("status arguments = %#v, want %#v", args, testCase.want)
+			}
+		})
+	}
+}
+
+func TestListJobsUsesStatusProjectionForExactTotalAndOffset(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := StatusFilterFailed
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM build_jobs j WHERE 1 = 1 AND EXISTS").WithArgs(moduleapi.TaskStatusFailed, moduleapi.TaskStatusNeedsAttention).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+	columns := []string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_target_name", "runtime_provider", "image_repository", "image_tag", "created_by", "created_at", "artifact_id", "image_id", "digest", "repository", "tag", "size_bytes", "platform"}
+	mock.ExpectQuery("SELECT j.build_id").WithArgs(moduleapi.TaskStatusFailed, moduleapi.TaskStatusNeedsAttention, 1, 1).WillReturnRows(sqlmock.NewRows(columns).AddRow("build_failed", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "Local Docker", "docker", "example/app", "v1", uint64(7), time.Now(), nil, nil, "", nil, nil, nil, ""))
+
+	result, err := repository.ListJobs(context.Background(), ListQuery{Limit: 1, Offset: 1, BuildStatus: &status})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 3 || len(result.Items) != 1 || result.Items[0].BuildID != "build_failed" {
+		t.Fatalf("status page = %#v, want exact total and requested offset page", result)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 

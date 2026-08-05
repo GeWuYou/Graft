@@ -98,19 +98,28 @@ const (
 
 // MatchesTaskStatus 判断 Task Runtime 状态是否属于当前 Build 产品状态。
 func (s StatusFilter) MatchesTaskStatus(status moduleapi.TaskStatus) bool {
+	for _, candidate := range s.taskStatuses() {
+		if status == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func (s StatusFilter) taskStatuses() []moduleapi.TaskStatus {
 	switch s {
 	case StatusFilterQueued:
-		return status == moduleapi.TaskStatusPending || status == moduleapi.TaskStatusReady || status == moduleapi.TaskStatusScheduled
+		return []moduleapi.TaskStatus{moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled}
 	case StatusFilterRunning:
-		return status == moduleapi.TaskStatusRunning
+		return []moduleapi.TaskStatus{moduleapi.TaskStatusRunning}
 	case StatusFilterSuccess:
-		return status == moduleapi.TaskStatusSuccess
+		return []moduleapi.TaskStatus{moduleapi.TaskStatusSuccess}
 	case StatusFilterFailed:
-		return status == moduleapi.TaskStatusFailed || status == moduleapi.TaskStatusNeedsAttention
+		return []moduleapi.TaskStatus{moduleapi.TaskStatusFailed, moduleapi.TaskStatusNeedsAttention}
 	case StatusFilterCancelled:
-		return status == moduleapi.TaskStatusCancelled
+		return []moduleapi.TaskStatus{moduleapi.TaskStatusCancelled}
 	default:
-		return false
+		return nil
 	}
 }
 
@@ -120,7 +129,7 @@ const (
 	// MaxListLimit 是 Build 历史列表允许的最大页大小。
 	MaxListLimit      = 100
 	pageArgumentCount = 2
-	jobListFilterCap  = 8
+	jobListFilterCap  = 13
 )
 
 // Repository 是提交与执行器路径使用的窄 Build 持久化边界。
@@ -257,6 +266,23 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 		where = append(where, `j.created_at <= $`+strconv.Itoa(len(args)+1))
 		args = append(args, *query.CreatedBefore)
 	}
+	return appendTaskStatusFilter(where, args, query.BuildStatus)
+}
+
+func appendTaskStatusFilter(where []string, args []any, filter *StatusFilter) ([]string, []any) {
+	if filter == nil {
+		return where, args
+	}
+	statuses := filter.taskStatuses()
+	if len(statuses) == 0 {
+		return append(where, "FALSE"), args
+	}
+	placeholders := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		placeholders = append(placeholders, "$"+strconv.Itoa(len(args)+1))
+		args = append(args, status)
+	}
+	where = append(where, `EXISTS (SELECT 1 FROM tasks t WHERE t.id = j.task_id AND t.status IN (`+strings.Join(placeholders, ", ")+`))`)
 	return where, args
 }
 
