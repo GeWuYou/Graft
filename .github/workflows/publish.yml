@@ -237,6 +237,7 @@ jobs:
       server_digest: ${{ steps.publish_release_images.outputs.server_digest }}
       web_digest: ${{ steps.publish_release_images.outputs.web_digest }}
       runner_digest: ${{ steps.publish_release_images.outputs.runner_digest }}
+      runner_reused: ${{ steps.runner_reuse.outputs.reuse }}
 
     steps:
       - name: Checkout repository at tag
@@ -308,6 +309,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          inspect_digest() {
+            docker buildx imagetools inspect "$1" | awk '
+              /^Digest:/ { print $2; found = 1; exit }
+              END { if (!found) exit 1 }
+            '
+          }
           mkdir -p .tmp/runner-reuse
           releases_json=".tmp/runner-reuse/releases.json"
           candidates_json=".tmp/runner-reuse/candidates.json"
@@ -352,7 +360,7 @@ jobs:
               and (has("manifests") | not)
             ' <<< "${raw_manifest}" >/dev/null || continue
 
-            resolved_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${candidate_ref}")" || continue
+            resolved_digest="$(inspect_digest "${candidate_ref}")" || continue
             [[ "${resolved_digest}" == "${candidate_digest}" ]] || continue
             platform="$(docker buildx imagetools inspect --format '{{.Image.OS}}/{{.Image.Architecture}}' "${candidate_ref}")" || continue
             [[ "${platform}" == "linux/amd64" ]] || continue
@@ -533,32 +541,28 @@ jobs:
             done <<< "${tags}"
           }
 
+          inspect_digest() {
+            docker buildx imagetools inspect "$1" | awk '
+              /^Digest:/ { print $2; found = 1; exit }
+              END { if (!found) exit 1 }
+            '
+          }
+
           publish_local_image "graft-release-server:${{ github.run_id }}" "${SERVER_TAGS}"
           publish_local_image "graft-release-web:${{ github.run_id }}" "${WEB_TAGS}"
           if [[ "${RUNNER_REUSE}" == "true" ]]; then
-            while IFS= read -r tag; do
-              [[ -n "${tag}" ]] || continue
-              docker buildx imagetools create --prefer-index=false \
-                --tag "${tag}" "${RUNNER_IMAGE}@${RUNNER_REUSE_DIGEST}"
-            done <<< "${RUNNER_TAGS}"
+            runner_digest="$(inspect_digest "${RUNNER_IMAGE}@${RUNNER_REUSE_DIGEST}")"
+            [[ "${runner_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
           else
             publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
+            runner_digest="$(inspect_digest "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
           fi
 
-          server_digest="$(docker buildx imagetools inspect "${SERVER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
-          web_digest="$(docker buildx imagetools inspect "${WEB_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
-          runner_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
+          server_digest="$(inspect_digest "${SERVER_IMAGE}:${RELEASE_REF_NAME}")"
+          web_digest="$(inspect_digest "${WEB_IMAGE}:${RELEASE_REF_NAME}")"
           [[ "${server_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${web_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${runner_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
-          if [[ "${RUNNER_REUSE}" == "true" ]]; then
-            [[ "${runner_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
-            while IFS= read -r tag; do
-              [[ -n "${tag}" ]] || continue
-              tag_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${tag}")"
-              [[ "${tag_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
-            done <<< "${RUNNER_TAGS}"
-          fi
           echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
           echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
           echo "runner_digest=${runner_digest}" >> "${GITHUB_OUTPUT}"
@@ -923,7 +927,7 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   cleanup-failed-tag:
-    name: Cleanup Failed Pre-Release Tag
+    name: Cleanup Failed Release Publication
     runs-on: ubuntu-latest
     if: ${{ always() && (needs.build-artifacts.result != 'success' || needs.bubble-smoke.result != 'success' || needs.publish-images.result != 'success' || needs.create-release.result != 'success') }}
     needs:
@@ -934,13 +938,15 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     steps:
-      - name: Remove tag only when no GitHub Release exists
+      - name: Remove failed release identities when no GitHub Release exists
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
           RELEASE_TAG: ${{ github.ref_name }}
           TRIGGER_SHA: ${{ github.sha }}
         shell: bash
@@ -971,60 +977,145 @@ jobs:
               echo "::error::Cannot determine whether GitHub Release ${RELEASE_TAG} exists (HTTP ${release_status})."
               cat "${release_response}"
               exit 1
+            ;;
+          esac
+
+          verify_release_tag() {
+            local tag_response
+            local tag_status
+            local tag_object_type
+            local tag_object_sha
+            local tag_target_response
+            local tag_target_status
+            local tag_target_type
+            local tag_target_sha
+
+            tag_response="$(mktemp)"
+            tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${api_root}/git/ref/tags/${RELEASE_TAG}")"
+            if [[ "${tag_status}" == "404" ]]; then
+              echo "::error::Refusing GHCR cleanup: tag ${RELEASE_TAG} is absent."
+              exit 1
+            fi
+            if [[ "${tag_status}" != "200" ]]; then
+              echo "::error::Cannot inspect tag ${RELEASE_TAG} (HTTP ${tag_status})."
+              cat "${tag_response}"
+              exit 1
+            fi
+
+            tag_object_type="$(jq -er '.object.type' "${tag_response}")"
+            tag_object_sha="$(jq -er '.object.sha' "${tag_response}")"
+            case "${tag_object_type}" in
+              commit)
+                tag_target_sha="${tag_object_sha}"
+                ;;
+              tag)
+                tag_target_response="$(mktemp)"
+                tag_target_status="$(curl -sS -o "${tag_target_response}" -w '%{http_code}' \
+                  -H 'Accept: application/vnd.github+json' \
+                  -H "Authorization: Bearer ${GH_TOKEN}" \
+                  "${api_root}/git/tags/${tag_object_sha}")"
+                if [[ "${tag_target_status}" != "200" ]]; then
+                  echo "::error::Cannot resolve annotated tag ${RELEASE_TAG} target (HTTP ${tag_target_status})."
+                  cat "${tag_target_response}"
+                  exit 1
+                fi
+                tag_target_type="$(jq -er '.object.type' "${tag_target_response}")"
+                if [[ "${tag_target_type}" != "commit" ]]; then
+                  echo "::error::Refusing to clean ${RELEASE_TAG}: annotated tag resolves to ${tag_target_type}, not a commit."
+                  exit 1
+                fi
+                tag_target_sha="$(jq -er '.object.sha' "${tag_target_response}")"
+                ;;
+              *)
+                echo "::error::Refusing to clean ${RELEASE_TAG}: unsupported ref object type ${tag_object_type}."
+                exit 1
+                ;;
+            esac
+
+            if [[ "${tag_target_sha}" != "${TRIGGER_SHA}" ]]; then
+              echo "::error::Refusing to clean ${RELEASE_TAG}: it resolves to ${tag_target_sha}, expected ${TRIGGER_SHA}."
+              exit 1
+            fi
+          }
+
+          case "${RELEASE_TAG}" in
+            *-beta.*)
+              release_owned_tags="$(jq -cn --arg tag "${RELEASE_TAG}" '[$tag]')"
+              ;;
+            *)
+              release_owned_tags="$(jq -cn --arg tag "${RELEASE_TAG}" --arg version_tag "${RELEASE_TAG#v}" '[$tag, $version_tag] | sort')"
               ;;
           esac
 
-          tag_response="$(mktemp)"
-          tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            "${api_root}/git/ref/tags/${RELEASE_TAG}")"
-          if [[ "${tag_status}" == "404" ]]; then
-            echo "Tag ${RELEASE_TAG} is already absent."
-            echo "- Cleanup: tag was already absent." >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-          if [[ "${tag_status}" != "200" ]]; then
-            echo "::error::Cannot inspect tag ${RELEASE_TAG} (HTTP ${tag_status})."
-            cat "${tag_response}"
-            exit 1
-          fi
+          verify_release_tag
 
-          tag_object_type="$(jq -er '.object.type' "${tag_response}")"
-          tag_object_sha="$(jq -er '.object.sha' "${tag_response}")"
-          case "${tag_object_type}" in
-            commit)
-              tag_target_sha="${tag_object_sha}"
+          owner_type="$(gh api "users/${REPOSITORY_OWNER}" --jq '.type')"
+          case "${owner_type}" in
+            User)
+              package_owner_path="user/packages"
               ;;
-            tag)
-              tag_target_response="$(mktemp)"
-              tag_target_status="$(curl -sS -o "${tag_target_response}" -w '%{http_code}' \
-                -H 'Accept: application/vnd.github+json' \
-                -H "Authorization: Bearer ${GH_TOKEN}" \
-                "${api_root}/git/tags/${tag_object_sha}")"
-              if [[ "${tag_target_status}" != "200" ]]; then
-                echo "::error::Cannot resolve annotated tag ${RELEASE_TAG} target (HTTP ${tag_target_status})."
-                cat "${tag_target_response}"
-                exit 1
-              fi
-              tag_target_type="$(jq -er '.object.type' "${tag_target_response}")"
-              if [[ "${tag_target_type}" != "commit" ]]; then
-                echo "::error::Refusing to delete ${RELEASE_TAG}: annotated tag resolves to ${tag_target_type}, not a commit."
-                exit 1
-              fi
-              tag_target_sha="$(jq -er '.object.sha' "${tag_target_response}")"
+            Organization)
+              package_owner_path="orgs/${REPOSITORY_OWNER}/packages"
               ;;
             *)
-              echo "::error::Refusing to delete ${RELEASE_TAG}: unsupported ref object type ${tag_object_type}."
+              echo "::error::Cannot determine the GitHub Packages owner type for ${REPOSITORY_OWNER}: ${owner_type}."
               exit 1
               ;;
           esac
 
-          if [[ "${tag_target_sha}" != "${TRIGGER_SHA}" ]]; then
-            echo "::error::Refusing to delete ${RELEASE_TAG}: it resolves to ${tag_target_sha}, expected ${TRIGGER_SHA}."
-            exit 1
-          fi
+          deleted_package_versions=0
+          cleanup_package() {
+            local package_name="$1"
+            local package_path="${package_owner_path}/container/${package_name}/versions"
+            local versions_response
+            local shared_version_ids
+            local version_ids
+            local version_id
 
+            versions_response="$(mktemp)"
+            gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}"
+
+            shared_version_ids="$(jq -r --arg tag "${RELEASE_TAG}" --argjson expected_tags "${release_owned_tags}" '
+              [ .[][]
+                | select((.metadata.container.tags // []) | index($tag))
+                | select(((.metadata.container.tags // []) | sort) != $expected_tags)
+                | .id
+              ] | .[]
+            ' "${versions_response}")"
+            if [[ -n "${shared_version_ids}" ]]; then
+              echo "::error::Refusing to delete ${package_name}: ${RELEASE_TAG} is not the complete expected tag set on package version(s): ${shared_version_ids}."
+              exit 1
+            fi
+
+            version_ids="$(jq -r --argjson expected_tags "${release_owned_tags}" '
+              [ .[][]
+                | select(((.metadata.container.tags // []) | sort) == $expected_tags)
+                | .id
+              ] | .[]
+            ' "${versions_response}")"
+            if [[ -z "${version_ids}" ]]; then
+              echo "No exclusive ${package_name} package version is tagged ${RELEASE_TAG}."
+              return
+            fi
+
+            while IFS= read -r version_id; do
+              [[ -n "${version_id}" ]] || continue
+              verify_release_tag
+              gh api --method DELETE "${package_path}/${version_id}"
+              deleted_package_versions=$((deleted_package_versions + 1))
+              echo "Deleted failed GHCR package version ${package_name}/${version_id}."
+            done <<< "${version_ids}"
+          }
+
+          cleanup_package graft-server
+          cleanup_package graft-web
+          cleanup_package graft-compose-runner
+
+          verify_release_tag
+          tag_response="$(mktemp)"
           delete_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' -X DELETE \
             -H 'Accept: application/vnd.github+json' \
             -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -1038,7 +1129,11 @@ jobs:
           echo "Deleted failed pre-Release tag ${RELEASE_TAG}."
           {
             echo "- Cleanup: deleted failed pre-Release tag \`${RELEASE_TAG}\`."
-            echo "- Cleanup scope: Git tag only; GHCR package versions require separate registry cleanup."
+            if (( deleted_package_versions > 0 )); then
+              echo "- Cleanup: deleted ${deleted_package_versions} GHCR package version(s) with the expected release-owned tags."
+            else
+              echo "- Cleanup: no GHCR package version required deletion."
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
   publish-mutable-tags:
@@ -1067,9 +1162,15 @@ jobs:
           SERVER_IMAGE: ${{ needs.publish-images.outputs.server_image }}
           WEB_IMAGE: ${{ needs.publish-images.outputs.web_image }}
           RUNNER_IMAGE: ${{ needs.publish-images.outputs.runner_image }}
+          RUNNER_DIGEST: ${{ needs.publish-images.outputs.runner_digest }}
+          RUNNER_REUSED: ${{ needs.publish-images.outputs.runner_reused }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${RUNNER_REUSED}" == "true" ]]; then
+            docker buildx imagetools create --prefer-index=false \
+              --tag "${RUNNER_IMAGE}:${RELEASE_REF_NAME}" "${RUNNER_IMAGE}@${RUNNER_DIGEST}"
+          fi
           for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}"; do
             if [[ "${image}" == "${RUNNER_IMAGE}" ]]; then
               docker buildx imagetools create --prefer-index=false \
