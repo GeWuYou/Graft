@@ -262,6 +262,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
+      - name: Setup Go for Runner input discovery
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -284,6 +290,89 @@ jobs:
           mkdir -p dist/server
           tar -C dist/server -xzf "release-assets/graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz"
           chmod +x dist/server/graft-server-linux-amd64
+
+      - name: Log in to GHCR for Runner reuse inspection
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Resolve reusable Compose Runner manifest
+        id: runner_reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+          RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/runner-reuse
+          releases_json=".tmp/runner-reuse/releases.json"
+          candidates_json=".tmp/runner-reuse/candidates.json"
+
+          # A GitHub API failure is not equivalent to "first release": fail closed
+          # instead of rebuilding or reusing without a trustworthy release catalog.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${releases_json}"
+          python3 scripts/resolve_runner_release_reuse.py \
+            --channel "${RELEASE_CHANNEL}" \
+            --runner-image "${RUNNER_IMAGE}" \
+            --current-tag "${RELEASE_REF_NAME}" \
+            < "${releases_json}" > "${candidates_json}"
+
+          mapfile -t runner_inputs < <(
+            cd server
+            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./cmd/graft-compose-runner \
+              | sed "s#^${GITHUB_WORKSPACE}/##" \
+              | sort -u
+          )
+          runner_inputs+=(
+            server/runner/compose/Dockerfile
+            server/.dockerignore
+            server/go.mod
+            server/go.sum
+          )
+
+          reuse="false"
+          source_tag=""
+          source_digest=""
+          reason="no verified historical Runner manifest"
+          while IFS= read -r candidate; do
+            candidate_tag="$(jq -er '.tag' <<< "${candidate}")"
+            candidate_digest="$(jq -er '.digest' <<< "${candidate}")"
+            candidate_ref="${RUNNER_IMAGE}@${candidate_digest}"
+
+            raw_manifest="$(docker buildx imagetools inspect --raw "${candidate_ref}")" || continue
+            jq -e '
+              (.schemaVersion == 2)
+              and (.mediaType == "application/vnd.docker.distribution.manifest.v2+json" or .mediaType == "application/vnd.oci.image.manifest.v1+json")
+              and (.config.digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.layers | type == "array" and length > 0)
+              and (has("manifests") | not)
+            ' <<< "${raw_manifest}" >/dev/null || continue
+
+            resolved_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${candidate_ref}")" || continue
+            [[ "${resolved_digest}" == "${candidate_digest}" ]] || continue
+            platform="$(docker buildx imagetools inspect --format '{{.Image.OS}}/{{.Image.Architecture}}' "${candidate_ref}")" || continue
+            [[ "${platform}" == "linux/amd64" ]] || continue
+
+            if git diff --quiet "${candidate_tag}" "${GITHUB_SHA}" -- "${runner_inputs[@]}"; then
+              reuse="true"
+              source_tag="${candidate_tag}"
+              source_digest="${candidate_digest}"
+              reason="Runner inputs unchanged since ${candidate_tag}"
+              break
+            fi
+          done < <(jq -c '.candidates[]?' "${candidates_json}")
+
+          {
+            echo "reuse=${reuse}"
+            echo "source_tag=${source_tag}"
+            echo "source_digest=${source_digest}"
+            echo "reason=${reason}"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Runner reuse: ${reuse} (${reason})"
 
       - name: Prepare Docker metadata tags
         id: image_tags
@@ -381,6 +470,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=graft-web-image
 
       - name: Build Compose runner image for smoke
+        if: steps.runner_reuse.outputs.reuse != 'true'
         id: runner_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
@@ -427,6 +517,8 @@ jobs:
           SERVER_TAGS: ${{ steps.server_meta.outputs.tags }}
           WEB_TAGS: ${{ steps.web_meta.outputs.tags }}
           RUNNER_TAGS: ${{ steps.runner_meta.outputs.tags }}
+          RUNNER_REUSE: ${{ steps.runner_reuse.outputs.reuse }}
+          RUNNER_REUSE_DIGEST: ${{ steps.runner_reuse.outputs.source_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -443,14 +535,30 @@ jobs:
 
           publish_local_image "graft-release-server:${{ github.run_id }}" "${SERVER_TAGS}"
           publish_local_image "graft-release-web:${{ github.run_id }}" "${WEB_TAGS}"
-          publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
+          if [[ "${RUNNER_REUSE}" == "true" ]]; then
+            while IFS= read -r tag; do
+              [[ -n "${tag}" ]] || continue
+              docker buildx imagetools create --prefer-index=false \
+                --tag "${tag}" "${RUNNER_IMAGE}@${RUNNER_REUSE_DIGEST}"
+            done <<< "${RUNNER_TAGS}"
+          else
+            publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
+          fi
 
           server_digest="$(docker buildx imagetools inspect "${SERVER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
           web_digest="$(docker buildx imagetools inspect "${WEB_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
-          runner_digest="$(docker buildx imagetools inspect "${RUNNER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
+          runner_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
           [[ "${server_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${web_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${runner_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          if [[ "${RUNNER_REUSE}" == "true" ]]; then
+            [[ "${runner_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
+            while IFS= read -r tag; do
+              [[ -n "${tag}" ]] || continue
+              tag_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${tag}")"
+              [[ "${tag_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
+            done <<< "${RUNNER_TAGS}"
+          fi
           echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
           echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
           echo "runner_digest=${runner_digest}" >> "${GITHUB_OUTPUT}"
@@ -963,5 +1071,10 @@ jobs:
         run: |
           set -euo pipefail
           for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}"; do
-            docker buildx imagetools create --tag "${image}:${RELEASE_CHANNEL}" "${image}:${RELEASE_REF_NAME}"
+            if [[ "${image}" == "${RUNNER_IMAGE}" ]]; then
+              docker buildx imagetools create --prefer-index=false \
+                --tag "${image}:${RELEASE_CHANNEL}" "${image}:${RELEASE_REF_NAME}"
+            else
+              docker buildx imagetools create --tag "${image}:${RELEASE_CHANNEL}" "${image}:${RELEASE_REF_NAME}"
+            fi
           done

@@ -41,7 +41,7 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 }
 ```
 
-`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 从 `server/runner/compose/Dockerfile` 由同一 release workflow 构建和推送；manifest 只接受当前 Buildx 输出的 immutable digest，绝不接受仓库变量、外部断言 digest 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、Release Notes URL、最低来源版本、升级说明、artifact 名称与逐项 SHA256、server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
+`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 从 `server/runner/compose/Dockerfile` 由同一 release workflow 构建和推送；发布 workflow 在 Runner 输入未变化时，可以在 checksum、schema、channel、官方 image identity、GHCR manifest 类型与平台校验通过后复用最近有效同频道 Release 的 immutable digest，再为当前 release tag 建立直接 manifest tag。manifest 绝不接受仓库变量、外部断言 digest 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、Release Notes URL、最低来源版本、升级说明、artifact 名称与逐项 SHA256、server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
 
 正式 GitHub Release 创建前的任一构建、smoke 或镜像发布失败都会进入失败清理路径。清理只在同 tag 的 GitHub Release 不存在、且远端 tag 仍指向本次 workflow 的触发 commit 时删除该 tag；GitHub Release 已创建后不自动删除 tag，也不承诺 GHCR 多镜像推送、运行时镜像或数据库 schema 的事务性回滚。
 

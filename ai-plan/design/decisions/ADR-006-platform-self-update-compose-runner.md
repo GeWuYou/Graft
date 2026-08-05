@@ -33,11 +33,13 @@ it never contains backup storage references. A receipt that advances beyond the 
 `BackupCompletion`, while a backup failure receipt may omit it. The runner image itself must be a separately published,
 digest-pinned release asset. Canonical `release-manifest.json` includes `runners.compose.image`, `digest`, and
 `reference`; its companion checksum is verified before the manifest is consumed. The runner coordinate is the official
-sibling `ghcr.io/<owner>/graft-updater` of the server image. An unpinned local image, a mutable tag, or a
+sibling `ghcr.io/<owner>/graft-compose-runner` of the server image. An unpinned local image, a mutable tag, or a
 missing runner declaration is not an execution authority. The same release workflow builds the runner from
-`server/runner/compose/Dockerfile`; its Buildx output is the only publication authority. That emitted immutable digest
-is recorded in the manifest and must match the constructed GHCR reference. Neither an externally injected digest nor a
-locally built substitute may stand in for that workflow output.
+`server/runner/compose/Dockerfile`; when Runner inputs are unchanged, the workflow may create a direct tag from a
+previous Release manifest digest only after checksum, channel, image identity, registry manifest, and `linux/amd64`
+validation. Otherwise the current Buildx output is published. The resulting immutable digest is recorded in the
+manifest and must match the constructed GHCR reference. Neither an externally injected digest nor a locally built
+substitute may stand in for a verified workflow output or historical Release manifest.
 
 The fixed order is `backup -> compose pull -> bootstrap migrate up -> recreate server/web -> Docker health ->
 /healthz -> receipt`. A failure before migration starts may restore the configuration snapshot and old image
