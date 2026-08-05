@@ -14,6 +14,8 @@ import type {
   ScheduledTaskRunItem,
   ScheduledTaskRunListQuery,
   ScheduledTaskRunListResponse,
+  ScheduledTaskSavedView,
+  ScheduledTaskSavedViewRequest,
   UpdateScheduledTaskRequest,
 } from '../types/scheduled-task';
 
@@ -99,11 +101,53 @@ type PostScheduledTaskActionBody = NonNullable<
   PostScheduledTaskActionOperation['requestBody']
 >['content']['application/json'];
 
+type ScheduledTaskSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTaskSavedViews;
+type GetScheduledTaskSavedViewsOperation = paths[ScheduledTaskSavedViewsPath]['get'];
+type GetScheduledTaskSavedViewsData = NonNullable<
+  GetScheduledTaskSavedViewsOperation['responses'][200]['content']['application/json']['data']
+>;
+type PostScheduledTaskSavedViewOperation = paths[ScheduledTaskSavedViewsPath]['post'];
+type PostScheduledTaskSavedViewData = NonNullable<
+  PostScheduledTaskSavedViewOperation['responses'][201]['content']['application/json']['data']
+>;
+type ScheduledTaskSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putScheduledTaskSavedView;
+type PutScheduledTaskSavedViewOperation = paths[ScheduledTaskSavedViewPath]['put'];
+type PutScheduledTaskSavedViewData = NonNullable<
+  PutScheduledTaskSavedViewOperation['responses'][200]['content']['application/json']['data']
+>;
+type ScheduledTaskSavedViewBody = PostScheduledTaskSavedViewOperation['requestBody']['content']['application/json'];
+
 export function getScheduledTasks(query?: ScheduledTaskListQuery) {
   return request.get<GetScheduledTasksData>({
     url: OPENAPI_RUNTIME_PATH.getScheduledTasks,
     params: query as GetScheduledTasksQuery | undefined,
   }) as Promise<ScheduledTaskListResponse>;
+}
+
+export function getScheduledTaskSavedViews() {
+  return request
+    .get<GetScheduledTaskSavedViewsData>({ url: OPENAPI_RUNTIME_PATH.getScheduledTaskSavedViews })
+    .then((response) => response.items) as Promise<ScheduledTaskSavedView[]>;
+}
+
+export function postScheduledTaskSavedView(payload: ScheduledTaskSavedViewRequest) {
+  return request.post<PostScheduledTaskSavedViewData>({
+    url: OPENAPI_RUNTIME_PATH.postScheduledTaskSavedView,
+    data: payload as ScheduledTaskSavedViewBody,
+  }) as Promise<ScheduledTaskSavedView>;
+}
+
+export function putScheduledTaskSavedView(id: number, payload: ScheduledTaskSavedViewRequest) {
+  return request.put<PutScheduledTaskSavedViewData>({
+    url: buildOpenApiRuntimePath('putScheduledTaskSavedView', { viewId: id }),
+    data: payload as ScheduledTaskSavedViewBody,
+  }) as Promise<ScheduledTaskSavedView>;
+}
+
+export function deleteScheduledTaskSavedView(id: number) {
+  return request.delete<Record<string, never>>({
+    url: buildOpenApiRuntimePath('deleteScheduledTaskSavedView', { viewId: id }),
+  });
 }
 
 export function getScheduledTaskJobDefinitions() {

@@ -727,6 +727,126 @@ func (e GetScheduledTaskRun500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetScheduledTaskSavedViews401JSONResponseBodySuccess.
+const (
+	GetScheduledTaskSavedViews401JSONResponseBodySuccessFalse GetScheduledTaskSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskSavedViews401JSONResponseBodySuccess enum.
+func (e GetScheduledTaskSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskSavedViews403JSONResponseBodySuccess.
+const (
+	GetScheduledTaskSavedViews403JSONResponseBodySuccessFalse GetScheduledTaskSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskSavedViews403JSONResponseBodySuccess enum.
+func (e GetScheduledTaskSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTaskSavedView401JSONResponseBodySuccess.
+const (
+	PostScheduledTaskSavedView401JSONResponseBodySuccessFalse PostScheduledTaskSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskSavedView401JSONResponseBodySuccess enum.
+func (e PostScheduledTaskSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostScheduledTaskSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTaskSavedView403JSONResponseBodySuccess.
+const (
+	PostScheduledTaskSavedView403JSONResponseBodySuccessFalse PostScheduledTaskSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskSavedView403JSONResponseBodySuccess enum.
+func (e PostScheduledTaskSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostScheduledTaskSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteScheduledTaskSavedView401JSONResponseBodySuccess.
+const (
+	DeleteScheduledTaskSavedView401JSONResponseBodySuccessFalse DeleteScheduledTaskSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteScheduledTaskSavedView401JSONResponseBodySuccess enum.
+func (e DeleteScheduledTaskSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteScheduledTaskSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteScheduledTaskSavedView403JSONResponseBodySuccess.
+const (
+	DeleteScheduledTaskSavedView403JSONResponseBodySuccessFalse DeleteScheduledTaskSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteScheduledTaskSavedView403JSONResponseBodySuccess enum.
+func (e DeleteScheduledTaskSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteScheduledTaskSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutScheduledTaskSavedView401JSONResponseBodySuccess.
+const (
+	PutScheduledTaskSavedView401JSONResponseBodySuccessFalse PutScheduledTaskSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutScheduledTaskSavedView401JSONResponseBodySuccess enum.
+func (e PutScheduledTaskSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutScheduledTaskSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutScheduledTaskSavedView403JSONResponseBodySuccess.
+const (
+	PutScheduledTaskSavedView403JSONResponseBodySuccessFalse PutScheduledTaskSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutScheduledTaskSavedView403JSONResponseBodySuccess enum.
+func (e PutScheduledTaskSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutScheduledTaskSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeleteScheduledTask400JSONResponseBodySuccess.
 const (
 	DeleteScheduledTask400JSONResponseBodySuccessFalse DeleteScheduledTask400JSONResponseBodySuccess = false
@@ -2148,6 +2268,90 @@ type GetScheduledTaskRun404JSONResponseBodySuccess bool
 // GetScheduledTaskRun500JSONResponseBodySuccess defines parameters for GetScheduledTaskRun.
 type GetScheduledTaskRun500JSONResponseBodySuccess bool
 
+// GetScheduledTaskSavedViewsParams defines parameters for GetScheduledTaskSavedViews.
+type GetScheduledTaskSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetScheduledTaskSavedViews401JSONResponseBodySuccess defines parameters for GetScheduledTaskSavedViews.
+type GetScheduledTaskSavedViews401JSONResponseBodySuccess bool
+
+// GetScheduledTaskSavedViews403JSONResponseBodySuccess defines parameters for GetScheduledTaskSavedViews.
+type GetScheduledTaskSavedViews403JSONResponseBodySuccess bool
+
+// PostScheduledTaskSavedViewJSONBody defines parameters for PostScheduledTaskSavedView.
+type PostScheduledTaskSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostScheduledTaskSavedViewParams defines parameters for PostScheduledTaskSavedView.
+type PostScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskSavedView401JSONResponseBodySuccess defines parameters for PostScheduledTaskSavedView.
+type PostScheduledTaskSavedView401JSONResponseBodySuccess bool
+
+// PostScheduledTaskSavedView403JSONResponseBodySuccess defines parameters for PostScheduledTaskSavedView.
+type PostScheduledTaskSavedView403JSONResponseBodySuccess bool
+
+// DeleteScheduledTaskSavedViewParams defines parameters for DeleteScheduledTaskSavedView.
+type DeleteScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteScheduledTaskSavedView401JSONResponseBodySuccess defines parameters for DeleteScheduledTaskSavedView.
+type DeleteScheduledTaskSavedView401JSONResponseBodySuccess bool
+
+// DeleteScheduledTaskSavedView403JSONResponseBodySuccess defines parameters for DeleteScheduledTaskSavedView.
+type DeleteScheduledTaskSavedView403JSONResponseBodySuccess bool
+
+// PutScheduledTaskSavedViewJSONBody defines parameters for PutScheduledTaskSavedView.
+type PutScheduledTaskSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutScheduledTaskSavedViewParams defines parameters for PutScheduledTaskSavedView.
+type PutScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutScheduledTaskSavedView401JSONResponseBodySuccess defines parameters for PutScheduledTaskSavedView.
+type PutScheduledTaskSavedView401JSONResponseBodySuccess bool
+
+// PutScheduledTaskSavedView403JSONResponseBodySuccess defines parameters for PutScheduledTaskSavedView.
+type PutScheduledTaskSavedView403JSONResponseBodySuccess bool
+
 // DeleteScheduledTaskParams defines parameters for DeleteScheduledTask.
 type DeleteScheduledTaskParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -2450,6 +2654,12 @@ type GetScheduledTaskRuns500JSONResponseBodySuccess bool
 
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody PostScheduledTaskJSONBody
+
+// PostScheduledTaskSavedViewJSONRequestBody defines body for PostScheduledTaskSavedView for application/json ContentType.
+type PostScheduledTaskSavedViewJSONRequestBody PostScheduledTaskSavedViewJSONBody
+
+// PutScheduledTaskSavedViewJSONRequestBody defines body for PutScheduledTaskSavedView for application/json ContentType.
+type PutScheduledTaskSavedViewJSONRequestBody PutScheduledTaskSavedViewJSONBody
 
 // PutScheduledTaskJSONRequestBody defines body for PutScheduledTask for application/json ContentType.
 type PutScheduledTaskJSONRequestBody PutScheduledTaskJSONBody

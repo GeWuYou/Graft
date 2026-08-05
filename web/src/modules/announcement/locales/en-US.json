@@ -122,10 +122,35 @@
         "pinned": "Filter Pinned",
         "sort": "Sort"
       },
+      "page": {
+        "searchPlaceholder": "Search title or content"
+      },
+      "actions": {
+        "addFilter": "Add Filter",
+        "addSorter": "Add Sorter",
+        "moveSorterDown": "Move Down",
+        "moveSorterUp": "Move Up",
+        "removeSorter": "Remove Sorter",
+        "reset": "Clear Filters",
+        "search": "Search"
+      },
+      "builder": {
+        "title": "Filter Conditions",
+        "hint": "Choose a field and set its value",
+        "groups": {
+          "filters": "Filter Conditions"
+        }
+      },
+      "presets": {
+        "label": "Quick Filters"
+      },
       "sort": {
         "updatedDesc": "Recently Updated",
         "publishDesc": "Recently Published",
-        "pinnedPublishDesc": "Pinned First"
+        "pinnedPublishDesc": "Pinned First",
+        "tagPrefix": "Sort",
+        "fieldPlaceholder": "Select sort field",
+        "directionPlaceholder": "Select sort direction"
       },
       "form": {
         "createTitle": "Create Announcement",

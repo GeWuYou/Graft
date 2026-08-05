@@ -7400,6 +7400,199 @@
         }
       }
     },
+    "/api/scheduled-tasks/saved-views": {
+      "get": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "List private scheduled-task saved views",
+        "operationId": "getScheduledTaskSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved scheduled-task views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Create a private scheduled-task saved view",
+        "operationId": "postScheduledTaskSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Update a private scheduled-task saved view",
+        "operationId": "putScheduledTaskSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Delete a private scheduled-task saved view",
+        "operationId": "deleteScheduledTaskSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/tasks": {
       "get": {
         "tags": [
@@ -12904,6 +13097,199 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/announcements/saved-views": {
+      "get": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "List private announcement saved views",
+        "operationId": "getAnnouncementSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved announcement views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Create a private announcement saved view",
+        "operationId": "postAnnouncementSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/announcements/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Update a private announcement saved view",
+        "operationId": "putAnnouncementSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Delete a private announcement saved view",
+        "operationId": "deleteAnnouncementSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }

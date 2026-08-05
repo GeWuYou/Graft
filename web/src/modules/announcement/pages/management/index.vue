@@ -24,53 +24,13 @@
         :items="[{ label: t('announcement.management.summary', { count: '' }).trim(), value: total }]"
       />
 
-      <management-toolbar>
-        <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            clearable
-            class="management-list-search"
-            :placeholder="t('announcement.management.filters.keyword')"
-            type="search"
-            @enter="handleSearch"
-          />
-          <t-select
-            v-model="filters.status"
-            clearable
-            class="toolbar__select"
-            :options="statusFilterOptions"
-            :placeholder="t('announcement.management.filters.status')"
-          />
-          <t-select
-            v-model="filters.level"
-            clearable
-            class="toolbar__select"
-            :options="levelFilterOptions"
-            :placeholder="t('announcement.management.filters.level')"
-          />
-          <t-select
-            v-model="filters.pinned"
-            clearable
-            class="toolbar__select"
-            :options="pinnedFilterOptions"
-            :placeholder="t('announcement.management.filters.pinned')"
-          />
-          <t-select
-            v-model="filters.sort"
-            class="toolbar__select"
-            :options="sortOptions"
-            :placeholder="t('announcement.management.filters.sort')"
-          />
-        </template>
-        <template #actions>
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('announcement.management.reset') }}
-          </t-button>
-          <t-button theme="primary" variant="outline" :loading="loading" @click="handleSearch">
-            {{ t('announcement.management.search') }}
-          </t-button>
-        </template>
-      </management-toolbar>
+      <announcement-management-filters
+        v-model="filters"
+        :loading="loading"
+        :saved-view-controller="announcementSavedViews"
+        @reset="resetFilters"
+        @search="handleSearch"
+      />
 
       <management-table-card>
         <template #toolbar>
@@ -509,25 +469,36 @@ import {
   ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
-  ManagementToolbar,
   resolveTableWidthPolicy,
   TableActionMenu,
   TableViewToolbar,
   useTableHostWidth,
 } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
-import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
+import {
+  AdvancedQueryColumnDrawer,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  type SavedQueryViewController,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import { isApiRequestError } from '@/utils/request';
 
 import {
   archiveAnnouncement,
   createAnnouncement,
   deleteAnnouncement,
+  deleteAnnouncementSavedView,
   getAnnouncement,
   getAnnouncements,
+  getAnnouncementSavedViews,
+  postAnnouncementSavedView,
   publishAnnouncement,
+  putAnnouncementSavedView,
   updateAnnouncement,
 } from '../../api/announcement';
+import AnnouncementManagementFilters from '../../components/AnnouncementManagementFilters.vue';
 import { ANNOUNCEMENT_PERMISSION_CODE } from '../../contract/permissions';
 import { emitAnnouncementChanged } from '../../contract/refresh';
 import {
@@ -542,6 +513,8 @@ import type {
   AnnouncementItem,
   AnnouncementLevel,
   AnnouncementPinnedFilter,
+  AnnouncementSavedViewRequest,
+  AnnouncementSort,
   AnnouncementStatus,
   AnnouncementStatusFilter,
   CreateAnnouncementRequest,
@@ -555,7 +528,12 @@ type AnnouncementRowViewModel = AnnouncementViewModel & {
   raw: AnnouncementItem;
 };
 
-const ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY = 'graft.announcement.management.visibleColumns';
+type AnnouncementSavedQueryViewState = {
+  pageSize: number;
+  queryState: AnnouncementFilterState;
+  visibleColumns: string[];
+};
+
 const DEFAULT_VISIBLE_COLUMNS = [
   'title',
   'status',
@@ -605,6 +583,7 @@ const filters = reactive<AnnouncementFilterState>({
   sort: 'updated_desc',
   status: '',
 });
+const applyingSavedView = ref(false);
 
 const formDrawerVisible = ref(false);
 const formMode = ref<FormMode>('create');
@@ -618,17 +597,13 @@ const detailRecord = ref<AnnouncementViewModel | null>(null);
 const deleteDialogVisible = ref(false);
 const deleteTarget = ref<AnnouncementRowViewModel | null>(null);
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
+const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 
 const statusValues: AnnouncementStatus[] = ['draft', 'published', 'archived'];
 const levelValues: AnnouncementLevel[] = ['info', 'warning', 'success', 'error'];
+const sortValues: AnnouncementSort[] = ['updated_desc', 'publish_desc', 'pinned_publish_desc'];
 const deliveryModeValues: AnnouncementDeliveryMode[] = ['silent', 'popup'];
 
-const statusLabelKeys: Record<AnnouncementStatus, string> = {
-  draft: 'announcement.status.draft',
-  published: 'announcement.status.published',
-  archived: 'announcement.status.archived',
-};
 const levelLabelKeys: Record<AnnouncementLevel, string> = {
   info: 'announcement.level.info',
   warning: 'announcement.level.warning',
@@ -640,35 +615,18 @@ const deliveryModeLabelKeys: Record<AnnouncementDeliveryMode, string> = {
   popup: 'announcement.deliveryMode.popup',
 };
 
-const statusFilterOptions = computed(() =>
-  statusValues.map((value) => ({
-    label: t(statusLabelKeys[value]),
-    value,
-  })),
-);
 const levelOptions = computed(() =>
   levelValues.map((value) => ({
     label: t(levelLabelKeys[value]),
     value,
   })),
 );
-const levelFilterOptions = levelOptions;
 const deliveryModeOptions = computed(() =>
   deliveryModeValues.map((value) => ({
     label: t(deliveryModeLabelKeys[value]),
     value,
   })),
 );
-const pinnedFilterOptions = computed(() => [
-  { label: t('announcement.pinned.yes'), value: 'true' },
-  { label: t('announcement.pinned.no'), value: 'false' },
-]);
-const sortOptions = computed(() => [
-  { label: t('announcement.management.sort.updatedDesc'), value: 'updated_desc' },
-  { label: t('announcement.management.sort.publishDesc'), value: 'publish_desc' },
-  { label: t('announcement.management.sort.pinnedPublishDesc'), value: 'pinned_publish_desc' },
-]);
-
 const hasActiveFilters = computed(
   () =>
     Boolean(filters.keyword.trim() || filters.status || filters.level || filters.pinned) ||
@@ -725,6 +683,45 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
 const columns = computed<TdBaseTableProps['columns']>(() =>
   buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ALWAYS_VISIBLE_COLUMNS),
 );
+
+const announcementSavedViews: SavedQueryViewController<AnnouncementSavedQueryViewState, number> = useSavedQueryViews({
+  adapter: {
+    list: async () =>
+      (await getAnnouncementSavedViews()).map((view) => normalizeSavedQueryView<AnnouncementFilterState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<AnnouncementFilterState, number>(
+        await postAnnouncementSavedView(serializeSavedQueryViewRequest(input) as AnnouncementSavedViewRequest),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<AnnouncementFilterState, number>(
+        await putAnnouncementSavedView(id, serializeSavedQueryViewRequest(input) as AnnouncementSavedViewRequest),
+      ),
+    remove: async (id) => {
+      await deleteAnnouncementSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applyingSavedView.value = true;
+    Object.assign(filters, normalizeAnnouncementSavedQueryState(view.state.queryState));
+    applySavedQueryViewPresentation(view.state, {
+      pagination,
+      supportedColumns: ALL_MANAGEMENT_COLUMN_KEYS,
+      visibleColumnKeys,
+    });
+    await fetchAnnouncements();
+    applyingSavedView.value = false;
+  },
+  onError: (_error, operation) => {
+    MessagePlugin.error(
+      operation === 'delete' ? t('announcement.management.deleteFailed') : t('announcement.management.loadFailed'),
+    );
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.pageSize,
+    queryState: { ...filters },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => columns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(columns.value, tableHostWidth.value));
 const deleteDialogConfirmBtn = computed<ButtonProps>(() => ({
@@ -755,12 +752,20 @@ const formRules = computed<Record<keyof AnnouncementFormState, FormRule[]>>(() =
 }));
 
 onMounted(() => {
-  void fetchAnnouncements();
+  void (async () => {
+    await announcementSavedViews.load();
+    if (!announcementSavedViews.selectedView.value) {
+      await fetchAnnouncements();
+    }
+  })();
 });
 
 watch(
   () => [filters.level, filters.pinned, filters.sort, filters.status, pagination.current, pagination.pageSize],
   (_next, previous) => {
+    if (applyingSavedView.value) {
+      return;
+    }
     const filtersChanged = Boolean(previous) && hasFilterStateChanged(previous);
     if (filtersChanged && pagination.current !== 1) {
       pagination.current = 1;
@@ -777,9 +782,7 @@ watch(
     const normalizedKeys = normalizeVisibleColumnKeys(keys);
     if (normalizedKeys.join('|') !== keys.join('|')) {
       visibleColumnKeys.value = normalizedKeys;
-      return;
     }
-    persistVisibleColumnKeys(normalizedKeys);
   },
   { deep: true },
 );
@@ -1215,41 +1218,6 @@ function readableError(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function loadVisibleColumnKeys() {
-  if (typeof window === 'undefined') {
-    return [...DEFAULT_VISIBLE_COLUMNS];
-  }
-
-  try {
-    const stored = window.localStorage.getItem(ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY);
-    if (!stored) {
-      return [...DEFAULT_VISIBLE_COLUMNS];
-    }
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) {
-      return [...DEFAULT_VISIBLE_COLUMNS];
-    }
-
-    const normalizedKeys = normalizeVisibleColumnKeys(parsed);
-    persistVisibleColumnKeys(normalizedKeys);
-    return normalizedKeys;
-  } catch {
-    return [...DEFAULT_VISIBLE_COLUMNS];
-  }
-}
-
-function persistVisibleColumnKeys(keys: string[]) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY, JSON.stringify(keys));
-  } catch {
-    // 列设置只是便利偏好；存储不可用时仍必须保持列表渲染和操作可用。
-  }
-}
-
 function normalizeVisibleColumnKeys(keys: unknown[]) {
   const availableKeySet = new Set(ALL_MANAGEMENT_COLUMN_KEYS);
   const nextKeys = new Set<string>();
@@ -1265,6 +1233,16 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   }
 
   return ALL_MANAGEMENT_COLUMN_KEYS.filter((key) => nextKeys.has(key));
+}
+
+function normalizeAnnouncementSavedQueryState(state: AnnouncementFilterState): AnnouncementFilterState {
+  return {
+    keyword: typeof state.keyword === 'string' ? state.keyword : '',
+    level: levelValues.includes(state.level as AnnouncementLevel) ? state.level : '',
+    pinned: state.pinned === 'true' || state.pinned === 'false' ? state.pinned : '',
+    sort: sortValues.includes(state.sort as AnnouncementSort) ? state.sort : 'updated_desc',
+    status: statusValues.includes(state.status as AnnouncementStatus) ? state.status : '',
+  };
 }
 </script>
 <style scoped lang="less">

@@ -62,6 +62,7 @@ func registerSchedulerRoutesWithRuntime(
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
 		routeRuntime.handleListTasks,
 	)
+	registerSchedulerSavedViewsIfAvailable(group, ctx, authService, authorizer, publisher)
 	group.POST(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskCreatePermission.String(), publisher),
@@ -124,6 +125,14 @@ func registerSchedulerRoutesWithRuntime(
 	)
 
 	return nil
+}
+
+func registerSchedulerSavedViewsIfAvailable(group *gin.RouterGroup, ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher) {
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return
+	}
+	registerSchedulerSavedViewRoutes(group, ctx, httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher), savedViews)
 }
 
 func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {

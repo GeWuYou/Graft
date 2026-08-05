@@ -66,7 +66,7 @@ func TestNewModuleSpecDeclaresMigrationAndDependencies(t *testing.T) {
 	if spec.ID != moduleID {
 		t.Fatalf("unexpected module id %q", spec.ID)
 	}
-	if len(spec.Dependencies) != 2 || spec.Dependencies[0] != "user" || spec.Dependencies[1] != "rbac" {
+	if len(spec.Dependencies) != 3 || spec.Dependencies[0] != "user" || spec.Dependencies[1] != "rbac" || spec.Dependencies[2] != "saved-view" {
 		t.Fatalf("unexpected dependencies %#v", spec.Dependencies)
 	}
 	if len(spec.MigrationPath) != 1 || spec.MigrationPath[0] != "modules/announcement/migrations" {

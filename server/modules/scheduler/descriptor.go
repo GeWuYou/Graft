@@ -6,7 +6,7 @@ import "graft/server/internal/module"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"notification", "system-config"},
+		Dependencies:  []string{"notification", "system-config", "saved-view"},
 		MigrationPath: []string{"modules/scheduler/migrations"},
 		Builder:       module.BuilderFunc(func(module.BuildContext) (module.Module, error) { return NewModule(), nil }),
 	}

@@ -350,6 +350,126 @@ func (e PostAnnouncements500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAnnouncementSavedViews401JSONResponseBodySuccess.
+const (
+	GetAnnouncementSavedViews401JSONResponseBodySuccessFalse GetAnnouncementSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAnnouncementSavedViews401JSONResponseBodySuccess enum.
+func (e GetAnnouncementSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAnnouncementSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAnnouncementSavedViews403JSONResponseBodySuccess.
+const (
+	GetAnnouncementSavedViews403JSONResponseBodySuccessFalse GetAnnouncementSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAnnouncementSavedViews403JSONResponseBodySuccess enum.
+func (e GetAnnouncementSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAnnouncementSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAnnouncementSavedView401JSONResponseBodySuccess.
+const (
+	PostAnnouncementSavedView401JSONResponseBodySuccessFalse PostAnnouncementSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncementSavedView401JSONResponseBodySuccess enum.
+func (e PostAnnouncementSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAnnouncementSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAnnouncementSavedView403JSONResponseBodySuccess.
+const (
+	PostAnnouncementSavedView403JSONResponseBodySuccessFalse PostAnnouncementSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncementSavedView403JSONResponseBodySuccess enum.
+func (e PostAnnouncementSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAnnouncementSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAnnouncementSavedView401JSONResponseBodySuccess.
+const (
+	DeleteAnnouncementSavedView401JSONResponseBodySuccessFalse DeleteAnnouncementSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAnnouncementSavedView401JSONResponseBodySuccess enum.
+func (e DeleteAnnouncementSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAnnouncementSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAnnouncementSavedView403JSONResponseBodySuccess.
+const (
+	DeleteAnnouncementSavedView403JSONResponseBodySuccessFalse DeleteAnnouncementSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAnnouncementSavedView403JSONResponseBodySuccess enum.
+func (e DeleteAnnouncementSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAnnouncementSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAnnouncementSavedView401JSONResponseBodySuccess.
+const (
+	PutAnnouncementSavedView401JSONResponseBodySuccessFalse PutAnnouncementSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAnnouncementSavedView401JSONResponseBodySuccess enum.
+func (e PutAnnouncementSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAnnouncementSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAnnouncementSavedView403JSONResponseBodySuccess.
+const (
+	PutAnnouncementSavedView403JSONResponseBodySuccessFalse PutAnnouncementSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAnnouncementSavedView403JSONResponseBodySuccess enum.
+func (e PutAnnouncementSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAnnouncementSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeleteAnnouncement401JSONResponseBodySuccess.
 const (
 	DeleteAnnouncement401JSONResponseBodySuccessFalse DeleteAnnouncement401JSONResponseBodySuccess = false
@@ -1345,6 +1465,90 @@ type PostAnnouncements403JSONResponseBodySuccess bool
 // PostAnnouncements500JSONResponseBodySuccess defines parameters for PostAnnouncements.
 type PostAnnouncements500JSONResponseBodySuccess bool
 
+// GetAnnouncementSavedViewsParams defines parameters for GetAnnouncementSavedViews.
+type GetAnnouncementSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAnnouncementSavedViews401JSONResponseBodySuccess defines parameters for GetAnnouncementSavedViews.
+type GetAnnouncementSavedViews401JSONResponseBodySuccess bool
+
+// GetAnnouncementSavedViews403JSONResponseBodySuccess defines parameters for GetAnnouncementSavedViews.
+type GetAnnouncementSavedViews403JSONResponseBodySuccess bool
+
+// PostAnnouncementSavedViewJSONBody defines parameters for PostAnnouncementSavedView.
+type PostAnnouncementSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostAnnouncementSavedViewParams defines parameters for PostAnnouncementSavedView.
+type PostAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAnnouncementSavedView401JSONResponseBodySuccess defines parameters for PostAnnouncementSavedView.
+type PostAnnouncementSavedView401JSONResponseBodySuccess bool
+
+// PostAnnouncementSavedView403JSONResponseBodySuccess defines parameters for PostAnnouncementSavedView.
+type PostAnnouncementSavedView403JSONResponseBodySuccess bool
+
+// DeleteAnnouncementSavedViewParams defines parameters for DeleteAnnouncementSavedView.
+type DeleteAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAnnouncementSavedView401JSONResponseBodySuccess defines parameters for DeleteAnnouncementSavedView.
+type DeleteAnnouncementSavedView401JSONResponseBodySuccess bool
+
+// DeleteAnnouncementSavedView403JSONResponseBodySuccess defines parameters for DeleteAnnouncementSavedView.
+type DeleteAnnouncementSavedView403JSONResponseBodySuccess bool
+
+// PutAnnouncementSavedViewJSONBody defines parameters for PutAnnouncementSavedView.
+type PutAnnouncementSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutAnnouncementSavedViewParams defines parameters for PutAnnouncementSavedView.
+type PutAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAnnouncementSavedView401JSONResponseBodySuccess defines parameters for PutAnnouncementSavedView.
+type PutAnnouncementSavedView401JSONResponseBodySuccess bool
+
+// PutAnnouncementSavedView403JSONResponseBodySuccess defines parameters for PutAnnouncementSavedView.
+type PutAnnouncementSavedView403JSONResponseBodySuccess bool
+
 // DeleteAnnouncementParams defines parameters for DeleteAnnouncement.
 type DeleteAnnouncementParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -1619,6 +1823,12 @@ type PostMyAnnouncementRead500JSONResponseBodySuccess bool
 
 // PostAnnouncementsJSONRequestBody defines body for PostAnnouncements for application/json ContentType.
 type PostAnnouncementsJSONRequestBody PostAnnouncementsJSONBody
+
+// PostAnnouncementSavedViewJSONRequestBody defines body for PostAnnouncementSavedView for application/json ContentType.
+type PostAnnouncementSavedViewJSONRequestBody PostAnnouncementSavedViewJSONBody
+
+// PutAnnouncementSavedViewJSONRequestBody defines body for PutAnnouncementSavedView for application/json ContentType.
+type PutAnnouncementSavedViewJSONRequestBody PutAnnouncementSavedViewJSONBody
 
 // PutAnnouncementJSONRequestBody defines body for PutAnnouncement for application/json ContentType.
 type PutAnnouncementJSONRequestBody PutAnnouncementJSONBody

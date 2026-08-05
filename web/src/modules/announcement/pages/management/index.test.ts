@@ -11,9 +11,13 @@ const apiMocks = vi.hoisted(() => ({
   archiveAnnouncement: vi.fn(),
   createAnnouncement: vi.fn(),
   deleteAnnouncement: vi.fn(),
+  deleteAnnouncementSavedView: vi.fn(),
   getAnnouncement: vi.fn(),
+  getAnnouncementSavedViews: vi.fn(),
   getAnnouncements: vi.fn(),
+  postAnnouncementSavedView: vi.fn(),
   publishAnnouncement: vi.fn(),
+  putAnnouncementSavedView: vi.fn(),
   updateAnnouncement: vi.fn(),
 }));
 
@@ -121,6 +125,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'announcement.management.form.closePreview': 'Close',
   'announcement.management.form.untitledPreview': 'Untitled Announcement',
   'announcement.management.more': 'More',
+  'announcement.management.page.searchPlaceholder': 'Search title or content',
   'announcement.management.publishNow': 'Publish Now',
   'announcement.management.publishSuccess': 'Announcement Published',
   'announcement.management.republish': 'Republish',
@@ -128,6 +133,19 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'announcement.management.reset': 'Clear Filters',
   'announcement.management.resetColumns': 'Restore Default Columns',
   'announcement.management.search': 'Search',
+  'announcement.management.actions.addFilter': 'Add Filter',
+  'announcement.management.actions.addSorter': 'Add Sorter',
+  'announcement.management.actions.moveSorterDown': 'Move Down',
+  'announcement.management.actions.moveSorterUp': 'Move Up',
+  'announcement.management.actions.removeSorter': 'Remove Sorter',
+  'announcement.management.actions.reset': 'Clear Filters',
+  'announcement.management.actions.search': 'Search',
+  'announcement.management.builder.title': 'Filter Conditions',
+  'announcement.management.builder.hint': 'Choose a field and set its value',
+  'announcement.management.builder.groups.filters': 'Filter Conditions',
+  'announcement.management.presets.label': 'Quick Filters',
+  'announcement.management.sort.fieldPlaceholder': 'Select sort field',
+  'announcement.management.sort.directionPlaceholder': 'Select sort direction',
   'announcement.management.sort.pinnedPublishDesc': 'Pinned First',
   'announcement.management.sort.publishDesc': 'Recently Published',
   'announcement.management.sort.updatedDesc': 'Recently Updated',
@@ -464,6 +482,7 @@ describe('announcement management page', () => {
       total: 1,
     });
     apiMocks.getAnnouncement.mockResolvedValue(announcement({ id: 1 }));
+    apiMocks.getAnnouncementSavedViews.mockResolvedValue([]);
     apiMocks.publishAnnouncement.mockResolvedValue(announcement({ status: 'published' }));
     apiMocks.createAnnouncement.mockResolvedValue(announcement({ id: 2 }));
     apiMocks.deleteAnnouncement.mockResolvedValue({});
@@ -549,11 +568,23 @@ describe('announcement management page', () => {
     expect(wrapper.get('[data-cell-key="published_at"]').text()).not.toBe('Not Set');
   });
 
-  it('persists optional column settings while keeping title and operation visible', async () => {
-    window.localStorage.setItem(
-      'graft.announcement.management.visibleColumns',
-      JSON.stringify(['published_at', 'publish_at', 'expire_at', 'updated_at']),
-    );
+  it('restores the default saved view query and presentation', async () => {
+    apiMocks.getAnnouncementSavedViews.mockResolvedValue([
+      {
+        id: 7,
+        name: 'Published compact',
+        is_default: true,
+        page_size: 50,
+        query_state: {
+          keyword: 'maintenance',
+          status: 'published',
+          level: '',
+          pinned: '',
+          sort: 'updated_desc',
+        },
+        visible_columns: ['published_at', 'publish_at', 'expire_at', 'updated_at'],
+      },
+    ]);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -563,9 +594,9 @@ describe('announcement management page', () => {
       .map((column) => column.attributes('data-col-key'));
 
     expect(columnKeys).toEqual(['title', 'published_at', 'publish_at', 'expire_at', 'updated_at', 'operation']);
-
-    const storedKeys = JSON.parse(window.localStorage.getItem('graft.announcement.management.visibleColumns') ?? '[]');
-    expect(storedKeys).toEqual(['title', 'published_at', 'publish_at', 'expire_at', 'updated_at', 'operation']);
+    expect(apiMocks.getAnnouncements).toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: 'maintenance', status: 'published', page_size: 50 }),
+    );
   });
 
   it('refreshes the list after a publish action succeeds', async () => {

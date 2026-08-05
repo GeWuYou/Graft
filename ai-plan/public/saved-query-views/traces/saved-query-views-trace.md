@@ -19,10 +19,19 @@
 
 ```json
 {
-  "completed_batches": ["saved-query-views-foundation", "saved-query-views-consumer-rollout"],
+  "completed_batches": ["saved-query-views-foundation", "saved-query-views-consumer-rollout", "saved-query-views-announcement-scheduler"],
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
   "closeout_status": "validated-awaiting-archive-decision"
 }
 ```
+
+## 2026-08-05 Announcement and Scheduler Extension
+
+- Added owner-scoped saved-view CRUD routes and OpenAPI contracts for Announcement Management and Scheduled Task Management.
+- Migrated both pages to the shared advanced query builder and saved-view control; saved state restores filters, page size,
+  visible columns, and starts from page one.
+- Removed Announcement Management's local column-preference persistence in favor of saved-view presentation state.
+- Validated with `go run ./cmd/graft validate backend`, focused module tests, focused page tests, and frontend hygiene,
+  formatting, type, and contract checks.

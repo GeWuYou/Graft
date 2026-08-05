@@ -25,4 +25,8 @@ const (
 	ScheduledTaskRunDetailRoute = "/runs/:runID"
 	// ScheduledTaskMenuPath 标识定时任务菜单的规范路径。
 	ScheduledTaskMenuPath = "/platform/scheduled-tasks"
+	// ScheduledTaskSavedViewsRoute 标识定时任务列表保存视图集合路由。
+	ScheduledTaskSavedViewsRoute = "/saved-views"
+	// ScheduledTaskSavedViewRoute 标识定时任务列表单个保存视图路由。
+	ScheduledTaskSavedViewRoute = "/saved-views/:viewId"
 )

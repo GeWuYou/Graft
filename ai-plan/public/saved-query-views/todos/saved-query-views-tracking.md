@@ -6,7 +6,8 @@ Saved Query Views
 
 ## Scope
 
-Private saved query views for Application Management, Audit Log Explorer, Access Log Explorer, and App Log Explorer.
+Private saved query views for Application Management, Audit Log Explorer, Access Log Explorer, App Log Explorer,
+Announcement Management, and Scheduled Task Management.
 
 ## Repository Truth
 
@@ -39,12 +40,13 @@ closeout:
 
 ## Current Recovery Point
 
-- The initial private saved-query-view rollout is complete for Application Management, Audit Log Explorer, Access Log Explorer, and App Log Explorer.
+- The private saved-query-view rollout is complete for Application Management, Audit Log Explorer, Access Log Explorer,
+  App Log Explorer, Announcement Management, and Scheduled Task Management.
 - No database migration is required; the existing `saved_views` table remains authoritative.
 
 ## Task Checklist
 
-- [x] Add saved-view APIs and validation to the three remaining owners.
+- [x] Add saved-view APIs and validation to Announcement Management and Scheduled Task Management.
 - [x] Add shared query-list controls and migrate Application Management.
 - [x] Migrate audit, access-log, and app-log consumers.
 - [x] Validate the cross-boundary feature slice.
@@ -59,7 +61,7 @@ closeout:
 
 ```json
 {
-  "completed_batches": ["saved-query-views-foundation", "saved-query-views-consumer-rollout"],
+  "completed_batches": ["saved-query-views-foundation", "saved-query-views-consumer-rollout", "saved-query-views-announcement-scheduler"],
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,

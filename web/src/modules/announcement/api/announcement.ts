@@ -7,6 +7,8 @@ import type {
   AnnouncementListQuery,
   AnnouncementListResponse,
   AnnouncementReadAllResponse,
+  AnnouncementSavedView,
+  AnnouncementSavedViewRequest,
   AnnouncementUnreadCountResponse,
   CreateAnnouncementRequest,
   MyAnnouncementListQuery,
@@ -19,6 +21,22 @@ type GetAnnouncementsOperation = paths[AnnouncementListPath]['get'];
 type GetAnnouncementsEnvelope = GetAnnouncementsOperation['responses'][200]['content']['application/json'];
 type GetAnnouncementsData = NonNullable<GetAnnouncementsEnvelope['data']>;
 type GetAnnouncementsQuery = NonNullable<GetAnnouncementsOperation['parameters']['query']>;
+
+type AnnouncementSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getAnnouncementSavedViews;
+type GetAnnouncementSavedViewsOperation = paths[AnnouncementSavedViewsPath]['get'];
+type GetAnnouncementSavedViewsResponse =
+  GetAnnouncementSavedViewsOperation['responses'][200]['content']['application/json'];
+type GetAnnouncementSavedViewsResponseData = NonNullable<GetAnnouncementSavedViewsResponse['data']>;
+type PostAnnouncementSavedViewOperation = paths[AnnouncementSavedViewsPath]['post'];
+type PostAnnouncementSavedViewResponse =
+  PostAnnouncementSavedViewOperation['responses'][201]['content']['application/json'];
+type PostAnnouncementSavedViewResponseData = NonNullable<PostAnnouncementSavedViewResponse['data']>;
+
+type AnnouncementSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putAnnouncementSavedView;
+type PutAnnouncementSavedViewOperation = paths[AnnouncementSavedViewPath]['put'];
+type PutAnnouncementSavedViewResponse =
+  PutAnnouncementSavedViewOperation['responses'][200]['content']['application/json'];
+type PutAnnouncementSavedViewResponseData = NonNullable<PutAnnouncementSavedViewResponse['data']>;
 
 type PostAnnouncementsOperation = paths[AnnouncementListPath]['post'];
 type PostAnnouncementsEnvelope = PostAnnouncementsOperation['responses'][201]['content']['application/json'];
@@ -86,6 +104,31 @@ export function getAnnouncements(query?: AnnouncementListQuery): Promise<Announc
     url: OPENAPI_RUNTIME_PATH.getAnnouncements,
     params: normalizeAnnouncementListQuery(query),
   });
+}
+
+export async function getAnnouncementSavedViews(): Promise<AnnouncementSavedView[]> {
+  const data = await request.get<GetAnnouncementSavedViewsResponseData>({
+    url: OPENAPI_RUNTIME_PATH.getAnnouncementSavedViews,
+  });
+  return data.items;
+}
+
+export function postAnnouncementSavedView(payload: AnnouncementSavedViewRequest) {
+  return request.post<PostAnnouncementSavedViewResponseData>({
+    url: OPENAPI_RUNTIME_PATH.postAnnouncementSavedView,
+    data: payload,
+  }) as Promise<AnnouncementSavedView>;
+}
+
+export function putAnnouncementSavedView(viewId: number, payload: AnnouncementSavedViewRequest) {
+  return request.put<PutAnnouncementSavedViewResponseData>({
+    url: buildOpenApiRuntimePath('putAnnouncementSavedView', { viewId }),
+    data: payload,
+  }) as Promise<AnnouncementSavedView>;
+}
+
+export function deleteAnnouncementSavedView(viewId: number) {
+  return request.delete({ url: buildOpenApiRuntimePath('deleteAnnouncementSavedView', { viewId }) });
 }
 
 export function createAnnouncement(payload: CreateAnnouncementRequest): Promise<AnnouncementItem> {
