@@ -15,6 +15,8 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
+const maxDockerBuildLogBuffer = 64 * 1024
+
 type containerImageBuilder struct{ service *service }
 
 func (b containerImageBuilder) BuildImage(ctx context.Context, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
@@ -135,10 +137,18 @@ func (w *dockerBuildLogWriter) Write(chunk []byte) (int, error) {
 	if w.owner.sinkErr != nil {
 		return 0, w.owner.sinkErr
 	}
+	if w.owner.sink == nil {
+		return len(chunk), nil
+	}
 	written := len(chunk)
 	for len(chunk) > 0 {
 		line, rest, found := bytes.Cut(chunk, []byte{'\n'})
-		w.buffer.Write(line)
+		if _, err := w.buffer.Write(line); err != nil {
+			return 0, err
+		}
+		if w.buffer.Len() > maxDockerBuildLogBuffer {
+			return 0, errors.New("docker build log line exceeds limit")
+		}
 		if !found {
 			break
 		}

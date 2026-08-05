@@ -49,11 +49,11 @@ let idempotencyKey: string | undefined;
 let idempotencyPayload: string | undefined;
 let idempotencySequence = 0;
 const rules = {
-  application_id: [{ required: true }],
-  context_path: [{ required: true }],
-  dockerfile_path: [{ required: true }],
-  image_repository: [{ required: true }],
-  image_tag: [{ required: true }],
+  application_id: [{ required: true, message: t('build.jobs.create.applicationIdRequired') }],
+  context_path: [{ required: true, message: t('build.jobs.create.contextPathRequired') }],
+  dockerfile_path: [{ required: true, message: t('build.jobs.create.dockerfilePathRequired') }],
+  image_repository: [{ required: true, message: t('build.jobs.create.repositoryRequired') }],
+  image_tag: [{ required: true, message: t('build.jobs.create.tagRequired') }],
 };
 async function submit({ validateResult }: SubmitContext) {
   if (validateResult !== true) return;

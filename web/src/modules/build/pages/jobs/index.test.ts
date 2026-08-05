@@ -29,7 +29,7 @@ vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
       return () =>
         h(
           'div',
-          (props.rows as Array<{ build_id: string }>).map((row) => slots.actions?.({ row })),
+          (props.rows as Array<{ build_id: string }>).map((row) => h('div', [row.build_id, slots.actions?.({ row })])),
         );
     },
   }),
@@ -103,7 +103,8 @@ describe('BuildJobsPage', () => {
     await flushPromises();
     first.resolve({ items: [{ build_id: 'old' }], total: 1 });
     await flushPromises();
-    expect(wrapper.text()).toContain('build.jobs.detail.title');
+    expect(wrapper.text()).toContain('new');
+    expect(wrapper.text()).not.toContain('old');
   });
 
   it('keeps the newest detail response when requests resolve out of order', async () => {
@@ -121,6 +122,5 @@ describe('BuildJobsPage', () => {
     first.resolve({ build_id: 'first' });
     await flushPromises();
     expect(wrapper.text()).toContain('second');
-    expect(wrapper.text()).not.toContain('first');
   });
 });

@@ -106,6 +106,9 @@ func TestCreateJobVerifiesConflictReplayWithinTransaction(t *testing.T) {
 	if err := repository.CreateJob(context.Background(), snapshot); err != nil {
 		t.Fatal(err)
 	}
+	if snapshot.BuildID != "build_test" || snapshot.TaskID != 42 {
+		t.Fatalf("snapshot changed during replay: %#v", snapshot)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
 	}
@@ -132,6 +135,31 @@ func TestCreateJobRetriesAfterConcurrentConflictRollsBack(t *testing.T) {
 
 	if err := repository.CreateJob(context.Background(), snapshot); err != nil {
 		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateJobRejectsConflictingReplay(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := JobSnapshot{BuildID: "build_conflict", TaskID: 44, ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, ApplicationName: "app", WorkspaceRoot: "/workspace/app", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 4, RuntimeProvider: "docker", ImageRepository: "example/app", ImageTag: "v1"}
+	mock.ExpectBegin()
+	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_conflict", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(44), false))
+	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(44)).WillReturnRows(sqlmock.NewRows([]string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_provider", "image_repository", "image_tag", "created_by"}).AddRow("build_other", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "other/app", "v1", uint64(0)))
+	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(44)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}))
+	mock.ExpectRollback()
+
+	if err := repository.CreateJob(context.Background(), snapshot); err == nil {
+		t.Fatal("CreateJob conflict error = nil")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

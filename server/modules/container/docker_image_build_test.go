@@ -127,6 +127,17 @@ func TestBuildImageReturnsSinkError(t *testing.T) {
 	}
 }
 
+func TestDockerBuildLogWriterDropsNilSinkAndBoundsLongLines(t *testing.T) {
+	writer := newDockerBuildLogSink(context.Background(), nil).writer("stdout")
+	if _, err := writer.Write([]byte("quiet output")); err != nil {
+		t.Fatal(err)
+	}
+	owner := newDockerBuildLogSink(context.Background(), func(context.Context, moduleapi.TaskLogEntry) error { return nil })
+	if _, err := owner.writer("stdout").Write(make([]byte, maxDockerBuildLogBuffer+1)); err == nil {
+		t.Fatal("expected oversized log line error")
+	}
+}
+
 func testDockerBuildInput(workspace string) moduleapi.DockerImageBuildInput {
 	return moduleapi.DockerImageBuildInput{WorkspaceRoot: workspace, ContextPath: "context", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1"}
 }

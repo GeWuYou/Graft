@@ -36,10 +36,15 @@
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",
         "applicationId": "应用 ID",
+        "applicationIdRequired": "请输入应用 ID。",
         "contextPath": "构建上下文路径",
+        "contextPathRequired": "请输入构建上下文路径。",
         "dockerfilePath": "Dockerfile 路径",
+        "dockerfilePathRequired": "请输入 Dockerfile 路径。",
         "repository": "镜像仓库",
-        "tag": "镜像标签"
+        "repositoryRequired": "请输入镜像仓库。",
+        "tag": "镜像标签",
+        "tagRequired": "请输入镜像标签。"
       }
     }
   }

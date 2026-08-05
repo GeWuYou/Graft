@@ -41,10 +41,15 @@
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",
         "applicationId": "Application ID",
+        "applicationIdRequired": "Application ID is required.",
         "contextPath": "Build context path",
+        "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",
+        "dockerfilePathRequired": "Dockerfile path is required.",
         "repository": "Image repository",
-        "tag": "Image tag"
+        "repositoryRequired": "Image repository is required.",
+        "tag": "Image tag",
+        "tagRequired": "Image tag is required."
       }
     }
   }
