@@ -8,6 +8,7 @@ import (
 	"sort"
 	"testing"
 
+	"graft/server/internal/config"
 	"graft/server/internal/i18n"
 )
 
@@ -17,6 +18,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"announcement":   {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"audit":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"backup":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"build":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"container":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"deployment":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"monitor":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
@@ -45,6 +47,34 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 	}
 
 	assertExpectedLocaleResourcesRegistered(t, expected, seen)
+}
+
+func TestEmbeddedLocaleResourcesProvideBuildPermissionSeedKeys(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    string(i18n.LocaleZHCN),
+		FallbackLocale:   string(i18n.LocaleZHCN),
+		SupportedLocales: []string{string(i18n.LocaleZHCN), string(i18n.LocaleENUS)},
+	})
+	if err := localizer.RegisterEmbeddedLocaleResources(EmbeddedLocaleResources()); err != nil {
+		t.Fatalf("register embedded locale resources: %v", err)
+	}
+
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range []i18n.MessageKey{
+			"rbac.permissionCatalog.buildRead.display",
+			"rbac.permissionCatalog.buildRead.description",
+			"rbac.permissionCatalog.buildCreate.display",
+			"rbac.permissionCatalog.buildCreate.description",
+			"rbac.permissionCatalog.buildCancel.display",
+			"rbac.permissionCatalog.buildCancel.description",
+			"rbac.permissionCatalog.buildRetry.display",
+			"rbac.permissionCatalog.buildRetry.description",
+		} {
+			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
+				t.Fatalf("expected Build permission seed key %q for locale %s", key, locale)
+			}
+		}
+	}
 }
 
 // TestMigrationDirsUsesOwnerAlignedBaseline 验证默认迁移链不再包含历史共享目录，
