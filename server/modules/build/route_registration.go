@@ -102,6 +102,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			status, key := http.StatusInternalServerError, "common.internalError"
 			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {
 				status, key = http.StatusConflict, "common.invalidArgument"
+			} else if errors.Is(submitErr, buildstore.ErrConflict) {
+				status, key = http.StatusConflict, "common.invalidArgument"
 			} else if errors.Is(submitErr, errInvalidBuildRequest) {
 				status, key = http.StatusBadRequest, "common.invalidArgument"
 			}

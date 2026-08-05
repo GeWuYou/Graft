@@ -16,6 +16,9 @@ import (
 // ErrNotFound 表示不存在与给定 Task 标识对应的 Build 记录。
 var ErrNotFound = errors.New("build record not found")
 
+// ErrConflict 表示并发写入在有限重试内未能收敛。
+var ErrConflict = errors.New("build record write conflict")
+
 // JobSnapshot 是请求期授权后冻结的 Build 所有执行输入。
 type JobSnapshot struct {
 	BuildID             string
@@ -346,7 +349,7 @@ func (r *SQLRepository) CreateJob(ctx context.Context, value JobSnapshot) error 
 			return err
 		}
 	}
-	return ErrNotFound
+	return ErrConflict
 }
 
 func (r *SQLRepository) createJobAttempt(ctx context.Context, value JobSnapshot) (error, bool) {

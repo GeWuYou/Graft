@@ -194,6 +194,31 @@ func TestCreateJobRetriesAfterConcurrentConflictRollsBack(t *testing.T) {
 	}
 }
 
+func TestCreateJobReturnsConflictAfterRetryBudgetIsExhausted(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := JobSnapshot{BuildID: "build_retry_exhausted", TaskID: 45, ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, ApplicationName: "app", WorkspaceRoot: "/workspace/app", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 4, RuntimeProvider: "docker", ImageRepository: "example/app", ImageTag: "v1"}
+	for range 2 {
+		mock.ExpectBegin()
+		mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_retry_exhausted", uint64(45), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(45), false))
+		mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(45)).WillReturnError(sql.ErrNoRows)
+		mock.ExpectRollback()
+	}
+	if err := repository.CreateJob(context.Background(), snapshot); !errors.Is(err, ErrConflict) {
+		t.Fatalf("CreateJob error = %v, want ErrConflict", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCreateJobRejectsConflictingReplay(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
