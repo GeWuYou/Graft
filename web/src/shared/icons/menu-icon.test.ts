@@ -1,6 +1,7 @@
 import archive from '@iconify-icons/lucide/archive';
 import container from '@iconify-icons/lucide/container';
 import downloadCloud from '@iconify-icons/lucide/download-cloud';
+import hammer from '@iconify-icons/lucide/hammer';
 import hardDrive from '@iconify-icons/lucide/hard-drive';
 import imageIcon from '@iconify-icons/lucide/image';
 import waypoints from '@iconify-icons/lucide/waypoints';
@@ -36,6 +37,10 @@ describe('resolveMenuIcon', () => {
     expect(resolveMenuIcon('backup')).toEqual(archive);
   });
 
+  it('uses the build hammer icon for Build Jobs navigation', () => {
+    expect(resolveMenuIcon('build')).toEqual(hammer);
+  });
+
   it('keeps application and runtime targets semantically distinct', () => {
     expect(resolveMenuIcon('application-portfolio')).not.toEqual(resolveMenuIcon('runtime-target'));
   });
@@ -66,6 +71,7 @@ describe('resolveMenuIcon', () => {
       'application-template',
       'infrastructure-domain',
       'build-domain',
+      'build',
       'resources-domain',
       'observability-domain',
       'security-domain',

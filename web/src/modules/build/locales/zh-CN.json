@@ -1,4 +1,11 @@
 {
+  "menu": {
+    "build": {
+      "jobs": {
+        "title": "构建任务"
+      }
+    }
+  },
   "build": {
     "jobs": {
       "title": "构建任务",

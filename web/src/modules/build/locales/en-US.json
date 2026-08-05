@@ -1,4 +1,11 @@
 {
+  "menu": {
+    "build": {
+      "jobs": {
+        "title": "Build Jobs"
+      }
+    }
+  },
   "build": {
     "jobs": {
       "title": "Build Jobs",
