@@ -85,18 +85,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	}
 
 	permissions := permissionRegistry.Items()
-	for _, code := range []string{
-		buildcontract.BuildReadPermission,
-		buildcontract.BuildCreatePermission,
-		buildcontract.BuildCancelPermission,
-		buildcontract.BuildRetryPermission,
-	} {
-		if !slices.ContainsFunc(permissions, func(item permission.Item) bool {
-			return item.Code == code && item.Module == moduleID
-		}) {
-			t.Fatalf("expected build permission %q, got %#v", code, permissions)
-		}
-	}
+	assertBuildPermissionMetadata(t, permissions)
 
 	if err := menuRegistry.Validate(); err != nil {
 		t.Fatalf("validate build menu: %v", err)
@@ -110,5 +99,25 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 			item.Module == moduleID
 	}) {
 		t.Fatalf("expected build jobs menu, got %#v", menus)
+	}
+}
+
+func assertBuildPermissionMetadata(t *testing.T, permissions []permission.Item) {
+	t.Helper()
+	registered := make(map[string]permission.Item, len(permissions))
+	for _, item := range permissions {
+		registered[item.Code] = item
+	}
+	expected := []permission.Item{
+		{Code: buildcontract.BuildReadPermission, Module: moduleID, Resource: "build", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead},
+		{Code: buildcontract.BuildCreatePermission, Module: moduleID, Resource: "build", Action: "create", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},
+		{Code: buildcontract.BuildCancelPermission, Module: moduleID, Resource: "build", Action: "cancel", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive},
+		{Code: buildcontract.BuildRetryPermission, Module: moduleID, Resource: "build", Action: "retry", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},
+	}
+	for _, want := range expected {
+		got, ok := registered[want.Code]
+		if !ok || got.Module != want.Module || got.Resource != want.Resource || got.Action != want.Action || got.RiskLevel != want.RiskLevel || got.RiskCategory != want.RiskCategory {
+			t.Fatalf("expected build permission %#v, got %#v", want, got)
+		}
 	}
 }

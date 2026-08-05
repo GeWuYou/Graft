@@ -31,10 +31,10 @@ func (m *Module) Register(ctx *module.Context) error {
 		return errors.New("build module registries are unavailable")
 	}
 	items := []permission.Item{
-		{Code: buildcontract.BuildReadPermission, DisplayKey: "rbac.permissionCatalog.buildRead.display", DescriptionKey: "rbac.permissionCatalog.buildRead.description", Module: moduleID},
-		{Code: buildcontract.BuildCreatePermission, DisplayKey: "rbac.permissionCatalog.buildCreate.display", DescriptionKey: "rbac.permissionCatalog.buildCreate.description", Module: moduleID},
-		{Code: buildcontract.BuildCancelPermission, DisplayKey: "rbac.permissionCatalog.buildCancel.display", DescriptionKey: "rbac.permissionCatalog.buildCancel.description", Module: moduleID},
-		{Code: buildcontract.BuildRetryPermission, DisplayKey: "rbac.permissionCatalog.buildRetry.display", DescriptionKey: "rbac.permissionCatalog.buildRetry.description", Module: moduleID},
+		{Code: buildcontract.BuildReadPermission, DisplayKey: "rbac.permissionCatalog.buildRead.display", DescriptionKey: "rbac.permissionCatalog.buildRead.description", Module: moduleID, Resource: "build", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead},
+		{Code: buildcontract.BuildCreatePermission, DisplayKey: "rbac.permissionCatalog.buildCreate.display", DescriptionKey: "rbac.permissionCatalog.buildCreate.description", Module: moduleID, Resource: "build", Action: "create", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},
+		{Code: buildcontract.BuildCancelPermission, DisplayKey: "rbac.permissionCatalog.buildCancel.display", DescriptionKey: "rbac.permissionCatalog.buildCancel.description", Module: moduleID, Resource: "build", Action: "cancel", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive},
+		{Code: buildcontract.BuildRetryPermission, DisplayKey: "rbac.permissionCatalog.buildRetry.display", DescriptionKey: "rbac.permissionCatalog.buildRetry.description", Module: moduleID, Resource: "build", Action: "retry", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},
 	}
 	for _, item := range items {
 		ctx.PermissionRegistry.Register(item)
