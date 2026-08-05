@@ -419,6 +419,11 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 	}); err != nil {
 		panic(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.SavedViewService)(nil), func(container.Resolver) (any, error) {
+		return schedulerSavedViewServiceStub{}, nil
+	}); err != nil {
+		panic(err)
+	}
 
 	return &module.Context{
 		Logger:             zap.NewNop(),

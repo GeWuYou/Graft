@@ -96,6 +96,24 @@ class ResolveCandidatesTests(unittest.TestCase):
         )
         self.assertEqual(candidates, [MODULE.Candidate("v1.2.0-beta.3", DIGEST_A)])
 
+    def test_skips_invalid_utf8_manifest_and_uses_older_valid_release(self) -> None:
+        valid = manifest("v1.2.0-beta.3", DIGEST_A)
+        invalid_utf8 = b'\xff{"schema_version":1}'
+        releases = [
+            release("v1.2.0-beta.4", published_at="2026-01-02T00:00:00Z"),
+            release("v1.2.0-beta.3", published_at="2026-01-01T00:00:00Z"),
+        ]
+        candidates = self.resolve(
+            releases,
+            {
+                "manifest-v1.2.0-beta.4": invalid_utf8,
+                "checksum-v1.2.0-beta.4": checksum(invalid_utf8),
+                "manifest-v1.2.0-beta.3": valid,
+                "checksum-v1.2.0-beta.3": checksum(valid),
+            },
+        )
+        self.assertEqual(candidates, [MODULE.Candidate("v1.2.0-beta.3", DIGEST_A)])
+
     def test_rejects_wrong_image_and_cross_channel_release(self) -> None:
         wrong_image = manifest("v1.2.0-beta.4", DIGEST_B, image="ghcr.io/gewuyou/other-runner")
         stable = manifest("v1.1.9", DIGEST_A, channel="stable")
@@ -122,6 +140,29 @@ class ResolveCandidatesTests(unittest.TestCase):
             release("v1.2.0-beta.6", published_at="2026-01-03T00:00:00Z"),
         ]
         self.assertEqual(self.resolve(releases, {}), [])
+
+
+class DownloadAssetTests(unittest.TestCase):
+    def test_rejects_urls_outside_github_api_origin(self) -> None:
+        with mock.patch.object(MODULE.urllib.request, "urlopen") as urlopen:
+            with self.assertRaisesRegex(RuntimeError, "https://api\\.github\\.com"):
+                MODULE.download_asset("https://uploads.github.com/repos/example/releases/assets/1")
+        urlopen.assert_not_called()
+
+    def test_sends_token_only_on_initial_request(self) -> None:
+        response = mock.MagicMock()
+        response.read.return_value = b"asset"
+        opener = mock.MagicMock()
+        opener.__enter__.return_value = response
+        with (
+            mock.patch.dict(MODULE.os.environ, {"GH_TOKEN": "test-token"}, clear=True),
+            mock.patch.object(MODULE.urllib.request, "urlopen", return_value=opener) as urlopen,
+        ):
+            self.assertEqual(MODULE.download_asset("https://api.github.com/repos/example/releases/assets/1"), b"asset")
+
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.unredirected_hdrs["Authorization"], "Bearer test-token")
+        self.assertNotIn("Authorization", request.headers)
 
 
 if __name__ == "__main__":

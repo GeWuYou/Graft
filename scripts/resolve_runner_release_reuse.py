@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
@@ -37,11 +38,14 @@ def parse_args() -> argparse.Namespace:
 
 
 def download_asset(asset_url: str) -> bytes:
+    parsed_url = urllib.parse.urlsplit(asset_url)
+    if parsed_url.scheme != "https" or parsed_url.netloc != "api.github.com":
+        raise RuntimeError("download release asset: URL must use the https://api.github.com origin")
     headers = {"Accept": "application/octet-stream", "User-Agent": "graft-runner-release-resolver"}
+    request = urllib.request.Request(asset_url, headers=headers)
     token = os.environ.get("GH_TOKEN", "").strip()
     if token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(asset_url, headers=headers)
+        request.add_unredirected_header("Authorization", f"Bearer {token}")
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             return response.read(1 << 20)
@@ -140,7 +144,7 @@ def resolve_candidates(
             manifest_bytes = download_asset(manifest_url)
             checksum_bytes = download_asset(checksum_url)
             manifest = json.loads(manifest_bytes)
-        except (RuntimeError, json.JSONDecodeError):
+        except (RuntimeError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         if not checksum_matches(manifest_bytes, checksum_bytes):
             continue

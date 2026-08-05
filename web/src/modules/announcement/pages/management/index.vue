@@ -25,9 +25,10 @@
       />
 
       <announcement-management-filters
-        v-model="filters"
+        :model-value="filters"
         :loading="loading"
         :saved-view-controller="announcementSavedViews"
+        @update:model-value="updateFilters"
         @reset="resetFilters"
         @search="handleSearch"
       />
@@ -817,21 +818,26 @@ function handleSearch() {
   setCurrentPageAndMaybeFetch(1);
 }
 
+function updateFilters(value: AnnouncementFilterState) {
+  Object.assign(filters, value);
+}
+
 function resetFilters() {
-  const shouldFetch =
-    filters.keyword !== '' ||
-    filters.level !== '' ||
-    filters.pinned !== '' ||
-    filters.sort !== 'updated_desc' ||
-    filters.status !== '' ||
-    pagination.current !== 1;
+  const keywordChanged = filters.keyword !== '';
+  const watchedFiltersChanged =
+    filters.level !== '' || filters.pinned !== '' || filters.sort !== 'updated_desc' || filters.status !== '';
+  const pageChanged = pagination.current !== 1;
   filters.keyword = '';
   filters.level = '';
   filters.pinned = '';
   filters.sort = 'updated_desc';
   filters.status = '';
-  if (shouldFetch) {
-    setCurrentPageAndMaybeFetch(1);
+  if (pageChanged) {
+    pagination.current = 1;
+    return;
+  }
+  if (keywordChanged && !watchedFiltersChanged) {
+    void fetchAnnouncements();
   }
 }
 

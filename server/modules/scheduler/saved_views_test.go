@@ -1,11 +1,34 @@
 package scheduler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	"graft/server/internal/container"
 	"graft/server/internal/httpx"
+	"graft/server/internal/moduleapi"
+	schedulercore "graft/server/internal/scheduler"
 )
+
+type schedulerSavedViewServiceStub struct{}
+
+func (schedulerSavedViewServiceStub) List(context.Context, uint64, string) ([]moduleapi.SavedView, error) {
+	return nil, nil
+}
+
+func (schedulerSavedViewServiceStub) Create(context.Context, moduleapi.SavedViewCreateInput) (moduleapi.SavedView, error) {
+	return moduleapi.SavedView{}, nil
+}
+
+func (schedulerSavedViewServiceStub) Update(context.Context, moduleapi.SavedViewUpdateInput) (moduleapi.SavedView, error) {
+	return moduleapi.SavedView{}, nil
+}
+
+func (schedulerSavedViewServiceStub) Delete(context.Context, uint64, string, uint64) error {
+	return nil
+}
 
 func TestValidateSchedulerSavedView(t *testing.T) {
 	t.Parallel()
@@ -50,3 +73,17 @@ func TestValidateSchedulerSavedView(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterSchedulerRoutesPropagatesMissingSavedViewService(t *testing.T) {
+	ctx := newModuleTestContext()
+	ctx.Services = container.New()
+
+	err := registerSchedulerRoutesWithRuntime(ctx, moduleID, testAuthService{}, allowAllAuthorizer{}, func() (schedulercore.Runtime, error) {
+		return &stopContextRecorderRuntime{}, nil
+	})
+	if !errors.Is(err, container.ErrServiceNotRegistered) {
+		t.Fatalf("register scheduler routes error = %v, want missing saved-view service", err)
+	}
+}
+
+var _ moduleapi.SavedViewService = schedulerSavedViewServiceStub{}

@@ -16,6 +16,12 @@ import (
 
 const announcementManagementSavedViewSurface = "announcement.management"
 
+// announcementSavedViewListResponse 是公告保存视图列表的显式 HTTP 响应 DTO。
+// 它与 OpenAPI 的 saved-view-list-response wrapper 保持一致，避免匿名 map 成为隐式契约。
+type announcementSavedViewListResponse struct {
+	Items []httpx.SavedViewResponse `json:"items"`
+}
+
 var announcementManagementSavedViewColumns = map[string]struct{}{
 	"title": {}, "status": {}, "visibility": {}, "level": {}, "published_at": {}, "publish_at": {},
 	"expire_at": {}, "delivery_mode": {}, "pinned": {}, "published_by": {}, "created_at": {},
@@ -126,7 +132,7 @@ func handleAnnouncementSavedViewList(localizer *i18n.Service, service moduleapi.
 			}
 			items = append(items, item)
 		}
-		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{"items": items})
+		httpx.WriteSuccess(ctx, http.StatusOK, announcementSavedViewListResponse{Items: items})
 	}
 }
 

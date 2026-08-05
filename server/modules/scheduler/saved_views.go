@@ -16,6 +16,12 @@ import (
 
 const schedulerListSavedViewSurface = "scheduled-task.list"
 
+// schedulerSavedViewListResponse 是定时任务保存视图列表的显式 HTTP 响应 DTO。
+// 它与 OpenAPI 的 saved-view-list-response wrapper 保持一致，避免匿名 map 成为隐式契约。
+type schedulerSavedViewListResponse struct {
+	Items []httpx.SavedViewResponse `json:"items"`
+}
+
 var schedulerListSavedViewColumns = map[string]struct{}{
 	"task": {}, "job_key": {}, "schedule": {}, "status": {}, "last_run": {}, "success_rate": {},
 }
@@ -161,7 +167,7 @@ func writeSchedulerSavedViewList(ctx *gin.Context, localizer *i18n.Service, view
 		}
 		items = append(items, item)
 	}
-	httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{"items": items})
+	httpx.WriteSuccess(ctx, http.StatusOK, schedulerSavedViewListResponse{Items: items})
 }
 
 func writeSchedulerSavedView(ctx *gin.Context, localizer *i18n.Service, status int, view moduleapi.SavedView) {

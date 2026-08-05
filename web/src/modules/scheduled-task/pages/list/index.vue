@@ -31,10 +31,11 @@
     </template>
     <template #filters>
       <scheduled-task-filters
-        v-model="filters"
+        :model-value="filters"
         :job-definitions="jobDefinitionFilterOptions"
         :loading="loading"
         :saved-view-controller="savedViews"
+        @update:model-value="updateFilters"
         @reset="resetFilters"
         @search="handleFilterQuery"
       />
@@ -1836,6 +1837,10 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
 function handleFilterQuery() {
   pagination.current = 1;
   void refreshTasks();
+}
+
+function updateFilters(value: FilterModel) {
+  Object.assign(filters, value);
 }
 
 function resetFilters() {
