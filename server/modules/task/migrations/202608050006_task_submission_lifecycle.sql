@@ -43,11 +43,12 @@ CREATE UNIQUE INDEX uq_task_submissions_idempotency ON task_submissions (task_ty
 CREATE UNIQUE INDEX uq_task_submissions_task_id ON task_submissions (task_id) WHERE task_id IS NOT NULL;
 CREATE INDEX idx_task_submissions_expiry ON task_submissions (lease_expires_at ASC, id ASC) WHERE state = 'reserved';
 
+-- 先建立覆盖 ready 的替代索引，避免状态约束切换期间出现同一资源的活跃任务空窗。
+CREATE UNIQUE INDEX CONCURRENTLY uq_tasks_active_owner_next ON tasks (owner_type, owner_id) WHERE status IN ('pending', 'ready', 'scheduled', 'running', 'needs_attention');
 ALTER TABLE tasks ADD CONSTRAINT tasks_status_check_next CHECK (status IN ('pending', 'ready', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')) NOT VALID;
 ALTER TABLE tasks VALIDATE CONSTRAINT tasks_status_check_next;
 ALTER TABLE tasks DROP CONSTRAINT tasks_status_check;
 ALTER TABLE tasks RENAME CONSTRAINT tasks_status_check_next TO tasks_status_check;
-CREATE UNIQUE INDEX CONCURRENTLY uq_tasks_active_owner_next ON tasks (owner_type, owner_id) WHERE status IN ('pending', 'ready', 'scheduled', 'running', 'needs_attention');
 DROP INDEX CONCURRENTLY uq_tasks_active_owner;
 ALTER INDEX uq_tasks_active_owner_next RENAME TO uq_tasks_active_owner;
 

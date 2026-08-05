@@ -42,7 +42,8 @@ SET activation_required = FALSE,
     updated_at = NOW()
 FROM build_jobs AS job
 WHERE task.id = job.task_id
-  AND task.activation_required = TRUE;
+  AND task.activation_required = TRUE
+  AND task.status IN ('pending', 'ready', 'scheduled', 'needs_attention');
 
 UPDATE tasks AS task
 SET activation_required = FALSE,
@@ -50,6 +51,7 @@ SET activation_required = FALSE,
     finished_at = COALESCE(task.finished_at, NOW()),
     updated_at = NOW()
 WHERE task.activation_required = TRUE
+  AND task.status IN ('pending', 'ready', 'scheduled', 'needs_attention')
   AND NOT EXISTS (SELECT 1 FROM build_jobs AS job WHERE job.task_id = task.id);
 
 COMMENT ON COLUMN tasks.activation_required IS '迁移期历史兼容字段；legacy cutover 后新 Task 不使用该字段';
