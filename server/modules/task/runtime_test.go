@@ -60,6 +60,49 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	}
 }
 
+func TestRuntimeReservationCannotBeClaimedBeforeActivation(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	reservation, err := runtime.ReserveTask(context.Background(), testSubmitInput(1, 1))
+	if err != nil {
+		t.Fatalf("reserve task: %v", err)
+	}
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || found {
+		t.Fatalf("claim before activation = found:%t err:%v", found, err)
+	}
+	if _, err := runtime.ActivateTask(context.Background(), reservation); err != nil {
+		t.Fatalf("activate task: %v", err)
+	}
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
+		t.Fatalf("claim after activation = found:%t err:%v", found, err)
+	}
+}
+
+func TestRuntimeDiscardedReservationReleasesOwnerForNewSubmission(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	reservation, err := runtime.ReserveTask(context.Background(), input)
+	if err != nil {
+		t.Fatalf("reserve task: %v", err)
+	}
+	if err := runtime.DiscardTaskReservation(context.Background(), reservation); err != nil {
+		t.Fatalf("discard task reservation: %v", err)
+	}
+	if _, err := repository.Get(context.Background(), reservation.TaskID); !errors.Is(err, taskstore.ErrNotFound) {
+		t.Fatalf("discarded task lookup error = %v, want not found", err)
+	}
+	if _, err := runtime.Submit(context.Background(), input); err != nil {
+		t.Fatalf("submit after discard: %v", err)
+	}
+}
+
 func TestRuntimeUpdatesCurrentStageWhenClaimingLaterStage(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)

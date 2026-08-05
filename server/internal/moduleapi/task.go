@@ -168,12 +168,25 @@ type TaskReceipt struct {
 	Status TaskStatus
 }
 
+// TaskReservation 标识尚未允许 worker 领取阶段的 Task 预留。
+// 消费模块必须在其依赖的持久化快照成功后激活，失败时丢弃该预留。
+type TaskReservation struct {
+	TaskID uint64
+}
+
 // TaskService 向消费者模块暴露 Task Runtime 提交能力。
 type TaskService interface {
 	Submit(ctx context.Context, input SubmitTaskInput) (TaskReceipt, error)
 	SettleExternalReceipt(ctx context.Context, receipt ExternalTaskReceipt) (ExternalReceiptSettlement, error)
 	Cancel(ctx context.Context, taskID uint64) error
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
+}
+
+// TaskReservationService 为需要先持久化消费模块快照的提交路径提供不可领取的 Task 预留。
+type TaskReservationService interface {
+	ReserveTask(ctx context.Context, input SubmitTaskInput) (TaskReservation, error)
+	ActivateTask(ctx context.Context, reservation TaskReservation) (TaskReceipt, error)
+	DiscardTaskReservation(ctx context.Context, reservation TaskReservation) error
 }
 
 // TaskQueryService 暴露 Task Runtime 读取能力，但不泄漏模块拥有的持久化实现。

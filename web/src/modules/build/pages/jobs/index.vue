@@ -13,7 +13,7 @@
       <template #filters>
         <t-form class="build-jobs-page__filters" layout="inline" @submit="applyFilters">
           <t-form-item :label="t('build.jobs.filters.applicationId')">
-            <t-input-number v-model="filters.application_id" :min="1" :placeholder="t('build.jobs.filters.all')" />
+            <t-input v-model="filters.application_id" :placeholder="t('build.jobs.filters.all')" />
           </t-form-item>
           <t-form-item :label="t('build.jobs.create.repository')">
             <t-input v-model="filters.image_repository" :placeholder="t('build.jobs.filters.all')" clearable />
@@ -156,7 +156,7 @@ import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildJobDetail, BuildJobSummary } from '../../types/build';
 
 type JobFilters = {
-  application_id?: number;
+  application_id?: string;
   image_repository: string;
   image_tag: string;
   created_after: string;
@@ -175,6 +175,9 @@ const detail = ref<BuildJobDetail>();
 const detailError = ref('');
 const detailLoading = ref(false);
 const detailVisible = ref(false);
+// 列表和详情可独立并发；各自只接受最后一次请求的结果，避免旧响应覆盖用户当前视图。
+let listRequestSequence = 0;
+let detailRequestSequence = 0;
 const filters = reactive<JobFilters>({ image_repository: '', image_tag: '', created_after: '', created_before: '' });
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'build_id', title: t('build.jobs.columns.build'), ellipsis: true, width: 150 },
@@ -198,16 +201,20 @@ function listQuery() {
 }
 
 async function load() {
+  const sequence = ++listRequestSequence;
   loading.value = true;
   errorMessage.value = '';
   try {
     const page = await getBuildJobs(listQuery());
+    if (sequence !== listRequestSequence) return;
     items.value = page.items;
     total.value = page.total;
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
+    if (sequence === listRequestSequence) {
+      errorMessage.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
+    }
   } finally {
-    loading.value = false;
+    if (sequence === listRequestSequence) loading.value = false;
   }
 }
 
@@ -233,16 +240,21 @@ function changePage(pageInfo: { current: number; pageSize: number }) {
 }
 
 async function openDetail(buildId: string) {
+  const sequence = ++detailRequestSequence;
   detailVisible.value = true;
   detailLoading.value = true;
   detailError.value = '';
   detail.value = undefined;
   try {
-    detail.value = await getBuildJob(buildId);
+    const nextDetail = await getBuildJob(buildId);
+    if (sequence !== detailRequestSequence) return;
+    detail.value = nextDetail;
   } catch (error) {
-    detailError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
+    if (sequence === detailRequestSequence) {
+      detailError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
+    }
   } finally {
-    detailLoading.value = false;
+    if (sequence === detailRequestSequence) detailLoading.value = false;
   }
 }
 

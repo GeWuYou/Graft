@@ -9,18 +9,19 @@ import (
 // ApplicationBuildContext 是 Project 模块为构建消费者冻结的、经授权的应用来源上下文。
 // 它只包含构建所需的公开身份和受控 workspace 根目录，不暴露 Application entity 或仓储。
 type ApplicationBuildContext struct {
-	ApplicationID     uint64
-	DisplayName       string
-	WorkspaceRoot     string
-	RuntimeTargetID   uint64
-	RuntimeTargetName string
-	RuntimeProvider   string
-	CanBuild          bool
+	ApplicationID       string
+	ApplicationRecordID uint64
+	DisplayName         string
+	WorkspaceRoot       string
+	RuntimeTargetID     uint64
+	RuntimeTargetName   string
+	RuntimeProvider     string
+	CanBuild            bool
 }
 
 // ApplicationBuildContextResolver 解析当前操作者可访问的 Application 构建上下文。
 type ApplicationBuildContextResolver interface {
-	ResolveApplicationBuildContext(context.Context, uint64) (ApplicationBuildContext, error)
+	ResolveApplicationBuildContext(context.Context, string) (ApplicationBuildContext, error)
 }
 
 // DockerImageBuildInput 是 Container 模块接受的受控 Docker 构建请求。
@@ -81,7 +82,7 @@ type TaskTransactionalSubmissionFactory interface {
 // 该辅助类型刻意不包含 build arg 值、凭据或绝对路径。
 type BuildTaskInput struct {
 	BuildID         string          `json:"build_id"`
-	ApplicationID   uint64          `json:"application_id"`
+	ApplicationID   string          `json:"application_id"`
 	ContextPath     string          `json:"context_path"`
 	DockerfilePath  string          `json:"dockerfile_path"`
 	ImageRepository string          `json:"image_repository"`

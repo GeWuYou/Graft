@@ -11,7 +11,7 @@ func CreateSQLite(db *sql.DB) error {
 	for _, statement := range []string{
 		`CREATE TABLE tasks (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL,
-			status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL,
+			status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL, activation_required BOOLEAN NOT NULL DEFAULT FALSE,
 			current_stage_key TEXT NULL, created_by INTEGER NULL, idempotency_key_hash TEXT NULL, submission_fingerprint TEXT NULL,
 			scheduled_at TIMESTAMP NULL, cancel_requested_at TIMESTAMP NULL,
 			started_at TIMESTAMP NULL, finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, failure_code TEXT NULL, failure_message TEXT NULL,

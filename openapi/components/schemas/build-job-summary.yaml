@@ -3,7 +3,7 @@ required: [build_id, task_id, application_id, application_name, context_path, do
 properties:
   build_id: { type: string }
   task_id: { type: integer, format: int64, minimum: 1 }
-  application_id: { type: integer, format: int64, minimum: 1 }
+  application_id: { $ref: ./application-id.yaml }
   application_name: { type: string }
   context_path: { type: string }
   dockerfile_path: { type: string }

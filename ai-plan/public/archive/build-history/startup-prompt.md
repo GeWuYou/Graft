@@ -1,12 +1,5 @@
-# Build History Startup
+# Build History Archive
 
-Continue the `build-history` topic in `topic-completion-loop` mode.
-
-- governance source: root `AGENTS.md`
-- task class: `cross-boundary`
-- recovery source: parent topic `build-history`
-- recovery entry: `ai-plan/public/build-history/README.md`
-- design authority: `ai-plan/design/architecture/docker-build-center.md`
-- roadmap authority: `ai-plan/roadmap/build-center.md`
-
-Read the tracking file before selecting the current bounded batch.
+`build-history` completed its justified Phase 2 query work and is archived as historical evidence. It has no active
+recovery entry or pending batch. The enduring authorities are `ai-plan/design/architecture/docker-build-center.md` and
+`ai-plan/roadmap/build-center.md`.

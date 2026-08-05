@@ -121,22 +121,76 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 }
 
 // Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
-//
-//nolint:cyclop // 提交必须在同一事务边界内校验冻结计划、幂等身份并持久化阶段。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	return r.submit(ctx, input, false)
+}
+
+// ReserveTask 持久化一个尚不可领取的 Task，供消费者先完成其冻结快照写入。
+func (r *Runtime) ReserveTask(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReservation, error) {
+	receipt, err := r.submit(ctx, input, true)
+	if err != nil {
+		return moduleapi.TaskReservation{}, err
+	}
+	return moduleapi.TaskReservation{TaskID: receipt.TaskID}, nil
+}
+
+// ActivateTask 在消费者快照已持久化后开放预留 Task 的 worker 领取，并保证重复激活可重放。
+func (r *Runtime) ActivateTask(ctx context.Context, reservation moduleapi.TaskReservation) (moduleapi.TaskReceipt, error) {
+	if r == nil || r.repository == nil || reservation.TaskID == 0 {
+		return moduleapi.TaskReceipt{}, errors.New("task runtime reservation is unavailable")
+	}
+	task, activated, err := r.repository.ActivateReservation(ctx, reservation.TaskID)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("activate task reservation: %w", err)
+	}
+	if activated {
+		r.signalWake()
+		r.publishTask(task.ID, taskcontract.TaskRealtimeEventCreated)
+	}
+	return moduleapi.TaskReceipt{TaskID: task.ID, Status: task.Status}, nil
+}
+
+// DiscardTaskReservation 删除消费者快照未能写入时仍不可领取的 Task 预留。
+func (r *Runtime) DiscardTaskReservation(ctx context.Context, reservation moduleapi.TaskReservation) error {
+	if r == nil || r.repository == nil || reservation.TaskID == 0 {
+		return errors.New("task runtime reservation is unavailable")
+	}
+	return r.repository.DiscardReservation(ctx, reservation.TaskID)
+}
+
+func (r *Runtime) submit(ctx context.Context, input moduleapi.SubmitTaskInput, activationRequired bool) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
 	}
-	if err := r.validatePlan(input.Plan); err != nil {
+	task, stages, err := r.buildTaskRecord(input, activationRequired)
+	if err != nil {
 		return moduleapi.TaskReceipt{}, err
+	}
+	created, _, idempotent, err := r.repository.Create(ctx, taskstore.CreateInput{Task: task, Stages: stages})
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("create task: %w", err)
+	}
+	if idempotent {
+		return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+	}
+	if !created.ActivationRequired {
+		r.signalWake()
+		r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
+	}
+	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationRequired bool) (taskmodel.Task, []taskmodel.Stage, error) {
+	if err := r.validatePlan(input.Plan); err != nil {
+		return taskmodel.Task{}, nil, err
 	}
 	plan, err := json.Marshal(input.Plan)
 	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal task plan: %w", err)
+		return taskmodel.Task{}, nil, fmt.Errorf("marshal task plan: %w", err)
 	}
 	keyHash, fingerprint, err := submissionIdentity(input, plan)
 	if err != nil {
-		return moduleapi.TaskReceipt{}, err
+		return taskmodel.Task{}, nil, err
 	}
 	status := moduleapi.TaskStatusPending
 	if input.ScheduledAt != nil && input.ScheduledAt.After(time.Now().UTC()) {
@@ -147,6 +201,7 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 		Metadata: input.Metadata, Plan: plan, State: json.RawMessage(`{}`),
 		CreatedBy: nullableRequestedBy(input.RequestedBy), IdempotencyKeyHash: keyHash,
 		SubmissionFingerprint: fingerprint, ScheduledAt: input.ScheduledAt,
+		ActivationRequired: activationRequired,
 	}
 	stages := make([]taskmodel.Stage, 0, len(input.Plan.Stages))
 	for index, stage := range input.Plan.Stages {
@@ -157,16 +212,7 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
 		})
 	}
-	created, _, idempotent, err := r.repository.Create(ctx, taskstore.CreateInput{Task: task, Stages: stages})
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("create task: %w", err)
-	}
-	if idempotent {
-		return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
-	}
-	r.signalWake()
-	r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
-	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+	return task, stages, nil
 }
 
 func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (*string, *string, error) {

@@ -17,15 +17,15 @@ execution:
   dispatch_skill: graft-multi-agent-task
 bootstrap:
   targets:
-    - ai-plan/public/build-history
+    - ai-plan/public/archive/build-history
 closeout:
   archive: true
   lessons_review: true
 ```
 
-## Current Recovery Point
+## Archive Record
 
-- Both the discovery and filtering/pagination batches are accepted. The outer controller must now perform the topic-level archive-readiness check before selecting any new work.
+- The discovery and filtering/pagination batches completed, the controller accepted archive readiness, and the topic moved to `ai-plan/public/archive/build-history/`. No active recovery or further batch is pending.
 
 ## Task Checklist
 
@@ -60,8 +60,8 @@ closeout:
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "archive-ready",
-  "stop_reason": "All Build History acceptance conditions passed; no further bounded batch is justified.",
+  "closeout_status": "archived",
+  "stop_reason": "All Build History acceptance conditions passed and the topic was archived.",
   "recovery": {"status": "none", "resume_target": null, "repair_authority": null, "repair_eligible": false}
 }
 ```

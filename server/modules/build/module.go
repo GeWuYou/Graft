@@ -44,7 +44,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve application build context resolver: %w", err)
 	}
-	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	tasks, err := module.ResolveService[moduleapi.TaskReservationService](ctx.Services, (*moduleapi.TaskReservationService)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve task service: %w", err)
 	}

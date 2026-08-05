@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/distribution/reference"
+
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
@@ -19,9 +21,14 @@ const (
 	buildTaskOwnerType = "build_job"
 )
 
+var (
+	errInvalidBuildID      = errors.New("invalid build id")
+	errInvalidBuildRequest = errors.New("invalid build submission")
+)
+
 // SubmitRequest 是 Dockerfile 构建提交的内部传输无关输入。
 type SubmitRequest struct {
-	ApplicationID   uint64
+	ApplicationID   string
 	ContextPath     string
 	DockerfilePath  string
 	ImageRepository string
@@ -31,10 +38,17 @@ type SubmitRequest struct {
 	IdempotencyKey  string
 }
 
+type preparedSubmission struct {
+	request      SubmitRequest
+	buildContext moduleapi.ApplicationBuildContext
+	buildID      string
+	input        json.RawMessage
+}
+
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
 	contexts   moduleapi.ApplicationBuildContextResolver
-	tasks      moduleapi.TaskService
+	tasks      moduleapi.TaskReservationService
 	docker     moduleapi.DockerImageBuildCapability
 	repository buildstore.Repository
 }
@@ -53,13 +67,13 @@ func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobPro
 		return buildstore.JobProjection{}, errors.New("build service is unavailable")
 	}
 	if strings.TrimSpace(buildID) == "" {
-		return buildstore.JobProjection{}, errors.New("build id is required")
+		return buildstore.JobProjection{}, errInvalidBuildID
 	}
 	return s.repository.GetJobByBuildID(ctx, buildID)
 }
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
-func NewService(contexts moduleapi.ApplicationBuildContextResolver, tasks moduleapi.TaskService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
+func NewService(contexts moduleapi.ApplicationBuildContextResolver, tasks moduleapi.TaskReservationService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
 	if contexts == nil || tasks == nil || docker == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
@@ -71,33 +85,48 @@ func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.
 	if s == nil || s.contexts == nil || s.tasks == nil {
 		return moduleapi.TaskReceipt{}, errors.New("build service is unavailable")
 	}
-	request, err := normalizeSubmitRequest(request)
+	prepared, err := s.prepareSubmission(ctx, request)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	buildContext, err := s.resolveBuildContext(ctx, request.ApplicationID)
+	reservation, err := s.reserveTask(ctx, prepared.request, prepared.input)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	buildID, err := newBuildID()
-	if err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	input, err := buildTaskInput(buildID)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	receipt, err := s.submitTask(ctx, request, input)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	if err := s.freezeSnapshot(ctx, buildID, receipt.TaskID, buildContext, request); err != nil {
+	if err := s.freezeSnapshot(ctx, prepared.buildID, reservation.TaskID, prepared.buildContext, prepared.request); err != nil {
+		if discardErr := s.tasks.DiscardTaskReservation(ctx, reservation); discardErr != nil {
+			return moduleapi.TaskReceipt{}, fmt.Errorf("freeze build job snapshot: %w; discard task reservation: %v", err, discardErr)
+		}
 		return moduleapi.TaskReceipt{}, fmt.Errorf("freeze build job snapshot: %w", err)
+	}
+	receipt, err := s.tasks.ActivateTask(ctx, reservation)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("activate build task: %w", err)
 	}
 	return receipt, nil
 }
 
-func (s *Service) resolveBuildContext(ctx context.Context, applicationID uint64) (moduleapi.ApplicationBuildContext, error) {
+func (s *Service) prepareSubmission(ctx context.Context, request SubmitRequest) (preparedSubmission, error) {
+	normalizedRequest, err := normalizeSubmitRequest(request)
+	if err != nil {
+		return preparedSubmission{}, err
+	}
+	buildContext, err := s.resolveBuildContext(ctx, normalizedRequest.ApplicationID)
+	if err != nil {
+		return preparedSubmission{}, err
+	}
+	buildID, err := newBuildID()
+	if err != nil {
+		return preparedSubmission{}, err
+	}
+	input, err := buildTaskInput(buildID)
+	if err != nil {
+		return preparedSubmission{}, err
+	}
+	return preparedSubmission{request: normalizedRequest, buildContext: buildContext, buildID: buildID, input: input}, nil
+}
+
+func (s *Service) resolveBuildContext(ctx context.Context, applicationID string) (moduleapi.ApplicationBuildContext, error) {
 	buildContext, err := s.contexts.ResolveApplicationBuildContext(ctx, applicationID)
 	if err != nil {
 		return moduleapi.ApplicationBuildContext{}, fmt.Errorf("resolve application build context: %w", err)
@@ -116,12 +145,12 @@ func buildTaskInput(buildID string) (json.RawMessage, error) {
 	return input, nil
 }
 
-func (s *Service) submitTask(ctx context.Context, request SubmitRequest, input json.RawMessage) (moduleapi.TaskReceipt, error) {
-	return s.tasks.Submit(ctx, moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: fmt.Sprintf("application:%d", request.ApplicationID)}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}}})
+func (s *Service) reserveTask(ctx context.Context, request SubmitRequest, input json.RawMessage) (moduleapi.TaskReservation, error) {
+	return s.tasks.ReserveTask(ctx, moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}}})
 }
 
 func (s *Service) freezeSnapshot(ctx context.Context, buildID string, taskID uint64, buildContext moduleapi.ApplicationBuildContext, request SubmitRequest) error {
-	return s.repository.CreateJob(ctx, buildstore.JobSnapshot{BuildID: buildID, TaskID: taskID, ApplicationID: buildContext.ApplicationID, ApplicationName: buildContext.DisplayName, WorkspaceRoot: buildContext.WorkspaceRoot, ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, RuntimeTargetID: buildContext.RuntimeTargetID, RuntimeProvider: buildContext.RuntimeProvider, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: request.BuildArgs, RequestedBy: request.RequestedBy})
+	return s.repository.CreateJob(ctx, buildstore.JobSnapshot{BuildID: buildID, TaskID: taskID, ApplicationID: buildContext.ApplicationID, ApplicationRecordID: buildContext.ApplicationRecordID, ApplicationName: buildContext.DisplayName, WorkspaceRoot: buildContext.WorkspaceRoot, ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, RuntimeTargetID: buildContext.RuntimeTargetID, RuntimeProvider: buildContext.RuntimeProvider, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: request.BuildArgs, RequestedBy: request.RequestedBy})
 }
 
 func newBuildID() (string, error) {
@@ -133,29 +162,46 @@ func newBuildID() (string, error) {
 }
 
 func normalizeSubmitRequest(request SubmitRequest) (SubmitRequest, error) {
-	if request.ApplicationID == 0 || strings.TrimSpace(request.ImageRepository) == "" || strings.TrimSpace(request.ImageTag) == "" {
-		return SubmitRequest{}, errors.New("invalid build submission")
+	request.ImageRepository = strings.TrimSpace(request.ImageRepository)
+	request.ImageTag = strings.TrimSpace(request.ImageTag)
+	request.ApplicationID = strings.TrimSpace(request.ApplicationID)
+	if request.ApplicationID == "" || !validDockerImageReference(request.ImageRepository, request.ImageTag) {
+		return SubmitRequest{}, errInvalidBuildRequest
 	}
 	var err error
 	if request.ContextPath, err = normalizeBuildRelativePath(request.ContextPath); err != nil {
-		return SubmitRequest{}, err
+		return SubmitRequest{}, fmt.Errorf("%w: %v", errInvalidBuildRequest, err)
 	}
 	if request.DockerfilePath, err = normalizeBuildRelativePath(request.DockerfilePath); err != nil {
-		return SubmitRequest{}, err
+		return SubmitRequest{}, fmt.Errorf("%w: %v", errInvalidBuildRequest, err)
 	}
 	seen := make(map[string]struct{}, len(request.BuildArgs))
 	for index := range request.BuildArgs {
 		item := &request.BuildArgs[index]
 		item.Name = strings.TrimSpace(item.Name)
 		if item.Name == "" || strings.ContainsAny(item.Name, "=\x00\r\n") {
-			return SubmitRequest{}, errors.New("invalid build argument")
+			return SubmitRequest{}, errInvalidBuildRequest
 		}
 		if _, ok := seen[item.Name]; ok {
-			return SubmitRequest{}, errors.New("duplicate build argument")
+			return SubmitRequest{}, errInvalidBuildRequest
 		}
 		seen[item.Name] = struct{}{}
 	}
 	return request, nil
+}
+
+func validDockerImageReference(repository, tag string) bool {
+	named, err := reference.ParseNormalizedNamed(repository)
+	if err != nil {
+		return false
+	}
+	if _, hasTag := named.(reference.Tagged); hasTag {
+		return false
+	}
+	if _, hasDigest := named.(reference.Canonical); hasDigest {
+		return false
+	}
+	return reference.TagRegexp.FindString(tag) == tag
 }
 
 func normalizeBuildRelativePath(value string) (string, error) {

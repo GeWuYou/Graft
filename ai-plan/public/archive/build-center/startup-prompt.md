@@ -1,14 +1,4 @@
-# Build Center Startup
+# Build Center Archive
 
-Continue the `build-center` topic in `topic-completion-loop` mode.
-
-- governance source: root `AGENTS.md`
-- task class: `cross-boundary`
-- recovery source: parent topic `build-center`
-- recovery entry: `ai-plan/public/build-center/README.md`
-- local execution truth: `server/AGENTS.md`, `web/AGENTS.md`, `ai-plan/AGENTS.md`
-- design authority: `ai-plan/design/architecture/docker-build-center.md`
-- AI skills: `$graft-multi-agent-loop`, `$graft-validation-runner`, `$graft-comment-governance`
-
-Owned scope is limited to Build authority and its server/web/OpenAPI projections. Do not alter unrelated self-update
-files. Read the topic tracking file before dispatching the next bounded batch.
+`build-center` completed its Phase 1 scope and is archived as historical evidence. It has no active recovery entry or
+pending batch. The enduring design authority is `ai-plan/design/architecture/docker-build-center.md`.

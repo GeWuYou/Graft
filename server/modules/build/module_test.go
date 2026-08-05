@@ -16,20 +16,21 @@ import (
 
 type testBuildContexts struct{}
 
-func (testBuildContexts) ResolveApplicationBuildContext(context.Context, uint64) (moduleapi.ApplicationBuildContext, error) {
+func (testBuildContexts) ResolveApplicationBuildContext(context.Context, string) (moduleapi.ApplicationBuildContext, error) {
 	return moduleapi.ApplicationBuildContext{}, nil
 }
 
 type testBuildTasks struct{}
 
-func (testBuildTasks) Submit(context.Context, moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
-	return moduleapi.TaskReceipt{}, nil
+func (testBuildTasks) ReserveTask(context.Context, moduleapi.SubmitTaskInput) (moduleapi.TaskReservation, error) {
+	return moduleapi.TaskReservation{TaskID: 1}, nil
 }
-func (testBuildTasks) SettleExternalReceipt(context.Context, moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
-	return moduleapi.ExternalReceiptSettlement{}, nil
+func (testBuildTasks) ActivateTask(context.Context, moduleapi.TaskReservation) (moduleapi.TaskReceipt, error) {
+	return moduleapi.TaskReceipt{TaskID: 1, Status: moduleapi.TaskStatusPending}, nil
 }
-func (testBuildTasks) Cancel(context.Context, uint64) error             { return nil }
-func (testBuildTasks) RetryStage(context.Context, uint64, uint64) error { return nil }
+func (testBuildTasks) DiscardTaskReservation(context.Context, moduleapi.TaskReservation) error {
+	return nil
+}
 
 type testBuildDocker struct{}
 
@@ -67,7 +68,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	services := containerdi.New()
 	for key, value := range map[any]any{
 		(*moduleapi.ApplicationBuildContextResolver)(nil): testBuildContexts{},
-		(*moduleapi.TaskService)(nil):                     testBuildTasks{},
+		(*moduleapi.TaskReservationService)(nil):          testBuildTasks{},
 		(*moduleapi.TaskRuntimeRegistrar)(nil):            testBuildRegistrar{},
 		(*moduleapi.DockerImageBuildCapability)(nil):      testBuildDocker{},
 	} {

@@ -23,6 +23,8 @@ var (
 // Repository 持久化 Task Runtime 事实，并提供进程内 worker 所需的原子领取、状态迁移和历史追加操作。
 type Repository interface {
 	Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, bool, error)
+	ActivateReservation(ctx context.Context, taskID uint64) (taskmodel.Task, bool, error)
+	DiscardReservation(ctx context.Context, taskID uint64) error
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
 	List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error)
 	ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error)

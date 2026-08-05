@@ -75,9 +75,9 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 	input.Task.UpdatedAt = now
 	//nolint:nestif // 唯一索引竞争必须先解析为既有幂等 Task，再返回错误。
 	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO tasks (
-		task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
+		task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required,
 		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
 		input.Task.Type,
 		input.Task.Owner.Type,
 		input.Task.Owner.ID,
@@ -86,6 +86,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		input.Task.Metadata,
 		input.Task.Plan,
 		input.Task.State,
+		input.Task.ActivationRequired,
 		input.Task.CurrentStageKey,
 		input.Task.CreatedBy,
 		input.Task.IdempotencyKeyHash,
@@ -158,6 +159,100 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		return taskmodel.Task{}, nil, false, fmt.Errorf("commit create task transaction: %w", err)
 	}
 	return input.Task, stages, false, nil
+}
+
+// ActivateReservation 允许已提交完消费模块快照的预留 Task 被 worker 领取；已激活的重放返回当前 receipt。
+func (r *SQLRepository) ActivateReservation(ctx context.Context, taskID uint64) (taskmodel.Task, bool, error) {
+	if taskID == 0 {
+		return taskmodel.Task{}, false, ErrInvalidInput
+	}
+	now := time.Now().UTC()
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET activation_required = FALSE, updated_at = ?
+		WHERE id = ? AND activation_required = TRUE AND status IN (?, ?)`),
+		now, taskID, moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled)
+	if err != nil {
+		return taskmodel.Task{}, false, fmt.Errorf("activate task reservation: %w", err)
+	}
+	activated, err := result.RowsAffected()
+	if err != nil {
+		return taskmodel.Task{}, false, fmt.Errorf("count activated task reservation: %w", err)
+	}
+	task, err := r.Get(ctx, taskID)
+	if err != nil {
+		return taskmodel.Task{}, false, err
+	}
+	if activated == 0 && task.ActivationRequired {
+		return taskmodel.Task{}, false, ErrStateConflict
+	}
+	return task, activated == 1, nil
+}
+
+// DiscardReservation 删除尚未激活的预留 Task 及其尚未产生执行历史的创建记录，释放幂等键和 owner 占用。
+func (r *SQLRepository) DiscardReservation(ctx context.Context, taskID uint64) error {
+	if taskID == 0 {
+		return ErrInvalidInput
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin discard task reservation: %w", err)
+	}
+	defer rollback(tx)
+	if err := r.assertReservationDiscardable(ctx, tx, taskID); err != nil {
+		return err
+	}
+	if err := r.deleteReservationRecords(ctx, tx, taskID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit discard task reservation: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) deleteReservationRecords(ctx context.Context, tx *sql.Tx, taskID uint64) error {
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`DELETE FROM task_events WHERE task_id = ?`), taskID)
+	if err != nil {
+		return fmt.Errorf("delete task reservation events: %w", err)
+	}
+	if _, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("count task reservation events: %w", err)
+	}
+	result, err = tx.ExecContext(ctx, r.placeholder.rebind(`DELETE FROM task_stages WHERE task_id = ?`), taskID)
+	if err != nil {
+		return fmt.Errorf("delete task reservation stages: %w", err)
+	}
+	if err := expectOneAffected(result); err != nil {
+		return err
+	}
+	result, err = tx.ExecContext(ctx, r.placeholder.rebind(`DELETE FROM tasks
+		WHERE id = ? AND activation_required = TRUE AND status IN (?, ?)`), taskID, moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled)
+	if err != nil {
+		return fmt.Errorf("delete task reservation: %w", err)
+	}
+	if err := expectOneAffected(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *SQLRepository) assertReservationDiscardable(ctx context.Context, tx *sql.Tx, taskID uint64) error {
+	query := `SELECT activation_required, status FROM tasks WHERE id = ?`
+	if r.placeholder != placeholderQuestion {
+		query += ` FOR UPDATE`
+	}
+	var activationRequired bool
+	var status moduleapi.TaskStatus
+	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(query), taskID).Scan(&activationRequired, &status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("read task reservation: %w", err)
+	}
+	if !activationRequired || (status != moduleapi.TaskStatusPending && status != moduleapi.TaskStatusScheduled) {
+		return ErrStateConflict
+	}
+	return nil
 }
 
 func mapCreateTaskError(err error) error {
@@ -472,6 +567,7 @@ func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, 
 		FROM task_stages stage
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
+			AND task.activation_required = FALSE
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
 			AND task.status IN (?, ?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
@@ -503,6 +599,7 @@ func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time)
 		FROM task_stages stage
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
+			AND task.activation_required = FALSE
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
 			AND task.status IN (?, ?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)

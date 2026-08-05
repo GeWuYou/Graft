@@ -8105,7 +8105,8 @@ type BuildArtifact struct {
 
 // BuildJobCreateRequest defines model for build-job-create-request.
 type BuildJobCreateRequest struct {
-	ApplicationId int64 `json:"application_id"`
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId `json:"application_id"`
 	BuildArgs     *[]struct {
 		Name  string `json:"name"`
 		Value string `json:"value"`
@@ -8118,7 +8119,8 @@ type BuildJobCreateRequest struct {
 
 // BuildJobDetail defines model for build-job-detail.
 type BuildJobDetail struct {
-	ApplicationId   int64          `json:"application_id"`
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId  `json:"application_id"`
 	ApplicationName string         `json:"application_name"`
 	Artifact        *BuildArtifact `json:"artifact,omitempty"`
 	BuildArgs       []struct {
@@ -8145,7 +8147,8 @@ type BuildJobList struct {
 
 // BuildJobSummary defines model for build-job-summary.
 type BuildJobSummary struct {
-	ApplicationId   int64          `json:"application_id"`
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId  `json:"application_id"`
 	ApplicationName string         `json:"application_name"`
 	Artifact        *BuildArtifact `json:"artifact,omitempty"`
 	BuildId         string         `json:"build_id"`
@@ -15412,8 +15415,8 @@ type GetBuildJobsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 
-	// ApplicationId Optional exact Build snapshot application identifier.
-	ApplicationId *int64 `form:"application_id,omitempty" json:"application_id,omitempty"`
+	// ApplicationId Optional exact Build snapshot public application identifier.
+	ApplicationId *ApplicationId `form:"application_id,omitempty" json:"application_id,omitempty"`
 
 	// ImageRepository Optional exact Build snapshot image repository.
 	ImageRepository *string `form:"image_repository,omitempty" json:"image_repository,omitempty"`

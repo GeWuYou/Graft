@@ -32,7 +32,7 @@ execution:
   dispatch_skill: graft-multi-agent-task
 bootstrap:
   targets:
-    - ai-plan/public/build-center
+    - ai-plan/public/archive/build-center
     - ai-plan/design/architecture/docker-build-center.md
     - ai-plan/roadmap/build-center.md
 closeout:
@@ -40,10 +40,11 @@ closeout:
   lessons_review: true
 ```
 
-## Current Recovery Point
+## Archive Record
 
 - `phase-1-build-execution-foundation` is complete in `e6d0f5c4` after one controller-managed recovery repair.
 - `phase-1-build-read-api-and-web-workflow` is accepted after the authorized migration repair assigned Build versions `202608040003` and `202608040004`, refreshed Atlas and embedded-registry artifacts, and passed the full cross-boundary validation chain.
+- The topic moved to `ai-plan/public/archive/build-center/` after Phase 1 acceptance; no active recovery or further batch is pending.
 
 ## Task Checklist
 
@@ -70,8 +71,8 @@ closeout:
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "phase-1-accepted",
-  "stop_reason": null,
+  "closeout_status": "archived",
+  "stop_reason": "Phase 1 was accepted and archived.",
   "recovery": {
     "status": "none",
     "resume_target": null,

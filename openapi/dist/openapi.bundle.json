@@ -16096,11 +16096,9 @@
           {
             "in": "query",
             "name": "application_id",
-            "description": "Optional exact Build snapshot application identifier.",
+            "description": "Optional exact Build snapshot public application identifier.",
             "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
+              "$ref": "#/components/schemas/application-id"
             }
           },
           {
@@ -16247,7 +16245,7 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 64
+              "maxLength": 32
             }
           }
         ],
@@ -16266,6 +16264,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -36003,6 +36004,14 @@
           }
         ]
       },
+      "application-id": {
+        "type": "string",
+        "pattern": "^app_[0-9A-HJKMNP-TV-Z]{26}$",
+        "description": "Stable public Graft Application identifier.",
+        "examples": [
+          "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
+        ]
+      },
       "build-artifact": {
         "type": "object",
         "required": [
@@ -36061,9 +36070,7 @@
             "minimum": 1
           },
           "application_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
+            "$ref": "#/components/schemas/application-id"
           },
           "application_name": {
             "type": "string"
@@ -36150,9 +36157,7 @@
         ],
         "properties": {
           "application_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
+            "$ref": "#/components/schemas/application-id"
           },
           "context_path": {
             "type": "string",
@@ -37310,14 +37315,6 @@
           "ApplicationDriftStatusClean",
           "ApplicationDriftStatusChanged",
           "ApplicationDriftStatusMissing"
-        ]
-      },
-      "application-id": {
-        "type": "string",
-        "pattern": "^app_[0-9A-HJKMNP-TV-Z]{26}$",
-        "description": "Stable public Graft Application identifier.",
-        "examples": [
-          "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
         ]
       },
       "application-runtime-target-summary": {

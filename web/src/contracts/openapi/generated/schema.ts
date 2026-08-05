@@ -8926,6 +8926,11 @@ export interface components {
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
     };
+    /**
+     * @description Stable public Graft Application identifier.
+     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
+     */
+    'application-id': string;
     'build-artifact': {
       artifact_id: string;
       image_id: string;
@@ -8940,8 +8945,7 @@ export interface components {
       build_id: string;
       /** Format: int64 */
       task_id: number;
-      /** Format: int64 */
-      application_id: number;
+      application_id: components['schemas']['application-id'];
       application_name: string;
       context_path: string;
       dockerfile_path: string;
@@ -8962,8 +8966,7 @@ export interface components {
       data: components['schemas']['build-job-list'];
     };
     'build-job-create-request': {
-      /** Format: int64 */
-      application_id: number;
+      application_id: components['schemas']['application-id'];
       context_path: string;
       dockerfile_path: string;
       image_repository: string;
@@ -9255,11 +9258,6 @@ export interface components {
     'application-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'missing' | 'unknown';
     /** @enum {string} */
     'application-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
-    /**
-     * @description Stable public Graft Application identifier.
-     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
-     */
-    'application-id': string;
     'application-runtime-target-summary': {
       /** Format: int64 */
       id: number;
@@ -19899,8 +19897,8 @@ export interface operations {
       query?: {
         limit?: number;
         offset?: number;
-        /** @description Optional exact Build snapshot application identifier. */
-        application_id?: number;
+        /** @description Optional exact Build snapshot public application identifier. */
+        application_id?: components['schemas']['application-id'];
         /** @description Optional exact Build snapshot image repository. */
         image_repository?: string;
         /** @description Optional exact Build snapshot image tag. */
@@ -20009,6 +20007,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-build-job-detail'];
         };
       };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Build job was not found. */

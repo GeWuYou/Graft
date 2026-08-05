@@ -5,7 +5,7 @@
     </header>
     <t-form :data="form" :rules="rules" @submit="submit"
       ><t-form-item name="application_id" :label="t('build.jobs.create.applicationId')"
-        ><t-input-number v-model="form.application_id" :min="1" /></t-form-item
+        ><t-input v-model="form.application_id" /></t-form-item
       ><t-form-item name="context_path" :label="t('build.jobs.create.contextPath')"
         ><t-input v-model="form.context_path" /></t-form-item
       ><t-form-item name="dockerfile_path" :label="t('build.jobs.create.dockerfilePath')"
@@ -21,7 +21,7 @@
   </section>
 </template>
 <script setup lang="ts">
-// The create form submits the Build-owned canonical request and leaves application authorization to the server boundary.
+// 创建表单只提交 Build 所有的规范请求，应用授权仍由服务端边界负责。
 import type { SubmitContext } from 'tdesign-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -38,14 +38,18 @@ const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
 const form = ref<BuildJobCreateRequest>({
-  application_id: 0,
+  application_id: '',
   context_path: '.',
   dockerfile_path: 'Dockerfile',
   image_repository: '',
   image_tag: 'latest',
 });
+// 相同表单的失败重试必须复用同一幂等键；成功或输入变化后才允许生成新键。
+let idempotencyKey: string | undefined;
+let idempotencyPayload: string | undefined;
+let idempotencySequence = 0;
 const rules = {
-  application_id: [{ required: true, min: 1 }],
+  application_id: [{ required: true }],
   context_path: [{ required: true }],
   dockerfile_path: [{ required: true }],
   image_repository: [{ required: true }],
@@ -55,10 +59,20 @@ async function submit({ validateResult }: SubmitContext) {
   if (validateResult !== true) return;
   submitting.value = true;
   message.value = '';
+  const payload = { ...form.value };
+  const payloadSnapshot = JSON.stringify(payload);
+  if (idempotencyPayload !== payloadSnapshot) {
+    idempotencyPayload = payloadSnapshot;
+    idempotencyKey = createIdempotencyKey();
+  }
+  const currentIdempotencyKey = idempotencyKey ?? createIdempotencyKey();
+  idempotencyKey = currentIdempotencyKey;
   try {
-    await createBuildJob(form.value, globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`);
+    await createBuildJob(payload, currentIdempotencyKey);
     messageTheme.value = 'success';
     message.value = t('build.jobs.create.submitted');
+    idempotencyKey = undefined;
+    idempotencyPayload = undefined;
     await router.push(BUILD_ROUTE_PATH.JOBS);
   } catch (error) {
     messageTheme.value = 'error';
@@ -66,6 +80,14 @@ async function submit({ validateResult }: SubmitContext) {
   } finally {
     submitting.value = false;
   }
+}
+
+function createIdempotencyKey() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  idempotencySequence += 1;
+  return `build-job-create-${Date.now()}-${idempotencySequence}`;
 }
 </script>
 <style scoped lang="less">

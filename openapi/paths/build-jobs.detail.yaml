@@ -8,10 +8,11 @@ get:
     - in: path
       name: buildId
       required: true
-      schema: { type: string, minLength: 1, maxLength: 64 }
+      schema: { type: string, minLength: 1, maxLength: 32 }
   security:
     - bearerAuth: []
   responses:
+    '400': { $ref: ../components/responses/bad-request.yaml }
     '200':
       description: Build job projection including its settled primary artifact when available.
       content:

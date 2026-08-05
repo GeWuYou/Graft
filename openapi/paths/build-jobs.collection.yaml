@@ -13,8 +13,8 @@ get:
       schema: { type: integer, minimum: 0, default: 0 }
     - in: query
       name: application_id
-      description: Optional exact Build snapshot application identifier.
-      schema: { type: integer, format: int64, minimum: 1 }
+      description: Optional exact Build snapshot public application identifier.
+      schema: { $ref: ../components/schemas/application-id.yaml }
     - in: query
       name: image_repository
       description: Optional exact Build snapshot image repository.

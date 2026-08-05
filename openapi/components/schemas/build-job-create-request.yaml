@@ -2,9 +2,7 @@ type: object
 required: [application_id, context_path, dockerfile_path, image_repository, image_tag]
 properties:
   application_id:
-    type: integer
-    format: int64
-    minimum: 1
+    $ref: ./application-id.yaml
   context_path:
     type: string
     minLength: 1

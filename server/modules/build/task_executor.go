@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
+
+const artifactSettlementTimeout = 5 * time.Second
 
 type dockerfileBuildExecutor struct {
 	repository buildstore.Repository
@@ -47,7 +50,10 @@ func (e *dockerfileBuildExecutor) Execute(ctx context.Context, run moduleapi.Sta
 	if err != nil {
 		return err
 	}
-	return e.repository.SettleDockerArtifact(ctx, run.TaskID(), result)
+	// Docker 已成功后仍需保留短暂的结算预算，避免调用方取消丢失 Build 产物事实。
+	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
+	defer settlementCancel()
+	return e.repository.SettleDockerArtifact(settlementCtx, run.TaskID(), result)
 }
 
 func (e *dockerfileBuildExecutor) Cancel(_ context.Context, run moduleapi.StageRun) error {

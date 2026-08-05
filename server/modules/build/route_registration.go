@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	buildJobsRoute        = "/jobs"
-	buildListDefaultLimit = 20
+	buildJobsRoute = "/jobs"
 )
 
 //nolint:gocognit,gocyclo,cyclop // 单一 HTTP 提交边界将身份、幂等键与生成契约的转换保持在一起。
@@ -46,6 +45,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildListQuery(c)
 		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
 		result, err := service.ListJobs(c.Request.Context(), query)
@@ -61,8 +61,12 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
 			return
 		}
-		if err != nil {
+		if errors.Is(err, errInvalidBuildID) {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		if err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildJobDetail(job))
@@ -78,7 +82,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		if request.ApplicationId < 1 {
+		if strings.TrimSpace(request.ApplicationId) == "" {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -93,17 +97,19 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 				args = append(args, moduleapi.DockerImageBuildArg{Name: item.Name, Value: item.Value})
 			}
 		}
-		receipt, submitErr := service.Submit(c.Request.Context(), SubmitRequest{ApplicationID: uint64(request.ApplicationId), ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: args, RequestedBy: requestedBy, IdempotencyKey: key})
+		receipt, submitErr := service.Submit(c.Request.Context(), SubmitRequest{ApplicationID: request.ApplicationId, ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: args, RequestedBy: requestedBy, IdempotencyKey: key})
 		if submitErr != nil {
-			status := http.StatusBadRequest
+			status, key := http.StatusInternalServerError, "common.internalError"
 			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {
-				status = http.StatusConflict
+				status, key = http.StatusConflict, "common.invalidArgument"
+			} else if errors.Is(submitErr, errInvalidBuildRequest) {
+				status, key = http.StatusBadRequest, "common.invalidArgument"
 			}
-			httpx.WriteLocalizedError(c, ctx.I18n, status, "common.invalidArgument", nil)
+			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return
 		}
 		if receipt.TaskID > math.MaxInt64 {
-			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.invalidArgument", nil)
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
@@ -126,10 +132,10 @@ func buildListQuery(c *gin.Context) (buildstore.ListQuery, bool) {
 }
 
 func buildPaginationQuery(c *gin.Context) (buildstore.ListQuery, bool) {
-	query := buildstore.ListQuery{Limit: buildListDefaultLimit}
+	query := buildstore.ListQuery{Limit: buildstore.DefaultListLimit}
 	if raw := c.Query("limit"); raw != "" {
 		limit, err := strconv.Atoi(raw)
-		if err != nil || limit < 1 || limit > 100 {
+		if err != nil || limit < 1 || limit > buildstore.MaxListLimit {
 			return buildstore.ListQuery{}, false
 		}
 		query.Limit = limit
@@ -173,13 +179,13 @@ func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
 	return true
 }
 
-func buildApplicationIDQuery(c *gin.Context) (*uint64, bool) {
+func buildApplicationIDQuery(c *gin.Context) (*string, bool) {
 	raw, present := c.GetQuery("application_id")
 	if !present {
 		return nil, true
 	}
-	value, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || value == 0 {
+	value := strings.TrimSpace(raw)
+	if value == "" {
 		return nil, false
 	}
 	return &value, true

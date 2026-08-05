@@ -29,7 +29,7 @@ func toBuildJobDetail(item buildstore.JobProjection) openapigen.BuildJobDetail {
 	return openapigen.BuildJobDetail{ApplicationId: summary.ApplicationId, ApplicationName: summary.ApplicationName, Artifact: summary.Artifact, BuildArgs: args, BuildId: summary.BuildId, ContextPath: summary.ContextPath, CreatedAt: summary.CreatedAt, DockerfilePath: summary.DockerfilePath, ImageRepository: summary.ImageRepository, ImageTag: summary.ImageTag, RuntimeProvider: item.RuntimeProvider, TaskId: summary.TaskId}
 }
 func toBuildJobSummary(item buildstore.JobProjection) openapigen.BuildJobSummary {
-	summary := openapigen.BuildJobSummary{ApplicationId: buildJobResponseID(item.ApplicationID), ApplicationName: item.ApplicationName, BuildId: item.BuildID, ContextPath: item.ContextPath, CreatedAt: item.CreatedAt, DockerfilePath: item.DockerfilePath, ImageRepository: item.ImageRepository, ImageTag: item.ImageTag, TaskId: buildJobResponseID(item.TaskID)}
+	summary := openapigen.BuildJobSummary{ApplicationId: item.ApplicationID, ApplicationName: item.ApplicationName, BuildId: item.BuildID, ContextPath: item.ContextPath, CreatedAt: item.CreatedAt, DockerfilePath: item.DockerfilePath, ImageRepository: item.ImageRepository, ImageTag: item.ImageTag, TaskId: buildJobResponseID(item.TaskID)}
 	if item.Artifact != nil {
 		summary.Artifact = &openapigen.BuildArtifact{ArtifactId: item.Artifact.ArtifactID, ImageId: item.Artifact.ImageID, Repository: item.Artifact.Repository, Tag: item.Artifact.Tag}
 		if item.Artifact.Digest != "" {

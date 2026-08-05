@@ -18,19 +18,20 @@ var ErrNotFound = errors.New("build record not found")
 
 // JobSnapshot 是请求期授权后冻结的 Build 所有执行输入。
 type JobSnapshot struct {
-	BuildID         string
-	TaskID          uint64
-	ApplicationID   uint64
-	ApplicationName string
-	WorkspaceRoot   string
-	ContextPath     string
-	DockerfilePath  string
-	RuntimeTargetID uint64
-	RuntimeProvider string
-	ImageRepository string
-	ImageTag        string
-	BuildArgs       []moduleapi.DockerImageBuildArg
-	RequestedBy     uint64
+	BuildID             string
+	TaskID              uint64
+	ApplicationID       string
+	ApplicationRecordID uint64
+	ApplicationName     string
+	WorkspaceRoot       string
+	ContextPath         string
+	DockerfilePath      string
+	RuntimeTargetID     uint64
+	RuntimeProvider     string
+	ImageRepository     string
+	ImageTag            string
+	BuildArgs           []moduleapi.DockerImageBuildArg
+	RequestedBy         uint64
 }
 
 // Artifact 是 Build 作业完成后由 Docker 结果结算的只读产物证据。
@@ -55,14 +56,16 @@ type ListResult struct {
 // ListQuery 描述 Build 历史列表支持的冻结快照过滤条件和分页窗口。
 type ListQuery struct {
 	Limit, Offset               int
-	ApplicationID               *uint64
+	ApplicationID               *string
 	ImageRepository, ImageTag   *string
 	CreatedAfter, CreatedBefore *time.Time
 }
 
 const (
-	defaultListLimit  = 20
-	maxListLimit      = 100
+	// DefaultListLimit 是未指定分页窗口时的 Build 历史页大小。
+	DefaultListLimit = 20
+	// MaxListLimit 是 Build 历史列表允许的最大页大小。
+	MaxListLimit      = 100
 	pageArgumentCount = 2
 	jobListFilterCap  = 5
 )
@@ -92,9 +95,9 @@ func (r *SQLRepository) ListJobs(ctx context.Context, query ListQuery) (result L
 
 func normalizedPagination(limit, offset int) (int, int) {
 	if limit < 1 {
-		limit = defaultListLimit
-	} else if limit > maxListLimit {
-		limit = maxListLimit
+		limit = DefaultListLimit
+	} else if limit > MaxListLimit {
+		limit = MaxListLimit
 	}
 	if offset < 0 {
 		offset = 0
@@ -167,15 +170,25 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 
 // GetJobByBuildID 读取一个 Build-owned job projection。
 func (r *SQLRepository) GetJobByBuildID(ctx context.Context, buildID string) (JobProjection, error) {
+	if r == nil || r.db == nil {
+		return JobProjection{}, errors.New("build repository is unavailable")
+	}
 	row := r.db.QueryRowContext(ctx, jobProjectionQuery+` WHERE j.build_id = $1`, buildID)
 	item, err := scanJobProjection(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return JobProjection{}, ErrNotFound
 	}
-	return item, err
+	if err != nil {
+		return JobProjection{}, err
+	}
+	item.BuildArgs, err = r.listBuildArgs(ctx, r.db, item.TaskID)
+	if err != nil {
+		return JobProjection{}, err
+	}
+	return item, nil
 }
 
-const jobProjectionQuery = `SELECT j.build_id, j.task_id, j.application_id, j.application_name_snapshot, j.workspace_context_path, j.workspace_root, j.dockerfile_path, j.runtime_target_id, j.runtime_provider, j.image_repository, j.image_tag, COALESCE(j.created_by, 0), j.created_at, a.artifact_id, a.image_id, COALESCE(a.digest, ''), a.repository, a.tag, a.size_bytes, CONCAT_WS('/', NULLIF(a.os, ''), NULLIF(a.architecture, '')) FROM build_jobs j LEFT JOIN build_artifacts a ON a.build_job_id = j.id AND a.role = 'primary'`
+const jobProjectionQuery = `SELECT j.build_id, j.task_id, j.application_id, j.application_record_id, j.application_name_snapshot, j.workspace_context_path, j.workspace_root, j.dockerfile_path, j.runtime_target_id, j.runtime_provider, j.image_repository, j.image_tag, COALESCE(j.created_by, 0), j.created_at, a.artifact_id, a.image_id, COALESCE(a.digest, ''), a.repository, a.tag, a.size_bytes, CONCAT_WS('/', NULLIF(a.os, ''), NULLIF(a.architecture, '')) FROM build_jobs j LEFT JOIN build_artifacts a ON a.build_job_id = j.id AND a.role = 'primary'`
 
 type rowScanner interface{ Scan(...any) error }
 
@@ -183,7 +196,7 @@ func scanJobProjection(row rowScanner) (JobProjection, error) {
 	var item JobProjection
 	var artifactID, imageID, digest, repository, tag, platform sql.NullString
 	var size sql.NullInt64
-	err := row.Scan(&item.BuildID, &item.TaskID, &item.ApplicationID, &item.ApplicationName, &item.ContextPath, &item.WorkspaceRoot, &item.DockerfilePath, &item.RuntimeTargetID, &item.RuntimeProvider, &item.ImageRepository, &item.ImageTag, &item.RequestedBy, &item.CreatedAt, &artifactID, &imageID, &digest, &repository, &tag, &size, &platform)
+	err := row.Scan(&item.BuildID, &item.TaskID, &item.ApplicationID, &item.ApplicationRecordID, &item.ApplicationName, &item.ContextPath, &item.WorkspaceRoot, &item.DockerfilePath, &item.RuntimeTargetID, &item.RuntimeProvider, &item.ImageRepository, &item.ImageTag, &item.RequestedBy, &item.CreatedAt, &artifactID, &imageID, &digest, &repository, &tag, &size, &platform)
 	if err != nil {
 		return JobProjection{}, err
 	}
@@ -219,7 +232,7 @@ func (r *SQLRepository) CreateJob(ctx context.Context, value JobSnapshot) error 
 		return err
 	}
 	if !created {
-		return r.verifyExistingJob(ctx, value)
+		return r.verifyExistingJob(ctx, tx, value)
 	}
 	if err := insertBuildArgs(ctx, tx, jobID, value.BuildArgs); err != nil {
 		return err
@@ -236,9 +249,9 @@ func validJobSnapshot(value JobSnapshot) bool {
 
 func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
 	var jobID uint64
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13, 0))
-		ON CONFLICT (task_id) DO NOTHING RETURNING id`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID)
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14, 0))
+		ON CONFLICT (task_id) DO NOTHING RETURNING id`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -248,12 +261,12 @@ func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool
 	return jobID, true, nil
 }
 
-func (r *SQLRepository) verifyExistingJob(ctx context.Context, value JobSnapshot) error {
-	existing, err := r.GetJobByTaskID(ctx, value.TaskID)
+func (r *SQLRepository) verifyExistingJob(ctx context.Context, query jobQueryer, value JobSnapshot) error {
+	existing, err := getJobByTaskID(ctx, query, value.TaskID)
 	if err != nil {
 		return err
 	}
-	if existing.ApplicationID != value.ApplicationID || existing.WorkspaceRoot != value.WorkspaceRoot || existing.ContextPath != value.ContextPath || existing.DockerfilePath != value.DockerfilePath || existing.ImageRepository != value.ImageRepository || existing.ImageTag != value.ImageTag {
+	if existing.ApplicationID != value.ApplicationID || existing.ApplicationRecordID != value.ApplicationRecordID || existing.WorkspaceRoot != value.WorkspaceRoot || existing.ContextPath != value.ContextPath || existing.DockerfilePath != value.DockerfilePath || existing.ImageRepository != value.ImageRepository || existing.ImageTag != value.ImageTag {
 		return errors.New("build task snapshot conflict")
 	}
 	return nil
@@ -270,16 +283,28 @@ func insertBuildArgs(ctx context.Context, tx *sql.Tx, jobID uint64, args []modul
 
 // GetJobByTaskID 为后台执行只读取 Build 所有的冻结数据。
 func (r *SQLRepository) GetJobByTaskID(ctx context.Context, taskID uint64) (JobSnapshot, error) {
+	if r == nil || r.db == nil {
+		return JobSnapshot{}, errors.New("build repository is unavailable")
+	}
+	return getJobByTaskID(ctx, r.db, taskID)
+}
+
+type jobQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func getJobByTaskID(ctx context.Context, query jobQueryer, taskID uint64) (JobSnapshot, error) {
 	var value JobSnapshot
-	err := r.db.QueryRowContext(ctx, `SELECT build_id, task_id, application_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, image_repository, image_tag, COALESCE(created_by, 0)
-		FROM build_jobs WHERE task_id = $1`, taskID).Scan(&value.BuildID, &value.TaskID, &value.ApplicationID, &value.ApplicationName, &value.ContextPath, &value.WorkspaceRoot, &value.DockerfilePath, &value.RuntimeTargetID, &value.RuntimeProvider, &value.ImageRepository, &value.ImageTag, &value.RequestedBy)
+	err := query.QueryRowContext(ctx, `SELECT build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, image_repository, image_tag, COALESCE(created_by, 0)
+		FROM build_jobs WHERE task_id = $1`, taskID).Scan(&value.BuildID, &value.TaskID, &value.ApplicationID, &value.ApplicationRecordID, &value.ApplicationName, &value.ContextPath, &value.WorkspaceRoot, &value.DockerfilePath, &value.RuntimeTargetID, &value.RuntimeProvider, &value.ImageRepository, &value.ImageTag, &value.RequestedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return JobSnapshot{}, ErrNotFound
 	}
 	if err != nil {
 		return JobSnapshot{}, fmt.Errorf("get build job: %w", err)
 	}
-	args, err := r.listBuildArgs(ctx, taskID)
+	args, err := listBuildArgs(ctx, query, taskID)
 	if err != nil {
 		return JobSnapshot{}, err
 	}
@@ -287,8 +312,12 @@ func (r *SQLRepository) GetJobByTaskID(ctx context.Context, taskID uint64) (JobS
 	return value, nil
 }
 
-func (r *SQLRepository) listBuildArgs(ctx context.Context, taskID uint64) (args []moduleapi.DockerImageBuildArg, err error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name, value FROM build_job_args WHERE build_job_id = (SELECT id FROM build_jobs WHERE task_id = $1) ORDER BY id`, taskID)
+func (r *SQLRepository) listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) ([]moduleapi.DockerImageBuildArg, error) {
+	return listBuildArgs(ctx, query, taskID)
+}
+
+func listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) (args []moduleapi.DockerImageBuildArg, err error) {
+	rows, err := query.QueryContext(ctx, `SELECT name, value FROM build_job_args WHERE build_job_id = (SELECT id FROM build_jobs WHERE task_id = $1) ORDER BY id`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("list build arguments: %w", err)
 	}
@@ -312,15 +341,22 @@ func (r *SQLRepository) listBuildArgs(ctx context.Context, taskID uint64) (args 
 
 // SettleDockerArtifact 为 Build 作业写入或更新唯一主 Docker 产物。
 func (r *SQLRepository) SettleDockerArtifact(ctx context.Context, taskID uint64, result moduleapi.DockerImageBuildResult) error {
-	if result.ImageID == "" {
+	if r == nil || r.db == nil || result.ImageID == "" {
 		return errors.New("docker build result has no image id")
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO build_artifacts (artifact_id, build_job_id, role, artifact_type, media_type, runtime_provider, runtime_target_id, image_id, digest, repository, tag, size_bytes, os, architecture, variant, producer_version)
+	resultInfo, err := r.db.ExecContext(ctx, `INSERT INTO build_artifacts (artifact_id, build_job_id, role, artifact_type, media_type, runtime_provider, runtime_target_id, image_id, digest, repository, tag, size_bytes, os, architecture, variant, producer_version)
 		SELECT 'artifact-' || task_id::text, id, 'primary', 'container_image', 'application/vnd.oci.image.manifest.v1+json', runtime_provider, runtime_target_id, $2, $3, $4, $5, $6, $7, $8, $9, 'docker'
 		FROM build_jobs WHERE task_id = $1
 		ON CONFLICT (build_job_id, role) DO UPDATE SET image_id=EXCLUDED.image_id, digest=EXCLUDED.digest, repository=EXCLUDED.repository, tag=EXCLUDED.tag, size_bytes=EXCLUDED.size_bytes, os=EXCLUDED.os, architecture=EXCLUDED.architecture, variant=EXCLUDED.variant`, taskID, result.ImageID, result.Digest, result.Repository, result.Tag, result.SizeBytes, result.OS, result.Architecture, result.Variant)
 	if err != nil {
 		return fmt.Errorf("settle build artifact: %w", err)
+	}
+	rowsAffected, err := resultInfo.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count settled build artifacts: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

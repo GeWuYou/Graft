@@ -45,6 +45,9 @@ func (m *Module) registerServices(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskService)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskReservationService)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
+		return err
+	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskQueryService)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
 		return err
 	}

@@ -22,6 +22,7 @@ type Task struct {
 	CreatedBy             *uint64
 	IdempotencyKeyHash    *string
 	SubmissionFingerprint *string
+	ActivationRequired    bool
 	ScheduledAt           *time.Time
 	CancelRequestedAt     *time.Time
 	StartedAt             *time.Time
