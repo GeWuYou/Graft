@@ -23,6 +23,10 @@ func (testBuildContexts) ResolveApplicationBuildContext(context.Context, string)
 
 type testBuildTasks struct{}
 
+func (testBuildTasks) GetTasksByIDs(context.Context, []uint64) ([]moduleapi.TaskView, error) {
+	return nil, nil
+}
+
 func (testBuildTasks) BeginSubmission(context.Context, moduleapi.BeginTaskSubmissionInput) (moduleapi.TaskSubmissionHandle, error) {
 	return moduleapi.TaskSubmissionHandle{}, nil
 }
@@ -80,6 +84,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	for key, value := range map[any]any{
 		(*moduleapi.ApplicationBuildContextResolver)(nil): testBuildContexts{},
 		(*moduleapi.TaskSubmissionService)(nil):           testBuildTasks{},
+		(*moduleapi.TaskBatchQueryService)(nil):           testBuildTasks{},
 		(*moduleapi.TaskRuntimeRegistrar)(nil):            testBuildRegistrar{},
 		(*moduleapi.DockerImageBuildCapability)(nil):      testBuildDocker{},
 	} {

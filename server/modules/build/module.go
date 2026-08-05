@@ -48,6 +48,10 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve task service: %w", err)
 	}
+	taskBatch, err := module.ResolveService[moduleapi.TaskBatchQueryService](ctx.Services, (*moduleapi.TaskBatchQueryService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task batch query service: %w", err)
+	}
 	registrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve task runtime registrar: %w", err)
@@ -56,7 +60,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve Docker image build capability: %w", err)
 	}
-	service, err := NewService(contexts, submissions, docker, m.repository)
+	service, err := NewService(contexts, submissions, taskBatch, docker, m.repository)
 	if err != nil {
 		return err
 	}

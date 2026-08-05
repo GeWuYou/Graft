@@ -28,6 +28,7 @@ type JobSnapshot struct {
 	ContextPath         string
 	DockerfilePath      string
 	RuntimeTargetID     uint64
+	RuntimeTargetName   string
 	RuntimeProvider     string
 	ImageRepository     string
 	ImageTag            string
@@ -46,6 +47,20 @@ type JobProjection struct {
 	JobSnapshot
 	CreatedAt time.Time
 	Artifact  *Artifact
+	Execution TaskExecution
+}
+
+// TaskExecution 是 Build 列表消费的 Task Runtime 执行投影；状态事实仍归 Task Runtime 所有。
+type TaskExecution struct {
+	Status              moduleapi.TaskStatus
+	CurrentStageKey     *string
+	CompletedStageCount int
+	StageCount          int
+	DurationMS          *int64
+	FailureCode         *string
+	FailureMessage      *string
+	RecoveryReason      *string
+	Capabilities        moduleapi.TaskCapabilities
 }
 
 // ListResult 保存 Build 作业分页投影。
@@ -59,7 +74,44 @@ type ListQuery struct {
 	Limit, Offset               int
 	ApplicationID               *string
 	ImageRepository, ImageTag   *string
+	Search                      *string
+	BuildStatus                 *StatusFilter
+	BuilderID                   *uint64
 	CreatedAfter, CreatedBefore *time.Time
+}
+
+// StatusFilter 是 Build Task Center 对 Task Runtime 状态的稳定产品级归类。
+type StatusFilter string
+
+const (
+	// StatusFilterQueued 覆盖尚未由 worker 执行的全部排队态。
+	StatusFilterQueued StatusFilter = "queued"
+	// StatusFilterRunning 表示正在执行的构建任务。
+	StatusFilterRunning StatusFilter = "running"
+	// StatusFilterSuccess 表示已成功完成的构建任务。
+	StatusFilterSuccess StatusFilter = "success"
+	// StatusFilterFailed 覆盖失败和需要人工处置的构建任务。
+	StatusFilterFailed StatusFilter = "failed"
+	// StatusFilterCancelled 表示已取消的构建任务。
+	StatusFilterCancelled StatusFilter = "cancelled"
+)
+
+// MatchesTaskStatus 判断 Task Runtime 状态是否属于当前 Build 产品状态。
+func (s StatusFilter) MatchesTaskStatus(status moduleapi.TaskStatus) bool {
+	switch s {
+	case StatusFilterQueued:
+		return status == moduleapi.TaskStatusPending || status == moduleapi.TaskStatusReady || status == moduleapi.TaskStatusScheduled
+	case StatusFilterRunning:
+		return status == moduleapi.TaskStatusRunning
+	case StatusFilterSuccess:
+		return status == moduleapi.TaskStatusSuccess
+	case StatusFilterFailed:
+		return status == moduleapi.TaskStatusFailed || status == moduleapi.TaskStatusNeedsAttention
+	case StatusFilterCancelled:
+		return status == moduleapi.TaskStatusCancelled
+	default:
+		return false
+	}
 }
 
 const (
@@ -68,7 +120,7 @@ const (
 	// MaxListLimit 是 Build 历史列表允许的最大页大小。
 	MaxListLimit      = 100
 	pageArgumentCount = 2
-	jobListFilterCap  = 5
+	jobListFilterCap  = 8
 )
 
 // Repository 是提交与执行器路径使用的窄 Build 持久化边界。
@@ -188,6 +240,15 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 		where = append(where, `j.image_tag = $`+strconv.Itoa(len(args)+1))
 		args = append(args, *query.ImageTag)
 	}
+	if query.Search != nil {
+		placeholder := strconv.Itoa(len(args) + 1)
+		where = append(where, `(j.build_id ILIKE '%' || $`+placeholder+` || '%' OR j.application_name_snapshot ILIKE '%' || $`+placeholder+` || '%' OR j.image_repository ILIKE '%' || $`+placeholder+` || '%' OR j.image_tag ILIKE '%' || $`+placeholder+` || '%')`)
+		args = append(args, *query.Search)
+	}
+	if query.BuilderID != nil {
+		where = append(where, `j.runtime_target_id = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.BuilderID)
+	}
 	if query.CreatedAfter != nil {
 		where = append(where, `j.created_at >= $`+strconv.Itoa(len(args)+1))
 		args = append(args, *query.CreatedAfter)
@@ -219,7 +280,7 @@ func (r *SQLRepository) GetJobByBuildID(ctx context.Context, buildID string) (Jo
 	return item, nil
 }
 
-const jobProjectionQuery = `SELECT j.build_id, j.task_id, j.application_id, j.application_record_id, j.application_name_snapshot, j.workspace_context_path, j.workspace_root, j.dockerfile_path, j.runtime_target_id, j.runtime_provider, j.image_repository, j.image_tag, COALESCE(j.created_by, 0), j.created_at, a.artifact_id, a.image_id, COALESCE(a.digest, ''), a.repository, a.tag, a.size_bytes, CONCAT_WS('/', NULLIF(a.os, ''), NULLIF(a.architecture, '')) FROM build_jobs j LEFT JOIN build_artifacts a ON a.build_job_id = j.id AND a.role = 'primary'`
+const jobProjectionQuery = `SELECT j.build_id, j.task_id, j.application_id, j.application_record_id, j.application_name_snapshot, j.workspace_context_path, j.workspace_root, j.dockerfile_path, j.runtime_target_id, COALESCE(j.runtime_target_name, ''), j.runtime_provider, j.image_repository, j.image_tag, COALESCE(j.created_by, 0), j.created_at, a.artifact_id, a.image_id, COALESCE(a.digest, ''), a.repository, a.tag, a.size_bytes, CONCAT_WS('/', NULLIF(a.os, ''), NULLIF(a.architecture, '')) FROM build_jobs j LEFT JOIN build_artifacts a ON a.build_job_id = j.id AND a.role = 'primary'`
 
 type rowScanner interface{ Scan(...any) error }
 
@@ -227,7 +288,7 @@ func scanJobProjection(row rowScanner) (JobProjection, error) {
 	var item JobProjection
 	var artifactID, imageID, digest, repository, tag, platform sql.NullString
 	var size sql.NullInt64
-	err := row.Scan(&item.BuildID, &item.TaskID, &item.ApplicationID, &item.ApplicationRecordID, &item.ApplicationName, &item.ContextPath, &item.WorkspaceRoot, &item.DockerfilePath, &item.RuntimeTargetID, &item.RuntimeProvider, &item.ImageRepository, &item.ImageTag, &item.RequestedBy, &item.CreatedAt, &artifactID, &imageID, &digest, &repository, &tag, &size, &platform)
+	err := row.Scan(&item.BuildID, &item.TaskID, &item.ApplicationID, &item.ApplicationRecordID, &item.ApplicationName, &item.ContextPath, &item.WorkspaceRoot, &item.DockerfilePath, &item.RuntimeTargetID, &item.RuntimeTargetName, &item.RuntimeProvider, &item.ImageRepository, &item.ImageTag, &item.RequestedBy, &item.CreatedAt, &artifactID, &imageID, &digest, &repository, &tag, &size, &platform)
 	if err != nil {
 		return JobProjection{}, err
 	}
@@ -294,10 +355,10 @@ func validJobSnapshot(value JobSnapshot) bool {
 func insertSubmissionJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
 	var jobID uint64
 	var created bool
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, submission_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NULLIF($15, 0))
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, submission_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_target_name, runtime_provider, executor_kind, image_repository, image_tag, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NULLIF($16, 0))
 		ON CONFLICT (submission_id) WHERE submission_id IS NOT NULL DO UPDATE SET task_id = EXCLUDED.task_id
-		RETURNING id, (xmax = 0)`, value.BuildID, value.SubmissionID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
+		RETURNING id, (xmax = 0)`, value.BuildID, value.SubmissionID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeTargetName, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
 	if err != nil {
 		return 0, false, fmt.Errorf("insert build submission snapshot: %w", err)
 	}
@@ -307,10 +368,10 @@ func insertSubmissionJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (ui
 func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
 	var jobID uint64
 	var created bool
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14, 0))
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_target_name, runtime_provider, executor_kind, image_repository, image_tag, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NULLIF($15, 0))
 		ON CONFLICT (task_id) DO UPDATE SET task_id = EXCLUDED.task_id
-		RETURNING id, (xmax = 0)`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
+		RETURNING id, (xmax = 0)`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationRecordID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeTargetName, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, errors.New("insert build job returned no row")
 	}
@@ -355,8 +416,8 @@ type jobQueryer interface {
 
 func getJobByTaskID(ctx context.Context, query jobQueryer, taskID uint64) (JobSnapshot, error) {
 	var value JobSnapshot
-	err := query.QueryRowContext(ctx, `SELECT build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, image_repository, image_tag, COALESCE(created_by, 0)
-		FROM build_jobs WHERE task_id = $1`, taskID).Scan(&value.BuildID, &value.TaskID, &value.ApplicationID, &value.ApplicationRecordID, &value.ApplicationName, &value.ContextPath, &value.WorkspaceRoot, &value.DockerfilePath, &value.RuntimeTargetID, &value.RuntimeProvider, &value.ImageRepository, &value.ImageTag, &value.RequestedBy)
+	err := query.QueryRowContext(ctx, `SELECT build_id, task_id, application_id, application_record_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, COALESCE(runtime_target_name, ''), runtime_provider, image_repository, image_tag, COALESCE(created_by, 0)
+		FROM build_jobs WHERE task_id = $1`, taskID).Scan(&value.BuildID, &value.TaskID, &value.ApplicationID, &value.ApplicationRecordID, &value.ApplicationName, &value.ContextPath, &value.WorkspaceRoot, &value.DockerfilePath, &value.RuntimeTargetID, &value.RuntimeTargetName, &value.RuntimeProvider, &value.ImageRepository, &value.ImageTag, &value.RequestedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return JobSnapshot{}, ErrNotFound
 	}

@@ -8932,6 +8932,31 @@ export interface components {
      * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
      */
     'application-id': string;
+    /**
+     * @description Product-level Build Task status used for task-center filtering.
+     * @enum {string}
+     */
+    'build-status-filter': 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
+    /** @description Runtime target snapshot frozen when the Build job was submitted. */
+    'build-builder-snapshot': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      provider: string;
+    };
+    /** @description Task Runtime execution projection for a Build job. */
+    'build-task-execution': {
+      status: components['schemas']['task-status'];
+      current_stage_key?: string | null;
+      stage_count: number;
+      completed_stage_count: number;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      failure_code?: string | null;
+      failure_message?: string | null;
+      recovery_reason?: string | null;
+      capabilities: components['schemas']['task-capabilities'];
+    };
     'build-artifact': {
       artifact_id: string;
       image_id: string;
@@ -8954,6 +8979,8 @@ export interface components {
       image_tag: string;
       /** Format: date-time */
       created_at: string;
+      builder: components['schemas']['build-builder-snapshot'];
+      execution: components['schemas']['build-task-execution'];
       artifact?: components['schemas']['build-artifact'];
     };
     'build-job-list': {
@@ -19900,10 +19927,16 @@ export interface operations {
         offset?: number;
         /** @description Optional exact Build snapshot public application identifier. */
         application_id?: components['schemas']['application-id'];
+        /** @description Optional case-insensitive search over Build ID, application name, repository, and image tag. */
+        search?: string;
         /** @description Optional exact Build snapshot image repository. */
         image_repository?: string;
         /** @description Optional exact Build snapshot image tag. */
         image_tag?: string;
+        /** @description Optional product-level Build Task status filter. */
+        build_status?: components['schemas']['build-status-filter'];
+        /** @description Optional exact runtime target snapshot identifier. */
+        builder_id?: number;
         /** @description Optional inclusive RFC 3339 lower bound for the Build snapshot creation time. */
         created_after?: string;
         /** @description Optional inclusive RFC 3339 upper bound for the Build snapshot creation time. */

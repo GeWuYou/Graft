@@ -225,6 +225,42 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 	return item, nil
 }
 
+// GetByIDs 按一次受控 IN 查询批量读取 Task，供列表消费者组装跨模块执行投影。
+//
+//nolint:cyclop // 批量输入校验、查询和扫描必须保持在同一 repository 边界。
+func (r *SQLRepository) GetByIDs(ctx context.Context, taskIDs []uint64) ([]taskmodel.Task, error) {
+	if r == nil || r.db == nil || len(taskIDs) == 0 || len(taskIDs) > 1000 {
+		return nil, ErrInvalidInput
+	}
+	placeholders := make([]string, len(taskIDs))
+	args := make([]any, len(taskIDs))
+	for i, taskID := range taskIDs {
+		if taskID == 0 {
+			return nil, ErrInvalidInput
+		}
+		placeholders[i] = "?"
+		args[i] = taskID
+	}
+	query := `SELECT ` + taskColumns() + ` FROM tasks WHERE id IN (` + strings.Join(placeholders, ", ") + `) ORDER BY created_at DESC, id DESC`
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(query), args...)
+	if err != nil {
+		return nil, fmt.Errorf("get tasks by ids: %w", err)
+	}
+	defer closeRows(rows)
+	items := make([]taskmodel.Task, 0, len(taskIDs))
+	for rows.Next() {
+		item, scanErr := scanTask(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tasks by ids: %w", err)
+	}
+	return items, nil
+}
+
 // List 使用 owner 索引返回按资源所有者隔离、可选筛选的 Task 历史分页及总数。
 func (r *SQLRepository) List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error) {
 	if strings.TrimSpace(filter.Owner.Type) == "" || strings.TrimSpace(filter.Owner.ID) == "" || offset < 0 {

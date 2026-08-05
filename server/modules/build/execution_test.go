@@ -19,6 +19,7 @@ type recordingBuildRepository struct {
 	settleDeadline bool
 	getBuildIDErr  error
 	createErr      error
+	listResult     buildstore.ListResult
 }
 
 func (r *recordingBuildRepository) CreateJob(_ context.Context, value buildstore.JobSnapshot) error {
@@ -53,8 +54,8 @@ func (r *recordingBuildRepository) SettleDockerArtifact(ctx context.Context, tas
 	_, r.settleDeadline = ctx.Deadline()
 	return nil
 }
-func (*recordingBuildRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
-	return buildstore.ListResult{}, nil
+func (r *recordingBuildRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
+	return r.listResult, nil
 }
 
 func (r *recordingBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
@@ -77,6 +78,11 @@ type recordingBuildTasks struct {
 	materializeCalls int
 	discardCalls     int
 	err              error
+	views            []moduleapi.TaskView
+}
+
+func (r *recordingBuildTasks) GetTasksByIDs(context.Context, []uint64) ([]moduleapi.TaskView, error) {
+	return r.views, nil
 }
 
 func (r *recordingBuildTasks) BeginSubmission(_ context.Context, input moduleapi.BeginTaskSubmissionInput) (moduleapi.TaskSubmissionHandle, error) {
@@ -115,6 +121,47 @@ type recordingBuildDocker struct {
 	input moduleapi.DockerImageBuildInput
 }
 
+func TestListJobsAddsBatchedTaskExecutionProjectionAndStatusFilter(t *testing.T) {
+	repository := &recordingBuildRepository{listResult: buildstore.ListResult{Items: []buildstore.JobProjection{{JobSnapshot: buildstore.JobSnapshot{BuildID: "build_test", TaskID: 42}}, {JobSnapshot: buildstore.JobSnapshot{BuildID: "build_failed", TaskID: 43}}}, Total: 2}}
+	tasks := &recordingBuildTasks{views: []moduleapi.TaskView{{ID: 42, Status: moduleapi.TaskStatusRunning, CurrentStageKey: stringPtr("dockerfile-build")}, {ID: 43, Status: moduleapi.TaskStatusFailed}}}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := buildstore.StatusFilterRunning
+	result, err := service.ListJobs(context.Background(), buildstore.ListQuery{Limit: 1, BuildStatus: &status})
+	if err != nil || len(result.Items) != 1 {
+		t.Fatalf("list jobs = %#v err=%v", result, err)
+	}
+	if result.Items[0].Execution.Status != moduleapi.TaskStatusRunning || result.Items[0].Execution.StageCount != 1 || result.Items[0].Execution.CompletedStageCount != 0 {
+		t.Fatalf("unexpected execution projection: %#v", result.Items[0].Execution)
+	}
+	if result.Total != 1 {
+		t.Fatalf("filtered total = %d, want 1", result.Total)
+	}
+}
+
+func TestBuildStatusFilterGroupsTaskRuntimeStates(t *testing.T) {
+	cases := []struct {
+		filter buildstore.StatusFilter
+		status moduleapi.TaskStatus
+		want   bool
+	}{
+		{filter: buildstore.StatusFilterQueued, status: moduleapi.TaskStatusPending, want: true},
+		{filter: buildstore.StatusFilterQueued, status: moduleapi.TaskStatusReady, want: true},
+		{filter: buildstore.StatusFilterQueued, status: moduleapi.TaskStatusScheduled, want: true},
+		{filter: buildstore.StatusFilterFailed, status: moduleapi.TaskStatusNeedsAttention, want: true},
+		{filter: buildstore.StatusFilterFailed, status: moduleapi.TaskStatusRunning, want: false},
+	}
+	for _, item := range cases {
+		if got := item.filter.MatchesTaskStatus(item.status); got != item.want {
+			t.Fatalf("filter %q status %q = %t, want %t", item.filter, item.status, got, item.want)
+		}
+	}
+}
+
+func stringPtr(value string) *string { return &value }
+
 func (r *recordingBuildDocker) BuildImage(_ context.Context, input moduleapi.DockerImageBuildInput, _ moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
 	r.input = input
 	return moduleapi.DockerImageBuildResult{ImageID: "sha256:image", Repository: input.ImageRepository, Tag: input.ImageTag}, nil
@@ -133,7 +180,7 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	contexts := &recordingBuildContexts{}
 	tasks := &recordingBuildTasks{}
 	repository := &recordingBuildRepository{}
-	service, err := NewService(contexts, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(contexts, tasks, tasks, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +203,7 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 func TestSubmitReturnsErrorWhenAtomicSnapshotMaterializationFails(t *testing.T) {
 	tasks := &recordingBuildTasks{}
 	repository := &recordingBuildRepository{createErr: errors.New("snapshot write failed")}
-	service, err := NewService(&recordingBuildContexts{}, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +258,7 @@ func TestSubmitRejectsInvalidInputBeforeTaskSubmission(t *testing.T) {
 	for _, request := range invalidRequests {
 		t.Run(request.ContextPath+request.DockerfilePath+request.ImageRepository+request.ImageTag, func(t *testing.T) {
 			tasks := &recordingBuildTasks{}
-			service, err := NewService(&recordingBuildContexts{}, tasks, &recordingBuildDocker{}, &recordingBuildRepository{})
+			service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, &recordingBuildRepository{})
 			if err != nil {
 				t.Fatal(err)
 			}

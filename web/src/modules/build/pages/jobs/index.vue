@@ -6,163 +6,252 @@
       :title="t('build.jobs.title')"
       description-key="build.jobs.description"
       :description="t('build.jobs.description')"
-      :source="{ labelKey: 'build.jobs.title', fallback: t('build.jobs.title') }"
+      :source="{ labelKey: 'build.jobs.eyebrow', fallback: t('build.jobs.eyebrow') }"
     />
 
-    <management-toolbar compact-action-layout="equal-width">
+    <management-toolbar>
       <template #filters>
-        <t-form class="build-jobs-page__filters" layout="inline" @submit="applyFilters">
-          <t-form-item :label="t('build.jobs.filters.applicationId')">
-            <t-input v-model="filters.application_id" :placeholder="t('build.jobs.filters.all')" />
-          </t-form-item>
-          <t-form-item :label="t('build.jobs.create.repository')">
-            <t-input v-model="filters.image_repository" :placeholder="t('build.jobs.filters.all')" clearable />
-          </t-form-item>
-          <t-form-item :label="t('build.jobs.create.tag')">
-            <t-input v-model="filters.image_tag" :placeholder="t('build.jobs.filters.all')" clearable />
-          </t-form-item>
-          <t-form-item :label="t('build.jobs.filters.createdAfter')">
-            <t-input v-model="filters.created_after" :placeholder="t('build.jobs.filters.rfc3339')" clearable />
-          </t-form-item>
-          <t-form-item :label="t('build.jobs.filters.createdBefore')">
-            <t-input v-model="filters.created_before" :placeholder="t('build.jobs.filters.rfc3339')" clearable />
-          </t-form-item>
-          <t-form-item>
-            <t-space>
-              <t-button theme="primary" type="submit">{{ t('build.jobs.filters.apply') }}</t-button>
-              <t-button variant="outline" @click="resetFilters">{{ t('build.jobs.filters.reset') }}</t-button>
-            </t-space>
-          </t-form-item>
-        </t-form>
+        <t-input
+          v-model="search"
+          class="build-jobs-page__search"
+          clearable
+          :placeholder="t('build.jobs.search')"
+          @enter="applySearch"
+          @clear="applySearch"
+        >
+          <template #prefix-icon><search-icon /></template>
+        </t-input>
+        <t-button variant="outline" @click="filterVisible = true">
+          <template #icon><filter-icon /></template>
+          {{ t('build.jobs.filter') }}<span v-if="activeFilterCount"> ({{ activeFilterCount }})</span>
+        </t-button>
       </template>
       <template #actions>
         <t-button variant="outline" :loading="loading" @click="load">
-          <template #icon><refresh-icon /></template>
-          {{ t('build.jobs.refresh') }}
+          <template #icon><refresh-icon /></template>{{ t('build.jobs.refresh') }}
         </t-button>
         <t-button theme="primary" @click="router.push(BUILD_ROUTE_PATH.CREATE)">
-          <template #icon><add-icon /></template>
-          {{ t('build.jobs.create.title') }}
+          <template #icon><add-icon /></template>{{ t('build.jobs.create.title') }}
         </t-button>
       </template>
     </management-toolbar>
 
+    <div v-if="appliedFilters.length" class="build-jobs-page__chips">
+      <t-tag v-for="filter in appliedFilters" :key="filter.key" closable @close="clearFilter(filter.key)">
+        {{ filter.label }}
+      </t-tag>
+    </div>
+
+    <management-table-card v-if="errorMessage" class="build-jobs-page__table-card">
+      <div class="build-jobs-page__inline-error">
+        <t-alert theme="error" :title="t('build.jobs.error.title')" :message="errorMessage" />
+        <t-space>
+          <t-button variant="outline" @click="load">{{ t('build.jobs.error.retry') }}</t-button>
+          <t-button variant="text" @click="errorDetailsVisible = true">{{ t('build.jobs.error.details') }}</t-button>
+          <t-button theme="primary" variant="text" @click="router.push(RUNTIME_TARGET_ROUTE_PATH.LIST)">
+            {{ t('build.jobs.error.configure') }}
+          </t-button>
+        </t-space>
+      </div>
+    </management-table-card>
+
     <management-paged-table
+      v-else
       v-model:current="currentPage"
       v-model:page-size="pageSize"
+      class="build-jobs-page__table-card"
       :columns="columns"
       density-scope="viewport"
-      :empty-description="t('build.jobs.empty')"
-      :empty-title="t('build.jobs.title')"
-      :footer-summary="''"
-      hide-footer-summary-on-compact
+      :empty-description="
+        hasAppliedFilters ? t('build.jobs.emptyFilteredDescription') : t('build.jobs.emptyDescription')
+      "
+      :empty-title="hasAppliedFilters ? t('build.jobs.emptyFiltered') : t('build.jobs.empty')"
+      :footer-summary="t('build.jobs.summary', { count: total })"
       :loading="loading"
       :rows="items"
       :total="total"
       row-key="build_id"
       :pagination-props="{ showPageSize: true }"
       :page-size-options="[20, 50, 100]"
+      :cell-slot-names="[
+        'build_id',
+        'repository',
+        'image',
+        'status',
+        'progress',
+        'created_at',
+        'duration',
+        'builder',
+        'actions',
+      ]"
       @page-change="changePage"
     >
-      <template #feedback>
-        <t-alert v-if="errorMessage" theme="error" :title="t('build.jobs.loadFailed')" :message="errorMessage" />
+      <template #repository="{ row }"
+        ><span class="build-jobs-page__ellipsis">{{ (row as BuildJobSummary).image_repository }}</span></template
+      >
+      <template #image="{ row }"
+        ><span class="build-jobs-page__ellipsis">{{ imageReference(row as BuildJobSummary) }}</span></template
+      >
+      <template #status="{ row }"
+        ><t-tag :theme="statusTheme((row as BuildJobSummary).execution?.status)" variant="light-outline">{{
+          statusLabel((row as BuildJobSummary).execution?.status)
+        }}</t-tag></template
+      >
+      <template #progress="{ row }">
+        <div class="build-jobs-page__progress">
+          <t-progress :percentage="progressPercent(row as BuildJobSummary)" size="small" :label="false" /><span>{{
+            progressLabel(row as BuildJobSummary)
+          }}</span>
+        </div>
       </template>
-      <template #image_repository="{ row }">
-        {{ (row as BuildJobSummary).image_repository }}:{{ (row as BuildJobSummary).image_tag }}
-      </template>
-      <template #artifact="{ row }">
-        <t-tag v-if="(row as BuildJobSummary).artifact" theme="success" variant="light-outline">
-          {{ (row as BuildJobSummary).artifact?.image_id }}
-        </t-tag>
-        <span v-else>-</span>
-      </template>
-      <template #created_at="{ row }">
-        {{ formatLocaleDateTime((row as BuildJobSummary).created_at, locale) }}
-      </template>
+      <template #created_at="{ row }">{{ formatLocaleDateTime((row as BuildJobSummary).created_at, locale) }}</template>
+      <template #duration="{ row }">{{ durationLabel(row as BuildJobSummary) }}</template>
+      <template #builder="{ row }"
+        ><span class="build-jobs-page__ellipsis" :title="(row as BuildJobSummary).builder?.name">{{
+          (row as BuildJobSummary).builder?.name || '-'
+        }}</span></template
+      >
       <template #actions="{ row }">
-        <t-button
-          theme="primary"
-          variant="text"
-          size="small"
-          @click.stop="openDetail((row as BuildJobSummary).build_id)"
-        >
-          {{ t('build.jobs.detail.title') }}
-        </t-button>
+        <div class="build-jobs-page__row-actions">
+          <t-button
+            v-if="(row as BuildJobSummary).execution?.capabilities?.retry"
+            variant="text"
+            shape="square"
+            size="small"
+            :aria-label="t('build.jobs.actions.retry')"
+            @click.stop="openTask((row as BuildJobSummary).task_id)"
+            ><template #icon><rotate-icon /></template
+          ></t-button>
+          <t-button
+            v-if="(row as BuildJobSummary).execution?.capabilities?.cancel"
+            variant="text"
+            shape="square"
+            size="small"
+            :aria-label="t('build.jobs.actions.cancel')"
+            @click.stop="openTask((row as BuildJobSummary).task_id)"
+            ><template #icon><stop-circle-icon /></template
+          ></t-button>
+          <t-button
+            variant="text"
+            shape="square"
+            size="small"
+            :aria-label="t('build.jobs.actions.logs')"
+            @click.stop="openTask((row as BuildJobSummary).task_id)"
+            ><template #icon><file-search-icon /></template
+          ></t-button>
+          <t-button
+            variant="text"
+            shape="square"
+            size="small"
+            :aria-label="t('build.jobs.actions.details')"
+            @click.stop="openDetail((row as BuildJobSummary).build_id)"
+            ><template #icon><view-list-icon /></template
+          ></t-button>
+        </div>
       </template>
       <template #empty-action>
-        <t-button theme="primary" @click="router.push(BUILD_ROUTE_PATH.CREATE)">
-          {{ t('build.jobs.create.title') }}
-        </t-button>
+        <t-button v-if="!hasAppliedFilters" theme="primary" @click="router.push(BUILD_ROUTE_PATH.CREATE)">{{
+          t('build.jobs.create.title')
+        }}</t-button>
+        <t-button v-else variant="outline" @click="resetAllQueries">{{ t('build.jobs.filters.reset') }}</t-button>
       </template>
     </management-paged-table>
 
+    <t-drawer
+      v-model:visible="filterVisible"
+      :header="t('build.jobs.filter')"
+      :footer="true"
+      size="min(520px, 92vw)"
+      @confirm="applyFilters"
+      @cancel="filterVisible = false"
+    >
+      <t-form layout="vertical">
+        <t-form-item :label="t('build.jobs.filters.application')"
+          ><t-input v-model="filters.application_id" clearable
+        /></t-form-item>
+        <t-form-item :label="t('build.jobs.filters.repository')"
+          ><t-input v-model="filters.image_repository" clearable
+        /></t-form-item>
+        <t-form-item :label="t('build.jobs.filters.imageTag')"
+          ><t-input v-model="filters.image_tag" clearable
+        /></t-form-item>
+        <t-form-item :label="t('build.jobs.filters.status')"
+          ><t-select v-model="filters.status" clearable :options="statusOptions"
+        /></t-form-item>
+        <t-form-item :label="t('build.jobs.filters.builder')"
+          ><t-input-number v-model="filters.builder_id" clearable :min="1"
+        /></t-form-item>
+        <t-form-item :label="t('build.jobs.filters.createdTime')"
+          ><t-date-range-picker v-model="createdRange" clearable enable-time-picker
+        /></t-form-item>
+      </t-form>
+      <template #footer
+        ><t-space
+          ><t-button variant="outline" @click="resetFilters">{{ t('build.jobs.filters.reset') }}</t-button
+          ><t-button theme="primary" @click="applyFilters">{{ t('build.jobs.filters.apply') }}</t-button></t-space
+        ></template
+      >
+    </t-drawer>
+
+    <task-detail-drawer v-model:visible="taskVisible" :task-id="taskId" />
     <t-drawer
       v-model:visible="detailVisible"
       :header="t('build.jobs.detail.title')"
       :footer="false"
       size="min(680px, 92vw)"
     >
-      <t-loading :loading="detailLoading">
-        <t-alert v-if="detailError" theme="error" :message="detailError" />
-        <template v-else-if="detail">
-          <t-descriptions bordered :column="2" size="small" :title="t('build.jobs.detail.summary')">
-            <t-descriptions-item :label="t('build.jobs.columns.build')">{{ detail.build_id }}</t-descriptions-item>
-            <t-descriptions-item :label="t('build.jobs.columns.application')">{{
-              detail.application_name
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('build.jobs.create.contextPath')">{{
-              detail.context_path
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('build.jobs.create.dockerfilePath')">{{
-              detail.dockerfile_path
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('build.jobs.create.repository')">{{
-              detail.image_repository
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('build.jobs.create.tag')">{{ detail.image_tag }}</t-descriptions-item>
-          </t-descriptions>
-          <t-descriptions
-            v-if="detail.artifact"
-            bordered
-            :column="1"
-            size="small"
-            :title="t('build.jobs.detail.artifact')"
-          >
-            <t-descriptions-item :label="t('build.jobs.columns.artifact')">{{
-              detail.artifact.image_id
-            }}</t-descriptions-item>
-          </t-descriptions>
-          <t-empty v-else :title="t('build.jobs.detail.noArtifact')" />
-        </template>
-      </t-loading>
+      <t-loading :loading="detailLoading"
+        ><t-descriptions v-if="detail" bordered :column="2" size="small">
+          <t-descriptions-item :label="t('build.jobs.columns.build')">{{ detail.build_id }}</t-descriptions-item
+          ><t-descriptions-item :label="t('build.jobs.columns.application')">{{
+            detail.application_name
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('build.jobs.columns.repository')">{{
+            detail.image_repository
+          }}</t-descriptions-item
+          ><t-descriptions-item :label="t('build.jobs.columns.imageTag')">{{ detail.image_tag }}</t-descriptions-item>
+          <t-descriptions-item :label="t('build.jobs.columns.status')">{{
+            statusLabel(detail.execution?.status)
+          }}</t-descriptions-item
+          ><t-descriptions-item :label="t('build.jobs.columns.builder')">{{
+            detail.builder?.name || '-'
+          }}</t-descriptions-item> </t-descriptions
+        ><t-alert v-else-if="detailError" theme="error" :message="detailError"
+      /></t-loading>
     </t-drawer>
+    <t-drawer v-model:visible="errorDetailsVisible" :header="t('build.jobs.error.details')" :footer="false"
+      ><p>{{ t('build.jobs.error.detailsDescription') }}</p></t-drawer
+    >
   </section>
 </template>
 <script setup lang="ts">
-// 构建作业页只消费 Build 的读取投影，任务状态与日志仍由 Task 负责展示。
-import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+// 构建列表只展示 Build 投影；Task 详情、日志及操作继续交给 Task Runtime 组件。
+import {
+  AddIcon,
+  FileSearchIcon,
+  FilterIcon,
+  RefreshIcon,
+  RotateIcon,
+  SearchIcon,
+  StopCircleIcon,
+  ViewListIcon,
+} from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import { RUNTIME_TARGET_ROUTE_PATH } from '@/modules/runtime-target/contract/paths';
+import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
+import { ManagementPageHeader, ManagementTableCard, ManagementToolbar } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
-import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
 import { getBuildJob, getBuildJobs } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
-import type { BuildJobDetail, BuildJobSummary } from '../../types/build';
+import type { BuildExecutionProjection, BuildJobDetail, BuildJobSummary, BuildStatusFilter } from '../../types/build';
 
-type JobFilters = {
-  application_id?: string;
-  image_repository: string;
-  image_tag: string;
-  created_after: string;
-  created_before: string;
-};
-
+type TaskStatus = NonNullable<BuildExecutionProjection['status']>;
 const { locale, t } = useI18n();
 const router = useRouter();
 const items = ref<BuildJobSummary[]>([]);
@@ -171,93 +260,222 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
 const errorMessage = ref('');
-const detail = ref<BuildJobDetail>();
-const detailError = ref('');
-const detailLoading = ref(false);
+const search = ref('');
+const filterVisible = ref(false);
+const taskVisible = ref(false);
+const taskId = ref<number | null>(null);
 const detailVisible = ref(false);
-// 列表和详情可独立并发；各自只接受最后一次请求的结果，避免旧响应覆盖用户当前视图。
-let listRequestSequence = 0;
+const detailLoading = ref(false);
+const detailError = ref('');
+const detail = ref<BuildJobDetail>();
+const errorDetailsVisible = ref(false);
+const createdRange = ref<string[]>([]);
+const filters = reactive({
+  application_id: '',
+  image_repository: '',
+  image_tag: '',
+  status: '' as BuildStatusFilter | '',
+  builder_id: undefined as number | undefined,
+});
+let requestSequence = 0;
 let detailRequestSequence = 0;
-const filters = reactive<JobFilters>({ image_repository: '', image_tag: '', created_after: '', created_before: '' });
-const columns = computed<NonNullable<TableProps['columns']>>(() => [
-  { colKey: 'build_id', title: t('build.jobs.columns.build'), ellipsis: true, width: 150 },
-  { colKey: 'application_name', title: t('build.jobs.columns.application'), ellipsis: true, width: 180 },
-  { colKey: 'image_repository', title: t('build.jobs.columns.image'), cell: 'image_repository', ellipsis: true },
-  { colKey: 'artifact', title: t('build.jobs.columns.artifact'), cell: 'artifact', ellipsis: true },
-  { colKey: 'created_at', title: t('build.jobs.columns.createdAt'), cell: 'created_at', width: 188 },
-  { colKey: 'actions', title: t('build.jobs.detail.title'), cell: 'actions', width: 112 },
+const statusOptions = computed(() =>
+  [
+    ['queued', 'queued'],
+    ['running', 'running'],
+    ['success', 'success'],
+    ['failed', 'failed'],
+    ['cancelled', 'cancelled'],
+  ].map(([value, label]) => ({ label: t(`build.jobs.status.${label}`), value: value as BuildStatusFilter })),
+);
+const hasAppliedFilters = computed(() =>
+  Boolean(search.value.trim() || Object.values(filters).some(Boolean) || createdRange.value.length),
+);
+const activeFilterCount = computed(
+  () =>
+    [
+      filters.application_id,
+      filters.image_repository,
+      filters.image_tag,
+      filters.status,
+      filters.builder_id,
+      ...createdRange.value,
+    ].filter(Boolean).length,
+);
+const appliedFilters = computed(() => [
+  ...Object.entries(filters)
+    .filter(([, value]) => value)
+    .map(([key, value]) => ({
+      key,
+      label: `${filterLabel(key)}: ${key === 'status' ? t(`build.jobs.status.${value}`) : value}`,
+    })),
+  ...(createdRange.value.length
+    ? [{ key: 'created_time', label: `${t('build.jobs.filters.createdTime')}: ${createdRange.value.join(' - ')}` }]
+    : []),
 ]);
-
+function filterLabel(key: string) {
+  if (key === 'application_id') return t('build.jobs.filters.application');
+  if (key === 'image_repository') return t('build.jobs.filters.repository');
+  if (key === 'image_tag') return t('build.jobs.filters.imageTag');
+  if (key === 'builder_id') return t('build.jobs.filters.builder');
+  return t('build.jobs.filters.status');
+}
+const columns = computed<NonNullable<TableProps['columns']>>(() => [
+  { colKey: 'build_id', title: t('build.jobs.columns.build'), ellipsis: true, width: 145 },
+  { colKey: 'application_name', title: t('build.jobs.columns.application'), ellipsis: true, width: 150 },
+  {
+    colKey: 'repository',
+    title: t('build.jobs.columns.repository'),
+    cell: 'repository',
+    ellipsis: true,
+    width: 190,
+  },
+  { colKey: 'image', title: t('build.jobs.columns.imageTag'), cell: 'image', ellipsis: true, width: 160 },
+  { colKey: 'status', title: t('build.jobs.columns.status'), cell: 'status', width: 112 },
+  { colKey: 'progress', title: t('build.jobs.columns.progress'), cell: 'progress', width: 130 },
+  { colKey: 'created_at', title: t('build.jobs.columns.createdAt'), cell: 'created_at', width: 170 },
+  { colKey: 'duration', title: t('build.jobs.columns.duration'), cell: 'duration', width: 100 },
+  { colKey: 'builder', title: t('build.jobs.columns.builder'), cell: 'builder', width: 130 },
+  { colKey: 'actions', title: t('build.jobs.columns.actions'), cell: 'actions', width: 150 },
+]);
 function listQuery() {
+  const range = createdRange.value;
   return {
     limit: pageSize.value,
     offset: (currentPage.value - 1) * pageSize.value,
+    ...(search.value.trim() ? { search: search.value.trim() } : {}),
     ...(filters.application_id ? { application_id: filters.application_id } : {}),
-    ...(filters.image_repository.trim() ? { image_repository: filters.image_repository.trim() } : {}),
-    ...(filters.image_tag.trim() ? { image_tag: filters.image_tag.trim() } : {}),
-    ...(filters.created_after.trim() ? { created_after: filters.created_after.trim() } : {}),
-    ...(filters.created_before.trim() ? { created_before: filters.created_before.trim() } : {}),
+    ...(filters.image_repository ? { image_repository: filters.image_repository } : {}),
+    ...(filters.image_tag ? { image_tag: filters.image_tag } : {}),
+    ...(filters.status ? { build_status: filters.status } : {}),
+    ...(filters.builder_id ? { builder_id: filters.builder_id } : {}),
+    ...(range[0] ? { created_after: range[0] } : {}),
+    ...(range[1] ? { created_before: range[1] } : {}),
   };
 }
-
 async function load() {
-  const sequence = ++listRequestSequence;
+  const sequence = ++requestSequence;
   loading.value = true;
   errorMessage.value = '';
   try {
     const page = await getBuildJobs(listQuery());
-    if (sequence !== listRequestSequence) return;
-    items.value = page.items;
+    if (sequence !== requestSequence) return;
+    items.value = page.items as BuildJobSummary[];
     total.value = page.total;
   } catch (error) {
-    if (sequence === listRequestSequence) {
-      errorMessage.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
-    }
+    if (sequence === requestSequence) errorMessage.value = buildServiceErrorMessage(error);
   } finally {
-    if (sequence === listRequestSequence) loading.value = false;
+    if (sequence === requestSequence) loading.value = false;
   }
 }
-
+function applySearch() {
+  currentPage.value = 1;
+  void load();
+}
 function applyFilters() {
+  filterVisible.value = false;
   currentPage.value = 1;
   void load();
 }
-
 function resetFilters() {
-  filters.application_id = undefined;
-  filters.image_repository = '';
-  filters.image_tag = '';
-  filters.created_after = '';
-  filters.created_before = '';
+  Object.assign(filters, {
+    application_id: '',
+    image_repository: '',
+    image_tag: '',
+    status: '',
+    builder_id: undefined,
+  });
+  createdRange.value = [];
+  filterVisible.value = false;
   currentPage.value = 1;
   void load();
 }
-
-function changePage(pageInfo: { current: number; pageSize: number }) {
-  currentPage.value = pageInfo.current;
-  pageSize.value = pageInfo.pageSize;
+function resetAllQueries() {
+  search.value = '';
+  resetFilters();
+}
+function clearFilter(key: string) {
+  if (key === 'created_time') {
+    createdRange.value = [];
+    applyFilters();
+    return;
+  }
+  if (key === 'builder_id') {
+    filters.builder_id = undefined;
+  } else if (key === 'status') {
+    filters.status = '';
+  } else if (key === 'application_id') {
+    filters.application_id = '';
+  } else if (key === 'image_repository') {
+    filters.image_repository = '';
+  } else if (key === 'image_tag') {
+    filters.image_tag = '';
+  }
+  applyFilters();
+}
+function changePage(info: { current: number; pageSize: number }) {
+  currentPage.value = info.current;
+  pageSize.value = info.pageSize;
   void load();
 }
-
-async function openDetail(buildId: string) {
+function openTask(id: number) {
+  taskId.value = id;
+  taskVisible.value = true;
+}
+async function openDetail(id: string) {
   const sequence = ++detailRequestSequence;
   detailVisible.value = true;
   detailLoading.value = true;
   detailError.value = '';
-  detail.value = undefined;
   try {
-    const nextDetail = await getBuildJob(buildId);
+    const nextDetail = await getBuildJob(id);
     if (sequence !== detailRequestSequence) return;
     detail.value = nextDetail;
   } catch (error) {
-    if (sequence === detailRequestSequence) {
-      detailError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.loadFailed'));
-    }
+    if (sequence === detailRequestSequence) detailError.value = buildServiceErrorMessage(error);
   } finally {
     if (sequence === detailRequestSequence) detailLoading.value = false;
   }
 }
-
+function imageReference(row: BuildJobSummary) {
+  return `${row.image_repository}:${row.image_tag}`;
+}
+function statusLabel(status?: TaskStatus) {
+  return t(`build.jobs.status.${productStatus(status)}`);
+}
+function productStatus(status?: TaskStatus) {
+  if (status === 'pending' || status === 'ready' || status === 'scheduled') return 'queued';
+  if (status === 'failed' || status === 'needs_attention') return 'failed';
+  return status || 'unknown';
+}
+function statusTheme(status?: TaskStatus) {
+  const product = productStatus(status);
+  return product === 'success'
+    ? 'success'
+    : product === 'failed'
+      ? 'danger'
+      : product === 'running'
+        ? 'primary'
+        : product === 'cancelled'
+          ? 'warning'
+          : 'default';
+}
+function progressPercent(row: BuildJobSummary) {
+  const execution = row.execution;
+  return execution?.stage_count ? Math.round((execution.completed_stage_count / execution.stage_count) * 100) : 0;
+}
+function progressLabel(row: BuildJobSummary) {
+  const execution = row.execution;
+  return execution?.stage_count ? `${execution.completed_stage_count}/${execution.stage_count}` : '-';
+}
+function durationLabel(row: BuildJobSummary) {
+  const ms = row.execution?.duration_ms;
+  return ms ? `${Math.max(1, Math.round(ms / 1000))}s` : '-';
+}
+function buildServiceErrorMessage(_error: unknown) {
+  // 传输细节仅在受控诊断面展示，避免将 Axios 或 HTTP 实现泄露给操作员。
+  return t('build.jobs.error.unavailable');
+}
 void load();
 </script>
 <style scoped lang="less">
@@ -267,28 +485,63 @@ void load();
   min-width: 0;
 }
 
-.build-jobs-page__filters {
-  align-items: end;
-  flex: 1 1 100%;
+.build-jobs-page__search {
+  flex: 0 1 clamp(240px, 32vw, 360px);
+  min-width: min(100%, 220px);
+}
+
+.build-jobs-page__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+}
+
+.build-jobs-page__inline-error {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  padding: var(--graft-density-gap-16) var(--graft-density-gap-20);
+}
+
+.build-jobs-page__inline-error :deep(.t-alert) {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-.build-jobs-page__filters :deep(.t-form__item) {
-  margin-bottom: 0;
+.build-jobs-page__ellipsis {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.build-jobs-page__filters :deep(.t-input),
-.build-jobs-page__filters :deep(.t-input-number) {
-  min-width: 150px;
+.build-jobs-page__progress {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 100px;
+}
+
+.build-jobs-page__progress :deep(.t-progress) {
+  flex: 1;
+}
+
+.build-jobs-page__row-actions {
+  display: inline-flex;
+  gap: var(--graft-density-gap-4);
 }
 
 @media (width <= 768px) {
-  .build-jobs-page__filters :deep(.t-form__item) {
-    flex: 1 1 100%;
+  .build-jobs-page__inline-error {
+    align-items: stretch;
+    flex-direction: column;
+    padding: var(--graft-density-gap-16);
   }
 
-  .build-jobs-page__filters :deep(.t-input),
-  .build-jobs-page__filters :deep(.t-input-number) {
+  .build-jobs-page__search {
+    flex-basis: 100%;
     width: 100%;
   }
 }

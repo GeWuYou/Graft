@@ -151,6 +151,11 @@ func buildPaginationQuery(c *gin.Context) (buildstore.ListQuery, bool) {
 }
 
 func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
+	search, ok := buildExactStringQuery(c, "search")
+	if !ok {
+		return false
+	}
+	query.Search = search
 	applicationID, ok := buildApplicationIDQuery(c)
 	if !ok {
 		return false
@@ -166,6 +171,16 @@ func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
 		return false
 	}
 	query.ImageTag = imageTag
+	status, ok := buildStatusQuery(c)
+	if !ok {
+		return false
+	}
+	query.BuildStatus = status
+	builderID, ok := buildUint64Query(c, "builder_id")
+	if !ok {
+		return false
+	}
+	query.BuilderID = builderID
 	createdAfter, ok := buildTimeQuery(c, "created_after")
 	if !ok {
 		return false
@@ -177,6 +192,32 @@ func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
 	}
 	query.CreatedBefore = createdBefore
 	return true
+}
+
+func buildStatusQuery(c *gin.Context) (*buildstore.StatusFilter, bool) {
+	raw, present := c.GetQuery("build_status")
+	if !present {
+		return nil, true
+	}
+	status := buildstore.StatusFilter(strings.TrimSpace(raw))
+	switch status {
+	case buildstore.StatusFilterQueued, buildstore.StatusFilterRunning, buildstore.StatusFilterSuccess, buildstore.StatusFilterFailed, buildstore.StatusFilterCancelled:
+		return &status, true
+	default:
+		return nil, false
+	}
+}
+
+func buildUint64Query(c *gin.Context, key string) (*uint64, bool) {
+	raw, present := c.GetQuery(key)
+	if !present {
+		return nil, true
+	}
+	value, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
+	if err != nil || value == 0 {
+		return nil, false
+	}
+	return &value, true
 }
 
 func buildApplicationIDQuery(c *gin.Context) (*string, bool) {

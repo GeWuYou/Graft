@@ -31,6 +31,7 @@ type Repository interface {
 	ExpireSubmissions(ctx context.Context, limit int) (int, error)
 	PromoteScheduledTasks(ctx context.Context, now time.Time, limit int) (int, error)
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
+	GetByIDs(ctx context.Context, taskIDs []uint64) ([]taskmodel.Task, error)
 	List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error)
 	ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error)
 	ListEvents(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Event, error)

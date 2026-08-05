@@ -522,6 +522,22 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
+// GetTasksByIDs 批量返回 Task Runtime 事实，避免 Build 等列表消费者逐行读取任务。
+func (r *Runtime) GetTasksByIDs(ctx context.Context, taskIDs []uint64) ([]moduleapi.TaskView, error) {
+	if r == nil || r.repository == nil {
+		return nil, taskstore.ErrInvalidInput
+	}
+	tasks, err := r.repository.GetByIDs(ctx, taskIDs)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.TaskView, 0, len(tasks))
+	for _, task := range tasks {
+		items = append(items, toTaskView(task))
+	}
+	return items, nil
+}
+
 // ListTasks 返回经调用方完成 owner 授权后的 Task 历史分页及总数。
 func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
 	if r == nil || r.repository == nil {

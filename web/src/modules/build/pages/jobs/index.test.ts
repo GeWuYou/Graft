@@ -13,6 +13,9 @@ vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 vi.mock('@/shared/observability', () => ({ formatLocaleDateTime: (value: string) => value }));
+vi.mock('@/modules/task/contract/task-ui', () => ({
+  TaskDetailDrawer: defineComponent({ setup: () => () => null }),
+}));
 vi.mock('@/shared/components/management', () => ({
   ManagementPageHeader: defineComponent({ setup: () => () => null }),
   ManagementToolbar: defineComponent({
@@ -36,7 +39,13 @@ vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
 }));
 vi.mock('tdesign-icons-vue-next', () => ({
   AddIcon: defineComponent({ setup: () => () => null }),
+  FileSearchIcon: defineComponent({ setup: () => () => null }),
+  FilterIcon: defineComponent({ setup: () => () => null }),
   RefreshIcon: defineComponent({ setup: () => () => null }),
+  RotateIcon: defineComponent({ setup: () => () => null }),
+  SearchIcon: defineComponent({ setup: () => () => null }),
+  StopCircleIcon: defineComponent({ setup: () => () => null }),
+  ViewListIcon: defineComponent({ setup: () => () => null }),
 }));
 
 const WrapperStub = defineComponent({

@@ -54,16 +54,97 @@ type preparedSubmission struct {
 type Service struct {
 	contexts    moduleapi.ApplicationBuildContextResolver
 	submissions moduleapi.TaskSubmissionService
+	taskBatch   moduleapi.TaskBatchQueryService
 	docker      moduleapi.DockerImageBuildCapability
 	repository  buildstore.Repository
 }
 
-// ListJobs 返回一个按 Build 冻结快照字段过滤的受限作业页。
+// ListJobs 返回一个按 Build 快照和 Task 执行状态过滤的受限作业页。
+//
+//nolint:cyclop // 列表 authority 需要在一次批量 Task 读取后完成投影和状态过滤。
 func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.ListResult{}, errors.New("build service is unavailable")
 	}
-	return s.repository.ListJobs(ctx, query)
+	if query.BuildStatus != nil {
+		return s.listJobsByStatus(ctx, query)
+	}
+	result, err := s.repository.ListJobs(ctx, query)
+	if err != nil {
+		return buildstore.ListResult{}, err
+	}
+	return s.enrichJobs(ctx, result)
+}
+
+// listJobsByStatus 先完成 Task Runtime 状态筛选，再对结果应用 Build 页面的分页窗口。
+// 该分支只在显式状态筛选时扫描候选 Build 页，避免普通列表路径改变分页成本。
+//
+//nolint:cyclop // 批量读取、状态筛选和最终分页必须保持在同一 authority 边界。
+func (s *Service) listJobsByStatus(ctx context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
+	base := query
+	base.BuildStatus = nil
+	base.Limit = buildstore.MaxListLimit
+	base.Offset = 0
+	limit := query.Limit
+	if limit < 1 {
+		limit = buildstore.DefaultListLimit
+	}
+	items := make([]buildstore.JobProjection, 0, limit)
+	var matchedTotal int64
+	for offset := 0; ; offset += buildstore.MaxListLimit {
+		base.Offset = offset
+		page, err := s.repository.ListJobs(ctx, base)
+		if err != nil {
+			return buildstore.ListResult{}, err
+		}
+		enriched, err := s.enrichJobs(ctx, page)
+		if err != nil {
+			return buildstore.ListResult{}, err
+		}
+		for _, item := range enriched.Items {
+			if !query.BuildStatus.MatchesTaskStatus(item.Execution.Status) {
+				continue
+			}
+			if matchedTotal >= int64(query.Offset) && len(items) < limit {
+				items = append(items, item)
+			}
+			matchedTotal++
+		}
+		if len(page.Items) < buildstore.MaxListLimit {
+			break
+		}
+	}
+	return buildstore.ListResult{Items: items, Total: matchedTotal}, nil
+}
+
+func (s *Service) enrichJobs(ctx context.Context, result buildstore.ListResult) (buildstore.ListResult, error) {
+	if s.taskBatch == nil || len(result.Items) == 0 {
+		return result, nil
+	}
+	taskIDs := make([]uint64, 0, len(result.Items))
+	for _, item := range result.Items {
+		taskIDs = append(taskIDs, item.TaskID)
+	}
+	tasks, err := s.taskBatch.GetTasksByIDs(ctx, taskIDs)
+	if err != nil {
+		return buildstore.ListResult{}, fmt.Errorf("load build task execution projection: %w", err)
+	}
+	byID := make(map[uint64]moduleapi.TaskView, len(tasks))
+	for _, task := range tasks {
+		byID[task.ID] = task
+	}
+	filtered := result.Items[:0]
+	for index := range result.Items {
+		item := &result.Items[index]
+		task, ok := byID[item.TaskID]
+		if !ok {
+			continue
+		}
+		item.Execution = buildTaskExecution(task)
+		filtered = append(filtered, *item)
+	}
+	result.Items = filtered
+	return result, nil
 }
 
 // GetJob returns the Build-owned detail projection for one public build ID.
@@ -74,15 +155,27 @@ func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobPro
 	if strings.TrimSpace(buildID) == "" {
 		return buildstore.JobProjection{}, errInvalidBuildID
 	}
-	return s.repository.GetJobByBuildID(ctx, buildID)
+	job, err := s.repository.GetJobByBuildID(ctx, buildID)
+	if err != nil {
+		return buildstore.JobProjection{}, err
+	}
+	tasks, err := s.taskBatch.GetTasksByIDs(ctx, []uint64{job.TaskID})
+	if err != nil {
+		return buildstore.JobProjection{}, fmt.Errorf("load build task execution projection: %w", err)
+	}
+	if len(tasks) != 1 || tasks[0].ID != job.TaskID {
+		return buildstore.JobProjection{}, buildstore.ErrNotFound
+	}
+	job.Execution = buildTaskExecution(tasks[0])
+	return job, nil
 }
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
-func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
-	if contexts == nil || submissions == nil || docker == nil || repository == nil {
+func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, taskBatch moduleapi.TaskBatchQueryService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
+	if contexts == nil || submissions == nil || taskBatch == nil || docker == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
-	return &Service{contexts: contexts, submissions: submissions, docker: docker, repository: repository}, nil
+	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, docker: docker, repository: repository}, nil
 }
 
 // Submit 解析服务端授权工作区，并为 Build 请求创建单阶段的 Task 计划。
@@ -102,12 +195,29 @@ func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.
 	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
 		return moduleapi.TaskReceipt{TaskID: *handle.Submission.TaskID, Status: moduleapi.TaskStatusReady}, nil
 	}
-	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, WorkspaceRoot: prepared.buildContext.WorkspaceRoot, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, BuildArgs: prepared.request.BuildArgs, RequestedBy: prepared.request.RequestedBy}
+	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, WorkspaceRoot: prepared.buildContext.WorkspaceRoot, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeTargetName: prepared.buildContext.RuntimeTargetName, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, BuildArgs: prepared.request.BuildArgs, RequestedBy: prepared.request.RequestedBy}
 	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, taskInput, buildSubmissionWriter{repository: s.repository, snapshot: snapshot})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize build submission: %w", err)
 	}
 	return receipt, nil
+}
+
+func buildTaskExecution(task moduleapi.TaskView) buildstore.TaskExecution {
+	completed := 0
+	if task.Status == moduleapi.TaskStatusSuccess || task.Status == moduleapi.TaskStatusFailed || task.Status == moduleapi.TaskStatusCancelled {
+		completed = 1
+	}
+	capabilities := moduleapi.TaskCapabilities{
+		Cancel:      task.Status == moduleapi.TaskStatusPending || task.Status == moduleapi.TaskStatusReady || task.Status == moduleapi.TaskStatusScheduled || task.Status == moduleapi.TaskStatusRunning || task.Status == moduleapi.TaskStatusNeedsAttention,
+		Retry:       task.Status == moduleapi.TaskStatusFailed || task.Status == moduleapi.TaskStatusNeedsAttention,
+		DownloadLog: true,
+	}
+	var recoveryReason *string
+	if task.Status == moduleapi.TaskStatusNeedsAttention {
+		recoveryReason = task.FailureMessage
+	}
+	return buildstore.TaskExecution{Status: task.Status, CurrentStageKey: task.CurrentStageKey, StageCount: 1, CompletedStageCount: completed, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage, RecoveryReason: recoveryReason, Capabilities: capabilities}
 }
 
 func (s *Service) prepareSubmission(ctx context.Context, request SubmitRequest) (preparedSubmission, error) {

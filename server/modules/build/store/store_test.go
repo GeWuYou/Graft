@@ -70,8 +70,8 @@ func TestGetJobByBuildIDLoadsPersistedBuildArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	columns := []string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_provider", "image_repository", "image_tag", "created_by", "created_at", "artifact_id", "image_id", "digest", "repository", "tag", "size_bytes", "platform"}
-	mock.ExpectQuery("SELECT j.build_id").WithArgs("build_test").WillReturnRows(sqlmock.NewRows(columns).AddRow("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "example/app", "v1", uint64(7), time.Now(), nil, nil, "", nil, nil, nil, ""))
+	columns := []string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_target_name", "runtime_provider", "image_repository", "image_tag", "created_by", "created_at", "artifact_id", "image_id", "digest", "repository", "tag", "size_bytes", "platform"}
+	mock.ExpectQuery("SELECT j.build_id").WithArgs("build_test").WillReturnRows(sqlmock.NewRows(columns).AddRow("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "Local Docker", "docker", "example/app", "v1", uint64(7), time.Now(), nil, nil, "", nil, nil, nil, ""))
 	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}).AddRow("MODE", "release"))
 
 	job, err := repository.GetJobByBuildID(context.Background(), "build_test")
@@ -98,8 +98,8 @@ func TestCreateJobVerifiesConflictReplayWithinTransaction(t *testing.T) {
 	}
 	snapshot := JobSnapshot{BuildID: "build_test", TaskID: 42, ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, ApplicationName: "app", WorkspaceRoot: "/workspace/app", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 4, RuntimeProvider: "docker", ImageRepository: "example/app", ImageTag: "v1"}
 	mock.ExpectBegin()
-	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(42), false))
-	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_provider", "image_repository", "image_tag", "created_by"}).AddRow("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "example/app", "v1", uint64(0)))
+	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(42), false))
+	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_target_name", "runtime_provider", "image_repository", "image_tag", "created_by"}).AddRow("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "example/app", "v1", uint64(0)))
 	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}))
 	mock.ExpectRollback()
 
@@ -126,11 +126,11 @@ func TestCreateJobRetriesAfterConcurrentConflictRollsBack(t *testing.T) {
 	}
 	snapshot := JobSnapshot{BuildID: "build_retry", TaskID: 43, ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, ApplicationName: "app", WorkspaceRoot: "/workspace/app", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 4, RuntimeProvider: "docker", ImageRepository: "example/app", ImageTag: "v1"}
 	mock.ExpectBegin()
-	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_retry", uint64(43), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(43), false))
+	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_retry", uint64(43), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(43), false))
 	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(43)).WillReturnError(sql.ErrNoRows)
 	mock.ExpectRollback()
 	mock.ExpectBegin()
-	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_retry", uint64(43), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(7), true))
+	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_retry", uint64(43), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(7), true))
 	mock.ExpectCommit()
 
 	if err := repository.CreateJob(context.Background(), snapshot); err != nil {
@@ -153,8 +153,8 @@ func TestCreateJobRejectsConflictingReplay(t *testing.T) {
 	}
 	snapshot := JobSnapshot{BuildID: "build_conflict", TaskID: 44, ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, ApplicationName: "app", WorkspaceRoot: "/workspace/app", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 4, RuntimeProvider: "docker", ImageRepository: "example/app", ImageTag: "v1"}
 	mock.ExpectBegin()
-	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_conflict", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(44), false))
-	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(44)).WillReturnRows(sqlmock.NewRows([]string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_provider", "image_repository", "image_tag", "created_by"}).AddRow("build_other", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "docker", "other/app", "v1", uint64(0)))
+	mock.ExpectQuery("INSERT INTO build_jobs").WithArgs("build_conflict", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "dockerfile", "example/app", "v1", uint64(0)).WillReturnRows(sqlmock.NewRows([]string{"id", "xmax = 0"}).AddRow(uint64(44), false))
+	mock.ExpectQuery("SELECT build_id, task_id").WithArgs(uint64(44)).WillReturnRows(sqlmock.NewRows([]string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_target_name", "runtime_provider", "image_repository", "image_tag", "created_by"}).AddRow("build_other", uint64(44), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "", "docker", "other/app", "v1", uint64(0)))
 	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(44)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}))
 	mock.ExpectRollback()
 

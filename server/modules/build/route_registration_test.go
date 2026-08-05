@@ -21,10 +21,11 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
+//nolint:gocyclo,cyclop // 表驱动式请求绑定回归同时覆盖分页、快照、执行和时间筛选。
 func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	context, _ := gin.CreateTestContext(httptest.NewRecorder())
-	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&application_id=app_01JZ5R6M7N8P9Q0R1S2T3V4W5X&image_repository=example%2Fapp&image_tag=v1&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
+	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&search=release&application_id=app_01JZ5R6M7N8P9Q0R1S2T3V4W5X&image_repository=example%2Fapp&image_tag=v1&build_status=running&builder_id=4&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
 	context.Request = request
 
 	query, ok := buildListQuery(context)
@@ -36,6 +37,9 @@ func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {
 	}
 	if query.ImageRepository == nil || *query.ImageRepository != "example/app" || query.ImageTag == nil || *query.ImageTag != "v1" {
 		t.Fatalf("unexpected image filters: %#v", query)
+	}
+	if query.Search == nil || *query.Search != "release" || query.BuildStatus == nil || *query.BuildStatus != buildstore.StatusFilterRunning || query.BuilderID == nil || *query.BuilderID != 4 {
+		t.Fatalf("unexpected execution filters: %#v", query)
 	}
 	if query.CreatedAfter == nil || query.CreatedBefore == nil || !query.CreatedAfter.Before(*query.CreatedBefore) {
 		t.Fatalf("unexpected creation range: %#v", query)
@@ -79,7 +83,7 @@ func newBuildRouteTestEngine(t *testing.T, tasks *recordingBuildTasks, repositor
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return buildRouteAuthorizer{}, nil }); err != nil {
 		t.Fatal(err)
 	}
-	service, err := NewService(&recordingBuildContexts{}, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}

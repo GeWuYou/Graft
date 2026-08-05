@@ -1,0 +1,14 @@
+type: object
+description: Task Runtime execution projection for a Build job.
+required: [status, stage_count, completed_stage_count, capabilities]
+properties:
+  status: { $ref: ./task-status.yaml }
+  current_stage_key: { type: string, nullable: true }
+  stage_count: { type: integer, minimum: 0 }
+  completed_stage_count: { type: integer, minimum: 0 }
+  duration_ms: { type: integer, format: int64, minimum: 0, nullable: true }
+  failure_code: { type: string, nullable: true }
+  failure_message: { type: string, nullable: true }
+  recovery_reason: { type: string, nullable: true }
+  capabilities: { $ref: ./task-capabilities.yaml }
+additionalProperties: false

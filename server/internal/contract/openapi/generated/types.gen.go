@@ -8106,6 +8106,13 @@ type BuildArtifact struct {
 	Tag        string  `json:"tag"`
 }
 
+// BuildBuilderSnapshot Runtime target snapshot frozen when the Build job was submitted.
+type BuildBuilderSnapshot struct {
+	Id       int64  `json:"id"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+}
+
 // BuildJobCreateRequest defines model for build-job-create-request.
 type BuildJobCreateRequest struct {
 	// ApplicationId Stable public Graft Application identifier.
@@ -8130,14 +8137,20 @@ type BuildJobDetail struct {
 		Name  string `json:"name"`
 		Value string `json:"value"`
 	} `json:"build_args"`
-	BuildId         string    `json:"build_id"`
-	ContextPath     string    `json:"context_path"`
-	CreatedAt       time.Time `json:"created_at"`
-	DockerfilePath  string    `json:"dockerfile_path"`
-	ImageRepository string    `json:"image_repository"`
-	ImageTag        string    `json:"image_tag"`
-	RuntimeProvider string    `json:"runtime_provider"`
-	TaskId          int64     `json:"task_id"`
+	BuildId string `json:"build_id"`
+
+	// Builder Runtime target snapshot frozen when the Build job was submitted.
+	Builder        BuildBuilderSnapshot `json:"builder"`
+	ContextPath    string               `json:"context_path"`
+	CreatedAt      time.Time            `json:"created_at"`
+	DockerfilePath string               `json:"dockerfile_path"`
+
+	// Execution Task Runtime execution projection for a Build job.
+	Execution       BuildTaskExecution `json:"execution"`
+	ImageRepository string             `json:"image_repository"`
+	ImageTag        string             `json:"image_tag"`
+	RuntimeProvider string             `json:"runtime_provider"`
+	TaskId          int64              `json:"task_id"`
 }
 
 // BuildJobList defines model for build-job-list.
@@ -8155,12 +8168,34 @@ type BuildJobSummary struct {
 	ApplicationName string         `json:"application_name"`
 	Artifact        *BuildArtifact `json:"artifact,omitempty"`
 	BuildId         string         `json:"build_id"`
-	ContextPath     string         `json:"context_path"`
-	CreatedAt       time.Time      `json:"created_at"`
-	DockerfilePath  string         `json:"dockerfile_path"`
-	ImageRepository string         `json:"image_repository"`
-	ImageTag        string         `json:"image_tag"`
-	TaskId          int64          `json:"task_id"`
+
+	// Builder Runtime target snapshot frozen when the Build job was submitted.
+	Builder        BuildBuilderSnapshot `json:"builder"`
+	ContextPath    string               `json:"context_path"`
+	CreatedAt      time.Time            `json:"created_at"`
+	DockerfilePath string               `json:"dockerfile_path"`
+
+	// Execution Task Runtime execution projection for a Build job.
+	Execution       BuildTaskExecution `json:"execution"`
+	ImageRepository string             `json:"image_repository"`
+	ImageTag        string             `json:"image_tag"`
+	TaskId          int64              `json:"task_id"`
+}
+
+// BuildTaskExecution Task Runtime execution projection for a Build job.
+type BuildTaskExecution struct {
+	// Capabilities Server-authoritative operations currently allowed for this Task Detail.
+	Capabilities        TaskCapabilities `json:"capabilities"`
+	CompletedStageCount int              `json:"completed_stage_count"`
+	CurrentStageKey     *string          `json:"current_stage_key,omitempty"`
+	DurationMs          *int64           `json:"duration_ms,omitempty"`
+	FailureCode         *string          `json:"failure_code,omitempty"`
+	FailureMessage      *string          `json:"failure_message,omitempty"`
+	RecoveryReason      *string          `json:"recovery_reason,omitempty"`
+	StageCount          int              `json:"stage_count"`
+
+	// Status Canonical persisted Task state-machine state.
+	Status TaskStatus `json:"status"`
 }
 
 // ChangePasswordRequest defines model for change-password-request.
@@ -15421,11 +15456,20 @@ type GetBuildJobsParams struct {
 	// ApplicationId Optional exact Build snapshot public application identifier.
 	ApplicationId *ApplicationId `form:"application_id,omitempty" json:"application_id,omitempty"`
 
+	// Search Optional case-insensitive search over Build ID, application name, repository, and image tag.
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
 	// ImageRepository Optional exact Build snapshot image repository.
 	ImageRepository *string `form:"image_repository,omitempty" json:"image_repository,omitempty"`
 
 	// ImageTag Optional exact Build snapshot image tag.
 	ImageTag *string `form:"image_tag,omitempty" json:"image_tag,omitempty"`
+
+	// BuildStatus Optional canonical Task Runtime status filter.
+	BuildStatus *TaskStatus `form:"build_status,omitempty" json:"build_status,omitempty"`
+
+	// BuilderId Optional exact runtime target snapshot identifier.
+	BuilderId *int64 `form:"builder_id,omitempty" json:"builder_id,omitempty"`
 
 	// CreatedAfter Optional inclusive RFC 3339 lower bound for the Build snapshot creation time.
 	CreatedAfter *time.Time `form:"created_after,omitempty" json:"created_after,omitempty"`
