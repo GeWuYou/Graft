@@ -980,6 +980,78 @@ jobs:
             ;;
           esac
 
+          verify_release_tag() {
+            local tag_response
+            local tag_status
+            local tag_object_type
+            local tag_object_sha
+            local tag_target_response
+            local tag_target_status
+            local tag_target_type
+            local tag_target_sha
+
+            tag_response="$(mktemp)"
+            tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${api_root}/git/ref/tags/${RELEASE_TAG}")"
+            if [[ "${tag_status}" == "404" ]]; then
+              echo "::error::Refusing GHCR cleanup: tag ${RELEASE_TAG} is absent."
+              exit 1
+            fi
+            if [[ "${tag_status}" != "200" ]]; then
+              echo "::error::Cannot inspect tag ${RELEASE_TAG} (HTTP ${tag_status})."
+              cat "${tag_response}"
+              exit 1
+            fi
+
+            tag_object_type="$(jq -er '.object.type' "${tag_response}")"
+            tag_object_sha="$(jq -er '.object.sha' "${tag_response}")"
+            case "${tag_object_type}" in
+              commit)
+                tag_target_sha="${tag_object_sha}"
+                ;;
+              tag)
+                tag_target_response="$(mktemp)"
+                tag_target_status="$(curl -sS -o "${tag_target_response}" -w '%{http_code}' \
+                  -H 'Accept: application/vnd.github+json' \
+                  -H "Authorization: Bearer ${GH_TOKEN}" \
+                  "${api_root}/git/tags/${tag_object_sha}")"
+                if [[ "${tag_target_status}" != "200" ]]; then
+                  echo "::error::Cannot resolve annotated tag ${RELEASE_TAG} target (HTTP ${tag_target_status})."
+                  cat "${tag_target_response}"
+                  exit 1
+                fi
+                tag_target_type="$(jq -er '.object.type' "${tag_target_response}")"
+                if [[ "${tag_target_type}" != "commit" ]]; then
+                  echo "::error::Refusing to clean ${RELEASE_TAG}: annotated tag resolves to ${tag_target_type}, not a commit."
+                  exit 1
+                fi
+                tag_target_sha="$(jq -er '.object.sha' "${tag_target_response}")"
+                ;;
+              *)
+                echo "::error::Refusing to clean ${RELEASE_TAG}: unsupported ref object type ${tag_object_type}."
+                exit 1
+                ;;
+            esac
+
+            if [[ "${tag_target_sha}" != "${TRIGGER_SHA}" ]]; then
+              echo "::error::Refusing to clean ${RELEASE_TAG}: it resolves to ${tag_target_sha}, expected ${TRIGGER_SHA}."
+              exit 1
+            fi
+          }
+
+          case "${RELEASE_TAG}" in
+            *-beta.*)
+              release_owned_tags="$(jq -cn --arg tag "${RELEASE_TAG}" '[$tag]')"
+              ;;
+            *)
+              release_owned_tags="$(jq -cn --arg tag "${RELEASE_TAG}" --arg version_tag "${RELEASE_TAG#v}" '[$tag, $version_tag] | sort')"
+              ;;
+          esac
+
+          verify_release_tag
+
           owner_type="$(gh api "users/${REPOSITORY_OWNER}" --jq '.type')"
           case "${owner_type}" in
             User)
@@ -994,6 +1066,7 @@ jobs:
               ;;
           esac
 
+          deleted_package_versions=0
           cleanup_package() {
             local package_name="$1"
             local package_path="${package_owner_path}/container/${package_name}/versions"
@@ -1005,21 +1078,21 @@ jobs:
             versions_response="$(mktemp)"
             gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}"
 
-            shared_version_ids="$(jq -r --arg tag "${RELEASE_TAG}" '
+            shared_version_ids="$(jq -r --arg tag "${RELEASE_TAG}" --argjson expected_tags "${release_owned_tags}" '
               [ .[][]
-                | select(.metadata.container.tags | index($tag))
-                | select(.metadata.container.tags != [$tag])
+                | select((.metadata.container.tags // []) | index($tag))
+                | select(((.metadata.container.tags // []) | sort) != $expected_tags)
                 | .id
               ] | .[]
             ' "${versions_response}")"
             if [[ -n "${shared_version_ids}" ]]; then
-              echo "::error::Refusing to delete ${package_name}: ${RELEASE_TAG} shares a package version with other tags: ${shared_version_ids}."
+              echo "::error::Refusing to delete ${package_name}: ${RELEASE_TAG} is not the complete expected tag set on package version(s): ${shared_version_ids}."
               exit 1
             fi
 
-            version_ids="$(jq -r --arg tag "${RELEASE_TAG}" '
+            version_ids="$(jq -r --argjson expected_tags "${release_owned_tags}" '
               [ .[][]
-                | select(.metadata.container.tags == [$tag])
+                | select(((.metadata.container.tags // []) | sort) == $expected_tags)
                 | .id
               ] | .[]
             ' "${versions_response}")"
@@ -1030,7 +1103,9 @@ jobs:
 
             while IFS= read -r version_id; do
               [[ -n "${version_id}" ]] || continue
+              verify_release_tag
               gh api --method DELETE "${package_path}/${version_id}"
+              deleted_package_versions=$((deleted_package_versions + 1))
               echo "Deleted failed GHCR package version ${package_name}/${version_id}."
             done <<< "${version_ids}"
           }
@@ -1039,57 +1114,8 @@ jobs:
           cleanup_package graft-web
           cleanup_package graft-compose-runner
 
+          verify_release_tag
           tag_response="$(mktemp)"
-          tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            "${api_root}/git/ref/tags/${RELEASE_TAG}")"
-          if [[ "${tag_status}" == "404" ]]; then
-            echo "Tag ${RELEASE_TAG} is already absent."
-            echo "- Cleanup: GHCR package versions were reconciled; Git tag was already absent." >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-          if [[ "${tag_status}" != "200" ]]; then
-            echo "::error::Cannot inspect tag ${RELEASE_TAG} (HTTP ${tag_status})."
-            cat "${tag_response}"
-            exit 1
-          fi
-
-          tag_object_type="$(jq -er '.object.type' "${tag_response}")"
-          tag_object_sha="$(jq -er '.object.sha' "${tag_response}")"
-          case "${tag_object_type}" in
-            commit)
-              tag_target_sha="${tag_object_sha}"
-              ;;
-            tag)
-              tag_target_response="$(mktemp)"
-              tag_target_status="$(curl -sS -o "${tag_target_response}" -w '%{http_code}' \
-                -H 'Accept: application/vnd.github+json' \
-                -H "Authorization: Bearer ${GH_TOKEN}" \
-                "${api_root}/git/tags/${tag_object_sha}")"
-              if [[ "${tag_target_status}" != "200" ]]; then
-                echo "::error::Cannot resolve annotated tag ${RELEASE_TAG} target (HTTP ${tag_target_status})."
-                cat "${tag_target_response}"
-                exit 1
-              fi
-              tag_target_type="$(jq -er '.object.type' "${tag_target_response}")"
-              if [[ "${tag_target_type}" != "commit" ]]; then
-                echo "::error::Refusing to delete ${RELEASE_TAG}: annotated tag resolves to ${tag_target_type}, not a commit."
-                exit 1
-              fi
-              tag_target_sha="$(jq -er '.object.sha' "${tag_target_response}")"
-              ;;
-            *)
-              echo "::error::Refusing to delete ${RELEASE_TAG}: unsupported ref object type ${tag_object_type}."
-              exit 1
-              ;;
-          esac
-
-          if [[ "${tag_target_sha}" != "${TRIGGER_SHA}" ]]; then
-            echo "::error::Refusing to delete ${RELEASE_TAG}: it resolves to ${tag_target_sha}, expected ${TRIGGER_SHA}."
-            exit 1
-          fi
-
           delete_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' -X DELETE \
             -H 'Accept: application/vnd.github+json' \
             -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -1103,7 +1129,11 @@ jobs:
           echo "Deleted failed pre-Release tag ${RELEASE_TAG}."
           {
             echo "- Cleanup: deleted failed pre-Release tag \`${RELEASE_TAG}\`."
-            echo "- Cleanup: deleted package versions exclusively tagged \`${RELEASE_TAG}\` from GHCR."
+            if (( deleted_package_versions > 0 )); then
+              echo "- Cleanup: deleted ${deleted_package_versions} GHCR package version(s) with the expected release-owned tags."
+            else
+              echo "- Cleanup: no GHCR package version required deletion."
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
   publish-mutable-tags:
