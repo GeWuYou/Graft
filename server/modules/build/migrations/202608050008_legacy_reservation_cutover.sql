@@ -1,6 +1,9 @@
 -- Legacy cutover is intentionally evidence based: the activation flag alone never creates a ready Task.
 -- Rows present at this migration are treated as the legacy grace window having elapsed.
 
+ALTER TABLE build_jobs VALIDATE CONSTRAINT build_jobs_submission_id_fkey;
+ALTER TABLE build_jobs VALIDATE CONSTRAINT build_jobs_binding_required;
+
 INSERT INTO task_submissions (
   id, task_type, owner_type, owner_id, requested_by, state, submission_version,
   lease_ttl_ms, lease_renewable, lease_token_hash, lease_expires_at,
@@ -27,7 +30,7 @@ SELECT
   task.created_at,
   NOW(),
   CASE WHEN job.task_id IS NULL THEN NULL ELSE NOW() END,
-  NOW()
+  CASE WHEN job.task_id IS NULL THEN NOW() ELSE NULL END
 FROM tasks AS task
 LEFT JOIN build_jobs AS job ON job.task_id = task.id
 WHERE task.activation_required = TRUE

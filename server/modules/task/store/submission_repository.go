@@ -187,21 +187,33 @@ func (r *SQLRepository) ExpireSubmissions(ctx context.Context, limit int) (int, 
 	if err != nil {
 		return 0, fmt.Errorf("scan expired submissions: %w", err)
 	}
-	defer closeRows(rows)
-	count := 0
+	type expiredSubmission struct {
+		id      string
+		version int64
+	}
+	candidates := make([]expiredSubmission, 0, limit)
 	for rows.Next() {
-		var id string
-		var version int64
-		if err := rows.Scan(&id, &version); err != nil {
-			return count, err
+		var item expiredSubmission
+		if err := rows.Scan(&item.id, &item.version); err != nil {
+			closeRows(rows)
+			return 0, err
 		}
-		if err := r.terminalizeSubmission(ctx, TerminalizeSubmissionInput{ID: id, Version: version, Reason: "lease_expired"}, moduleapi.TaskSubmissionStateExpired, true); err == nil {
+		candidates = append(candidates, item)
+	}
+	if err := rows.Err(); err != nil {
+		closeRows(rows)
+		return 0, err
+	}
+	closeRows(rows)
+	count := 0
+	for _, item := range candidates {
+		if err := r.terminalizeSubmission(ctx, TerminalizeSubmissionInput{ID: item.id, Version: item.version, Reason: "lease_expired"}, moduleapi.TaskSubmissionStateExpired, true); err == nil {
 			count++
 		} else if !errors.Is(err, ErrStateConflict) {
 			return count, err
 		}
 	}
-	return count, rows.Err()
+	return count, nil
 }
 
 //nolint:cyclop // 丢弃和过期共享一条带行锁、owner 锁和 version fencing 的原子路径。
@@ -293,13 +305,12 @@ func (r *SQLRepository) findIdempotentSubmission(ctx context.Context, queryer ta
 
 func (r *SQLRepository) insertTaskWithTx(ctx context.Context, tx *sql.Tx, task taskmodel.Task, stages []taskmodel.Stage, submissionID string) (taskmodel.Task, error) {
 	now := time.Now().UTC()
-	task.CreatedAt, task.UpdatedAt = now, now
 	err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO tasks (task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required, current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), task.Type, task.Owner.Type, task.Owner.ID, task.Status, task.Input, task.Metadata, task.Plan, task.State, false, task.CurrentStageKey, task.CreatedBy, task.IdempotencyKeyHash, task.SubmissionFingerprint, task.ScheduledAt, now, now).Scan(&task.ID)
 	if err != nil {
 		return taskmodel.Task{}, mapCreateTaskError(err)
 	}
 	for _, stage := range stages {
-		stage.TaskID, stage.CreatedAt, stage.UpdatedAt = task.ID, now, now
+		stage.TaskID = task.ID
 		if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO task_stages (task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms, next_retry_at, input_json, recovery_policy, result_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), stage.TaskID, stage.Key, stage.Sequence, stage.ExecutorType, stage.Status, stage.Attempt, stage.MaxAttempts, stage.RetryBackoffMS, stage.NextRetryAt, stage.Input, stage.RecoveryPolicy, stage.Result, now, now).Scan(&stage.ID); err != nil {
 			return taskmodel.Task{}, fmt.Errorf("insert materialized stage %q: %w", stage.Key, err)
 		}
@@ -329,7 +340,7 @@ func (r *SQLRepository) normalizeMaterializedInput(task taskmodel.Task, stages [
 
 //nolint:cyclop // 这里集中校验提交聚合的所有数据库约束，避免部分有效对象进入事务。
 func validateSubmission(s taskmodel.Submission) error {
-	if strings.TrimSpace(s.ID) == "" || strings.TrimSpace(string(s.Type)) == "" || strings.TrimSpace(s.Owner.Type) == "" || strings.TrimSpace(s.Owner.ID) == "" || s.State != moduleapi.TaskSubmissionStateReserved || s.Version != 1 || s.LeaseTTL <= 0 || s.LeaseTokenHash == "" || s.LeaseExpiresAt.IsZero() || s.AbsoluteDeadlineAt.IsZero() || !s.LeaseExpiresAt.Before(s.AbsoluteDeadlineAt) || strings.TrimSpace(s.PrerequisiteKind) == "" {
+	if strings.TrimSpace(s.ID) == "" || strings.TrimSpace(string(s.Type)) == "" || strings.TrimSpace(s.Owner.Type) == "" || strings.TrimSpace(s.Owner.ID) == "" || s.State != moduleapi.TaskSubmissionStateReserved || s.Version != 1 || s.LeaseTTL <= 0 || s.LeaseTokenHash == "" || s.LeaseExpiresAt.IsZero() || s.AbsoluteDeadlineAt.IsZero() || s.LeaseExpiresAt.After(s.AbsoluteDeadlineAt) || strings.TrimSpace(s.PrerequisiteKind) == "" {
 		return ErrInvalidInput
 	}
 	return nil

@@ -397,6 +397,51 @@ func TestSQLRepositoryRejectsNonSerialOrDuplicateStagePlan(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryCreateSubmissionAllowsLeaseAtAbsoluteDeadline(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	deadline := time.Now().UTC().Add(time.Minute)
+	submission := validSubmission(deadline, deadline)
+
+	created, replayed, err := repository.CreateSubmission(context.Background(), CreateSubmissionInput{Submission: submission})
+	if err != nil {
+		t.Fatalf("create boundary submission: %v", err)
+	}
+	if replayed || !created.LeaseExpiresAt.Equal(deadline) || !created.AbsoluteDeadlineAt.Equal(deadline) {
+		t.Fatalf("boundary submission = %#v replayed=%t", created, replayed)
+	}
+}
+
+func TestSQLRepositoryExpireSubmissionsClosesRowsBeforeTerminalizing(t *testing.T) {
+	repository, db := newTestSQLRepository(t)
+	db.SetMaxOpenConns(1)
+	now := time.Now().UTC()
+	submission := validSubmission(now.Add(-time.Minute), now)
+	if _, _, err := repository.CreateSubmission(context.Background(), CreateSubmissionInput{Submission: submission}); err != nil {
+		t.Fatalf("create expired submission: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if count, err := repository.ExpireSubmissions(ctx, 1); err != nil || count != 1 {
+		t.Fatalf("expire submissions = count:%d err:%v", count, err)
+	}
+}
+
+func validSubmission(leaseExpiresAt, absoluteDeadlineAt time.Time) taskmodel.Submission {
+	return taskmodel.Submission{
+		ID:                 "submission_test",
+		Type:               "application.compose.redeploy",
+		Owner:              moduleapi.TaskOwner{Type: "application", ID: "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"},
+		State:              moduleapi.TaskSubmissionStateReserved,
+		Version:            1,
+		LeaseTTL:           time.Minute,
+		LeaseTokenHash:     "0123456789012345678901234567890123456789012345678901234567890123",
+		LeaseExpiresAt:     leaseExpiresAt,
+		AbsoluteDeadlineAt: absoluteDeadlineAt,
+		PrerequisiteKind:   "test.snapshot",
+	}
+}
+
 func validCreateInput() CreateInput {
 	return CreateInput{
 		Task: taskmodel.Task{

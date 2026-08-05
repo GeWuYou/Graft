@@ -210,7 +210,7 @@ func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 		t.Fatalf("submission lifecycle = begin:%d materialize:%d discard:%d", tasks.beginCalls, tasks.materializeCalls, tasks.discardCalls)
 	}
 	var input moduleapi.BuildTaskInput
-	if err := json.Unmarshal(tasks.input.Input, &input); err != nil || input.BuildID == "" {
+	if err := json.Unmarshal(tasks.input.Input, &input); err != nil || input.BuildID != repository.created.BuildID {
 		t.Fatalf("task input must contain build identity: %#v err=%v", input, err)
 	}
 }
@@ -341,8 +341,11 @@ func TestSubmitRejectsInvalidInputBeforeTaskSubmission(t *testing.T) {
 			if _, err := service.Submit(context.Background(), request); !errors.Is(err, errInvalidBuildRequest) {
 				t.Fatalf("Submit error = %v, want invalid request", err)
 			}
-			if tasks.beginCalls != 0 {
-				t.Fatalf("task submission calls = %d, want 0", tasks.beginCalls)
+			if tasks.beginCalls != 0 || tasks.materializeCalls != 0 || tasks.discardCalls != 0 {
+				t.Fatalf(
+					"task submission lifecycle = begin:%d materialize:%d discard:%d, want all 0",
+					tasks.beginCalls, tasks.materializeCalls, tasks.discardCalls,
+				)
 			}
 		})
 	}

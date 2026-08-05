@@ -31,7 +31,7 @@ CREATE TABLE task_submissions (
   CONSTRAINT task_submissions_version_positive CHECK (submission_version > 0),
   CONSTRAINT task_submissions_lease_ttl_positive CHECK (lease_ttl_ms > 0),
   CONSTRAINT task_submissions_lease_token_hash_sha256_check CHECK (lease_token_hash ~ '^[0-9a-f]{64}$'),
-  CONSTRAINT task_submissions_lease_before_deadline CHECK (lease_expires_at < absolute_deadline_at),
+  CONSTRAINT task_submissions_lease_before_deadline CHECK (lease_expires_at <= absolute_deadline_at),
   CONSTRAINT task_submissions_prerequisite_kind_not_blank CHECK (btrim(prerequisite_kind) <> ''),
   CONSTRAINT task_submissions_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE RESTRICT,
   CONSTRAINT task_submissions_idempotency_key_hash_sha256_check CHECK (idempotency_key_hash IS NULL OR idempotency_key_hash ~ '^[0-9a-f]{64}$'),
@@ -43,11 +43,13 @@ CREATE UNIQUE INDEX uq_task_submissions_idempotency ON task_submissions (task_ty
 CREATE UNIQUE INDEX uq_task_submissions_task_id ON task_submissions (task_id) WHERE task_id IS NOT NULL;
 CREATE INDEX idx_task_submissions_expiry ON task_submissions (lease_expires_at ASC, id ASC) WHERE state = 'reserved';
 
+ALTER TABLE tasks ADD CONSTRAINT tasks_status_check_next CHECK (status IN ('pending', 'ready', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')) NOT VALID;
+ALTER TABLE tasks VALIDATE CONSTRAINT tasks_status_check_next;
 ALTER TABLE tasks DROP CONSTRAINT tasks_status_check;
-ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('pending', 'ready', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')) NOT VALID;
-ALTER TABLE tasks VALIDATE CONSTRAINT tasks_status_check;
-DROP INDEX uq_tasks_active_owner;
-CREATE UNIQUE INDEX CONCURRENTLY uq_tasks_active_owner ON tasks (owner_type, owner_id) WHERE status IN ('pending', 'ready', 'scheduled', 'running', 'needs_attention');
+ALTER TABLE tasks RENAME CONSTRAINT tasks_status_check_next TO tasks_status_check;
+CREATE UNIQUE INDEX CONCURRENTLY uq_tasks_active_owner_next ON tasks (owner_type, owner_id) WHERE status IN ('pending', 'ready', 'scheduled', 'running', 'needs_attention');
+DROP INDEX CONCURRENTLY uq_tasks_active_owner;
+ALTER INDEX uq_tasks_active_owner_next RENAME TO uq_tasks_active_owner;
 
 COMMENT ON TABLE task_submissions IS '任务物化前的提交与前置条件租约事实表';
 COMMENT ON COLUMN task_submissions.id IS '任务提交稳定标识';

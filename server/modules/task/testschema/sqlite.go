@@ -34,7 +34,7 @@ func CreateSQLite(db *sql.DB) error {
 			lease_token_hash TEXT NOT NULL, lease_expires_at TIMESTAMP NOT NULL, absolute_deadline_at TIMESTAMP NOT NULL, prerequisite_kind TEXT NOT NULL,
 			prerequisite_ref TEXT NULL, task_id INTEGER NULL, terminal_reason TEXT NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
 			activated_at TIMESTAMP NULL, terminal_at TIMESTAMP NULL, FOREIGN KEY(task_id) REFERENCES tasks(id),
-			CHECK (state IN ('reserved', 'activated', 'discarded', 'expired')), CHECK (submission_version > 0), CHECK (lease_ttl_ms > 0), CHECK (lease_expires_at < absolute_deadline_at)
+			CHECK (state IN ('reserved', 'activated', 'discarded', 'expired')), CHECK (submission_version > 0), CHECK (lease_ttl_ms > 0), CHECK (lease_expires_at <= absolute_deadline_at)
 		)`,
 		`CREATE UNIQUE INDEX uq_task_submissions_reserved_owner ON task_submissions (owner_type, owner_id) WHERE state = 'reserved'`,
 		`CREATE UNIQUE INDEX uq_task_submissions_idempotency ON task_submissions (task_type, owner_type, owner_id, COALESCE(requested_by, 0), idempotency_key_hash) WHERE idempotency_key_hash IS NOT NULL`,
