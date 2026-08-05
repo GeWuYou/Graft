@@ -5,6 +5,10 @@ const (
 	AnnouncementGroup = "/announcements"
 	// AnnouncementCollectionRoute 标识公告管理集合路由片段。
 	AnnouncementCollectionRoute = ""
+	// AnnouncementSavedViewsRoute 标识公告管理列表私有保存视图集合路由片段。
+	AnnouncementSavedViewsRoute = "/saved-views"
+	// AnnouncementSavedViewRoute 标识单个公告管理列表私有保存视图路由片段。
+	AnnouncementSavedViewRoute = "/saved-views/:viewId"
 	// AnnouncementDetailRoute 标识单条公告管理路由片段。
 	AnnouncementDetailRoute = "/:id"
 	// AnnouncementPublishRoute 标识公告发布操作的路由片段。

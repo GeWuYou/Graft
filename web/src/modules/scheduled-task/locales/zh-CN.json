@@ -239,6 +239,26 @@
         "query": "查询",
         "reset": "重置"
       },
+      "savedViews": {
+        "error": "保存的筛选加载或操作失败。"
+      },
+      "actions": {
+        "addFilter": "添加筛选条件",
+        "addSorter": "添加排序",
+        "moveSorterDown": "下移",
+        "moveSorterUp": "上移",
+        "removeSorter": "移除排序",
+        "reset": "重置",
+        "search": "查询"
+      },
+      "builder": {
+        "groups": { "filters": "筛选条件" },
+        "hint": "选择字段后设置筛选值。",
+        "title": "添加筛选条件"
+      },
+      "page": { "searchPlaceholder": "搜索任务、任务键、分类或模块" },
+      "presets": { "label": "快捷筛选" },
+      "sort": { "directionPlaceholder": "排序方向", "fieldPlaceholder": "排序字段" },
       "columns": {
         "task": "任务",
         "taskName": "任务名称",

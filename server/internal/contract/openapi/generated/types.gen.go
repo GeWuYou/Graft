@@ -14789,6 +14789,46 @@ type PostAnnouncementsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetAnnouncementSavedViewsParams defines parameters for GetAnnouncementSavedViews.
+type GetAnnouncementSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAnnouncementSavedViewParams defines parameters for PostAnnouncementSavedView.
+type PostAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAnnouncementSavedViewParams defines parameters for DeleteAnnouncementSavedView.
+type DeleteAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAnnouncementSavedViewParams defines parameters for PutAnnouncementSavedView.
+type PutAnnouncementSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteAnnouncementParams defines parameters for DeleteAnnouncement.
 type DeleteAnnouncementParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17082,6 +17122,46 @@ type GetScheduledTaskRunParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetScheduledTaskSavedViewsParams defines parameters for GetScheduledTaskSavedViews.
+type GetScheduledTaskSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskSavedViewParams defines parameters for PostScheduledTaskSavedView.
+type PostScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteScheduledTaskSavedViewParams defines parameters for DeleteScheduledTaskSavedView.
+type DeleteScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutScheduledTaskSavedViewParams defines parameters for PutScheduledTaskSavedView.
+type PutScheduledTaskSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteScheduledTaskParams defines parameters for DeleteScheduledTask.
 type DeleteScheduledTaskParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17576,6 +17656,12 @@ type PutAccessLogSavedViewJSONRequestBody = SavedViewRequest
 // PostAnnouncementsJSONRequestBody defines body for PostAnnouncements for application/json ContentType.
 type PostAnnouncementsJSONRequestBody = CreateAnnouncementRequest
 
+// PostAnnouncementSavedViewJSONRequestBody defines body for PostAnnouncementSavedView for application/json ContentType.
+type PostAnnouncementSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAnnouncementSavedViewJSONRequestBody defines body for PutAnnouncementSavedView for application/json ContentType.
+type PutAnnouncementSavedViewJSONRequestBody = SavedViewRequest
+
 // PutAnnouncementJSONRequestBody defines body for PutAnnouncement for application/json ContentType.
 type PutAnnouncementJSONRequestBody = UpdateAnnouncementRequest
 
@@ -17803,6 +17889,12 @@ type PostRuntimeTargetAssignmentJSONRequestBody = RuntimeTargetUserAssignmentReq
 
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest
+
+// PostScheduledTaskSavedViewJSONRequestBody defines body for PostScheduledTaskSavedView for application/json ContentType.
+type PostScheduledTaskSavedViewJSONRequestBody = SavedViewRequest
+
+// PutScheduledTaskSavedViewJSONRequestBody defines body for PutScheduledTaskSavedView for application/json ContentType.
+type PutScheduledTaskSavedViewJSONRequestBody = SavedViewRequest
 
 // PutScheduledTaskJSONRequestBody defines body for PutScheduledTask for application/json ContentType.
 type PutScheduledTaskJSONRequestBody = UpdateScheduledTaskRequest

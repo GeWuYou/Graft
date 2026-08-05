@@ -122,10 +122,35 @@
         "pinned": "筛选置顶",
         "sort": "排序"
       },
+      "page": {
+        "searchPlaceholder": "搜索标题或正文"
+      },
+      "actions": {
+        "addFilter": "添加筛选条件",
+        "addSorter": "添加排序",
+        "moveSorterDown": "下移",
+        "moveSorterUp": "上移",
+        "removeSorter": "移除排序",
+        "reset": "重置",
+        "search": "查询"
+      },
+      "builder": {
+        "title": "筛选条件",
+        "hint": "选择字段并设置筛选值",
+        "groups": {
+          "filters": "筛选条件"
+        }
+      },
+      "presets": {
+        "label": "快速筛选"
+      },
       "sort": {
         "updatedDesc": "最近更新",
         "publishDesc": "最近发布",
-        "pinnedPublishDesc": "置顶优先"
+        "pinnedPublishDesc": "置顶优先",
+        "tagPrefix": "排序",
+        "fieldPlaceholder": "选择排序字段",
+        "directionPlaceholder": "选择排序方向"
       },
       "form": {
         "createTitle": "创建公告",

@@ -21,6 +21,8 @@ export type ScheduledTaskRunStatus = ScheduledTaskRunItem['status'];
 export type ScheduledTaskRunTriggerType = ScheduledTaskRunItem['trigger_type'];
 export type ScheduledTaskJobDefinitionAction = ScheduledTaskJobDefinitionItem['actions'][number];
 export type ScheduledTaskJobDefinitionItemWithActions = ScheduledTaskJobDefinitionItem;
+export type ScheduledTaskSavedView = components['schemas']['saved-view'];
+export type ScheduledTaskSavedViewRequest = components['schemas']['saved-view-request'];
 
 export type ScheduledTaskListQuery = {
   limit?: number;

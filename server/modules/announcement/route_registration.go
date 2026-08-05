@@ -33,7 +33,7 @@ type announcementRouteRuntime struct {
 	service *Service
 }
 
-func registerAnnouncementRoutes(ctx *module.Context, service *Service, guards announcementGuards) error {
+func registerAnnouncementRoutes(ctx *module.Context, service *Service, guards announcementGuards, savedViews ...moduleapi.SavedViewService) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
 	}
@@ -44,6 +44,9 @@ func registerAnnouncementRoutes(ctx *module.Context, service *Service, guards an
 	admin := ctx.Router.Group(announcementcontract.AnnouncementGroup)
 	admin.Use(httpx.RequestIDMiddleware())
 	admin.GET(announcementcontract.AnnouncementCollectionRoute, guards.read, routes.handleAdminList)
+	if len(savedViews) > 0 && savedViews[0] != nil {
+		registerAnnouncementSavedViewRoutes(admin, ctx, savedViews[0], guards.read)
+	}
 	admin.POST(announcementcontract.AnnouncementCollectionRoute, guards.create, routes.handleAdminCreate)
 	admin.GET(announcementcontract.AnnouncementDetailRoute, guards.read, routes.handleAdminGet)
 	admin.PUT(announcementcontract.AnnouncementDetailRoute, guards.update, routes.handleAdminUpdate)

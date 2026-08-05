@@ -199,6 +199,10 @@ paths:
     $ref: ./paths/modules.runtime.detail.yaml
   /api/scheduled-tasks:
     $ref: ./paths/scheduled-tasks.list.yaml
+  /api/scheduled-tasks/saved-views:
+    $ref: ./paths/scheduled-tasks.saved-views.yaml
+  /api/scheduled-tasks/saved-views/{viewId}:
+    $ref: ./paths/scheduled-tasks.saved-view.yaml
   /api/tasks:
     $ref: ./paths/tasks.yaml
   /api/tasks/{taskId}:
@@ -323,6 +327,10 @@ paths:
     $ref: ./paths/notifications.delete.yaml
   /api/announcements:
     $ref: ./paths/announcements.collection.yaml
+  /api/announcements/saved-views:
+    $ref: ./paths/announcements.saved-views.yaml
+  /api/announcements/saved-views/{viewId}:
+    $ref: ./paths/announcements.saved-view.yaml
   /api/announcements/{id}:
     $ref: ./paths/announcements.detail.yaml
   /api/announcements/{id}/publish:

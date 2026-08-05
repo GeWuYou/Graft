@@ -30,56 +30,15 @@
       />
     </template>
     <template #filters>
-      <management-toolbar>
-        <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            class="management-list-search"
-            clearable
-            :placeholder="t('scheduledTask.list.filters.searchPlaceholder')"
-          >
-            <template #prefix-icon><search-icon /></template>
-          </t-input>
-          <t-select
-            v-model="filters.jobKey"
-            class="scheduled-task-toolbar__select"
-            :placeholder="t('scheduledTask.list.filters.job')"
-          >
-            <t-option value="all" :label="t('scheduledTask.list.filters.allJobs')" />
-            <t-option-group
-              v-for="group in groupedJobDefinitions"
-              :key="group.module"
-              :label="moduleDisplayName(group.module)"
-            >
-              <t-option
-                v-for="job in group.items"
-                :key="job.job_key"
-                :value="job.job_key"
-                :label="jobDefinitionTitle(job)"
-              />
-            </t-option-group>
-          </t-select>
-          <t-select
-            v-model="filters.status"
-            class="scheduled-task-toolbar__select"
-            :placeholder="t('scheduledTask.list.filters.status')"
-          >
-            <t-option value="all" :label="t('scheduledTask.list.filters.allStatuses')" />
-            <t-option
-              v-for="statusOption in statusOptions"
-              :key="statusOption"
-              :value="statusOption"
-              :label="statusLabel(statusOption)"
-            />
-          </t-select>
-          <t-button theme="primary" @click="handleFilterQuery">
-            {{ t('scheduledTask.list.filters.query') }}
-          </t-button>
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('scheduledTask.list.filters.reset') }}
-          </t-button>
-        </template>
-      </management-toolbar>
+      <scheduled-task-filters
+        :model-value="filters"
+        :job-definitions="jobDefinitionFilterOptions"
+        :loading="loading"
+        :saved-view-controller="savedViews"
+        @update:model-value="updateFilters"
+        @reset="resetFilters"
+        @search="handleFilterQuery"
+      />
     </template>
     <template #table>
       <management-paged-table
@@ -1160,7 +1119,7 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
-import { AddIcon, BrowseIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, BrowseIcon } from 'tdesign-icons-vue-next';
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { Tag } from 'tdesign-vue-next/es/tag';
@@ -1169,14 +1128,16 @@ import { useI18n } from 'vue-i18n';
 
 import { requestNotificationHeaderRefresh } from '@/modules/notification/contract/refresh';
 import { readErrorField } from '@/modules/shared/error-field';
-import {
-  buildVisibleColumns,
-  ManagementStatisticsBar,
-  ManagementToolbar,
-  TableViewToolbar,
-} from '@/shared/components/management';
+import { buildVisibleColumns, ManagementStatisticsBar, TableViewToolbar } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
-import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import {
+  AdvancedQueryColumnDrawer,
+  AdvancedQueryListPage,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { useViewportResponsiveVariant } from '@/shared/composables';
@@ -1187,6 +1148,7 @@ import { createLogger } from '@/utils/logger';
 import {
   createScheduledTask,
   deleteScheduledTask,
+  deleteScheduledTaskSavedView,
   disableScheduledTask,
   enableScheduledTask,
   executeScheduledTaskAction,
@@ -1196,11 +1158,15 @@ import {
   getScheduledTaskRun,
   getScheduledTaskRuns,
   getScheduledTasks,
+  getScheduledTaskSavedViews,
+  postScheduledTaskSavedView,
+  putScheduledTaskSavedView,
   runScheduledTask,
   updateScheduledTask,
 } from '../../api/scheduled-task';
 import ConfigJsonEditor from '../../components/ConfigJsonEditor.vue';
 import CronExpressionField from '../../components/CronExpressionField.vue';
+import ScheduledTaskFilters from '../../components/ScheduledTaskFilters.vue';
 import ScheduledTaskRowActions from '../../components/ScheduledTaskRowActions.vue';
 import { SCHEDULED_TASK_PERMISSION_CODE } from '../../contract/permissions';
 import {
@@ -1277,6 +1243,13 @@ type FilterModel = {
   status: ScheduledTaskStatus | 'all';
 };
 
+type ScheduledTaskSavedQueryState = FilterModel;
+type ScheduledTaskSavedViewState = {
+  pageSize: number;
+  queryState: ScheduledTaskSavedQueryState;
+  visibleColumns: string[];
+};
+
 type FormMode = 'create' | 'edit';
 
 type RunSummary = {
@@ -1310,7 +1283,6 @@ const cronPopoverOverlayInnerStyle = {
   padding: 'var(--graft-density-gap-12)',
 };
 
-const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
 const DEFAULT_DETAIL_EXPANDED_SECTIONS = ['basicInfo', 'scheduleInfo'];
 const CONFIG_JSON_PLACEHOLDER = JSON.stringify({ window_days: 30 }, null, 2);
 const taskCardSkeletonRows = [
@@ -1436,6 +1408,52 @@ const formFieldErrors = reactive<FormFieldErrors>({
   configJson: '',
 });
 const visibleColumnKeys = ref(['task', 'job_key', 'schedule', 'status', 'last_run']);
+
+const jobDefinitionFilterOptions = computed(() =>
+  jobDefinitions.value.map((job) => ({
+    job_key: job.job_key,
+    module_key: job.module_key,
+    title: jobDefinitionTitle(job),
+  })),
+);
+
+const savedViews = useSavedQueryViews<ScheduledTaskSavedViewState, number>({
+  adapter: {
+    list: async () => (await getScheduledTaskSavedViews()).map((view) => normalizeSavedQueryView(view)),
+    create: async (input) =>
+      normalizeSavedQueryView(await postScheduledTaskSavedView(serializeSavedQueryViewRequest(input))),
+    update: async (id, input) =>
+      normalizeSavedQueryView(await putScheduledTaskSavedView(id, serializeSavedQueryViewRequest(input))),
+    remove: async (id) => {
+      await deleteScheduledTaskSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    const state = view.state.queryState;
+    filters.keyword = state.keyword ?? '';
+    filters.jobKey = state.jobKey ?? 'all';
+    filters.status = state.status ?? 'all';
+    applySavedQueryViewPresentation(view.state, {
+      pagination,
+      supportedColumns: columnSettingOptions.value.map((column) => column.value),
+      visibleColumnKeys,
+    });
+    await refreshTasks();
+  },
+  onError: (error) => {
+    logger.error('failed to manage scheduled task saved view', error);
+    void MessagePlugin.error(t('scheduledTask.list.savedViews.error'));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.pageSize,
+    queryState: {
+      keyword: filters.keyword,
+      jobKey: filters.jobKey,
+      status: filters.status,
+    },
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 const filteredTasks = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
@@ -1754,8 +1772,11 @@ const runColumns = computed<TdBaseTableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
-  void refreshTasks();
-  void refreshJobDefinitions();
+  void (async () => {
+    await refreshJobDefinitions();
+    await savedViews.load();
+    await refreshTasks();
+  })();
 });
 
 async function refreshJobDefinitions() {
@@ -1816,6 +1837,10 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
 function handleFilterQuery() {
   pagination.current = 1;
   void refreshTasks();
+}
+
+function updateFilters(value: FilterModel) {
+  Object.assign(filters, value);
 }
 
 function resetFilters() {

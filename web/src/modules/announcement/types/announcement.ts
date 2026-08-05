@@ -40,6 +40,9 @@ export type AnnouncementFilterState = {
   status: AnnouncementStatusFilter;
 };
 
+export type AnnouncementSavedView = components['schemas']['saved-view'];
+export type AnnouncementSavedViewRequest = components['schemas']['saved-view-request'];
+
 export type AnnouncementFormState = {
   content: string;
   delivery_mode: AnnouncementDeliveryMode;

@@ -49,6 +49,10 @@ func (m *Module) registerRoutes(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve authorizer: %w", err)
 	}
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve saved-view service: %w", err)
+	}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	return registerAnnouncementRoutes(ctx, m.service, announcementGuards{
 		authenticated: httpx.RequirePermission(ctx.I18n, authService, nil, "", publisher),
@@ -57,7 +61,7 @@ func (m *Module) registerRoutes(ctx *module.Context) error {
 		update:        httpx.RequirePermission(ctx.I18n, authService, authorizer, announcementcontract.AnnouncementUpdatePermission.String(), publisher),
 		publish:       httpx.RequirePermission(ctx.I18n, authService, authorizer, announcementcontract.AnnouncementPublishPermission.String(), publisher),
 		delete:        httpx.RequirePermission(ctx.I18n, authService, authorizer, announcementcontract.AnnouncementDeletePermission.String(), publisher),
-	})
+	}, savedViews)
 }
 
 // Boot 当前没有需要启动的模块运行时资源。
