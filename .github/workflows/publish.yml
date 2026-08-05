@@ -237,6 +237,7 @@ jobs:
       server_digest: ${{ steps.publish_release_images.outputs.server_digest }}
       web_digest: ${{ steps.publish_release_images.outputs.web_digest }}
       runner_digest: ${{ steps.publish_release_images.outputs.runner_digest }}
+      runner_reused: ${{ steps.runner_reuse.outputs.reuse }}
 
     steps:
       - name: Checkout repository at tag
@@ -308,6 +309,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          inspect_digest() {
+            docker buildx imagetools inspect "$1" | awk '
+              /^Digest:/ { print $2; found = 1; exit }
+              END { if (!found) exit 1 }
+            '
+          }
           mkdir -p .tmp/runner-reuse
           releases_json=".tmp/runner-reuse/releases.json"
           candidates_json=".tmp/runner-reuse/candidates.json"
@@ -352,7 +360,7 @@ jobs:
               and (has("manifests") | not)
             ' <<< "${raw_manifest}" >/dev/null || continue
 
-            resolved_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${candidate_ref}")" || continue
+            resolved_digest="$(inspect_digest "${candidate_ref}")" || continue
             [[ "${resolved_digest}" == "${candidate_digest}" ]] || continue
             platform="$(docker buildx imagetools inspect --format '{{.Image.OS}}/{{.Image.Architecture}}' "${candidate_ref}")" || continue
             [[ "${platform}" == "linux/amd64" ]] || continue
@@ -533,32 +541,28 @@ jobs:
             done <<< "${tags}"
           }
 
+          inspect_digest() {
+            docker buildx imagetools inspect "$1" | awk '
+              /^Digest:/ { print $2; found = 1; exit }
+              END { if (!found) exit 1 }
+            '
+          }
+
           publish_local_image "graft-release-server:${{ github.run_id }}" "${SERVER_TAGS}"
           publish_local_image "graft-release-web:${{ github.run_id }}" "${WEB_TAGS}"
           if [[ "${RUNNER_REUSE}" == "true" ]]; then
-            while IFS= read -r tag; do
-              [[ -n "${tag}" ]] || continue
-              docker buildx imagetools create --prefer-index=false \
-                --tag "${tag}" "${RUNNER_IMAGE}@${RUNNER_REUSE_DIGEST}"
-            done <<< "${RUNNER_TAGS}"
+            runner_digest="$(inspect_digest "${RUNNER_IMAGE}@${RUNNER_REUSE_DIGEST}")"
+            [[ "${runner_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
           else
             publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
+            runner_digest="$(inspect_digest "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
           fi
 
-          server_digest="$(docker buildx imagetools inspect "${SERVER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
-          web_digest="$(docker buildx imagetools inspect "${WEB_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
-          runner_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
+          server_digest="$(inspect_digest "${SERVER_IMAGE}:${RELEASE_REF_NAME}")"
+          web_digest="$(inspect_digest "${WEB_IMAGE}:${RELEASE_REF_NAME}")"
           [[ "${server_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${web_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${runner_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
-          if [[ "${RUNNER_REUSE}" == "true" ]]; then
-            [[ "${runner_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
-            while IFS= read -r tag; do
-              [[ -n "${tag}" ]] || continue
-              tag_digest="$(docker buildx imagetools inspect --format '{{.Digest}}' "${tag}")"
-              [[ "${tag_digest}" == "${RUNNER_REUSE_DIGEST}" ]]
-            done <<< "${RUNNER_TAGS}"
-          fi
           echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
           echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
           echo "runner_digest=${runner_digest}" >> "${GITHUB_OUTPUT}"
@@ -923,7 +927,7 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   cleanup-failed-tag:
-    name: Cleanup Failed Pre-Release Tag
+    name: Cleanup Failed Release Publication
     runs-on: ubuntu-latest
     if: ${{ always() && (needs.build-artifacts.result != 'success' || needs.bubble-smoke.result != 'success' || needs.publish-images.result != 'success' || needs.create-release.result != 'success') }}
     needs:
@@ -934,13 +938,15 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     steps:
-      - name: Remove tag only when no GitHub Release exists
+      - name: Remove failed release identities when no GitHub Release exists
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
           RELEASE_TAG: ${{ github.ref_name }}
           TRIGGER_SHA: ${{ github.sha }}
         shell: bash
@@ -971,8 +977,67 @@ jobs:
               echo "::error::Cannot determine whether GitHub Release ${RELEASE_TAG} exists (HTTP ${release_status})."
               cat "${release_response}"
               exit 1
+            ;;
+          esac
+
+          owner_type="$(gh api "users/${REPOSITORY_OWNER}" --jq '.type')"
+          case "${owner_type}" in
+            User)
+              package_owner_path="user/packages"
+              ;;
+            Organization)
+              package_owner_path="orgs/${REPOSITORY_OWNER}/packages"
+              ;;
+            *)
+              echo "::error::Cannot determine the GitHub Packages owner type for ${REPOSITORY_OWNER}: ${owner_type}."
+              exit 1
               ;;
           esac
+
+          cleanup_package() {
+            local package_name="$1"
+            local package_path="${package_owner_path}/container/${package_name}/versions"
+            local versions_response
+            local shared_version_ids
+            local version_ids
+            local version_id
+
+            versions_response="$(mktemp)"
+            gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}"
+
+            shared_version_ids="$(jq -r --arg tag "${RELEASE_TAG}" '
+              [ .[][]
+                | select(.metadata.container.tags | index($tag))
+                | select(.metadata.container.tags != [$tag])
+                | .id
+              ] | .[]
+            ' "${versions_response}")"
+            if [[ -n "${shared_version_ids}" ]]; then
+              echo "::error::Refusing to delete ${package_name}: ${RELEASE_TAG} shares a package version with other tags: ${shared_version_ids}."
+              exit 1
+            fi
+
+            version_ids="$(jq -r --arg tag "${RELEASE_TAG}" '
+              [ .[][]
+                | select(.metadata.container.tags == [$tag])
+                | .id
+              ] | .[]
+            ' "${versions_response}")"
+            if [[ -z "${version_ids}" ]]; then
+              echo "No exclusive ${package_name} package version is tagged ${RELEASE_TAG}."
+              return
+            fi
+
+            while IFS= read -r version_id; do
+              [[ -n "${version_id}" ]] || continue
+              gh api --method DELETE "${package_path}/${version_id}"
+              echo "Deleted failed GHCR package version ${package_name}/${version_id}."
+            done <<< "${version_ids}"
+          }
+
+          cleanup_package graft-server
+          cleanup_package graft-web
+          cleanup_package graft-compose-runner
 
           tag_response="$(mktemp)"
           tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
@@ -981,7 +1046,7 @@ jobs:
             "${api_root}/git/ref/tags/${RELEASE_TAG}")"
           if [[ "${tag_status}" == "404" ]]; then
             echo "Tag ${RELEASE_TAG} is already absent."
-            echo "- Cleanup: tag was already absent." >> "${GITHUB_STEP_SUMMARY}"
+            echo "- Cleanup: GHCR package versions were reconciled; Git tag was already absent." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
           if [[ "${tag_status}" != "200" ]]; then
@@ -1038,7 +1103,7 @@ jobs:
           echo "Deleted failed pre-Release tag ${RELEASE_TAG}."
           {
             echo "- Cleanup: deleted failed pre-Release tag \`${RELEASE_TAG}\`."
-            echo "- Cleanup scope: Git tag only; GHCR package versions require separate registry cleanup."
+            echo "- Cleanup: deleted package versions exclusively tagged \`${RELEASE_TAG}\` from GHCR."
           } >> "${GITHUB_STEP_SUMMARY}"
 
   publish-mutable-tags:
@@ -1067,9 +1132,15 @@ jobs:
           SERVER_IMAGE: ${{ needs.publish-images.outputs.server_image }}
           WEB_IMAGE: ${{ needs.publish-images.outputs.web_image }}
           RUNNER_IMAGE: ${{ needs.publish-images.outputs.runner_image }}
+          RUNNER_DIGEST: ${{ needs.publish-images.outputs.runner_digest }}
+          RUNNER_REUSED: ${{ needs.publish-images.outputs.runner_reused }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${RUNNER_REUSED}" == "true" ]]; then
+            docker buildx imagetools create --prefer-index=false \
+              --tag "${RUNNER_IMAGE}:${RELEASE_REF_NAME}" "${RUNNER_IMAGE}@${RUNNER_DIGEST}"
+          fi
           for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}"; do
             if [[ "${image}" == "${RUNNER_IMAGE}" ]]; then
               docker buildx imagetools create --prefer-index=false \
