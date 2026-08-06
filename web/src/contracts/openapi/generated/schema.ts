@@ -25,6 +25,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/capabilities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read platform capability health
+     * @description Returns the current server capability observations. This is a diagnostic projection and does not redirect platform availability.
+     */
+    get: operations['getPlatformCapabilities'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/login': {
     parameters: {
       query?: never;
@@ -4958,10 +4978,6 @@ export interface components {
       permissions: number;
       jobs: number;
     };
-    'login-request': {
-      username: string;
-      password: string;
-    };
     'api-envelope': {
       success: boolean;
       /** @description Existing canonical response code. */
@@ -4976,21 +4992,40 @@ export interface components {
       traceId: string;
       data: unknown;
     };
-    'login-user': {
-      /** Format: int64 */
-      id: number;
-      username: string;
-      display_name: string;
-    };
-    'login-response': {
-      access_token: string;
+    /** @enum {string} */
+    'capability-category':
+      | 'infrastructure'
+      | 'runtime'
+      | 'storage'
+      | 'integration'
+      | 'security'
+      | 'observability'
+      | 'platform'
+      | 'ai'
+      | 'extension';
+    /** @enum {string} */
+    'capability-impact': 'platform' | 'feature' | 'advisory';
+    /** @enum {string} */
+    'capability-status': 'unknown' | 'checking' | 'healthy' | 'degraded' | 'unavailable' | 'disabled' | 'unsupported';
+    'platform-capability': {
+      key: string;
+      category: components['schemas']['capability-category'];
+      impact: components['schemas']['capability-impact'];
+      status: components['schemas']['capability-status'];
+      summary?: string;
+      /** Format: date-time */
+      observed_at: string;
       /** Format: date-time */
       expires_at: string;
-      must_change_password: boolean;
-      user: components['schemas']['login-user'];
+      stale: boolean;
     };
-    'enveloped-login-response': components['schemas']['api-envelope'] & {
-      data?: components['schemas']['login-response'];
+    'platform-capabilities-response': {
+      items: components['schemas']['platform-capability'][];
+      /** Format: date-time */
+      observed_at: string;
+    };
+    'enveloped-platform-capabilities-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['platform-capabilities-response'];
     };
     'error-response': {
       /** @enum {boolean} */
@@ -5008,6 +5043,26 @@ export interface components {
       data?: {
         [key: string]: unknown;
       };
+    };
+    'login-request': {
+      username: string;
+      password: string;
+    };
+    'login-user': {
+      /** Format: int64 */
+      id: number;
+      username: string;
+      display_name: string;
+    };
+    'login-response': {
+      access_token: string;
+      /** Format: date-time */
+      expires_at: string;
+      must_change_password: boolean;
+      user: components['schemas']['login-user'];
+    };
+    'enveloped-login-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['login-response'];
     };
     'enveloped-empty-response': components['schemas']['api-envelope'] & {
       /** @enum {unknown|null} */
@@ -10597,8 +10652,8 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Internal server error under existing error envelope semantics. */
-    'internal-server-error': {
+    /** @description Forbidden request under existing error envelope semantics. */
+    forbidden: {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -10607,8 +10662,8 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Forbidden request under existing error envelope semantics. */
-    forbidden: {
+    /** @description Internal server error under existing error envelope semantics. */
+    'internal-server-error': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -10862,6 +10917,29 @@ export interface operations {
           'application/json': components['schemas']['health-response'];
         };
       };
+    };
+  };
+  getPlatformCapabilities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current capability snapshot. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-capabilities-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
     };
   };
   postAuthLogin: {

@@ -47,3 +47,11 @@
 - Platform freeze closes active transports and cancels reconnect timers; transition-based recovery avoids reconnect storms.
 - Terminal reconnects only when its previous resize context is still valid, then requests a new server ticket.
 - Focused validation passed: websocket, SSE, and terminal session tests plus typecheck.
+
+## 2026-08-07 Phase 4
+
+- Added static capability snapshot contract and generated OpenAPI bindings for `GET /api/platform/capabilities`.
+- Registered `CapabilityCoordinator` as core authority with PostgreSQL, Redis, and outbound-network observation providers.
+- Network module exposes its existing latest connectivity aggregate through `CapabilityObservationSource`; no duplicate persistence or probe pipeline was added.
+- Registered a dashboard health widget that consumes coordinator observations through the existing widget contribution system.
+- Validation passed: `go test ./internal/... ./modules/network`, `bun run typecheck`, `bun run lint`, OpenAPI bundle/runtime-path freshness, and `git diff --check`.

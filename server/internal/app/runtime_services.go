@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/cachex"
+	"graft/server/internal/capability"
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
@@ -56,6 +57,15 @@ func (r *Runtime) coreServiceRegistrations() []serviceRegistration {
 
 func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {
 	return []serviceRegistration{
+		{
+			key: (*capability.Coordinator)(nil),
+			provider: func() (any, error) {
+				if r.capabilityCoordinator == nil {
+					return nil, errors.New("capability coordinator is unavailable")
+				}
+				return r.capabilityCoordinator, nil
+			},
+		},
 		{
 			key: (*configregistry.Registry)(nil),
 			provider: func() (any, error) {

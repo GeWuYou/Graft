@@ -1,0 +1,2 @@
+type: string
+enum: [unknown, checking, healthy, degraded, unavailable, disabled, unsupported]

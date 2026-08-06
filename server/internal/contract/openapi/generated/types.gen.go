@@ -1039,40 +1039,40 @@ func (e ApplicationTemplateCatalogItemDeploymentAdapterKind) Valid() bool {
 
 // Defines values for ApplicationTemplateCategory.
 const (
-	Ai         ApplicationTemplateCategory = "ai"
-	Cache      ApplicationTemplateCategory = "cache"
-	Cicd       ApplicationTemplateCategory = "cicd"
-	Database   ApplicationTemplateCategory = "database"
-	Logging    ApplicationTemplateCategory = "logging"
-	Monitoring ApplicationTemplateCategory = "monitoring"
-	Mq         ApplicationTemplateCategory = "mq"
-	Other      ApplicationTemplateCategory = "other"
-	Proxy      ApplicationTemplateCategory = "proxy"
-	Storage    ApplicationTemplateCategory = "storage"
+	ApplicationTemplateCategoryAi         ApplicationTemplateCategory = "ai"
+	ApplicationTemplateCategoryCache      ApplicationTemplateCategory = "cache"
+	ApplicationTemplateCategoryCicd       ApplicationTemplateCategory = "cicd"
+	ApplicationTemplateCategoryDatabase   ApplicationTemplateCategory = "database"
+	ApplicationTemplateCategoryLogging    ApplicationTemplateCategory = "logging"
+	ApplicationTemplateCategoryMonitoring ApplicationTemplateCategory = "monitoring"
+	ApplicationTemplateCategoryMq         ApplicationTemplateCategory = "mq"
+	ApplicationTemplateCategoryOther      ApplicationTemplateCategory = "other"
+	ApplicationTemplateCategoryProxy      ApplicationTemplateCategory = "proxy"
+	ApplicationTemplateCategoryStorage    ApplicationTemplateCategory = "storage"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationTemplateCategory enum.
 func (e ApplicationTemplateCategory) Valid() bool {
 	switch e {
-	case Ai:
+	case ApplicationTemplateCategoryAi:
 		return true
-	case Cache:
+	case ApplicationTemplateCategoryCache:
 		return true
-	case Cicd:
+	case ApplicationTemplateCategoryCicd:
 		return true
-	case Database:
+	case ApplicationTemplateCategoryDatabase:
 		return true
-	case Logging:
+	case ApplicationTemplateCategoryLogging:
 		return true
-	case Monitoring:
+	case ApplicationTemplateCategoryMonitoring:
 		return true
-	case Mq:
+	case ApplicationTemplateCategoryMq:
 		return true
-	case Other:
+	case ApplicationTemplateCategoryOther:
 		return true
-	case Proxy:
+	case ApplicationTemplateCategoryProxy:
 		return true
-	case Storage:
+	case ApplicationTemplateCategoryStorage:
 		return true
 	default:
 		return false
@@ -1847,6 +1847,126 @@ func (e BootstrapMenuKind) Valid() bool {
 	case Entry:
 		return true
 	case Group:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BuildStatusFilter.
+const (
+	BuildStatusFilterCancelled BuildStatusFilter = "cancelled"
+	BuildStatusFilterFailed    BuildStatusFilter = "failed"
+	BuildStatusFilterQueued    BuildStatusFilter = "queued"
+	BuildStatusFilterRunning   BuildStatusFilter = "running"
+	BuildStatusFilterSuccess   BuildStatusFilter = "success"
+)
+
+// Valid indicates whether the value is a known member of the BuildStatusFilter enum.
+func (e BuildStatusFilter) Valid() bool {
+	switch e {
+	case BuildStatusFilterCancelled:
+		return true
+	case BuildStatusFilterFailed:
+		return true
+	case BuildStatusFilterQueued:
+		return true
+	case BuildStatusFilterRunning:
+		return true
+	case BuildStatusFilterSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilityCategory.
+const (
+	CapabilityCategoryAi             CapabilityCategory = "ai"
+	CapabilityCategoryExtension      CapabilityCategory = "extension"
+	CapabilityCategoryInfrastructure CapabilityCategory = "infrastructure"
+	CapabilityCategoryIntegration    CapabilityCategory = "integration"
+	CapabilityCategoryObservability  CapabilityCategory = "observability"
+	CapabilityCategoryPlatform       CapabilityCategory = "platform"
+	CapabilityCategoryRuntime        CapabilityCategory = "runtime"
+	CapabilityCategorySecurity       CapabilityCategory = "security"
+	CapabilityCategoryStorage        CapabilityCategory = "storage"
+)
+
+// Valid indicates whether the value is a known member of the CapabilityCategory enum.
+func (e CapabilityCategory) Valid() bool {
+	switch e {
+	case CapabilityCategoryAi:
+		return true
+	case CapabilityCategoryExtension:
+		return true
+	case CapabilityCategoryInfrastructure:
+		return true
+	case CapabilityCategoryIntegration:
+		return true
+	case CapabilityCategoryObservability:
+		return true
+	case CapabilityCategoryPlatform:
+		return true
+	case CapabilityCategoryRuntime:
+		return true
+	case CapabilityCategorySecurity:
+		return true
+	case CapabilityCategoryStorage:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilityImpact.
+const (
+	CapabilityImpactAdvisory CapabilityImpact = "advisory"
+	CapabilityImpactFeature  CapabilityImpact = "feature"
+	CapabilityImpactPlatform CapabilityImpact = "platform"
+)
+
+// Valid indicates whether the value is a known member of the CapabilityImpact enum.
+func (e CapabilityImpact) Valid() bool {
+	switch e {
+	case CapabilityImpactAdvisory:
+		return true
+	case CapabilityImpactFeature:
+		return true
+	case CapabilityImpactPlatform:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilityStatus.
+const (
+	CapabilityStatusChecking    CapabilityStatus = "checking"
+	CapabilityStatusDegraded    CapabilityStatus = "degraded"
+	CapabilityStatusDisabled    CapabilityStatus = "disabled"
+	CapabilityStatusHealthy     CapabilityStatus = "healthy"
+	CapabilityStatusUnavailable CapabilityStatus = "unavailable"
+	CapabilityStatusUnknown     CapabilityStatus = "unknown"
+	CapabilityStatusUnsupported CapabilityStatus = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the CapabilityStatus enum.
+func (e CapabilityStatus) Valid() bool {
+	switch e {
+	case CapabilityStatusChecking:
+		return true
+	case CapabilityStatusDegraded:
+		return true
+	case CapabilityStatusDisabled:
+		return true
+	case CapabilityStatusHealthy:
+		return true
+	case CapabilityStatusUnavailable:
+		return true
+	case CapabilityStatusUnknown:
+		return true
+	case CapabilityStatusUnsupported:
 		return true
 	default:
 		return false
@@ -5158,19 +5278,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	Stderr TaskLogEntryStream = "stderr"
-	Stdout TaskLogEntryStream = "stdout"
-	System TaskLogEntryStream = "system"
+	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
+	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
+	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case Stderr:
+	case TaskLogEntryStreamStderr:
 		return true
-	case Stdout:
+	case TaskLogEntryStreamStdout:
 		return true
-	case System:
+	case TaskLogEntryStreamSystem:
 		return true
 	default:
 		return false
@@ -8182,6 +8302,9 @@ type BuildJobSummary struct {
 	TaskId          int64              `json:"task_id"`
 }
 
+// BuildStatusFilter Product-level Build Task status used for task-center filtering.
+type BuildStatusFilter string
+
 // BuildTaskExecution Task Runtime execution projection for a Build job.
 type BuildTaskExecution struct {
 	// Capabilities Server-authoritative operations currently allowed for this Task Detail.
@@ -8197,6 +8320,15 @@ type BuildTaskExecution struct {
 	// Status Canonical persisted Task state-machine state.
 	Status TaskStatus `json:"status"`
 }
+
+// CapabilityCategory defines model for capability-category.
+type CapabilityCategory string
+
+// CapabilityImpact defines model for capability-impact.
+type CapabilityImpact string
+
+// CapabilityStatus defines model for capability-status.
+type CapabilityStatus string
 
 // ChangePasswordRequest defines model for change-password-request.
 type ChangePasswordRequest struct {
@@ -11165,6 +11297,26 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformCapabilitiesResponse defines model for enveloped-platform-capabilities-response.
+type EnvelopedPlatformCapabilitiesResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data PlatformCapabilitiesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedPlatformNetworkConnectivityAggregate defines model for enveloped-platform-network-connectivity-aggregate.
 type EnvelopedPlatformNetworkConnectivityAggregate struct {
 	Code    string                               `json:"code"`
@@ -12445,6 +12597,24 @@ type PlatformBackupSummary struct {
 
 // PlatformBackupSummaryStatus defines model for PlatformBackupSummary.Status.
 type PlatformBackupSummaryStatus string
+
+// PlatformCapabilitiesResponse defines model for platform-capabilities-response.
+type PlatformCapabilitiesResponse struct {
+	Items      []PlatformCapability `json:"items"`
+	ObservedAt time.Time            `json:"observed_at"`
+}
+
+// PlatformCapability defines model for platform-capability.
+type PlatformCapability struct {
+	Category   CapabilityCategory `json:"category"`
+	ExpiresAt  time.Time          `json:"expires_at"`
+	Impact     CapabilityImpact   `json:"impact"`
+	Key        string             `json:"key"`
+	ObservedAt time.Time          `json:"observed_at"`
+	Stale      bool               `json:"stale"`
+	Status     CapabilityStatus   `json:"status"`
+	Summary    *string            `json:"summary,omitempty"`
+}
 
 // PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 type PlatformDeploymentStrategy string
@@ -15465,8 +15635,8 @@ type GetBuildJobsParams struct {
 	// ImageTag Optional exact Build snapshot image tag.
 	ImageTag *string `form:"image_tag,omitempty" json:"image_tag,omitempty"`
 
-	// BuildStatus Optional canonical Task Runtime status filter.
-	BuildStatus *TaskStatus `form:"build_status,omitempty" json:"build_status,omitempty"`
+	// BuildStatus Optional product-level Build Task status filter.
+	BuildStatus *BuildStatusFilter `form:"build_status,omitempty" json:"build_status,omitempty"`
 
 	// BuilderId Optional exact runtime target snapshot identifier.
 	BuilderId *int64 `form:"builder_id,omitempty" json:"builder_id,omitempty"`

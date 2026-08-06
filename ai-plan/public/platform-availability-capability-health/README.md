@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running feature requiring design, roadmap, ADR, and loop execution.
 - Canonical authority: `server/internal/contract`, `server/internal/moduleapi`, `openapi/**`, and the web shell.
-- Completed so far: RFC and implementation notes reviewed.
-- Not started yet: contract and runtime implementation.
+- Completed so far: Phases 0-4 implementation and focused validation.
+- Remaining: Phase 5 recovery UX and diagnostics acceptance.
 
 ## Recovery Receipt
 
@@ -44,9 +44,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Contract skeleton is being bootstrapped.
-- Risk: preserve existing user changes and module ownership boundaries.
-- Next step: dispatch Phase 1 web availability baseline.
+- Phase 4 capability snapshot API and dashboard projection are implemented and validated.
+- Risk: preserve generated OpenAPI freshness and keep capability observations separate from module resource truth.
+- Next step: Phase 5 recovery UX and diagnostics.
 
 ## Work Intake
 

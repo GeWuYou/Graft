@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	capabilitycontract "graft/server/internal/contract/capability"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/httpx"
@@ -23,6 +24,7 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 
 	for _, register := range []func() error{
 		r.registerCoreModuleRuntimeDashboard,
+		r.registerCoreCapabilityDashboard,
 		r.registerCoreAccessLogDashboard,
 		r.registerCoreAppLogDashboard,
 	} {
@@ -32,6 +34,44 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 	}
 
 	return nil
+}
+
+func (r *Runtime) registerCoreCapabilityDashboard() error {
+	return r.dashboardRegistry.Register(dashboard.WidgetDefinition{
+		ID: "core.platform-capability-health", ModuleKey: "core",
+		TitleKey: "dashboard.widget.platformCapabilityHealth.title", Title: r.mustLookupCoreDisplay("dashboard.widget.platformCapabilityHealth.title"),
+		DescriptionKey: "dashboard.widget.platformCapabilityHealth.description", Description: r.mustLookupCoreDisplay("dashboard.widget.platformCapabilityHealth.description"),
+		Type: dashboard.WidgetTypeHealth, Size: dashboard.WidgetSizeMedium, Category: dashboard.WidgetCategorySystem, Priority: dashboard.WidgetPriorityInfo, Order: 15,
+		RequiredPermissions: []string{capabilitycontract.ReadPermission},
+		Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
+			if r.capabilityCoordinator == nil {
+				return dashboard.WidgetPayload{}, errors.New("capability coordinator is unavailable")
+			}
+			observations, err := r.capabilityCoordinator.Observe(ctx)
+			if err != nil {
+				return nil, err
+			}
+			items := make([]dashboard.HealthItem, 0, len(observations))
+			summaryStatus := dashboard.HealthStatusHealthy
+			abnormal := 0
+			for _, entry := range r.capabilityCoordinator.RegistryEntries() {
+				observation := observations[entry.Descriptor.Key]
+				status := dashboard.HealthStatus(observation.Status)
+				if status != dashboard.HealthStatusHealthy {
+					abnormal++
+					summaryStatus = dashboard.HealthStatusDegraded
+				}
+				items = append(items, dashboard.HealthItem{Key: entry.Descriptor.Key, Label: entry.Descriptor.Key, Status: status, Description: observation.Summary})
+			}
+			state := dashboard.WidgetStateNormal
+			priority := dashboard.WidgetPriorityInfo
+			if abnormal > 0 {
+				state = dashboard.WidgetStateWarning
+				priority = dashboard.WidgetPriorityWarning
+			}
+			return dashboard.WidgetPayload{"summary": dashboard.HealthSummaryItem{Status: summaryStatus, Label: string(summaryStatus)}, "items": items, "abnormal_services": abnormal, "state": string(state), "priority": string(priority)}, nil
+		}),
+	})
 }
 
 func (r *Runtime) registerCoreModuleRuntimeDashboard() error {

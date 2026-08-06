@@ -10,8 +10,10 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"graft/server/internal/container"
+	capcontract "graft/server/internal/contract/capability"
 	healthopenapi "graft/server/internal/contract/openapi/health"
 	"graft/server/internal/logger"
+	"graft/server/internal/permission"
 	"graft/server/internal/realtime"
 )
 
@@ -42,6 +44,7 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) error {
 	if err := r.registerRealtimeGatewayRoute(engine); err != nil {
 		return err
 	}
+	r.permissionRegistry.Register(permission.Item{Code: capcontract.ReadPermission, Module: "core", Resource: "platform-capabilities", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead})
 	r.registerHealthRoute(engine)
 	r.registerOpenAPIRoutes(engine)
 	r.registerMCPDocsRoutes(engine)

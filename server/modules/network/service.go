@@ -29,6 +29,26 @@ type Service struct {
 	logger        *zap.Logger
 }
 
+// ObserveCapability 将 Network 模块最近一次出站连通性聚合投影为能力观测。
+// 没有执行过检查时返回 unknown，不主动触发外网请求或写入历史。
+func (s *Service) ObserveCapability(ctx context.Context) (moduleapi.CapabilityObservation, error) {
+	aggregate, err := s.ConnectivityAggregate(ctx)
+	if err != nil {
+		return moduleapi.CapabilityObservation{}, err
+	}
+	now := time.Now().UTC()
+	if aggregate.LastRunAt == nil || aggregate.TargetCount == 0 {
+		return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnknown, Summary: "No outbound connectivity check has completed", ObservedAt: now}, nil
+	}
+	status := moduleapi.CapabilityStatusHealthy
+	if aggregate.FailedCount > 0 {
+		status = moduleapi.CapabilityStatusUnavailable
+	} else if aggregate.DegradedCount > 0 {
+		status = moduleapi.CapabilityStatusDegraded
+	}
+	return moduleapi.CapabilityObservation{Status: status, Summary: "Outbound connectivity aggregate", ObservedAt: aggregate.LastRunAt.UTC()}, nil
+}
+
 // NewService 创建 Network 模块服务。
 func NewService(configs moduleapi.ModuleConfigManager, diagnostics moduleapi.OutboundDiagnosticRegistry, consumers moduleapi.OutboundNetworkConsumerRegistry, history DiagnosticHistoryStore, logger *zap.Logger) *Service {
 	return &Service{configs: configs, diagnostics: diagnostics, consumers: consumers, history: history, logger: logger}

@@ -259,6 +259,42 @@
         }
       }
     },
+    "/api/platform/capabilities": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Read platform capability health",
+        "operationId": "getPlatformCapabilities",
+        "description": "Returns the current server capability observations. This is a diagnostic projection and does not redirect platform availability.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current capability snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-capabilities-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "tags": [
@@ -16134,9 +16170,9 @@
           {
             "in": "query",
             "name": "build_status",
-            "description": "Optional canonical Task Runtime status filter.",
+            "description": "Optional product-level Build Task status filter.",
             "schema": {
-              "$ref": "#/components/schemas/task-status"
+              "$ref": "#/components/schemas/build-status-filter"
             }
           },
           {
@@ -23929,21 +23965,6 @@
           }
         }
       },
-      "login-request": {
-        "type": "object",
-        "required": [
-          "username",
-          "password"
-        ],
-        "properties": {
-          "username": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          }
-        }
-      },
       "api-envelope": {
         "type": "object",
         "required": [
@@ -23979,6 +24000,170 @@
           },
           "data": {
             "nullable": true
+          }
+        }
+      },
+      "capability-category": {
+        "type": "string",
+        "enum": [
+          "infrastructure",
+          "runtime",
+          "storage",
+          "integration",
+          "security",
+          "observability",
+          "platform",
+          "ai",
+          "extension"
+        ]
+      },
+      "capability-impact": {
+        "type": "string",
+        "enum": [
+          "platform",
+          "feature",
+          "advisory"
+        ]
+      },
+      "capability-status": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "checking",
+          "healthy",
+          "degraded",
+          "unavailable",
+          "disabled",
+          "unsupported"
+        ]
+      },
+      "platform-capability": {
+        "type": "object",
+        "required": [
+          "key",
+          "category",
+          "impact",
+          "status",
+          "observed_at",
+          "expires_at",
+          "stale"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/capability-category"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/capability-impact"
+          },
+          "status": {
+            "$ref": "#/components/schemas/capability-status"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "platform-capabilities-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "observed_at"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-capability"
+            }
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "enveloped-platform-capabilities-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/platform-capabilities-response"
+              }
+            }
+          }
+        ]
+      },
+      "error-response": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Existing canonical error response code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Existing runtime fallback text paired with messageKey for compatibility."
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Stable error localization key. Consumers should prefer this key and use message only as fallback text."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale used to resolve the fallback message text in this response."
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Optional structured error details preserved from the current runtime."
+          }
+        }
+      },
+      "login-request": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
           }
         }
       },
@@ -24041,47 +24226,6 @@
             }
           }
         ]
-      },
-      "error-response": {
-        "type": "object",
-        "required": [
-          "success",
-          "code",
-          "message",
-          "traceId"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              false
-            ]
-          },
-          "code": {
-            "type": "string",
-            "description": "Existing canonical error response code."
-          },
-          "message": {
-            "type": "string",
-            "description": "Existing runtime fallback text paired with messageKey for compatibility."
-          },
-          "messageKey": {
-            "type": "string",
-            "description": "Stable error localization key. Consumers should prefer this key and use message only as fallback text."
-          },
-          "locale": {
-            "type": "string",
-            "description": "Locale used to resolve the fallback message text in this response."
-          },
-          "traceId": {
-            "type": "string"
-          },
-          "data": {
-            "type": "object",
-            "additionalProperties": true,
-            "description": "Optional structured error details preserved from the current runtime."
-          }
-        }
       },
       "enveloped-empty-response": {
         "allOf": [
@@ -36041,6 +36185,17 @@
           "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
         ]
       },
+      "build-status-filter": {
+        "type": "string",
+        "description": "Product-level Build Task status used for task-center filtering.",
+        "enum": [
+          "queued",
+          "running",
+          "success",
+          "failed",
+          "cancelled"
+        ]
+      },
       "build-builder-snapshot": {
         "type": "object",
         "description": "Runtime target snapshot frozen when the Build job was submitted.",
@@ -43913,8 +44068,8 @@
           }
         }
       },
-      "internal-server-error": {
-        "description": "Internal server error under existing error envelope semantics.",
+      "forbidden": {
+        "description": "Forbidden request under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"
@@ -43928,8 +44083,8 @@
           }
         }
       },
-      "forbidden": {
-        "description": "Forbidden request under existing error envelope semantics.",
+      "internal-server-error": {
+        "description": "Internal server error under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

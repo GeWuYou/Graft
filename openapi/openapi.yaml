@@ -81,6 +81,8 @@ tags:
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
+  /api/platform/capabilities:
+    $ref: ./paths/platform-capabilities.yaml
   /api/auth/login:
     $ref: ./paths/auth.login.yaml
   /api/auth/refresh:

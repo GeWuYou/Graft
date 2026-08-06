@@ -1,0 +1,5 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    properties:
+      data: { $ref: ./platform-capabilities-response.yaml }

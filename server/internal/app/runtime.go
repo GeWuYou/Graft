@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
 	cachebackend "graft/server/internal/cachex/backend"
+	"graft/server/internal/capability"
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
@@ -99,6 +100,7 @@ type Runtime struct {
 	configRegistry            *configregistry.Registry
 	dashboardRegistry         *dashboard.Registry
 	moduleManager             *module.Manager
+	capabilityCoordinator     *capability.Coordinator
 	runtimeMetadata           module.RuntimeMetadata
 	appLogRepository          logger.AppLogRepository
 	canonicalAppLogger        logger.AppLogger
@@ -306,6 +308,11 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		moduleManager:        module.NewManager(),
 		appLogRepository:     appLogRepo,
 		canonicalAppLogger:   runtimeAppLogger,
+	}
+	runtime.capabilityCoordinator, err = capability.NewRuntimeCoordinator(databaseResources.SQL, redisClient, runtime.services)
+	if err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("create capability coordinator: %w", err)
 	}
 	menu.RegisterDomainGroups(runtime.menuRegistry)
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {

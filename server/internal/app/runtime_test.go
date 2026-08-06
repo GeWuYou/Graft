@@ -1360,8 +1360,8 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	if payload.DefaultLocale != "zh-CN" || payload.FallbackLocale != "en-US" {
 		t.Fatalf("expected locale snapshot zh-CN/en-US, got %s/%s", payload.DefaultLocale, payload.FallbackLocale)
 	}
-	if payload.Menus != 2 || payload.Permissions != 1 || payload.Jobs != 3 {
-		t.Fatalf("expected registry counts 2/1/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
+	if payload.Menus != 2 || payload.Permissions != 2 || payload.Jobs != 3 {
+		t.Fatalf("expected registry counts 2/2/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
 	}
 }
 

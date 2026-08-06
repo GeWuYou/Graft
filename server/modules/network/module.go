@@ -70,6 +70,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundNetworkConsumerRegistry)(nil), func(container.Resolver) (any, error) { return runtime.consumers, nil }); err != nil {
 		return fmt.Errorf("register outbound network consumer registry: %w", err)
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.CapabilityObservationSource)(nil), func(container.Resolver) (any, error) { return service, nil }); err != nil {
+		return fmt.Errorf("register capability observation source: %w", err)
+	}
 	return registerNetworkRoutes(ctx, m.service)
 }
 

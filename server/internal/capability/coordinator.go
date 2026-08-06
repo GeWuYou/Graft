@@ -112,6 +112,14 @@ func (c *Coordinator) Snapshot() map[string]moduleapi.CapabilityObservation {
 	return result
 }
 
+// RegistryEntries 返回静态能力声明，供 HTTP 投影按稳定顺序构造响应。
+func (c *Coordinator) RegistryEntries() []Entry {
+	if c == nil || c.registry == nil {
+		return nil
+	}
+	return c.registry.Entries()
+}
+
 // Get 返回单项能力观测；未知或尚未观测的 key 返回 false。
 func (c *Coordinator) Get(key string) (moduleapi.CapabilityObservation, bool) {
 	c.mu.RLock()

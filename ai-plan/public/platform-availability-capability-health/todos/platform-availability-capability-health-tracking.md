@@ -56,7 +56,7 @@ closeout:
 - [x] Phase 1: browser availability baseline and router takeover
 - [x] Phase 2: Axios and TanStack Query gating
 - [x] Phase 3: WebSocket/SSE pause and recovery
-- [ ] Phase 4: capability API, providers, and dashboard
+- [x] Phase 4: capability API, providers, and dashboard
 - [ ] Phase 5: recovering UX, diagnostics, and full acceptance
 
 ## Acceptance Conditions

@@ -74,6 +74,11 @@ type CapabilityProvider interface {
 	Observe(context.Context) (CapabilityObservation, error)
 }
 
+// CapabilityObservationSource 允许模块把已有健康事实投影为能力观测；不暴露模块内部存储。
+type CapabilityObservationSource interface {
+	ObserveCapability(context.Context) (CapabilityObservation, error)
+}
+
 // Category 是能力分类的稳定契约别名。
 type Category = CapabilityCategory
 

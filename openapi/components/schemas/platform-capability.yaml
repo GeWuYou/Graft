@@ -1,0 +1,11 @@
+type: object
+required: [key, category, impact, status, observed_at, expires_at, stale]
+properties:
+  key: { type: string }
+  category: { $ref: ./capability-category.yaml }
+  impact: { $ref: ./capability-impact.yaml }
+  status: { $ref: ./capability-status.yaml }
+  summary: { type: string }
+  observed_at: { type: string, format: date-time }
+  expires_at: { type: string, format: date-time }
+  stale: { type: boolean }
