@@ -125,5 +125,7 @@ Event contract review:
 - Do not turn a receipt, realtime signal, notification, or successful publish into evidence that a consumer completed.
 - Do not put credentials, unrestricted inputs, Ent entities, mutable plans, or unbounded external work in an event.
 - Do not infer idempotency from a retry loop. Demonstrate the persisted or provider-backed deduplication boundary.
-- When API, domain, permission, query cache, or cross-boundary representation changes too, invoke the corresponding
-  Graft semantic review skill rather than duplicating its rules here.
+- When API, domain, permission, or cross-boundary representation changes too, invoke the corresponding Graft semantic
+  review skill rather than duplicating its rules here. When an event changes a TypeScript caller, contract, adapter,
+  composable, store, or public helper, invoke `graft-typescript-dx-audit`; when it invalidates, refreshes, polls, or
+  otherwise changes query-cache behavior, invoke `graft-query-key-consistency`.

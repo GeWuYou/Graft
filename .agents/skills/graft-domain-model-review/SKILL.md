@@ -72,8 +72,11 @@ Trace the domain fact through its representations:
 
 Confirm each layer preserves the domain meaning, names, requiredness, enum/state semantics, ownership, and error
 behavior. Prefer a canonical fact plus narrow projections; flag duplicate DTOs, copied state machines, presentation
-models that can mutate domain state, or adapters that conceal authority drift. Invoke the API, event, permission,
-cross-boundary, query-key, or TypeScript DX semantic skill when its specialized review is triggered.
+models that can mutate domain state, or adapters that conceal authority drift. Invoke `graft-api-dx-review`,
+`graft-event-contract-review`, `graft-permission-model-review`, or `graft-cross-boundary-review` when their specialized
+review is triggered. When a representation changes a query key, cache invalidation, polling, or realtime refresh, also
+invoke `graft-query-key-consistency`; when it changes a handwritten TypeScript caller, contract, adapter, composable,
+store, or public helper, also invoke `graft-typescript-dx-audit`.
 
 ### 5. Align Design And Evidence
 
