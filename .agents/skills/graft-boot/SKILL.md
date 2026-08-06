@@ -20,18 +20,15 @@ startup; it does not replace repository rules.
 3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
    mapped parent topic and relevant subtopic recovery files for the current task shape.
 4. Read the relevant repository-wide design and roadmap truth needed by the task.
-5. Match the task to the Semantic Review Layer before implementation. This is an automatic design-time review step,
-   not a user-invoked optional tool:
-   - OpenAPI or shared wire-contract changes -> `graft-openapi-contract-review`
-   - any capability crossing server, OpenAPI, generated web contracts, query/store, composable, or view ->
-     `graft-cross-boundary-review`
-   - platform lifecycle, runtime, provider, configuration, task/submission, or source-of-truth changes ->
-     `graft-platform-architecture-review`
-   - match additional registered review skills for API DX, domain, permission, query-key, TypeScript, event, module,
-     or test-seam concerns when those skills exist. If a matched skill is unavailable, record the gap and use the
-     nearest existing governance checklist.
-   - record selected semantic review skills and findings in the current design/Work Contract or closeout; do not
-     create a second tracking or validation path.
+5. Actively match and run the default Semantic Review Layer before implementation. Select all applicable skills from
+   this matrix: OpenAPI (`graft-openapi-contract-review`), cross-boundary (`graft-cross-boundary-review`), platform
+   architecture (`graft-platform-architecture-review`), API DX (`graft-api-dx-review`), domain (`graft-domain-model-review`),
+   event (`graft-event-contract-review`), TypeScript DX (`graft-typescript-dx-audit`), Query keys
+   (`graft-query-key-consistency`), permissions (`graft-permission-model-review`), module architecture
+   (`graft-module-architecture-review`), test seams (`graft-test-seam-review`), change diff (`graft-change-review`),
+   consistency (`graft-consistency-review`), and deletion (`graft-delete-review`). Record selected skills and evidence
+   in the current design/Work Contract or closeout. If one is unavailable, record the gap and use existing governance;
+   never silently skip semantic review.
 6. Inspect the current repository state before assuming toolchains or entrypoints exist.
 7. If the request introduces new long-running work and no active topic already owns it, route through
    `graft-work-intake` before creating a new `topic`, `design`, `roadmap`, or `ADR`.

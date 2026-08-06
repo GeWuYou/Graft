@@ -169,17 +169,18 @@ The minimum startup preflight is:
 7. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
 8. if the request proposes new long-running work and no active topic already owns it, route through the
    `graft-work-intake` workflow before creating a new `topic`, `design`, `roadmap`, or `ADR`
-9. actively match the task against the repository's Semantic Review Layer before freezing scope:
-   - OpenAPI or shared wire-contract changes -> `graft-openapi-contract-review`
-   - changes crossing `server` -> OpenAPI -> generated `web` -> query/store/view -> `graft-cross-boundary-review`
-   - platform lifecycle, runtime, authority, configuration, task/submission, or provider changes ->
-     `graft-platform-architecture-review`
-   - API shape or caller ergonomics -> `graft-api-dx-review` when available
-   - domain lifecycle or aggregate decisions -> `graft-domain-model-review` when available
-   - permission/menu/route capability changes -> `graft-permission-model-review` when available
-   - TanStack Query cache semantics -> `graft-query-key-consistency` when available
-   Review matching is a default semantic review step, not an opt-in tool invocation. If a named skill is not yet
-   present, record the gap and apply the closest existing governance checklist.
+9. actively match the task against the default Semantic Review Layer before freezing scope:
+   - OpenAPI/shared wire contract -> `graft-openapi-contract-review`
+   - server/OpenAPI/generated web/query/store/composable/view chain -> `graft-cross-boundary-review`
+   - platform/runtime/authority/configuration/Task/Submission/provider -> `graft-platform-architecture-review`
+   - HTTP caller ergonomics -> `graft-api-dx-review`; domain/lifecycle/aggregate -> `graft-domain-model-review`
+   - event delivery -> `graft-event-contract-review`; TypeScript public contracts -> `graft-typescript-dx-audit`
+   - query cache -> `graft-query-key-consistency`; permission/menu/route -> `graft-permission-model-review`
+   - module/interface shape -> `graft-module-architecture-review`; behavior tests -> `graft-test-seam-review`
+   - implementation diff -> `graft-change-review`; repeated patterns -> `graft-consistency-review`; deletion or
+     compatibility candidates -> `graft-delete-review`
+   Semantic Review is mandatory at design time, not an opt-in user tool. If a matched skill is unavailable, record the
+   gap and apply the nearest existing governance checklist.
 
 The minimum startup receipt is:
 
@@ -322,16 +323,15 @@ Prefer the repository skills below when their trigger matches the task:
     bootstrap, or loop dispatch
   - it produces one `Work Contract`, performs contract-driven minimal bootstrap, and dispatches to specialized skills
   - it must not become a second startup authority or a content-authoring skill
-- `graft-openapi-contract-review`
-  - use by default for OpenAPI source, shared wire-contract, generated-schema, API error, enum, pagination, security,
-    or compatibility changes; it reviews semantics and consumers without becoming a second OpenAPI authority
-- `graft-cross-boundary-review`
-  - use by default when one capability crosses server, OpenAPI, generated TypeScript, API client, query/store,
-    composable, or view boundaries; it checks projection ownership, transformation economy, and contract closure
-- `graft-platform-architecture-review`
-  - use by default for platform lifecycle, runtime, provider, configuration, task/submission, authority, or
-    source-of-truth changes; it checks whether the change strengthens Graft as a platform rather than a feature
-    collection
+- Semantic Review Layer skills
+  - `graft-openapi-contract-review`, `graft-cross-boundary-review`, and `graft-platform-architecture-review` are
+    mandatory defaults for their matching authority and platform triggers.
+  - `graft-api-dx-review`, `graft-domain-model-review`, `graft-event-contract-review`, `graft-typescript-dx-audit`,
+    `graft-query-key-consistency`, `graft-permission-model-review`, `graft-module-architecture-review`,
+    `graft-test-seam-review`, `graft-change-review`, `graft-consistency-review`, and `graft-delete-review` are
+    mandatory defaults when their matching concern is present.
+  - These skills produce semantic evidence and decisions; they do not define a second authority, validation, commit,
+   closeout, issue, or recovery path.
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts

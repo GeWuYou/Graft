@@ -203,14 +203,16 @@ transport adapter；产品 runtime 仍不得把开发者客户端配置、AI ski
 
 ### 5.1 Semantic Review Layer
 
-`graft-openapi-contract-review`、`graft-cross-boundary-review` 和 `graft-platform-architecture-review` 属于默认
-语义审查层：Boot 必须主动匹配，设计阶段必须记录选择与结论，不能把它们降级为用户显式点名才运行的可选工具。
-后续新增 API DX、领域、权限、Query、TypeScript、事件、模块架构或测试 seam Review Skill 时，必须补充触发
-条件，并由 Boot 与 ai-plan 的设计 Review 规则统一引用。
+仓库 Review Skill 是设计阶段的默认语义审查层，不是仅在用户显式点名时运行的可选工具。Boot 必须主动匹配
+适用 Skill，设计或 Work Contract 必须记录选择、证据、skill gap 和未决决策。当前矩阵包括：
+`graft-openapi-contract-review`、`graft-cross-boundary-review`、`graft-platform-architecture-review`、
+`graft-api-dx-review`、`graft-domain-model-review`、`graft-event-contract-review`、`graft-typescript-dx-audit`、
+`graft-query-key-consistency`、`graft-permission-model-review`、`graft-module-architecture-review`、
+`graft-test-seam-review`、`graft-change-review`、`graft-consistency-review`、`graft-delete-review`。
 
-语义审查 Skill 只能输出 authority、边界、设计风险、决策和验证建议；不得创建第二套 startup、Work Intake、
-validation、commit、closeout 或 recovery truth。未匹配到已安装 Skill 时应记录 skill gap，并使用现有治理清单，
-不得静默跳过语义审查。
+语义审查 Skill 只提供 authority、边界、语义风险、设计决策和验证建议，不得创建第二套 startup、Work Intake、
+validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须声明触发条件、authority、输出证据和拒绝
+条件；没有对应 Skill 时必须显式记录 gap 并使用最接近的现有治理清单。
 
 新增或修改仓库 skill 时：
 

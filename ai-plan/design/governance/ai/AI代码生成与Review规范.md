@@ -21,22 +21,17 @@
 
 ## 2.1 Semantic Review Layer
 
-语义审查是设计阶段的默认层，不是只有用户显式要求时才运行的工具。Boot 阶段必须根据 authority、task class
-和影响面主动匹配 Review Skill，并在设计或 Work Contract 中记录选择；没有对应 Skill 时记录缺口并使用最接近的
-现有治理清单。
+语义审查是设计阶段的默认层，不是用户显式要求时才运行的工具。Boot 必须按 authority、task class 和影响面
+主动匹配所有适用 Review Skill，并在设计或 Work Contract 中记录选择、发现和未决决策。
 
-最低匹配规则：
+匹配矩阵：OpenAPI/共享 wire contract 使用 `graft-openapi-contract-review`；跨 server/OpenAPI/generated web/query
+链使用 `graft-cross-boundary-review`；平台/runtime/Task/Submission/config/source-of-truth 使用
+`graft-platform-architecture-review`；API、domain、event、TypeScript、Query key、permission、module、test seam、
+change、consistency、delete 分别使用同名 `graft-*` Review Skill。
 
-- OpenAPI、共享 wire contract、错误、枚举、分页或兼容性 -> `graft-openapi-contract-review`
-- 任何跨 `server` -> OpenAPI -> generated `web` -> query/store/composable/view 的改动 ->
-  `graft-cross-boundary-review`
-- Runtime、Application First、模块生命周期、Task/Submission、provider、配置 authority 或 source-of-truth ->
-  `graft-platform-architecture-review`
-- API DX、领域模型、权限、Query key、TypeScript、事件、模块架构或测试 seam -> 使用已登记的对应 Review Skill
-
-Semantic Review 输出的是设计证据和需要解决的决策，不替代 OpenAPI authority、`graft validate`、`bun run check`、
-CI、commit 或 closeout。设计阶段发现的 blocker 必须在实现开始前解决或明确记录为风险与验收条件；不得以生成成功
-或 lint 通过推断语义设计正确。
+缺失的 Skill 必须记录为 skill gap 并使用最近的现有治理清单，不得静默跳过。Semantic Review 只提供 authority、
+边界、语义风险、设计决策和验证建议，不创建第二套 startup、validation、commit、closeout、issue 或 recovery truth。
+设计阶段发现的 blocker 必须在实现前解决，或转化为明确的风险、验收条件和后续责任。
 
 ## 3. Agent 禁区
 
