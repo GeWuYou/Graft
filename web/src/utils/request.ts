@@ -55,9 +55,15 @@ type AuthSessionBridge = {
   handleAuthFailure(): void | Promise<void>;
 };
 
+type PlatformAvailabilityBridge = {
+  allowsBusinessTraffic(): boolean;
+  reportTransportFailure(path?: string): void;
+};
+
 const AUTH_REFRESH_URL = OPENAPI_RUNTIME_PATH.postAuthRefresh;
 const TOKEN_REFRESH_LEEWAY_MS = 60_000;
 let authSessionBridge: AuthSessionBridge | null = null;
+let platformAvailabilityBridge: PlatformAvailabilityBridge | null = null;
 let inflightRefreshPromise: Promise<LoginResponse> | null = null;
 
 export function serializeRequestParams(params: Record<string, unknown>) {
@@ -108,6 +114,10 @@ const client = axios.create({
 client.interceptors.request.use(async (config) => {
   const nextConfig = config as typeof config & AxiosRequestConfigRetry;
 
+  if (shouldBlockForUnavailablePlatform(nextConfig)) {
+    throw buildPlatformUnavailableError();
+  }
+
   if (!nextConfig._skipAuthRefresh && nextConfig.url !== AUTH_REFRESH_URL && shouldRefreshBeforeRequest()) {
     await refreshClientSessionWithFailureHandling();
   }
@@ -138,8 +148,12 @@ function resolveRequestLocale() {
 client.interceptors.response.use(
   async (response) => unwrapResponse(response),
   async (error: AxiosError<ApiErrorEnvelope>) => {
-    const requestError = normalizeAxiosError(error);
+    const requestError = isApiRequestError(error) ? error : normalizeAxiosError(error);
     const config = error.config as AxiosRequestConfigRetry | undefined;
+
+    if (shouldReportPlatformFailure(requestError, config)) {
+      platformAvailabilityBridge?.reportTransportFailure(config?.url);
+    }
 
     if (shouldRefresh(requestError, config)) {
       return tryRefreshAndReplay(config!);
@@ -172,6 +186,9 @@ async function requestWithResponse<T>(
 }
 
 async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false): Promise<void> {
+  if (shouldBlockForUnavailablePlatform({ url: config.url })) {
+    throw buildPlatformUnavailableError();
+  }
   if (!authRefreshAttempted && shouldRefreshBeforeRequest()) {
     await refreshClientSessionWithFailureHandling();
   }
@@ -208,16 +225,24 @@ async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false
     const tail = decoder.decode();
     if (tail) config.onChunk(tail);
   } catch (error) {
-    if (isAbortError(error) || isApiRequestError(error)) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+    if (isApiRequestError(error)) {
+      if (shouldReportPlatformFailure(error, { url: config.url })) {
+        platformAvailabilityBridge?.reportTransportFailure(config.url);
+      }
       throw error;
     }
 
-    throw buildApiRequestError(0, {
+    const requestError = buildApiRequestError(0, {
       success: false,
       code: API_CODE.COMMON_INTERNAL_ERROR,
       message: error instanceof Error ? error.message : i18n.global.t('app.request.failed'),
       traceId: '',
     });
+    platformAvailabilityBridge?.reportTransportFailure(config.url);
+    throw requestError;
   } finally {
     if (reader) {
       try {
@@ -327,6 +352,32 @@ function buildApiRequestError(status: number, payload: ApiErrorEnvelope): ApiReq
   error.responseData = payload;
   error.isApiRequestError = true;
   return error;
+}
+
+function buildPlatformUnavailableError(): ApiRequestError {
+  const error = buildApiRequestError(0, {
+    success: false,
+    code: API_CODE.COMMON_INTERNAL_ERROR,
+    message: i18n.global.t('app.request.failed'),
+    traceId: '',
+  });
+  error.isPlatformUnavailable = true;
+  return error;
+}
+
+function shouldBlockForUnavailablePlatform(config: AxiosRequestConfigRetry) {
+  return (
+    config.url !== OPENAPI_RUNTIME_PATH.getHealthz &&
+    platformAvailabilityBridge !== null &&
+    !platformAvailabilityBridge.allowsBusinessTraffic()
+  );
+}
+
+function shouldReportPlatformFailure(error: ApiRequestError, config?: AxiosRequestConfigRetry) {
+  if (!config || config.url === OPENAPI_RUNTIME_PATH.getHealthz || error.isPlatformUnavailable) {
+    return false;
+  }
+  return error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504;
 }
 
 function syncLoggerCorrelation(traceId: string | undefined) {
@@ -486,6 +537,11 @@ export const request: RequestInstance = {
  */
 export function registerAuthSessionBridge(bridge: AuthSessionBridge | null) {
   authSessionBridge = bridge;
+}
+
+/** 注册壳层可达性 bridge；请求层只回报信号，不拥有平台状态。 */
+export function registerPlatformAvailabilityBridge(bridge: PlatformAvailabilityBridge | null) {
+  platformAvailabilityBridge = bridge;
 }
 
 export function isApiRequestError(error: unknown): error is ApiRequestError {

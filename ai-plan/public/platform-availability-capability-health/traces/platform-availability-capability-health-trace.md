@@ -33,3 +33,10 @@
 - Router guards redirect only after the store has confirmed platform unavailability; authentication remains separate.
 - Focused frontend validation passed: lint, typecheck, Provider and route-guard tests, and diff check.
 - Full `bun run check` remains blocked by existing Monaco language-definition imports and unrelated container-detail test failures.
+
+## 2026-08-07 Phase 2
+
+- Added a request-to-store availability bridge without coupling Axios to Pinia.
+- Network failures and 502/503/504 report candidate failures; healthz, auth errors, and business 500 responses do not.
+- The store controls TanStack Query online state and retry eligibility; unavailable requests and NDJSON streams fail fast.
+- Focused validation passed: lint, typecheck, request tests, and diff check.

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 
 import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
-import { request } from '@/utils/request';
+import { setPlatformQueryOnline } from '@/shared/query/client';
+import { registerPlatformAvailabilityBridge, request } from '@/utils/request';
 
 /** 浏览器控制面可达性的壳层状态，不表达任一模块或资源的健康度。 */
 export type PlatformAvailabilityStatus = 'unknown' | 'healthy' | 'degraded' | 'unavailable' | 'recovering';
@@ -34,6 +35,12 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
     allowsBusinessTraffic: (state) => state.status !== 'unavailable',
   },
   actions: {
+    bindRequestBridge() {
+      registerPlatformAvailabilityBridge({
+        allowsBusinessTraffic: () => this.allowsBusinessTraffic,
+        reportTransportFailure: (path) => this.recordFailure(path),
+      });
+    },
     recordFailure(path?: string) {
       this.consecutiveFailures += 1;
       if (path && path !== '/result/service-unavailable') {
@@ -41,12 +48,14 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
       }
       if (this.consecutiveFailures >= FAILURE_THRESHOLD) {
         this.status = 'unavailable';
+        setPlatformQueryOnline(false);
       }
     },
     recordSuccess() {
       this.consecutiveFailures = 0;
       this.lastCheckedAt = Date.now();
       this.status = 'healthy';
+      setPlatformQueryOnline(true);
     },
     beginRecovery() {
       this.status = 'recovering';
@@ -71,6 +80,7 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
           this.recordFailure();
           // healthz 是直接的控制面探测；与业务请求候选信号不同，单次失败即可接管页面。
           this.status = 'unavailable';
+          setPlatformQueryOnline(false);
           return false;
         })
         .finally(() => {

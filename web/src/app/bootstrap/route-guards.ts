@@ -82,6 +82,7 @@ function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordR
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
     const availability = usePlatformAvailabilityStore(pinia);
+    availability.bindRequestBridge();
     if (availability.isUnavailable && to.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
       availability.pendingPath = to.fullPath;
       next({ path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE, query: { redirect: to.fullPath }, replace: true });
