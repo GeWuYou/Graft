@@ -54,7 +54,8 @@ CREATE TABLE artifact_repository_user_assignments (
 );
 
 CREATE UNIQUE INDEX uq_artifact_repository_user_assignments_repository_user
-ON artifact_repository_user_assignments (repository_id, user_id);
+ON artifact_repository_user_assignments (repository_id, user_id)
+WHERE deleted_at = 0;
 
 CREATE INDEX idx_artifact_repository_user_assignments_live_actor
 ON artifact_repository_user_assignments (user_id, repository_id)
