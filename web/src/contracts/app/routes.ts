@@ -7,6 +7,7 @@ export const APP_RESULT_ROUTE_PATH = {
   SUCCESS: '/result/success',
   FAIL: '/result/fail',
   NETWORK_ERROR: '/result/network-error',
+  SERVICE_UNAVAILABLE: '/result/service-unavailable',
   MAINTENANCE: '/result/maintenance',
   BROWSER_INCOMPATIBLE: '/result/browser-incompatible',
 } as const;
@@ -18,6 +19,7 @@ export const APP_RESULT_ROUTE_NAME = {
   SUCCESS: 'ResultSuccess',
   FAIL: 'ResultFail',
   NETWORK_ERROR: 'ResultNetworkError',
+  SERVICE_UNAVAILABLE: 'ResultServiceUnavailable',
   MAINTENANCE: 'ResultMaintenance',
   BROWSER_INCOMPATIBLE: 'ResultBrowserIncompatible',
 } as const;

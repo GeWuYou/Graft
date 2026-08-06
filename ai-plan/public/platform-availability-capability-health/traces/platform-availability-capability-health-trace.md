@@ -26,3 +26,10 @@
 ```json
 {"loop_mode":"topic-completion-loop","completed_batches":["phase-0-server-foundation"],"pending_batches":["phase-1-web-availability","phase-2-query-gating","phase-3-realtime","phase-4-capability-projection","phase-5-recovery-diagnostics"],"current_batch":null,"next_batch":"phase-1-web-availability","closeout_status":"batch-complete"}
 ```
+
+## 2026-08-07 Phase 1
+
+- Added the shell-owned PlatformAvailabilityStore, anonymous healthz probe, static service-unavailable route, and preserved-route recovery path.
+- Router guards redirect only after the store has confirmed platform unavailability; authentication remains separate.
+- Focused frontend validation passed: lint, typecheck, Provider and route-guard tests, and diff check.
+- Full `bun run check` remains blocked by existing Monaco language-definition imports and unrelated container-detail test failures.

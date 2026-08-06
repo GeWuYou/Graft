@@ -46,14 +46,14 @@ closeout:
 
 ## Current Recovery Point
 
-- RFC and implementation notes are complete; Phase 0 server contracts and coordinator are implemented and validated.
+- Phase 0 server contracts and Phase 1 browser availability takeover are implemented and validated.
 - No schema or migration work is planned for the initial phases.
-- Next step: Phase 0 server contract and coordinator round.
+- Next step: Phase 2 Axios and TanStack Query gating.
 
 ## Task Checklist
 
 - [x] Phase 0: contracts, registry, coordinator, and tests
-- [ ] Phase 1: browser availability baseline and router takeover
+- [x] Phase 1: browser availability baseline and router takeover
 - [ ] Phase 2: Axios and TanStack Query gating
 - [ ] Phase 3: WebSocket/SSE pause and recovery
 - [ ] Phase 4: capability API, providers, and dashboard
@@ -71,10 +71,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-server-foundation"],
-  "pending_batches": ["phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection", "phase-5-recovery-diagnostics"],
+  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability"],
+  "pending_batches": ["phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection", "phase-5-recovery-diagnostics"],
   "current_batch": null,
-  "next_batch": "phase-1-web-availability",
+  "next_batch": "phase-2-query-gating",
   "closeout_status": "batch-complete"
 }
 ```
