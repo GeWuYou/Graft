@@ -11,7 +11,7 @@
 - Canonical authority:
   - `ai-plan/design/architecture/build-domain-v2.md`
   - `ai-plan/roadmap/build-domain-v2.md`
-- Completed so far: Work Intake and authority/bootstrap are in progress in the current loop batch.
+- Completed so far: Work Intake, v2 authority/bootstrap, roadmap and active-topic recovery materials.
 - Not started yet: Phase 1 runtime, infrastructure, server, contract and web implementation.
 
 ## Recovery Receipt
@@ -50,9 +50,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Current loop batch establishes repository authority, roadmap and recovery materials only.
+- `authority-bootstrap` was accepted and committed as `084ae531`.
 - Legacy Docker Build Center history is preserved, but its new-write model is superseded.
-- Next step: the loop controller settles this bootstrap batch and selects the bounded Phase 1 implementation slice.
+- Next step: `phase-1-single-builder` establishes the upstream v2 contracts and single-builder execution path.
 
 ## Work Intake
 

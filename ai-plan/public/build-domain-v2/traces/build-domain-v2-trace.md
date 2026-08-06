@@ -9,6 +9,8 @@
 - Docker-first direct create fields are historical-only; future writes use the v2 resource model.
 - Builder capability remains Runtime Target authority; Builder Profile/Instance/Pool are logical Build resources and
   do not create another connection directory.
+- The loop controller accepted the batch after `git diff --check`, the bounded ai-plan structure validation and
+  commit `084ae531`.
 
 ## Locked Decisions
 
@@ -22,16 +24,17 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
+  "completed_batches": [
+    "authority-bootstrap"
+  ],
   "pending_batches": [
-    "authority-bootstrap",
     "phase-1-single-builder",
     "phase-2-workspaces-templates-drivers",
     "phase-3-pools-scheduling-platforms",
     "phase-4-artifact-supply-chain-automation"
   ],
-  "current_batch": "authority-bootstrap",
-  "next_batch": null,
-  "closeout_status": "in-progress"
+  "current_batch": "phase-1-single-builder",
+  "next_batch": "phase-2-workspaces-templates-drivers",
+  "closeout_status": "settled"
 }
 ```

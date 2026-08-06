@@ -49,15 +49,16 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `authority-bootstrap`; it has not yet been settled by the loop controller.
-- Current authority work establishes the v2 design/roadmap, retires Docker-first new-write semantics and creates active
-  recovery materials.
+- `authority-bootstrap` was accepted and committed as `084ae531` after structure and diff validation.
+- Current batch: `phase-1-single-builder`.
+- Current authority work is complete; Phase 1 must repair Runtime Target, Infrastructure Registry, Build, Task,
+  OpenAPI and Web boundaries in dependency order.
 - Current risk: later implementation must widen from Build to Runtime, Infrastructure, Task, OpenAPI and Web whenever
   an upstream shared contract changes.
 
 ## Task Checklist
 
-- [ ] Settle authority/bootstrap design, roadmap and topic recovery materials.
+- [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
 - [ ] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.
 - [ ] Phase 2: reusable Workspaces/Snapshots, Templates, Drivers and materialization.
 - [ ] Phase 3: Builder Profiles/Instances/Pools, scheduling and multi-platform fan-out.
@@ -75,16 +76,17 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
+  "completed_batches": [
+    "authority-bootstrap"
+  ],
   "pending_batches": [
-    "authority-bootstrap",
     "phase-1-single-builder",
     "phase-2-workspaces-templates-drivers",
     "phase-3-pools-scheduling-platforms",
     "phase-4-artifact-supply-chain-automation"
   ],
-  "current_batch": "authority-bootstrap",
-  "next_batch": null,
-  "closeout_status": "in-progress"
+  "current_batch": "phase-1-single-builder",
+  "next_batch": "phase-2-workspaces-templates-drivers",
+  "closeout_status": "settled"
 }
 ```
