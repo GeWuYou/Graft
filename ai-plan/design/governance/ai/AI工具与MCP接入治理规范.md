@@ -201,6 +201,17 @@ transport adapter；产品 runtime 仍不得把开发者客户端配置、AI ski
 
 ## 5. Skill 设计规则
 
+### 5.1 Semantic Review Layer
+
+`graft-openapi-contract-review`、`graft-cross-boundary-review` 和 `graft-platform-architecture-review` 属于默认
+语义审查层：Boot 必须主动匹配，设计阶段必须记录选择与结论，不能把它们降级为用户显式点名才运行的可选工具。
+后续新增 API DX、领域、权限、Query、TypeScript、事件、模块架构或测试 seam Review Skill 时，必须补充触发
+条件，并由 Boot 与 ai-plan 的设计 Review 规则统一引用。
+
+语义审查 Skill 只能输出 authority、边界、设计风险、决策和验证建议；不得创建第二套 startup、Work Intake、
+validation、commit、closeout 或 recovery truth。未匹配到已安装 Skill 时应记录 skill gap，并使用现有治理清单，
+不得静默跳过语义审查。
+
 新增或修改仓库 skill 时：
 
 - 先确认是否已有 skill 可以扩展，避免重复工作流。

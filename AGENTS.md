@@ -169,6 +169,17 @@ The minimum startup preflight is:
 7. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
 8. if the request proposes new long-running work and no active topic already owns it, route through the
    `graft-work-intake` workflow before creating a new `topic`, `design`, `roadmap`, or `ADR`
+9. actively match the task against the repository's Semantic Review Layer before freezing scope:
+   - OpenAPI or shared wire-contract changes -> `graft-openapi-contract-review`
+   - changes crossing `server` -> OpenAPI -> generated `web` -> query/store/view -> `graft-cross-boundary-review`
+   - platform lifecycle, runtime, authority, configuration, task/submission, or provider changes ->
+     `graft-platform-architecture-review`
+   - API shape or caller ergonomics -> `graft-api-dx-review` when available
+   - domain lifecycle or aggregate decisions -> `graft-domain-model-review` when available
+   - permission/menu/route capability changes -> `graft-permission-model-review` when available
+   - TanStack Query cache semantics -> `graft-query-key-consistency` when available
+   Review matching is a default semantic review step, not an opt-in tool invocation. If a named skill is not yet
+   present, record the gap and apply the closest existing governance checklist.
 
 The minimum startup receipt is:
 
@@ -311,6 +322,16 @@ Prefer the repository skills below when their trigger matches the task:
     bootstrap, or loop dispatch
   - it produces one `Work Contract`, performs contract-driven minimal bootstrap, and dispatches to specialized skills
   - it must not become a second startup authority or a content-authoring skill
+- `graft-openapi-contract-review`
+  - use by default for OpenAPI source, shared wire-contract, generated-schema, API error, enum, pagination, security,
+    or compatibility changes; it reviews semantics and consumers without becoming a second OpenAPI authority
+- `graft-cross-boundary-review`
+  - use by default when one capability crosses server, OpenAPI, generated TypeScript, API client, query/store,
+    composable, or view boundaries; it checks projection ownership, transformation economy, and contract closure
+- `graft-platform-architecture-review`
+  - use by default for platform lifecycle, runtime, provider, configuration, task/submission, authority, or
+    source-of-truth changes; it checks whether the change strengthens Graft as a platform rather than a feature
+    collection
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts

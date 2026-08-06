@@ -19,6 +19,25 @@
 - 前端页面的数据流设计先区分 server state 与 UI/client state；出现重复请求、手工 loading/error/data、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，先按 `ai-plan/design/architecture/前端架构设计.md` 评估 `@tanstack/vue-query`。
 - 不把 TanStack 当作默认替换方案：Table、Virtual、Router 和 Form 只有在既有能力被可复核的性能或维护性证据否定后才可进入独立设计。
 
+## 2.1 Semantic Review Layer
+
+语义审查是设计阶段的默认层，不是只有用户显式要求时才运行的工具。Boot 阶段必须根据 authority、task class
+和影响面主动匹配 Review Skill，并在设计或 Work Contract 中记录选择；没有对应 Skill 时记录缺口并使用最接近的
+现有治理清单。
+
+最低匹配规则：
+
+- OpenAPI、共享 wire contract、错误、枚举、分页或兼容性 -> `graft-openapi-contract-review`
+- 任何跨 `server` -> OpenAPI -> generated `web` -> query/store/composable/view 的改动 ->
+  `graft-cross-boundary-review`
+- Runtime、Application First、模块生命周期、Task/Submission、provider、配置 authority 或 source-of-truth ->
+  `graft-platform-architecture-review`
+- API DX、领域模型、权限、Query key、TypeScript、事件、模块架构或测试 seam -> 使用已登记的对应 Review Skill
+
+Semantic Review 输出的是设计证据和需要解决的决策，不替代 OpenAPI authority、`graft validate`、`bun run check`、
+CI、commit 或 closeout。设计阶段发现的 blocker 必须在实现开始前解决或明确记录为风险与验收条件；不得以生成成功
+或 lint 通过推断语义设计正确。
+
 ## 3. Agent 禁区
 
 以下场景默认属于 agent no-go area，未经明确授权不得直接落地：
