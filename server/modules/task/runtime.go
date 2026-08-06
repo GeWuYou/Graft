@@ -56,6 +56,8 @@ type Runtime struct {
 	logger          logger.AppLogger
 }
 
+var _ moduleapi.CoordinatedTaskService = (*Runtime)(nil)
+
 type runningStage struct {
 	executor moduleapi.StageExecutor
 	run      moduleapi.StageRun
@@ -127,6 +129,22 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 
 // Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	if input.Plan.Coordination != nil {
+		return moduleapi.TaskReceipt{}, moduleapi.ErrCoordinatedTaskUnsupported
+	}
+	return r.submit(ctx, input, false)
+}
+
+// SubmitCoordinated 将消费者冻结的协调计划展开为 Task Runtime 自有的并行 Stage 组；Build 等消费者不得自行创建本地循环。
+func (r *Runtime) SubmitCoordinated(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	if input.Plan.Coordination == nil {
+		return moduleapi.TaskReceipt{}, moduleapi.ErrCoordinatedTaskUnsupported
+	}
+	expanded, err := expandCoordinatedPlan(input.Plan)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	input.Plan = expanded
 	return r.submit(ctx, input, false)
 }
 
@@ -305,10 +323,14 @@ func (r *Runtime) submit(ctx context.Context, input moduleapi.SubmitTaskInput, a
 }
 
 func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationRequired bool) (taskmodel.Task, []taskmodel.Stage, error) {
-	if err := r.validatePlan(input.Plan); err != nil {
+	planInput, err := expandCoordinatedPlan(input.Plan)
+	if err != nil {
 		return taskmodel.Task{}, nil, err
 	}
-	plan, err := json.Marshal(input.Plan)
+	if err := r.validatePlan(planInput); err != nil {
+		return taskmodel.Task{}, nil, err
+	}
+	plan, err := json.Marshal(planInput)
 	if err != nil {
 		return taskmodel.Task{}, nil, fmt.Errorf("marshal task plan: %w", err)
 	}
@@ -327,16 +349,44 @@ func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationReq
 		SubmissionFingerprint: fingerprint, ScheduledAt: input.ScheduledAt,
 		ActivationRequired: activationRequired,
 	}
-	stages := make([]taskmodel.Stage, 0, len(input.Plan.Stages))
-	for index, stage := range input.Plan.Stages {
+	stages := make([]taskmodel.Stage, 0, len(planInput.Stages))
+	for index, stage := range planInput.Stages {
 		stages = append(stages, taskmodel.Stage{
-			Key: stage.Key, Sequence: index + 1, ExecutorType: stage.ExecutorType,
+			Key: stage.Key, Sequence: index + 1, ExecutorType: stage.ExecutorType, CoordinationGroup: stage.CoordinationGroup, LegID: stage.LegID,
 			Status: moduleapi.StageStatusPending, MaxAttempts: normalizedMaxAttempts(stage.RetryPolicy.MaxAttempts),
 			RetryBackoffMS: stage.RetryPolicy.Backoff.Milliseconds(), Input: stage.Input,
 			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
 		})
 	}
 	return task, stages, nil
+}
+
+func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) {
+	if plan.Coordination == nil {
+		return plan, nil
+	}
+	if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
+		return moduleapi.TaskPlan{}, err
+	}
+	if len(plan.Stages) == len(plan.Coordination.Legs) {
+		return plan, nil
+	}
+	if len(plan.Stages) != 1 {
+		return moduleapi.TaskPlan{}, errors.New("coordinated task requires exactly one stage template")
+	}
+	template := plan.Stages[0]
+	if template.ExternalReceipt != nil || template.ExecutorType == "" || template.Key == "" {
+		return moduleapi.TaskPlan{}, errors.New("coordinated task stage template is unsupported")
+	}
+	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs))
+	for index, leg := range plan.Coordination.Legs {
+		stageInput := template.Input
+		if len(leg.Input) > 0 {
+			stageInput = leg.Input
+		}
+		plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: fmt.Sprintf("%s-%d", template.Key, index+1), ExecutorType: template.ExecutorType, CoordinationGroup: plan.Coordination.AggregateStageKey, LegID: leg.ID, Input: stageInput, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
+	}
+	return plan, nil
 }
 
 func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (*string, *string, error) {
@@ -659,14 +709,32 @@ func (r *Runtime) cancelNonRunningTask(ctx context.Context, task taskmodel.Task)
 
 func (r *Runtime) cancelRunningTask(ctx context.Context, task taskmodel.Task) (bool, error) {
 	r.mu.RLock()
-	running, exists := r.running[task.ID]
+	running := r.runningStagesForTask(task.ID)
 	r.mu.RUnlock()
-	if exists {
-		return false, r.cancelTrackedStage(ctx, running)
+	if len(running) > 0 {
+		return r.cancelTrackedStages(ctx, task.ID, running)
 	}
+	return r.cancelUntrackedRunningTask(ctx, task)
+}
+
+func (r *Runtime) cancelTrackedStages(ctx context.Context, taskID uint64, running []runningStage) (bool, error) {
+	for _, current := range running {
+		if err := r.cancelStage(ctx, current.executor, current.run); err != nil {
+			return false, fmt.Errorf("cancel task stage: %w", err)
+		}
+		current.cancel()
+	}
+	r.signalWake()
+	return false, r.appendEvent(ctx, taskID, taskmodel.EventTypeCancelRequested)
+}
+
+func (r *Runtime) cancelUntrackedRunningTask(ctx context.Context, task taskmodel.Task) (bool, error) {
 	stages, err := r.repository.ListStages(ctx, task.ID)
 	if err != nil {
 		return false, err
+	}
+	if hasMultipleRunningStages(stages) {
+		return r.cancelUntrackedCoordinatedStages(ctx, task)
 	}
 	runningStage, err := untrackedRunningStage(stages)
 	if err != nil {
@@ -688,6 +756,30 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, task taskmodel.Task) (b
 	return true, nil
 }
 
+func (r *Runtime) cancelUntrackedCoordinatedStages(ctx context.Context, task taskmodel.Task) (bool, error) {
+	if err := r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelRequested); err != nil {
+		return false, err
+	}
+	now := time.Now().UTC()
+	if _, err := r.repository.CancelUntrackedRunningStages(ctx, task.ID, now, durationSince(task.StartedAt, now)); err != nil {
+		return false, err
+	}
+	if err := r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelled); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func hasMultipleRunningStages(stages []taskmodel.Stage) bool {
+	count := 0
+	for _, stage := range stages {
+		if stage.Status == moduleapi.StageStatusRunning {
+			count++
+		}
+	}
+	return count > 1
+}
+
 func untrackedRunningStage(stages []taskmodel.Stage) (*taskmodel.Stage, error) {
 	var runningStage *taskmodel.Stage
 	for _, stage := range stages {
@@ -704,15 +796,6 @@ func untrackedRunningStage(stages []taskmodel.Stage) (*taskmodel.Stage, error) {
 		return nil, taskstore.ErrStateConflict
 	}
 	return runningStage, nil
-}
-
-func (r *Runtime) cancelTrackedStage(ctx context.Context, running runningStage) error {
-	if err := r.cancelStage(ctx, running.executor, running.run); err != nil {
-		return fmt.Errorf("cancel task stage: %w", err)
-	}
-	running.cancel()
-	r.signalWake()
-	return r.appendEvent(ctx, running.run.TaskID(), taskmodel.EventTypeCancelRequested)
 }
 
 func (r *Runtime) executeStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
@@ -924,8 +1007,8 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	}
 	stageContext, cancel := context.WithCancel(ctx)
 	run := &stageRun{runtime: r, task: claim.Task, stage: claim.Stage}
-	r.addRunning(claim.Task.ID, runningStage{executor: executor, run: run, cancel: cancel})
-	defer r.removeRunning(claim.Task.ID)
+	r.addRunning(claim.Stage.ID, runningStage{executor: executor, run: run, cancel: cancel})
+	defer r.removeRunning(claim.Stage.ID)
 	err = r.executeStage(stageContext, executor, run)
 	cancel()
 	finishErr := r.finishClaim(ctx, claim, err)
@@ -958,11 +1041,18 @@ func (r *Runtime) completeClaim(ctx context.Context, claim taskstore.StageClaim)
 	if err != nil {
 		return err
 	}
+	current, err := r.repository.Get(ctx, claim.Task.ID)
+	if err != nil {
+		return err
+	}
+	if current.Status != moduleapi.TaskStatusRunning {
+		return nil
+	}
 	if hasPendingStages(stages) {
 		r.signalWake()
 		return nil
 	}
-	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusSuccess, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusSuccess, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
 }
 
 func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
@@ -984,7 +1074,33 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusFailed, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
-	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
+	if claim.Stage.CoordinationGroup != "" {
+		r.cancelOtherTrackedStages(ctx, claim.Task.ID, claim.Stage.ID)
+	}
+	current, err := r.repository.Get(ctx, claim.Task.ID)
+	if err != nil {
+		return err
+	}
+	if current.Status != moduleapi.TaskStatusRunning {
+		return nil
+	}
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
+}
+
+func (r *Runtime) cancelOtherTrackedStages(ctx context.Context, taskID uint64, failedStageID uint64) {
+	r.mu.RLock()
+	stages := r.runningStagesForTask(taskID)
+	r.mu.RUnlock()
+	for _, current := range stages {
+		if current.run.StageID() == failedStageID {
+			continue
+		}
+		if err := r.cancelStage(ctx, current.executor, current.run); err != nil {
+			r.logger.Error(ctx, "cancel coordinated task stage after peer failure", logger.StringField(logger.FieldOperation, "task_coordinated_cancel"), logger.Uint64Field("task_id", taskID), logger.Uint64Field("stage_id", current.run.StageID()), logger.ErrorField(err))
+			continue
+		}
+		current.cancel()
+	}
 }
 
 func (r *Runtime) cancelClaim(ctx context.Context, claim taskstore.StageClaim) error {
@@ -992,13 +1108,28 @@ func (r *Runtime) cancelClaim(ctx context.Context, claim taskstore.StageClaim) e
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusCancelled, Attempt: claim.Stage.Attempt, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
-	if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusCancelled, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)}); err != nil {
+	current, err := r.repository.Get(ctx, claim.Task.ID)
+	if err != nil {
+		return err
+	}
+	if current.Status == moduleapi.TaskStatusCancelled {
+		return nil
+	}
+	if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusCancelled, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)}); err != nil {
 		return err
 	}
 	return r.appendEvent(ctx, claim.Task.ID, taskmodel.EventTypeCancelled)
 }
 
 func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
+	if plan.Coordination != nil {
+		if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
+			return err
+		}
+		if len(plan.Stages) != len(plan.Coordination.Legs) {
+			return errors.New("coordinated task stages do not match legs")
+		}
+	}
 	if len(plan.Stages) == 0 {
 		return errors.New("task plan must contain at least one stage")
 	}
@@ -1017,6 +1148,9 @@ func (r *Runtime) validateStagePlan(stage moduleapi.StagePlan, index int, total 
 	}
 	if _, exists := seen[stage.Key]; exists {
 		return fmt.Errorf("task plan contains duplicate stage %q", stage.Key)
+	}
+	if (stage.CoordinationGroup == "") != (stage.LegID == "") {
+		return errors.New("task plan coordinated stage identity is incomplete")
 	}
 	if stage.ExternalReceipt != nil {
 		if !externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
@@ -1054,16 +1188,26 @@ func (r *Runtime) executorFor(executorType moduleapi.StageExecutorType) (modulea
 	return executor, exists
 }
 
-func (r *Runtime) addRunning(taskID uint64, stage runningStage) {
+func (r *Runtime) addRunning(stageID uint64, stage runningStage) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.running[taskID] = stage
+	r.running[stageID] = stage
 }
 
-func (r *Runtime) removeRunning(taskID uint64) {
+func (r *Runtime) removeRunning(stageID uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.running, taskID)
+	delete(r.running, stageID)
+}
+
+func (r *Runtime) runningStagesForTask(taskID uint64) []runningStage {
+	items := make([]runningStage, 0, len(r.running))
+	for _, current := range r.running {
+		if current.run.TaskID() == taskID {
+			items = append(items, current)
+		}
+	}
+	return items
 }
 
 func (r *Runtime) appendEvent(ctx context.Context, taskID uint64, eventType taskmodel.EventType) error {

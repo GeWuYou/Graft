@@ -52,6 +52,7 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	runtimeTargets          moduleapi.RuntimeTargetReader
+	buildTargets            moduleapi.BuildRuntimeTargetReader
 	tasks                   moduleapi.TaskService
 	statsCollector          *statsCollector
 	runtimeEventManagerMu   sync.RWMutex
@@ -85,6 +86,7 @@ type containerServiceOptions struct {
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
 	runtimeTargets                       moduleapi.RuntimeTargetReader
+	buildTargets                         moduleapi.BuildRuntimeTargetReader
 	tasks                                moduleapi.TaskService
 	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
@@ -118,6 +120,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		return nil, fmt.Errorf("resolve container authorizer: %w", err)
 	}
 	runtimeTargets, _ := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
+	buildTargets, _ := module.ResolveService[moduleapi.BuildRuntimeTargetReader](ctx.Services, (*moduleapi.BuildRuntimeTargetReader)(nil))
 	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
 	if err != nil {
 		return nil, fmt.Errorf("resolve task service: %w", err)
@@ -142,6 +145,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		topicIssuers:            topicIssuers,
 		authorizer:              authorizer,
 		runtimeTargets:          runtimeTargets,
+		buildTargets:            buildTargets,
 		tasks:                   tasks,
 	})
 }
@@ -200,6 +204,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
 		runtimeTargets:          options.runtimeTargets,
+		buildTargets:            options.buildTargets,
 		tasks:                   options.tasks,
 		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil

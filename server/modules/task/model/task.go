@@ -61,11 +61,15 @@ type Submission struct {
 
 // Stage 表示冻结计划中的一个阶段及其当前执行状态；计划字段创建后不因重试而重写。
 type Stage struct {
-	ID             uint64
-	TaskID         uint64
-	Key            string
-	Sequence       int
-	ExecutorType   moduleapi.StageExecutorType
+	ID           uint64
+	TaskID       uint64
+	Key          string
+	Sequence     int
+	ExecutorType moduleapi.StageExecutorType
+	// CoordinationGroup 是数据库领取器判断并行资格的持久化事实，空值继续使用串行语义。
+	CoordinationGroup string
+	// LegID 保留协调计划中的稳定 leg 身份，普通 Stage 为空。
+	LegID          string
 	Status         moduleapi.StageStatus
 	Attempt        int
 	MaxAttempts    int

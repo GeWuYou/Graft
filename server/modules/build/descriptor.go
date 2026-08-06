@@ -13,7 +13,7 @@ import (
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"auth", "rbac", "project", "task", "container"},
+		Dependencies:  []string{"auth", "rbac", "project", "task", "container", "registry"},
 		MigrationPath: []string{"modules/build/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

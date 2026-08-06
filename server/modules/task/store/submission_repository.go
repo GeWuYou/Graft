@@ -311,7 +311,7 @@ func (r *SQLRepository) insertTaskWithTx(ctx context.Context, tx *sql.Tx, task t
 	}
 	for _, stage := range stages {
 		stage.TaskID = task.ID
-		if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO task_stages (task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms, next_retry_at, input_json, recovery_policy, result_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), stage.TaskID, stage.Key, stage.Sequence, stage.ExecutorType, stage.Status, stage.Attempt, stage.MaxAttempts, stage.RetryBackoffMS, stage.NextRetryAt, stage.Input, stage.RecoveryPolicy, stage.Result, now, now).Scan(&stage.ID); err != nil {
+		if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO task_stages (task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms, next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), stage.TaskID, stage.Key, stage.Sequence, stage.ExecutorType, stage.Status, stage.Attempt, stage.MaxAttempts, stage.RetryBackoffMS, stage.NextRetryAt, stage.Input, stage.CoordinationGroup, stage.LegID, stage.RecoveryPolicy, stage.Result, now, now).Scan(&stage.ID); err != nil {
 			return taskmodel.Task{}, fmt.Errorf("insert materialized stage %q: %w", stage.Key, err)
 		}
 	}

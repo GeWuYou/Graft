@@ -130,8 +130,8 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		current.UpdatedAt = now
 		if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO task_stages (
 			task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
-			next_retry_at, input_json, recovery_policy, result_json, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
+			next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
 			current.TaskID,
 			current.Key,
 			current.Sequence,
@@ -142,6 +142,8 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 			current.RetryBackoffMS,
 			current.NextRetryAt,
 			current.Input,
+			current.CoordinationGroup,
+			current.LegID,
 			current.RecoveryPolicy,
 			current.Result,
 			now,
@@ -527,6 +529,7 @@ func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, 
 				SELECT 1 FROM task_stages earlier
 				WHERE earlier.task_id = stage.task_id AND earlier.sequence < stage.sequence
 					AND earlier.status NOT IN (?, ?, ?)
+					AND (stage.coordination_group = '' OR earlier.coordination_group = '' OR earlier.coordination_group <> stage.coordination_group)
 			)
 		ORDER BY task.created_at ASC, stage.sequence ASC, stage.id ASC
 		FOR UPDATE OF task, stage SKIP LOCKED
@@ -558,6 +561,7 @@ func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time)
 				SELECT 1 FROM task_stages earlier
 				WHERE earlier.task_id = stage.task_id AND earlier.sequence < stage.sequence
 					AND earlier.status NOT IN (?, ?, ?)
+					AND (stage.coordination_group = '' OR earlier.coordination_group = '' OR earlier.coordination_group <> stage.coordination_group)
 			)
 		ORDER BY task.created_at ASC, stage.sequence ASC, stage.id ASC
 		LIMIT 1`,
@@ -710,6 +714,44 @@ func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID 
 		return fmt.Errorf("commit untracked running stage cancellation: %w", err)
 	}
 	return nil
+}
+
+// CancelUntrackedRunningStages 原子取消同一 Task 下所有未被本 Runtime 跟踪的 running Stage；其耗时保持未知，避免伪造分布式执行时间。
+func (r *SQLRepository) CancelUntrackedRunningStages(ctx context.Context, taskID uint64, finishedAt time.Time, taskDurationMS *int64) (int, error) {
+	if taskID == 0 || finishedAt.IsZero() {
+		return 0, ErrInvalidInput
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin untracked running stages cancellation: %w", err)
+	}
+	defer rollback(tx)
+	stageResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE task_id = ? AND status = ?`), moduleapi.StageStatusCancelled, finishedAt.UTC(), finishedAt.UTC(), taskID, moduleapi.StageStatusRunning)
+	if err != nil {
+		return 0, fmt.Errorf("cancel untracked running stages: %w", err)
+	}
+	count, err := stageResult.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count cancelled untracked running stages: %w", err)
+	}
+	if count == 0 {
+		return 0, ErrStateConflict
+	}
+	taskResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, finished_at = ?, duration_ms = ?, updated_at = ?
+		WHERE id = ? AND status = ? AND cancel_requested_at IS NOT NULL`), moduleapi.TaskStatusCancelled, finishedAt.UTC(), taskDurationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusRunning)
+	if err != nil {
+		return 0, fmt.Errorf("cancel untracked running coordinated task: %w", err)
+	}
+	if err := expectOneAffected(taskResult); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit untracked running stages cancellation: %w", err)
+	}
+	return int(count), nil
 }
 
 // RetryStage 将操作员批准的 failed 或 unknown Stage 恢复为 pending。
@@ -1203,8 +1245,9 @@ func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 // normalizeStagesForCreate 校验并规范化 Task 初始执行计划中的阶段集合。
 func normalizeStagesForCreate(stages []taskmodel.Stage) error {
 	seenKeys := make(map[string]struct{}, len(stages))
+	seenLegIDs := make(map[string]struct{}, len(stages))
 	for index := range stages {
-		if err := normalizeStageForCreate(&stages[index], index+1, seenKeys); err != nil {
+		if err := normalizeStageForCreate(&stages[index], index+1, seenKeys, seenLegIDs); err != nil {
 			return err
 		}
 	}
@@ -1213,7 +1256,7 @@ func normalizeStagesForCreate(stages []taskmodel.Stage) error {
 
 // normalizeStageForCreate 验证并规范化创建任务所需的阶段数据，同时检查阶段序号和键的唯一性。
 // 无效阶段或重复键返回 ErrInvalidInput；有效阶段的输入和结果 JSON 为空时规范化为 {}。
-func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[string]struct{}) error {
+func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[string]struct{}, seenLegIDs map[string]struct{}) error {
 	if !validInitialStage(stage, sequence) {
 		return ErrInvalidInput
 	}
@@ -1221,6 +1264,16 @@ func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[
 		return ErrInvalidInput
 	}
 	seenKeys[stage.Key] = struct{}{}
+	stage.CoordinationGroup, stage.LegID = strings.TrimSpace(stage.CoordinationGroup), strings.TrimSpace(stage.LegID)
+	if (stage.CoordinationGroup == "") != (stage.LegID == "") {
+		return ErrInvalidInput
+	}
+	if stage.LegID != "" {
+		if _, exists := seenLegIDs[stage.LegID]; exists {
+			return ErrInvalidInput
+		}
+		seenLegIDs[stage.LegID] = struct{}{}
+	}
 	stage.Input = normalizeJSON(stage.Input)
 	stage.Result = normalizeJSON(stage.Result)
 	return nil

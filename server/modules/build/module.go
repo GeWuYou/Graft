@@ -12,7 +12,11 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
-const moduleID = "build"
+const (
+	moduleID                = "build"
+	buildMenuOrderJobs      = 1
+	buildMenuOrderArtifacts = 2
+)
 
 // Module 声明 Build domain 的生命周期边界，并在 Register 阶段接入其 Task executor 与 HTTP API。
 type Module struct {
@@ -39,7 +43,8 @@ func (m *Module) Register(ctx *module.Context) error {
 	for _, item := range items {
 		ctx.PermissionRegistry.Register(item)
 	}
-	ctx.MenuRegistry.Register(menu.Item{Code: "build.jobs", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.jobs.title", Path: "/build/jobs", Icon: "build", Order: 1, Permission: buildcontract.BuildReadPermission, Module: moduleID})
+	ctx.MenuRegistry.Register(menu.Item{Code: "build.jobs", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.jobs.title", Path: "/build/jobs", Icon: "build", Order: buildMenuOrderJobs, Permission: buildcontract.BuildReadPermission, Module: moduleID})
+	ctx.MenuRegistry.Register(menu.Item{Code: "build.artifacts", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.artifacts.title", Path: "/build/artifacts", Icon: "image-artifact", Order: buildMenuOrderArtifacts, Permission: buildcontract.BuildReadPermission, Module: moduleID})
 	contexts, err := module.ResolveService[moduleapi.ApplicationBuildContextResolver](ctx.Services, (*moduleapi.ApplicationBuildContextResolver)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve application build context resolver: %w", err)
@@ -60,15 +65,42 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve Docker image build capability: %w", err)
 	}
+	targetDocker, _ := module.ResolveService[moduleapi.TargetBoundDockerImageBuildCapability](ctx.Services, (*moduleapi.TargetBoundDockerImageBuildCapability)(nil))
+	targetReader, _ := module.ResolveService[moduleapi.BuildRuntimeTargetReader](ctx.Services, (*moduleapi.BuildRuntimeTargetReader)(nil))
 	service, err := NewService(contexts, submissions, taskBatch, docker, m.repository)
 	if err != nil {
 		return err
 	}
-	if err := registerBuildTaskExecutor(registrar, m.repository, docker); err != nil {
+	configureBuildV2Submission(ctx, service)
+	publication, _ := module.ResolveService[moduleapi.TargetBoundDockerImagePublicationCapability](ctx.Services, (*moduleapi.TargetBoundDockerImagePublicationCapability)(nil))
+	manifestPublication, _ := module.ResolveService[moduleapi.TargetBoundOCIManifestPublicationCapability](ctx.Services, (*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil))
+	snapshotDelivery, _ := module.ResolveService[moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability](ctx.Services, (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil))
+	conformance, _ := module.ResolveService[moduleapi.TargetBoundProviderExecutionConformanceCapability](ctx.Services, (*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil))
+	provider, _ := module.ResolveService[moduleapi.TargetBoundDockerBuildProvider](ctx.Services, (*moduleapi.TargetBoundDockerBuildProvider)(nil))
+	registryPublication, _ := module.ResolveService[moduleapi.RegistryPublicationResolver](ctx.Services, (*moduleapi.RegistryPublicationResolver)(nil))
+	if err := registerBuildTaskExecutor(registrar, m.repository, docker, targetDocker, publication, manifestPublication, snapshotDelivery, conformance, provider, registryPublication, service.intents, targetReader); err != nil {
+		return err
+	}
+	if err := registerSnapshotMaterializationCleanupJob(ctx.CronRegistry, service); err != nil {
 		return err
 	}
 	m.service = service
 	return registerRoutes(ctx, service)
+}
+
+// configureBuildV2Submission 在仓库迁移 legacy read 期间刻意保持可选；生产注册
+// 提供全部 authority，focused legacy test 不必构造第二套 fake graph。
+func configureBuildV2Submission(ctx *module.Context, service *Service) {
+	if ctx == nil || ctx.Services == nil || service == nil {
+		return
+	}
+	snapshots, snapshotErr := module.ResolveService[moduleapi.ApplicationWorkspaceSnapshotResolver](ctx.Services, (*moduleapi.ApplicationWorkspaceSnapshotResolver)(nil))
+	targets, targetErr := module.ResolveService[moduleapi.BuildRuntimeTargetReader](ctx.Services, (*moduleapi.BuildRuntimeTargetReader)(nil))
+	assignments, assignmentErr := module.ResolveService[moduleapi.RuntimeTargetBuildAssignmentReader](ctx.Services, (*moduleapi.RuntimeTargetBuildAssignmentReader)(nil))
+	registry, registryErr := module.ResolveService[moduleapi.RegistryDestinationResolver](ctx.Services, (*moduleapi.RegistryDestinationResolver)(nil))
+	if snapshotErr == nil && targetErr == nil && assignmentErr == nil && registryErr == nil {
+		service.ConfigureV2Submission(snapshots, targets, assignments, registry)
+	}
 }
 
 // Boot 当前无常驻构建资源。

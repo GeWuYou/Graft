@@ -512,6 +512,7 @@ const (
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusFailed         PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "failed"
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusNeedsAttention PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "needs_attention"
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusPending        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "pending"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusReady          PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "ready"
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusRunning        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "running"
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusScheduled      PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "scheduled"
 	PostContainerBatchActions202JSONResponseBodyDataItemsStatusSuccess        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "success"
@@ -527,6 +528,8 @@ func (e PostContainerBatchActions202JSONResponseBodyDataItemsStatus) Valid() boo
 	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusNeedsAttention:
 		return true
 	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusPending:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusReady:
 		return true
 	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusRunning:
 		return true
@@ -1943,6 +1946,7 @@ const (
 	PostContainerRestart202JSONResponseBodyDataStatusFailed         PostContainerRestart202JSONResponseBodyDataStatus = "failed"
 	PostContainerRestart202JSONResponseBodyDataStatusNeedsAttention PostContainerRestart202JSONResponseBodyDataStatus = "needs_attention"
 	PostContainerRestart202JSONResponseBodyDataStatusPending        PostContainerRestart202JSONResponseBodyDataStatus = "pending"
+	PostContainerRestart202JSONResponseBodyDataStatusReady          PostContainerRestart202JSONResponseBodyDataStatus = "ready"
 	PostContainerRestart202JSONResponseBodyDataStatusRunning        PostContainerRestart202JSONResponseBodyDataStatus = "running"
 	PostContainerRestart202JSONResponseBodyDataStatusScheduled      PostContainerRestart202JSONResponseBodyDataStatus = "scheduled"
 	PostContainerRestart202JSONResponseBodyDataStatusSuccess        PostContainerRestart202JSONResponseBodyDataStatus = "success"
@@ -1958,6 +1962,8 @@ func (e PostContainerRestart202JSONResponseBodyDataStatus) Valid() bool {
 	case PostContainerRestart202JSONResponseBodyDataStatusNeedsAttention:
 		return true
 	case PostContainerRestart202JSONResponseBodyDataStatusPending:
+		return true
+	case PostContainerRestart202JSONResponseBodyDataStatusReady:
 		return true
 	case PostContainerRestart202JSONResponseBodyDataStatusRunning:
 		return true
@@ -2288,6 +2294,7 @@ const (
 	PostContainerStart202JSONResponseBodyDataStatusFailed         PostContainerStart202JSONResponseBodyDataStatus = "failed"
 	PostContainerStart202JSONResponseBodyDataStatusNeedsAttention PostContainerStart202JSONResponseBodyDataStatus = "needs_attention"
 	PostContainerStart202JSONResponseBodyDataStatusPending        PostContainerStart202JSONResponseBodyDataStatus = "pending"
+	PostContainerStart202JSONResponseBodyDataStatusReady          PostContainerStart202JSONResponseBodyDataStatus = "ready"
 	PostContainerStart202JSONResponseBodyDataStatusRunning        PostContainerStart202JSONResponseBodyDataStatus = "running"
 	PostContainerStart202JSONResponseBodyDataStatusScheduled      PostContainerStart202JSONResponseBodyDataStatus = "scheduled"
 	PostContainerStart202JSONResponseBodyDataStatusSuccess        PostContainerStart202JSONResponseBodyDataStatus = "success"
@@ -2303,6 +2310,8 @@ func (e PostContainerStart202JSONResponseBodyDataStatus) Valid() bool {
 	case PostContainerStart202JSONResponseBodyDataStatusNeedsAttention:
 		return true
 	case PostContainerStart202JSONResponseBodyDataStatusPending:
+		return true
+	case PostContainerStart202JSONResponseBodyDataStatusReady:
 		return true
 	case PostContainerStart202JSONResponseBodyDataStatusRunning:
 		return true
@@ -2411,6 +2420,7 @@ const (
 	PostContainerStop202JSONResponseBodyDataStatusFailed         PostContainerStop202JSONResponseBodyDataStatus = "failed"
 	PostContainerStop202JSONResponseBodyDataStatusNeedsAttention PostContainerStop202JSONResponseBodyDataStatus = "needs_attention"
 	PostContainerStop202JSONResponseBodyDataStatusPending        PostContainerStop202JSONResponseBodyDataStatus = "pending"
+	PostContainerStop202JSONResponseBodyDataStatusReady          PostContainerStop202JSONResponseBodyDataStatus = "ready"
 	PostContainerStop202JSONResponseBodyDataStatusRunning        PostContainerStop202JSONResponseBodyDataStatus = "running"
 	PostContainerStop202JSONResponseBodyDataStatusScheduled      PostContainerStop202JSONResponseBodyDataStatus = "scheduled"
 	PostContainerStop202JSONResponseBodyDataStatusSuccess        PostContainerStop202JSONResponseBodyDataStatus = "success"
@@ -2426,6 +2436,8 @@ func (e PostContainerStop202JSONResponseBodyDataStatus) Valid() bool {
 	case PostContainerStop202JSONResponseBodyDataStatusNeedsAttention:
 		return true
 	case PostContainerStop202JSONResponseBodyDataStatusPending:
+		return true
+	case PostContainerStop202JSONResponseBodyDataStatusReady:
 		return true
 	case PostContainerStop202JSONResponseBodyDataStatusRunning:
 		return true
@@ -2672,6 +2684,7 @@ const (
 	PostDockerImagePull202JSONResponseBodyDataStatusFailed         PostDockerImagePull202JSONResponseBodyDataStatus = "failed"
 	PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention PostDockerImagePull202JSONResponseBodyDataStatus = "needs_attention"
 	PostDockerImagePull202JSONResponseBodyDataStatusPending        PostDockerImagePull202JSONResponseBodyDataStatus = "pending"
+	PostDockerImagePull202JSONResponseBodyDataStatusReady          PostDockerImagePull202JSONResponseBodyDataStatus = "ready"
 	PostDockerImagePull202JSONResponseBodyDataStatusRunning        PostDockerImagePull202JSONResponseBodyDataStatus = "running"
 	PostDockerImagePull202JSONResponseBodyDataStatusScheduled      PostDockerImagePull202JSONResponseBodyDataStatus = "scheduled"
 	PostDockerImagePull202JSONResponseBodyDataStatusSuccess        PostDockerImagePull202JSONResponseBodyDataStatus = "success"
@@ -2687,6 +2700,8 @@ func (e PostDockerImagePull202JSONResponseBodyDataStatus) Valid() bool {
 	case PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention:
 		return true
 	case PostDockerImagePull202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusReady:
 		return true
 	case PostDockerImagePull202JSONResponseBodyDataStatusRunning:
 		return true

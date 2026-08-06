@@ -102,14 +102,14 @@ func submissionColumns() string {
 // stageColumns 返回从 Stage 表选择的逗号分隔列名。
 func stageColumns() string {
 	return `id, task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
-		next_retry_at, input_json, recovery_policy, result_json, failure_code, failure_message, started_at,
+		next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, failure_code, failure_message, started_at,
 		finished_at, duration_ms, created_at, updated_at`
 }
 
 // stageColumnsFor 返回使用指定表别名限定的 Stage 逗号分隔列名。
 func stageColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
-		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
+		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.coordination_group, ` + alias + `.leg_id, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
 		` + alias + `.finished_at, ` + alias + `.duration_ms, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
@@ -192,7 +192,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var taskCreatedBy sql.NullInt64
 	var taskScheduledAt, taskCancelRequestedAt, taskStartedAt, taskFinishedAt sql.NullTime
 	var taskDurationMS sql.NullInt64
-	var stageExecutorType, stageStatus, stageRecoveryPolicy string
+	var stageExecutorType, stageStatus, stageCoordinationGroup, stageLegID, stageRecoveryPolicy string
 	var stageInput, stageResult []byte
 	var stageNextRetryAt, stageStartedAt, stageFinishedAt sql.NullTime
 	var stageFailureCode, stageFailureMessage sql.NullString
@@ -202,7 +202,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 		&taskCurrentStageKey, &taskCreatedBy, &taskIdempotencyKeyHash, &taskSubmissionFingerprint, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
 		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
 		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
-		&stageNextRetryAt, &stageInput, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
+		&stageNextRetryAt, &stageInput, &stageCoordinationGroup, &stageLegID, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
 		&stageFinishedAt, &stageDurationMS, &claim.Stage.CreatedAt, &claim.Stage.UpdatedAt,
 	); err != nil {
 		return StageClaim{}, err
@@ -225,6 +225,8 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	claim.Task.FailureCode = nullableString(taskFailureCode)
 	claim.Task.FailureMessage = nullableString(taskFailureMessage)
 	claim.Stage.ExecutorType = moduleapi.StageExecutorType(stageExecutorType)
+	claim.Stage.CoordinationGroup = stageCoordinationGroup
+	claim.Stage.LegID = stageLegID
 	claim.Stage.Status = moduleapi.StageStatus(stageStatus)
 	claim.Stage.Input = normalizeJSON(stageInput)
 	claim.Stage.RecoveryPolicy = moduleapi.StageRecoveryPolicy(stageRecoveryPolicy)
@@ -258,19 +260,21 @@ func scanStages(rows *sql.Rows) ([]taskmodel.Stage, error) {
 // 对可空时间、字符串和时长字段进行指针化，并规范化阶段的 JSON 字段。
 func scanStage(scanner interface{ Scan(dest ...any) error }) (taskmodel.Stage, error) {
 	var item taskmodel.Stage
-	var executorType, status, recoveryPolicy string
+	var executorType, status, coordinationGroup, legID, recoveryPolicy string
 	var input, result []byte
 	var nextRetryAt, startedAt, finishedAt sql.NullTime
 	var failureCode, failureMessage sql.NullString
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
 		&item.ID, &item.TaskID, &item.Key, &item.Sequence, &executorType, &status, &item.Attempt, &item.MaxAttempts, &item.RetryBackoffMS,
-		&nextRetryAt, &input, &recoveryPolicy, &result, &failureCode, &failureMessage, &startedAt,
+		&nextRetryAt, &input, &coordinationGroup, &legID, &recoveryPolicy, &result, &failureCode, &failureMessage, &startedAt,
 		&finishedAt, &durationMS, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return taskmodel.Stage{}, err
 	}
 	item.ExecutorType = moduleapi.StageExecutorType(executorType)
+	item.CoordinationGroup = coordinationGroup
+	item.LegID = legID
 	item.Status = moduleapi.StageStatus(status)
 	item.Input = normalizeJSON(input)
 	item.RecoveryPolicy = moduleapi.StageRecoveryPolicy(recoveryPolicy)

@@ -43,7 +43,9 @@ uploaded archive, generated Workspace and approved target-local materialization.
 `Workspace Snapshot` resolves a Workspace at a point in time to immutable input evidence: a Git commit, frozen
 Application content, archive digest, generated-content digest, or approved target-local capture. It records source
 provenance and materialization constraints without exposing protected paths or credentials. A Snapshot has no mutable
-content; retention only affects availability, never its identity.
+content; retention only affects availability, never its identity. Source adapters may create a temporary capture, but
+Build adopts the retained execution materialization and is its sole lifecycle owner; the persisted execution reference
+is private and opaque outside the executor boundary.
 
 ### Template And Driver
 
@@ -64,6 +66,8 @@ Target `build` capability. It represents a runnable builder realization, not a s
 `Builder Pool` is an optional collection of eligible Builder Instances and its scheduling policy. It selects Instances,
 not Runtime Targets directly. Phase 1 allows exactly one eligible Instance. Later pool policies may use round robin,
 least load, labels, affinity and region only after the associated capability signals are truthful and auditable.
+The first Pool implementation uses a persisted, transactionally locked round-robin cursor; other policy values remain
+disabled until their telemetry and placement authorities are available.
 
 ### Execution Plan, Build Job, Artifact And Publication
 
@@ -92,6 +96,36 @@ then submits a Task Runtime plan. Task Runtime projects Build stages but remains
 prepare_workspace -> schedule_builder -> run_build -> export_artifact -> publish_destination
                                                                     -> publish_manifest (when required)
 ```
+
+多平台执行的当前边界是：Task Runtime 负责 coordinated leg 的并行领取、取消、重试与恢复，Build executor 负责单 leg
+构建、临时平台引用发布和最终 Manifest 结算。Phase 8 才会把 Builder Pool 的平台级 placement 提升为可审计的
+多 Runtime Target 调度；在此之前，一个冻结计划只使用一个已选 Builder Instance，避免把未实现的负载或地域判断
+伪装成调度结果。
+
+Phase 8 的第一项实现将 `Builder Placement` 冻结到 Execution Plan：每个目标平台记录 Builder Instance、
+Runtime Target、已采用的调度策略及其校验后的调度证据，并成为 Task Runtime leg 与 Build executor 的唯一目标依据。Workspace Snapshot
+已经由 Build 接管，因此 target 必须明确声明 `build-snapshot` locality 才能被 placement 选中；这不是 endpoint 或
+任意目录的兼容通道。
+
+Placement 只表达并冻结调度决定，不能证明一个 Provider 能消费该 Snapshot。Runtime Target 还必须声明
+`SnapshotDeliveryModes`；`WorkspaceLocalities` 只表示物化位置，不等于传输适配器。Phase 9 owns provider-backed Snapshot
+delivery and remote execution: a provider receives or materializes the exact immutable Snapshot through a declared
+delivery mode, verifies its identity, then executes its declared Driver. The Docker provider now proves the same
+contract for local Unix-socket and validated remote TCP/SSH targets by invoking the selected target explicitly and
+transferring the immutable Snapshot context through the Docker client. Build must never receive endpoint or
+credential facts or compensate with a local target fallback. The remaining non-Docker work is split into a provider
+execution foundation (Phase 9C) and concrete Kubernetes/BuildKit/Kaniko adapters (Phase 9D); capability declarations
+alone are never treated as execution proof.
+
+The Phase 9 foundation uses `TargetBoundWorkspaceSnapshotDeliveryCapability` as the provider boundary. Build passes only
+the frozen Snapshot identity, content digest, selected target and declared delivery mode inside the execution-private
+call. The Docker adapter accepts `target-local` for Unix-socket targets and `provider-transfer` for validated TCP/SSH
+targets, verifies the managed Build snapshot root and returns a matching delivery proof before Docker execution.
+Unsupported targets and connection kinds remain fail-closed; they must never fall back to the local Docker process.
+
+Build-owned Snapshot retention 使用显式清理 lease：到期物化从 `available` 或 `expired` 进入 `purging`，删除私有
+物化字节后才进入 `purged`。中断的 `purging` lease 可被重新领取；任何不在 Build 私有快照根目录下的引用都会被拒绝。
+清理不删除 Snapshot、Execution Plan、Artifact 或 Publication，因此历史重试会明确看到物化不可用，而不是隐式刷新来源。
 
 Build exposes a derived lifecycle suitable for Build users: `Draft`, `Queued`, `Preparing Workspace`, `Scheduling
 Builder`, `Running`, `Exporting Artifact`, `Publishing`, `Succeeded`, `Failed`, `Cancelled`, or `Needs Attention`.
@@ -128,6 +162,44 @@ Multi-platform execution fans one Execution Plan out into platform-specific buil
 requires explicit distributed-build support in Task Runtime before implementation; Build must not emulate a second
 orchestrator.
 
+This distributed-leg contract is an explicit follow-up Phase 6 authority gap. Task Runtime must own coordinated leg
+identity, cancellation, retry/recovery and aggregate terminal state; Build owns the resulting platform Artifacts and
+manifest Publication. Until that contract is released, a Build executor must not loop over platforms or create an
+implicit fan-out scheduler.
+
+### Phase 8A: Builder Telemetry Authority
+
+The remaining scheduler gap is not a selection algorithm. Runtime Target currently exposes only capability and UI
+summary projections; it does not expose a Build-facing, freshness-bounded fact for builder capacity, running builds,
+queued builds, region or affinity. Build therefore must not derive `least_load`, `region` or `affinity` from CPU charts,
+host load, endpoint names or static Builder labels.
+
+Phase 8A defines `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` as the narrow authority boundary.
+Each snapshot is Runtime Target-scoped, carries capacity/load dimensions, `ObservedAt`, `ExpiresAt`, a source reference
+and explicit region/affinity claims. Consumers must reject stale, unavailable or internally inconsistent snapshots. A
+future Runtime/Infrastructure provider must publish and authorize these facts, while Build Scheduler binds the accepted
+target fact to its Build-owned Builder Instance in placement evidence and replays the same decision without re-querying
+mutable telemetry.
+
+Until Phase 8A has a registered source implementation and integration evidence, only `round_robin` and static `labels`
+selection remain executable; `least_load`, `region` and `affinity` stay fail-closed.
+
+### Phase 8B: Builder Capacity And Telemetry Source Authority
+
+Phase 8A's contract cannot be implemented from Runtime UI summaries, Monitor data, Docker container counts or Task JSON.
+Phase 8B therefore introduces the missing durable authority rather than treating any of those projections as scheduler
+input. Runtime/Infrastructure owns a provider-conformant, target-scoped telemetry source with provenance, freshness and
+attested topology claims. Build separately owns atomic Builder Instance reservations, so physical target availability
+and Graft's own concurrent allocations are never conflated.
+
+Before freezing a placement, Build obtains a fresh target fact, selects an eligible Instance and atomically records a
+fenced reservation. The accepted source/version, capacity facts and reservation reference become frozen scheduling
+evidence. Task lifecycle completion, cancellation and restart recovery reconcile the reservation; provider execution
+may reject an unavailable target but must not silently re-schedule it. A provider source must be real for its Runtime:
+Docker requires a bounded Build agent/control plane or equivalent provider authority, Kubernetes requires its
+BuildKit/Kaniko controller or API evidence, and remote builders require their provider API. Until one source meets this
+release gate, `least_load`, `region` and `affinity` remain unavailable.
+
 ## 7. UI And API Information Architecture
 
 The create flow is a platform workflow, not a Docker form:
@@ -149,8 +221,9 @@ Workspace -> Snapshot -> Builder -> Template / Driver -> Destinations -> Executi
 
 REST resources are `Workspaces`, `Workspace Snapshots`, `Build Templates`, `Build Drivers`, `Builder Profiles`,
 `Builder Instances`, `Builder Pools`, `Registry Connections`, `Artifact Repositories`, `Artifact Destinations`,
-`Execution Plans`, `Build Jobs`, `Artifacts` and `Publications`. Build Job endpoints submit, list, detail, cancel and
-retry; scheduler policy is administered through Builder Pools rather than a detached Scheduler API. New write contracts
+`Execution Plans`, `Build Jobs`, `Artifacts` and `Publications`. Artifact endpoints expose immutable digest facts and
+never resolve mutable Publication references; Build Job endpoints submit, list, detail, cancel and retry; scheduler
+policy is administered through Builder Pools rather than a detached Scheduler API. New write contracts
 use resource references and selected typed parameters, replacing direct `context_path`, `dockerfile_path`, free-form
 endpoint and credential inputs. Legacy Jobs remain readable only.
 
@@ -164,3 +237,48 @@ endpoint and credential inputs. Legacy Jobs remain readable only.
   an explicit transferable materialization. No API accepts an arbitrary host path.
 - No registry server, independent Build worker/queue/log system, user-configured Runtime connection, or generic
   workflow engine is introduced.
+
+## 9. Provider Execution Evolution
+
+### Phase 9C: Provider Execution Foundation (additional gap closure)
+
+Phase 9B proves target-bound Docker execution, but non-Docker runtimes still lack a complete provider-neutral
+execution evidence contract. This phase closes that prerequisite without claiming that a Kubernetes, BuildKit or
+Kaniko adapter exists.
+
+Scope:
+
+- Define the private provider contract for connection acquisition, Snapshot import/materialization, identity
+  verification, Driver invocation, Artifact/Publication evidence, credential execution mode, cancellation, timeout
+  and recovery fencing.
+- `TargetBoundProviderDriverExecutionCapability` is the provider-neutral Driver boundary: it consumes only frozen
+  Snapshot identity, verified delivery proof and platform/Driver selection, emits through `BuildDriverLogSink`, then
+  returns digest-addressed execution evidence. It is deliberately separate from the Docker reference-provider
+  interfaces.
+- Keep Runtime Target as the only authority for provider connection and credential facts; Build and Task metadata
+  receive opaque references and redacted evidence only.
+- Require every advertised Driver and Snapshot delivery mode to be backed by a registered provider implementation and
+  health check before the target is selectable.
+- Provide conformance tests and a failure taxonomy for unsupported providers, unavailable connections, Snapshot digest
+  mismatch, credential rejection, cancellation and uncertain external outcomes. Unsupported paths fail closed and never
+  fall back to Local Docker.
+- Define the provider handoff for per-platform digest settlement and final manifest publication so future adapters
+  reuse the existing Artifact and Publication authorities.
+
+**Release gate:** the contract, capability-registration rule and conformance suite reject every unsupported or
+unverifiable provider path, while existing Docker adapters continue to pass and no endpoint, credential or host path
+crosses the Build/Task boundary.
+
+Foundation delivered: `TargetBoundProviderExecutionConformanceCapability` receives only a frozen target, Driver,
+platform, Snapshot identity and delivery mode. The Runtime Target Docker provider is registered as the reference
+implementation; v2 execution requires complete delivery, Driver, publication, cancellation and cleanup evidence before
+it calls Snapshot delivery. Build persists the non-secret conformance result per Execution Plan and Task stage as an
+append-only evidence fact. `TargetBoundDockerBuildProvider` aggregates the Docker reference adapter only; future
+non-Docker providers must use a provider-neutral Driver contract and cannot inherit Docker-specific types.
+
+### Phase 9D: Concrete Non-Docker Provider Adapters
+
+After Phase 9C, implement one provider at a time, such as Kubernetes BuildKit or Kaniko, behind the foundation
+contract. Each adapter must own target connection/credential resolution, receive the exact immutable Snapshot, execute
+the selected Driver, support cancellation/recovery, and return digest-preserving Artifact/Publication evidence. A
+provider becomes selectable only after its integration proof passes; all other providers remain fail-closed.

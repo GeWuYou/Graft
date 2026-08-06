@@ -1,12 +1,33 @@
 {
   "menu": {
     "build": {
+      "artifacts": {
+        "title": "Build Artifacts"
+      },
       "jobs": {
         "title": "Build Jobs"
       }
     }
   },
   "build": {
+    "artifacts": {
+      "title": "Build Artifacts",
+      "eyebrow": "Build",
+      "description": "Browse immutable artifacts produced by Build executions.",
+      "refresh": "Refresh",
+      "summary": "{count} artifacts",
+      "empty": "No build artifacts yet",
+      "emptyDescription": "Immutable artifacts will appear here after a Build execution publishes them.",
+      "loadFailed": "Unable to load build artifacts.",
+      "retry": "Retry",
+      "columns": {
+        "digest": "Digest",
+        "mediaType": "Media Type",
+        "platforms": "Platforms",
+        "size": "Size",
+        "createdAt": "Created"
+      }
+    },
     "jobs": {
       "title": "Build Tasks",
       "eyebrow": "Platform",
@@ -81,8 +102,24 @@
         "submit": "Submit build",
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",
-        "applicationId": "Application ID",
-        "applicationIdRequired": "Application ID is required.",
+        "workspace": "Workspace",
+        "workspaceId": "Workspace ID",
+        "workspaceIdRequired": "Workspace ID is required.",
+        "workspacePlaceholder": "Select a workspace snapshot",
+        "runtimeTarget": "Build runtime target",
+        "runtimeTargetRequired": "Build runtime target is required.",
+        "runtimeTargetPlaceholder": "Select a build-capable Runtime Target",
+        "builderSelection": "Builder selection",
+        "runtimeTargetMode": "Select a Runtime Target",
+        "builderPoolMode": "Use a Builder Pool",
+        "builderPool": "Builder Pool",
+        "builderPoolRequired": "Builder Pool is required.",
+        "builderPoolPlaceholder": "Select a Builder Pool",
+        "selectorsUnavailable": "Build selectors are unavailable until the Build read API is configured.",
+        "selectorsLoadFailed": "Unable to load Build selectors.",
+        "selectorsEmpty": "No authorized Build workspace and builder options are available.",
+        "template": "Build template",
+        "driver": "Build driver",
         "contextPath": "Build context path",
         "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",

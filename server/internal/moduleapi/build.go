@@ -4,7 +4,268 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"time"
 )
+
+// WorkspaceSnapshot 是 Build 执行消费的不可变、已物化源码输入；MaterializedRoot
+// 仅供执行器使用，绝不能越过 HTTP 或 Task metadata 边界。
+type WorkspaceSnapshot struct {
+	ID               string
+	WorkspaceID      string
+	SourceKind       string
+	SourceReference  string
+	ContentDigest    string
+	MaterializedRoot string
+	CreatedAt        time.Time
+}
+
+// BuildWorkspace 是 Build 所有的可复用来源定义；实际源码内容由 Snapshot 冻结，
+// Workspace 本身只保存来源身份和生命周期策略，不保存任意主机路径。
+type BuildWorkspace struct {
+	ID              string
+	Name            string
+	SourceKind      string
+	SourceReference string
+	RetentionPolicy string
+	CreatedBy       uint64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// BuilderProfile 是 Build-owned 的 Driver 配置和执行策略，不携带 Runtime endpoint 或凭据。
+type BuilderProfile struct {
+	ID            string
+	DisplayName   string
+	DriverRef     string
+	DriverVersion string
+	Policy        json.RawMessage
+}
+
+// BuilderInstance 是 Profile 绑定 Runtime Target build capability 后的可执行实例。
+type BuilderInstance struct {
+	ID              string
+	ProfileID       string
+	RuntimeTargetID int64
+	Status          string
+	Labels          map[string]string
+	DriverRef       string
+	DriverVersion   string
+}
+
+// BuilderPool 是 Builder Instance 的选择策略集合，不拥有 Task 状态或独立调度循环。
+type BuilderPool struct {
+	ID               string
+	DisplayName      string
+	SchedulingPolicy string
+	Selector         json.RawMessage
+}
+
+// BuilderPoolMember 是 Pool 对 Instance 的 Build-owned 调度关系，不复制 Runtime
+// Target 的连接信息，也不拥有 Task 执行状态。
+type BuilderPoolMember struct {
+	PoolID     string
+	InstanceID string
+	Priority   int
+}
+
+// BuilderPlacement 是冻结计划中一个目标平台到 Builder Instance/Runtime Target 的可重放分配。
+// 它由 Build scheduler 在提交前解析，Task Runtime 只消费其稳定身份而不重新调度。
+type BuilderPlacement struct {
+	Platform           string
+	BuilderInstanceID  string
+	RuntimeTargetID    int64
+	SchedulingPolicy   string
+	SchedulingEvidence json.RawMessage
+}
+
+// BuilderResourceRepository 是 Builder Profile、Instance、Pool 及成员关系的持久化边界。
+type BuilderResourceRepository interface {
+	CreateBuilderProfile(context.Context, BuilderProfile, uint64) error
+	CreateBuilderInstance(context.Context, BuilderInstance, uint64) error
+	CreateBuilderPool(context.Context, BuilderPool, uint64) error
+	ReplaceBuilderPoolMembers(context.Context, string, []BuilderPoolMember, uint64) error
+	GetBuilderPool(context.Context, string) (BuilderPool, error)
+	ListBuilderPoolMembers(context.Context, string) ([]BuilderInstance, error)
+	SelectRoundRobinBuilderInstance(context.Context, string) (BuilderInstance, error)
+}
+
+const (
+	// WorkspaceSourceApplication 表示由 Application Workspace adapter 提供来源。
+	WorkspaceSourceApplication = "application_workspace"
+	// WorkspaceSourceGit 表示由受控 Git provider 提供来源。
+	WorkspaceSourceGit = "git"
+	// WorkspaceSourceArchive 表示由平台上传归档提供来源。
+	WorkspaceSourceArchive = "uploaded_archive"
+	// WorkspaceSourceGenerated 表示由 Build 规则生成来源。
+	WorkspaceSourceGenerated = "generated"
+	// WorkspaceSourceTargetLocal 表示经 Runtime Target 授权的本地来源。
+	WorkspaceSourceTargetLocal = "target_local"
+)
+
+// ApplicationWorkspaceSnapshotResolver 在 Build 创建执行计划前冻结已授权的
+// Application Workspace。
+type ApplicationWorkspaceSnapshotResolver interface {
+	FreezeApplicationWorkspaceSnapshot(context.Context, string) (WorkspaceSnapshot, ApplicationBuildContext, error)
+}
+
+// BuildDestination 是非秘密、provider-neutral 的输出绑定。Phase 1 支持 OCI
+// Registry 发布；凭据和端点仍由 Infrastructure 与所选 Runtime Target 持有。
+type BuildDestination struct {
+	Kind          string
+	ConnectionRef string
+	RepositoryRef string
+	Reference     string
+}
+
+// AuthorizedArtifactDestination 是 Registry 解析后的非秘密产物目的地；它可冻结进执行计划，提供方端点和凭据引用仍由 Registry 私有持有。
+type AuthorizedArtifactDestination struct {
+	Kind          string
+	ConnectionRef string
+	RepositoryRef string
+	Reference     string
+}
+
+// RegistryDestinationResolver 是 Build 提交时使用的窄基础设施能力，负责校验操作者对仓库的发布授权并规范化非秘密目的地身份。
+type RegistryDestinationResolver interface {
+	ResolveArtifactDestination(context.Context, uint64, BuildDestination) (AuthorizedArtifactDestination, error)
+}
+
+// RegistryPublicationBinding 是仅供执行器使用的提供方绑定。它在执行期解析，
+// 绝不能序列化进 Plan、Task、HTTP 响应或日志。
+type RegistryPublicationBinding struct {
+	Destination   AuthorizedArtifactDestination
+	Endpoint      string
+	CredentialRef string
+	AuthExecution RegistryAuthExecution
+}
+
+// RegistryAuthExecution 描述 Runtime adapter 使用 Registry 凭据的非明文方式。
+// Phase 1 只允许 Docker daemon credential store，凭据值和配置路径仍由运行环境持有。
+type RegistryAuthExecution struct {
+	Mode string
+}
+
+const (
+	// RegistryAuthExecutionDockerStore 表示由 Docker credential store 负责认证。
+	RegistryAuthExecutionDockerStore = "docker-runtime-store"
+)
+
+// RegistryPublicationResolver 解析所选 Runtime Target 发布已构建镜像所需的
+// 私有提供方绑定。
+type RegistryPublicationResolver interface {
+	ResolvePublicationBinding(context.Context, AuthorizedArtifactDestination) (RegistryPublicationBinding, error)
+}
+
+// ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。
+// 它不携带 Publication tag，OCI copy provider 必须读取 Build 记录的不可变 digest。
+type ArtifactPublicationSource struct {
+	ArtifactID      string
+	PublicationID   string
+	Digest          string
+	MediaType       string
+	DestinationKind string
+	ConnectionRef   string
+	RepositoryRef   string
+}
+
+// AuthorizedArtifactCopy 在 Registry 完成请求操作者的双端授权后冻结非秘密的源和目的地身份。
+type AuthorizedArtifactCopy struct {
+	Source      ArtifactPublicationSource
+	Destination AuthorizedArtifactDestination
+}
+
+// RegistryArtifactCopyBinding 是仅供执行器使用的基础设施状态；端点和凭据引用不得进入
+// Plan、Task、HTTP 响应或日志。
+type RegistryArtifactCopyBinding struct {
+	SourceEndpoint      string
+	SourceCredentialRef string
+	Destination         RegistryPublicationBinding
+}
+
+// RegistryArtifactCopyResolver 将来源读取和目的地写入授权留在 Registry，并只为
+// provider-owned copy execution 解析私有 binding。
+type RegistryArtifactCopyResolver interface {
+	AuthorizeArtifactCopy(context.Context, uint64, ArtifactPublicationSource, BuildDestination) (AuthorizedArtifactCopy, error)
+	ResolveArtifactCopyBinding(context.Context, AuthorizedArtifactCopy) (RegistryArtifactCopyBinding, error)
+}
+
+// BuildExecutionPlan 在 Task 提交前冻结每一项调用者可见的 Build 输入；它刻意不
+// 包含 workspace path、endpoint、credential 或自由形式的 executor command。
+type BuildExecutionPlan struct {
+	ID                string
+	Digest            string
+	Workspace         WorkspaceSnapshot
+	BuilderPoolID     string
+	BuilderInstanceID string
+	RuntimeTargetID   int64
+	BuilderPlacements []BuilderPlacement
+	Driver            string
+	TemplateRef       string
+	Platforms         []string
+	Destination       BuildDestination
+	CreatedAt         time.Time
+}
+
+// PlacementForPlatform 返回冻结计划中指定平台的 Builder placement。旧计划尚未持久化 placement
+// 时使用计划级 Runtime Target 作为兼容读取；新提交必须显式冻结每个平台的 placement。
+func (p BuildExecutionPlan) PlacementForPlatform(platform string) (BuilderPlacement, bool) {
+	for _, placement := range p.BuilderPlacements {
+		if placement.Platform == platform {
+			return placement, placement.RuntimeTargetID > 0
+		}
+	}
+	if len(p.BuilderPlacements) == 0 && p.RuntimeTargetID > 0 {
+		return BuilderPlacement{Platform: platform, BuilderInstanceID: p.BuilderInstanceID, RuntimeTargetID: p.RuntimeTargetID}, true
+	}
+	return BuilderPlacement{}, false
+}
+
+// PlatformArtifact 是协调构建中单个平台产物的不可变事实；最终 OCI Manifest 由 Build 在收齐全部 leg 后单独发布。
+type PlatformArtifact struct {
+	LegID      string
+	Platform   string
+	Digest     string
+	MediaType  string
+	SizeBytes  int64
+	ProducedAt time.Time
+}
+
+// OCIManifestPublicationInput 是由 Build 完整性校验后的不可变平台 Artifact 集合；它禁止使用 mutable tag 作为合并输入。
+type OCIManifestPublicationInput struct {
+	Destination       AuthorizedArtifactDestination
+	PlatformArtifacts []PlatformArtifact
+}
+
+// OCIManifestPublicationResult 是 Driver 发布 OCI Image Index 或 Manifest List 后返回的摘要寻址结果。
+type OCIManifestPublicationResult struct {
+	Digest    string
+	MediaType string
+	SizeBytes int64
+}
+
+// OCIArtifactCopyInput 包含不可变 source digest 和已授权的目的地；它刻意排除 source tag、
+// Registry endpoint 与 credential，防止 provider 将 Promotion 降级为可变 tag copy。
+type OCIArtifactCopyInput struct {
+	Source      ArtifactPublicationSource
+	Destination AuthorizedArtifactDestination
+}
+
+// OCIArtifactCopyResult 是 provider 对已复制 digest 的证据；Build 会基于该 digest
+// 结算新的 Publication，而不改变 Artifact。
+type OCIArtifactCopyResult struct {
+	Digest    string
+	MediaType string
+	SizeBytes int64
+}
+
+// BuildPlanTaskInput 是唯一允许进入 Task metadata 的 Build v2 payload。执行器
+// 从 Build-owned plan storage 解析本地物化输入，绝不接收客户端给出的 source path。
+type BuildPlanTaskInput struct {
+	BuildID         string `json:"build_id"`
+	ExecutionPlanID string `json:"execution_plan_id"`
+	Platform        string `json:"platform,omitempty"`
+	LegID           string `json:"leg_id,omitempty"`
+}
 
 // ApplicationBuildContext 是 Project 模块为构建消费者冻结的、经授权的应用来源上下文。
 // 它只包含构建所需的公开身份和受控 workspace 根目录，不暴露 Application entity 或仓储。
@@ -32,6 +293,7 @@ type DockerImageBuildInput struct {
 	DockerfilePath  string
 	ImageRepository string
 	ImageTag        string
+	Platform        string
 	BuildArgs       []DockerImageBuildArg
 }
 
@@ -53,12 +315,148 @@ type DockerImageBuildResult struct {
 	Variant      string
 }
 
-// DockerImageBuildLogSink 接收经过 executor 限长和脱敏的逐行构建输出。
-type DockerImageBuildLogSink func(context.Context, TaskLogEntry) error
+// BuildDriverLogSink 接收经过 executor 限长和脱敏的逐行 Driver 输出。
+// 它属于 Build/Task 的通用执行边界，不能携带 Docker 专有的命令或连接事实。
+type BuildDriverLogSink func(context.Context, TaskLogEntry) error
+
+// DockerImageBuildLogSink 保留 Docker capability 的兼容别名。
+// 新的 provider-neutral Driver contract 必须使用 BuildDriverLogSink。
+type DockerImageBuildLogSink = BuildDriverLogSink
 
 // DockerImageBuildCapability 由 Container 模块提供 Docker image build 执行能力。
 type DockerImageBuildCapability interface {
 	BuildImage(context.Context, DockerImageBuildInput, DockerImageBuildLogSink) (DockerImageBuildResult, error)
+}
+
+// TargetBoundDockerImageBuildCapability 只在提供方 owner 重新校验所选 Runtime
+// Target 后执行 Docker build；冻结的 Execution Plan 指定 target 时，Build 必须
+// 优先使用此边界。
+type TargetBoundDockerImageBuildCapability interface {
+	BuildImageOnTarget(context.Context, int64, DockerImageBuildInput, DockerImageBuildLogSink) (DockerImageBuildResult, error)
+}
+
+// WorkspaceSnapshotDeliveryRequest 是 Build 将冻结 Snapshot 交给 Runtime provider 的受控请求。
+// MaterializedRoot 只允许在 execution-private provider boundary 内流转，不得进入 Task metadata 或 HTTP。
+type WorkspaceSnapshotDeliveryRequest struct {
+	TargetID         int64
+	SnapshotID       string
+	ContentDigest    string
+	MaterializedRoot string
+	DeliveryMode     string
+}
+
+// WorkspaceSnapshotDeliveryResult 是 provider 对 Snapshot 消费前校验的不可变证明。
+// 它不回传 endpoint、凭据或新的宿主机路径。
+type WorkspaceSnapshotDeliveryResult struct {
+	TargetID      int64
+	SnapshotID    string
+	ContentDigest string
+	DeliveryMode  string
+}
+
+// TargetBoundWorkspaceSnapshotDeliveryCapability 负责证明选定 Runtime 能消费冻结 Snapshot。
+type TargetBoundWorkspaceSnapshotDeliveryCapability interface {
+	DeliverWorkspaceSnapshot(context.Context, WorkspaceSnapshotDeliveryRequest) (WorkspaceSnapshotDeliveryResult, error)
+}
+
+// ProviderDriverExecutionRequest 是 provider-neutral Driver 执行请求。
+// 它只携带冻结的 Snapshot 身份、已验证的交付证明和平台选择，不携带端点、凭据、宿主机路径或 CLI 命令。
+type ProviderDriverExecutionRequest struct {
+	TargetID      int64
+	DriverRef     string
+	Platform      string
+	SnapshotID    string
+	ContentDigest string
+	DeliveryProof WorkspaceSnapshotDeliveryResult
+}
+
+// ProviderDriverExecutionResult 是 Driver 对不可变平台产物的执行证明。
+// Provider 必须返回与请求匹配的目标、Driver、平台和 Snapshot 身份，以及摘要寻址的产物事实。
+type ProviderDriverExecutionResult struct {
+	ProviderID     string
+	TargetID       int64
+	DriverRef      string
+	Platform       string
+	SnapshotID     string
+	ContentDigest  string
+	ArtifactDigest string
+	MediaType      string
+	SizeBytes      int64
+}
+
+// TargetBoundProviderDriverExecutionCapability 是 Runtime Target 所有的通用 Driver 执行边界。
+// 非 Docker provider 必须先实现该边界并通过 Phase 9C conformance gate，才能被 Runtime Target 声明为可执行。
+type TargetBoundProviderDriverExecutionCapability interface {
+	ExecuteProviderDriver(context.Context, ProviderDriverExecutionRequest, BuildDriverLogSink) (ProviderDriverExecutionResult, error)
+}
+
+// ProviderExecutionConformanceRequest 是 Build 在执行前提交给 Runtime provider 的能力证明请求。
+// 请求只携带冻结身份和 provider-neutral 选择，不允许携带 endpoint、凭据值或宿主机路径。
+type ProviderExecutionConformanceRequest struct {
+	TargetID      int64
+	DriverRef     string
+	Platform      string
+	SnapshotID    string
+	ContentDigest string
+	DeliveryMode  string
+}
+
+// ProviderExecutionConformanceResult 是 provider 对当前目标执行资格的可重放证明。
+// Executable 为 false 时，Build 必须在任何 Snapshot 交付或 Driver 调用前 fail-closed。
+type ProviderExecutionConformanceResult struct {
+	ProviderID            string
+	ConformanceVersion    string
+	Executable            bool
+	SnapshotDeliveryProof bool
+	DriverExecutionProof  bool
+	PublicationProof      bool
+	CancellationProof     bool
+	CleanupProof          bool
+}
+
+// ProviderExecutionEvidence 是 Build 持久化的非秘密 provider 执行资格事实。
+// 它不改变 Artifact 身份，也不承载连接、凭据或物化路径。
+type ProviderExecutionEvidence struct {
+	TaskID      uint64
+	StageID     uint64
+	TargetID    int64
+	Platform    string
+	Conformance ProviderExecutionConformanceResult
+}
+
+// TargetBoundProviderExecutionConformanceCapability 是 Runtime Target 唯一拥有的 provider 执行门槛。
+// 它把 capability 声明与可执行 provider 注册、连接健康和生命周期证据绑定起来。
+type TargetBoundProviderExecutionConformanceCapability interface {
+	ConformProviderExecution(context.Context, ProviderExecutionConformanceRequest) (ProviderExecutionConformanceResult, error)
+}
+
+// TargetBoundDockerBuildProvider 是 Runtime Target 注册的完整 Docker 适配器边界。
+// 它只约束 Docker reference provider；未来非 Docker provider 必须定义自己的 provider-neutral Driver contract。
+type TargetBoundDockerBuildProvider interface {
+	TargetBoundDockerImageBuildCapability
+	TargetBoundWorkspaceSnapshotDeliveryCapability
+	TargetBoundDockerImagePublicationCapability
+	TargetBoundOCIManifestPublicationCapability
+	TargetBoundProviderExecutionConformanceCapability
+	ProviderID() string
+}
+
+// TargetBoundDockerImagePublicationCapability 通过所选 Runtime Target，使用
+// Infrastructure 所有的 provider binding 发布镜像。
+type TargetBoundDockerImagePublicationCapability interface {
+	PublishImageOnTarget(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
+}
+
+// TargetBoundOCIManifestPublicationCapability 由支持多平台的 Builder Driver 实现。Build 只能传入已经验证的
+// 平台 digest 集合与 Infrastructure 解析后的绑定，不能传递 Docker 命令、端点或凭据。
+type TargetBoundOCIManifestPublicationCapability interface {
+	PublishOCIManifestOnTarget(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
+}
+
+// TargetBoundOCIArtifactCopyCapability 归 Runtime Target provider 所有。Build 只提供
+// 不可变身份和 Registry 提供的私有 binding；provider 拥有协议命令、认证和 digest 校验。
+type TargetBoundOCIArtifactCopyCapability interface {
+	CopyOCIArtifactOnTarget(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
 }
 
 // TaskBatchQueryService 为列表型消费者提供批量 Task 读取能力，避免其自行逐行查询。

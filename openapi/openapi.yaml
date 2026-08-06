@@ -393,6 +393,14 @@ paths:
     $ref: ./paths/docker-images.saved-view.yaml
   /api/build/jobs:
     $ref: ./paths/build-jobs.collection.yaml
+  /api/build/artifacts:
+    $ref: ./paths/build-artifacts.collection.yaml
+  /api/build/workspaces:
+    $ref: ./paths/build-workspaces.collection.yaml
+  /api/build/runtime-targets:
+    $ref: ./paths/build-runtime-targets.collection.yaml
+  /api/build/builder-pools:
+    $ref: ./paths/build-builder-pools.collection.yaml
   /api/build/jobs/{buildId}:
     $ref: ./paths/build-jobs.detail.yaml
   /api/ops/docker/images/pull:

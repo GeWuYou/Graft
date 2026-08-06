@@ -14,6 +14,8 @@ var (
 	ErrTaskSubmissionConflict = errors.New("task submission conflict")
 	// ErrTaskOwnerBusy 表示同一业务资源已有 pending、scheduled、running 或 needs_attention Task 占用执行权。
 	ErrTaskOwnerBusy = errors.New("task owner already has an active task")
+	// ErrCoordinatedTaskUnsupported 表示当前 Task Runtime 尚未启用分布式 leg 执行器。
+	ErrCoordinatedTaskUnsupported = errors.New("coordinated task execution is not enabled")
 )
 
 const (
@@ -165,12 +167,61 @@ type StageRetryPolicy struct {
 
 // StagePlan 定义 TaskPlan 中一个有序且不可变的 Stage。
 type StagePlan struct {
-	Key             string
-	ExecutorType    StageExecutorType
+	Key          string
+	ExecutorType StageExecutorType
+	// CoordinationGroup 仅由 CoordinatedTaskService 填充，用于允许同一协调组内的 Stage 并行领取。
+	CoordinationGroup string
+	// LegID 在一个协调任务内唯一，关联冻结的 Builder 和平台证据。
+	LegID           string
 	Input           json.RawMessage
 	RetryPolicy     StageRetryPolicy
 	RecoveryPolicy  StageRecoveryPolicy
 	ExternalReceipt *ExternalReceiptExpectation
+}
+
+// CoordinatedLegPlan 是未来由 Task Runtime 协调的单个平台执行 leg；它只携带
+// 稳定资源身份和受控输入，不携带 endpoint、凭据或执行命令。
+type CoordinatedLegPlan struct {
+	ID                string
+	Platform          string
+	BuilderInstanceID string
+	RuntimeTargetID   int64
+	Input             json.RawMessage
+}
+
+// CoordinatedTaskPlan 定义多 leg 的聚合身份和版本化协调契约。Task Runtime 拥有
+// leg 的取消、重试、恢复和聚合终态，Build 只拥有计划和产物事实。
+type CoordinatedTaskPlan struct {
+	Version           string
+	AggregateStageKey string
+	Legs              []CoordinatedLegPlan
+}
+
+// ValidateCoordinatedTaskPlan 校验分布式 leg 契约的稳定身份和平台输入。
+//
+//nolint:cyclop // 校验必须显式覆盖每个 leg 的身份、平台唯一性与运行目标绑定。
+func ValidateCoordinatedTaskPlan(plan *CoordinatedTaskPlan) error {
+	if plan == nil {
+		return nil
+	}
+	if plan.Version == "" || plan.AggregateStageKey == "" || len(plan.Legs) < 2 {
+		return errors.New("coordinated task plan is incomplete")
+	}
+	seen := make(map[string]struct{}, len(plan.Legs))
+	platforms := make(map[string]struct{}, len(plan.Legs))
+	for _, leg := range plan.Legs {
+		if leg.ID == "" || leg.Platform == "" || leg.BuilderInstanceID == "" || leg.RuntimeTargetID < 1 {
+			return errors.New("coordinated task leg is incomplete")
+		}
+		if _, exists := seen[leg.ID]; exists {
+			return errors.New("coordinated task plan contains duplicate leg")
+		}
+		if _, exists := platforms[leg.Platform]; exists {
+			return errors.New("coordinated task plan contains duplicate platform")
+		}
+		seen[leg.ID], platforms[leg.Platform] = struct{}{}, struct{}{}
+	}
+	return nil
 }
 
 // ExternalReceiptExpectation 冻结短生命周期外部执行器结算最终 Stage 时必须匹配的身份；它不包含凭据，认证由部署侧文件与进程边界承担。
@@ -212,7 +263,8 @@ type ExternalReceiptSettlement struct {
 
 // TaskPlan 定义已提交 Task 的冻结有序 Stage 集合。
 type TaskPlan struct {
-	Stages []StagePlan
+	Stages       []StagePlan
+	Coordination *CoordinatedTaskPlan
 }
 
 // SubmitTaskInput 提供创建新 Task 所需的消费者计划和资源身份。
@@ -250,6 +302,12 @@ type TaskService interface {
 	SettleExternalReceipt(ctx context.Context, receipt ExternalTaskReceipt) (ExternalReceiptSettlement, error)
 	Cancel(ctx context.Context, taskID uint64) error
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
+}
+
+// CoordinatedTaskService 是多 leg 任务的独立能力边界；只有完成持久化协调器注册后，Task Runtime 才应对外实现可执行语义。
+// 调用方不得把它降级成普通 Stage 的本地循环。
+type CoordinatedTaskService interface {
+	SubmitCoordinated(ctx context.Context, input SubmitTaskInput) (TaskReceipt, error)
 }
 
 // TaskQueryService 暴露 Task Runtime 读取能力，但不泄漏模块拥有的持久化实现。

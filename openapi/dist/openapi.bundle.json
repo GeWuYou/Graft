@@ -16134,9 +16134,9 @@
           {
             "in": "query",
             "name": "build_status",
-            "description": "Optional canonical Task Runtime status filter.",
+            "description": "Optional product-level Build Task status filter.",
             "schema": {
-              "$ref": "#/components/schemas/task-status"
+              "$ref": "#/components/schemas/build-status-filter"
             }
           },
           {
@@ -16200,7 +16200,7 @@
           "build"
         ],
         "operationId": "postBuildJob",
-        "summary": "Submit a Dockerfile build Task for an authorized Application",
+        "summary": "Submit an immutable Build execution plan for an authorized Workspace",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -16225,7 +16225,7 @@
         },
         "responses": {
           "202": {
-            "description": "Dockerfile build Task accepted.",
+            "description": "Build execution plan Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16245,6 +16245,247 @@
           },
           "409": {
             "description": "Idempotency-Key was previously used with different build input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/artifacts": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildArtifacts",
+        "summary": "List immutable Build Artifacts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable Artifact page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-artifact-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/workspaces": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildWorkspaces",
+        "summary": "List Build-owned Workspaces available to the caller",
+        "responses": {
+          "200": {
+            "description": "Build Workspaces.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/api-envelope"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/build-workspace-list"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "postBuildWorkspace",
+        "summary": "Create a Build-owned Application Workspace source",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/build-workspace-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Build Workspace created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-workspace"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid workspace request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Workspace identity already exists with different source facts."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/runtime-targets": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildRuntimeTargets",
+        "summary": "List authorized Runtime Targets with Build capability",
+        "responses": {
+          "200": {
+            "description": "Build-capable Runtime Targets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/api-envelope"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/build-runtime-target-list"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/builder-pools": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildBuilderPools",
+        "summary": "List Builder Pools available to Build plans",
+        "responses": {
+          "200": {
+            "description": "Builder Pools.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/api-envelope"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/build-builder-pool-list"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -36041,6 +36282,17 @@
           "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
         ]
       },
+      "build-status-filter": {
+        "type": "string",
+        "description": "Product-level Build Task status used for task-center filtering.",
+        "enum": [
+          "queued",
+          "running",
+          "success",
+          "failed",
+          "cancelled"
+        ]
+      },
       "build-builder-snapshot": {
         "type": "object",
         "description": "Runtime target snapshot frozen when the Build job was submitted.",
@@ -36113,7 +36365,7 @@
         },
         "additionalProperties": false
       },
-      "build-artifact": {
+      "build-job-artifact": {
         "type": "object",
         "required": [
           "artifact_id",
@@ -36201,7 +36453,7 @@
             "$ref": "#/components/schemas/build-task-execution"
           },
           "artifact": {
-            "$ref": "#/components/schemas/build-artifact"
+            "$ref": "#/components/schemas/build-job-artifact"
           }
         },
         "additionalProperties": false
@@ -36258,57 +36510,378 @@
       "build-job-create-request": {
         "type": "object",
         "required": [
-          "application_id",
-          "context_path",
-          "dockerfile_path",
-          "image_repository",
-          "image_tag"
+          "workspace_id",
+          "template_ref",
+          "driver",
+          "destination"
         ],
         "properties": {
-          "application_id": {
-            "$ref": "#/components/schemas/application-id"
-          },
-          "context_path": {
+          "workspace_id": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 1024
+            "maxLength": 64
           },
-          "dockerfile_path": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id."
+          },
+          "builder_pool_id": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 1024
+            "maxLength": 64,
+            "description": "Build-owned Builder Pool selection. Provide exactly one of builder_pool_id or runtime_target_id."
           },
-          "image_repository": {
+          "template_ref": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 255
+            "enum": [
+              "oci-dockerfile/default@v1"
+            ]
           },
-          "image_tag": {
+          "driver": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 255
+            "enum": [
+              "docker-engine@v1"
+            ]
           },
-          "build_args": {
+          "platforms": {
             "type": "array",
-            "maxItems": 64,
+            "minItems": 1,
+            "maxItems": 8,
             "items": {
-              "type": "object",
-              "required": [
-                "name",
-                "value"
-              ],
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 128
-                },
-                "value": {
-                  "type": "string",
-                  "maxLength": 4096
-                }
+              "type": "string",
+              "pattern": "^linux/[a-z0-9]+(?:/[a-z0-9]+)?$"
+            }
+          },
+          "destination": {
+            "type": "object",
+            "required": [
+              "kind",
+              "connection_ref",
+              "repository_ref",
+              "reference"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "oci_registry"
+                ]
               },
-              "additionalProperties": false
+              "connection_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "repository_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-artifact": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "digest",
+          "media_type",
+          "platforms",
+          "size_bytes",
+          "created_at"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:.+$"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-artifact-list": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-artifact"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-build-artifact-list": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-artifact-list"
+              }
+            }
+          }
+        ]
+      },
+      "build-workspace": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "name",
+          "source_kind",
+          "source_reference",
+          "retention_policy",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "application_workspace"
+            ]
+          },
+          "source_reference": {
+            "type": "string"
+          },
+          "retention_policy": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-workspace-list": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-workspace"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-workspace-create-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "source_kind",
+          "source_reference"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "application_workspace"
+            ]
+          },
+          "source_reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-build-workspace": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-workspace"
+              }
+            }
+          }
+        ]
+      },
+      "build-runtime-target": {
+        "type": "object",
+        "required": [
+          "target_id",
+          "display_name",
+          "provider",
+          "available",
+          "supported_drivers",
+          "supported_platforms",
+          "workspace_localities",
+          "snapshot_delivery_modes"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "supported_drivers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported_platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workspace_localities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "snapshot_delivery_modes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-runtime-target-list": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-runtime-target"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-builder-pool": {
+        "type": "object",
+        "required": [
+          "pool_id",
+          "display_name",
+          "scheduling_policy"
+        ],
+        "properties": {
+          "pool_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "scheduling_policy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-builder-pool-list": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-builder-pool"
             }
           }
         },

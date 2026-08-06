@@ -1,0 +1,23 @@
+get:
+  tags: [build]
+  operationId: getBuildArtifacts
+  summary: List immutable Build Artifacts
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - in: query
+      name: offset
+      schema: { type: integer, minimum: 0, default: 0 }
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200':
+      description: Immutable Artifact page.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-build-artifact-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

@@ -23,7 +23,7 @@ const (
 	buildJobsRoute = "/jobs"
 )
 
-//nolint:gocognit,gocyclo,cyclop // 单一 HTTP 提交边界将身份、幂等键与生成契约的转换保持在一起。
+//nolint:gocognit,gocyclo,cyclop,funlen,maintidx // 单一 HTTP 边界将鉴权、查询和提交契约转换保持在一起。
 func registerRoutes(ctx *module.Context, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -40,8 +40,68 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		return err
 	}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-	group := ctx.Router.Group("/api/build")
+	group := ctx.Router.Group("/build")
 	group.Use(httpx.RequestIDMiddleware())
+	group.POST("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
+		var request openapigen.PostBuildWorkspaceJSONRequestBody
+		if err := c.ShouldBindJSON(&request); err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		requestedBy := uint64(0)
+		if requestAuth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context()); ok && requestAuth.User != nil {
+			requestedBy = requestAuth.User.ID
+		}
+		workspace, createErr := service.CreateWorkspace(c.Request.Context(), request.Name, string(request.SourceKind), request.SourceReference, requestedBy)
+		if createErr != nil {
+			status, key := http.StatusInternalServerError, "common.internalError"
+			if errors.Is(createErr, errInvalidBuildRequest) || strings.Contains(createErr.Error(), "unsupported") {
+				status, key = http.StatusBadRequest, "common.invalidArgument"
+			} else if errors.Is(createErr, buildstore.ErrConflict) {
+				status, key = http.StatusConflict, "common.invalidArgument"
+			}
+			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusCreated, toBuildWorkspace(workspace))
+	})
+	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		items, listErr := service.ListWorkspaces(c.Request.Context(), requestUserID(c))
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildWorkspaceList{Items: mapBuildWorkspaces(items)})
+	})
+	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildRuntimeTargetList{Items: mapBuildRuntimeTargets(items)})
+	})
+	group.GET("/builder-pools", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		items, listErr := service.ListBuilderPools(c.Request.Context(), requestUserID(c))
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildBuilderPoolList{Items: mapBuilderPools(items)})
+	})
+	group.GET("/artifacts", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		query, ok := buildPaginationQuery(c)
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		result, listErr := service.ListArtifacts(c.Request.Context(), query.Limit, query.Offset)
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, toBuildArtifactList(result, query.Limit, query.Offset))
+	})
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildListQuery(c)
 		if !ok {
@@ -82,7 +142,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		if strings.TrimSpace(request.ApplicationId) == "" {
+		if strings.TrimSpace(request.WorkspaceId) == "" {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -90,14 +150,19 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		if requestAuth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context()); ok && requestAuth.User != nil {
 			requestedBy = requestAuth.User.ID
 		}
-		args := make([]moduleapi.DockerImageBuildArg, 0)
-		if request.BuildArgs != nil {
-			args = make([]moduleapi.DockerImageBuildArg, 0, len(*request.BuildArgs))
-			for _, item := range *request.BuildArgs {
-				args = append(args, moduleapi.DockerImageBuildArg{Name: item.Name, Value: item.Value})
-			}
+		platforms := []string(nil)
+		if request.Platforms != nil {
+			platforms = append(platforms, *request.Platforms...)
 		}
-		receipt, submitErr := service.Submit(c.Request.Context(), SubmitRequest{ApplicationID: request.ApplicationId, ContextPath: request.ContextPath, DockerfilePath: request.DockerfilePath, ImageRepository: request.ImageRepository, ImageTag: request.ImageTag, BuildArgs: args, RequestedBy: requestedBy, IdempotencyKey: key})
+		runtimeTargetID := int64(0)
+		if request.RuntimeTargetId != nil {
+			runtimeTargetID = *request.RuntimeTargetId
+		}
+		builderPoolID := ""
+		if request.BuilderPoolId != nil {
+			builderPoolID = *request.BuilderPoolId
+		}
+		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{WorkspaceID: request.WorkspaceId, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
 		if submitErr != nil {
 			status, key := http.StatusInternalServerError, "common.internalError"
 			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {
@@ -117,6 +182,13 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
 	})
 	return nil
+}
+
+func requestUserID(c *gin.Context) uint64 {
+	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context()); ok && requestAuth.User != nil {
+		return requestAuth.User.ID
+	}
+	return 0
 }
 
 func buildListQuery(c *gin.Context) (buildstore.ListQuery, bool) {

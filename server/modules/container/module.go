@@ -95,6 +95,8 @@ func (m *Module) Shutdown(ctx *module.Context) error {
 
 // registerModuleServices 向模块服务注册器登记容器项目运行时读取器的单例实现。
 // 它要求模块上下文、服务注册器和运行时服务都可用。
+//
+//nolint:cyclop // Explicit registration order is the module's auditable public service boundary.
 func registerModuleServices(ctx *module.Context, service *service) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("container service registry is unavailable")
@@ -127,5 +129,26 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	}); err != nil {
 		return err
 	}
-	return nil
+	// Runtime Target 拥有生产 provider 边界；仅在独立测试未装配 Runtime Target 时保留本地 fallback。
+	if _, err := module.ResolveService[moduleapi.TargetBoundDockerImageBuildCapability](ctx.Services, (*moduleapi.TargetBoundDockerImageBuildCapability)(nil)); err == nil {
+		return nil
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerImageBuilder{service: service}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImagePublicationCapability)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerImageBuilder{service: service}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerImageBuilder{service: service}, nil
+	}); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerImageBuilder{service: service}, nil
+	})
 }

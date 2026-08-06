@@ -1,0 +1,40 @@
+get:
+  tags: [build]
+  operationId: getBuildWorkspaces
+  summary: List Build-owned Workspaces available to the caller
+  responses:
+    '200':
+      description: Build Workspaces.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/api-envelope.yaml
+              - type: object
+                required: [data]
+                properties:
+                  data: { $ref: ../components/schemas/build-workspace-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
+
+post:
+  tags: [build]
+  operationId: postBuildWorkspace
+  summary: Create a Build-owned Application Workspace source
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/build-workspace-create-request.yaml }
+  responses:
+    '201':
+      description: Build Workspace created.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-build-workspace.yaml }
+    '400': { description: Invalid workspace request }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Workspace identity already exists with different source facts. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

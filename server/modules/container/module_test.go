@@ -45,6 +45,11 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 	if !ok || len(tasks.executors) != 5 || len(tasks.authorizers) != 9 {
 		t.Fatalf("expected Docker image and lifecycle task registrations, got %#v", resolved)
 	}
+	for _, key := range []any{(*moduleapi.DockerImageBuildCapability)(nil), (*moduleapi.TargetBoundDockerImageBuildCapability)(nil), (*moduleapi.TargetBoundDockerImagePublicationCapability)(nil), (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), (*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil)} {
+		if _, err := ctx.Services.Resolve(key); err != nil {
+			t.Fatalf("resolve registered build capability %T: %v", key, err)
+		}
+	}
 	for _, action := range containerLifecycleTaskActions() {
 		if !slices.ContainsFunc(tasks.executors, func(executor moduleapi.StageExecutor) bool {
 			return executor.Type() == containerLifecycleTaskExecutorType(action)

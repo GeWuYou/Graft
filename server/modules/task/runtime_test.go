@@ -60,6 +60,71 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	}
 }
 
+func TestRepositoryClaimsCoordinatedLegsWithoutSerialBlocking(t *testing.T) {
+	t.Parallel()
+	_, repository := newRuntimeForTest(t)
+	created, err := createCoordinatedTestTask(repository, "amd64", "arm64")
+	if err != nil {
+		t.Fatalf("create coordinated task: %v", err)
+	}
+	first, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC())
+	if err != nil || !found || first.Task.ID != created.ID {
+		t.Fatalf("claim first coordinated leg: claim=%#v found=%t err=%v", first, found, err)
+	}
+	second, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC())
+	if err != nil || !found || second.Task.ID != created.ID || second.Stage.ID == first.Stage.ID {
+		t.Fatalf("claim second coordinated leg: claim=%#v found=%t err=%v", second, found, err)
+	}
+}
+
+func TestRepositoryRejectsDuplicateCoordinatedLegIdentity(t *testing.T) {
+	t.Parallel()
+	_, repository := newRuntimeForTest(t)
+	_, err := createCoordinatedTestTask(repository, "linux-amd64", "linux-amd64")
+	if !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("duplicate coordinated leg error = %v, want %v", err, taskstore.ErrInvalidInput)
+	}
+}
+
+func TestRuntimeCancelsMultipleUntrackedCoordinatedLegs(t *testing.T) {
+	t.Parallel()
+	_, repository := newRuntimeForTest(t)
+	created, err := createCoordinatedTestTask(repository, "amd64", "arm64")
+	if err != nil {
+		t.Fatalf("create coordinated task: %v", err)
+	}
+	for range 2 {
+		if _, found, claimErr := repository.ClaimNextStage(context.Background(), time.Now().UTC()); claimErr != nil || !found {
+			t.Fatalf("claim coordinated leg: found=%t err=%v", found, claimErr)
+		}
+	}
+	runtime := NewRuntime(repository)
+	if err := runtime.Cancel(context.Background(), created.ID); err != nil {
+		t.Fatalf("cancel untracked coordinated task: %v", err)
+	}
+	if task := mustTask(t, repository, created.ID); task.Status != moduleapi.TaskStatusCancelled {
+		t.Fatalf("task status = %q, want cancelled", task.Status)
+	}
+	stages, err := repository.ListStages(context.Background(), created.ID)
+	if err != nil {
+		t.Fatalf("list cancelled coordinated legs: %v", err)
+	}
+	for _, stage := range stages {
+		if stage.Status != moduleapi.StageStatusCancelled {
+			t.Fatalf("stage status = %q, want cancelled", stage.Status)
+		}
+	}
+}
+
+func createCoordinatedTestTask(repository *taskstore.SQLRepository, legIDs ...string) (taskmodel.Task, error) {
+	stages := make([]taskmodel.Stage, 0, len(legIDs))
+	for index, legID := range legIDs {
+		stages = append(stages, taskmodel.Stage{Key: fmt.Sprintf("build-%d", index+1), Sequence: index + 1, ExecutorType: "test.executor", CoordinationGroup: "build-platforms", LegID: legID, Status: moduleapi.StageStatusPending, MaxAttempts: 1, Input: json.RawMessage(`{}`), RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, Result: json.RawMessage(`{}`)})
+	}
+	created, _, _, err := repository.Create(context.Background(), taskstore.CreateInput{Task: taskmodel.Task{Type: "test.coordinated", Owner: moduleapi.TaskOwner{Type: "test", ID: fmt.Sprintf("coordinated-%d", time.Now().UnixNano())}, Status: moduleapi.TaskStatusReady, Input: json.RawMessage(`{}`), Metadata: json.RawMessage(`{}`), Plan: json.RawMessage(`{}`), State: json.RawMessage(`{}`)}, Stages: stages})
+	return created, err
+}
+
 func TestRuntimeSubmissionCannotBeClaimedBeforeMaterialization(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
@@ -796,6 +861,37 @@ func testSubmitInput(stageCount int, attempts int) moduleapi.SubmitTaskInput {
 		stages = append(stages, moduleapi.StagePlan{Key: fmt.Sprintf("stage-%d", index+1), ExecutorType: "test.executor", RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: attempts}, RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent})
 	}
 	return moduleapi.SubmitTaskInput{Type: "test.runtime", Owner: moduleapi.TaskOwner{Type: "test", ID: fmt.Sprintf("owner-%d", time.Now().UnixNano())}, Plan: moduleapi.TaskPlan{Stages: stages}}
+}
+
+func TestRuntimeRejectsCoordinatedPlanUntilDistributedLegCapabilityExists(t *testing.T) {
+	runtime, _ := newRuntimeForTest(t)
+	input := testSubmitInput(1, 1)
+	input.Plan.Coordination = &moduleapi.CoordinatedTaskPlan{Version: "build-legs/v1", AggregateStageKey: "build-aggregate", Legs: []moduleapi.CoordinatedLegPlan{{ID: "amd64", Platform: "linux/amd64", BuilderInstanceID: "builder-a", RuntimeTargetID: 1}, {ID: "arm64", Platform: "linux/arm64", BuilderInstanceID: "builder-b", RuntimeTargetID: 2}}}
+	if _, err := runtime.Submit(context.Background(), input); !errors.Is(err, moduleapi.ErrCoordinatedTaskUnsupported) {
+		t.Fatalf("error = %v, want distributed leg capability gate", err)
+	}
+}
+
+func TestRuntimeSubmitCoordinatedMaterializesParallelLegStages(t *testing.T) {
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Plan.Coordination = &moduleapi.CoordinatedTaskPlan{Version: "build-legs/v1", AggregateStageKey: "build-aggregate", Legs: []moduleapi.CoordinatedLegPlan{{ID: "amd64", Platform: "linux/amd64", BuilderInstanceID: "builder-a", RuntimeTargetID: 1}, {ID: "arm64", Platform: "linux/arm64", BuilderInstanceID: "builder-b", RuntimeTargetID: 2}}}
+	receipt, err := runtime.SubmitCoordinated(context.Background(), input)
+	if err != nil {
+		t.Fatalf("SubmitCoordinated: %v", err)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil || len(stages) != 2 {
+		t.Fatalf("coordinated stages = %#v err=%v", stages, err)
+	}
+	for _, stage := range stages {
+		if stage.CoordinationGroup != "build-aggregate" || stage.LegID == "" {
+			t.Fatalf("coordinated stage = %#v", stage)
+		}
+	}
 }
 
 func externalReceiptSubmitInput() moduleapi.SubmitTaskInput {

@@ -12,5 +12,5 @@ properties:
   created_at: { type: string, format: date-time }
   builder: { $ref: ./build-builder-snapshot.yaml }
   execution: { $ref: ./build-task-execution.yaml }
-  artifact: { $ref: ./build-artifact.yaml }
+  artifact: { $ref: ./build-job-artifact.yaml }
 additionalProperties: false

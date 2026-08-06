@@ -1,0 +1,12 @@
+type: object
+required: [target_id, display_name, provider, available, supported_drivers, supported_platforms, workspace_localities, snapshot_delivery_modes]
+properties:
+  target_id: { type: integer, format: int64 }
+  display_name: { type: string }
+  provider: { type: string }
+  available: { type: boolean }
+  supported_drivers: { type: array, items: { type: string } }
+  supported_platforms: { type: array, items: { type: string } }
+  workspace_localities: { type: array, items: { type: string } }
+  snapshot_delivery_modes: { type: array, items: { type: string } }
+additionalProperties: false

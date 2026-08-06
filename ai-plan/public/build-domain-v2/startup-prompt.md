@@ -6,7 +6,7 @@ Round context:
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `none`
+- recovery source: `parent topic`
 - recovery entry: `ai-plan/public/build-domain-v2/README.md`
 - local execution truth:
   - `server/AGENTS.md`
@@ -22,7 +22,7 @@ Round context:
 
 Topic objective:
 
-- Deliver the approved four-phase Build Domain v2 without reintroducing Docker-first input, duplicate Runtime Target
+- Deliver the approved staged Build Domain v2 without reintroducing Docker-first input, duplicate Runtime Target
   connections, or a second execution runtime.
 
 Work contract summary:
@@ -40,14 +40,27 @@ Implementation guardrails:
 
 - Repair the highest available authority first and promote the task to cross-boundary when shared contracts change.
 - Do not introduce compatibility fields for Docker-first writes, arbitrary host paths, endpoint details or credentials.
-- Treat Builder Pool/distributed fan-out as later work requiring truthful Runtime capability and explicit Task Runtime
-  support.
+- Treat cross-Runtime Builder Pool placement as Phase 8 work. Phase 6/7 now own coordinated leg execution and manifest
+  finalization; Phase 8 freezes placements but must not invent load, region or affinity evidence.
+- Treat provider-backed Snapshot delivery and Remote Builder execution as Phase 9 work. Docker now supports validated
+  Unix-socket and TCP/SSH provider paths; a `build-snapshot` locality declaration alone is never permission to use a
+  host path or local Docker process for another Runtime Target. Phase 9C now includes aggregate Docker adapter registration,
+  private connection authority and persisted conformance evidence; it still does not claim a concrete non-Docker provider.
+  Kubernetes/BuildKit/Kaniko remain concrete Phase 9D adapters.
+- The user has pre-authorized normal in-scope `execute_repair` actions for this topic. Do not pause for repeated repair
+  confirmation; retain the normal authority, ownership and validation checks.
+- Treat Build-owned selector read APIs and the controlled create flow as completed Phase 10; do not reintroduce manual
+  opaque ID inputs or direct Runtime Target frontend API imports.
 - Consume the Work Contract already persisted in tracking; do not repeat Work Intake during normal batches.
 
 Current batch plan:
 
-1. `authority-bootstrap` establishes topic authority and recovery material.
-2. The controller selects the next bounded Phase 1 slice after settling this batch.
+1. Preserve immutable Plan/Placement authority while completing the selected bounded Phase.
+2. Phase 10 selector/read-model work is complete; continue with Phase 8A telemetry authority or Phase 9D provider proof.
+   Phase 8A has a provider-neutral freshness/provenance contract but no source implementation; `least_load`, `region`
+   and `affinity` remain fail-closed. Phase 9C's aggregate Docker foundation, private connection authority and evidence
+   persistence are implemented. Phase 9B's Docker adapter may not be represented by a local fallback and must retain
+   target-scoped provider authority.
 
 Validation expectations:
 

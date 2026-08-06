@@ -21,6 +21,32 @@ type recordingBuildRepository struct {
 	createErr      error
 	listResult     buildstore.ListResult
 	listQuery      buildstore.ListQuery
+	artifactResult buildstore.V2ArtifactListResult
+	v2Plan         moduleapi.BuildExecutionPlan
+	workspaces     []moduleapi.BuildWorkspace
+}
+
+func (r *recordingBuildRepository) CreateWorkspace(context.Context, moduleapi.BuildWorkspace) error {
+	return nil
+}
+
+func (r *recordingBuildRepository) GetWorkspace(context.Context, string) (moduleapi.BuildWorkspace, error) {
+	return moduleapi.BuildWorkspace{ID: "workspace_app", Name: "Application", SourceKind: moduleapi.WorkspaceSourceApplication, SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"}, nil
+}
+
+func (r *recordingBuildRepository) ListWorkspaces(context.Context, uint64) ([]moduleapi.BuildWorkspace, error) {
+	return append([]moduleapi.BuildWorkspace(nil), r.workspaces...), nil
+}
+
+func (r *recordingBuildRepository) MaterializeExecutionPlan(_ context.Context, _ *sql.Tx, submission moduleapi.TaskSubmission, plan moduleapi.BuildExecutionPlan, _ uint64) (string, error) {
+	if r.createErr != nil {
+		return "", r.createErr
+	}
+	if submission.TaskID == nil {
+		return "", errors.New("task id is required")
+	}
+	r.v2Plan = plan
+	return plan.ID, nil
 }
 
 func (r *recordingBuildRepository) CreateJob(_ context.Context, value buildstore.JobSnapshot) error {
@@ -58,6 +84,10 @@ func (r *recordingBuildRepository) SettleDockerArtifact(ctx context.Context, tas
 func (r *recordingBuildRepository) ListJobs(_ context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
 	r.listQuery = query
 	return r.listResult, nil
+}
+
+func (r *recordingBuildRepository) ListV2Artifacts(context.Context, int, int) (buildstore.V2ArtifactListResult, error) {
+	return r.artifactResult, nil
 }
 
 func (r *recordingBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
@@ -176,6 +206,69 @@ func TestBuildStatusFilterGroupsTaskRuntimeStates(t *testing.T) {
 }
 
 func stringPtr(value string) *string { return &value }
+
+func TestNormalizePlatformDigest(t *testing.T) {
+	valid := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	for _, value := range []string{valid, "registry.example/team/app@" + valid} {
+		if got, ok := normalizePlatformDigest(value); !ok || got != valid {
+			t.Fatalf("normalizePlatformDigest(%q) = %q, %t", value, got, ok)
+		}
+	}
+	for _, value := range []string{"", "sha256:short", "registry.example/team/app:v1"} {
+		if got, ok := normalizePlatformDigest(value); ok || got != "" {
+			t.Fatalf("normalizePlatformDigest(%q) = %q, %t, want rejection", value, got, ok)
+		}
+	}
+}
+
+type snapshotDeliveryCapabilityStub struct {
+	result moduleapi.WorkspaceSnapshotDeliveryResult
+	err    error
+	last   moduleapi.WorkspaceSnapshotDeliveryRequest
+}
+
+type providerConformanceCapabilityStub struct {
+	result moduleapi.ProviderExecutionConformanceResult
+	err    error
+}
+
+func (s providerConformanceCapabilityStub) ConformProviderExecution(context.Context, moduleapi.ProviderExecutionConformanceRequest) (moduleapi.ProviderExecutionConformanceResult, error) {
+	return s.result, s.err
+}
+
+func (s *snapshotDeliveryCapabilityStub) DeliverWorkspaceSnapshot(_ context.Context, request moduleapi.WorkspaceSnapshotDeliveryRequest) (moduleapi.WorkspaceSnapshotDeliveryResult, error) {
+	s.last = request
+	return s.result, s.err
+}
+
+func TestVerifySnapshotDeliveryRequiresMatchingFrozenIdentity(t *testing.T) {
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: "/tmp/graft-build-snapshots/snapshot-1"}
+	capability := &snapshotDeliveryCapabilityStub{result: moduleapi.WorkspaceSnapshotDeliveryResult{TargetID: 4, SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}}
+	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err != nil {
+		t.Fatal(err)
+	}
+	if capability.last.TargetID != 4 || capability.last.SnapshotID != snapshot.ID || capability.last.ContentDigest != snapshot.ContentDigest || capability.last.DeliveryMode != moduleapi.SnapshotDeliveryModeTargetLocal {
+		t.Fatalf("delivery request = %#v", capability.last)
+	}
+	capability.result.ContentDigest = "sha256:other"
+	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err == nil {
+		t.Fatal("mismatched Snapshot proof unexpectedly succeeded")
+	}
+}
+
+func TestVerifyProviderConformanceFailsClosedOnIncompleteEvidence(t *testing.T) {
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source"}
+	capability := providerConformanceCapabilityStub{result: moduleapi.ProviderExecutionConformanceResult{ProviderID: "docker-target", ConformanceVersion: "v1", Executable: true}}
+	if _, err := verifyProviderConformance(context.Background(), capability, moduleapi.ProviderExecutionConformanceRequest{TargetID: 4, DriverRef: "docker-engine", Platform: "linux/amd64", SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}); err == nil {
+		t.Fatal("incomplete provider conformance unexpectedly succeeded")
+	}
+}
+
+func TestTemporaryPlatformTagIsDeterministicAndScoped(t *testing.T) {
+	if got := temporaryPlatformTag("v1", "linux/amd64"); got != "v1-graft-linux-amd64" {
+		t.Fatalf("temporaryPlatformTag = %q", got)
+	}
+}
 
 func (r *recordingBuildDocker) BuildImage(_ context.Context, input moduleapi.DockerImageBuildInput, _ moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
 	r.input = input

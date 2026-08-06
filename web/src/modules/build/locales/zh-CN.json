@@ -1,12 +1,33 @@
 {
   "menu": {
     "build": {
+      "artifacts": {
+        "title": "构建产物"
+      },
       "jobs": {
         "title": "构建任务"
       }
     }
   },
   "build": {
+    "artifacts": {
+      "title": "构建产物",
+      "eyebrow": "构建",
+      "description": "浏览由 Build 执行产出的不可变产物。",
+      "refresh": "刷新",
+      "summary": "共 {count} 个产物",
+      "empty": "暂无构建产物",
+      "emptyDescription": "Build 执行发布不可变产物后会显示在这里。",
+      "loadFailed": "无法加载构建产物。",
+      "retry": "重试",
+      "columns": {
+        "digest": "摘要",
+        "mediaType": "媒体类型",
+        "platforms": "平台",
+        "size": "大小",
+        "createdAt": "创建时间"
+      }
+    },
     "jobs": {
       "title": "构建任务",
       "eyebrow": "平台",
@@ -76,8 +97,24 @@
         "submit": "提交构建",
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",
-        "applicationId": "应用 ID",
-        "applicationIdRequired": "请输入应用 ID。",
+        "workspace": "工作区",
+        "workspaceId": "工作区 ID",
+        "workspaceIdRequired": "请输入工作区 ID。",
+        "workspacePlaceholder": "选择工作区快照",
+        "runtimeTarget": "构建运行目标",
+        "runtimeTargetRequired": "请输入构建运行目标。",
+        "runtimeTargetPlaceholder": "选择支持构建的 Runtime Target",
+        "builderSelection": "构建器选择",
+        "runtimeTargetMode": "直接选择 Runtime Target",
+        "builderPoolMode": "使用 Builder Pool",
+        "builderPool": "Builder Pool",
+        "builderPoolRequired": "请输入 Builder Pool。",
+        "builderPoolPlaceholder": "选择 Builder Pool",
+        "selectorsUnavailable": "Build 选择器暂不可用，请先配置 Build 读取 API。",
+        "selectorsLoadFailed": "无法加载 Build 选择器。",
+        "selectorsEmpty": "当前没有可用且已授权的 Build 工作区或构建器选项。",
+        "template": "构建模板",
+        "driver": "构建驱动",
         "contextPath": "构建上下文路径",
         "contextPathRequired": "请输入构建上下文路径。",
         "dockerfilePath": "Dockerfile 路径",

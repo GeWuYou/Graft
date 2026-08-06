@@ -32,6 +32,54 @@ func TestJobListFiltersPreserveExactFilterArgumentOrder(t *testing.T) {
 	}
 }
 
+func TestListV2ArtifactsReturnsDigestAddressedProjection(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdAt := time.Date(2026, time.August, 6, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM build_v2_artifacts").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery("SELECT artifact_id, artifact_digest").WithArgs(20, 0).WillReturnRows(sqlmock.NewRows([]string{"artifact_id", "artifact_digest", "media_type", "platforms_json", "size_bytes", "created_at"}).AddRow("artifact_1", "sha256:abc", "application/vnd.oci.image.manifest.v1+json", `["linux/amd64"]`, int64(12), createdAt))
+	result, err := repository.ListV2Artifacts(context.Background(), 20, 0)
+	if err != nil {
+		t.Fatalf("ListV2Artifacts() error = %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Digest != "sha256:abc" || !reflect.DeepEqual(result.Items[0].Platforms, []string{"linux/amd64"}) {
+		t.Fatalf("unexpected artifact result: %#v", result)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListArtifactPublicationSourcesUsesArtifactIdentityAndNeverReturnsMutableTag(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT artifact.artifact_id, publication.publication_id").WithArgs("artifact_1").WillReturnRows(sqlmock.NewRows([]string{"artifact_id", "publication_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref"}).AddRow("artifact_1", "publication_1", "sha256:abc", "application/vnd.oci.image.manifest.v1+json", "oci_registry", "registry:primary", "team/api"))
+	items, err := repository.ListArtifactPublicationSources(context.Background(), "artifact_1")
+	if err != nil {
+		t.Fatalf("ListArtifactPublicationSources() error = %v", err)
+	}
+	if len(items) != 1 || items[0].PublicationID != "publication_1" || items[0].Digest != "sha256:abc" || items[0].RepositoryRef != "team/api" {
+		t.Fatalf("unexpected publication sources: %#v", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestJobListFiltersMapProductStatusGroupsToTaskStatuses(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -84,6 +132,59 @@ func TestListJobsUsesStatusProjectionForExactTotalAndOffset(t *testing.T) {
 	}
 }
 
+func TestListWorkspacesScopesToCallerAndSharedSources(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT workspace_id, display_name, source_kind, source_reference").WithArgs(uint64(7)).WillReturnRows(
+		sqlmock.NewRows([]string{"workspace_id", "display_name", "source_kind", "source_reference", "retention_policy", "created_by", "created_at", "updated_at"}).
+			AddRow("workspace_shared", "Shared", moduleapi.WorkspaceSourceApplication, "app_shared", "workspace", nil, time.Now(), time.Now()).
+			AddRow("workspace_owned", "Owned", moduleapi.WorkspaceSourceGit, "git:main", "workspace", uint64(7), time.Now(), time.Now()),
+	)
+	items, err := repository.ListWorkspaces(context.Background(), 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].ID != "workspace_shared" || items[1].CreatedBy != 7 {
+		t.Fatalf("unexpected workspace selector projection: %#v", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListBuilderPoolsReturnsOnlyLivePoolProjection(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT pool_id, display_name, scheduling_policy, selector_json").WillReturnRows(
+		sqlmock.NewRows([]string{"pool_id", "display_name", "scheduling_policy", "selector_json"}).
+			AddRow("pool:default", "Default", "round_robin", []byte(`{"labels":{}}`)),
+	)
+	items, err := repository.ListBuilderPools(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].ID != "pool:default" || items[0].SchedulingPolicy != "round_robin" {
+		t.Fatalf("unexpected pool selector projection: %#v", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSQLRepositoryRejectsUnavailableReadOperations(t *testing.T) {
 	var repository *SQLRepository
 	if _, err := repository.GetJobByTaskID(context.Background(), 1); err == nil {
@@ -107,6 +208,104 @@ func TestSettleDockerArtifactReturnsNotFoundWhenJobDoesNotExist(t *testing.T) {
 	mock.ExpectExec("INSERT INTO build_artifacts").WithArgs(uint64(42), "sha256:image", "", "example/app", "v1", int64(0), "", "", "").WillReturnResult(sqlmock.NewResult(0, 0))
 	if err := repository.SettleDockerArtifact(context.Background(), 42, moduleapi.DockerImageBuildResult{ImageID: "sha256:image", Repository: "example/app", Tag: "v1"}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("SettleDockerArtifact error = %v, want ErrNotFound", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListPlatformArtifactsUsesFrozenPlanAndTaskIdentity(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdAt := time.Date(2026, time.August, 6, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("SELECT link.leg_id").WithArgs("plan_123", uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"leg_id", "platform", "artifact_digest", "media_type", "size_bytes", "created_at"}).AddRow("amd64", "linux/amd64", "sha256:amd64", "application/vnd.oci.image.manifest.v1+json", int64(12), createdAt))
+	items, err := repository.ListPlatformArtifacts(context.Background(), 42, moduleapi.BuildExecutionPlan{ID: "plan_123", Platforms: []string{"linux/amd64"}})
+	if err != nil {
+		t.Fatalf("ListPlatformArtifacts: %v", err)
+	}
+	if len(items) != 1 || items[0].LegID != "amd64" || items[0].Digest != "sha256:amd64" {
+		t.Fatalf("platform artifacts = %#v", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPrepareOCIManifestPublicationRejectsIncompletePlatformArtifacts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT link.leg_id").WithArgs("plan_123", uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"leg_id", "platform", "artifact_digest", "media_type", "size_bytes", "created_at"}).AddRow("amd64", "linux/amd64", "sha256:amd64", "application/vnd.oci.image.manifest.v1+json", int64(12), time.Now()))
+	_, err = repository.PrepareOCIManifestPublication(context.Background(), 42, moduleapi.BuildExecutionPlan{ID: "plan_123", Platforms: []string{"linux/amd64", "linux/arm64"}})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("PrepareOCIManifestPublication error = %v, want %v", err, ErrConflict)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetExecutionPlanByTaskIDReadsFrozenPlatformPlacements(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	placements := `[{
+        "Platform":"linux/amd64","BuilderInstanceID":"builder-amd64","RuntimeTargetID":4,"SchedulingPolicy":"round_robin"
+      },{
+        "Platform":"linux/arm64","BuilderInstanceID":"builder-arm64","RuntimeTargetID":5,"SchedulingPolicy":"round_robin"
+      }]`
+	columns := []string{"plan_id", "plan_digest", "snapshot_id", "source_kind", "source_reference", "content_digest", "materialization_ref", "snapshot_created_at", "builder_pool_id", "builder_instance_id", "runtime_target_id", "driver", "template_ref", "platforms_json", "builder_placements_json", "destination_json", "created_at"}
+	mock.ExpectQuery("SELECT p.plan_id").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows(columns).AddRow("plan_test", "sha256:plan", "snapshot_test", "application_workspace", "app_test", "sha256:source", "/managed/snapshot", time.Now(), "pool_builders", "builder-amd64", int64(4), "docker-buildx@v1", "oci-dockerfile/default@v1", `["linux/amd64","linux/arm64"]`, placements, `{"kind":"oci_registry","connection_ref":"registry","repository_ref":"team/app","reference":"v1"}`, time.Now()))
+	plan, err := repository.GetExecutionPlanByTaskID(context.Background(), 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if placement, ok := plan.PlacementForPlatform("linux/arm64"); !ok || placement.BuilderInstanceID != "builder-arm64" || placement.RuntimeTargetID != 5 {
+		t.Fatalf("placement = %#v ok=%t", placement, ok)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClaimExpiredSnapshotMaterializationsUsesRecoverableLease(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, time.August, 6, 12, 0, 0, 0, time.UTC)
+	claimBefore := now.Add(-10 * time.Minute)
+	mock.ExpectQuery("WITH candidates AS").WithArgs(now, claimBefore, 10).WillReturnRows(sqlmock.NewRows([]string{"snapshot_id", "materialization_ref"}).AddRow("snapshot_expired", "/tmp/graft-build-snapshots/snapshot-a"))
+	items, err := repository.ClaimExpiredSnapshotMaterializations(context.Background(), now, claimBefore, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].SnapshotID != "snapshot_expired" || items[0].MaterializationRef != "/tmp/graft-build-snapshots/snapshot-a" {
+		t.Fatalf("claimed materializations = %#v", items)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
@@ -238,6 +437,57 @@ func TestCreateJobRejectsConflictingReplay(t *testing.T) {
 
 	if err := repository.CreateJob(context.Background(), snapshot); err == nil {
 		t.Fatal("CreateJob conflict error = nil")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRecordProviderExecutionEvidenceUsesPlanScopedTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_evidence", RuntimeTargetID: 4}
+	conformance := moduleapi.ProviderExecutionConformanceResult{ProviderID: "docker-target", ConformanceVersion: "v1", Executable: true, SnapshotDeliveryProof: true, DriverExecutionProof: true, PublicationProof: true, CancellationProof: true, CleanupProof: true}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id FROM build_execution_plans").WithArgs("plan_evidence", uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(9)))
+	mock.ExpectExec("INSERT INTO build_provider_execution_evidence").WithArgs(int64(9), uint64(42), uint64(7), int64(4), "linux/amd64", "docker-target", "v1", true, true, true, true, true).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT runtime_target_id, platform, provider_id, conformance_version").WithArgs(int64(9), uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"runtime_target_id", "platform", "provider_id", "conformance_version", "snapshot_delivery_proof", "driver_execution_proof", "publication_proof", "cancellation_proof", "cleanup_proof"}).AddRow(int64(4), "linux/amd64", "docker-target", "v1", true, true, true, true, true))
+	mock.ExpectCommit()
+	if err := repository.RecordProviderExecutionEvidence(context.Background(), plan, moduleapi.ProviderExecutionEvidence{TaskID: 42, StageID: 7, TargetID: 4, Platform: "linux/amd64", Conformance: conformance}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRecordProviderExecutionEvidenceRejectsConflictingReplay(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_evidence_conflict"}
+	conformance := moduleapi.ProviderExecutionConformanceResult{ProviderID: "docker-target", ConformanceVersion: "v1", Executable: true, SnapshotDeliveryProof: true, DriverExecutionProof: true, PublicationProof: true, CancellationProof: true, CleanupProof: true}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id FROM build_execution_plans").WithArgs("plan_evidence_conflict", uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(9)))
+	mock.ExpectExec("INSERT INTO build_provider_execution_evidence").WillReturnResult(sqlmock.NewResult(1, 0))
+	mock.ExpectQuery("SELECT runtime_target_id, platform, provider_id, conformance_version").WithArgs(int64(9), uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"runtime_target_id", "platform", "provider_id", "conformance_version", "snapshot_delivery_proof", "driver_execution_proof", "publication_proof", "cancellation_proof", "cleanup_proof"}).AddRow(int64(5), "linux/amd64", "docker-target", "v1", true, true, true, true, true))
+	mock.ExpectRollback()
+	err = repository.RecordProviderExecutionEvidence(context.Background(), plan, moduleapi.ProviderExecutionEvidence{TaskID: 42, StageID: 7, TargetID: 4, Platform: "linux/amd64", Conformance: conformance})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("conflicting replay error = %v, want ErrConflict", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
