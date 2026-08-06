@@ -4,6 +4,7 @@
 
 | ID                                     | Title                                          | Area       | Level | Status | Location                        | Promoted                                                                  |
 | -------------------------------------- | ---------------------------------------------- | ---------- | ----: | ------ | ------------------------------- | ------------------------------------------------------------------------- |
+| LESSON-BACKEND-CAPABILITY-AUTHORITY-001 | 能力健康必须与平台可达性分层                  | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-HTTPX-CONTEXT-001       | 守卫发布安全审计前必须先写回增强后的请求上下文 | backend    |    L1 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-MIGRATION-VERSION-001   | 已执行 Atlas migration 版本不能追加新 DDL      | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`            |
 | LESSON-BACKEND-MODULE-LIFECYCLE-001    | Builder 不应解析 Register 才暴露的跨模块服务   | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
