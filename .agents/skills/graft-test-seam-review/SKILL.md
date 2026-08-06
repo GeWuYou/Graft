@@ -30,6 +30,7 @@ If no correct seam exists, report that architecture gap explicitly and route it 
 
 ## Guardrails
 
-- Use `graft validate backend` or `bun run check` as completion entrypoints; focused tests supplement them.
+- Use `graft-validation-runner` to choose the task-class completion entrypoint: `graft validate backend` for server
+  changes, `bun run check` for web changes, and both for cross-boundary changes. Focused tests supplement them.
 - Do not add snapshots, mocks, or broad end-to-end tests to hide an unchosen seam.
 - Do not treat green tests as proof of semantic correctness when the test bypasses the authority boundary.

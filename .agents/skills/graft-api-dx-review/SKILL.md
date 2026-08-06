@@ -34,9 +34,13 @@ requests for an API review.
 ### 1. Establish The Caller And Authority
 
 Identify the primary caller (web module, shell, CLI, or external integration), the lifecycle/resource owner, and the
-canonical OpenAPI or module-contract source. Trace the request and response through:
+canonical OpenAPI or module-contract source. Trace web callers through:
 
 `OpenAPI -> generated TypeScript -> Axios adapter -> query/store/composable -> view or task workflow`.
+
+For shell, CLI, or external integrations, trace request construction, authentication, retry/timeout behavior, error
+handling, and output or callback semantics through their actual adapter. Run that caller's existing validation command;
+when none exists, record the limitation as missing evidence rather than assuming the web path covers it.
 
 If a mismatch is caused by an upstream authority, report and repair that owner first when feasible. Do not add a
 downstream mapping, alias, fallback, or compatibility DTO merely to hide authority drift.

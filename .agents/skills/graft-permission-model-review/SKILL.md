@@ -76,7 +76,9 @@ Check confirmation, re-authentication, idempotency, concurrency, and recovery re
 ### 5. Produce Evidence
 
 Record the authority owner, permission matrix, protected route inventory, menu/bootstrap/web projections, audit mapping,
-threat/trust-boundary assumptions, findings, and focused validation results. Missing route or audit evidence is a finding.
+threat/trust-boundary assumptions, findings, and validation. Run `graft validate backend` for server changes, `bun run
+check` for web changes, and both for cross-boundary permission changes; focused results supplement but never replace
+the applicable completion entrypoint. Missing route or audit evidence is a finding.
 
 ## Findings And Decision Rules
 
@@ -96,7 +98,7 @@ Permission model review:
 - trust_boundary: <server checks, actor/resource scope, deny-by-default>
 - audit_and_dangerous_ops: <events, fields, confirmations, recovery>
 - findings: <severity, evidence, recommendation>
-- validation: <graft validate backend, bun run check, or focused results>
+- validation: <task-class completion entrypoint(s), plus focused results when useful>
 ```
 
 ## Guardrails

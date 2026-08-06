@@ -14,8 +14,8 @@ Graft behaves as a platform, even when the user did not explicitly request an ar
 
 - Establish the product/module intent and the owning platform or module boundary before judging local code shape.
 - Treat the root `AGENTS.md`, relevant `ai-plan/design/**` documents, and `server/AGENTS.md` or `web/AGENTS.md` as
-  governance authority. Treat module descriptors, stable contracts, and `openapi/**` as their respective technical
-  sources of truth.
+  governance authority. When the scope includes `ai-plan/**`, also read and follow `ai-plan/AGENTS.md`. Treat module
+  descriptors, stable contracts, and `openapi/**` as their respective technical sources of truth.
 - Generated artifacts, page-local models, infrastructure manifests, and convenience wrappers are projections or
   implementation details unless an existing governance document explicitly makes them authoritative.
 - Escalate upstream when a downstream symptom is caused by an incorrect module descriptor, contract, lifecycle, or
@@ -104,7 +104,7 @@ use the more specific review skill instead.
 
 ## Findings And Decision Format
 
-Report findings first, ordered by severity (`blocker`, `warning`, `note`). Every finding includes:
+Report findings first, ordered by severity (`blocking`, `high`, `medium`, `note`). Every finding includes:
 
 - the affected capability, boundary, or source of truth;
 - concrete evidence from the design or diff;

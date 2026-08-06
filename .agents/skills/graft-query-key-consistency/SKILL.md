@@ -44,7 +44,8 @@ Check that:
 
 - key segments use the canonical module/resource vocabulary and do not mix singular/plural or page-local synonyms;
 - factories are colocated with the module's shared query API and return stable readonly tuples where inference helps;
-- list filters are normalized once, with deterministic omission/default handling and no accidental object identity churn;
+- list filters are normalized once, with deterministic omission/default handling; compare normalized values and preserve
+  array order where it carries identity rather than treating object reference churn as a query-key difference;
 - detail keys contain the canonical identifier and never use an ambiguous empty or `undefined` ID as a real resource;
 - user, tenant, permission, locale, or feature scope is included exactly when it changes the response; and
 - list/detail/collection prefixes support intentional partial invalidation without invalidating unrelated resources.

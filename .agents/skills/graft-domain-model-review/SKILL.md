@@ -72,15 +72,16 @@ Trace the domain fact through its representations:
 
 Confirm each layer preserves the domain meaning, names, requiredness, enum/state semantics, ownership, and error
 behavior. Prefer a canonical fact plus narrow projections; flag duplicate DTOs, copied state machines, presentation
-models that can mutate domain state, or adapters that conceal authority drift. Invoke the API, event, permission, or
-cross-boundary semantic skill when its specialized review is triggered.
+models that can mutate domain state, or adapters that conceal authority drift. Invoke the API, event, permission,
+cross-boundary, query-key, or TypeScript DX semantic skill when its specialized review is triggered.
 
 ### 5. Align Design And Evidence
 
 Compare the result with the canonical domain document and ADR/design decisions. Update the owning design authority in
 the same slice when the model or lifecycle changes; do not record a competing summary in a skill, module README, or
-ad-hoc note. Classify evolution as additive, behavior-changing, deprecated, or breaking and state migration,
-compatibility, cleanup, and observability implications. Produce evidence from focused tests and the repository's
+ad-hoc note. Classify evolution as additive, behavior-changing, deprecated, breaking, or exception-with-expiry; the
+last classification must record the compatibility bridge's cleanup trigger. State migration, compatibility, cleanup,
+and observability implications. Produce evidence from focused tests and the repository's
 normal validation entrypoint; missing evidence is a finding, not proof of safety.
 
 ## Findings And Decision Rules
@@ -118,4 +119,3 @@ Domain model review:
   business concepts without an explicit public contract decision.
 - Do not claim a domain design is sound from lint alone; semantic review needs scenarios, invariant evidence, and
   focused tests.
-

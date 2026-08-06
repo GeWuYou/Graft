@@ -91,7 +91,7 @@ Return a concise review containing:
 - `authority`: canonical source and lifecycle owner;
 - `change_class`: additive, corrective, behavioral, deprecation, or breaking;
 - `consumer_impact`: affected server/web modules and generated outputs;
-- `findings`: severity (`blocker`, `warning`, `note`), location, evidence, and recommended repair;
+- `findings`: severity (`blocking`, `high`, `medium`, `note`), location, evidence, and recommended repair;
 - `validation`: exact commands and results;
 - `decisions_needed`: unresolved design or compatibility choices;
 - `acceptance`: conditions required before merge.

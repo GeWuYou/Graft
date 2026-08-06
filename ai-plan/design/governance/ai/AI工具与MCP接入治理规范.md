@@ -214,6 +214,10 @@ transport adapter；产品 runtime 仍不得把开发者客户端配置、AI ski
 validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须声明触发条件、authority、输出证据和拒绝
 条件；没有对应 Skill 时必须显式记录 gap 并使用最接近的现有治理清单。
 
+所有 Semantic Review Skill 使用 `blocking`、`high`、`medium`、`note` 四级 findings severity：`blocking` 表示在
+实现或合并前必须消除的 authority、correctness 或安全风险；其余级别按影响递减。Skill 可补充领域内的风险说明，
+但不得定义另一套 severity 枚举或映射。
+
 新增或修改仓库 skill 时：
 
 - 先确认是否已有 skill 可以扩展，避免重复工作流。

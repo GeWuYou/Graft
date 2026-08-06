@@ -60,9 +60,10 @@ Best-effort delivery is allowed only when loss does not change business correctn
 ### 3. Review Delivery, Idempotency, And Retry
 
 For each consumer, identify its stable handler ID, the deduplication authority, and the behavior of a repeated event.
-Handlers must be idempotent using `Event.ID` or a business idempotency key backed by a constrained persisted fact or
-the external provider's equivalent, not an in-memory map. Check delivery at least once, lease loss, crash recovery,
-out-of-order arrivals, duplicate publish, and partial consumer failure.
+Handlers must be idempotent using a publisher-reused `Event.ID` or a business idempotency key backed by a constrained
+persisted fact or the external provider's equivalent, not an in-memory map. When the same business fact can be
+republished as a new envelope, require that durable business key; `Event.ID` alone cannot deduplicate it. Check delivery
+at least once, lease loss, crash recovery, out-of-order arrivals, duplicate publish, and partial consumer failure.
 
 Make retry bounded and owned by the existing delivery/runtime mechanism. Automatic retry requires evidence that the
 handler and every external effect are safe to replay. Do not add a module-local goroutine, worker, DLQ, retry table,
@@ -82,7 +83,7 @@ HTTP/persisted facts remain recovery authority.
 
 ### 5. Review Evolution And Evidence
 
-Classify the event change as additive, behavior-changing, deprecated, or breaking. Version a stable event rather than
+Classify the event change as additive, behavior-changing, deprecated, breaking, or exception-with-expiry. Version a stable event rather than
 silently changing its meaning. Before adding compatibility, identify the canonical owner, affected consumers, why a
 coordinated mono-repo repair is not possible, expiry/cleanup trigger, and validation for both paths. Produce concise
 evidence from handler-focused tests and the normal repository validation entrypoint; missing delivery or replay

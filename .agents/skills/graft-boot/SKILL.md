@@ -20,15 +20,16 @@ startup; it does not replace repository rules.
 3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
    mapped parent topic and relevant subtopic recovery files for the current task shape.
 4. Read the relevant repository-wide design and roadmap truth needed by the task.
-5. Actively match and run the default Semantic Review Layer before implementation. Select all applicable skills from
+5. Actively match the default Semantic Review Layer before implementation. Select all applicable skills from
    this matrix: OpenAPI (`graft-openapi-contract-review`), cross-boundary (`graft-cross-boundary-review`), platform
    architecture (`graft-platform-architecture-review`), API DX (`graft-api-dx-review`), domain (`graft-domain-model-review`),
    event (`graft-event-contract-review`), TypeScript DX (`graft-typescript-dx-audit`), Query keys
    (`graft-query-key-consistency`), permissions (`graft-permission-model-review`), module architecture
    (`graft-module-architecture-review`), test seams (`graft-test-seam-review`), change diff (`graft-change-review`),
-   consistency (`graft-consistency-review`), and deletion (`graft-delete-review`). Record selected skills and evidence
-   in the current design/Work Contract or closeout. If one is unavailable, record the gap and use existing governance;
-   never silently skip semantic review.
+   consistency (`graft-consistency-review`), and deletion (`graft-delete-review`). Run each selected skill at its own
+   declared phase: record design-stage selection, evidence, gaps, and unresolved decisions in the design or Work
+   Contract before implementation; run review/closeout skills at their declared later phase and record their evidence
+   in closeout. If one is unavailable, record the gap and use existing governance; never silently skip semantic review.
 6. Inspect the current repository state before assuming toolchains or entrypoints exist.
 7. If the request introduces new long-running work and no active topic already owns it, route through
    `graft-work-intake` before creating a new `topic`, `design`, `roadmap`, or `ADR`.

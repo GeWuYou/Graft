@@ -44,12 +44,14 @@ scope. Do not add an alias, fallback, adapter, or compatibility DTO merely to hi
    broad `any`, unnecessary casts, generic wrappers that erase inference, and literal widening in registries or maps.
 7. Review failure and compatibility paths: distinguish server errors from transport errors, preserve actionable error
    codes/messages, and document any unavoidable compatibility bridge with owner, reason, consumers, and cleanup trigger.
-8. Run the required server/web or cross-boundary validation entrypoints after the semantic review. Generated artifacts
-   must be regenerated and checked from canonical source; never validate only a manually edited projection.
+8. Run the required server/web or cross-boundary validation entrypoints after the semantic review. Regenerate and check
+   generated artifacts only when their canonical source or a related generated projection is in the changed chain;
+   never validate only a manually edited projection. For query, composable, store, or view-only changes with no such
+   projection, run the affected server/web validation without creating unrelated generated diffs.
 
 ## Findings Format
 
-Report findings first, ordered by severity. Each finding includes:
+Report findings first, ordered by severity: `blocking`, `high`, `medium`, or `note`. Each finding includes:
 
 * boundary and affected value/operation;
 * canonical authority and observed projection path;
