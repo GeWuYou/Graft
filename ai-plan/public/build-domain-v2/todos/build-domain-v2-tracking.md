@@ -50,11 +50,12 @@ closeout:
 ## Current Recovery Point
 
 - `authority-bootstrap` was accepted and committed as `084ae531` after structure and diff validation.
-- Current batch: `phase-1-single-builder`.
-- Current authority work is complete; Phase 1 must repair Runtime Target, Infrastructure Registry, Build, Task,
-  OpenAPI and Web boundaries in dependency order.
-- Current risk: later implementation must widen from Build to Runtime, Infrastructure, Task, OpenAPI and Web whenever
-  an upstream shared contract changes.
+- Current batch: `phase-1-single-builder` is in recovery after a validated Runtime Target capability slice.
+- Recovery authority: extend the same batch to Container's target-selected build/push capability, the canonical Build
+  create route, and a controlled Application Workspace materialization boundary. Preserve the existing route-prefix
+  correction without reverting or overwriting it.
+- Repair eligibility: the user authorized all approved phases in the current workspace; the widened scope is required
+  authority repair, not a compatibility path.
 
 ## Task Checklist
 
@@ -87,6 +88,6 @@ closeout:
   ],
   "current_batch": "phase-1-single-builder",
   "next_batch": "phase-2-workspaces-templates-drivers",
-  "closeout_status": "settled"
+  "closeout_status": "recovery-required"
 }
 ```

@@ -19,6 +19,14 @@
 - Registry Connection and Artifact Repository are Infrastructure resources; OCI Registry is only the first Artifact
   Destination provider, not the universal output model.
 
+## 2026-08-06 phase-1-single-builder recovery
+
+- Runtime Target build-candidate capability implementation is validated but intentionally uncommitted while the
+  original Phase 1 batch is incomplete.
+- The repair scope expands to Container build/push execution, the canonical Build write route, and controlled
+  Application Workspace materialization; direct replacement remains mandatory.
+- Existing user-owned route-prefix work is preserved and incorporated rather than reverted.
+
 ## Loop Batch State
 
 ```json
@@ -35,6 +43,6 @@
   ],
   "current_batch": "phase-1-single-builder",
   "next_batch": "phase-2-workspaces-templates-drivers",
-  "closeout_status": "settled"
+  "closeout_status": "recovery-required"
 }
 ```
