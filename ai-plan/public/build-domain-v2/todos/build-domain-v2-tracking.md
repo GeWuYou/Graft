@@ -77,7 +77,9 @@ closeout:
   Publication workflows remain later Phase 4 scope.
 - [x] Phase 4 promotion Task Runtime stage: Build freezes a Publication-selected immutable digest source and a
   Registry-authorized destination, while the existing Task Runtime owns copy execution, cancellation and manual recovery.
-  The public OpenAPI/HTTP promotion write contract remains pending.
+- [x] Phase 4 public promotion write contract: `POST /api/build/artifact-promotions` is now defined by OpenAPI and
+  wired through the Build permission and Task Runtime submission boundary. Authorized Publication discovery and the
+  Artifact page workflow remain a later reviewed contract; no selector or modal is inferred from the Artifact list.
 - [x] Phase 5: Task Runtime distributed-leg coordination contract and manifest aggregation authority.
 - [ ] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.

@@ -9,3 +9,4 @@ export type BuildJobCreateRequest = components['schemas']['build-job-create-requ
 export type BuildJobListResponse = components['schemas']['build-job-list'];
 export type BuildArtifact = components['schemas']['build-artifact'];
 export type BuildArtifactListResponse = components['schemas']['build-artifact-list'];
+export type BuildArtifactPromotionCreateRequest = components['schemas']['build-artifact-promotion-create-request'];

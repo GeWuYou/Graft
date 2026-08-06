@@ -44,7 +44,8 @@
   Build > Artifacts browser; legacy Job projections remain separately readable.
 - Phase 4 Promotion Task Runtime stage completed: Build freezes a Publication-selected digest source and Registry-authorized
   destination, then delegates copy, cancellation, manual recovery and settlement to the existing Task Runtime. The public
-  OpenAPI/HTTP promotion write contract remains pending.
+  OpenAPI/HTTP promotion write contract is now complete; authorized Publication discovery and the Artifact page workflow
+  remain a later contract.
 
 ## Recovery Receipt
 

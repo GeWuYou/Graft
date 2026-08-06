@@ -1,0 +1,27 @@
+post:
+  tags: [build]
+  operationId: postBuildArtifactPromotion
+  summary: Submit a digest-preserving Artifact Promotion Task
+  parameters:
+    - name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/build-artifact-promotion-create-request.yaml }
+  responses:
+    '202':
+      description: Promotion Task accepted.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-task-receipt.yaml }
+    '400': { description: Invalid promotion request. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { $ref: ../components/responses/not-found.yaml }
+    '409': { description: Idempotency-Key was previously used with different Promotion input. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

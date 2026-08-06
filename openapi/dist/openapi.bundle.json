@@ -16314,6 +16314,72 @@
         }
       }
     },
+    "/api/build/artifact-promotions": {
+      "post": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "postBuildArtifactPromotion",
+        "summary": "Submit a digest-preserving Artifact Promotion Task",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/build-artifact-promotion-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Promotion Task accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid promotion request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "409": {
+            "description": "Idempotency-Key was previously used with different Promotion input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/build/workspaces": {
       "get": {
         "tags": [
@@ -36680,6 +36746,66 @@
             }
           }
         ]
+      },
+      "build-artifact-promotion-create-request": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "publication_id",
+          "runtime_target_id",
+          "destination"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "publication_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "destination": {
+            "type": "object",
+            "required": [
+              "kind",
+              "connection_ref",
+              "repository_ref",
+              "reference"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "oci_registry"
+                ]
+              },
+              "connection_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "repository_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       },
       "build-workspace": {
         "type": "object",

@@ -201,6 +201,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postAuthSessionRevoke: '/api/auth/sessions/{sessionID}/revoke',
   postAuthSessionsRevokeAll: '/api/auth/sessions/revoke-all',
   postAuthSessionsRevokeOthers: '/api/auth/sessions/revoke-others',
+  postBuildArtifactPromotion: '/api/build/artifact-promotions',
   postBuildJob: '/api/build/jobs',
   postBuildWorkspace: '/api/build/workspaces',
   postContainerBatchActions: '/api/ops/containers/batch-actions',

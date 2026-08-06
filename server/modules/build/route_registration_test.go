@@ -89,6 +89,7 @@ func newBuildRouteTestEngine(t *testing.T, tasks *recordingBuildTasks, repositor
 	}
 	target := moduleapi.BuildRuntimeTargetSummary{ID: 4, DisplayName: "Local Docker", Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}
 	service.ConfigureV2Submission(v2SnapshotResolver{snapshot: moduleapi.WorkspaceSnapshot{ID: "snapshot", SourceKind: "application_workspace", SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContentDigest: "sha256:test", MaterializedRoot: "/workspace/app"}}, v2TargetReader{target: target}, v2TargetAssignments{allowed: true, targets: []moduleapi.BuildRuntimeTargetSummary{target}}, v2RegistryResolver{})
+	service.ConfigureArtifactPromotion(tasks, &promotionRegistryStub{}, v2TargetAssignments{allowed: true})
 	ctx := &module.Context{Router: engine.Group("/api"), Services: services, EventBus: eventbus.New(zap.NewNop()), I18n: i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})}
 	if err := registerRoutes(ctx, service); err != nil {
 		t.Fatal(err)
@@ -184,6 +185,63 @@ func TestBuildSubmitRouteUsesInternalErrorKeyForRuntimeFailure(t *testing.T) {
 	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/jobs", `{"workspace_id":"workspace_app","runtime_target_id":4,"template_ref":"oci-dockerfile/default@v1","driver":"docker-engine@v1","destination":{"kind":"oci_registry","connection_ref":"registry:default","repository_ref":"team/app","reference":"v1"}}`))
 	if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), "common.internalError") {
 		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestBuildArtifactPromotionRouteSubmitsStableIdentifiersOnly(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tasks := &recordingBuildTasks{}
+	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
+	engine := newBuildRouteTestEngine(t, tasks, repository)
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
+	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"task_id":42`) {
+		t.Fatalf("unexpected promotion response: status=%d body=%s", response.Code, response.Body.String())
+	}
+	if tasks.input.RequestedBy != 7 || tasks.input.IdempotencyKey != "route-test-key" || tasks.input.Owner.ID != "publication_1" {
+		t.Fatalf("unexpected promotion task submission: %#v", tasks.input)
+	}
+	if strings.Contains(response.Body.String(), "endpoint") || strings.Contains(response.Body.String(), "credential") || strings.Contains(response.Body.String(), "binding") {
+		t.Fatalf("promotion response leaked protected fields: %s", response.Body.String())
+	}
+}
+
+func TestBuildArtifactPromotionRouteRejectsMalformedInput(t *testing.T) {
+	for name, request := range map[string]*http.Request{
+		"missing idempotency key": func() *http.Request {
+			request := buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`)
+			request.Header.Del("Idempotency-Key")
+			return request
+		}(),
+		"oversized idempotency key": func() *http.Request {
+			request := buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`)
+			request.Header.Set("Idempotency-Key", strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes+1))
+			return request
+		}(),
+		"malformed body": buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, &recordingBuildRepository{})
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestBuildArtifactPromotionRouteMapsTaskConflict(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tasks := &recordingBuildTasks{err: moduleapi.ErrTaskSubmissionConflict}
+	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
+	engine := newBuildRouteTestEngine(t, tasks, repository)
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
 }
 

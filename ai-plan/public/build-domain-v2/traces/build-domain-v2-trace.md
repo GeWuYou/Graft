@@ -415,6 +415,15 @@
   a process interruption cannot silently repeat an externally uncertain copy. Build registers Task owner authorization for
   reading, cancellation and manual retry; the public OpenAPI/HTTP promotion write contract is still pending.
 
+## 2026-08-07 phase-4-promotion-public-write-contract
+
+- OpenAPI now owns the canonical `POST /api/build/artifact-promotions` write contract. The Build route requires
+  `build.create` and a bounded `Idempotency-Key`, takes the actor from the authenticated request context, and returns
+  only the existing Task receipt with HTTP `202`; malformed input is `400` and idempotency conflicts are `409`.
+- The typed web client exposes the same operation without adding an Artifact page action. The current Artifact list has
+  no authorized `publication_id` discovery contract, so no selector, tag inference, or modal was introduced. Registry
+  endpoint, credential and private binding facts remain outside the HTTP request, Task input and response.
+
 ## Loop Batch State
 
 ```json

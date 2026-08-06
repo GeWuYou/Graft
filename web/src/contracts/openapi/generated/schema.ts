@@ -3122,6 +3122,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/build/artifact-promotions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit a digest-preserving Artifact Promotion Task */
+    post: operations['postBuildArtifactPromotion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/build/workspaces': {
     parameters: {
       query?: never;
@@ -9103,6 +9120,19 @@ export interface components {
     };
     'enveloped-build-artifact-list': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-artifact-list'];
+    };
+    'build-artifact-promotion-create-request': {
+      artifact_id: string;
+      publication_id: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      destination: {
+        /** @enum {string} */
+        kind: 'oci_registry';
+        connection_ref: string;
+        repository_ref: string;
+        reference: string;
+      };
     };
     'build-workspace': {
       workspace_id: string;
@@ -20190,6 +20220,50 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postBuildArtifactPromotion: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['build-artifact-promotion-create-request'];
+      };
+    };
+    responses: {
+      /** @description Promotion Task accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-receipt'];
+        };
+      };
+      /** @description Invalid promotion request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description Idempotency-Key was previously used with different Promotion input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };

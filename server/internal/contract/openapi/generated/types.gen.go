@@ -1853,15 +1853,30 @@ func (e BootstrapMenuKind) Valid() bool {
 	}
 }
 
+// Defines values for BuildArtifactPromotionCreateRequestDestinationKind.
+const (
+	BuildArtifactPromotionCreateRequestDestinationKindOciRegistry BuildArtifactPromotionCreateRequestDestinationKind = "oci_registry"
+)
+
+// Valid indicates whether the value is a known member of the BuildArtifactPromotionCreateRequestDestinationKind enum.
+func (e BuildArtifactPromotionCreateRequestDestinationKind) Valid() bool {
+	switch e {
+	case BuildArtifactPromotionCreateRequestDestinationKindOciRegistry:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BuildJobCreateRequestDestinationKind.
 const (
-	OciRegistry BuildJobCreateRequestDestinationKind = "oci_registry"
+	BuildJobCreateRequestDestinationKindOciRegistry BuildJobCreateRequestDestinationKind = "oci_registry"
 )
 
 // Valid indicates whether the value is a known member of the BuildJobCreateRequestDestinationKind enum.
 func (e BuildJobCreateRequestDestinationKind) Valid() bool {
 	switch e {
-	case OciRegistry:
+	case BuildJobCreateRequestDestinationKindOciRegistry:
 		return true
 	default:
 		return false
@@ -8214,6 +8229,22 @@ type BuildArtifactList struct {
 	Offset int             `json:"offset"`
 	Total  int64           `json:"total"`
 }
+
+// BuildArtifactPromotionCreateRequest defines model for build-artifact-promotion-create-request.
+type BuildArtifactPromotionCreateRequest struct {
+	ArtifactId  string `json:"artifact_id"`
+	Destination struct {
+		ConnectionRef string                                             `json:"connection_ref"`
+		Kind          BuildArtifactPromotionCreateRequestDestinationKind `json:"kind"`
+		Reference     string                                             `json:"reference"`
+		RepositoryRef string                                             `json:"repository_ref"`
+	} `json:"destination"`
+	PublicationId   string `json:"publication_id"`
+	RuntimeTargetId int64  `json:"runtime_target_id"`
+}
+
+// BuildArtifactPromotionCreateRequestDestinationKind defines model for BuildArtifactPromotionCreateRequest.Destination.Kind.
+type BuildArtifactPromotionCreateRequestDestinationKind string
 
 // BuildBuilderPool defines model for build-builder-pool.
 type BuildBuilderPool struct {
@@ -15683,6 +15714,11 @@ type PostAuthSessionRevokeParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostBuildArtifactPromotionParams defines parameters for PostBuildArtifactPromotion.
+type PostBuildArtifactPromotionParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // GetBuildArtifactsParams defines parameters for GetBuildArtifacts.
 type GetBuildArtifactsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -18146,6 +18182,9 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 
 // PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
 type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequest
+
+// PostBuildArtifactPromotionJSONRequestBody defines body for PostBuildArtifactPromotion for application/json ContentType.
+type PostBuildArtifactPromotionJSONRequestBody = BuildArtifactPromotionCreateRequest
 
 // PostBuildJobJSONRequestBody defines body for PostBuildJob for application/json ContentType.
 type PostBuildJobJSONRequestBody = BuildJobCreateRequest

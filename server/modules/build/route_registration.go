@@ -181,7 +181,55 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		}
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
 	})
+	group.POST("/artifact-promotions", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
+		var request openapigen.PostBuildArtifactPromotionJSONRequestBody
+		if err := c.ShouldBindJSON(&request); err != nil || !validArtifactPromotionRequest(request) {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		key := c.GetHeader("Idempotency-Key")
+		if strings.TrimSpace(key) == "" || utf8.RuneCountInString(key) > moduleapi.TaskIdempotencyKeyMaxRunes {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		receipt, submitErr := service.SubmitArtifactPromotion(c.Request.Context(), ArtifactPromotionRequest{
+			ArtifactID:      request.ArtifactId,
+			PublicationID:   request.PublicationId,
+			RuntimeTargetID: request.RuntimeTargetId,
+			Destination: moduleapi.BuildDestination{
+				Kind:          string(request.Destination.Kind),
+				ConnectionRef: request.Destination.ConnectionRef,
+				RepositoryRef: request.Destination.RepositoryRef,
+				Reference:     request.Destination.Reference,
+			},
+			RequestedBy:    requestUserID(c),
+			IdempotencyKey: key,
+		})
+		if submitErr != nil {
+			status, errorKey := http.StatusInternalServerError, "common.internalError"
+			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) || errors.Is(submitErr, buildstore.ErrConflict) {
+				status, errorKey = http.StatusConflict, "common.invalidArgument"
+			}
+			httpx.WriteLocalizedError(c, ctx.I18n, status, errorKey, nil)
+			return
+		}
+		if receipt.TaskID > math.MaxInt64 {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
+	})
 	return nil
+}
+
+func validArtifactPromotionRequest(request openapigen.PostBuildArtifactPromotionJSONRequestBody) bool {
+	return strings.TrimSpace(request.ArtifactId) != "" &&
+		strings.TrimSpace(request.PublicationId) != "" &&
+		request.RuntimeTargetId > 0 &&
+		request.Destination.Kind == openapigen.BuildArtifactPromotionCreateRequestDestinationKind("oci_registry") &&
+		strings.TrimSpace(request.Destination.ConnectionRef) != "" &&
+		strings.TrimSpace(request.Destination.RepositoryRef) != "" &&
+		strings.TrimSpace(request.Destination.Reference) != ""
 }
 
 func requestUserID(c *gin.Context) uint64 {

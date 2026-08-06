@@ -395,6 +395,8 @@ paths:
     $ref: ./paths/build-jobs.collection.yaml
   /api/build/artifacts:
     $ref: ./paths/build-artifacts.collection.yaml
+  /api/build/artifact-promotions:
+    $ref: ./paths/build-artifact-promotions.collection.yaml
   /api/build/workspaces:
     $ref: ./paths/build-workspaces.collection.yaml
   /api/build/runtime-targets:
