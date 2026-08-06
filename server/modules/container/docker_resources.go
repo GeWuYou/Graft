@@ -45,6 +45,7 @@ type DockerImage struct {
 	Labels              map[string]string
 	Architecture        string
 	OperatingSystem     string
+	Variant             string
 }
 
 // DockerImageContainerReference 是引用镜像的容器安全展示投影。
@@ -536,7 +537,7 @@ func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerI
 	if err != nil {
 		return DockerImage{}, mapDockerError(err)
 	}
-	result := DockerImage{ID: imageID, RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: strings.TrimSpace(item.Created), SizeBytes: item.Size, Labels: cloneLabels(imageLabels(item)), Architecture: strings.TrimSpace(item.Architecture), OperatingSystem: strings.TrimSpace(item.Os), Dangling: dockerImageIsDangling(item.RepoTags)}
+	result := DockerImage{ID: imageID, RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: strings.TrimSpace(item.Created), SizeBytes: item.Size, Labels: cloneLabels(imageLabels(item)), Architecture: strings.TrimSpace(item.Architecture), OperatingSystem: strings.TrimSpace(item.Os), Variant: strings.TrimSpace(item.Variant), Dangling: dockerImageIsDangling(item.RepoTags)}
 	result.ContainerReferences = dockerImageReferences(containers)[imageID]
 	result.Containers = int64(len(result.ContainerReferences))
 	return result, nil

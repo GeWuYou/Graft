@@ -20,7 +20,7 @@ post:
     - bearerAuth: []
   responses:
     '202':
-      description: Retry was accepted and the Task is pending dispatch.
+      description: Retry was accepted and the Task is queued for dispatch.
       headers:
         X-Request-Id: { $ref: ../components/headers/request-id.yaml }
       content:

@@ -1,0 +1,97 @@
+{
+  "menu": {
+    "build": {
+      "jobs": {
+        "title": "Build Jobs"
+      }
+    }
+  },
+  "build": {
+    "jobs": {
+      "title": "Build Tasks",
+      "eyebrow": "Platform",
+      "description": "Submit and manage Docker Image Build Tasks.",
+      "search": "Search build tasks...",
+      "filter": "Filter",
+      "summary": "{count} tasks",
+      "refresh": "Refresh",
+      "empty": "No build tasks yet",
+      "emptyDescription": "Submitted Docker Image Build Tasks will appear here.",
+      "emptyFiltered": "No matching build tasks",
+      "emptyFilteredDescription": "Adjust the filters and try again.",
+      "loadFailed": "Unable to load build jobs.",
+      "filters": {
+        "application": "Application",
+        "repository": "Repository",
+        "imageTag": "Image tag",
+        "status": "Status",
+        "builder": "Builder",
+        "createdTime": "Created time",
+        "applicationId": "Application ID",
+        "all": "All",
+        "createdAfter": "Created after",
+        "createdBefore": "Created before",
+        "rfc3339": "RFC 3339 timestamp",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "columns": {
+        "build": "Build",
+        "application": "Application",
+        "image": "Image",
+        "repository": "Repository",
+        "imageTag": "Image tag",
+        "status": "Status",
+        "progress": "Progress",
+        "duration": "Duration",
+        "builder": "Builder",
+        "actions": "Actions",
+        "artifact": "Artifact",
+        "createdAt": "Created"
+      },
+      "status": {
+        "queued": "Queued",
+        "pending": "Queued",
+        "ready": "Queued",
+        "scheduled": "Queued",
+        "running": "Running",
+        "success": "Success",
+        "failed": "Failed",
+        "needs_attention": "Failed",
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
+      },
+      "actions": { "retry": "Retry", "cancel": "Cancel", "logs": "Logs", "details": "Details" },
+      "error": {
+        "title": "Build Service Not Available",
+        "unavailable": "The build module is disabled or no Build Service is configured for this environment.",
+        "retry": "Retry",
+        "configure": "Configure Build",
+        "details": "View details",
+        "detailsDescription": "Contact an administrator and provide the Request ID when troubleshooting this error."
+      },
+      "detail": {
+        "title": "Build job",
+        "summary": "Snapshot",
+        "artifact": "Artifact",
+        "noArtifact": "No settled artifact"
+      },
+      "create": {
+        "title": "Create Build Job",
+        "submit": "Submit build",
+        "submitted": "Build job submitted.",
+        "submitFailed": "Unable to submit build job.",
+        "applicationId": "Application ID",
+        "applicationIdRequired": "Application ID is required.",
+        "contextPath": "Build context path",
+        "contextPathRequired": "Build context path is required.",
+        "dockerfilePath": "Dockerfile path",
+        "dockerfilePathRequired": "Dockerfile path is required.",
+        "repository": "Image repository",
+        "repositoryRequired": "Image repository is required.",
+        "tag": "Image tag",
+        "tagRequired": "Image tag is required."
+      }
+    }
+  }
+}

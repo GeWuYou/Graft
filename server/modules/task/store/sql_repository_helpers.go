@@ -81,7 +81,7 @@ func (r *SQLRepository) timestampValuePlaceholder() string {
 
 // taskColumns 返回任务表的固定列名列表。
 func taskColumns() string {
-	return `id, task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
+	return `id, task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required,
 		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, cancel_requested_at, started_at, finished_at, duration_ms,
 		failure_code, failure_message, created_at, updated_at`
 }
@@ -89,8 +89,14 @@ func taskColumns() string {
 // taskColumnsFor 返回带指定表别名的任务表列名列表。
 func taskColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_type, ` + alias + `.owner_type, ` + alias + `.owner_id, ` + alias + `.status, ` + alias + `.input_json, ` + alias + `.metadata_json, ` + alias + `.plan_json, ` + alias + `.state_json,
-		` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.idempotency_key_hash, ` + alias + `.submission_fingerprint, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
+		` + alias + `.activation_required, ` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.idempotency_key_hash, ` + alias + `.submission_fingerprint, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
 		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
+}
+
+func submissionColumns() string {
+	return `id, task_type, owner_type, owner_id, requested_by, idempotency_key_hash, submission_fingerprint,
+		state, submission_version, lease_ttl_ms, lease_renewable, lease_token_hash, lease_expires_at, absolute_deadline_at, prerequisite_kind,
+		prerequisite_ref, task_id, terminal_reason, created_at, updated_at, activated_at, terminal_at`
 }
 
 // stageColumns 返回从 Stage 表选择的逗号分隔列名。
@@ -128,7 +134,7 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	var scheduledAt, cancelRequestedAt, startedAt, finishedAt sql.NullTime
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
-		&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &status, &input, &metadata, &plan, &state,
+		&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &status, &input, &metadata, &plan, &state, &item.ActivationRequired,
 		&currentStageKey, &createdBy, &idempotencyKeyHash, &submissionFingerprint, &scheduledAt, &cancelRequestedAt, &startedAt, &finishedAt, &durationMS,
 		&failureCode, &failureMessage, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
@@ -154,6 +160,28 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	return item, nil
 }
 
+func scanSubmission(scanner interface{ Scan(dest ...any) error }) (taskmodel.Submission, error) {
+	var item taskmodel.Submission
+	var taskType, state string
+	var requestedBy, taskID sql.NullInt64
+	var idempotencyKeyHash, fingerprint, prerequisiteRef, terminalReason sql.NullString
+	var leaseTTLMS int64
+	var activatedAt, terminalAt sql.NullTime
+	if err := scanner.Scan(&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &requestedBy, &idempotencyKeyHash, &fingerprint,
+		&state, &item.Version, &leaseTTLMS, &item.LeaseRenewable, &item.LeaseTokenHash, &item.LeaseExpiresAt, &item.AbsoluteDeadlineAt, &item.PrerequisiteKind,
+		&prerequisiteRef, &taskID, &terminalReason, &item.CreatedAt, &item.UpdatedAt, &activatedAt, &terminalAt); err != nil {
+		return taskmodel.Submission{}, err
+	}
+	item.Type, item.State, item.LeaseTTL = moduleapi.TaskType(taskType), moduleapi.TaskSubmissionState(state), time.Duration(leaseTTLMS)*time.Millisecond
+	item.RequestedBy, item.IdempotencyKeyHash, item.SubmissionFingerprint = nullableUint64(requestedBy), nullableString(idempotencyKeyHash), nullableString(fingerprint)
+	item.PrerequisiteRef, item.TerminalReason, item.ActivatedAt, item.TerminalAt = nullableString(prerequisiteRef), nullableString(terminalReason), nullableTime(activatedAt), nullableTime(terminalAt)
+	if taskID.Valid && taskID.Int64 > 0 {
+		value := uint64(taskID.Int64)
+		item.TaskID = &value
+	}
+	return item, nil
+}
+
 // scanStageClaim 将关联查询得到的 Task 与 Stage 记录扫描为 StageClaim。
 // 记录无法读取时返回空 StageClaim 和扫描错误。
 func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, error) {
@@ -170,7 +198,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var stageFailureCode, stageFailureMessage sql.NullString
 	var stageDurationMS sql.NullInt64
 	if err := scanner.Scan(
-		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState,
+		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState, &claim.Task.ActivationRequired,
 		&taskCurrentStageKey, &taskCreatedBy, &taskIdempotencyKeyHash, &taskSubmissionFingerprint, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
 		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
 		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,

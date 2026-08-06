@@ -1,0 +1,16 @@
+type: object
+required: [build_id, task_id, application_id, application_name, context_path, dockerfile_path, image_repository, image_tag, created_at, builder, execution]
+properties:
+  build_id: { type: string }
+  task_id: { type: integer, format: int64, minimum: 1 }
+  application_id: { $ref: ./application-id.yaml }
+  application_name: { type: string }
+  context_path: { type: string }
+  dockerfile_path: { type: string }
+  image_repository: { type: string }
+  image_tag: { type: string }
+  created_at: { type: string, format: date-time }
+  builder: { $ref: ./build-builder-snapshot.yaml }
+  execution: { $ref: ./build-task-execution.yaml }
+  artifact: { $ref: ./build-artifact.yaml }
+additionalProperties: false

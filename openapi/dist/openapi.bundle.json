@@ -227,6 +227,10 @@
       "description": "Compose 项目管理"
     },
     {
+      "name": "build",
+      "description": "Dockerfile 构建作业管理"
+    },
+    {
       "name": "runtime-target",
       "description": "运行目标管理"
     }
@@ -8247,7 +8251,7 @@
         ],
         "responses": {
           "202": {
-            "description": "Retry was accepted and the Task is pending dispatch.",
+            "description": "Retry was accepted and the Task is queued for dispatch.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -10557,7 +10561,7 @@
         ],
         "summary": "Read the active self-update operation",
         "operationId": "getPlatformUpdateActiveOperation",
-        "description": "Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.",
+        "description": "Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.",
         "security": [
           {
             "bearerAuth": []
@@ -10573,7 +10577,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active.",
+            "description": "Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16052,6 +16056,257 @@
           },
           "404": {
             "description": "Saved view was not found."
+          }
+        }
+      }
+    },
+    "/api/build/jobs": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildJobs",
+        "summary": "List Build-owned job projections",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "application_id",
+            "description": "Optional exact Build snapshot public application identifier.",
+            "schema": {
+              "$ref": "#/components/schemas/application-id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "description": "Optional case-insensitive search over Build ID, application name, repository, and image tag.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "image_repository",
+            "description": "Optional exact Build snapshot image repository.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "image_tag",
+            "description": "Optional exact Build snapshot image tag.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "build_status",
+            "description": "Optional canonical Task Runtime status filter.",
+            "schema": {
+              "$ref": "#/components/schemas/task-status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "builder_id",
+            "description": "Optional exact runtime target snapshot identifier.",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_after",
+            "description": "Optional inclusive RFC 3339 lower bound for the Build snapshot creation time.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_before",
+            "description": "Optional inclusive RFC 3339 upper bound for the Build snapshot creation time.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Build job projection page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-job-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "postBuildJob",
+        "summary": "Submit a Dockerfile build Task for an authorized Application",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/build-job-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Dockerfile build Task accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid build request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key was previously used with different build input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/build/jobs/{buildId}": {
+      "get": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "getBuildJob",
+        "summary": "Read a Build-owned job projection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "buildId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Build job projection including its settled primary artifact when available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-build-job-detail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Build job was not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }
@@ -28858,6 +29113,7 @@
         "enum": [
           "pending",
           "scheduled",
+          "ready",
           "running",
           "success",
           "failed",
@@ -35777,6 +36033,343 @@
           }
         ]
       },
+      "application-id": {
+        "type": "string",
+        "pattern": "^app_[0-9A-HJKMNP-TV-Z]{26}$",
+        "description": "Stable public Graft Application identifier.",
+        "examples": [
+          "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
+        ]
+      },
+      "build-builder-snapshot": {
+        "type": "object",
+        "description": "Runtime target snapshot frozen when the Build job was submitted.",
+        "required": [
+          "id",
+          "name",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-task-execution": {
+        "type": "object",
+        "description": "Task Runtime execution projection for a Build job.",
+        "required": [
+          "status",
+          "stage_count",
+          "completed_stage_count",
+          "capabilities"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          },
+          "current_stage_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "stage_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "completed_stage_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "failure_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "recovery_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/task-capabilities"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-artifact": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "image_id",
+          "repository",
+          "tag"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "digest": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "platform": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-job-summary": {
+        "type": "object",
+        "required": [
+          "build_id",
+          "task_id",
+          "application_id",
+          "application_name",
+          "context_path",
+          "dockerfile_path",
+          "image_repository",
+          "image_tag",
+          "created_at",
+          "builder",
+          "execution"
+        ],
+        "properties": {
+          "build_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "application_id": {
+            "$ref": "#/components/schemas/application-id"
+          },
+          "application_name": {
+            "type": "string"
+          },
+          "context_path": {
+            "type": "string"
+          },
+          "dockerfile_path": {
+            "type": "string"
+          },
+          "image_repository": {
+            "type": "string"
+          },
+          "image_tag": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "builder": {
+            "$ref": "#/components/schemas/build-builder-snapshot"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/build-task-execution"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/build-artifact"
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-job-list": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/build-job-summary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-build-job-list": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-job-list"
+              }
+            }
+          }
+        ]
+      },
+      "build-job-create-request": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "context_path",
+          "dockerfile_path",
+          "image_repository",
+          "image_tag"
+        ],
+        "properties": {
+          "application_id": {
+            "$ref": "#/components/schemas/application-id"
+          },
+          "context_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "dockerfile_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "image_repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "image_tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "build_args": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "value"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "build-job-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/build-job-summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "runtime_provider",
+              "build_args"
+            ],
+            "properties": {
+              "runtime_provider": {
+                "type": "string"
+              },
+              "build_args": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "value"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-build-job-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/build-job-detail"
+              }
+            }
+          }
+        ]
+      },
       "docker-image-pull-request": {
         "type": "object",
         "required": [
@@ -36831,14 +37424,6 @@
           "ApplicationDriftStatusClean",
           "ApplicationDriftStatusChanged",
           "ApplicationDriftStatusMissing"
-        ]
-      },
-      "application-id": {
-        "type": "string",
-        "pattern": "^app_[0-9A-HJKMNP-TV-Z]{26}$",
-        "description": "Stable public Graft Application identifier.",
-        "examples": [
-          "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"
         ]
       },
       "application-runtime-target-summary": {

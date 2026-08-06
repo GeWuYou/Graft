@@ -74,6 +74,8 @@ tags:
     description: 容器管理
   - name: application
     description: Compose 项目管理
+  - name: build
+    description: Dockerfile 构建作业管理
   - name: runtime-target
     description: 运行目标管理
 paths:
@@ -389,6 +391,10 @@ paths:
     $ref: ./paths/docker-images.saved-views.yaml
   /api/docker/images/saved-views/{viewId}:
     $ref: ./paths/docker-images.saved-view.yaml
+  /api/build/jobs:
+    $ref: ./paths/build-jobs.collection.yaml
+  /api/build/jobs/{buildId}:
+    $ref: ./paths/build-jobs.detail.yaml
   /api/ops/docker/images/pull:
     $ref: ./paths/ops-docker-images.pull.yaml
   /api/ops/docker/images/{id}:

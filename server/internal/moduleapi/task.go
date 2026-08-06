@@ -3,6 +3,7 @@ package moduleapi
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -34,6 +35,8 @@ type TaskStatus string
 const (
 	// TaskStatusPending 表示已提交但等待调度的 Task。
 	TaskStatusPending TaskStatus = "pending"
+	// TaskStatusReady 表示已完整物化、可由 worker 领取的 Task。
+	TaskStatusReady TaskStatus = "ready"
 	// TaskStatusScheduled 表示 Task 尚未到达计划执行时间。
 	TaskStatusScheduled TaskStatus = "scheduled"
 	// TaskStatusRunning 表示 Task 当前有正在执行的 Stage。
@@ -47,6 +50,69 @@ const (
 	// TaskStatusNeedsAttention 表示 Task 需要操作员人工对账或处置。
 	TaskStatusNeedsAttention TaskStatus = "needs_attention"
 )
+
+// TaskSubmissionState 标识 Task 物化前提交聚合的有限生命周期。
+type TaskSubmissionState string
+
+const (
+	// TaskSubmissionStateReserved 表示提交持有租约、尚未物化 Task。
+	TaskSubmissionStateReserved TaskSubmissionState = "reserved"
+	// TaskSubmissionStateActivated 表示提交已原子物化为 Task。
+	TaskSubmissionStateActivated TaskSubmissionState = "activated"
+	// TaskSubmissionStateDiscarded 表示调用方显式终结提交。
+	TaskSubmissionStateDiscarded TaskSubmissionState = "discarded"
+	// TaskSubmissionStateExpired 表示提交因租约或绝对截止时间到期而终结。
+	TaskSubmissionStateExpired TaskSubmissionState = "expired"
+)
+
+// TaskSubmissionPolicy 在开始提交时冻结短生命周期 reservation 的时限。
+type TaskSubmissionPolicy struct {
+	LeaseTTL         time.Duration
+	AbsoluteDeadline time.Duration
+	RenewBefore      time.Duration
+	AllowRenew       bool
+	PrerequisiteKind string
+}
+
+// BeginTaskSubmissionInput 描述创建 Task 前的持久化提交事实。
+type BeginTaskSubmissionInput struct {
+	Task   SubmitTaskInput
+	Policy TaskSubmissionPolicy
+}
+
+// TaskSubmission 表示跨模块可见、但不泄漏持久化实现的 Submission 读取模型。
+type TaskSubmission struct {
+	ID                 string
+	TaskType           TaskType
+	Owner              TaskOwner
+	RequestedBy        *uint64
+	State              TaskSubmissionState
+	SubmissionVersion  int64
+	LeaseTTL           time.Duration
+	LeaseRenewable     bool
+	LeaseExpiresAt     time.Time
+	AbsoluteDeadlineAt time.Time
+	PrerequisiteKind   string
+	PrerequisiteRef    *string
+	TaskID             *uint64
+	TerminalReason     *string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ActivatedAt        *time.Time
+	TerminalAt         *time.Time
+}
+
+// TaskSubmissionHandle 是调用方持有的短期授权凭据；LeaseToken 不会被持久化为明文。
+type TaskSubmissionHandle struct {
+	Submission TaskSubmission
+	LeaseToken string
+}
+
+// TaskSubmissionWriter 在 Task Runtime 持有的同一 SQL 事务中写入模块私有前置条件。
+// 实现不得提交、回滚或在返回后使用 transaction。
+type TaskSubmissionWriter interface {
+	MaterializeTaskSubmission(context.Context, *sql.Tx, TaskSubmission) (string, error)
+}
 
 // StageStatus 标识持久化 Stage 状态机的状态。
 type StageStatus string
@@ -166,6 +232,16 @@ type SubmitTaskInput struct {
 type TaskReceipt struct {
 	TaskID uint64
 	Status TaskStatus
+}
+
+// TaskSubmissionService 向前置条件模块暴露 Submission 的租约、物化和终结能力。
+type TaskSubmissionService interface {
+	BeginSubmission(context.Context, BeginTaskSubmissionInput) (TaskSubmissionHandle, error)
+	RenewSubmissionLease(context.Context, TaskSubmissionHandle) (TaskSubmissionHandle, error)
+	MaterializeSubmission(context.Context, TaskSubmissionHandle, SubmitTaskInput, TaskSubmissionWriter) (TaskReceipt, error)
+	DiscardSubmission(context.Context, TaskSubmissionHandle, string) error
+	ExpireSubmissions(context.Context, int) (int, error)
+	GetSubmission(context.Context, string) (TaskSubmission, error)
 }
 
 // TaskService 向消费者模块暴露 Task Runtime 提交能力。

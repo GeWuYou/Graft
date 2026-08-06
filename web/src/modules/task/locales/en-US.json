@@ -108,6 +108,7 @@
       "failed": "Failed",
       "needs_attention": "Needs Attention",
       "pending": "Pending",
+      "ready": "Ready",
       "running": "Running",
       "scheduled": "Scheduled",
       "success": "Succeeded"

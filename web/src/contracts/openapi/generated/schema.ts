@@ -1991,7 +1991,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null when no operation has an associated Task in `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks must not reclaim this entry. When an active Task's runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -3082,6 +3082,41 @@ export interface paths {
     post?: never;
     /** Delete a private Docker image-list saved view */
     delete: operations['deleteDockerImageSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/jobs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Build-owned job projections */
+    get: operations['getBuildJobs'];
+    put?: never;
+    /** Submit a Dockerfile build Task for an authorized Application */
+    post: operations['postBuildJob'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/jobs/{buildId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a Build-owned job projection */
+    get: operations['getBuildJob'];
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -6762,7 +6797,8 @@ export interface components {
      * @description Canonical persisted Task state-machine state.
      * @enum {string}
      */
-    'task-status': 'pending' | 'scheduled' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
+    'task-status':
+      'pending' | 'scheduled' | 'ready' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
     'task-summary': {
       /** Format: int64 */
       id: number;
@@ -8891,6 +8927,93 @@ export interface components {
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
     };
+    /**
+     * @description Stable public Graft Application identifier.
+     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
+     */
+    'application-id': string;
+    /**
+     * @description Product-level Build Task status used for task-center filtering.
+     * @enum {string}
+     */
+    'build-status-filter': 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
+    /** @description Runtime target snapshot frozen when the Build job was submitted. */
+    'build-builder-snapshot': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      provider: string;
+    };
+    /** @description Task Runtime execution projection for a Build job. */
+    'build-task-execution': {
+      status: components['schemas']['task-status'];
+      current_stage_key?: string | null;
+      stage_count: number;
+      completed_stage_count: number;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      failure_code?: string | null;
+      failure_message?: string | null;
+      recovery_reason?: string | null;
+      capabilities: components['schemas']['task-capabilities'];
+    };
+    'build-artifact': {
+      artifact_id: string;
+      image_id: string;
+      digest?: string;
+      repository: string;
+      tag: string;
+      /** Format: int64 */
+      size_bytes?: number;
+      platform?: string;
+    };
+    'build-job-summary': {
+      build_id: string;
+      /** Format: int64 */
+      task_id: number;
+      application_id: components['schemas']['application-id'];
+      application_name: string;
+      context_path: string;
+      dockerfile_path: string;
+      image_repository: string;
+      image_tag: string;
+      /** Format: date-time */
+      created_at: string;
+      builder: components['schemas']['build-builder-snapshot'];
+      execution: components['schemas']['build-task-execution'];
+      artifact?: components['schemas']['build-artifact'];
+    };
+    'build-job-list': {
+      items: components['schemas']['build-job-summary'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-build-job-list': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-job-list'];
+    };
+    'build-job-create-request': {
+      application_id: components['schemas']['application-id'];
+      context_path: string;
+      dockerfile_path: string;
+      image_repository: string;
+      image_tag: string;
+      build_args?: {
+        name: string;
+        value: string;
+      }[];
+    };
+    'build-job-detail': components['schemas']['build-job-summary'] & {
+      runtime_provider: string;
+      build_args: {
+        name: string;
+        value: string;
+      }[];
+    };
+    'enveloped-build-job-detail': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-job-detail'];
+    };
     'docker-image-pull-request': {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
       reference: string;
@@ -9163,11 +9286,6 @@ export interface components {
     'application-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'missing' | 'unknown';
     /** @enum {string} */
     'application-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
-    /**
-     * @description Stable public Graft Application identifier.
-     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
-     */
-    'application-id': string;
     'application-runtime-target-summary': {
       /** Format: int64 */
       id: number;
@@ -14892,7 +15010,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Retry was accepted and the Task is pending dispatch. */
+      /** @description Retry was accepted and the Task is queued for dispatch. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16314,7 +16432,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no associated Task is `pending`, `scheduled`, `ready`, or `running`; historical `needs_attention`, `success`, `failed`, and `cancelled` Tasks do not make an operation active. */
       200: {
         headers: {
           [name: string]: unknown;
@@ -19800,6 +19918,140 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  getBuildJobs: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+        /** @description Optional exact Build snapshot public application identifier. */
+        application_id?: components['schemas']['application-id'];
+        /** @description Optional case-insensitive search over Build ID, application name, repository, and image tag. */
+        search?: string;
+        /** @description Optional exact Build snapshot image repository. */
+        image_repository?: string;
+        /** @description Optional exact Build snapshot image tag. */
+        image_tag?: string;
+        /** @description Optional product-level Build Task status filter. */
+        build_status?: components['schemas']['build-status-filter'];
+        /** @description Optional exact runtime target snapshot identifier. */
+        builder_id?: number;
+        /** @description Optional inclusive RFC 3339 lower bound for the Build snapshot creation time. */
+        created_after?: string;
+        /** @description Optional inclusive RFC 3339 upper bound for the Build snapshot creation time. */
+        created_before?: string;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build job projection page. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-job-list'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postBuildJob: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['build-job-create-request'];
+      };
+    };
+    responses: {
+      /** @description Dockerfile build Task accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-receipt'];
+        };
+      };
+      /** @description Invalid build request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Idempotency-Key was previously used with different build input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildJob: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        buildId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build job projection including its settled primary artifact when available. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-job-detail'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Build job was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
     };
   };
   postDockerImagePull: {

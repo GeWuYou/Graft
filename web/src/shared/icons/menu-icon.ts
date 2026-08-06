@@ -41,6 +41,7 @@ const menuIcons = {
   'application-template': layers,
   'infrastructure-domain': network,
   'build-domain': hammer,
+  build: hammer,
   'resources-domain': library,
   'observability-domain': activity,
   'security-domain': shield,

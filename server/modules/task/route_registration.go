@@ -393,7 +393,7 @@ func taskListFilter(c *gin.Context, owner moduleapi.TaskOwner) (moduleapi.TaskLi
 
 func isTaskStatus(status moduleapi.TaskStatus) bool {
 	switch status {
-	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
 		moduleapi.TaskStatusSuccess, moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled, moduleapi.TaskStatusNeedsAttention:
 		return true
 	default:
@@ -508,7 +508,7 @@ func taskCapabilities(ctx context.Context, runtime *Runtime, actor *moduleapi.Cu
 
 func taskSupportsCancellation(task moduleapi.TaskView) bool {
 	switch task.Status {
-	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention:
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention:
 		return true
 	default:
 		return false

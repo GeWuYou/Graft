@@ -23,7 +23,15 @@ var (
 // Repository 持久化 Task Runtime 事实，并提供进程内 worker 所需的原子领取、状态迁移和历史追加操作。
 type Repository interface {
 	Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, bool, error)
+	CreateSubmission(ctx context.Context, input CreateSubmissionInput) (taskmodel.Submission, bool, error)
+	GetSubmission(ctx context.Context, submissionID string) (taskmodel.Submission, error)
+	RenewSubmission(ctx context.Context, input RenewSubmissionInput) (taskmodel.Submission, error)
+	MaterializeSubmission(ctx context.Context, input MaterializeSubmissionInput, writer moduleapi.TaskSubmissionWriter) (taskmodel.Task, bool, error)
+	DiscardSubmission(ctx context.Context, input TerminalizeSubmissionInput) error
+	ExpireSubmissions(ctx context.Context, limit int) (int, error)
+	PromoteScheduledTasks(ctx context.Context, now time.Time, limit int) (int, error)
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
+	GetByIDs(ctx context.Context, taskIDs []uint64) ([]taskmodel.Task, error)
 	List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error)
 	ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error)
 	ListEvents(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Event, error)
@@ -45,6 +53,34 @@ type Repository interface {
 	NextLogSequence(ctx context.Context, taskID uint64) (int64, error)
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
 	SettleExternalReceipt(ctx context.Context, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error)
+}
+
+// CreateSubmissionInput 描述待物化 Task 的冻结身份与租约。
+type CreateSubmissionInput struct{ Submission taskmodel.Submission }
+
+// RenewSubmissionInput 描述带 version fencing 的租约续期。
+type RenewSubmissionInput struct {
+	ID             string
+	LeaseTokenHash string
+	Version        int64
+	LeaseExpiresAt time.Time
+}
+
+// MaterializeSubmissionInput 描述带授权 handle 的一次原子前置条件与 Task 物化。
+type MaterializeSubmissionInput struct {
+	ID             string
+	LeaseTokenHash string
+	Version        int64
+	Task           taskmodel.Task
+	Stages         []taskmodel.Stage
+}
+
+// TerminalizeSubmissionInput 描述 discard 或 expire 的版本化终结迁移。
+type TerminalizeSubmissionInput struct {
+	ID             string
+	LeaseTokenHash string
+	Version        int64
+	Reason         string
 }
 
 // StageClaim 是由持久化 running 状态表示的 worker 领取结果。

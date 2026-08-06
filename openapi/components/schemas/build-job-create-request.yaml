@@ -1,0 +1,37 @@
+type: object
+required: [application_id, context_path, dockerfile_path, image_repository, image_tag]
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  context_path:
+    type: string
+    minLength: 1
+    maxLength: 1024
+  dockerfile_path:
+    type: string
+    minLength: 1
+    maxLength: 1024
+  image_repository:
+    type: string
+    minLength: 1
+    maxLength: 255
+  image_tag:
+    type: string
+    minLength: 1
+    maxLength: 255
+  build_args:
+    type: array
+    maxItems: 64
+    items:
+      type: object
+      required: [name, value]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        value:
+          type: string
+          maxLength: 4096
+      additionalProperties: false
+additionalProperties: false

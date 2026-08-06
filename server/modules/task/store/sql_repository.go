@@ -56,6 +56,9 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		return taskmodel.Task{}, nil, false, fmt.Errorf("begin create task transaction: %w", err)
 	}
 	defer rollback(tx)
+	if err := r.lockOwner(ctx, tx, input.Task.Owner); err != nil {
+		return taskmodel.Task{}, nil, false, err
+	}
 	//nolint:nestif // 必须在写入任何 Task 前检查现有的带键提交。
 	if input.Task.IdempotencyKeyHash != nil {
 		existing, found, findErr := r.findIdempotentTask(ctx, tx, input.Task)
@@ -69,15 +72,22 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 			return existing, nil, true, nil
 		}
 	}
+	var reservedSubmission bool
+	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT EXISTS(SELECT 1 FROM task_submissions WHERE owner_type = ? AND owner_id = ? AND state = ?)`), input.Task.Owner.Type, input.Task.Owner.ID, moduleapi.TaskSubmissionStateReserved).Scan(&reservedSubmission); err != nil {
+		return taskmodel.Task{}, nil, false, fmt.Errorf("check active task submission: %w", err)
+	}
+	if reservedSubmission {
+		return taskmodel.Task{}, nil, false, moduleapi.ErrTaskOwnerBusy
+	}
 
 	now := time.Now().UTC()
 	input.Task.CreatedAt = now
 	input.Task.UpdatedAt = now
 	//nolint:nestif // 唯一索引竞争必须先解析为既有幂等 Task，再返回错误。
 	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO tasks (
-		task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
+		task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required,
 		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
 		input.Task.Type,
 		input.Task.Owner.Type,
 		input.Task.Owner.ID,
@@ -86,6 +96,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		input.Task.Metadata,
 		input.Task.Plan,
 		input.Task.State,
+		input.Task.ActivationRequired,
 		input.Task.CurrentStageKey,
 		input.Task.CreatedBy,
 		input.Task.IdempotencyKeyHash,
@@ -179,6 +190,7 @@ type taskQueryer interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+//nolint:dupl // Task 与 Submission 的幂等查询故意保持同构，便于审计两种聚合的键语义。
 func (r *SQLRepository) findIdempotentTask(ctx context.Context, queryer taskQueryer, task taskmodel.Task) (taskmodel.Task, bool, error) {
 	requestedBy := uint64(0)
 	if task.CreatedBy != nil {
@@ -211,6 +223,42 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 		return taskmodel.Task{}, fmt.Errorf("get task: %w", err)
 	}
 	return item, nil
+}
+
+// GetByIDs 按一次受控 IN 查询批量读取 Task，供列表消费者组装跨模块执行投影。
+//
+//nolint:cyclop // 批量输入校验、查询和扫描必须保持在同一 repository 边界。
+func (r *SQLRepository) GetByIDs(ctx context.Context, taskIDs []uint64) ([]taskmodel.Task, error) {
+	if r == nil || r.db == nil || len(taskIDs) == 0 || len(taskIDs) > 1000 {
+		return nil, ErrInvalidInput
+	}
+	placeholders := make([]string, len(taskIDs))
+	args := make([]any, len(taskIDs))
+	for i, taskID := range taskIDs {
+		if taskID == 0 {
+			return nil, ErrInvalidInput
+		}
+		placeholders[i] = "?"
+		args[i] = taskID
+	}
+	query := `SELECT ` + taskColumns() + ` FROM tasks WHERE id IN (` + strings.Join(placeholders, ", ") + `) ORDER BY created_at DESC, id DESC`
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(query), args...)
+	if err != nil {
+		return nil, fmt.Errorf("get tasks by ids: %w", err)
+	}
+	defer closeRows(rows)
+	items := make([]taskmodel.Task, 0, len(taskIDs))
+	for rows.Next() {
+		item, scanErr := scanTask(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tasks by ids: %w", err)
+	}
+	return items, nil
 }
 
 // List 使用 owner 索引返回按资源所有者隔离、可选筛选的 Task 历史分页及总数。
@@ -473,7 +521,7 @@ func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, 
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
-			AND task.status IN (?, ?, ?)
+			AND task.status IN (?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
 			AND NOT EXISTS (
 				SELECT 1 FROM task_stages earlier
@@ -485,7 +533,7 @@ func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, 
 		LIMIT 1`),
 		moduleapi.StageStatusPending,
 		now,
-		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+		moduleapi.TaskStatusReady, moduleapi.TaskStatusRunning,
 		now,
 		moduleapi.StageStatusSuccess, moduleapi.StageStatusSkipped, moduleapi.StageStatusCancelled,
 	)
@@ -504,7 +552,7 @@ func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time)
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
-			AND task.status IN (?, ?, ?)
+			AND task.status IN (?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
 			AND NOT EXISTS (
 				SELECT 1 FROM task_stages earlier
@@ -515,7 +563,7 @@ func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time)
 		LIMIT 1`,
 		moduleapi.StageStatusPending,
 		now,
-		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+		moduleapi.TaskStatusReady, moduleapi.TaskStatusRunning,
 		now,
 		moduleapi.StageStatusSuccess, moduleapi.StageStatusSkipped, moduleapi.StageStatusCancelled,
 	)
@@ -597,9 +645,9 @@ func (r *SQLRepository) RequestCancellation(ctx context.Context, taskID uint64, 
 	}
 	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET cancel_requested_at = COALESCE(cancel_requested_at, ?), updated_at = ?
-		WHERE id = ? AND status IN (?, ?, ?, ?)`),
+		WHERE id = ? AND status IN (?, ?, ?, ?, ?)`),
 		requestedAt.UTC(), requestedAt.UTC(), taskID,
-		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention,
+		moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention,
 	)
 	if err != nil {
 		return taskmodel.Task{}, fmt.Errorf("request task cancellation: %w", err)
@@ -617,7 +665,7 @@ func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, fi
 	}
 	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET status = ?, finished_at = ?, duration_ms = ?, updated_at = ?
-		WHERE id = ? AND status IN (?, ?)`), moduleapi.TaskStatusCancelled, finishedAt.UTC(), durationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled)
+		WHERE id = ? AND status IN (?, ?, ?)`), moduleapi.TaskStatusCancelled, finishedAt.UTC(), durationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled)
 	if err != nil {
 		return fmt.Errorf("cancel pending task: %w", err)
 	}
@@ -1133,11 +1181,13 @@ func normalizeCreateInput(input CreateInput) (CreateInput, error) {
 }
 
 // normalizeTaskForCreate 在创建前校验并规范化 Task；必须有类型、owner 和至少一个阶段，只允许 pending 或 scheduled，scheduled 必须带计划时间。
+//
+//nolint:cyclop // 创建前必须一次性校验身份、状态和计划时间，再规范化 JSON。
 func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 	if task == nil || strings.TrimSpace(string(task.Type)) == "" || strings.TrimSpace(task.Owner.Type) == "" || strings.TrimSpace(task.Owner.ID) == "" || stageCount == 0 {
 		return ErrInvalidInput
 	}
-	if task.Status != moduleapi.TaskStatusPending && task.Status != moduleapi.TaskStatusScheduled {
+	if task.Status != moduleapi.TaskStatusPending && task.Status != moduleapi.TaskStatusReady && task.Status != moduleapi.TaskStatusScheduled {
 		return ErrInvalidInput
 	}
 	if task.Status == moduleapi.TaskStatusScheduled && task.ScheduledAt == nil {

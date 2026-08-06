@@ -1,0 +1,2 @@
+ALTER TABLE build_jobs VALIDATE CONSTRAINT build_jobs_submission_id_fkey;
+ALTER TABLE build_jobs VALIDATE CONSTRAINT build_jobs_binding_required;

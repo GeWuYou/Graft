@@ -625,16 +625,16 @@ func (e ApplicationImportRuntimeCandidateStatus) Valid() bool {
 
 // Defines values for ApplicationImportRuntimeInspectResponseValidationStatus.
 const (
-	Conflict ApplicationImportRuntimeInspectResponseValidationStatus = "conflict"
-	Ready    ApplicationImportRuntimeInspectResponseValidationStatus = "ready"
+	ApplicationImportRuntimeInspectResponseValidationStatusConflict ApplicationImportRuntimeInspectResponseValidationStatus = "conflict"
+	ApplicationImportRuntimeInspectResponseValidationStatusReady    ApplicationImportRuntimeInspectResponseValidationStatus = "ready"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationImportRuntimeInspectResponseValidationStatus enum.
 func (e ApplicationImportRuntimeInspectResponseValidationStatus) Valid() bool {
 	switch e {
-	case Conflict:
+	case ApplicationImportRuntimeInspectResponseValidationStatusConflict:
 		return true
-	case Ready:
+	case ApplicationImportRuntimeInspectResponseValidationStatusReady:
 		return true
 	default:
 		return false
@@ -5104,31 +5104,31 @@ func (e SystemConfigItemType) Valid() bool {
 
 // Defines values for TaskEventType.
 const (
-	TaskEventTypeCancelRequested  TaskEventType = "cancel_requested"
-	TaskEventTypeCancelled        TaskEventType = "cancelled"
-	TaskEventTypeCreated          TaskEventType = "created"
-	TaskEventTypeRecoveryRequired TaskEventType = "recovery_required"
-	TaskEventTypeRecoveryResolved TaskEventType = "recovery_resolved"
-	TaskEventTypeRetryRequested   TaskEventType = "retry_requested"
-	TaskEventTypeRetryScheduled   TaskEventType = "retry_scheduled"
+	CancelRequested  TaskEventType = "cancel_requested"
+	Cancelled        TaskEventType = "cancelled"
+	Created          TaskEventType = "created"
+	RecoveryRequired TaskEventType = "recovery_required"
+	RecoveryResolved TaskEventType = "recovery_resolved"
+	RetryRequested   TaskEventType = "retry_requested"
+	RetryScheduled   TaskEventType = "retry_scheduled"
 )
 
 // Valid indicates whether the value is a known member of the TaskEventType enum.
 func (e TaskEventType) Valid() bool {
 	switch e {
-	case TaskEventTypeCancelRequested:
+	case CancelRequested:
 		return true
-	case TaskEventTypeCancelled:
+	case Cancelled:
 		return true
-	case TaskEventTypeCreated:
+	case Created:
 		return true
-	case TaskEventTypeRecoveryRequired:
+	case RecoveryRequired:
 		return true
-	case TaskEventTypeRecoveryResolved:
+	case RecoveryResolved:
 		return true
-	case TaskEventTypeRetryRequested:
+	case RetryRequested:
 		return true
-	case TaskEventTypeRetryScheduled:
+	case RetryScheduled:
 		return true
 	default:
 		return false
@@ -5234,6 +5234,7 @@ const (
 	TaskStatusFailed         TaskStatus = "failed"
 	TaskStatusNeedsAttention TaskStatus = "needs_attention"
 	TaskStatusPending        TaskStatus = "pending"
+	TaskStatusReady          TaskStatus = "ready"
 	TaskStatusRunning        TaskStatus = "running"
 	TaskStatusScheduled      TaskStatus = "scheduled"
 	TaskStatusSuccess        TaskStatus = "success"
@@ -5249,6 +5250,8 @@ func (e TaskStatus) Valid() bool {
 	case TaskStatusNeedsAttention:
 		return true
 	case TaskStatusPending:
+		return true
+	case TaskStatusReady:
 		return true
 	case TaskStatusRunning:
 		return true
@@ -8092,6 +8095,109 @@ type BootstrapResponse struct {
 	User               LoginUser       `json:"user"`
 }
 
+// BuildArtifact defines model for build-artifact.
+type BuildArtifact struct {
+	ArtifactId string  `json:"artifact_id"`
+	Digest     *string `json:"digest,omitempty"`
+	ImageId    string  `json:"image_id"`
+	Platform   *string `json:"platform,omitempty"`
+	Repository string  `json:"repository"`
+	SizeBytes  *int64  `json:"size_bytes,omitempty"`
+	Tag        string  `json:"tag"`
+}
+
+// BuildBuilderSnapshot Runtime target snapshot frozen when the Build job was submitted.
+type BuildBuilderSnapshot struct {
+	Id       int64  `json:"id"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+}
+
+// BuildJobCreateRequest defines model for build-job-create-request.
+type BuildJobCreateRequest struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId `json:"application_id"`
+	BuildArgs     *[]struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"build_args,omitempty"`
+	ContextPath     string `json:"context_path"`
+	DockerfilePath  string `json:"dockerfile_path"`
+	ImageRepository string `json:"image_repository"`
+	ImageTag        string `json:"image_tag"`
+}
+
+// BuildJobDetail defines model for build-job-detail.
+type BuildJobDetail struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId  `json:"application_id"`
+	ApplicationName string         `json:"application_name"`
+	Artifact        *BuildArtifact `json:"artifact,omitempty"`
+	BuildArgs       []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"build_args"`
+	BuildId string `json:"build_id"`
+
+	// Builder Runtime target snapshot frozen when the Build job was submitted.
+	Builder        BuildBuilderSnapshot `json:"builder"`
+	ContextPath    string               `json:"context_path"`
+	CreatedAt      time.Time            `json:"created_at"`
+	DockerfilePath string               `json:"dockerfile_path"`
+
+	// Execution Task Runtime execution projection for a Build job.
+	Execution       BuildTaskExecution `json:"execution"`
+	ImageRepository string             `json:"image_repository"`
+	ImageTag        string             `json:"image_tag"`
+	RuntimeProvider string             `json:"runtime_provider"`
+	TaskId          int64              `json:"task_id"`
+}
+
+// BuildJobList defines model for build-job-list.
+type BuildJobList struct {
+	Items  []BuildJobSummary `json:"items"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int64             `json:"total"`
+}
+
+// BuildJobSummary defines model for build-job-summary.
+type BuildJobSummary struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId  `json:"application_id"`
+	ApplicationName string         `json:"application_name"`
+	Artifact        *BuildArtifact `json:"artifact,omitempty"`
+	BuildId         string         `json:"build_id"`
+
+	// Builder Runtime target snapshot frozen when the Build job was submitted.
+	Builder        BuildBuilderSnapshot `json:"builder"`
+	ContextPath    string               `json:"context_path"`
+	CreatedAt      time.Time            `json:"created_at"`
+	DockerfilePath string               `json:"dockerfile_path"`
+
+	// Execution Task Runtime execution projection for a Build job.
+	Execution       BuildTaskExecution `json:"execution"`
+	ImageRepository string             `json:"image_repository"`
+	ImageTag        string             `json:"image_tag"`
+	TaskId          int64              `json:"task_id"`
+}
+
+// BuildTaskExecution Task Runtime execution projection for a Build job.
+type BuildTaskExecution struct {
+	// Capabilities Server-authoritative operations currently allowed for this Task Detail.
+	Capabilities        TaskCapabilities `json:"capabilities"`
+	CompletedStageCount int              `json:"completed_stage_count"`
+	CurrentStageKey     *string          `json:"current_stage_key,omitempty"`
+	DurationMs          *int64           `json:"duration_ms,omitempty"`
+	FailureCode         *string          `json:"failure_code,omitempty"`
+	FailureMessage      *string          `json:"failure_message,omitempty"`
+	RecoveryReason      *string          `json:"recovery_reason,omitempty"`
+	StageCount          int              `json:"stage_count"`
+
+	// Status Canonical persisted Task state-machine state.
+	Status TaskStatus `json:"status"`
+}
+
 // ChangePasswordRequest defines model for change-password-request.
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
@@ -10236,6 +10342,46 @@ type EnvelopedBootstrapResponse struct {
 	// Code Existing canonical response code.
 	Code string            `json:"code"`
 	Data BootstrapResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
+type EnvelopedBuildJobDetail struct {
+	// Code Existing canonical response code.
+	Code string         `json:"code"`
+	Data BuildJobDetail `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedBuildJobList defines model for enveloped-build-job-list.
+type EnvelopedBuildJobList struct {
+	// Code Existing canonical response code.
+	Code string       `json:"code"`
+	Data BuildJobList `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -15302,6 +15448,58 @@ type PostAuthSessionRevokeParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetBuildJobsParams defines parameters for GetBuildJobs.
+type GetBuildJobsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// ApplicationId Optional exact Build snapshot public application identifier.
+	ApplicationId *ApplicationId `form:"application_id,omitempty" json:"application_id,omitempty"`
+
+	// Search Optional case-insensitive search over Build ID, application name, repository, and image tag.
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
+	// ImageRepository Optional exact Build snapshot image repository.
+	ImageRepository *string `form:"image_repository,omitempty" json:"image_repository,omitempty"`
+
+	// ImageTag Optional exact Build snapshot image tag.
+	ImageTag *string `form:"image_tag,omitempty" json:"image_tag,omitempty"`
+
+	// BuildStatus Optional canonical Task Runtime status filter.
+	BuildStatus *TaskStatus `form:"build_status,omitempty" json:"build_status,omitempty"`
+
+	// BuilderId Optional exact runtime target snapshot identifier.
+	BuilderId *int64 `form:"builder_id,omitempty" json:"builder_id,omitempty"`
+
+	// CreatedAfter Optional inclusive RFC 3339 lower bound for the Build snapshot creation time.
+	CreatedAfter *time.Time `form:"created_after,omitempty" json:"created_after,omitempty"`
+
+	// CreatedBefore Optional inclusive RFC 3339 upper bound for the Build snapshot creation time.
+	CreatedBefore *time.Time `form:"created_before,omitempty" json:"created_before,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostBuildJobParams defines parameters for PostBuildJob.
+type PostBuildJobParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// GetBuildJobParams defines parameters for GetBuildJob.
+type GetBuildJobParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetDashboardSummaryParams defines parameters for GetDashboardSummary.
 type GetDashboardSummaryParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17700,6 +17898,9 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 
 // PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
 type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequest
+
+// PostBuildJobJSONRequestBody defines body for PostBuildJob for application/json ContentType.
+type PostBuildJobJSONRequestBody = BuildJobCreateRequest
 
 // PostDockerImageSavedViewJSONRequestBody defines body for PostDockerImageSavedView for application/json ContentType.
 type PostDockerImageSavedViewJSONRequestBody = SavedViewRequest

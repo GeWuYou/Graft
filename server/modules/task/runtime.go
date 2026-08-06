@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -22,13 +23,17 @@ import (
 	taskstore "graft/server/modules/task/store"
 )
 
+const submissionSecretByteLength = 32
+
 const (
-	defaultWorkerCount          = 2
-	defaultPollInterval         = 250 * time.Millisecond
-	errorCodeExecutor           = "stage_executor_failed"
-	errorCodeCancelled          = "cancelled"
-	errorCodeMissingExec        = "stage_executor_unavailable"
-	externalReceiptSHA256Length = 64
+	defaultWorkerCount           = 2
+	defaultPollInterval          = 250 * time.Millisecond
+	defaultSubmissionExpiryPoll  = 30 * time.Second
+	defaultSubmissionExpiryBatch = 100
+	errorCodeExecutor            = "stage_executor_failed"
+	errorCodeCancelled           = "cancelled"
+	errorCodeMissingExec         = "stage_executor_unavailable"
+	externalReceiptSHA256Length  = 64
 )
 
 // Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
@@ -121,41 +126,171 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 }
 
 // Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
-//
-//nolint:cyclop // 提交必须在同一事务边界内校验冻结计划、幂等身份并持久化阶段。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	return r.submit(ctx, input, false)
+}
+
+// BeginSubmission 创建持有短期租约且不可被 Worker 领取的提交；耗时前置计算必须在调用前完成。
+//
+//nolint:cyclop // 创建流程必须在生成身份、租约和持久化幂等事实间保持顺序。
+func (r *Runtime) BeginSubmission(ctx context.Context, input moduleapi.BeginTaskSubmissionInput) (moduleapi.TaskSubmissionHandle, error) {
+	if r == nil || r.repository == nil {
+		return moduleapi.TaskSubmissionHandle{}, errors.New("task runtime repository is unavailable")
+	}
+	if err := validateSubmissionPolicy(input.Policy); err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
+	}
+	plan, err := json.Marshal(input.Task.Plan)
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, fmt.Errorf("marshal submission task plan: %w", err)
+	}
+	keyHash, fingerprint, err := submissionIdentity(input.Task, plan)
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
+	}
+	id, err := randomSubmissionSecret()
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
+	}
+	token := input.Task.IdempotencyKey
+	if token == "" {
+		token, err = randomSubmissionSecret()
+		if err != nil {
+			return moduleapi.TaskSubmissionHandle{}, err
+		}
+	}
+	now := time.Now().UTC()
+	submission, replayed, err := r.repository.CreateSubmission(ctx, taskstore.CreateSubmissionInput{Submission: taskmodel.Submission{
+		ID: id, Type: input.Task.Type, Owner: input.Task.Owner, RequestedBy: nullableRequestedBy(input.Task.RequestedBy), IdempotencyKeyHash: keyHash, SubmissionFingerprint: fingerprint,
+		State: moduleapi.TaskSubmissionStateReserved, Version: 1, LeaseTTL: input.Policy.LeaseTTL, LeaseRenewable: input.Policy.AllowRenew, LeaseTokenHash: hashSubmissionSecret(token), LeaseExpiresAt: now.Add(input.Policy.LeaseTTL), AbsoluteDeadlineAt: now.Add(input.Policy.AbsoluteDeadline), PrerequisiteKind: input.Policy.PrerequisiteKind,
+	}})
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, fmt.Errorf("begin task submission: %w", err)
+	}
+	if replayed && input.Task.IdempotencyKey == "" {
+		return moduleapi.TaskSubmissionHandle{}, taskstore.ErrStateConflict
+	}
+	return moduleapi.TaskSubmissionHandle{Submission: toModuleAPISubmission(submission), LeaseToken: token}, nil
+}
+
+// RenewSubmissionLease 在当前租约失效前续租并推进 fencing 版本。
+//
+//nolint:cyclop // 续租同时校验状态、绝对截止时间和当前 lease fencing 条件。
+func (r *Runtime) RenewSubmissionLease(ctx context.Context, handle moduleapi.TaskSubmissionHandle) (moduleapi.TaskSubmissionHandle, error) {
+	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+		return moduleapi.TaskSubmissionHandle{}, errors.New("task submission handle is unavailable")
+	}
+	current := handle.Submission
+	if current.State != moduleapi.TaskSubmissionStateReserved {
+		return moduleapi.TaskSubmissionHandle{}, taskstore.ErrStateConflict
+	}
+	remaining := time.Until(current.AbsoluteDeadlineAt)
+	if remaining <= 0 {
+		return moduleapi.TaskSubmissionHandle{}, taskstore.ErrStateConflict
+	}
+	if !current.LeaseRenewable || current.LeaseTTL <= 0 || !current.LeaseExpiresAt.After(time.Now().UTC()) {
+		return moduleapi.TaskSubmissionHandle{}, taskstore.ErrStateConflict
+	}
+	leaseExpiresAt := time.Now().UTC().Add(current.LeaseTTL)
+	if leaseExpiresAt.After(current.AbsoluteDeadlineAt) {
+		leaseExpiresAt = current.AbsoluteDeadlineAt
+	}
+	updated, err := r.repository.RenewSubmission(ctx, taskstore.RenewSubmissionInput{ID: current.ID, LeaseTokenHash: hashSubmissionSecret(handle.LeaseToken), Version: current.SubmissionVersion, LeaseExpiresAt: leaseExpiresAt})
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, fmt.Errorf("renew task submission: %w", err)
+	}
+	return moduleapi.TaskSubmissionHandle{Submission: toModuleAPISubmission(updated), LeaseToken: handle.LeaseToken}, nil
+}
+
+// MaterializeSubmission 在同一数据库事务中写入模块前置条件和可领取的 Task。
+func (r *Runtime) MaterializeSubmission(ctx context.Context, handle moduleapi.TaskSubmissionHandle, input moduleapi.SubmitTaskInput, writer moduleapi.TaskSubmissionWriter) (moduleapi.TaskReceipt, error) {
+	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+		return moduleapi.TaskReceipt{}, errors.New("task submission handle is unavailable")
+	}
+	if input.Type != handle.Submission.TaskType || input.Owner != handle.Submission.Owner || requestedByValue(input.RequestedBy) != requestedByPointerValue(handle.Submission.RequestedBy) {
+		return moduleapi.TaskReceipt{}, taskstore.ErrInvalidInput
+	}
+	task, stages, err := r.buildTaskRecord(input, false)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	created, replayed, err := r.repository.MaterializeSubmission(ctx, taskstore.MaterializeSubmissionInput{ID: handle.Submission.ID, LeaseTokenHash: hashSubmissionSecret(handle.LeaseToken), Version: handle.Submission.SubmissionVersion, Task: task, Stages: stages}, writer)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize task submission: %w", err)
+	}
+	if !replayed {
+		r.signalWake()
+		r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
+	}
+	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+// DiscardSubmission 幂等终结仍处于 reserved 的提交，不删除其审计事实。
+func (r *Runtime) DiscardSubmission(ctx context.Context, handle moduleapi.TaskSubmissionHandle, reason string) error {
+	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+		return errors.New("task submission handle is unavailable")
+	}
+	return r.repository.DiscardSubmission(ctx, taskstore.TerminalizeSubmissionInput{ID: handle.Submission.ID, LeaseTokenHash: hashSubmissionSecret(handle.LeaseToken), Version: handle.Submission.SubmissionVersion, Reason: reason})
+}
+
+// ExpireSubmissions 最终清理已超过租约的 reserved 提交。
+func (r *Runtime) ExpireSubmissions(ctx context.Context, limit int) (int, error) {
+	if r == nil || r.repository == nil {
+		return 0, errors.New("task runtime repository is unavailable")
+	}
+	return r.repository.ExpireSubmissions(ctx, limit)
+}
+
+// GetSubmission 返回持久化提交事实，不暴露其租约令牌。
+func (r *Runtime) GetSubmission(ctx context.Context, submissionID string) (moduleapi.TaskSubmission, error) {
+	if r == nil || r.repository == nil {
+		return moduleapi.TaskSubmission{}, errors.New("task runtime repository is unavailable")
+	}
+	submission, err := r.repository.GetSubmission(ctx, submissionID)
+	if err != nil {
+		return moduleapi.TaskSubmission{}, err
+	}
+	return toModuleAPISubmission(submission), nil
+}
+
+func validateSubmissionPolicy(policy moduleapi.TaskSubmissionPolicy) error {
+	if policy.LeaseTTL <= 0 || policy.AbsoluteDeadline <= policy.LeaseTTL || policy.RenewBefore < 0 || policy.RenewBefore >= policy.LeaseTTL || strings.TrimSpace(policy.PrerequisiteKind) == "" {
+		return taskstore.ErrInvalidInput
+	}
+	return nil
+}
+
+func randomSubmissionSecret() (string, error) {
+	value := make([]byte, submissionSecretByteLength)
+	if _, err := rand.Read(value); err != nil {
+		return "", fmt.Errorf("generate submission secret: %w", err)
+	}
+	return fmt.Sprintf("%x", value), nil
+}
+
+func hashSubmissionSecret(value string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(value)))
+}
+
+func requestedByValue(value uint64) uint64 { return value }
+func requestedByPointerValue(value *uint64) uint64 {
+	if value == nil {
+		return 0
+	}
+	return *value
+}
+
+func toModuleAPISubmission(item taskmodel.Submission) moduleapi.TaskSubmission {
+	return moduleapi.TaskSubmission{ID: item.ID, TaskType: item.Type, Owner: item.Owner, RequestedBy: item.RequestedBy, State: item.State, SubmissionVersion: item.Version, LeaseTTL: item.LeaseTTL, LeaseRenewable: item.LeaseRenewable, LeaseExpiresAt: item.LeaseExpiresAt, AbsoluteDeadlineAt: item.AbsoluteDeadlineAt, PrerequisiteKind: item.PrerequisiteKind, PrerequisiteRef: item.PrerequisiteRef, TaskID: item.TaskID, TerminalReason: item.TerminalReason, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt, ActivatedAt: item.ActivatedAt, TerminalAt: item.TerminalAt}
+}
+
+func (r *Runtime) submit(ctx context.Context, input moduleapi.SubmitTaskInput, activationRequired bool) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
 	}
-	if err := r.validatePlan(input.Plan); err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	plan, err := json.Marshal(input.Plan)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal task plan: %w", err)
-	}
-	keyHash, fingerprint, err := submissionIdentity(input, plan)
+	task, stages, err := r.buildTaskRecord(input, activationRequired)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
-	}
-	status := moduleapi.TaskStatusPending
-	if input.ScheduledAt != nil && input.ScheduledAt.After(time.Now().UTC()) {
-		status = moduleapi.TaskStatusScheduled
-	}
-	task := taskmodel.Task{
-		Type: input.Type, Owner: input.Owner, Status: status, Input: input.Input,
-		Metadata: input.Metadata, Plan: plan, State: json.RawMessage(`{}`),
-		CreatedBy: nullableRequestedBy(input.RequestedBy), IdempotencyKeyHash: keyHash,
-		SubmissionFingerprint: fingerprint, ScheduledAt: input.ScheduledAt,
-	}
-	stages := make([]taskmodel.Stage, 0, len(input.Plan.Stages))
-	for index, stage := range input.Plan.Stages {
-		stages = append(stages, taskmodel.Stage{
-			Key: stage.Key, Sequence: index + 1, ExecutorType: stage.ExecutorType,
-			Status: moduleapi.StageStatusPending, MaxAttempts: normalizedMaxAttempts(stage.RetryPolicy.MaxAttempts),
-			RetryBackoffMS: stage.RetryPolicy.Backoff.Milliseconds(), Input: stage.Input,
-			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
-		})
 	}
 	created, _, idempotent, err := r.repository.Create(ctx, taskstore.CreateInput{Task: task, Stages: stages})
 	if err != nil {
@@ -167,6 +302,41 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	r.signalWake()
 	r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationRequired bool) (taskmodel.Task, []taskmodel.Stage, error) {
+	if err := r.validatePlan(input.Plan); err != nil {
+		return taskmodel.Task{}, nil, err
+	}
+	plan, err := json.Marshal(input.Plan)
+	if err != nil {
+		return taskmodel.Task{}, nil, fmt.Errorf("marshal task plan: %w", err)
+	}
+	keyHash, fingerprint, err := submissionIdentity(input, plan)
+	if err != nil {
+		return taskmodel.Task{}, nil, err
+	}
+	status := moduleapi.TaskStatusReady
+	if input.ScheduledAt != nil && input.ScheduledAt.After(time.Now().UTC()) {
+		status = moduleapi.TaskStatusScheduled
+	}
+	task := taskmodel.Task{
+		Type: input.Type, Owner: input.Owner, Status: status, Input: input.Input,
+		Metadata: input.Metadata, Plan: plan, State: json.RawMessage(`{}`),
+		CreatedBy: nullableRequestedBy(input.RequestedBy), IdempotencyKeyHash: keyHash,
+		SubmissionFingerprint: fingerprint, ScheduledAt: input.ScheduledAt,
+		ActivationRequired: activationRequired,
+	}
+	stages := make([]taskmodel.Stage, 0, len(input.Plan.Stages))
+	for index, stage := range input.Plan.Stages {
+		stages = append(stages, taskmodel.Stage{
+			Key: stage.Key, Sequence: index + 1, ExecutorType: stage.ExecutorType,
+			Status: moduleapi.StageStatusPending, MaxAttempts: normalizedMaxAttempts(stage.RetryPolicy.MaxAttempts),
+			RetryBackoffMS: stage.RetryPolicy.Backoff.Milliseconds(), Input: stage.Input,
+			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
+		})
+	}
+	return task, stages, nil
 }
 
 func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (*string, *string, error) {
@@ -352,6 +522,22 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
+// GetTasksByIDs 批量返回 Task Runtime 事实，避免 Build 等列表消费者逐行读取任务。
+func (r *Runtime) GetTasksByIDs(ctx context.Context, taskIDs []uint64) ([]moduleapi.TaskView, error) {
+	if r == nil || r.repository == nil {
+		return nil, taskstore.ErrInvalidInput
+	}
+	tasks, err := r.repository.GetByIDs(ctx, taskIDs)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.TaskView, 0, len(tasks))
+	for _, task := range tasks {
+		items = append(items, toTaskView(task))
+	}
+	return items, nil
+}
+
 // ListTasks 返回经调用方完成 owner 授权后的 Task 历史分页及总数。
 func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
 	if r == nil || r.repository == nil {
@@ -457,7 +643,7 @@ func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 func (r *Runtime) cancelNonRunningTask(ctx context.Context, task taskmodel.Task) error {
 	now := time.Now().UTC()
 	switch task.Status {
-	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled:
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusReady, moduleapi.TaskStatusScheduled:
 		if err := r.repository.CancelPendingTask(ctx, task.ID, now, durationSince(task.StartedAt, now)); err != nil {
 			return err
 		}
@@ -610,6 +796,12 @@ func (r *Runtime) Start(ctx context.Context) error {
 	if _, err := r.repository.RecoverInterruptedStages(ctx, time.Now().UTC()); err != nil {
 		return err
 	}
+	if _, err := r.repository.ExpireSubmissions(ctx, defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("expire task submissions at startup: %w", err)
+	}
+	if _, err := r.repository.PromoteScheduledTasks(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("promote scheduled tasks at startup: %w", err)
+	}
 	r.mu.Lock()
 	if r.cancel != nil {
 		r.mu.Unlock()
@@ -623,8 +815,31 @@ func (r *Runtime) Start(ctx context.Context) error {
 		r.waitGroup.Add(1)
 		go r.worker(workerContext)
 	}
+	r.waitGroup.Add(1)
+	go r.expireSubmissions(workerContext)
 	r.signalWake()
 	return nil
+}
+
+// expireSubmissions periodically converges abandoned pre-Task submissions. Each mutation is version-fenced,
+// so every API instance may run this loop without electing a leader.
+func (r *Runtime) expireSubmissions(ctx context.Context) {
+	defer r.waitGroup.Done()
+	ticker := time.NewTicker(defaultSubmissionExpiryPoll)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := r.repository.PromoteScheduledTasks(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil && !errors.Is(err, context.Canceled) {
+				r.logger.Error(ctx, "promote scheduled tasks", logger.StringField(logger.FieldOperation, "task_scheduled_promoter"), logger.ErrorField(err))
+			}
+			if _, err := r.repository.ExpireSubmissions(ctx, defaultSubmissionExpiryBatch); err != nil && !errors.Is(err, context.Canceled) {
+				r.logger.Error(ctx, "expire task submissions", logger.StringField(logger.FieldOperation, "task_submission_expirer"), logger.ErrorField(err))
+			}
+		}
+	}
 }
 
 // Stop 请求 worker 和运行中执行器停止并等待其 goroutine；无法确认完成的外部工作留待恢复为 unknown。

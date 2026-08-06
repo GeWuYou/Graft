@@ -1,0 +1,24 @@
+get:
+  tags: [build]
+  operationId: getBuildJob
+  summary: Read a Build-owned job projection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - in: path
+      name: buildId
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 32 }
+  security:
+    - bearerAuth: []
+  responses:
+    '400': { $ref: ../components/responses/bad-request.yaml }
+    '200':
+      description: Build job projection including its settled primary artifact when available.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-build-job-detail.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Build job was not found. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
