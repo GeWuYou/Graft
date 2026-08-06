@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `platform-availability-capability-health`
+  - Recovery entry: `ai-plan/public/platform-availability-capability-health/README.md`
+
 - `task-submission-lifecycle`
   - Recovery entry: `ai-plan/public/task-submission-lifecycle/README.md`
 
