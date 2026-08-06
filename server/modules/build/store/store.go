@@ -3,7 +3,9 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -197,6 +199,12 @@ type V2ArtifactReader interface {
 // Registry 会在 copy 前重新授权两个仓库；此 reader 从不解析 endpoint 或 credential。
 type ArtifactPublicationReader interface {
 	ListArtifactPublicationSources(context.Context, string) ([]moduleapi.ArtifactPublicationSource, error)
+}
+
+// ArtifactPromotionSettlementRepository 记录 provider 已完成的 digest-preserving promotion。
+// 它只接受 Build 已解析的不可变 source 和 Registry 已授权的 destination，不改变 Artifact 身份。
+type ArtifactPromotionSettlementRepository interface {
+	SettleArtifactPromotion(context.Context, moduleapi.OCIArtifactCopyInput, moduleapi.OCIArtifactCopyResult, moduleapi.RegistryAuthExecution) error
 }
 
 // ProviderExecutionEvidenceRepository 记录执行前已验证的 Runtime provider 资格；相同阶段只能重放相同证据。
@@ -507,8 +515,8 @@ func (r *SQLRepository) SettleV2Artifact(ctx context.Context, taskID uint64, pla
 	if err := tx.QueryRowContext(ctx, `INSERT INTO build_v2_artifacts (artifact_id, artifact_digest, media_type, platforms_json, size_bytes, produced_plan_id) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (artifact_digest) DO UPDATE SET artifact_digest = EXCLUDED.artifact_digest RETURNING id`, artifactID, result.Digest, "application/vnd.oci.image.manifest.v1+json", platforms, result.SizeBytes, planPK).Scan(&artifactPK); err != nil {
 		return fmt.Errorf("persist v2 artifact: %w", err)
 	}
-	publicationID := "publication_" + strings.TrimPrefix(result.Digest, "sha256:")[:minStringLength(artifactIdentityPrefixLength, len(strings.TrimPrefix(result.Digest, "sha256:")))]
-	if _, err := tx.ExecContext(ctx, `INSERT INTO build_publications (publication_id, artifact_id, destination_kind, connection_ref, repository_ref, mutable_reference, credential_execution_mode) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (connection_ref, repository_ref, mutable_reference) DO UPDATE SET artifact_id = EXCLUDED.artifact_id, credential_execution_mode = EXCLUDED.credential_execution_mode`, publicationID, artifactPK, plan.Destination.Kind, plan.Destination.ConnectionRef, plan.Destination.RepositoryRef, plan.Destination.Reference, authExecution.Mode); err != nil {
+	publicationID := publicationIDFor(result.Digest, moduleapi.AuthorizedArtifactDestination(plan.Destination))
+	if _, err := tx.ExecContext(ctx, `INSERT INTO build_publications (publication_id, artifact_id, destination_kind, connection_ref, repository_ref, mutable_reference, credential_execution_mode) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (publication_id) DO UPDATE SET artifact_id = EXCLUDED.artifact_id, credential_execution_mode = EXCLUDED.credential_execution_mode`, publicationID, artifactPK, plan.Destination.Kind, plan.Destination.ConnectionRef, plan.Destination.RepositoryRef, plan.Destination.Reference, authExecution.Mode); err != nil {
 		return fmt.Errorf("persist v2 publication: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -757,8 +765,8 @@ func (r *SQLRepository) SettleOCIManifestPublication(ctx context.Context, taskID
 	if err := tx.QueryRowContext(ctx, `INSERT INTO build_v2_artifacts (artifact_id, artifact_digest, media_type, platforms_json, size_bytes, produced_plan_id) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (artifact_digest) DO UPDATE SET artifact_digest = EXCLUDED.artifact_digest RETURNING id`, manifestID, result.Digest, result.MediaType, platforms, result.SizeBytes, planPK).Scan(&artifactPK); err != nil {
 		return fmt.Errorf("persist OCI manifest artifact: %w", err)
 	}
-	publicationID := "publication_" + strings.TrimPrefix(result.Digest, "sha256:")[:minStringLength(artifactIdentityPrefixLength, len(strings.TrimPrefix(result.Digest, "sha256:")))]
-	if _, err := tx.ExecContext(ctx, `INSERT INTO build_publications (publication_id, artifact_id, destination_kind, connection_ref, repository_ref, mutable_reference, credential_execution_mode) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (connection_ref, repository_ref, mutable_reference) DO UPDATE SET artifact_id = EXCLUDED.artifact_id, credential_execution_mode = EXCLUDED.credential_execution_mode`, publicationID, artifactPK, plan.Destination.Kind, plan.Destination.ConnectionRef, plan.Destination.RepositoryRef, plan.Destination.Reference, authExecution.Mode); err != nil {
+	publicationID := publicationIDFor(result.Digest, moduleapi.AuthorizedArtifactDestination(plan.Destination))
+	if _, err := tx.ExecContext(ctx, `INSERT INTO build_publications (publication_id, artifact_id, destination_kind, connection_ref, repository_ref, mutable_reference, credential_execution_mode) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (publication_id) DO UPDATE SET artifact_id = EXCLUDED.artifact_id, credential_execution_mode = EXCLUDED.credential_execution_mode`, publicationID, artifactPK, plan.Destination.Kind, plan.Destination.ConnectionRef, plan.Destination.RepositoryRef, plan.Destination.Reference, authExecution.Mode); err != nil {
 		return fmt.Errorf("persist OCI manifest publication: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -766,6 +774,57 @@ func (r *SQLRepository) SettleOCIManifestPublication(ctx context.Context, taskID
 	}
 	committed = true
 	return nil
+}
+
+// SettleArtifactPromotion 重新核对 source Artifact 的 digest 和 media type，再记录新的 Publication。
+// provider 返回任何不同 digest 都会 fail-closed；同一 source/destination 重放保持幂等，新的目的地引用保留历史。
+func (r *SQLRepository) SettleArtifactPromotion(ctx context.Context, input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, authExecution moduleapi.RegistryAuthExecution) error {
+	if r == nil || r.db == nil || !validPromotionSettlement(input, result, authExecution) {
+		return errors.New("invalid artifact promotion settlement")
+	}
+	if result.Digest != input.Source.Digest || result.MediaType != input.Source.MediaType {
+		return ErrConflict
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin artifact promotion settlement: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	var artifactPK int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM build_v2_artifacts WHERE artifact_id = $1 AND artifact_digest = $2`, input.Source.ArtifactID, input.Source.Digest).Scan(&artifactPK); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("load promotion source artifact: %w", err)
+	}
+	publicationID := publicationIDFor(input.Source.Digest, input.Destination)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO build_publications (publication_id, artifact_id, destination_kind, connection_ref, repository_ref, mutable_reference, credential_execution_mode) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (publication_id) DO UPDATE SET artifact_id = EXCLUDED.artifact_id, credential_execution_mode = EXCLUDED.credential_execution_mode`, publicationID, artifactPK, input.Destination.Kind, input.Destination.ConnectionRef, input.Destination.RepositoryRef, input.Destination.Reference, authExecution.Mode); err != nil {
+		return fmt.Errorf("persist promoted publication: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit artifact promotion settlement: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+func validPromotionSettlement(input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, authExecution moduleapi.RegistryAuthExecution) bool {
+	digest := strings.TrimSpace(input.Source.Digest)
+	return input.Source.DestinationKind == "oci_registry" && input.Destination.Kind == "oci_registry" &&
+		strings.TrimSpace(input.Source.ArtifactID) != "" && strings.TrimSpace(input.Source.MediaType) != "" &&
+		strings.HasPrefix(digest, "sha256:") && len(strings.TrimPrefix(digest, "sha256:")) == 64 &&
+		strings.TrimSpace(input.Destination.ConnectionRef) != "" && strings.TrimSpace(input.Destination.RepositoryRef) != "" && strings.TrimSpace(input.Destination.Reference) != "" &&
+		strings.TrimSpace(result.Digest) != "" && strings.TrimSpace(result.MediaType) != "" && result.SizeBytes >= 0 && strings.TrimSpace(authExecution.Mode) != ""
+}
+
+func publicationIDFor(digest string, destination moduleapi.AuthorizedArtifactDestination) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{digest, destination.Kind, destination.ConnectionRef, destination.RepositoryRef, destination.Reference}, "\x00")))
+	return "publication_" + hex.EncodeToString(sum[:])[:artifactIdentityPrefixLength]
 }
 
 func firstPlatform(osName, architecture, variant string) string {

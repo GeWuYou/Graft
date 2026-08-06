@@ -103,6 +103,18 @@ func (s *Service) ListArtifactPublicationSources(ctx context.Context, artifactID
 	return reader.ListArtifactPublicationSources(ctx, artifactID)
 }
 
+// SettleArtifactPromotion 记录 provider 已证明的不可变 promotion 结果；Build 不解析 Registry 连接细节。
+func (s *Service) SettleArtifactPromotion(ctx context.Context, input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, authExecution moduleapi.RegistryAuthExecution) error {
+	if s == nil || s.repository == nil {
+		return errors.New("build promotion settlement is unavailable")
+	}
+	settler, ok := s.repository.(buildstore.ArtifactPromotionSettlementRepository)
+	if !ok {
+		return errors.New("build promotion settlement is unavailable")
+	}
+	return settler.SettleArtifactPromotion(ctx, input, result, authExecution)
+}
+
 func (s *Service) enrichJobs(ctx context.Context, result buildstore.ListResult) (buildstore.ListResult, error) {
 	if s.taskBatch == nil || len(result.Items) == 0 {
 		return result, nil

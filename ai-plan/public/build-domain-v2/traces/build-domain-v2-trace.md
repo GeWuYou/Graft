@@ -393,6 +393,17 @@
   static `labels` remain executable; `least_load`, `region` and `affinity` remain disabled until the authority release
   gate is met.
 
+## 2026-08-06 phase-4-promotion-settlement-foundation
+
+- Runtime Target's Docker provider already executes a digest-preserving OCI copy from a Registry-authorized private
+  binding. Build now owns the corresponding settlement boundary: it rechecks the provider digest and media type against
+  the immutable source Artifact before recording the destination Publication.
+- The former unique destination/reference constraint was removed. A deterministic Publication identity now includes the
+  immutable digest and destination binding, so idempotent replay retains one row while a later digest at the same mutable
+  reference preserves the historical publication relationship.
+- This remains a settlement foundation only. Task Runtime promotion orchestration, retry/cancellation semantics and the
+  public promotion write contract remain Phase 4 work; no second Build worker or direct API execution path was added.
+
 ## Loop Batch State
 
 ```json

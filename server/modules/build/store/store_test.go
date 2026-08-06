@@ -80,6 +80,56 @@ func TestListArtifactPublicationSourcesUsesArtifactIdentityAndNeverReturnsMutabl
 	}
 }
 
+func TestSettleArtifactPromotionRequiresMatchingImmutableArtifactAndPreservesDestinationHistory(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := "sha256:" + strings.Repeat("a", 64)
+	input := moduleapi.OCIArtifactCopyInput{
+		Source: moduleapi.ArtifactPublicationSource{
+			ArtifactID: "artifact_1", PublicationID: "publication_source", Digest: digest,
+			MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry",
+			ConnectionRef: "registry:source", RepositoryRef: "team/api",
+		},
+		Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:target", RepositoryRef: "team/api", Reference: "promoted"},
+	}
+	result := moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: input.Source.MediaType, SizeBytes: 42}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id FROM build_v2_artifacts WHERE artifact_id = \\$1 AND artifact_digest = \\$2").WithArgs("artifact_1", digest).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectExec("INSERT INTO build_publications").WithArgs(sqlmock.AnyArg(), int64(7), "oci_registry", "registry:target", "team/api", "promoted", "docker-runtime-store").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}); err != nil {
+		t.Fatalf("SettleArtifactPromotion() error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSettleArtifactPromotionRejectsProviderDigestMismatch(t *testing.T) {
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	digest := "sha256:" + strings.Repeat("a", 64)
+	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry"}, Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:target", RepositoryRef: "team/api", Reference: "promoted"}}
+	result := moduleapi.OCIArtifactCopyResult{Digest: "sha256:" + strings.Repeat("b", 64), MediaType: input.Source.MediaType}
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("SettleArtifactPromotion() error = %v, want %v", err, ErrConflict)
+	}
+}
+
 func TestJobListFiltersMapProductStatusGroupsToTaskStatuses(t *testing.T) {
 	cases := []struct {
 		name   string

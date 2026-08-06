@@ -75,6 +75,9 @@ closeout:
 - [x] Phase 4 Artifact read delivery: Build > Artifacts is a canonical `/build/artifacts` navigable read model with
   immutable digest, media type, platforms, size and creation facts; Promotion, supply-chain evidence and mutable
   Publication workflows remain later Phase 4 scope.
+- [x] Phase 4 promotion settlement foundation: Build records digest-preserving promotion Publications with deterministic
+  replay identity and retains destination history; Task Runtime promotion orchestration and the public write contract
+  remain pending.
 - [x] Phase 5: Task Runtime distributed-leg coordination contract and manifest aggregation authority.
 - [ ] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.
