@@ -404,6 +404,17 @@
 - This remains a settlement foundation only. Task Runtime promotion orchestration, retry/cancellation semantics and the
   public promotion write contract remain Phase 4 work; no second Build worker or direct API execution path was added.
 
+## 2026-08-06 phase-4-promotion-task-runtime-stage
+
+- Build now resolves a source only from its persisted Publication records, asks Registry to authorize pull and push, and
+  freezes the resulting non-secret source, destination and Runtime Target identities in one Task Runtime stage.
+- The stage resolves Registry private bindings only while executing, delegates the digest-preserving copy to the selected
+  Runtime Target provider, and settles the Publication only after matching provider proof. It has no Build-local worker,
+  queue or synchronous copy path.
+- Cancellation is passed to the provider through the Task Runtime Stage executor. Recovery remains `manual_reconcile`, so
+  a process interruption cannot silently repeat an externally uncertain copy. Build registers Task owner authorization for
+  reading, cancellation and manual retry; the public OpenAPI/HTTP promotion write contract is still pending.
+
 ## Loop Batch State
 
 ```json

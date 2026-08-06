@@ -52,18 +52,21 @@ type preparedSubmission struct {
 
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
-	contexts         moduleapi.ApplicationBuildContextResolver
-	submissions      moduleapi.TaskSubmissionService
-	taskBatch        moduleapi.TaskBatchQueryService
-	docker           moduleapi.DockerImageBuildCapability
-	repository       buildstore.Repository
-	snapshots        moduleapi.ApplicationWorkspaceSnapshotResolver
-	buildTargets     moduleapi.BuildRuntimeTargetReader
-	buildAssignments moduleapi.RuntimeTargetBuildAssignmentReader
-	registry         moduleapi.RegistryDestinationResolver
-	intents          IntentResolver
-	workspaces       buildstore.WorkspaceRepository
-	builderResources moduleapi.BuilderResourceRepository
+	contexts          moduleapi.ApplicationBuildContextResolver
+	submissions       moduleapi.TaskSubmissionService
+	taskBatch         moduleapi.TaskBatchQueryService
+	docker            moduleapi.DockerImageBuildCapability
+	repository        buildstore.Repository
+	snapshots         moduleapi.ApplicationWorkspaceSnapshotResolver
+	buildTargets      moduleapi.BuildRuntimeTargetReader
+	buildAssignments  moduleapi.RuntimeTargetBuildAssignmentReader
+	registry          moduleapi.RegistryDestinationResolver
+	intents           IntentResolver
+	workspaces        buildstore.WorkspaceRepository
+	builderResources  moduleapi.BuilderResourceRepository
+	promotionTasks    moduleapi.TaskService
+	promotionRegistry moduleapi.RegistryArtifactCopyResolver
+	promotionTargets  moduleapi.RuntimeTargetBuildAssignmentReader
 }
 
 // ListJobs 返回一个按 Build 快照和 Task 执行状态过滤的受限作业页。
@@ -113,6 +116,87 @@ func (s *Service) SettleArtifactPromotion(ctx context.Context, input moduleapi.O
 		return errors.New("build promotion settlement is unavailable")
 	}
 	return settler.SettleArtifactPromotion(ctx, input, result, authExecution)
+}
+
+// ArtifactPromotionRequest 只接受 Build 与 Registry 的稳定身份。来源 Publication
+// 必须由 Build 读取，不能信任调用方提供的复制来源。
+type ArtifactPromotionRequest struct {
+	ArtifactID      string
+	PublicationID   string
+	Destination     moduleapi.BuildDestination
+	RuntimeTargetID int64
+	RequestedBy     uint64
+	IdempotencyKey  string
+}
+
+// ConfigureArtifactPromotion 装配 Promotion 需要的 Task Runtime 提交和授权能力，
+// 不向 Build service 暴露基础设施私有 binding。
+func (s *Service) ConfigureArtifactPromotion(tasks moduleapi.TaskService, registry moduleapi.RegistryArtifactCopyResolver, targets moduleapi.RuntimeTargetBuildAssignmentReader) {
+	if s == nil {
+		return
+	}
+	s.promotionTasks, s.promotionRegistry, s.promotionTargets = tasks, registry, targets
+}
+
+// SubmitArtifactPromotion 在 Registry 授权两端后冻结 Build-owned digest 来源，
+// 再委托既有 Task Runtime 执行。
+//
+//nolint:gocyclo,cyclop // 提交边界必须集中验证调用者、Build 来源、Registry 授权和 Runtime Target 授权。
+func (s *Service) SubmitArtifactPromotion(ctx context.Context, request ArtifactPromotionRequest) (moduleapi.TaskReceipt, error) {
+	if s == nil || s.promotionTasks == nil || s.promotionRegistry == nil || s.promotionTargets == nil {
+		return moduleapi.TaskReceipt{}, errors.New("build artifact promotion dependencies are unavailable")
+	}
+	request.ArtifactID, request.PublicationID = strings.TrimSpace(request.ArtifactID), strings.TrimSpace(request.PublicationID)
+	if request.ArtifactID == "" || request.PublicationID == "" || request.RuntimeTargetID < 1 {
+		return moduleapi.TaskReceipt{}, errors.New("invalid artifact promotion request")
+	}
+	actorID := request.RequestedBy
+	if actorID == 0 {
+		if auth, ok := moduleapi.RequestAuthContextFromContext(ctx); ok && auth.User != nil {
+			actorID = auth.User.ID
+		}
+	}
+	if actorID == 0 {
+		return moduleapi.TaskReceipt{}, moduleapi.ErrUnauthenticated
+	}
+	sources, err := s.ListArtifactPublicationSources(ctx, request.ArtifactID)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("list artifact publication sources: %w", err)
+	}
+	var source moduleapi.ArtifactPublicationSource
+	for _, candidate := range sources {
+		if candidate.PublicationID == request.PublicationID {
+			source = candidate
+			break
+		}
+	}
+	if source.PublicationID == "" {
+		return moduleapi.TaskReceipt{}, errors.New("artifact publication source is not found")
+	}
+	authorized, err := s.promotionRegistry.AuthorizeArtifactCopy(ctx, actorID, source, request.Destination)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("authorize artifact promotion: %w", err)
+	}
+	allowed, err := s.promotionTargets.CanUseBuildTarget(ctx, actorID, request.RuntimeTargetID)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("authorize promotion runtime target: %w", err)
+	}
+	if !allowed {
+		return moduleapi.TaskReceipt{}, errors.New("promotion runtime target is not assigned to actor")
+	}
+	input, err := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: authorized.Source, Destination: authorized.Destination, RuntimeTargetID: request.RuntimeTargetID})
+	if err != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal artifact promotion task input: %w", err)
+	}
+	task := moduleapi.SubmitTaskInput{
+		Type:           artifactPromotionTaskType,
+		Owner:          moduleapi.TaskOwner{Type: artifactPromotionTaskOwnerType, ID: source.PublicationID},
+		RequestedBy:    actorID,
+		IdempotencyKey: request.IdempotencyKey,
+		Input:          input,
+		Plan:           moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "copy-artifact", ExecutorType: artifactPromotionStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}},
+	}
+	return s.promotionTasks.Submit(ctx, task)
 }
 
 func (s *Service) enrichJobs(ctx context.Context, result buildstore.ListResult) (buildstore.ListResult, error) {

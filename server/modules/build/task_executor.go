@@ -80,17 +80,19 @@ func (e *dockerfileBuildExecutor) Cancel(_ context.Context, run moduleapi.StageR
 }
 
 type buildTaskExecutorDependencies struct {
-	provider            moduleapi.TargetBoundDockerBuildProvider
-	publication         moduleapi.TargetBoundDockerImagePublicationCapability
-	manifestPublication moduleapi.TargetBoundOCIManifestPublicationCapability
-	snapshotDelivery    moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
-	conformance         moduleapi.TargetBoundProviderExecutionConformanceCapability
-	registry            moduleapi.RegistryPublicationResolver
-	targets             moduleapi.BuildRuntimeTargetReader
-	intent              IntentResolver
+	provider             moduleapi.TargetBoundDockerBuildProvider
+	publication          moduleapi.TargetBoundDockerImagePublicationCapability
+	manifestPublication  moduleapi.TargetBoundOCIManifestPublicationCapability
+	snapshotDelivery     moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
+	conformance          moduleapi.TargetBoundProviderExecutionConformanceCapability
+	registry             moduleapi.RegistryPublicationResolver
+	targets              moduleapi.BuildRuntimeTargetReader
+	intent               IntentResolver
+	artifactCopy         moduleapi.TargetBoundOCIArtifactCopyCapability
+	artifactCopyRegistry moduleapi.RegistryArtifactCopyResolver
 }
 
-func registerBuildTaskExecutor(registrar moduleapi.TaskRuntimeRegistrar, repository buildstore.Repository, docker moduleapi.DockerImageBuildCapability, capabilities ...any) error {
+func registerBuildTaskExecutor(registrar moduleapi.TaskRuntimeRegistrar, repository buildstore.Repository, docker moduleapi.DockerImageBuildCapability, promotions *Service, capabilities ...any) error {
 	if registrar == nil {
 		return errors.New("build task registrar is unavailable")
 	}
@@ -101,7 +103,10 @@ func registerBuildTaskExecutor(registrar moduleapi.TaskRuntimeRegistrar, reposit
 	}
 	// V2 plan 在执行前已被接受并持久化。可选 capability 使 legacy-focused test
 	// 仍可构造，而 production wiring 提供完整的 target/publish boundary。
-	return registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, publisher: dependencies.publication, manifestPublisher: dependencies.manifestPublication, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent})
+	if err := registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, publisher: dependencies.publication, manifestPublisher: dependencies.manifestPublication, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent}); err != nil {
+		return err
+	}
+	return registrar.RegisterStageExecutor(&artifactPromotionExecutor{service: promotions, provider: dependencies.artifactCopy, registry: dependencies.artifactCopyRegistry, cancels: make(map[uint64]context.CancelFunc)})
 }
 
 func targetBoundDockerFromCapabilities(legacy moduleapi.DockerImageBuildCapability, capabilities []any) moduleapi.TargetBoundDockerImageBuildCapability {
@@ -137,9 +142,66 @@ func resolveBuildTaskExecutorDependencies(capabilities []any) buildTaskExecutorD
 			if value != nil {
 				dependencies.intent = value
 			}
+		case moduleapi.TargetBoundOCIArtifactCopyCapability:
+			dependencies.artifactCopy = value
+		case moduleapi.RegistryArtifactCopyResolver:
+			dependencies.artifactCopyRegistry = value
 		}
 	}
 	return dependencies
+}
+
+type artifactPromotionExecutor struct {
+	service  *Service
+	provider moduleapi.TargetBoundOCIArtifactCopyCapability
+	registry moduleapi.RegistryArtifactCopyResolver
+	mu       sync.Mutex
+	cancels  map[uint64]context.CancelFunc
+}
+
+func (*artifactPromotionExecutor) Type() moduleapi.StageExecutorType {
+	return artifactPromotionStageExecutor
+}
+
+//nolint:cyclop // 复制、取消和结算必须保持在同一个 Task Runtime Stage 信任边界内。
+func (e *artifactPromotionExecutor) Execute(ctx context.Context, run moduleapi.StageRun) error {
+	if e == nil || e.service == nil || e.provider == nil || e.registry == nil {
+		return errors.New("artifact promotion executor is unavailable")
+	}
+	var input moduleapi.ArtifactPromotionTaskInput
+	if err := json.Unmarshal(run.Input(), &input); err != nil {
+		return fmt.Errorf("decode artifact promotion task input: %w", err)
+	}
+	if input.RuntimeTargetID < 1 || input.Source.ArtifactID == "" || input.Source.PublicationID == "" || input.Destination.Kind == "" {
+		return errors.New("artifact promotion task input is incomplete")
+	}
+	copy := moduleapi.AuthorizedArtifactCopy{Source: input.Source, Destination: input.Destination}
+	binding, err := e.registry.ResolveArtifactCopyBinding(ctx, copy)
+	if err != nil {
+		return fmt.Errorf("resolve artifact promotion binding: %w", err)
+	}
+	commandCtx, cancel := context.WithCancel(ctx)
+	e.mu.Lock()
+	e.cancels[run.StageID()] = cancel
+	e.mu.Unlock()
+	defer func() { e.mu.Lock(); delete(e.cancels, run.StageID()); e.mu.Unlock(); cancel() }()
+	result, err := e.provider.CopyOCIArtifactOnTarget(commandCtx, input.RuntimeTargetID, moduleapi.OCIArtifactCopyInput{Source: input.Source, Destination: input.Destination}, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	if err != nil {
+		return err
+	}
+	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
+	defer settlementCancel()
+	return e.service.SettleArtifactPromotion(settlementCtx, moduleapi.OCIArtifactCopyInput{Source: input.Source, Destination: input.Destination}, result, binding.Destination.AuthExecution)
+}
+
+func (e *artifactPromotionExecutor) Cancel(_ context.Context, run moduleapi.StageRun) error {
+	e.mu.Lock()
+	cancel := e.cancels[run.StageID()]
+	e.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return nil
 }
 
 type v2ExecutionPlanExecutor struct {

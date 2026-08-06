@@ -778,6 +778,8 @@ func (r *SQLRepository) SettleOCIManifestPublication(ctx context.Context, taskID
 
 // SettleArtifactPromotion 重新核对 source Artifact 的 digest 和 media type，再记录新的 Publication。
 // provider 返回任何不同 digest 都会 fail-closed；同一 source/destination 重放保持幂等，新的目的地引用保留历史。
+//
+//nolint:cyclop // 结算必须在同一事务边界显式覆盖完整性校验、来源读取与幂等写入。
 func (r *SQLRepository) SettleArtifactPromotion(ctx context.Context, input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, authExecution moduleapi.RegistryAuthExecution) error {
 	if r == nil || r.db == nil || !validPromotionSettlement(input, result, authExecution) {
 		return errors.New("invalid artifact promotion settlement")
@@ -813,6 +815,7 @@ func (r *SQLRepository) SettleArtifactPromotion(ctx context.Context, input modul
 	return nil
 }
 
+//nolint:cyclop // 复制结果进入持久化前必须逐项验证不可变来源、目标与 provider 证明。
 func validPromotionSettlement(input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, authExecution moduleapi.RegistryAuthExecution) bool {
 	digest := strings.TrimSpace(input.Source.Digest)
 	return input.Source.DestinationKind == "oci_registry" && input.Destination.Kind == "oci_registry" &&

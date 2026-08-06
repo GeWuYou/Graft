@@ -42,9 +42,9 @@
   Pools; the create page uses controlled selectors with loading, empty and error states.
 - Phase 4 Artifact read delivery completed: Build exposes immutable Artifact facts through the canonical API and the
   Build > Artifacts browser; legacy Job projections remain separately readable.
-- Phase 4 promotion settlement foundation completed: Build no longer overwrites publication history when a destination
-  reference is promoted to a new digest, and settlement verifies the provider result against the immutable source.
-  The Task Runtime stage and public promotion write contract remain pending.
+- Phase 4 Promotion Task Runtime stage completed: Build freezes a Publication-selected digest source and Registry-authorized
+  destination, then delegates copy, cancellation, manual recovery and settlement to the existing Task Runtime. The public
+  OpenAPI/HTTP promotion write contract remains pending.
 
 ## Recovery Receipt
 

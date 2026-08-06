@@ -116,6 +116,34 @@ func (v2RegistryResolver) ResolveArtifactDestination(_ context.Context, _ uint64
 	return moduleapi.AuthorizedArtifactDestination(destination), nil
 }
 
+func TestSubmitArtifactPromotionFreezesAuthorizedDigestSourceForTaskRuntime(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
+	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{source}}
+	tasks := &recordingBuildTasks{}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := &promotionRegistryStub{}
+	service.ConfigureArtifactPromotion(tasks, registry, v2TargetAssignments{allowed: true})
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	receipt, err := service.SubmitArtifactPromotion(ctx, ArtifactPromotionRequest{ArtifactID: source.ArtifactID, PublicationID: source.PublicationID, Destination: moduleapi.BuildDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "stable"}, RuntimeTargetID: 4, IdempotencyKey: "promote-once"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.TaskID != 42 || tasks.submitCalls != 1 || tasks.input.IdempotencyKey != "promote-once" || tasks.input.Type != artifactPromotionTaskType || tasks.input.Plan.Stages[0].RecoveryPolicy != moduleapi.StageRecoveryManualReconcile {
+		t.Fatalf("promotion task = %#v receipt=%#v", tasks.input, receipt)
+	}
+	var input moduleapi.ArtifactPromotionTaskInput
+	if err := json.Unmarshal(tasks.input.Input, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Source != source || input.RuntimeTargetID != 4 || input.Destination.ConnectionRef != "registry:destination" || strings.Contains(string(tasks.input.Input), "endpoint") || strings.Contains(string(tasks.input.Input), "credential") {
+		t.Fatalf("frozen promotion input = %s", tasks.input.Input)
+	}
+}
+
 func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing.T) {
 	source := t.TempDir()
 	if err := os.WriteFile(filepath.Join(source, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {

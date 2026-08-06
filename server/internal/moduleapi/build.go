@@ -258,6 +258,14 @@ type OCIArtifactCopyResult struct {
 	SizeBytes int64
 }
 
+// ArtifactPromotionTaskInput 是 Task Runtime 持久化的 Promotion 执行输入。来源必须是
+// Build 读取到的 Publication identity，Registry endpoint、凭据和 provider 命令不得进入 Task。
+type ArtifactPromotionTaskInput struct {
+	Source          ArtifactPublicationSource     `json:"source"`
+	Destination     AuthorizedArtifactDestination `json:"destination"`
+	RuntimeTargetID int64                         `json:"runtime_target_id"`
+}
+
 // BuildPlanTaskInput 是唯一允许进入 Task metadata 的 Build v2 payload。执行器
 // 从 Build-owned plan storage 解析本地物化输入，绝不接收客户端给出的 source path。
 type BuildPlanTaskInput struct {

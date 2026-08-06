@@ -249,6 +249,8 @@ func (p dockerTargetProvider) PublishOCIManifestOnTarget(ctx context.Context, ta
 
 // CopyOCIArtifactOnTarget copies one immutable OCI artifact through the selected
 // Docker target. Registry bindings remain private to this execution boundary.
+//
+//nolint:cyclop // Provider 必须逐项校验私有 binding、不可变来源与复制后的 Registry 证明。
 func (p dockerTargetProvider) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 	if targetID < 1 || !validOCIArtifactCopyInput(input) || !validOCIArtifactCopyBinding(input, binding) {
 		return moduleapi.OCIArtifactCopyResult{}, errors.New("OCI artifact copy input is invalid")
@@ -297,6 +299,7 @@ func (p dockerTargetProvider) CopyOCIArtifactOnTarget(ctx context.Context, targe
 	return moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: mediaType, SizeBytes: int64(len(raw))}, nil
 }
 
+//nolint:cyclop // 执行外部复制前必须拒绝每个会改变来源或目的地身份的输入缺口。
 func validOCIArtifactCopyInput(input moduleapi.OCIArtifactCopyInput) bool {
 	source := input.Source
 	destination := input.Destination

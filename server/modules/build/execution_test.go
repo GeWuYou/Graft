@@ -12,18 +12,23 @@ import (
 )
 
 type recordingBuildRepository struct {
-	created        buildstore.JobSnapshot
-	snapshot       buildstore.JobSnapshot
-	settledID      uint64
-	settleCanceled bool
-	settleDeadline bool
-	getBuildIDErr  error
-	createErr      error
-	listResult     buildstore.ListResult
-	listQuery      buildstore.ListQuery
-	artifactResult buildstore.V2ArtifactListResult
-	v2Plan         moduleapi.BuildExecutionPlan
-	workspaces     []moduleapi.BuildWorkspace
+	created            buildstore.JobSnapshot
+	snapshot           buildstore.JobSnapshot
+	settledID          uint64
+	settleCanceled     bool
+	settleDeadline     bool
+	getBuildIDErr      error
+	createErr          error
+	listResult         buildstore.ListResult
+	listQuery          buildstore.ListQuery
+	artifactResult     buildstore.V2ArtifactListResult
+	v2Plan             moduleapi.BuildExecutionPlan
+	workspaces         []moduleapi.BuildWorkspace
+	publicationSources []moduleapi.ArtifactPublicationSource
+	promotionInput     moduleapi.OCIArtifactCopyInput
+	promotionResult    moduleapi.OCIArtifactCopyResult
+	promotionAuth      moduleapi.RegistryAuthExecution
+	promotionSettled   bool
 }
 
 func (r *recordingBuildRepository) CreateWorkspace(context.Context, moduleapi.BuildWorkspace) error {
@@ -90,6 +95,15 @@ func (r *recordingBuildRepository) ListV2Artifacts(context.Context, int, int) (b
 	return r.artifactResult, nil
 }
 
+func (r *recordingBuildRepository) ListArtifactPublicationSources(context.Context, string) ([]moduleapi.ArtifactPublicationSource, error) {
+	return append([]moduleapi.ArtifactPublicationSource(nil), r.publicationSources...), nil
+}
+
+func (r *recordingBuildRepository) SettleArtifactPromotion(_ context.Context, input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, auth moduleapi.RegistryAuthExecution) error {
+	r.promotionInput, r.promotionResult, r.promotionAuth, r.promotionSettled = input, result, auth, true
+	return nil
+}
+
 func (r *recordingBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
 	if r.getBuildIDErr != nil {
 		return buildstore.JobProjection{}, r.getBuildIDErr
@@ -114,7 +128,25 @@ type recordingBuildTasks struct {
 	batchErr         error
 	batchIDs         []uint64
 	beginSubmission  *moduleapi.TaskSubmission
+	submitCalls      int
 }
+
+func (r *recordingBuildTasks) Submit(_ context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	r.submitCalls++
+	r.input = input
+	if r.err != nil {
+		return moduleapi.TaskReceipt{}, r.err
+	}
+	return moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusReady}, nil
+}
+
+func (*recordingBuildTasks) SettleExternalReceipt(context.Context, moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
+	return moduleapi.ExternalReceiptSettlement{}, errors.New("not implemented")
+}
+
+func (*recordingBuildTasks) Cancel(context.Context, uint64) error { return nil }
+
+func (*recordingBuildTasks) RetryStage(context.Context, uint64, uint64) error { return nil }
 
 func (r *recordingBuildTasks) GetTasksByIDs(_ context.Context, taskIDs []uint64) ([]moduleapi.TaskView, error) {
 	r.batchIDs = append([]uint64(nil), taskIDs...)
@@ -283,6 +315,82 @@ func (buildStageRun) Attempt() int                                            { 
 func (r buildStageRun) Input() json.RawMessage                                { return r.input }
 func (buildStageRun) CancellationRequested(context.Context) bool              { return false }
 func (buildStageRun) AppendLog(context.Context, moduleapi.TaskLogEntry) error { return nil }
+
+type promotionRegistryStub struct {
+	binding moduleapi.RegistryArtifactCopyBinding
+	err     error
+	copy    moduleapi.AuthorizedArtifactCopy
+}
+
+func (s *promotionRegistryStub) AuthorizeArtifactCopy(_ context.Context, _ uint64, source moduleapi.ArtifactPublicationSource, destination moduleapi.BuildDestination) (moduleapi.AuthorizedArtifactCopy, error) {
+	return moduleapi.AuthorizedArtifactCopy{Source: source, Destination: moduleapi.AuthorizedArtifactDestination(destination)}, s.err
+}
+
+func (s *promotionRegistryStub) ResolveArtifactCopyBinding(_ context.Context, copy moduleapi.AuthorizedArtifactCopy) (moduleapi.RegistryArtifactCopyBinding, error) {
+	s.copy = copy
+	return s.binding, s.err
+}
+
+type promotionCopyProviderStub struct {
+	copy func(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
+}
+
+func (s promotionCopyProviderStub) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return s.copy(ctx, targetID, input, binding, sink)
+}
+
+func TestArtifactPromotionExecutorCopiesFrozenDigestThenSettles(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
+	destination := moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "stable"}
+	repository := &recordingBuildRepository{}
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", Destination: moduleapi.RegistryPublicationBinding{Destination: destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}}
+	provider := promotionCopyProviderStub{copy: func(_ context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+		if targetID != 4 || input.Source != source || input.Destination != destination {
+			t.Fatalf("copy input = %#v target=%d", input, targetID)
+		}
+		return moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: source.MediaType, SizeBytes: 19}, nil
+	}}
+	executor := &artifactPromotionExecutor{service: service, provider: provider, registry: registry, cancels: make(map[uint64]context.CancelFunc)}
+	payload, _ := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: source, Destination: destination, RuntimeTargetID: 4})
+	if err := executor.Execute(context.Background(), buildStageRun{input: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if !repository.promotionSettled || repository.promotionInput.Source != source || repository.promotionInput.Destination != destination || repository.promotionResult.Digest != digest || repository.promotionAuth.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+		t.Fatalf("promotion settlement = input:%#v result:%#v auth:%#v settled:%t", repository.promotionInput, repository.promotionResult, repository.promotionAuth, repository.promotionSettled)
+	}
+}
+
+func TestArtifactPromotionExecutorCancellationDoesNotSettle(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
+	destination := moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "stable"}
+	repository := &recordingBuildRepository{}
+	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	started := make(chan struct{})
+	executor := &artifactPromotionExecutor{service: service, registry: &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{Destination: moduleapi.RegistryPublicationBinding{Destination: destination}}}, cancels: make(map[uint64]context.CancelFunc), provider: promotionCopyProviderStub{copy: func(ctx context.Context, _ int64, _ moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+		close(started)
+		<-ctx.Done()
+		return moduleapi.OCIArtifactCopyResult{}, ctx.Err()
+	}}}
+	payload, _ := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: source, Destination: destination, RuntimeTargetID: 4})
+	done := make(chan error, 1)
+	go func() { done <- executor.Execute(context.Background(), buildStageRun{input: payload}) }()
+	<-started
+	if err := executor.Cancel(context.Background(), buildStageRun{input: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled execution error = %v", err)
+	}
+	if repository.promotionSettled {
+		t.Fatal("cancelled promotion unexpectedly settled")
+	}
+}
 
 func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	contexts := &recordingBuildContexts{}

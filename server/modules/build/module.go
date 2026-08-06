@@ -65,6 +65,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve Docker image build capability: %w", err)
 	}
+	if authorizer, authorizerErr := module.ResolveService[moduleapi.Authorizer](ctx.Services, (*moduleapi.Authorizer)(nil)); authorizerErr == nil {
+		if err := registerBuildTaskOwnerAuthorizers(registrar, authorizer); err != nil {
+			return err
+		}
+	}
 	targetDocker, _ := module.ResolveService[moduleapi.TargetBoundDockerImageBuildCapability](ctx.Services, (*moduleapi.TargetBoundDockerImageBuildCapability)(nil))
 	targetReader, _ := module.ResolveService[moduleapi.BuildRuntimeTargetReader](ctx.Services, (*moduleapi.BuildRuntimeTargetReader)(nil))
 	service, err := NewService(contexts, submissions, taskBatch, docker, m.repository)
@@ -72,13 +77,16 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	configureBuildV2Submission(ctx, service)
+	configureArtifactPromotion(ctx, service)
 	publication, _ := module.ResolveService[moduleapi.TargetBoundDockerImagePublicationCapability](ctx.Services, (*moduleapi.TargetBoundDockerImagePublicationCapability)(nil))
 	manifestPublication, _ := module.ResolveService[moduleapi.TargetBoundOCIManifestPublicationCapability](ctx.Services, (*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil))
 	snapshotDelivery, _ := module.ResolveService[moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability](ctx.Services, (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil))
 	conformance, _ := module.ResolveService[moduleapi.TargetBoundProviderExecutionConformanceCapability](ctx.Services, (*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil))
 	provider, _ := module.ResolveService[moduleapi.TargetBoundDockerBuildProvider](ctx.Services, (*moduleapi.TargetBoundDockerBuildProvider)(nil))
 	registryPublication, _ := module.ResolveService[moduleapi.RegistryPublicationResolver](ctx.Services, (*moduleapi.RegistryPublicationResolver)(nil))
-	if err := registerBuildTaskExecutor(registrar, m.repository, docker, targetDocker, publication, manifestPublication, snapshotDelivery, conformance, provider, registryPublication, service.intents, targetReader); err != nil {
+	artifactCopy, _ := module.ResolveService[moduleapi.TargetBoundOCIArtifactCopyCapability](ctx.Services, (*moduleapi.TargetBoundOCIArtifactCopyCapability)(nil))
+	artifactCopyRegistry, _ := module.ResolveService[moduleapi.RegistryArtifactCopyResolver](ctx.Services, (*moduleapi.RegistryArtifactCopyResolver)(nil))
+	if err := registerBuildTaskExecutor(registrar, m.repository, docker, service, targetDocker, publication, manifestPublication, snapshotDelivery, conformance, provider, registryPublication, artifactCopy, artifactCopyRegistry, service.intents, targetReader); err != nil {
 		return err
 	}
 	if err := registerSnapshotMaterializationCleanupJob(ctx.CronRegistry, service); err != nil {
@@ -86,6 +94,30 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	m.service = service
 	return registerRoutes(ctx, service)
+}
+
+func registerBuildTaskOwnerAuthorizers(registrar moduleapi.TaskRuntimeRegistrar, authorizer moduleapi.Authorizer) error {
+	if registrar == nil || authorizer == nil {
+		return errors.New("build task owner authorizer dependencies are unavailable")
+	}
+	for _, ownerType := range []string{buildTaskOwnerType, artifactPromotionTaskOwnerType} {
+		if err := registrar.RegisterTaskOwnerAuthorizer(buildTaskOwnerAuthorizer{ownerType: ownerType, authorizer: authorizer}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func configureArtifactPromotion(ctx *module.Context, service *Service) {
+	if ctx == nil || ctx.Services == nil || service == nil {
+		return
+	}
+	tasks, taskErr := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	registry, registryErr := module.ResolveService[moduleapi.RegistryArtifactCopyResolver](ctx.Services, (*moduleapi.RegistryArtifactCopyResolver)(nil))
+	targets, targetErr := module.ResolveService[moduleapi.RuntimeTargetBuildAssignmentReader](ctx.Services, (*moduleapi.RuntimeTargetBuildAssignmentReader)(nil))
+	if taskErr == nil && registryErr == nil && targetErr == nil {
+		service.ConfigureArtifactPromotion(tasks, registry, targets)
+	}
 }
 
 // configureBuildV2Submission 在仓库迁移 legacy read 期间刻意保持可选；生产注册

@@ -18,11 +18,14 @@ import (
 )
 
 const (
-	v2BuildTaskType      = moduleapi.TaskType("build.execution-plan.v2")
-	v2BuildStageExecutor = moduleapi.StageExecutorType("build.execution-plan.v2")
-	v2DockerfileTemplate = "oci-dockerfile/default@v1"
-	v2DockerEngineDriver = "docker-engine@v1"
-	v2OCIDestination     = "oci_registry"
+	v2BuildTaskType                = moduleapi.TaskType("build.execution-plan.v2")
+	v2BuildStageExecutor           = moduleapi.StageExecutorType("build.execution-plan.v2")
+	artifactPromotionTaskType      = moduleapi.TaskType("build.artifact-promotion.v1")
+	artifactPromotionStageExecutor = moduleapi.StageExecutorType("build.artifact-promotion.v1")
+	artifactPromotionTaskOwnerType = "build_artifact_promotion"
+	v2DockerfileTemplate           = "oci-dockerfile/default@v1"
+	v2DockerEngineDriver           = "docker-engine@v1"
+	v2OCIDestination               = "oci_registry"
 )
 
 // ExecutionPlanRequest is the v2 public-write input after HTTP binding. It

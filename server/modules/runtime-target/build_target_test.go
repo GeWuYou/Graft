@@ -186,9 +186,9 @@ func TestDockerProviderCopiesOCIArtifactByDigestAndVerifiesDestination(t *testin
 		},
 	}
 	binding := moduleapi.RegistryArtifactCopyBinding{
-		SourceEndpoint: "https://source.example", SourceCredentialRef: "credential:source",
+		SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source",
 		Destination: moduleapi.RegistryPublicationBinding{
-			Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "credential:destination",
+			Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination",
 			AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore},
 		},
 	}
@@ -227,7 +227,7 @@ func TestDockerProviderRejectsOCIArtifactCopyDigestMismatch(t *testing.T) {
 	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{
 		ArtifactID: "artifact-1", PublicationID: "publication-1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/api",
 	}, Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/api", Reference: "promoted"}}
-	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "credential:source", Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "credential:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}
+	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}
 	oldCommand, oldOutput := providerCommandRunner, providerOutputRunner
 	t.Cleanup(func() { providerCommandRunner, providerOutputRunner = oldCommand, oldOutput })
 	providerCommandRunner = func(_ context.Context, _ moduleapi.DockerImageBuildLogSink, _ ...string) error { return nil }
