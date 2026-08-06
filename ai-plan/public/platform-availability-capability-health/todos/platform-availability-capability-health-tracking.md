@@ -48,14 +48,14 @@ closeout:
 
 - Phase 0 server contracts and Phase 1 browser availability takeover are implemented and validated.
 - No schema or migration work is planned for the initial phases.
-- Next step: Phase 3 WebSocket and SSE lifecycle integration.
+- Next step: Phase 4 capability API, initial providers, and dashboard projection.
 
 ## Task Checklist
 
 - [x] Phase 0: contracts, registry, coordinator, and tests
 - [x] Phase 1: browser availability baseline and router takeover
 - [x] Phase 2: Axios and TanStack Query gating
-- [ ] Phase 3: WebSocket/SSE pause and recovery
+- [x] Phase 3: WebSocket/SSE pause and recovery
 - [ ] Phase 4: capability API, providers, and dashboard
 - [ ] Phase 5: recovering UX, diagnostics, and full acceptance
 
@@ -71,10 +71,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating"],
-  "pending_batches": ["phase-3-realtime", "phase-4-capability-projection", "phase-5-recovery-diagnostics"],
+  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime"],
+  "pending_batches": ["phase-4-capability-projection", "phase-5-recovery-diagnostics"],
   "current_batch": null,
-  "next_batch": "phase-3-realtime",
+  "next_batch": "phase-4-capability-projection",
   "closeout_status": "batch-complete"
 }
 ```

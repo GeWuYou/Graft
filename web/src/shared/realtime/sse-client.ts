@@ -1,5 +1,6 @@
 import type { RealtimeSubscriptionResponse } from './api';
 import { postRealtimeSubscription } from './api';
+import { isRealtimePlatformAvailable, registerRealtimeAvailabilityController } from './platform-availability';
 
 export type RealtimeEventStreamState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
@@ -56,7 +57,7 @@ export function openRealtimeTopicEventStream<TMessage>(
   }
 
   function scheduleReconnect() {
-    if (closed) return;
+    if (closed || !isRealtimePlatformAvailable()) return;
     const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
     reconnectAttempt += 1;
     clearReconnectTimer();
@@ -64,7 +65,7 @@ export function openRealtimeTopicEventStream<TMessage>(
   }
 
   async function connect() {
-    if (closed) return;
+    if (closed || !isRealtimePlatformAvailable()) return;
     clearReconnectTimer();
     const currentConnectionID = ++connectionID;
     emitState('connecting');
@@ -118,7 +119,14 @@ export function openRealtimeTopicEventStream<TMessage>(
   }
 
   void connect();
-  return { close, reconnect };
+  const unregister = registerRealtimeAvailabilityController({ close, reconnect });
+  return {
+    close: () => {
+      unregister();
+      close();
+    },
+    reconnect,
+  };
 }
 
 function parseRealtimeEventData(raw: string): unknown | null {

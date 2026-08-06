@@ -40,3 +40,10 @@
 - Network failures and 502/503/504 report candidate failures; healthz, auth errors, and business 500 responses do not.
 - The store controls TanStack Query online state and retry eligibility; unavailable requests and NDJSON streams fail fast.
 - Focused validation passed: lint, typecheck, request tests, and diff check.
+
+## 2026-08-07 Phase 3
+
+- Added a shared realtime availability registry used by WebSocket, SSE, and Terminal transports.
+- Platform freeze closes active transports and cancels reconnect timers; transition-based recovery avoids reconnect storms.
+- Terminal reconnects only when its previous resize context is still valid, then requests a new server ticket.
+- Focused validation passed: websocket, SSE, and terminal session tests plus typecheck.

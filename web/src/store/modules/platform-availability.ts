@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 
 import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { setPlatformQueryOnline } from '@/shared/query/client';
+import { setRealtimePlatformAvailable } from '@/shared/realtime/platform-availability';
 import { registerPlatformAvailabilityBridge, request } from '@/utils/request';
 
 /** 浏览器控制面可达性的壳层状态，不表达任一模块或资源的健康度。 */
@@ -49,6 +50,7 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
       if (this.consecutiveFailures >= FAILURE_THRESHOLD) {
         this.status = 'unavailable';
         setPlatformQueryOnline(false);
+        setRealtimePlatformAvailable(false);
       }
     },
     recordSuccess() {
@@ -56,6 +58,7 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
       this.lastCheckedAt = Date.now();
       this.status = 'healthy';
       setPlatformQueryOnline(true);
+      setRealtimePlatformAvailable(true);
     },
     beginRecovery() {
       this.status = 'recovering';
@@ -81,6 +84,7 @@ export const usePlatformAvailabilityStore = defineStore('platform-availability',
           // healthz 是直接的控制面探测；与业务请求候选信号不同，单次失败即可接管页面。
           this.status = 'unavailable';
           setPlatformQueryOnline(false);
+          setRealtimePlatformAvailable(false);
           return false;
         })
         .finally(() => {
