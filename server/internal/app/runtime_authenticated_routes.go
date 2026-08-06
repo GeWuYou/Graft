@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	capabilityruntime "graft/server/internal/capability"
 	"graft/server/internal/container"
+	capabilitycontract "graft/server/internal/contract/capability"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	productmcp "graft/server/internal/mcp"
@@ -37,6 +39,9 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	}
 	if err := r.registerDashboardWithAuth(authService, authorizer); err != nil {
 		return err
+	}
+	if err := capabilityruntime.RegisterRoutes(r.server.Engine().Group("/api"), r.services, r.capabilityCoordinator, httpx.RequirePermission(r.i18n, authService, authorizer, capabilitycontract.ReadPermission)); err != nil {
+		return fmt.Errorf("register capability routes: %w", err)
 	}
 	if err := r.registerRealtimeSubscriptionRoutes(); err != nil {
 		return err

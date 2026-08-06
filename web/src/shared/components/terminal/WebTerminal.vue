@@ -154,7 +154,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
-  session.disconnect('component_unmount');
+  session.dispose();
   terminal?.dispose();
   terminal = null;
   fitAddon = null;

@@ -4,6 +4,7 @@ import NProgress from 'nprogress';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import type { Router, RouteRecordRaw } from 'vue-router';
 
+import { APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 import { t } from '@/locales';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
@@ -12,6 +13,8 @@ import { finishRouteLoadingAfterRender, hideRouteLoading, startRouteLoading } fr
 import { emitDebugLog } from '@/shared/debug/runtime';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getPermissionStore } from '@/store';
+import { usePlatformAvailabilityStore } from '@/store/modules/platform-availability';
+import { store as pinia } from '@/store/pinia';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
@@ -78,6 +81,13 @@ function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordR
  */
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
+    const availability = usePlatformAvailabilityStore(pinia);
+    availability.bindRequestBridge();
+    if (availability.isUnavailable && to.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+      availability.pendingPath = to.fullPath;
+      next({ path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE, query: { redirect: to.fullPath }, replace: true });
+      return;
+    }
     if (!isSameRouteStateNavigation(to, from)) {
       startRouteLoading();
       NProgress.start();

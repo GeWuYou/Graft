@@ -64,6 +64,12 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
     },
   },
   {
+    path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE,
+    name: APP_RESULT_ROUTE_NAME.SERVICE_UNAVAILABLE,
+    component: () => import('@/app/result/service-unavailable/index.vue'),
+    meta: { hidden: true, availabilityRoute: true },
+  },
+  {
     path: APP_RESULT_ROUTE_PATH.MAINTENANCE,
     name: APP_RESULT_ROUTE_NAME.MAINTENANCE,
     component: () => import('@/app/result/maintenance/index.vue'),

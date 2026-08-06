@@ -54,6 +54,30 @@ type runtimeAccessLogRecorderRepo struct {
 	deleted []time.Time
 }
 
+func TestDashboardHealthStatusForCapabilityPreservesWidgetContract(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   moduleapi.CapabilityStatus
+		expected dashboard.HealthStatus
+	}{
+		{name: "healthy", status: moduleapi.CapabilityStatusHealthy, expected: dashboard.HealthStatusHealthy},
+		{name: "disabled", status: moduleapi.CapabilityStatusDisabled, expected: dashboard.HealthStatusDisabled},
+		{name: "degraded", status: moduleapi.CapabilityStatusDegraded, expected: dashboard.HealthStatusDegraded},
+		{name: "unavailable", status: moduleapi.CapabilityStatusUnavailable, expected: dashboard.HealthStatusDegraded},
+		{name: "checking", status: moduleapi.CapabilityStatusChecking, expected: dashboard.HealthStatusUnknown},
+		{name: "unsupported", status: moduleapi.CapabilityStatusUnsupported, expected: dashboard.HealthStatusUnknown},
+		{name: "unknown", status: moduleapi.CapabilityStatusUnknown, expected: dashboard.HealthStatusUnknown},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dashboardHealthStatusForCapability(test.status); got != test.expected {
+				t.Fatalf("dashboard capability status projection = %q, want %q", got, test.expected)
+			}
+		})
+	}
+}
+
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {
 	r.created = append(r.created, input)
 	return httpx.AccessLog{}, nil
@@ -1360,8 +1384,8 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	if payload.DefaultLocale != "zh-CN" || payload.FallbackLocale != "en-US" {
 		t.Fatalf("expected locale snapshot zh-CN/en-US, got %s/%s", payload.DefaultLocale, payload.FallbackLocale)
 	}
-	if payload.Menus != 2 || payload.Permissions != 1 || payload.Jobs != 3 {
-		t.Fatalf("expected registry counts 2/1/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
+	if payload.Menus != 2 || payload.Permissions != 2 || payload.Jobs != 3 {
+		t.Fatalf("expected registry counts 2/2/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
 	}
 }
 

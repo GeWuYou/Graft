@@ -34,6 +34,7 @@ export interface ApiRequestError extends Error {
   locale?: string;
   responseData?: ApiErrorEnvelope | unknown;
   isApiRequestError: true;
+  isPlatformUnavailable?: boolean;
 }
 
 export interface AxiosRequestConfigRetry extends AxiosRequestConfig {

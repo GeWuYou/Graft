@@ -1,0 +1,96 @@
+import { defineStore } from 'pinia';
+
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
+import { setPlatformQueryOnline } from '@/shared/query/client';
+import { setRealtimePlatformAvailable } from '@/shared/realtime/platform-availability';
+import { registerPlatformAvailabilityBridge, request } from '@/utils/request';
+
+/** 浏览器控制面可达性的壳层状态，不表达任一模块或资源的健康度。 */
+export type PlatformAvailabilityStatus = 'unknown' | 'healthy' | 'degraded' | 'unavailable' | 'recovering';
+
+type PlatformAvailabilityState = {
+  lastCheckedAt: number | null;
+  status: PlatformAvailabilityStatus;
+  consecutiveFailures: number;
+  pendingPath: string | null;
+  probePromise: Promise<boolean> | null;
+};
+
+const FAILURE_THRESHOLD = 2;
+
+function initialState(): PlatformAvailabilityState {
+  return {
+    lastCheckedAt: null,
+    status: 'unknown',
+    consecutiveFailures: 0,
+    pendingPath: null,
+    probePromise: null,
+  };
+}
+
+/** 平台可达性唯一前端 authority；Query 与业务模块只能消费其状态。 */
+export const usePlatformAvailabilityStore = defineStore('platform-availability', {
+  state: initialState,
+  getters: {
+    isUnavailable: (state) => state.status === 'unavailable',
+    allowsBusinessTraffic: (state) => state.status !== 'unavailable',
+  },
+  actions: {
+    bindRequestBridge() {
+      registerPlatformAvailabilityBridge({
+        allowsBusinessTraffic: () => this.allowsBusinessTraffic,
+        reportTransportFailure: (path) => this.recordFailure(path),
+      });
+    },
+    recordFailure(path?: string) {
+      this.consecutiveFailures += 1;
+      if (path && path !== '/result/service-unavailable') {
+        this.pendingPath = path;
+      }
+      if (this.consecutiveFailures >= FAILURE_THRESHOLD) {
+        this.status = 'unavailable';
+        setPlatformQueryOnline(false);
+        setRealtimePlatformAvailable(false);
+      }
+    },
+    recordSuccess() {
+      this.consecutiveFailures = 0;
+      this.lastCheckedAt = Date.now();
+      this.status = 'healthy';
+      setPlatformQueryOnline(true);
+      setRealtimePlatformAvailable(true);
+    },
+    beginRecovery() {
+      this.status = 'recovering';
+    },
+    consumePendingPath(fallback = '/') {
+      const path = this.pendingPath || fallback;
+      this.pendingPath = null;
+      return path;
+    },
+    async checkHealth(): Promise<boolean> {
+      if (this.probePromise) {
+        return this.probePromise;
+      }
+      this.beginRecovery();
+      this.probePromise = request
+        .get<{ status: string }>({ url: OPENAPI_RUNTIME_PATH.getHealthz, _skipAuthRefresh: true })
+        .then(() => {
+          this.recordSuccess();
+          return true;
+        })
+        .catch(() => {
+          this.recordFailure();
+          // healthz 是直接的控制面探测；与业务请求候选信号不同，单次失败即可接管页面。
+          this.status = 'unavailable';
+          setPlatformQueryOnline(false);
+          setRealtimePlatformAvailable(false);
+          return false;
+        })
+        .finally(() => {
+          this.probePromise = null;
+        });
+      return this.probePromise;
+    },
+  },
+});
