@@ -55,3 +55,10 @@
 - Network module exposes its existing latest connectivity aggregate through `CapabilityObservationSource`; no duplicate persistence or probe pipeline was added.
 - Registered a dashboard health widget that consumes coordinator observations through the existing widget contribution system.
 - Validation passed: `go test ./internal/... ./modules/network`, `bun run typecheck`, `bun run lint`, OpenAPI bundle/runtime-path freshness, and `git diff --check`.
+
+## 2026-08-07 Phase 5
+
+- Service Unavailable now offers a single retry path, return-home action, and copyable diagnostic context.
+- Diagnostic copy reuses the shared observability clipboard helper and TDesign message feedback; no new notification authority was added.
+- Backend tests/build/OpenAPI checks and frontend typecheck/lint/contract checks passed.
+- Full `bun run check` remains blocked only by the pre-existing missing Monaco Dockerfile language import; focused container detail tests passed (101 tests).

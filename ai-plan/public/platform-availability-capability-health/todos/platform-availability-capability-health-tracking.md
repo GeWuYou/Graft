@@ -46,9 +46,9 @@ closeout:
 
 ## Current Recovery Point
 
-- Phase 0 through Phase 4 are implemented and validated; Phase 5 remains the final recovery and diagnostics acceptance slice.
+- Phase 0 through Phase 5 are implemented; focused validation passes and the full web check retains one unrelated Monaco dependency blocker.
 - No schema or migration work is planned for the initial phases.
-- Next step: Phase 5 recovering UX, diagnostics, and full acceptance.
+- Next step: archive readiness review and worktree closeout.
 
 ## Task Checklist
 
@@ -57,7 +57,7 @@ closeout:
 - [x] Phase 2: Axios and TanStack Query gating
 - [x] Phase 3: WebSocket/SSE pause and recovery
 - [x] Phase 4: capability API, providers, and dashboard
-- [ ] Phase 5: recovering UX, diagnostics, and full acceptance
+- [x] Phase 5: recovering UX, diagnostics, and full acceptance
 
 ## Acceptance Conditions
 
@@ -72,9 +72,9 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection"],
-  "pending_batches": ["phase-5-recovery-diagnostics"],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "phase-5-recovery-diagnostics",
-  "closeout_status": "batch-complete"
+  "next_batch": null,
+  "closeout_status": "archive-check"
 }
 ```

@@ -619,6 +619,13 @@
         "subtitle": "The platform is under maintenance. Some features are temporarily unavailable.",
         "back": "Back to home"
       },
+      "serviceUnavailable": {
+        "title": "Platform unavailable",
+        "subtitle": "The platform cannot be reached. Business requests and live connections are paused.",
+        "copyDiagnostics": "Copy diagnostics",
+        "copySuccess": "Diagnostics copied",
+        "copyFailed": "Unable to copy diagnostics"
+      },
       "browserIncompatible": {
         "title": "Browser incompatible",
         "subtitle": "The current browser cannot fully support the console. Use a recommended browser instead.",
