@@ -56,6 +56,10 @@ When these layers diverge, follow the higher layer and update the lower layer in
 
 ## 3. Router
 
+Every design-stage task must select the applicable Semantic Review Layer Skill before implementation and record the
+selection, evidence, and any unavailable-skill gap in the design or Work Contract. Semantic Review is a default
+semantic layer; it does not replace this router, the owning design authority, repository validation, or closeout rules.
+
 Choose the narrowest `ai-plan/**` path that matches the authority you are changing:
 
 - `design/`

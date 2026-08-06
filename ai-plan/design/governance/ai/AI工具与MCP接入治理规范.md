@@ -201,6 +201,23 @@ transport adapter；产品 runtime 仍不得把开发者客户端配置、AI ski
 
 ## 5. Skill 设计规则
 
+### 5.1 Semantic Review Layer
+
+仓库 Review Skill 是设计阶段的默认语义审查层，不是仅在用户显式点名时运行的可选工具。Boot 必须主动匹配
+适用 Skill，设计或 Work Contract 必须记录选择、证据、skill gap 和未决决策。当前矩阵包括：
+`graft-openapi-contract-review`、`graft-cross-boundary-review`、`graft-platform-architecture-review`、
+`graft-api-dx-review`、`graft-domain-model-review`、`graft-event-contract-review`、`graft-typescript-dx-audit`、
+`graft-query-key-consistency`、`graft-permission-model-review`、`graft-module-architecture-review`、
+`graft-test-seam-review`、`graft-change-review`、`graft-consistency-review`、`graft-delete-review`。
+
+语义审查 Skill 只提供 authority、边界、语义风险、设计决策和验证建议，不得创建第二套 startup、Work Intake、
+validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须声明触发条件、authority、输出证据和拒绝
+条件；没有对应 Skill 时必须显式记录 gap 并使用最接近的现有治理清单。
+
+所有 Semantic Review Skill 使用 `blocking`、`high`、`medium`、`note` 四级 findings severity：`blocking` 表示在
+实现或合并前必须消除的 authority、correctness 或安全风险；其余级别按影响递减。Skill 可补充领域内的风险说明，
+但不得定义另一套 severity 枚举或映射。
+
 新增或修改仓库 skill 时：
 
 - 先确认是否已有 skill 可以扩展，避免重复工作流。

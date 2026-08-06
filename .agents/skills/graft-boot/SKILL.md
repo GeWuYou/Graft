@@ -20,28 +20,38 @@ startup; it does not replace repository rules.
 3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
    mapped parent topic and relevant subtopic recovery files for the current task shape.
 4. Read the relevant repository-wide design and roadmap truth needed by the task.
-5. Inspect the current repository state before assuming toolchains or entrypoints exist.
-6. If the request introduces new long-running work and no active topic already owns it, route through
+5. Actively match the default Semantic Review Layer before implementation. Select all applicable skills from
+   this matrix: OpenAPI (`graft-openapi-contract-review`), cross-boundary (`graft-cross-boundary-review`), platform
+   architecture (`graft-platform-architecture-review`), API DX (`graft-api-dx-review`), domain (`graft-domain-model-review`),
+   event (`graft-event-contract-review`), TypeScript DX (`graft-typescript-dx-audit`), Query keys
+   (`graft-query-key-consistency`), permissions (`graft-permission-model-review`), module architecture
+   (`graft-module-architecture-review`), test seams (`graft-test-seam-review`), change diff (`graft-change-review`),
+   consistency (`graft-consistency-review`), and deletion (`graft-delete-review`). Run each selected skill at its own
+   declared phase: record design-stage selection, evidence, gaps, and unresolved decisions in the design or Work
+   Contract before implementation; run review/closeout skills at their declared later phase and record their evidence
+   in closeout. If one is unavailable, record the gap and use existing governance; never silently skip semantic review.
+6. Inspect the current repository state before assuming toolchains or entrypoints exist.
+7. If the request introduces new long-running work and no active topic already owns it, route through
    `graft-work-intake` before creating a new `topic`, `design`, `roadmap`, or `ADR`.
-7. Identify the first concrete boundary decision before editing.
-8. If the task touches live schema or migration files, re-read the `server/AGENTS.md` migration/comment rules and
+8. Identify the first concrete boundary decision before editing.
+9. If the task touches live schema or migration files, re-read the `server/AGENTS.md` migration/comment rules and
    treat table/column comment completeness as a mandatory implementation item, including core-owned handwritten
    migration directories such as `server/internal/httpx/migrations/**`.
-9. Assess whether `graft-multi-agent-batch` is justified:
+10. Assess whether `graft-multi-agent-batch` is justified:
    - use it only when the task is large enough, write scopes stay disjoint, and the current slice owner can keep the
      immediate blocking step local
    - when the task explicitly uses `graft-multi-agent-loop`, the outer loop owner may instead delegate the whole
      bounded round to one worker subagent and keep only orchestration, budget tracking, acceptance, and stop
      conditions local
    - do not enable it for small, overlapping, or review-hostile slices
-10. Before edits, tell the user what you read, how you classified the task, whether multi-agent work is justified, and
+11. Before edits, tell the user what you read, how you classified the task, whether multi-agent work is justified, and
    the first implementation step.
-11. When the current slice reaches a stop, completion, or handoff point, route the ending through `graft-task-closeout`
+12. When the current slice reaches a stop, completion, or handoff point, route the ending through `graft-task-closeout`
    instead of relying on an implicit wrap-up path.
-12. `graft-task-closeout` must evaluate commit eligibility through `graft-commit` rules:
+13. `graft-task-closeout` must evaluate commit eligibility through `graft-commit` rules:
    - if validation and ownership allow a safe scoped commit, use `graft-commit`
    - if they do not, report the exact blocker and keep the handoff status honest
-13. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
+14. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
     startup receipt fields needed by the next turn instead of assuming boot state carries across turns.
 
 ## Recovery Rules
