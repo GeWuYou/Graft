@@ -331,7 +331,7 @@ Prefer the repository skills below when their trigger matches the task:
     `graft-test-seam-review`, `graft-change-review`, `graft-consistency-review`, and `graft-delete-review` are
     mandatory defaults when their matching concern is present.
   - These skills produce semantic evidence and decisions; they do not define a second authority, validation, commit,
-   closeout, issue, or recovery path.
+    closeout, issue, or recovery path.
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts
