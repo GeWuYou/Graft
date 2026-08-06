@@ -1,0 +1,19 @@
+get:
+  tags: [build]
+  operationId: getBuildRuntimeTargets
+  summary: List authorized Runtime Targets with Build capability
+  responses:
+    '200':
+      description: Build-capable Runtime Targets.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/api-envelope.yaml
+              - type: object
+                required: [data]
+                properties:
+                  data: { $ref: ../components/schemas/build-runtime-target-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

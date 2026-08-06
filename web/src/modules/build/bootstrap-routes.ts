@@ -4,6 +4,7 @@ import { localizeRouteTitleKey } from '@/utils/route/title';
 import { BUILD_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const jobsTitle = localizeRouteTitleKey('build.jobs.title');
+const artifactsTitle = localizeRouteTitleKey('build.artifacts.title');
 const createTitle = localizeRouteTitleKey('build.jobs.create.title');
 
 export const buildBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
@@ -17,6 +18,18 @@ export const buildBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       semanticTitle: jobsTitle,
       breadcrumbTitle: jobsTitle,
       tabTitle: jobsTitle,
+    },
+  },
+  {
+    ...BUILD_BOOTSTRAP_ROUTE.ARTIFACTS,
+    loadPage: () => import('./pages/artifacts/index.vue'),
+    meta: {
+      tabGroup: 'build-artifacts',
+      pageKind: 'list',
+      pageSurface: 'paged-table',
+      semanticTitle: artifactsTitle,
+      breadcrumbTitle: artifactsTitle,
+      tabTitle: artifactsTitle,
     },
   },
 ];

@@ -1,37 +1,38 @@
 type: object
-required: [application_id, context_path, dockerfile_path, image_repository, image_tag]
+required: [workspace_id, template_ref, driver, destination]
 properties:
-  application_id:
-    $ref: ./application-id.yaml
-  context_path:
+  workspace_id:
     type: string
     minLength: 1
-    maxLength: 1024
-  dockerfile_path:
+    maxLength: 64
+  runtime_target_id:
+    type: integer
+    format: int64
+    minimum: 1
+    description: Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
+  builder_pool_id:
     type: string
     minLength: 1
-    maxLength: 1024
-  image_repository:
+    maxLength: 64
+    description: Build-owned Builder Pool selection. Provide exactly one of builder_pool_id or runtime_target_id.
+  template_ref:
     type: string
-    minLength: 1
-    maxLength: 255
-  image_tag:
+    enum: [oci-dockerfile/default@v1]
+  driver:
     type: string
-    minLength: 1
-    maxLength: 255
-  build_args:
+    enum: [docker-engine@v1]
+  platforms:
     type: array
-    maxItems: 64
-    items:
-      type: object
-      required: [name, value]
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 128
-        value:
-          type: string
-          maxLength: 4096
-      additionalProperties: false
+    minItems: 1
+    maxItems: 8
+    items: { type: string, pattern: '^linux/[a-z0-9]+(?:/[a-z0-9]+)?$' }
+  destination:
+    type: object
+    required: [kind, connection_ref, repository_ref, reference]
+    properties:
+      kind: { type: string, enum: [oci_registry] }
+      connection_ref: { type: string, minLength: 1, maxLength: 255 }
+      repository_ref: { type: string, minLength: 1, maxLength: 255 }
+      reference: { type: string, minLength: 1, maxLength: 255 }
+    additionalProperties: false
 additionalProperties: false

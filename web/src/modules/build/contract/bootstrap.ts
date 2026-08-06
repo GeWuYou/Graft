@@ -5,6 +5,10 @@ export const BUILD_BOOTSTRAP_ROUTE = {
     menuPath: BUILD_ROUTE_PATH.JOBS,
     routeName: 'BuildJobList',
   },
+  ARTIFACTS: {
+    menuPath: BUILD_ROUTE_PATH.ARTIFACTS,
+    routeName: 'BuildArtifactList',
+  },
   CREATE: {
     path: BUILD_ROUTE_PATH.CREATE,
     pageRouteName: 'BuildJobCreateIndex',

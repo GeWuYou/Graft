@@ -3097,8 +3097,94 @@ export interface paths {
     /** List Build-owned job projections */
     get: operations['getBuildJobs'];
     put?: never;
-    /** Submit a Dockerfile build Task for an authorized Application */
+    /** Submit an immutable Build execution plan for an authorized Workspace */
     post: operations['postBuildJob'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/artifacts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List immutable Build Artifacts */
+    get: operations['getBuildArtifacts'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/artifact-promotions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit a digest-preserving Artifact Promotion Task */
+    post: operations['postBuildArtifactPromotion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/workspaces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Build-owned Workspaces available to the caller */
+    get: operations['getBuildWorkspaces'];
+    put?: never;
+    /** Create a Build-owned Application Workspace source */
+    post: operations['postBuildWorkspace'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/runtime-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List authorized Runtime Targets with Build capability */
+    get: operations['getBuildRuntimeTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/builder-pools': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Builder Pools available to Build plans */
+    get: operations['getBuildBuilderPools'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -8957,7 +9043,7 @@ export interface components {
       recovery_reason?: string | null;
       capabilities: components['schemas']['task-capabilities'];
     };
-    'build-artifact': {
+    'build-job-artifact': {
       artifact_id: string;
       image_id: string;
       digest?: string;
@@ -8981,7 +9067,7 @@ export interface components {
       created_at: string;
       builder: components['schemas']['build-builder-snapshot'];
       execution: components['schemas']['build-task-execution'];
-      artifact?: components['schemas']['build-artifact'];
+      artifact?: components['schemas']['build-job-artifact'];
     };
     'build-job-list': {
       items: components['schemas']['build-job-summary'][];
@@ -8994,15 +9080,105 @@ export interface components {
       data: components['schemas']['build-job-list'];
     };
     'build-job-create-request': {
-      application_id: components['schemas']['application-id'];
-      context_path: string;
-      dockerfile_path: string;
-      image_repository: string;
-      image_tag: string;
-      build_args?: {
-        name: string;
-        value: string;
-      }[];
+      workspace_id: string;
+      /**
+       * Format: int64
+       * @description Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
+       */
+      runtime_target_id?: number;
+      /** @description Build-owned Builder Pool selection. Provide exactly one of builder_pool_id or runtime_target_id. */
+      builder_pool_id?: string;
+      /** @enum {string} */
+      template_ref: 'oci-dockerfile/default@v1';
+      /** @enum {string} */
+      driver: 'docker-engine@v1';
+      platforms?: string[];
+      destination: {
+        /** @enum {string} */
+        kind: 'oci_registry';
+        connection_ref: string;
+        repository_ref: string;
+        reference: string;
+      };
+    };
+    'build-artifact': {
+      artifact_id: string;
+      digest: string;
+      media_type: string;
+      platforms: string[];
+      /** Format: int64 */
+      size_bytes: number;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'build-artifact-list': {
+      items: components['schemas']['build-artifact'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-build-artifact-list': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-artifact-list'];
+    };
+    'build-artifact-promotion-create-request': {
+      artifact_id: string;
+      publication_id: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      destination: {
+        /** @enum {string} */
+        kind: 'oci_registry';
+        connection_ref: string;
+        repository_ref: string;
+        reference: string;
+      };
+    };
+    'build-workspace': {
+      workspace_id: string;
+      name: string;
+      /** @enum {string} */
+      source_kind: 'application_workspace';
+      source_reference: string;
+      retention_policy: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    'build-workspace-list': {
+      items: components['schemas']['build-workspace'][];
+    };
+    'build-workspace-create-request': {
+      name: string;
+      /** @enum {string} */
+      source_kind: 'application_workspace';
+      source_reference: string;
+    };
+    'enveloped-build-workspace': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-workspace'];
+    };
+    'build-runtime-target': {
+      /** Format: int64 */
+      target_id: number;
+      display_name: string;
+      provider: string;
+      available: boolean;
+      supported_drivers: string[];
+      supported_platforms: string[];
+      workspace_localities: string[];
+      snapshot_delivery_modes: string[];
+    };
+    'build-runtime-target-list': {
+      items: components['schemas']['build-runtime-target'][];
+    };
+    'build-builder-pool': {
+      pool_id: string;
+      display_name: string;
+      scheduling_policy: string;
+    };
+    'build-builder-pool-list': {
+      items: components['schemas']['build-builder-pool'][];
     };
     'build-job-detail': components['schemas']['build-job-summary'] & {
       runtime_provider: string;
@@ -19985,7 +20161,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Dockerfile build Task accepted. */
+      /** @description Build execution plan Task accepted. */
       202: {
         headers: {
           [name: string]: unknown;
@@ -20010,6 +20186,200 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildArtifacts: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Immutable Artifact page. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-artifact-list'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postBuildArtifactPromotion: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['build-artifact-promotion-create-request'];
+      };
+    };
+    responses: {
+      /** @description Promotion Task accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-receipt'];
+        };
+      };
+      /** @description Invalid promotion request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description Idempotency-Key was previously used with different Promotion input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildWorkspaces: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build Workspaces. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['api-envelope'] & {
+            data: components['schemas']['build-workspace-list'];
+          };
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postBuildWorkspace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['build-workspace-create-request'];
+      };
+    };
+    responses: {
+      /** @description Build Workspace created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-workspace'];
+        };
+      };
+      /** @description Invalid workspace request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Workspace identity already exists with different source facts. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildRuntimeTargets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Build-capable Runtime Targets. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['api-envelope'] & {
+            data: components['schemas']['build-runtime-target-list'];
+          };
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildBuilderPools: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Builder Pools. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['api-envelope'] & {
+            data: components['schemas']['build-builder-pool-list'];
+          };
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

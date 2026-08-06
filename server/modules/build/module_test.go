@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	containerdi "graft/server/internal/container"
+	"graft/server/internal/cronx"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -80,6 +81,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	menuRegistry := menu.NewRegistry()
 	menu.RegisterDomainGroups(menuRegistry)
 	permissionRegistry := permission.NewRegistry()
+	cronRegistry := cronx.NewRegistry()
 	services := containerdi.New()
 	for key, value := range map[any]any{
 		(*moduleapi.ApplicationBuildContextResolver)(nil): testBuildContexts{},
@@ -96,6 +98,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	if err := NewModule(testBuildRepository{}).Register(&module.Context{
 		MenuRegistry:       menuRegistry,
 		PermissionRegistry: permissionRegistry,
+		CronRegistry:       cronRegistry,
 		Services:           services,
 	}); err != nil {
 		t.Fatalf("register build module: %v", err)
@@ -107,7 +110,12 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	if err := menuRegistry.Validate(); err != nil {
 		t.Fatalf("validate build menu: %v", err)
 	}
-	menus := menuRegistry.Items()
+	assertBuildMenus(t, menuRegistry.Items())
+	assertSnapshotMaterializationCleanupJob(t, cronRegistry.Items())
+}
+
+func assertBuildMenus(t *testing.T, menus []menu.Item) {
+	t.Helper()
 	if !slices.ContainsFunc(menus, func(item menu.Item) bool {
 		return item.Code == "build.jobs" &&
 			item.ParentCode == "domain.build" &&
@@ -117,6 +125,32 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 	}) {
 		t.Fatalf("expected build jobs menu, got %#v", menus)
 	}
+	if !slices.ContainsFunc(menus, func(item menu.Item) bool {
+		return item.Code == "build.artifacts" &&
+			item.ParentCode == "domain.build" &&
+			item.Path == "/build/artifacts" &&
+			item.Icon == "image-artifact" &&
+			item.Permission == buildcontract.BuildReadPermission &&
+			item.Module == moduleID
+	}) {
+		t.Fatalf("expected build artifacts menu, got %#v", menus)
+	}
+}
+
+func assertSnapshotMaterializationCleanupJob(t *testing.T, jobs []cronx.Job) {
+	t.Helper()
+	if !slices.ContainsFunc(jobs, isSnapshotMaterializationCleanupJob) {
+		t.Fatalf("expected snapshot materialization cleanup job, got %#v", jobs)
+	}
+}
+
+func isSnapshotMaterializationCleanupJob(item cronx.Job) bool {
+	return item.Key == snapshotMaterializationCleanupJobName &&
+		item.Category == cronx.JobCategoryRetention &&
+		item.TitleKey == snapshotMaterializationCleanupJobTitleKey &&
+		item.DescriptionKey == snapshotMaterializationCleanupJobDescription &&
+		item.Schedule == snapshotMaterializationCleanupJobSchedule &&
+		item.DefaultEnabled && item.Handler != nil
 }
 
 func assertBuildPermissionMetadata(t *testing.T, permissions []permission.Item) {

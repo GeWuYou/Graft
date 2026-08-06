@@ -58,7 +58,7 @@ get:
 post:
   tags: [build]
   operationId: postBuildJob
-  summary: Submit a Dockerfile build Task for an authorized Application
+  summary: Submit an immutable Build execution plan for an authorized Workspace
   parameters:
     - name: Idempotency-Key
       in: header
@@ -75,7 +75,7 @@ post:
           $ref: ../components/schemas/build-job-create-request.yaml
   responses:
     '202':
-      description: Dockerfile build Task accepted.
+      description: Build execution plan Task accepted.
       content:
         application/json:
           schema:

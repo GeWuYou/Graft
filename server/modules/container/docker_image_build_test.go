@@ -19,6 +19,60 @@ type dockerImageBuildRuntime struct {
 	requestedID string
 }
 
+type snapshotDeliveryBuildTargetReader struct {
+	target moduleapi.BuildRuntimeTargetSummary
+}
+
+func (r snapshotDeliveryBuildTargetReader) ReadBuildTarget(context.Context, int64) (moduleapi.BuildRuntimeTargetSummary, error) {
+	return r.target, nil
+}
+
+func TestDeliverWorkspaceSnapshotProvesManagedTargetLocalMaterialization(t *testing.T) {
+	if err := os.MkdirAll(filepath.Join(os.TempDir(), "graft-build-snapshots"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "delivery-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	service, err := newTestService(containerServiceOptions{
+		runtime:      &dockerImageBuildRuntime{},
+		enabled:      true,
+		buildTargets: snapshotDeliveryBuildTargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Provider: runtimeNameDocker, Available: true, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := (containerImageBuilder{service: service}).DeliverWorkspaceSnapshot(context.Background(), moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: root, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TargetID != 4 || result.SnapshotID != "snapshot-1" || result.ContentDigest != "sha256:source" || result.DeliveryMode != moduleapi.SnapshotDeliveryModeTargetLocal {
+		t.Fatalf("delivery proof = %#v", result)
+	}
+}
+
+func TestDeliverWorkspaceSnapshotRejectsUnsupportedTransferAndUnmanagedRoot(t *testing.T) {
+	service, err := newTestService(containerServiceOptions{
+		runtime:      &dockerImageBuildRuntime{},
+		enabled:      true,
+		buildTargets: snapshotDeliveryBuildTargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Provider: runtimeNameDocker, Available: true, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	builder := containerImageBuilder{service: service}
+	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: t.TempDir(), DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
+	if _, err := builder.DeliverWorkspaceSnapshot(context.Background(), request); err == nil {
+		t.Fatal("provider-transfer unexpectedly succeeded without a provider adapter")
+	}
+	request.DeliveryMode = moduleapi.SnapshotDeliveryModeTargetLocal
+	if _, err := builder.DeliverWorkspaceSnapshot(context.Background(), request); err == nil {
+		t.Fatal("unmanaged snapshot root unexpectedly succeeded")
+	}
+}
+
 func (r *dockerImageBuildRuntime) ListDockerImages(context.Context) (DockerImageListResult, error) {
 	return DockerImageListResult{}, nil
 }
@@ -93,6 +147,22 @@ printf 'sha256:built-image' > "$iid_file"
 	}
 }
 
+func TestManifestSourceReferencesUsesDigestAndRejectsDuplicatePlatform(t *testing.T) {
+	digestA := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	digestB := "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	sources, err := manifestSourceReferences("registry.example:5000/project/app:v1", []moduleapi.PlatformArtifact{{Platform: "linux/amd64", Digest: digestA}, {Platform: "linux/arm64", Digest: digestB}})
+	if err != nil {
+		t.Fatalf("manifestSourceReferences: %v", err)
+	}
+	if !slices.Equal(sources, []string{"registry.example:5000/project/app@" + digestA, "registry.example:5000/project/app@" + digestB}) {
+		t.Fatalf("sources = %#v", sources)
+	}
+	_, err = manifestSourceReferences("registry.example/project/app:v1", []moduleapi.PlatformArtifact{{Platform: "linux/amd64", Digest: digestA}, {Platform: "linux/amd64", Digest: digestB}})
+	if err == nil {
+		t.Fatal("duplicate platform manifest sources succeeded")
+	}
+}
+
 func TestBuildImagePreservesDockerCommandError(t *testing.T) {
 	workspace, dockerBinary := writeDockerBuildScript(t, `
 printf 'build failed\n' >&2
@@ -135,6 +205,26 @@ func TestDockerBuildLogWriterDropsNilSinkAndBoundsLongLines(t *testing.T) {
 	owner := newDockerBuildLogSink(context.Background(), func(context.Context, moduleapi.TaskLogEntry) error { return nil })
 	if _, err := owner.writer("stdout").Write(make([]byte, maxDockerBuildLogBuffer+1)); err == nil {
 		t.Fatal("expected oversized log line error")
+	}
+}
+
+func TestPublicationReferenceUsesProviderEndpointAndRejectsInvalidEndpoint(t *testing.T) {
+	reference, err := publicationReference(moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example/v2", Destination: moduleapi.AuthorizedArtifactDestination{RepositoryRef: "team/api", Reference: "v1"}})
+	if err != nil || reference != "registry.example/v2/team/api:v1" {
+		t.Fatalf("reference = %q, err = %v", reference, err)
+	}
+	if _, err := publicationReference(moduleapi.RegistryPublicationBinding{Endpoint: "unix:///var/run/docker.sock", Destination: moduleapi.AuthorizedArtifactDestination{RepositoryRef: "team/api", Reference: "v1"}}); err == nil {
+		t.Fatal("expected non-HTTP registry endpoint to be rejected")
+	}
+}
+
+func TestPublishImageOnTargetRejectsUnsupportedCredentialExecutionMode(t *testing.T) {
+	builder := containerImageBuilder{service: &service{}}
+	_, err := builder.PublishImageOnTarget(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "sha256:image"}, moduleapi.RegistryPublicationBinding{
+		AuthExecution: moduleapi.RegistryAuthExecution{Mode: "unsupported"},
+	}, nil)
+	if err == nil {
+		t.Fatal("expected unsupported credential execution mode to be rejected")
 	}
 }
 

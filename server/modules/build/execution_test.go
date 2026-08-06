@@ -12,15 +12,46 @@ import (
 )
 
 type recordingBuildRepository struct {
-	created        buildstore.JobSnapshot
-	snapshot       buildstore.JobSnapshot
-	settledID      uint64
-	settleCanceled bool
-	settleDeadline bool
-	getBuildIDErr  error
-	createErr      error
-	listResult     buildstore.ListResult
-	listQuery      buildstore.ListQuery
+	created            buildstore.JobSnapshot
+	snapshot           buildstore.JobSnapshot
+	settledID          uint64
+	settleCanceled     bool
+	settleDeadline     bool
+	getBuildIDErr      error
+	createErr          error
+	listResult         buildstore.ListResult
+	listQuery          buildstore.ListQuery
+	artifactResult     buildstore.V2ArtifactListResult
+	v2Plan             moduleapi.BuildExecutionPlan
+	workspaces         []moduleapi.BuildWorkspace
+	publicationSources []moduleapi.ArtifactPublicationSource
+	promotionInput     moduleapi.OCIArtifactCopyInput
+	promotionResult    moduleapi.OCIArtifactCopyResult
+	promotionAuth      moduleapi.RegistryAuthExecution
+	promotionSettled   bool
+}
+
+func (r *recordingBuildRepository) CreateWorkspace(context.Context, moduleapi.BuildWorkspace) error {
+	return nil
+}
+
+func (r *recordingBuildRepository) GetWorkspace(context.Context, string) (moduleapi.BuildWorkspace, error) {
+	return moduleapi.BuildWorkspace{ID: "workspace_app", Name: "Application", SourceKind: moduleapi.WorkspaceSourceApplication, SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"}, nil
+}
+
+func (r *recordingBuildRepository) ListWorkspaces(context.Context, uint64) ([]moduleapi.BuildWorkspace, error) {
+	return append([]moduleapi.BuildWorkspace(nil), r.workspaces...), nil
+}
+
+func (r *recordingBuildRepository) MaterializeExecutionPlan(_ context.Context, _ *sql.Tx, submission moduleapi.TaskSubmission, plan moduleapi.BuildExecutionPlan, _ uint64) (string, error) {
+	if r.createErr != nil {
+		return "", r.createErr
+	}
+	if submission.TaskID == nil {
+		return "", errors.New("task id is required")
+	}
+	r.v2Plan = plan
+	return plan.ID, nil
 }
 
 func (r *recordingBuildRepository) CreateJob(_ context.Context, value buildstore.JobSnapshot) error {
@@ -60,6 +91,19 @@ func (r *recordingBuildRepository) ListJobs(_ context.Context, query buildstore.
 	return r.listResult, nil
 }
 
+func (r *recordingBuildRepository) ListV2Artifacts(context.Context, int, int) (buildstore.V2ArtifactListResult, error) {
+	return r.artifactResult, nil
+}
+
+func (r *recordingBuildRepository) ListArtifactPublicationSources(context.Context, string) ([]moduleapi.ArtifactPublicationSource, error) {
+	return append([]moduleapi.ArtifactPublicationSource(nil), r.publicationSources...), nil
+}
+
+func (r *recordingBuildRepository) SettleArtifactPromotion(_ context.Context, input moduleapi.OCIArtifactCopyInput, result moduleapi.OCIArtifactCopyResult, auth moduleapi.RegistryAuthExecution) error {
+	r.promotionInput, r.promotionResult, r.promotionAuth, r.promotionSettled = input, result, auth, true
+	return nil
+}
+
 func (r *recordingBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.JobProjection, error) {
 	if r.getBuildIDErr != nil {
 		return buildstore.JobProjection{}, r.getBuildIDErr
@@ -84,7 +128,25 @@ type recordingBuildTasks struct {
 	batchErr         error
 	batchIDs         []uint64
 	beginSubmission  *moduleapi.TaskSubmission
+	submitCalls      int
 }
+
+func (r *recordingBuildTasks) Submit(_ context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	r.submitCalls++
+	r.input = input
+	if r.err != nil {
+		return moduleapi.TaskReceipt{}, r.err
+	}
+	return moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusReady}, nil
+}
+
+func (*recordingBuildTasks) SettleExternalReceipt(context.Context, moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
+	return moduleapi.ExternalReceiptSettlement{}, errors.New("not implemented")
+}
+
+func (*recordingBuildTasks) Cancel(context.Context, uint64) error { return nil }
+
+func (*recordingBuildTasks) RetryStage(context.Context, uint64, uint64) error { return nil }
 
 func (r *recordingBuildTasks) GetTasksByIDs(_ context.Context, taskIDs []uint64) ([]moduleapi.TaskView, error) {
 	r.batchIDs = append([]uint64(nil), taskIDs...)
@@ -177,6 +239,69 @@ func TestBuildStatusFilterGroupsTaskRuntimeStates(t *testing.T) {
 
 func stringPtr(value string) *string { return &value }
 
+func TestNormalizePlatformDigest(t *testing.T) {
+	valid := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	for _, value := range []string{valid, "registry.example/team/app@" + valid} {
+		if got, ok := normalizePlatformDigest(value); !ok || got != valid {
+			t.Fatalf("normalizePlatformDigest(%q) = %q, %t", value, got, ok)
+		}
+	}
+	for _, value := range []string{"", "sha256:short", "registry.example/team/app:v1"} {
+		if got, ok := normalizePlatformDigest(value); ok || got != "" {
+			t.Fatalf("normalizePlatformDigest(%q) = %q, %t, want rejection", value, got, ok)
+		}
+	}
+}
+
+type snapshotDeliveryCapabilityStub struct {
+	result moduleapi.WorkspaceSnapshotDeliveryResult
+	err    error
+	last   moduleapi.WorkspaceSnapshotDeliveryRequest
+}
+
+type providerConformanceCapabilityStub struct {
+	result moduleapi.ProviderExecutionConformanceResult
+	err    error
+}
+
+func (s providerConformanceCapabilityStub) ConformProviderExecution(context.Context, moduleapi.ProviderExecutionConformanceRequest) (moduleapi.ProviderExecutionConformanceResult, error) {
+	return s.result, s.err
+}
+
+func (s *snapshotDeliveryCapabilityStub) DeliverWorkspaceSnapshot(_ context.Context, request moduleapi.WorkspaceSnapshotDeliveryRequest) (moduleapi.WorkspaceSnapshotDeliveryResult, error) {
+	s.last = request
+	return s.result, s.err
+}
+
+func TestVerifySnapshotDeliveryRequiresMatchingFrozenIdentity(t *testing.T) {
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: "/tmp/graft-build-snapshots/snapshot-1"}
+	capability := &snapshotDeliveryCapabilityStub{result: moduleapi.WorkspaceSnapshotDeliveryResult{TargetID: 4, SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}}
+	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err != nil {
+		t.Fatal(err)
+	}
+	if capability.last.TargetID != 4 || capability.last.SnapshotID != snapshot.ID || capability.last.ContentDigest != snapshot.ContentDigest || capability.last.DeliveryMode != moduleapi.SnapshotDeliveryModeTargetLocal {
+		t.Fatalf("delivery request = %#v", capability.last)
+	}
+	capability.result.ContentDigest = "sha256:other"
+	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err == nil {
+		t.Fatal("mismatched Snapshot proof unexpectedly succeeded")
+	}
+}
+
+func TestVerifyProviderConformanceFailsClosedOnIncompleteEvidence(t *testing.T) {
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source"}
+	capability := providerConformanceCapabilityStub{result: moduleapi.ProviderExecutionConformanceResult{ProviderID: "docker-target", ConformanceVersion: "v1", Executable: true}}
+	if _, err := verifyProviderConformance(context.Background(), capability, moduleapi.ProviderExecutionConformanceRequest{TargetID: 4, DriverRef: "docker-engine", Platform: "linux/amd64", SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}); err == nil {
+		t.Fatal("incomplete provider conformance unexpectedly succeeded")
+	}
+}
+
+func TestTemporaryPlatformTagIsDeterministicAndScoped(t *testing.T) {
+	if got := temporaryPlatformTag("v1", "linux/amd64"); got != "v1-graft-linux-amd64" {
+		t.Fatalf("temporaryPlatformTag = %q", got)
+	}
+}
+
 func (r *recordingBuildDocker) BuildImage(_ context.Context, input moduleapi.DockerImageBuildInput, _ moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
 	r.input = input
 	return moduleapi.DockerImageBuildResult{ImageID: "sha256:image", Repository: input.ImageRepository, Tag: input.ImageTag}, nil
@@ -190,6 +315,82 @@ func (buildStageRun) Attempt() int                                            { 
 func (r buildStageRun) Input() json.RawMessage                                { return r.input }
 func (buildStageRun) CancellationRequested(context.Context) bool              { return false }
 func (buildStageRun) AppendLog(context.Context, moduleapi.TaskLogEntry) error { return nil }
+
+type promotionRegistryStub struct {
+	binding moduleapi.RegistryArtifactCopyBinding
+	err     error
+	copy    moduleapi.AuthorizedArtifactCopy
+}
+
+func (s *promotionRegistryStub) AuthorizeArtifactCopy(_ context.Context, _ uint64, source moduleapi.ArtifactPublicationSource, destination moduleapi.BuildDestination) (moduleapi.AuthorizedArtifactCopy, error) {
+	return moduleapi.AuthorizedArtifactCopy{Source: source, Destination: moduleapi.AuthorizedArtifactDestination(destination)}, s.err
+}
+
+func (s *promotionRegistryStub) ResolveArtifactCopyBinding(_ context.Context, copy moduleapi.AuthorizedArtifactCopy) (moduleapi.RegistryArtifactCopyBinding, error) {
+	s.copy = copy
+	return s.binding, s.err
+}
+
+type promotionCopyProviderStub struct {
+	copy func(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
+}
+
+func (s promotionCopyProviderStub) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return s.copy(ctx, targetID, input, binding, sink)
+}
+
+func TestArtifactPromotionExecutorCopiesFrozenDigestThenSettles(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
+	destination := moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "stable"}
+	repository := &recordingBuildRepository{}
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", Destination: moduleapi.RegistryPublicationBinding{Destination: destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}}
+	provider := promotionCopyProviderStub{copy: func(_ context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+		if targetID != 4 || input.Source != source || input.Destination != destination {
+			t.Fatalf("copy input = %#v target=%d", input, targetID)
+		}
+		return moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: source.MediaType, SizeBytes: 19}, nil
+	}}
+	executor := &artifactPromotionExecutor{service: service, provider: provider, registry: registry, cancels: make(map[uint64]context.CancelFunc)}
+	payload, _ := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: source, Destination: destination, RuntimeTargetID: 4})
+	if err := executor.Execute(context.Background(), buildStageRun{input: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if !repository.promotionSettled || repository.promotionInput.Source != source || repository.promotionInput.Destination != destination || repository.promotionResult.Digest != digest || repository.promotionAuth.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+		t.Fatalf("promotion settlement = input:%#v result:%#v auth:%#v settled:%t", repository.promotionInput, repository.promotionResult, repository.promotionAuth, repository.promotionSettled)
+	}
+}
+
+func TestArtifactPromotionExecutorCancellationDoesNotSettle(t *testing.T) {
+	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
+	destination := moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "stable"}
+	repository := &recordingBuildRepository{}
+	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	started := make(chan struct{})
+	executor := &artifactPromotionExecutor{service: service, registry: &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{Destination: moduleapi.RegistryPublicationBinding{Destination: destination}}}, cancels: make(map[uint64]context.CancelFunc), provider: promotionCopyProviderStub{copy: func(ctx context.Context, _ int64, _ moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+		close(started)
+		<-ctx.Done()
+		return moduleapi.OCIArtifactCopyResult{}, ctx.Err()
+	}}}
+	payload, _ := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: source, Destination: destination, RuntimeTargetID: 4})
+	done := make(chan error, 1)
+	go func() { done <- executor.Execute(context.Background(), buildStageRun{input: payload}) }()
+	<-started
+	if err := executor.Cancel(context.Background(), buildStageRun{input: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled execution error = %v", err)
+	}
+	if repository.promotionSettled {
+		t.Fatal("cancelled promotion unexpectedly settled")
+	}
+}
 
 func TestSubmitFreezesAuthorizedBuildSnapshot(t *testing.T) {
 	contexts := &recordingBuildContexts{}

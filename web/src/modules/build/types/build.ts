@@ -7,3 +7,6 @@ export type BuildJobSummary = components['schemas']['build-job-summary'];
 export type BuildJobDetail = components['schemas']['build-job-detail'];
 export type BuildJobCreateRequest = components['schemas']['build-job-create-request'];
 export type BuildJobListResponse = components['schemas']['build-job-list'];
+export type BuildArtifact = components['schemas']['build-artifact'];
+export type BuildArtifactListResponse = components['schemas']['build-artifact-list'];
+export type BuildArtifactPromotionCreateRequest = components['schemas']['build-artifact-promotion-create-request'];

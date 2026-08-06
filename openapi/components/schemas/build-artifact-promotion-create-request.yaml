@@ -1,0 +1,25 @@
+type: object
+required: [artifact_id, publication_id, runtime_target_id, destination]
+properties:
+  artifact_id:
+    type: string
+    minLength: 1
+    maxLength: 64
+  publication_id:
+    type: string
+    minLength: 1
+    maxLength: 64
+  runtime_target_id:
+    type: integer
+    format: int64
+    minimum: 1
+  destination:
+    type: object
+    required: [kind, connection_ref, repository_ref, reference]
+    properties:
+      kind: { type: string, enum: [oci_registry] }
+      connection_ref: { type: string, minLength: 1, maxLength: 255 }
+      repository_ref: { type: string, minLength: 1, maxLength: 255 }
+      reference: { type: string, minLength: 1, maxLength: 255 }
+    additionalProperties: false
+additionalProperties: false

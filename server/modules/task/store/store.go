@@ -47,6 +47,8 @@ type Repository interface {
 	CancelPendingTask(ctx context.Context, taskID uint64, finishedAt time.Time, durationMS *int64) error
 	// CancelUntrackedRunningStage 以 CAS 结算已经收到取消请求、但当前 Runtime 没有本地 worker 跟踪的普通 running Stage，并分别持久化 Stage 和 Task 的执行时长。
 	CancelUntrackedRunningStage(ctx context.Context, taskID uint64, stageID uint64, finishedAt time.Time, stageDurationMS *int64, taskDurationMS *int64) error
+	// CancelUntrackedRunningStages 在同一事务中结算一个协调 Task 的全部失联 running leg，防止多实例取消只释放其中一条执行权。
+	CancelUntrackedRunningStages(ctx context.Context, taskID uint64, finishedAt time.Time, taskDurationMS *int64) (int, error)
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) (taskmodel.Stage, error)
 	RescheduleStage(ctx context.Context, stageID uint64, retryAt time.Time) error
 	NextEventSequence(ctx context.Context, taskID uint64) (int64, error)

@@ -7,3 +7,5 @@ rbac.permissionCatalog.buildCancel.display: 取消构建
 rbac.permissionCatalog.buildCancel.description: 允许取消正在执行的构建任务。
 rbac.permissionCatalog.buildRetry.display: 重试构建
 rbac.permissionCatalog.buildRetry.description: 允许人工重试需要处置的构建任务。
+scheduler.job.buildSnapshotMaterializationCleanup.title: 构建快照保留清理
+scheduledTask.buildSnapshotMaterializationCleanup.description: 清理已过期的构建自有快照物化，同时保留不可变构建证据。

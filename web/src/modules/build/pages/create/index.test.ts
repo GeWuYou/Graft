@@ -4,9 +4,20 @@ import { defineComponent, h } from 'vue';
 
 import BuildCreatePage from './index.vue';
 
-const mocks = vi.hoisted(() => ({ createBuildJob: vi.fn(), push: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  createBuildJob: vi.fn(),
+  getBuildBuilderPools: vi.fn(),
+  getBuildRuntimeTargets: vi.fn(),
+  getBuildWorkspaces: vi.fn(),
+  push: vi.fn(),
+}));
 
-vi.mock('../../api/build', () => ({ createBuildJob: mocks.createBuildJob }));
+vi.mock('../../api/build', () => ({
+  createBuildJob: mocks.createBuildJob,
+  getBuildBuilderPools: mocks.getBuildBuilderPools,
+  getBuildRuntimeTargets: mocks.getBuildRuntimeTargets,
+  getBuildWorkspaces: mocks.getBuildWorkspaces,
+}));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
@@ -45,6 +56,17 @@ const InputStub = defineComponent({
       });
   },
 });
+const SelectStub = defineComponent({
+  props: { modelValue: { type: [Number, String], default: '' } },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    return () =>
+      h('select', {
+        value: props.modelValue,
+        onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+      });
+  },
+});
 const ButtonStub = defineComponent({
   props: { type: { type: String, default: 'button' } },
   setup(props, { slots }) {
@@ -61,6 +83,7 @@ function mountPage() {
         't-form': FormStub,
         't-form-item': WrapperStub,
         't-input': InputStub,
+        't-select': SelectStub,
         't-input-number': InputStub,
       },
     },
@@ -71,6 +94,21 @@ describe('BuildCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.push.mockResolvedValue(undefined);
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [{ workspace_id: 'workspace_app', name: 'Application' }] });
+    mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
+    mocks.getBuildBuilderPools.mockResolvedValue({
+      items: [{ pool_id: 'pool:default', display_name: 'Default Pool' }],
+    });
+  });
+
+  it('loads selector options through the Build-owned read boundary', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
+    expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
+    expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).not.toContain('selectorsUnavailable');
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {

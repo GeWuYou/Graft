@@ -1,6 +1,9 @@
 package moduleapi
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // RuntimeTargetSummary 是运行时资源向调用方暴露的最小目标身份投影。
 type RuntimeTargetSummary struct {
@@ -56,4 +59,88 @@ type ComposeRuntimeTargetReader interface {
 type RuntimeTargetDeploymentAssignmentReader interface {
 	ListAssignedComposeTargets(ctx context.Context, userID uint64) ([]ComposeRuntimeTargetSummary, error)
 	CanUseComposeTarget(ctx context.Context, userID uint64, targetID uint64) (bool, error)
+}
+
+// BuildRuntimeTargetSummary 是 Build domain 可消费的运行目标构建能力投影。
+// 它只公开调度所需的能力事实，不公开连接端点或凭据。
+type BuildRuntimeTargetSummary struct {
+	ID                    int64
+	DisplayName           string
+	Provider              string
+	Available             bool
+	SupportedDrivers      []string
+	SupportedPlatforms    []string
+	WorkspaceLocalities   []string
+	SnapshotDeliveryModes []string
+}
+
+const (
+	// SnapshotDeliveryModeTargetLocal 表示 Provider 在目标自身可直接读取 Build-owned Snapshot 物化内容。
+	SnapshotDeliveryModeTargetLocal = "target-local"
+	// SnapshotDeliveryModeProviderTransfer 预留给经过 Provider 证明的跨目标 Snapshot 传输适配器。
+	SnapshotDeliveryModeProviderTransfer = "provider-transfer"
+)
+
+// BuildRuntimeTargetReader 解析具备构建能力的运行目标，不携带调用者授权范围。
+// Build 执行端必须结合 RuntimeTargetBuildAssignmentReader 复核调用者权限。
+type BuildRuntimeTargetReader interface {
+	ReadBuildTarget(ctx context.Context, targetID int64) (BuildRuntimeTargetSummary, error)
+}
+
+// RuntimeTargetBuildAssignmentReader 仅暴露构建安全的运行目标使用范围。
+// 该边界避免 Build 将目标选择授权扩大为目标管理或连接访问权限。
+type RuntimeTargetBuildAssignmentReader interface {
+	ListAssignedBuildTargets(ctx context.Context, userID uint64) ([]BuildRuntimeTargetSummary, error)
+	CanUseBuildTarget(ctx context.Context, userID uint64, targetID int64) (bool, error)
+}
+
+// BuilderTelemetrySnapshot 是 Runtime/Infrastructure 提供给 Build Scheduler 的目标级事实。
+// 它必须带有来源、观察时间和过期时间；UI 资源摘要、主机负载或静态 Builder 标签不能替代该事实。
+type BuilderTelemetrySnapshot struct {
+	TargetID    int64
+	Available   bool
+	Capacity    int
+	Running     int
+	Queued      int
+	ObservedAt  time.Time
+	ExpiresAt   time.Time
+	SourceRef   string
+	Region      string
+	AffinityKey string
+}
+
+// FreshAt 判断调度器在指定时刻是否可以使用该快照；失效或不自洽的快照必须 fail-closed。
+func (s BuilderTelemetrySnapshot) FreshAt(now time.Time) bool {
+	return s.validIdentity() && s.validCapacity() && s.validWindow(now)
+}
+
+func (s BuilderTelemetrySnapshot) validIdentity() bool {
+	return s.TargetID > 0 && s.Available && s.SourceRef != ""
+}
+
+func (s BuilderTelemetrySnapshot) validCapacity() bool {
+	return s.Capacity > 0 && s.Running >= 0 && s.Queued >= 0 && s.Running <= s.Capacity
+}
+
+func (s BuilderTelemetrySnapshot) validWindow(now time.Time) bool {
+	return !s.ObservedAt.IsZero() && !s.ExpiresAt.IsZero() && now.Before(s.ExpiresAt) && !s.ObservedAt.After(now)
+}
+
+// RuntimeTargetBuilderTelemetryReader 是 Runtime Target 对构建调度器的窄化遥测边界。
+// 实现必须返回带 freshness 和来源证明的目标事实，不能把端点、凭据或运行时内部对象泄漏给 Build。
+type RuntimeTargetBuilderTelemetryReader interface {
+	ListBuilderTelemetry(context.Context, []int64) ([]BuilderTelemetrySnapshot, error)
+}
+
+// RuntimeTargetProviderConnection 是 provider 私有执行边界使用的连接事实；不得进入 HTTP、Build Plan 或 Task metadata。
+type RuntimeTargetProviderConnection struct {
+	TargetID       int64
+	Provider       string
+	Endpoint       string
+	ConnectionKind string
+}
+
+// RuntimeTargetProviderConnectionReader 由 Runtime Target 提供给具体 provider，统一负责可用性和 build capability 校验。
+type RuntimeTargetProviderConnectionReader interface {
+	GetProviderConnection(context.Context, int64) (RuntimeTargetProviderConnection, error)
 }

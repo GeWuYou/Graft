@@ -7,12 +7,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
+
+	"graft/server/internal/moduleapi"
 )
 
 // ErrNotFound 表示查询不到未软删除的运行时目标。
 var ErrNotFound = errors.New("runtime target not found")
+
+// ErrUnavailable 表示目标记录存在但当前不可用于 provider 执行。
+var ErrUnavailable = errors.New("runtime target unavailable")
 
 // LocalDockerProbe 记录一次受限的本机 Docker 探测结果；调用方应保留探测时间和失败原因，供运行时目标状态查询使用。
 type LocalDockerProbe struct {
@@ -107,6 +113,14 @@ type Target struct {
 	Availability   bool       `json:"availability"`
 	LastError      string     `json:"lastError"`
 	CheckedAt      *time.Time `json:"checkedAt"`
+}
+
+// DockerTargetConnection 是 Runtime Target 交给 provider adapter 的私有连接事实。
+// 它只允许在 runtime-target 与 provider 实现之间流转，不应进入 moduleapi、Build plan 或 HTTP 投影。
+type DockerTargetConnection struct {
+	TargetID       uint64
+	Endpoint       string
+	ConnectionKind string
 }
 
 // UserAssignment 表示一条有效部署使用授权，不携带运行目标凭据。
@@ -285,8 +299,152 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 	return item, nil
 }
 
+// ListBuildTargets 返回仍存活且声明镜像构建能力的 Docker Target；连接事实仍由 provider 私有查询读取。
+func (r *SQLRepository) ListBuildTargets(ctx context.Context) ([]Target, error) {
+	if r == nil || r.db == nil {
+		return []Target{}, nil
+	}
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE provider = 'docker' AND deleted_at = 0 ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]Target, 0)
+	for rows.Next() {
+		var item Target
+		var capabilities []byte
+		if err := rows.Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(capabilities, &item.Capabilities); err != nil {
+			return nil, err
+		}
+		if containsCapability(item.Capabilities, "image_build") {
+			items = append(items, item)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// GetDockerTargetConnection 读取仍存活的 Docker Target 私有连接事实；调用方必须在同一 provider boundary
+// 内完成 endpoint 校验和连接使用，不能将结果复制到公共资源投影。
+func (r *SQLRepository) GetDockerTargetConnection(ctx context.Context, id uint64) (DockerTargetConnection, error) {
+	if r == nil || r.db == nil || id == 0 {
+		return DockerTargetConnection{}, ErrNotFound
+	}
+	var connection DockerTargetConnection
+	var available bool
+	var capabilities []byte
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT id, endpoint, connection_kind, availability, capabilities_json FROM runtime_targets WHERE id = $1 AND provider = 'docker' AND deleted_at = 0`, id).Scan(&connection.TargetID, &connection.Endpoint, &connection.ConnectionKind, &available, &capabilities)
+	if errors.Is(err, sql.ErrNoRows) {
+		return DockerTargetConnection{}, ErrNotFound
+	}
+	if err != nil {
+		return DockerTargetConnection{}, fmt.Errorf("get Docker target connection: %w", err)
+	}
+	if !available {
+		return DockerTargetConnection{}, ErrUnavailable
+	}
+	var capabilityNames []string
+	if err := json.Unmarshal(capabilities, &capabilityNames); err != nil {
+		return DockerTargetConnection{}, fmt.Errorf("decode Docker target capabilities: %w", err)
+	}
+	if !containsCapability(capabilityNames, "image_build") {
+		return DockerTargetConnection{}, ErrUnavailable
+	}
+	if err := validateDockerEndpoint(connection.Endpoint, connection.ConnectionKind); err != nil {
+		return DockerTargetConnection{}, err
+	}
+	return connection, nil
+}
+
+// GetProviderConnection 读取任意 Build-capable Runtime Target 的私有连接事实；provider 适配器必须在本边界内消费 endpoint。
+//
+//nolint:cyclop // 连接读取在同一私有边界内完成存活、能力、格式和 provider 身份校验。
+func (r *SQLRepository) GetProviderConnection(ctx context.Context, targetID int64) (moduleapi.RuntimeTargetProviderConnection, error) {
+	if r == nil || r.db == nil || targetID < 1 {
+		return moduleapi.RuntimeTargetProviderConnection{}, ErrNotFound
+	}
+	var connection moduleapi.RuntimeTargetProviderConnection
+	var available bool
+	var capabilities []byte
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT id, provider, endpoint, connection_kind, availability, capabilities_json FROM runtime_targets WHERE id = $1 AND deleted_at = 0`, targetID).Scan(&connection.TargetID, &connection.Provider, &connection.Endpoint, &connection.ConnectionKind, &available, &capabilities)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.RuntimeTargetProviderConnection{}, ErrNotFound
+	}
+	if err != nil {
+		return moduleapi.RuntimeTargetProviderConnection{}, fmt.Errorf("get provider connection: %w", err)
+	}
+	if !available {
+		return moduleapi.RuntimeTargetProviderConnection{}, ErrUnavailable
+	}
+	var capabilityNames []string
+	if err := json.Unmarshal(capabilities, &capabilityNames); err != nil {
+		return moduleapi.RuntimeTargetProviderConnection{}, fmt.Errorf("decode provider capabilities: %w", err)
+	}
+	if strings.TrimSpace(connection.Provider) == "" || !containsCapability(capabilityNames, "image_build") || !validProviderEndpoint(connection.Endpoint) {
+		return moduleapi.RuntimeTargetProviderConnection{}, ErrUnavailable
+	}
+	return connection, nil
+}
+
+func validProviderEndpoint(endpoint string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	return err == nil && parsed.Scheme != "" && parsed.User == nil && !strings.ContainsAny(endpoint, "\x00\r\n")
+}
+
+func containsCapability(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func validateDockerEndpoint(endpoint, connectionKind string) error {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || parsed.Scheme == "" || parsed.User != nil || strings.ContainsAny(endpoint, "\x00\r\n") {
+		return errors.New("runtime target Docker endpoint is invalid")
+	}
+	return validateDockerEndpointScheme(parsed, connectionKind)
+}
+
+func validateDockerEndpointScheme(parsed *url.URL, connectionKind string) error {
+	switch connectionKind {
+	case "unix_socket":
+		if parsed.Scheme != "unix" || parsed.Path == "" {
+			return errors.New("runtime target Docker endpoint does not match connection kind")
+		}
+	case "tcp", "ssh":
+		if parsed.Scheme != connectionKind || parsed.Host == "" {
+			return errors.New("runtime target Docker endpoint does not match connection kind")
+		}
+	default:
+		return errors.New("runtime target Docker connection kind is unsupported")
+	}
+	return nil
+}
+
 // ListAssignedComposeTargets 仅返回指定用户获授权且具备 Compose 能力的存活目标。
 func (r *SQLRepository) ListAssignedComposeTargets(ctx context.Context, userID uint64) ([]Target, error) {
+	if r == nil || r.db == nil || userID == 0 {
+		return []Target{}, nil
+	}
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT t.id, t.provider, t.display_name, t.endpoint_label, t.connection_kind, t.capabilities_json, t.availability, t.last_error, t.checked_at
+		FROM runtime_targets t INNER JOIN runtime_target_user_assignments a ON a.runtime_target_id = t.id
+		WHERE t.deleted_at = 0 AND a.deleted_at = 0 AND a.user_id = $1 ORDER BY t.provider, t.display_name, t.id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	return scanTargets(rows)
+}
+
+// ListAssignedBuildTargets 仅返回指定用户获授权的运行目标；能力与健康筛选由调用方基于当前构建契约完成。
+func (r *SQLRepository) ListAssignedBuildTargets(ctx context.Context, userID uint64) ([]Target, error) {
 	if r == nil || r.db == nil || userID == 0 {
 		return []Target{}, nil
 	}
@@ -368,6 +526,6 @@ func (r *SQLRepository) UpsertLocalDocker(ctx context.Context, probe LocalDocker
 	if r == nil || r.db == nil {
 		return nil
 	}
-	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_targets (provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at, system_managed, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by) VALUES ('docker', $1, 'Local Docker', 'unix:///var/run/docker.sock', 'unix_socket', '["containers","compose_execution","workspace_access"]'::jsonb, $2, $3, $4, true, NOW(), 0, NOW(), 0, 0, 0) ON CONFLICT (provider, endpoint) WHERE deleted_at = 0 DO UPDATE SET capabilities_json = EXCLUDED.capabilities_json, availability = EXCLUDED.availability, last_error = EXCLUDED.last_error, checked_at = EXCLUDED.checked_at, updated_at = NOW(), updated_by = 0`, probe.Endpoint, probe.Available, probe.Error, probe.CheckedAt)
+	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_targets (provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at, system_managed, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by) VALUES ('docker', $1, 'Local Docker', 'unix:///var/run/docker.sock', 'unix_socket', '["containers","compose_execution","image_build","workspace_access"]'::jsonb, $2, $3, $4, true, NOW(), 0, NOW(), 0, 0, 0) ON CONFLICT (provider, endpoint) WHERE deleted_at = 0 DO UPDATE SET capabilities_json = EXCLUDED.capabilities_json, availability = EXCLUDED.availability, last_error = EXCLUDED.last_error, checked_at = EXCLUDED.checked_at, updated_at = NOW(), updated_by = 0`, probe.Endpoint, probe.Available, probe.Error, probe.CheckedAt)
 	return err
 }

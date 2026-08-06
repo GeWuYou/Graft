@@ -1,0 +1,7 @@
+type: object
+required: [pool_id, display_name, scheduling_policy]
+properties:
+  pool_id: { type: string }
+  display_name: { type: string }
+  scheduling_policy: { type: string }
+additionalProperties: false

@@ -7,3 +7,5 @@ rbac.permissionCatalog.buildCancel.display: Cancel Build
 rbac.permissionCatalog.buildCancel.description: Allows cancelling running build Tasks.
 rbac.permissionCatalog.buildRetry.display: Retry Build
 rbac.permissionCatalog.buildRetry.description: Allows manually retrying build Tasks that need attention.
+scheduler.job.buildSnapshotMaterializationCleanup.title: Build Snapshot Retention Cleanup
+scheduledTask.buildSnapshotMaterializationCleanup.description: Purges expired Build-owned snapshot materializations while retaining immutable build evidence.

@@ -41,6 +41,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	}); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ApplicationWorkspaceSnapshotResolver)(nil), func(containerdi.Resolver) (any, error) {
+		return m.service, nil
+	}); err != nil {
+		return err
+	}
 	if err := m.service.registerRealtimeTopics(); err != nil {
 		return err
 	}

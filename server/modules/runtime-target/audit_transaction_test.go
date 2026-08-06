@@ -92,7 +92,7 @@ func newRuntimeTargetAuditMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 }
 
 func expectRuntimeTargetUpsert(mock sqlmock.Sqlmock, probe store.LocalDockerProbe) {
-	mock.ExpectExec("INSERT INTO runtime_targets").
+	mock.ExpectExec(`INSERT INTO runtime_targets.*image_build`).
 		WithArgs(probe.Endpoint, probe.Available, probe.Error, probe.CheckedAt).
 		WillReturnResult(sqlmock.NewResult(9, 1))
 }

@@ -1,0 +1,7 @@
+type: object
+required: [name, source_kind, source_reference]
+properties:
+  name: { type: string, minLength: 1, maxLength: 255 }
+  source_kind: { type: string, enum: [application_workspace] }
+  source_reference: { type: string, minLength: 1, maxLength: 255 }
+additionalProperties: false

@@ -33,7 +33,7 @@ const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
 const runtimeTargetListSummaryConcurrency = 4
 const runtimeTargetListKeywordMaxLength = 128
 
-// Module 暴露 runtime-target API 路由，并提供有界的本机 Docker 发现能力。
+// Module 暴露 runtime-target API 路由，并提供有界的 Docker Target 发现与 provider 能力。
 type Module struct {
 	repository      *store.SQLRepository
 	summaries       *summaryCache
@@ -112,6 +112,7 @@ func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationS
 	return registrationServices{auth: auth, authorizer: authorizer, users: users, savedViews: savedViews}, nil
 }
 
+//nolint:cyclop // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
 func (m *Module) registerReaders(ctx *module.Context) error {
 	reader := func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), reader); err != nil {
@@ -120,7 +121,41 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), reader); err != nil {
 		return err
 	}
-	return ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetDeploymentAssignmentReader)(nil), reader)
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetDeploymentAssignmentReader)(nil), reader); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.BuildRuntimeTargetReader)(nil), reader); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), reader); err != nil {
+		return err
+	}
+	connectionReader := func(_ containerdi.Resolver) (any, error) { return m.repository, nil }
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
+		return err
+	}
+	provider := func(_ containerdi.Resolver) (any, error) {
+		return dockerTargetProvider{repository: m.repository}, nil
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), provider); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImagePublicationCapability)(nil), provider); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), provider); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil), provider); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil), provider); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerBuildProvider)(nil), provider); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Module) registerRoutes(ctx *module.Context, auth moduleapi.AuthService, authorizer moduleapi.Authorizer) {
@@ -166,6 +201,70 @@ func (r runtimeTargetReader) CanUseComposeTarget(ctx context.Context, userID uin
 		return false, nil
 	}
 	return r.repository.HasActiveUserAssignment(ctx, targetID, userID)
+}
+
+// ReadBuildTarget 返回指定运行目标的构建能力摘要，不携带用户授权判断。
+func (r runtimeTargetReader) ReadBuildTarget(ctx context.Context, targetID int64) (moduleapi.BuildRuntimeTargetSummary, error) {
+	if r.repository == nil || targetID < 1 {
+		return moduleapi.BuildRuntimeTargetSummary{}, store.ErrNotFound
+	}
+	target, err := r.repository.Get(ctx, uint64(targetID)) //nolint:gosec // targetID is positive and bounded by the public API.
+	if err != nil {
+		return moduleapi.BuildRuntimeTargetSummary{}, err
+	}
+	if _, err := r.repository.GetDockerTargetConnection(ctx, uint64(targetID)); err != nil { //nolint:gosec // targetID is positive and bounded by the public API.
+		return moduleapi.BuildRuntimeTargetSummary{}, err
+	}
+	summary, ok := buildTargetSummary(target)
+	if !ok || summary.ID != targetID {
+		return moduleapi.BuildRuntimeTargetSummary{}, store.ErrNotFound
+	}
+	return summary, nil
+}
+
+// ListAssignedBuildTargets 仅返回调用者获授权且当前可用于构建的目标摘要。
+func (r runtimeTargetReader) ListAssignedBuildTargets(ctx context.Context, userID uint64) ([]moduleapi.BuildRuntimeTargetSummary, error) {
+	targets, err := r.repository.ListBuildTargets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]moduleapi.BuildRuntimeTargetSummary, 0, len(targets))
+	for _, target := range targets {
+		if _, connectionErr := r.repository.GetDockerTargetConnection(ctx, target.ID); connectionErr != nil {
+			continue
+		}
+		summary, ok := buildTargetSummary(target)
+		if !ok {
+			continue
+		}
+		assigned, assignmentErr := r.repository.HasActiveUserAssignment(ctx, uint64(summary.ID), userID) //nolint:gosec // summary ID originated from a positive database ID.
+		if assignmentErr != nil {
+			return nil, assignmentErr
+		}
+		if assigned {
+			results = append(results, summary)
+		}
+	}
+	return results, nil
+}
+
+// CanUseBuildTarget 复核调用者是否可使用当前健康且具备构建能力的运行目标。
+func (r runtimeTargetReader) CanUseBuildTarget(ctx context.Context, userID uint64, targetID int64) (bool, error) {
+	if r.repository == nil || userID == 0 || targetID < 1 {
+		return false, nil
+	}
+	target, err := r.repository.Get(ctx, uint64(targetID)) //nolint:gosec // targetID is positive and bounded by the public API.
+	if err != nil {
+		return false, nil
+	}
+	if _, err := r.repository.GetDockerTargetConnection(ctx, uint64(targetID)); err != nil { //nolint:gosec // targetID is positive and bounded by the public API.
+		return false, nil
+	}
+	summary, ok := buildTargetSummary(target)
+	if !ok || summary.ID != targetID {
+		return false, nil
+	}
+	return r.repository.HasActiveUserAssignment(ctx, uint64(targetID), userID)
 }
 
 func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Authorizer) error {
@@ -332,6 +431,44 @@ func hasComposeCapabilities(capabilities []string) bool {
 		seen[capability] = true
 	}
 	return seen["compose_execution"] && seen["workspace_access"]
+}
+
+// buildTargetSummary 将具备 Docker 构建能力的目标转换为 provider-neutral 摘要。
+func buildTargetSummary(target store.Target) (moduleapi.BuildRuntimeTargetSummary, bool) {
+	if target.ID > maxRuntimeTargetID || !target.Availability || !hasBuildCapability(target.Capabilities) {
+		return moduleapi.BuildRuntimeTargetSummary{}, false
+	}
+	switch target.Provider {
+	case "docker":
+		delivery := moduleapi.SnapshotDeliveryModeTargetLocal
+		localities := []string{"target-local", "build-snapshot"}
+		if target.ConnectionKind != "unix_socket" {
+			delivery = moduleapi.SnapshotDeliveryModeProviderTransfer
+			localities = []string{"build-snapshot"}
+		}
+		return moduleapi.BuildRuntimeTargetSummary{
+			ID:                    int64(target.ID),
+			DisplayName:           target.DisplayName,
+			Provider:              target.Provider,
+			Available:             true,
+			SupportedDrivers:      []string{"docker-engine"},
+			SupportedPlatforms:    []string{"linux/amd64"},
+			WorkspaceLocalities:   localities,
+			SnapshotDeliveryModes: []string{delivery},
+		}, true
+	default:
+		return moduleapi.BuildRuntimeTargetSummary{}, false
+	}
+}
+
+// hasBuildCapability 判断运行目标是否显式声明镜像构建能力。
+func hasBuildCapability(capabilities []string) bool {
+	for _, capability := range capabilities {
+		if capability == "image_build" {
+			return true
+		}
+	}
+	return false
 }
 
 // Boot 记录当前可用的本机 Docker 端点，但不让应用启动依赖 Docker 可用。

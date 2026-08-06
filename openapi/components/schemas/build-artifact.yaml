@@ -1,11 +1,12 @@
 type: object
-required: [artifact_id, image_id, repository, tag]
+required: [artifact_id, digest, media_type, platforms, size_bytes, created_at]
 properties:
-  artifact_id: { type: string }
-  image_id: { type: string }
-  digest: { type: string }
-  repository: { type: string }
-  tag: { type: string }
+  artifact_id: { type: string, minLength: 1 }
+  digest: { type: string, pattern: '^sha256:.+$' }
+  media_type: { type: string, minLength: 1 }
+  platforms:
+    type: array
+    items: { type: string, minLength: 1 }
   size_bytes: { type: integer, format: int64, minimum: 0 }
-  platform: { type: string }
+  created_at: { type: string, format: date-time }
 additionalProperties: false

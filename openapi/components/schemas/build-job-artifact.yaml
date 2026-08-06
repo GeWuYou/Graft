@@ -1,0 +1,11 @@
+type: object
+required: [artifact_id, image_id, repository, tag]
+properties:
+  artifact_id: { type: string }
+  image_id: { type: string }
+  digest: { type: string }
+  repository: { type: string }
+  tag: { type: string }
+  size_bytes: { type: integer, format: int64, minimum: 0 }
+  platform: { type: string }
+additionalProperties: false

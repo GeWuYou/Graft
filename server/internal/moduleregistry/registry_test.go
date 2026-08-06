@@ -97,6 +97,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/announcement/migrations",
 		"modules/audit/migrations",
 		"modules/notification/migrations",
+		"modules/registry/migrations",
 		"modules/runtime-target/migrations",
 		"modules/system-config/migrations",
 		"modules/network/migrations",

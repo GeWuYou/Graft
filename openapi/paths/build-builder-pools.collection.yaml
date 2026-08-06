@@ -1,0 +1,19 @@
+get:
+  tags: [build]
+  operationId: getBuildBuilderPools
+  summary: List Builder Pools available to Build plans
+  responses:
+    '200':
+      description: Builder Pools.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/api-envelope.yaml
+              - type: object
+                required: [data]
+                properties:
+                  data: { $ref: ../components/schemas/build-builder-pool-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
