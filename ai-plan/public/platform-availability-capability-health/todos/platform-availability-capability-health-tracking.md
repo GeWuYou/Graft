@@ -46,9 +46,9 @@ closeout:
 
 ## Current Recovery Point
 
-- Phase 0 server contracts and Phase 1 browser availability takeover are implemented and validated.
+- Phase 0 through Phase 4 are implemented and validated; Phase 5 remains the final recovery and diagnostics acceptance slice.
 - No schema or migration work is planned for the initial phases.
-- Next step: Phase 4 capability API, initial providers, and dashboard projection.
+- Next step: Phase 5 recovering UX, diagnostics, and full acceptance.
 
 ## Task Checklist
 
@@ -71,10 +71,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime"],
-  "pending_batches": ["phase-4-capability-projection", "phase-5-recovery-diagnostics"],
+  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection"],
+  "pending_batches": ["phase-5-recovery-diagnostics"],
   "current_batch": null,
-  "next_batch": "phase-4-capability-projection",
+  "next_batch": "phase-5-recovery-diagnostics",
   "closeout_status": "batch-complete"
 }
 ```
