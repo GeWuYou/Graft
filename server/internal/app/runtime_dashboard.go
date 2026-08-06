@@ -56,7 +56,7 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 			abnormal := 0
 			for _, entry := range r.capabilityCoordinator.RegistryEntries() {
 				observation := observations[entry.Descriptor.Key]
-				status := dashboard.HealthStatus(observation.Status)
+				status := dashboardHealthStatusForCapability(observation.Status)
 				if status != dashboard.HealthStatusHealthy {
 					abnormal++
 					summaryStatus = dashboard.HealthStatusDegraded
@@ -72,6 +72,21 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 			return dashboard.WidgetPayload{"summary": dashboard.HealthSummaryItem{Status: summaryStatus, Label: string(summaryStatus)}, "items": items, "abnormal_services": abnormal, "state": string(state), "priority": string(priority)}, nil
 		}),
 	})
+}
+
+// dashboardHealthStatusForCapability 将完整 capability 状态投影到 Dashboard 现有的稳定四态契约。
+// capability API 保留 checking、unavailable、unsupported 等诊断细节；Dashboard 只表达用户需要关注的粗粒度健康结果。
+func dashboardHealthStatusForCapability(status moduleapi.CapabilityStatus) dashboard.HealthStatus {
+	switch status {
+	case moduleapi.CapabilityStatusHealthy:
+		return dashboard.HealthStatusHealthy
+	case moduleapi.CapabilityStatusDisabled:
+		return dashboard.HealthStatusDisabled
+	case moduleapi.CapabilityStatusDegraded, moduleapi.CapabilityStatusUnavailable:
+		return dashboard.HealthStatusDegraded
+	default:
+		return dashboard.HealthStatusUnknown
+	}
 }
 
 func (r *Runtime) registerCoreModuleRuntimeDashboard() error {

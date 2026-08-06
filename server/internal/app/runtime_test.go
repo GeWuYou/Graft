@@ -54,6 +54,30 @@ type runtimeAccessLogRecorderRepo struct {
 	deleted []time.Time
 }
 
+func TestDashboardHealthStatusForCapabilityPreservesWidgetContract(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   moduleapi.CapabilityStatus
+		expected dashboard.HealthStatus
+	}{
+		{name: "healthy", status: moduleapi.CapabilityStatusHealthy, expected: dashboard.HealthStatusHealthy},
+		{name: "disabled", status: moduleapi.CapabilityStatusDisabled, expected: dashboard.HealthStatusDisabled},
+		{name: "degraded", status: moduleapi.CapabilityStatusDegraded, expected: dashboard.HealthStatusDegraded},
+		{name: "unavailable", status: moduleapi.CapabilityStatusUnavailable, expected: dashboard.HealthStatusDegraded},
+		{name: "checking", status: moduleapi.CapabilityStatusChecking, expected: dashboard.HealthStatusUnknown},
+		{name: "unsupported", status: moduleapi.CapabilityStatusUnsupported, expected: dashboard.HealthStatusUnknown},
+		{name: "unknown", status: moduleapi.CapabilityStatusUnknown, expected: dashboard.HealthStatusUnknown},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dashboardHealthStatusForCapability(test.status); got != test.expected {
+				t.Fatalf("dashboard capability status projection = %q, want %q", got, test.expected)
+			}
+		})
+	}
+}
+
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {
 	r.created = append(r.created, input)
 	return httpx.AccessLog{}, nil
