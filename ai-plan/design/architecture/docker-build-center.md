@@ -1,43 +1,27 @@
-# Docker Build Center Architecture
+# Docker Build Center (Historical)
 
-## Authority
+## Status
 
-The Build domain owns explicit build jobs and immutable artifact evidence. The Task Runtime remains the sole authority
-for execution state, stages, logs, cancellation, retry, crash recovery, and `task:{id}` realtime updates. The Container
-module owns Docker SDK/CLI execution and daemon error mapping. Project owns authorized Application workspace context;
-Build consumes a narrow resolver capability and never receives Project entities or arbitrary host paths.
+This document records the Docker-first Build Center authority that delivered the original Build Job history and local
+Docker execution slice. It is historical evidence only and must not govern new Build write contracts, UI flows, Runtime
+Target capability semantics, or future Build implementations.
 
-## Navigation
+The canonical successor is [Build Domain v2](build-domain-v2.md). Its delivery order is
+[Build Domain v2 Roadmap](../../roadmap/build-domain-v2.md).
 
-Build is a first-level domain under the existing `domain.build` group. The canonical page is `Build Jobs` at
-`/build/jobs`; Docker image inventory remains a Container runtime resource and is not the build authority.
+## Preserved Evidence
 
-## First Slice
+- Build remains a first-level `Build` domain; Docker image inventory remains a Docker runtime resource rather than the
+  Build authority.
+- Task Runtime remains the only authority for execution status, stages, logs, cancellation, retry, recovery, and
+  `task:{id}` realtime updates.
+- Application Workspace and Runtime Target connections remain upstream authorities; Build must not accept arbitrary host
+  paths, endpoint details, or credential values.
+- Legacy completed Build Jobs stay readable as immutable historical evidence.
 
-The first executor is a local Docker CLI adapter using controlled argument arrays, `--progress=plain`, `--iidfile`, and
-context cancellation. Inputs are an authorized Application ID, workspace-relative context/Dockerfile paths, an image
-repository/tag, and non-sensitive build arguments. Runtime target identity is derived server-side. Registry push,
-buildx, multi-platform output, secrets, SBOM, signatures, Git sources, and automatic deployment are later phases.
+## Superseded Assumptions
 
-## Stable Relationships
-
-```text
-Application workspace -> BuildJob -> Task Runtime -> Container Docker build -> BuildArtifact
-```
-
-BuildJob stores frozen configuration and source/display snapshots but not an independent execution status or log store.
-BuildArtifact stores image ID, digest, size, platform, and generated reference evidence; repository/tag remains a mutable
-runtime reference. Repeated settlement is idempotent and does not guess success after an unknown executor outcome.
-
-## Security And Compatibility
-
-The API rejects absolute paths, traversal, control characters, symlink escapes, arbitrary Docker endpoint/CLI input,
-secret values, and caller-selected runtime targets. Build permissions are `build.read`, `build.create`, `build.cancel`,
-and `build.retry`. No compatibility layer is introduced while the canonical module/menu/contract authority can be repaired
-directly.
-
-## Delivery
-
-Phase 0 establishes module contracts and task integration seams. Phase 1 adds the three immutable-history tables, the
-transactional submission path, Docker executor, API, and web list/create/detail flow. Later phases add history projections,
-Git and advanced Docker executors, then pipeline triggers and supply-chain artifacts.
+The former direct Docker build input model (`Application ID`, context path, Dockerfile path, image repository, and tag)
+is superseded. New Build Domain v2 submissions freeze a Workspace Snapshot and Execution Plan before Task submission,
+select a compatible Runtime Target build capability through a Builder Instance or Pool, and produce first-class Artifact
+and Publication evidence.

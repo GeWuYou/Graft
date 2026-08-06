@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `build-domain-v2`
+  - Recovery entry: `ai-plan/public/build-domain-v2/README.md`
+
 - `task-submission-lifecycle`
   - Recovery entry: `ai-plan/public/task-submission-lifecycle/README.md`
 
