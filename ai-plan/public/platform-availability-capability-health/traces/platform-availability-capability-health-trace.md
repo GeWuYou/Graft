@@ -62,3 +62,8 @@
 - Diagnostic copy reuses the shared observability clipboard helper and TDesign message feedback; no new notification authority was added.
 - Backend tests/build/OpenAPI checks and frontend typecheck/lint/contract checks passed.
 - Full `bun run check` remains blocked only by the pre-existing missing Monaco Dockerfile language import; focused container detail tests passed (101 tests).
+
+## 2026-08-07 Corrective Review
+
+- Dashboard health projection now maps capability-only `checking`, `unavailable`, and `unsupported` states to the existing dashboard enum instead of leaking invalid wire values.
+- Regression coverage added at the app projection seam; `go test ./internal/... ./modules/network`, backend build, OpenAPI validation, frontend lint/typecheck, and focused web tests passed.

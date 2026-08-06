@@ -71,7 +71,7 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection"],
+  "completed_batches": ["phase-0-server-foundation", "phase-1-web-availability", "phase-2-query-gating", "phase-3-realtime", "phase-4-capability-projection", "phase-5-recovery-diagnostics"],
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
