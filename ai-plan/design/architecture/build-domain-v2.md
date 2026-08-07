@@ -116,11 +116,15 @@ prepare_workspace -> schedule_builder -> run_build -> export_artifact -> publish
 为可审计的多 Runtime Target 调度；在该能力未发布的路径中，计划仍只使用一个手工选择的 Builder Instance，避免
 把未实现的负载或地域判断伪装成调度结果。
 
-`Builder Placement` freezes accepted selection evidence: each target platform records Builder Instance, Runtime Target,
-`PolicyID`, `PolicyVersion`, deterministic seed when applicable, policy-input fingerprint, selected output, capability
-profile/version, full capability-negotiation result, telemetry source/observation identity when applicable, and the
-Reservation fence. It remains Task Runtime leg
-and Build executor input, but does not alter the Execution Plan's existing public structure. Workspace Snapshot
+`Builder Placement` is Build's persisted, per-`ExecutionPlanID` and per-platform authority record. Its stable key is
+the immutable Execution Plan identity plus target platform, and its canonical serialized form contributes to the
+Execution Plan digest. Each record freezes Builder Instance, Runtime Target, `PolicyID`, `PolicyVersion`, deterministic
+seed when applicable, policy-input fingerprint, selected output, capability profile/version, full
+capability-negotiation result, telemetry source/observation identity when applicable, selected
+`WorkspaceLocality`, selected `SnapshotDeliveryMode`, provider-backed Snapshot delivery proof and proof fingerprint,
+and the Reservation fence. Task Runtime and Build executor read that one persisted record as the leg input; they never
+maintain an independent recovery selection. A retry or replay reuses exactly that placement and its frozen delivery
+evidence, while only an explicit new scheduling flow may create a new placement record and Execution Plan. Workspace Snapshot
 已经由 Build 接管，因此 target 必须明确声明 `build-snapshot` locality 才能被 placement 选中；这不是 endpoint 或
 任意目录的兼容通道。
 

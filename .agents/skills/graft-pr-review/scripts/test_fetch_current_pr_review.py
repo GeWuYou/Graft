@@ -147,6 +147,10 @@ Second description.
         self.assertEqual(len(parsed["nitpick_comments"]), 2)
         self.assertEqual([item["range"] for item in parsed["nitpick_comments"]], ["L10-L12", "L20-L22"])
         self.assertNotIn("---", parsed["nitpick_comments"][0]["description"])
+        self.assertIn("First description.", parsed["nitpick_comments"][0]["description"])
+        self.assertNotIn("Second description.", parsed["nitpick_comments"][0]["description"])
+        self.assertIn("Second description.", parsed["nitpick_comments"][1]["description"])
+        self.assertNotIn("First description.", parsed["nitpick_comments"][1]["description"])
 
 
 class ParsePreMergeChecksTests(unittest.TestCase):
