@@ -2836,7 +2836,7 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 }
 
 .project-detail-tabs :deep(.t-tabs__content) {
-  padding-top: var(--graft-density-gap-16);
+  padding: var(--graft-density-gap-16);
 }
 
 .project-section,
