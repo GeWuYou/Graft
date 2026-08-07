@@ -21,21 +21,21 @@ Round context:
 
 Topic objective:
 
-- Produce the persisted Chinese audit proving whether every `THEME_PRESET_DEFINITIONS` visual difference can be recreated through writable Personalization Workbench state.
+- Complete validation of the authority-first remediation that makes every `THEME_PRESET_DEFINITIONS` visual difference reproducible through writable Personalization Workbench state.
 
 Work contract summary:
 
-- Long-running audit topic with one bounded multi-agent evidence wave; no implementation, roadmap, or ADR is authorized.
+- Long-running audit topic with an authorized, completed remediation wave; current scope is validation and archive-readiness only.
 
 Locked decisions:
 
 1. Presets must materialize editable configuration and cannot remain runtime visual authority.
-2. Recommendations must prefer editable configuration, semantic tokens, shared Material tokens, and derived rules.
+2. Runtime token resolution must consume editable state only; chart and Material tokens use shared editable definitions.
 
 Current batch plan:
 
-1. Collect per-preset mapping, token reachability, Workbench control, and hidden-authority evidence.
-2. Persist the audit matrix and governance recommendations; retain the topic for a separately authorized remediation decision.
+1. Run the project Vitest entrypoint for focused Vue SFC tests when additional coverage is needed; do not use Bun's native `bun test` runner for those files.
+2. Rerun `bun run check`, then perform archive-readiness evaluation.
 
 Validation expectations:
 

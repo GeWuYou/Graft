@@ -6,7 +6,7 @@ Theme Preset Governance Audit
 
 ## Scope
 
-Audit every entry in `THEME_PRESET_DEFINITIONS` from preset definition through setting state, Workbench controls, token editor, derived root attributes, CSS, and rendered effect. Publish a durable Chinese report and governance-only recommendations; do not implement the recommendations.
+Audit every entry in `THEME_PRESET_DEFINITIONS` and, after explicit authorization, remove identified runtime preset authority through writable settings state and shared editable token definitions.
 
 ## Repository Truth
 
@@ -45,9 +45,11 @@ closeout:
 
 ## Current Recovery Point
 
-- Completed batch: `preset-authority-audit` and `persist-audit-report`.
-- Authority finding: runtime token composition still reads `selectedThemePresetId` and preset material token overrides directly.
-- Next step: await an explicitly authorized governance-remediation scope; the required evidence is in `reports/theme-preset-governance-audit.md`.
+- Completed batches: `preset-authority-audit`, `persist-audit-report`, and `authority-first-remediation`.
+- Authority repair: `selectedThemePresetId` remains catalog/diff metadata only. Applying a preset or resetting materializes the authority/style/token snapshot; `buildThemeModeSnapshot()` consumes editable inputs only.
+- Token repair: all Chart and Material values identified by the audit, including shared highlight/noise values, are registered in `THEME_TOKEN_DEFINITIONS` and exposed by the Advanced editor.
+- Validation clarification: Vue SFC suites must run through `bun run test:run` (Vitest), not Bun's native `bun test` runner. The focused Vitest suites pass.
+- Completion validation: `bun run check` passes. Next step: assess archive readiness; the required audit baseline remains in `reports/theme-preset-governance-audit.md`.
 
 ## Task Checklist
 
@@ -55,22 +57,29 @@ closeout:
 - [x] Audit manual Workbench control coverage and derived style rules.
 - [x] Audit preset identity, DOM/CSS, and runtime hidden-authority branches.
 - [x] Persist final Chinese report and recommendations.
+- [x] Materialize preset authority, regular token, and Material token values into editable state.
+- [x] Remove preset identity and persisted application scope from runtime token composition.
+- [x] Add shared editable Chart and Material token definitions and Workbench groups.
+- [x] Establish focused Vitest evidence for store and Workbench catalog/panel behavior.
+- [x] Run the web completion entrypoint.
+- [ ] Reassess archive readiness.
 
 ## Acceptance Conditions
 
 - Every preset has a mapping through its rendered visual effects and an explicit manual reproducibility result.
-- Every preset-introduced token is classified as editable, missing, duplicated, or preset-only.
-- The report identifies all hidden authority and gives only authority-first governance refactors.
+- Runtime rendering depends only on editable theme state and shared derived rules, not a preset identity.
+- Every preset-introduced token is writable through the Advanced editor.
+- Store and component regression evidence cover both application scopes and ID-independence.
 
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "direct-specialized-skill",
-  "completed_batches": ["preset-authority-audit", "persist-audit-report"],
-  "pending_batches": [],
-  "current_batch": "governance-remediation-decision",
-  "next_batch": "await-authorized-remediation-scope",
-  "closeout_status": "report-persisted"
+  "completed_batches": ["preset-authority-audit", "persist-audit-report", "authority-first-remediation"],
+  "pending_batches": ["archive-readiness-check"],
+  "current_batch": "archive-readiness-check",
+  "next_batch": "archive-or-retain-topic",
+  "closeout_status": "remediation-and-web-validation-passed"
 }
 ```

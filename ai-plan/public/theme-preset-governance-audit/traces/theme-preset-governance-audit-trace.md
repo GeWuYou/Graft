@@ -20,15 +20,31 @@
 - The report will not authorize implementation or preserve preset-specific compatibility logic.
 - A direct preset read in runtime rendering is an authority finding even when the preset's values are otherwise editable.
 
+## 2026-08-07 Authorized authority-first remediation
+
+- Replaced runtime preset-object composition with one-time materialization into `ThemeAuthorityState`. `selectedThemePresetId` remains catalog and attribution metadata and no longer selects rendered token values.
+- Replaced persisted `preserveThemePersonalization` with a Workbench application-scope preference: palette selection preserves existing editable appearance/style values, while complete selection writes the entire authority/style/token snapshot. The preference is persisted for the visible control but is excluded from drafts and runtime token composition.
+- Made reset-to-default a complete default-preset materialization.
+- Registered the four Chart tokens, nine preset Material tokens, and shared glass highlight/noise tokens in `THEME_TOKEN_DEFINITIONS`; the Advanced editor exposes shared Chart and Material groups.
+- Added regression coverage for state equivalence after preset-ID replacement and both preset application scopes. `bun test src/store/modules/setting.test.ts` passed 49 tests.
+- The apparent component-test failures were caused by running `bun test`, which uses Bun's native runner rather than the repository's Vue SFC runner. `bun run test:run -- <focused files>` ran Vitest and passed 57 store/catalog/panel tests.
+- `bun run check` passed the web completion chain, including formatting, type checks, i18n governance, lint/style checks, Vitest, and release build.
+
+## 2026-08-07 Application Scope Persistence Repair
+
+- The application-scope switch was initially component-local and reset to `palette` whenever the Workbench reopened.
+- Moved it to persisted setting config while excluding it from `WORKBENCH_STYLE_CONFIG_KEYS`; closing or canceling a visual draft no longer discards the user's next-application preference.
+- Focused Vitest coverage now verifies the persisted scope is outside visual draft rollback. It never becomes runtime visual authority.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "direct-specialized-skill",
-  "completed_batches": ["preset-authority-audit", "persist-audit-report"],
-  "pending_batches": [],
-  "current_batch": "governance-remediation-decision",
-  "next_batch": "await-authorized-remediation-scope",
-  "closeout_status": "report-persisted"
+  "completed_batches": ["preset-authority-audit", "persist-audit-report", "authority-first-remediation"],
+  "pending_batches": ["archive-readiness-check"],
+  "current_batch": "archive-readiness-check",
+  "next_batch": "archive-or-retain-topic",
+  "closeout_status": "remediation-and-web-validation-passed"
 }
 ```

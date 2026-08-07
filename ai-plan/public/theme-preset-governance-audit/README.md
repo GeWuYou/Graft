@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-- Topic objective: audit whether every built-in theme preset is a fully reproducible writable initial configuration, then publish authority-first governance recommendations.
+- Topic objective: verify every built-in theme preset is a fully reproducible writable initial configuration, publish the audit, and complete the authorized authority-first remediation.
 - Current status: `active`
 - Task class: `web`
 - Intake summary: long-running audit because the requested durable topic and multi-agent evidence wave need a recovery record.
@@ -10,8 +10,8 @@
   - `web/src/config/theme-workbench.ts`
   - `web/src/store/modules/setting.ts` and `web/src/store/modules/setting-theme-*.ts`
   - `web/src/layouts/components/theme-workbench/**` and `web/src/style/**`
-- Completed so far: intake, startup preflight, and initial authority discovery.
-- Not started yet: complete preset-by-preset evidence collection and report synthesis.
+- Completed so far: intake, full 21-preset audit, and the authorized remediation that materializes preset data into editable state.
+- Current verification: focused Vitest regression coverage passes for store and Workbench catalog/panel behavior.
 
 ## Recovery Receipt
 
@@ -31,20 +31,21 @@
 
 Out of scope:
 
-- Implementing the identified governance refactors.
 - Adding preset-specific CSS selectors, compatibility branches, or new theme capabilities.
 
 ## Locked Decisions
 
 1. The report evaluates visual authority, not the aesthetic quality of individual preset palettes.
 2. A preset ID, name, or category may support catalog presentation and attribution only; it cannot affect rendered visual output after application.
-3. The final report is the durable result for this topic and records only governance refactors.
+3. The final report is the durable baseline evidence; remediation records its disposition without rewriting the historical findings.
 
 ## Current Recovery Point
 
-- Completed batch: `preset-authority-audit` and `persist-audit-report`.
-- Risk: the worktree still contains user-owned or in-progress theme implementation changes; this audit did not modify them.
-- Next step: await an explicitly authorized governance-remediation scope.
+- Completed batches: `preset-authority-audit`, `persist-audit-report`, and `authority-first-remediation`.
+- Repair result: preset token and Material values are materialized at application/reset time; runtime token resolution no longer reads a preset object. The visible preset-application scope is persisted as a command preference only and never participates in token composition.
+- Validation note: `bun test` invokes Bun's native runner and is not suitable for Vue SFC tests in this project. The project `test:run` script uses Vitest and passes the focused suites.
+- Latest validation: `bun run check` passes, including Vitest and the release build.
+- Next step: perform archive-readiness evaluation or retain the topic for any future preset additions.
 
 ## Work Intake
 
@@ -53,8 +54,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Complete the evidence matrix and governance findings.
-- Persist the final Chinese report under `reports/theme-preset-governance-audit.md`, then update tracking and trace evidence.
+- Rerun the web completion entrypoint and perform archive-readiness evaluation.
 
 ## Validation Targets
 
