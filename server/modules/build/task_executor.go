@@ -212,7 +212,7 @@ type v2ExecutionPlanExecutor struct {
 
 func (v2ExecutionPlanExecutor) Type() moduleapi.StageExecutorType { return v2BuildStageExecutor }
 
-//nolint:cyclop,gocyclo,gocognit // v2 executor 是 frozen-plan validation 与 target-bound publication 的唯一 audited boundary。
+//nolint:cyclop,gocyclo,gocognit,funlen // v2 executor 是 frozen-plan validation、reservation lifecycle 与 target-bound publication 的唯一 audited boundary。
 func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.StageRun) (err error) {
 	reader, ok := e.repository.(buildstore.ExecutionPlanReader)
 	if !ok || e.provider == nil || e.targetDocker == nil || e.executionAdapter == nil || e.registry == nil || e.snapshotDelivery == nil || e.conformance == nil {
@@ -230,19 +230,32 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		return errors.New("execution plan identity does not match task input")
 	}
 	reservationRepository, reservationOK := e.repository.(moduleapi.BuilderReservationRepository)
-	reservationFence := buildstore.BuilderReservationFence(plan.ID, run.TaskID(), run.Attempt())
+	reservationLegID := "single"
+	reservationInstanceID := plan.BuilderInstanceID
+	if len(plan.Platforms) > 1 {
+		placement, found := plan.PlacementForPlatform(input.Platform)
+		if !found || strings.TrimSpace(input.Platform) == "" {
+			return errors.New("execution plan reservation leg is missing")
+		}
+		reservationLegID = input.Platform
+		reservationInstanceID = placement.BuilderInstanceID
+	}
+	reservationFence := buildstore.BuilderReservationFence(plan.ID, run.TaskID(), reservationLegID, run.Attempt())
 	if !reservationOK {
 		return errors.New("builder reservation repository is unavailable")
 	}
 	if run.Attempt() == 1 {
-		if err := reservationRepository.MarkBuilderReservationRunning(ctx, run.TaskID(), reservationFence); err != nil {
+		if err := reservationRepository.MarkBuilderReservationRunning(ctx, run.TaskID(), reservationLegID, reservationFence); err != nil {
 			return fmt.Errorf("start builder reservation: %w", err)
 		}
 	} else {
 		now := time.Now().UTC()
-		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%d", plan.ID, run.Attempt()), InstanceID: plan.BuilderInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: now.Add(buildstore.BuilderReservationLeaseTTL), CreatedAt: now, UpdatedAt: now}); err != nil {
+		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%s_%d", plan.ID, reservationLegID, run.Attempt()), InstanceID: reservationInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), LegID: reservationLegID, FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: now.Add(buildstore.BuilderReservationLeaseTTL), CreatedAt: now, UpdatedAt: now}); err != nil {
 			return fmt.Errorf("reserve builder retry capacity: %w", err)
 		}
+	}
+	if err := reservationRepository.RenewBuilderReservation(ctx, run.TaskID(), reservationLegID, reservationFence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); err != nil {
+		return fmt.Errorf("renew builder reservation: %w", err)
 	}
 	defer func() {
 		state := moduleapi.BuilderReservationReleased
@@ -251,7 +264,7 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		}
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), artifactSettlementTimeout)
 		defer cleanupCancel()
-		if releaseErr := reservationRepository.ReleaseBuilderReservation(cleanupCtx, run.TaskID(), reservationFence, state); releaseErr != nil {
+		if releaseErr := reservationRepository.ReleaseBuilderReservation(cleanupCtx, run.TaskID(), reservationLegID, reservationFence, state); releaseErr != nil {
 			err = errors.Join(err, fmt.Errorf("release builder reservation: %w", releaseErr))
 		}
 	}()

@@ -86,6 +86,7 @@ type BuilderReservation struct {
 	PlanID         string
 	TaskID         uint64
 	Attempt        int
+	LegID          string
 	FenceToken     string
 	State          string
 	LeaseExpiresAt time.Time
@@ -113,8 +114,9 @@ const (
 type BuilderReservationRepository interface {
 	ReserveBuilder(ctx context.Context, tx *sql.Tx, reservation BuilderReservation) (BuilderReservation, error)
 	ReserveBuilderAttempt(ctx context.Context, reservation BuilderReservation) (BuilderReservation, error)
-	MarkBuilderReservationRunning(ctx context.Context, taskID uint64, fenceToken string) error
-	ReleaseBuilderReservation(ctx context.Context, taskID uint64, fenceToken, state string) error
+	MarkBuilderReservationRunning(ctx context.Context, taskID uint64, legID, fenceToken string) error
+	RenewBuilderReservation(ctx context.Context, taskID uint64, legID, fenceToken string, leaseExpiresAt time.Time) error
+	ReleaseBuilderReservation(ctx context.Context, taskID uint64, legID, fenceToken, state string) error
 }
 
 // BuilderResourceRepository 是 Builder Profile、Instance、Pool 及成员关系的持久化边界。

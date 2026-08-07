@@ -1119,7 +1119,7 @@ def parse_comment_cards(comment_block: str) -> list[dict[str, str]]:
             finding_positions = [match.start() for match in finding_starts]
             finding_positions.append(len(body))
             finding_bodies = [
-                body[finding_positions[index] : finding_positions[index + 1]]
+                body[finding_positions[index] : finding_positions[index + 1]].rstrip().removesuffix("---").rstrip()
                 for index in range(len(finding_positions) - 1)
             ]
         else:

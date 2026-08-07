@@ -33,13 +33,16 @@ func TestJobListFiltersPreserveExactFilterArgumentOrder(t *testing.T) {
 }
 
 func TestBuilderReservationFenceChangesForRetryAttempt(t *testing.T) {
-	first := BuilderReservationFence("plan_1", 42, 1)
-	retry := BuilderReservationFence("plan_1", 42, 2)
+	first := BuilderReservationFence("plan_1", 42, "single", 1)
+	retry := BuilderReservationFence("plan_1", 42, "single", 2)
 	if first == retry {
 		t.Fatal("retry reservation fence must differ from the first attempt")
 	}
-	if first != BuilderReservationFence("plan_1", 42, 1) {
+	if first != BuilderReservationFence("plan_1", 42, "single", 1) {
 		t.Fatal("reservation fence must be deterministic for one attempt")
+	}
+	if first == BuilderReservationFence("plan_1", 42, "linux/arm64", 1) {
+		t.Fatal("reservation fence must differ for independent platform legs")
 	}
 }
 
@@ -54,14 +57,14 @@ func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testin
 		t.Fatal(err)
 	}
 	expiresAt := time.Date(2026, time.August, 7, 12, 5, 0, 0, time.UTC)
-	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_1", InstanceID: "builder_1", PlanID: "plan_1", TaskID: 42, Attempt: 1, FenceToken: BuilderReservationFence("plan_1", 42, 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: expiresAt}
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_1", InstanceID: "builder_1", PlanID: "plan_1", TaskID: 42, Attempt: 1, LegID: "single", FenceToken: BuilderReservationFence("plan_1", 42, "single", 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: expiresAt}
 	mock.ExpectBegin()
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("INSERT INTO build_builder_reservations").WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
+	mock.ExpectQuery("INSERT INTO build_builder_reservations").WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
 	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
 	if err != nil {
 		t.Fatalf("reserve builder: %v", err)
@@ -72,6 +75,26 @@ func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testin
 	mock.ExpectCommit()
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRenewBuilderReservationRequiresMatchingRunningFenceAndLeg(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := time.Now().UTC().Add(time.Minute)
+	mock.ExpectExec("UPDATE build_builder_reservations SET lease_expires_at").WithArgs(uint64(42), "linux/amd64", "fence-amd64", expiresAt).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := repository.RenewBuilderReservation(context.Background(), 42, "linux/amd64", "fence-amd64", expiresAt); err != nil {
+		t.Fatalf("renew builder reservation: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

@@ -146,6 +146,7 @@ Second description.
         self.assertEqual(parsed["nitpick_count"], 2)
         self.assertEqual(len(parsed["nitpick_comments"]), 2)
         self.assertEqual([item["range"] for item in parsed["nitpick_comments"]], ["L10-L12", "L20-L22"])
+        self.assertNotIn("---", parsed["nitpick_comments"][0]["description"])
 
 
 class ParsePreMergeChecksTests(unittest.TestCase):

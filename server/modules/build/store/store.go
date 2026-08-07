@@ -359,55 +359,64 @@ VALUES ($1,$2,$3,$4,NULLIF($5, ''),NULLIF($6, ''),$7,$8,$9,$10,$11,$12,$13)
 ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.Digest, snapshotPK, *submission.TaskID, plan.BuilderPoolID, plan.BuilderInstanceID, plan.RuntimeTargetID, plan.Driver, plan.TemplateRef, encodedPlan.platforms, encodedPlan.placements, encodedPlan.destination, nullableUint64(requestedBy)); err != nil {
 		return "", fmt.Errorf("materialize execution plan: %w", err)
 	}
-	if plan.BuilderInstanceID == "" {
-		return "", errors.New("execution plan builder instance is missing")
-	}
 	reservationRepository, ok := any(r).(moduleapi.BuilderReservationRepository)
 	if !ok {
 		return "", errors.New("builder reservation persistence is unavailable")
 	}
-	if _, err := reservationRepository.ReserveBuilder(ctx, tx, moduleapi.BuilderReservation{
-		ID:             "reservation_" + plan.ID,
-		InstanceID:     plan.BuilderInstanceID,
-		PlanID:         plan.ID,
-		TaskID:         *submission.TaskID,
-		Attempt:        1,
-		FenceToken:     BuilderReservationFence(plan.ID, *submission.TaskID, 1),
-		State:          moduleapi.BuilderReservationAccepted,
-		LeaseExpiresAt: time.Now().UTC().Add(BuilderReservationLeaseTTL),
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-	}); err != nil {
-		return "", err
+	placements := plan.BuilderPlacements
+	if len(placements) == 0 {
+		if plan.BuilderInstanceID == "" {
+			return "", errors.New("execution plan builder instance is missing")
+		}
+		placements = []moduleapi.BuilderPlacement{{Platform: "single", BuilderInstanceID: plan.BuilderInstanceID}}
+	}
+	now := time.Now().UTC()
+	for _, placement := range placements {
+		legID := placement.Platform
+		if _, err := reservationRepository.ReserveBuilder(ctx, tx, moduleapi.BuilderReservation{
+			ID:             fmt.Sprintf("reservation_%s_%s", plan.ID, legID),
+			InstanceID:     placement.BuilderInstanceID,
+			PlanID:         plan.ID,
+			TaskID:         *submission.TaskID,
+			Attempt:        1,
+			LegID:          legID,
+			FenceToken:     BuilderReservationFence(plan.ID, *submission.TaskID, legID, 1),
+			State:          moduleapi.BuilderReservationAccepted,
+			LeaseExpiresAt: now.Add(BuilderReservationLeaseTTL),
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}); err != nil {
+			return "", err
+		}
 	}
 	return plan.ID, nil
 }
 
 // BuilderReservationFence 生成与冻结计划绑定的稳定 fencing token。
-func BuilderReservationFence(planID string, taskID uint64, attempt int) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d", planID, taskID, attempt)))
+func BuilderReservationFence(planID string, taskID uint64, legID string, attempt int) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s:%d", planID, taskID, legID, attempt)))
 	return hex.EncodeToString(sum[:])
 }
 
 // ReserveBuilder 在 Task materialization transaction 内取得唯一的 Builder 容量 lease。
 //
-//nolint:cyclop // 唯一性、fence replay 与数据库错误必须在容量 owner 边界集中校验。
+//nolint:cyclop,gocyclo // 唯一性、per-leg fence replay 与数据库错误必须在容量 owner 边界集中校验。
 func (r *SQLRepository) ReserveBuilder(ctx context.Context, tx *sql.Tx, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
-	if r == nil || tx == nil || strings.TrimSpace(reservation.ID) == "" || strings.TrimSpace(reservation.InstanceID) == "" || strings.TrimSpace(reservation.PlanID) == "" || reservation.TaskID == 0 || strings.TrimSpace(reservation.FenceToken) == "" || reservation.LeaseExpiresAt.IsZero() {
+	if r == nil || tx == nil || strings.TrimSpace(reservation.ID) == "" || strings.TrimSpace(reservation.InstanceID) == "" || strings.TrimSpace(reservation.PlanID) == "" || reservation.TaskID == 0 || strings.TrimSpace(reservation.LegID) == "" || strings.TrimSpace(reservation.FenceToken) == "" || reservation.LeaseExpiresAt.IsZero() {
 		return moduleapi.BuilderReservation{}, errors.New("invalid builder reservation")
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'expired', updated_at = NOW() WHERE builder_instance_id = $1 AND state IN ('reserved','accepted') AND lease_expires_at <= NOW()`, reservation.InstanceID); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("expire builder reservation: %w", err)
 	}
 	var stored moduleapi.BuilderReservation
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, fence_token, state, lease_expires_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-ON CONFLICT (plan_id, task_id, attempt) DO UPDATE SET reservation_id = build_builder_reservations.reservation_id
-RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+ON CONFLICT (plan_id, task_id, attempt, leg_id) DO UPDATE SET reservation_id = build_builder_reservations.reservation_id
+RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.LegID, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
 	if err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("reserve builder capacity: %w", err)
 	}
-	if stored.InstanceID != reservation.InstanceID || stored.FenceToken != reservation.FenceToken || stored.State != reservation.State {
+	if stored.InstanceID != reservation.InstanceID || stored.LegID != reservation.LegID || stored.FenceToken != reservation.FenceToken || stored.State != reservation.State {
 		return moduleapi.BuilderReservation{}, ErrConflict
 	}
 	return stored, nil
@@ -423,7 +432,7 @@ func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation m
 		return moduleapi.BuilderReservation{}, fmt.Errorf("begin builder retry reservation: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND state IN ('accepted','running')`, reservation.TaskID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND state IN ('accepted','running')`, reservation.TaskID, reservation.LegID); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("abandon prior builder reservation: %w", err)
 	}
 	stored, err := r.ReserveBuilder(ctx, tx, reservation)
@@ -437,23 +446,35 @@ func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation m
 }
 
 // MarkBuilderReservationRunning 只允许 accepted lease 进入执行中，旧 fence 会被拒绝。
-func (r *SQLRepository) MarkBuilderReservationRunning(ctx context.Context, taskID uint64, fenceToken string) error {
-	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(fenceToken) == "" {
+func (r *SQLRepository) MarkBuilderReservationRunning(ctx context.Context, taskID uint64, legID, fenceToken string) error {
+	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(legID) == "" || strings.TrimSpace(fenceToken) == "" {
 		return errors.New("invalid builder reservation transition")
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'running', updated_at = NOW() WHERE task_id = $1 AND fence_token = $2 AND state = 'accepted'`, taskID, fenceToken)
+	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'running', updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND fence_token = $3 AND state = 'accepted'`, taskID, legID, fenceToken)
 	if err != nil {
 		return fmt.Errorf("start builder reservation: %w", err)
 	}
 	return requireReservationUpdate(result)
 }
 
+// RenewBuilderReservation extends a running lease only when the current leg still owns its fence.
+func (r *SQLRepository) RenewBuilderReservation(ctx context.Context, taskID uint64, legID, fenceToken string, leaseExpiresAt time.Time) error {
+	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(legID) == "" || strings.TrimSpace(fenceToken) == "" || !leaseExpiresAt.After(time.Now().UTC()) {
+		return errors.New("invalid builder reservation renewal")
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET lease_expires_at = $4, updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND fence_token = $3 AND state = 'running'`, taskID, legID, fenceToken, leaseExpiresAt)
+	if err != nil {
+		return fmt.Errorf("renew builder reservation: %w", err)
+	}
+	return requireReservationUpdate(result)
+}
+
 // ReleaseBuilderReservation 仅以匹配 fence 更新 lease，避免 retry 释放新尝试的容量。
-func (r *SQLRepository) ReleaseBuilderReservation(ctx context.Context, taskID uint64, fenceToken, state string) error {
-	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(fenceToken) == "" || (state != moduleapi.BuilderReservationReleased && state != moduleapi.BuilderReservationAbandoned) {
+func (r *SQLRepository) ReleaseBuilderReservation(ctx context.Context, taskID uint64, legID, fenceToken, state string) error {
+	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(legID) == "" || strings.TrimSpace(fenceToken) == "" || (state != moduleapi.BuilderReservationReleased && state != moduleapi.BuilderReservationAbandoned) {
 		return errors.New("invalid builder reservation release")
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = $3, updated_at = NOW() WHERE task_id = $1 AND fence_token = $2 AND state IN ('accepted','running')`, taskID, fenceToken, state)
+	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = $4, updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND fence_token = $3 AND state IN ('accepted','running')`, taskID, legID, fenceToken, state)
 	if err != nil {
 		return fmt.Errorf("release builder reservation: %w", err)
 	}
