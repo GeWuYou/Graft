@@ -22,6 +22,10 @@ const dialogStub = defineComponent({
   template: '<section v-if="visible"><slot /><button data-testid="dialog-close" @click="$emit(\'close\')" /></section>',
 });
 const passthrough = defineComponent({ template: '<section><slot /></section>' });
+const stepsStub = defineComponent({
+  props: { options: { type: Array, default: () => [] } },
+  template: '<section data-testid="update-progress-steps">{{ options.length }}</section>',
+});
 const progressStub = defineComponent({
   props: {
     percentage: { type: Number, required: true },
@@ -76,8 +80,7 @@ function mountDialog() {
         }),
         't-dialog': dialogStub,
         't-progress': progressStub,
-        't-step': passthrough,
-        't-steps': passthrough,
+        't-steps': stepsStub,
       },
     },
   });

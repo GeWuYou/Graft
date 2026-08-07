@@ -220,6 +220,7 @@
       "progress": {
         "title": "Upgrading Platform",
         "phase": {
+          "idle": "Waiting to start the upgrade.",
           "running": "The upgrade is in progress. Keep this page open.",
           "reconnecting": "The service is being recreated. Reconnecting to the upgrade status...",
           "success": "Upgrade complete. Refreshing the application...",

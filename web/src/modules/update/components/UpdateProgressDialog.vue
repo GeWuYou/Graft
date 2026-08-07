@@ -29,9 +29,7 @@
         "
         :message="phaseMessage"
       />
-      <t-steps v-if="showRunnerStage" :current="currentStep" layout="vertical" readonly>
-        <t-step v-for="step in steps" :key="step" :title="t(`update.center.progress.steps.${step}`)" />
-      </t-steps>
+      <t-steps v-if="showRunnerStage" :current="currentStep" :options="stepOptions" layout="vertical" readonly />
       <section v-if="showRunnerStage" class="update-progress__current-stage">
         <div class="update-progress__current-stage-heading">
           <span>{{ t('update.center.progress.currentStage') }}</span>
@@ -101,6 +99,11 @@ const steps = [
   'startServices',
   'healthCheck',
 ] as const;
+const stepOptions = computed(() =>
+  steps.map((step) => ({
+    title: t(`update.center.progress.steps.${step}`),
+  })),
+);
 const stageIndex: Record<UpdateOperationPhase, number> = {
   READY: 0,
   PREFLIGHT: 1,
