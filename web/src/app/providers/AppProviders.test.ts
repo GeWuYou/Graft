@@ -7,6 +7,7 @@ import AppProviders from './AppProviders.vue';
 const localeRef = ref('zh-CN');
 const providerLocaleRef = ref({ localeName: 'zh-CN-components' });
 const displayModeRef = ref('light');
+const availabilityStatusRef = ref<'healthy' | 'recovering' | 'unavailable'>('healthy');
 const routeProbeMounts = { count: 0 };
 
 vi.mock('@/layouts/setting.vue', () => ({
@@ -33,6 +34,15 @@ vi.mock('@/store', () => ({
   }),
 }));
 
+vi.mock('@/store/modules/platform-availability', () => ({
+  usePlatformAvailabilityStore: () => ({
+    bindRequestBridge: vi.fn(),
+    get status() {
+      return availabilityStatusRef.value;
+    },
+  }),
+}));
+
 const RouteProbe = defineComponent({
   name: 'RouteProbe',
   setup() {
@@ -46,6 +56,7 @@ describe('AppProviders', () => {
     localeRef.value = 'zh-CN';
     providerLocaleRef.value = { localeName: 'zh-CN-components' };
     displayModeRef.value = 'light';
+    availabilityStatusRef.value = 'healthy';
     routeProbeMounts.count = 0;
   });
 
@@ -82,5 +93,33 @@ describe('AppProviders', () => {
     expect(routeProbeMounts.count).toBe(1);
     expect(wrapper.get('[data-testid="route-probe"]').text()).toBe('locale:en-US');
     expect(wrapper.get('[data-global-config]').attributes()['data-global-config']).toContain('en-US-components');
+  });
+
+  it('keeps the theme workbench mounted while a health probe is recovering', async () => {
+    const wrapper = mount(AppProviders, {
+      global: {
+        stubs: {
+          RouterView: RouteProbe,
+          TConfigProvider: defineComponent({
+            name: 'TConfigProviderStub',
+            setup(_, { slots }) {
+              return () => h('div', slots.default?.());
+            },
+          }),
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(true);
+
+    availabilityStatusRef.value = 'recovering';
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(true);
+
+    availabilityStatusRef.value = 'unavailable';
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(false);
   });
 });

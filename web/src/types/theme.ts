@@ -107,8 +107,8 @@ export interface ThemeAuthorityState {
   themeSource: ThemeSourceType;
   fontFamilyPreset: 'system' | 'harmonyos' | 'inter' | 'source-han-sans';
   fontSizePreset: 'extra-small' | 'small' | 'standard' | 'large' | 'extra-large';
-  radiusPreset: 'business' | 'standard' | 'rounded' | 'capsule';
-  shadowPreset: 'flat' | 'standard' | 'floating';
+  radiusPreset: 'square' | 'business' | 'standard' | 'rounded' | 'capsule';
+  shadowPreset: 'flat' | 'standard' | 'floating' | 'hard-offset';
   densityPreset: 'compact' | 'standard' | 'comfortable';
   themeTokenOverrides: ThemeModeTokenState;
 }

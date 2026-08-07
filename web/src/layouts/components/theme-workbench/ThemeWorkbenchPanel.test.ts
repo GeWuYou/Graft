@@ -58,12 +58,38 @@ const switchStub = defineComponent({
   },
 });
 
+const presetCatalogStub = defineComponent({
+  name: 'ThemeWorkbenchPresetCatalogStub',
+  props: {
+    preserveThemePersonalization: { type: Boolean, required: true },
+  },
+  emits: ['update:preserveThemePersonalization'],
+  setup(props, { emit }) {
+    return () =>
+      h(
+        'div',
+        {
+          class: 'preset-catalog__apply-mode',
+        },
+        h(
+          'button',
+          {
+            'aria-pressed': String(props.preserveThemePersonalization),
+            onClick: () => emit('update:preserveThemePersonalization', !props.preserveThemePersonalization),
+          },
+          'preset catalog',
+        ),
+      );
+  },
+});
+
 function mountPanel() {
   return mount(ThemeWorkbenchPanel, {
     global: {
       stubs: {
         't-drawer': drawerStub,
         't-switch': switchStub,
+        'theme-workbench-preset-catalog': presetCatalogStub,
         't-button': true,
         't-color-picker': true,
         't-icon': true,
@@ -112,5 +138,18 @@ describe('ThemeWorkbenchPanel', () => {
     await preferenceSwitch.trigger('click');
 
     expect(store.preserveThemePersonalization).toBe(false);
+  });
+
+  it('allows every preset to compose the Industrial treatment from manual style options', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="radius-square"]').trigger('click');
+    await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
+
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
 });

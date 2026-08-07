@@ -52,8 +52,8 @@ const mode = computed(() => {
   return store.displayMode;
 });
 
-// 不可用或恢复探测期间只保留结果页，避免主题工作台等壳层插件继续初始化业务副作用。
-const showSetting = computed(() => availability.status !== 'unavailable' && availability.status !== 'recovering');
+// 恢复探测不卸载工作台，避免已打开的 Drawer 在健康状态恢复后被重新创建并播放进入动画。
+const showSetting = computed(() => availability.status !== 'unavailable');
 
 const { getComponentsLocale } = useLocale();
 

@@ -325,6 +325,10 @@ export const useSettingStore = defineStore('setting', {
       const tokenMap = composeThemeTokenMap(resolvedTokens);
       insertThemeStylesheet(this.brandTheme, tokenMap, mode);
       document.documentElement.setAttribute('theme-color', this.brandTheme);
+      document.documentElement.toggleAttribute(
+        'data-graft-hard-surface',
+        this.radiusPreset === 'square' && this.shadowPreset === 'hard-offset',
+      );
     },
     refreshThemeWorkbenchRuntime(mode?: ModeType | 'auto') {
       const nextMode = mode ?? (this.mode as ModeType | 'auto');

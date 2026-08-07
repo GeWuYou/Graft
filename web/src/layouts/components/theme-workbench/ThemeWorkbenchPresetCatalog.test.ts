@@ -96,21 +96,24 @@ describe('ThemeWorkbenchPresetCatalog', () => {
   it('includes the expanded catalog and gives branded presets distinct preview surfaces', () => {
     const wrapper = mountCatalog();
     const tencentCard = wrapper.get('[data-theme-preset-id="tencent-cloud"]').element as HTMLElement;
+    const industrialCard = wrapper.get('[data-theme-preset-id="industrial-yellow"]').element as HTMLElement;
     const oneDarkProCard = wrapper.get('[data-theme-preset-id="one-dark-pro"]').element as HTMLElement;
     const atomOneDarkCard = wrapper.get('[data-theme-preset-id="atom-one-dark"]').element as HTMLElement;
 
-    expect(THEME_PRESET_DEFINITIONS).toHaveLength(20);
+    expect(THEME_PRESET_DEFINITIONS).toHaveLength(21);
     expect(THEME_PRESET_DEFINITIONS).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'one-dark-pro', category: 'night' }),
         expect.objectContaining({ id: 'github-dark', category: 'operations' }),
         expect.objectContaining({ id: 'dracula', category: 'focused' }),
         expect.objectContaining({ id: 'nord', category: 'balanced' }),
+        expect.objectContaining({ id: 'industrial-yellow', category: 'operations', featured: true }),
       ]),
     );
     expect(tencentCard.style.getPropertyValue('--preset-brand-color')).toBe('#00A4FF');
     expect(tencentCard.style.getPropertyValue('--preset-thumbnail-background')).toBe('#F4F9FD');
     expect(tencentCard.style.getPropertyValue('--preset-thumbnail-sidebar')).toBe('#E5F3FF');
+    expect(industrialCard.classList).toContain('preset-card--neo-brutalist');
     expect(oneDarkProCard.style.getPropertyValue('--preset-brand-color')).toBe('#61AFEF');
     expect(oneDarkProCard.style.getPropertyValue('--preset-thumbnail-sidebar')).toBe('#1E2227');
     expect(atomOneDarkCard.style.getPropertyValue('--preset-brand-color')).toBe('#98C379');

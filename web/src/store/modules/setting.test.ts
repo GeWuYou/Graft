@@ -10,7 +10,7 @@ vi.mock('@/utils/color', () => ({
   insertThemeStylesheet: vi.fn(),
 }));
 
-import { THEME_PRESET_DEFINITIONS } from '@/config/theme-workbench';
+import { THEME_PRESET_DEFINITIONS, THEME_TOKEN_DEFINITIONS } from '@/config/theme-workbench';
 import { insertThemeStylesheet } from '@/utils/color';
 
 import { useSettingStore } from './setting';
@@ -32,6 +32,7 @@ const stubMatchMedia = (matches: boolean, options: StubMatchMediaOptions = {}) =
     animate: vi.fn(),
     classList,
     setAttribute: vi.fn(),
+    toggleAttribute: vi.fn(),
   };
 
   Object.defineProperty(globalThis, 'window', {
@@ -685,8 +686,57 @@ describe('setting store theme authority', () => {
     expect(store.splitMenu).toBe(false);
   });
 
+  it('applies Industrial Yellow as a complete personalized configuration baseline', () => {
+    const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
+
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('industrial-yellow');
+
+    expect(store.selectedThemePresetId).toBe('industrial-yellow');
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--graft-neo-accent': '#FFE45C',
+      '--graft-neo-shadow': '4px 4px 0 var(--graft-neo-ink)',
+    });
+    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.showHeader).toBe(false);
+  });
+
+  it('applies the Industrial Yellow personalized baseline with its palette', () => {
+    const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
+
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('industrial-yellow');
+
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.selectedThemePresetId).toBe('industrial-yellow');
+  });
+
+  it('exposes every Industrial Yellow-only surface token for manual personalization', () => {
+    const editableTokenKeys = new Set(THEME_TOKEN_DEFINITIONS.map((definition) => definition.key));
+    const industrialPreset = THEME_PRESET_DEFINITIONS.find((preset) => preset.id === 'industrial-yellow');
+
+    expect(industrialPreset).toBeDefined();
+    if (!industrialPreset) {
+      throw new Error('Industrial Yellow preset is missing');
+    }
+
+    const industrialLightTokens = industrialPreset.tokenOverrides?.light;
+    if (!industrialLightTokens) {
+      throw new Error('Industrial Yellow light token baseline is missing');
+    }
+
+    Object.keys(industrialLightTokens).forEach((tokenKey) => {
+      expect(editableTokenKeys).toContain(tokenKey);
+    });
+  });
+
   it('declares a fixed light or dark mode for every built-in theme preset', () => {
-    expect(THEME_PRESET_DEFINITIONS).toHaveLength(20);
+    expect(THEME_PRESET_DEFINITIONS).toHaveLength(21);
     expect(THEME_PRESET_DEFINITIONS.every((preset) => preset.mode === 'light' || preset.mode === 'dark')).toBe(true);
   });
 
@@ -856,6 +906,31 @@ describe('setting store theme authority', () => {
     expect(store.isAcrylicEnabled).toBe(true);
     expect(store.themeTokenOverrides.dark).toEqual({});
     expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
+  });
+
+  it('restores the target preset style values when leaving Industrial Yellow', () => {
+    const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset('industrial-yellow');
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
+
+    store.selectThemePreset('one-dark-pro');
+    expect(store.radiusPreset).toBe('standard');
+    expect(store.shadowPreset).toBe('floating');
+  });
+
+  it('keeps manually selected style values while changing color presets', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.updateThemeDraftAppearance({ radiusPreset: 'square', shadowPreset: 'hard-offset' });
+
+    store.selectThemePreset('tokyo-night');
+
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
   });
 
   it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {

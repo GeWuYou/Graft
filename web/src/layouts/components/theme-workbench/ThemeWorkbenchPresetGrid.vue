@@ -6,7 +6,11 @@
       type="button"
       class="preset-card"
       :data-theme-preset-id="preset.id"
-      :class="{ 'preset-card--active': activePresetId === preset.id }"
+      :class="{
+        'preset-card--active': activePresetId === preset.id,
+        'preset-card--neo-brutalist':
+          preset.authorityPatch?.radiusPreset === 'square' && preset.authorityPatch?.shadowPreset === 'hard-offset',
+      }"
       :style="thumbnailStyle(preset)"
       :aria-pressed="activePresetId === preset.id"
       @click="$emit('select', preset.id)"
@@ -159,6 +163,41 @@ const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 24%, transparent),
     var(--td-shadow-1);
+}
+
+.preset-card--neo-brutalist {
+  border-color: var(--preset-thumbnail-border);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--preset-thumbnail-border);
+}
+
+.preset-card--neo-brutalist::before {
+  display: none;
+}
+
+.preset-card--neo-brutalist:hover,
+.preset-card--neo-brutalist:focus-visible,
+.preset-card--neo-brutalist.preset-card--active {
+  border-color: var(--preset-thumbnail-border);
+  box-shadow: 4px 4px 0 var(--preset-thumbnail-border);
+  transform: translate(-1px, -1px);
+}
+
+.preset-card--neo-brutalist .preset-card__thumbnail,
+.preset-card--neo-brutalist .preset-card__thumb-shell,
+.preset-card--neo-brutalist .preset-card__thumb-table {
+  border-color: var(--preset-thumbnail-border);
+  border-radius: 0;
+}
+
+.preset-card--neo-brutalist .preset-card__thumb-brand,
+.preset-card--neo-brutalist .preset-card__thumb-menu,
+.preset-card--neo-brutalist .preset-card__thumb-title,
+.preset-card--neo-brutalist .preset-card__thumb-button,
+.preset-card--neo-brutalist .preset-card__thumb-tag,
+.preset-card--neo-brutalist .preset-card__thumb-table-head,
+.preset-card--neo-brutalist .preset-card__thumb-table-row {
+  border-radius: 0;
 }
 
 .preset-card__thumbnail {
