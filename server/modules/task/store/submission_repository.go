@@ -253,7 +253,7 @@ func (r *SQLRepository) lockOwner(ctx context.Context, tx *sql.Tx, owner modulea
 	}
 	_, err := tx.ExecContext(ctx, r.placeholder.rebind(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`), owner.Type+"\x00"+owner.ID)
 	if err != nil {
-		return fmt.Errorf("lock task owner capacity: %w", err)
+		return wrapDatabaseOperation("task_owner_capacity_lock", err)
 	}
 	return nil
 }

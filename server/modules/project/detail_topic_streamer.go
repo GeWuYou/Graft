@@ -305,7 +305,7 @@ func (s *Service) buildProjectListSummaryRealtimePayload(
 	items := make([]projectListSummaryRealtimeItem, 0)
 	offset := 0
 	for {
-		result, err := s.List(ctx, ListQuery{
+		result, err := s.listAllApplicationsForRealtime(ctx, ListQuery{
 			Limit:  maxProjectListLimit,
 			Offset: offset,
 		})
@@ -336,4 +336,34 @@ func (s *Service) buildProjectListSummaryRealtimePayload(
 		PublishedAt: time.Now().UTC(),
 		Items:       items,
 	}, nil
+}
+
+// listAllApplicationsForRealtime 在不携带请求主体的前提下构建模块拥有的全局快照。
+// 它仅由已限制为全量权限订阅者的列表主题发布器调用，不能作为常规用户列表读取路径复用。
+func (s *Service) listAllApplicationsForRealtime(ctx context.Context, query ListQuery) (ListResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ListResult{}, err
+	}
+	if result, handled, err := validateApplicationListQuery(query); handled {
+		return result, err
+	}
+	targets, err := s.listComposeTargets(ctx)
+	if err != nil {
+		return ListResult{}, err
+	}
+	targetByID := runtimeTargetLookup(targets)
+	if !validRuntimeTargetID(query.RuntimeTargetID, targetByID) {
+		return ListResult{}, errProjectInvalidArgument
+	}
+	storeQuery := toProjectStoreListQuery(query)
+	if query.RuntimeStatus != "" {
+		return s.listRuntimeStatusPage(ctx, repository, storeQuery, query, targetByID)
+	}
+	storeResult, err := repository.List(ctx, storeQuery)
+	if err != nil {
+		return ListResult{}, mapStoreError(err)
+	}
+	items := s.mapProjectListItems(ctx, storeResult.Items, targetByID, "")
+	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }

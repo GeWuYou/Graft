@@ -8,12 +8,40 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
 	"graft/server/modules/task/testschema"
 )
+
+func TestWrapDatabaseOperationIncludesSQLStateAndPreservesCause(t *testing.T) {
+	t.Parallel()
+
+	cause := &pgconn.PgError{Code: "42501", Message: "permission denied for table tasks"}
+	err := wrapDatabaseOperation("task_insert", fmt.Errorf("insert task: %w", cause))
+
+	if got, want := err.Error(), "task store database operation task_insert failed (sqlstate=42501)"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("wrapped error does not preserve the PostgreSQL cause")
+	}
+	var got *pgconn.PgError
+	if !errors.As(err, &got) || got.Code != cause.Code {
+		t.Fatalf("wrapped error does not expose PostgreSQL SQLSTATE: %v", err)
+	}
+}
+
+func TestWrapDatabaseOperationDoesNotExposeDriverMessage(t *testing.T) {
+	t.Parallel()
+
+	err := wrapDatabaseOperation("task_insert", errors.New("permission denied for table tasks"))
+	if got, want := err.Error(), "task store database operation task_insert failed"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+}
 
 func TestSQLRepositoryCreatePersistsFrozenTaskPlanAndCreatedEvent(t *testing.T) {
 	t.Parallel()
