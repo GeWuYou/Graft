@@ -3,6 +3,7 @@ package capability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -136,9 +137,18 @@ func (c *Coordinator) Observe(ctx context.Context) (map[string]moduleapi.Capabil
 	entries := c.registry.Entries()
 	observations := make(map[string]moduleapi.CapabilityObservation, len(entries))
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		observation, err := entry.Provider.Observe(ctx)
+		if contextErr := ctx.Err(); contextErr != nil {
+			return nil, contextErr
+		}
 		if err != nil {
-			observation = moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnavailable, Summary: err.Error()}
+			if errors.Is(err, context.Canceled) {
+				return nil, err
+			}
+			observation = moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnavailable, Summary: "Capability observation failed"}
 		}
 		if !validStatus(observation.Status) {
 			observation = moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnavailable, Summary: "provider returned invalid capability status"}

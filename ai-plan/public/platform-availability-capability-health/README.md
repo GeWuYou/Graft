@@ -7,8 +7,10 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running feature requiring design, roadmap, ADR, and loop execution.
 - Canonical authority: `server/internal/contract`, `server/internal/moduleapi`, `openapi/**`, and the web shell.
-- Completed so far: Phases 0-4 implementation and focused validation.
-- Remaining: Phase 5 recovery UX and diagnostics acceptance.
+- Completed so far: Phases 0-5 implementation and focused validation, including the RBAC permission migration for the
+  capability snapshot API.
+- Remaining: archive-readiness validation. Full `bun run check` is still blocked by the pre-existing missing Monaco
+  Dockerfile language import, so cross-boundary acceptance is not yet claimed.
 
 ## Recovery Receipt
 
@@ -44,25 +46,32 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Phase 4 capability snapshot API and dashboard projection are implemented and validated.
-- Risk: preserve generated OpenAPI freshness and keep capability observations separate from module resource truth.
-- Next step: Phase 5 recovery UX and diagnostics.
+- Phases 0-5 are implemented. The focused backend, OpenAPI, and frontend validations recorded in the trace passed.
+- The RBAC migration is part of the delivered scope and must retain both SQL-comment and default-chain version
+  validation evidence.
+- Risk: `bun run check` remains blocked by the existing Monaco import failure; do not archive or claim complete
+  cross-boundary acceptance until that gate is resolved or explicitly adjudicated.
+- Next step: reproduce and resolve or formally adjudicate the full web-check blocker, then perform archive readiness.
 
 ## Work Intake
 
 - This topic was created through `Work Intake`.
 - Full Work Contract is in the tracking file.
 
-## Pending Batch Direction
+## Closeout Direction
 
-- Implement Phase 0 server contracts, registry, coordinator, and focused tests.
-- Then integrate the browser availability gate in a separate round.
+- No implementation batch is pending.
+- Preserve the Phase 0-5 evidence while the full web-check blocker is resolved or explicitly adjudicated.
+- Perform archive readiness only after the acceptance condition for `bun run check` is satisfied.
 
 ## Validation Targets
 
 ```bash
 git diff --check
 graft validate backend --stage lint
+python3 scripts/validate_sql_migrations.py --paths server/modules/rbac/migrations/202608070001_platform_capability_permission.sql
+python3 scripts/check_migration_versions.py --mode all
+cd web && bun run check
 ```
 
 ## Loop Entry

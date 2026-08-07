@@ -7,5 +7,6 @@ Continue the `platform-availability-capability-health` topic in `topic-completio
 - design authority: `server/internal/contract`, `server/internal/moduleapi`, `openapi/**`, web shell contracts
 - required skills: `$graft-multi-agent-loop`, `$graft-multi-agent-task`
 
-Read the topic tracking and trace files, inspect current worktree state, preserve unrelated changes, and advance one
-bounded pending batch through validation and scoped closeout.
+Read the topic tracking and trace files, inspect current worktree state, and preserve unrelated changes. No
+implementation batch is pending: reproduce and resolve or explicitly adjudicate the recorded full `bun run check`
+blocker before archive readiness. Do not claim cross-boundary acceptance while that gate remains blocked.

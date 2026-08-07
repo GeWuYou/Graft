@@ -39,6 +39,13 @@ bootstrap:
     - topic design
     - topic roadmap
     - topic ADR
+implementation:
+  includes:
+    - server/modules/rbac/migrations/202608070001_platform_capability_permission.sql
+validation:
+  required:
+    - python3 scripts/validate_sql_migrations.py --paths server/modules/rbac/migrations/202608070001_platform_capability_permission.sql
+    - python3 scripts/check_migration_versions.py --mode all
 closeout:
   archive: true
   lessons_review: true
@@ -46,9 +53,11 @@ closeout:
 
 ## Current Recovery Point
 
-- Phase 0 through Phase 5 are implemented; focused validation passes and the full web check retains one unrelated Monaco dependency blocker.
-- No schema or migration work is planned for the initial phases.
-- Next step: archive readiness review and worktree closeout.
+- Phase 0 through Phase 5 are implemented. Focused validation passes; full `bun run check` remains blocked by the
+  pre-existing missing Monaco Dockerfile language import.
+- `server/modules/rbac/migrations/202608070001_platform_capability_permission.sql` is in scope and its SQL-comment
+  and default-chain migration-version gates are required validation evidence.
+- Next step: resolve or explicitly adjudicate the full web-check blocker before archive readiness and worktree closeout.
 
 ## Task Checklist
 
@@ -57,7 +66,8 @@ closeout:
 - [x] Phase 2: Axios and TanStack Query gating
 - [x] Phase 3: WebSocket/SSE pause and recovery
 - [x] Phase 4: capability API, providers, and dashboard
-- [x] Phase 5: recovering UX, diagnostics, and full acceptance
+- [x] Phase 5: recovering UX and diagnostics
+- [ ] Complete cross-boundary acceptance: full `bun run check` passes or its blocker is explicitly adjudicated
 
 ## Acceptance Conditions
 
@@ -65,6 +75,9 @@ closeout:
 - Unavailable platform stops business traffic, retries, polling, and realtime reconnects.
 - Capability statuses and diagnostics are projected through one typed API without duplicating module resource truth.
 - Backend and frontend authoritative validation passes for every affected phase.
+- The RBAC capability-permission migration passes SQL-comment and default-chain version validation.
+- Complete cross-boundary acceptance is gated on a passing or explicitly adjudicated `bun run check`; focused checks do
+  not substitute for that gate.
 
 ## Loop Batch State
 
@@ -75,6 +88,6 @@ closeout:
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "archive-check"
+  "closeout_status": "archive-check-blocked-by-web-check"
 }
 ```

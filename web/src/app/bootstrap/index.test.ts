@@ -141,6 +141,9 @@ describe('bootstrapApp', () => {
     expect(initializeThemeWorkbenchRuntime).toHaveBeenCalledTimes(1);
     expect(healPersistedState).toHaveBeenCalledTimes(1);
     expect(useMock).toHaveBeenCalledTimes(4);
+    expect(useMock.mock.invocationCallOrder[0]).toBeLessThan(
+      initializeThemeWorkbenchRuntime.mock.invocationCallOrder[0],
+    );
     expect(useMock.mock.invocationCallOrder[0]).toBeLessThan(healPersistedState.mock.invocationCallOrder[0]);
     expect(initializeThemeWorkbenchRuntime.mock.invocationCallOrder[0]).toBeLessThan(
       mountMock.mock.invocationCallOrder[0],

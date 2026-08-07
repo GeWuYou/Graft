@@ -67,3 +67,20 @@
 
 - Dashboard health projection now maps capability-only `checking`, `unavailable`, and `unsupported` states to the existing dashboard enum instead of leaking invalid wire values.
 - Regression coverage added at the app projection seam; `go test ./internal/... ./modules/network`, backend build, OpenAPI validation, frontend lint/typecheck, and focused web tests passed.
+
+## 2026-08-07 Recovery Reconciliation
+
+- ADR-001 is accepted: the browser `PlatformAvailabilityStore` and server `CapabilityCoordinator` are the locked
+  authorities recorded by this topic.
+- The RBAC migration `server/modules/rbac/migrations/202608070001_platform_capability_permission.sql` is part of the
+  capability snapshot delivery. Its required evidence is `python3 scripts/validate_sql_migrations.py --paths
+  server/modules/rbac/migrations/202608070001_platform_capability_permission.sql` and `python3
+  scripts/check_migration_versions.py --mode all`.
+- Phases 0-5 have no remaining implementation batch. Archive readiness remains blocked until the full `bun run check`
+  Monaco import failure is resolved or explicitly adjudicated; focused frontend checks are not complete acceptance.
+
+## Current Loop Batch State
+
+```json
+{"loop_mode":"topic-completion-loop","completed_batches":["phase-0-server-foundation","phase-1-web-availability","phase-2-query-gating","phase-3-realtime","phase-4-capability-projection","phase-5-recovery-diagnostics"],"pending_batches":[],"current_batch":null,"next_batch":null,"closeout_status":"archive-check-blocked-by-web-check"}
+```

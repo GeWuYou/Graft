@@ -25,6 +25,7 @@ import (
 
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
+	"graft/server/internal/capability"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	capcontract "graft/server/internal/contract/capability"
@@ -77,6 +78,46 @@ func TestDashboardHealthStatusForCapabilityPreservesWidgetContract(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestCapabilityDashboardDoesNotDegradeForDisabledRedis(t *testing.T) {
+	registry, err := capability.NewRegistry([]capability.Entry{{
+		Descriptor: moduleapi.CapabilityDescriptor{Key: "redis", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature},
+		Provider: capabilityProvider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+			return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusDisabled, Summary: "Redis is not configured"}, nil
+		}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &Runtime{dashboardRegistry: dashboard.NewRegistry(), capabilityCoordinator: capability.NewCoordinator(registry), i18n: mustNewRuntimeTestLocalizer(t)}
+	if err := runtime.registerCoreCapabilityDashboard(); err != nil {
+		t.Fatalf("register capability dashboard: %v", err)
+	}
+	widget, ok := runtime.dashboardRegistry.Get("core.platform-capability-health")
+	if !ok {
+		t.Fatal("expected capability dashboard widget")
+	}
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load capability dashboard: %v", err)
+	}
+	if got := payload["abnormal_services"]; got != 0 {
+		t.Fatalf("disabled Redis must not count as abnormal, got %#v", got)
+	}
+	if got := payload["state"]; got != string(dashboard.WidgetStateNormal) {
+		t.Fatalf("disabled Redis must not warn the widget, got %#v", got)
+	}
+	summary, ok := payload["summary"].(dashboard.HealthSummaryItem)
+	if !ok || summary.Status != dashboard.HealthStatusHealthy {
+		t.Fatalf("disabled Redis must preserve a healthy summary, got %#v", payload["summary"])
+	}
+}
+
+type capabilityProvider func(context.Context) (moduleapi.CapabilityObservation, error)
+
+func (p capabilityProvider) Observe(ctx context.Context) (moduleapi.CapabilityObservation, error) {
+	return p(ctx)
 }
 
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {

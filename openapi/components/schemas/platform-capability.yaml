@@ -5,7 +5,9 @@ properties:
   category: { $ref: ./capability-category.yaml }
   impact: { $ref: ./capability-impact.yaml }
   status: { $ref: ./capability-status.yaml }
-  summary: { type: string }
+  summary:
+    type: string
+    description: Stable, caller-safe capability summary. It must not contain raw provider errors or sensitive diagnostic details.
   observed_at: { type: string, format: date-time }
   expires_at: { type: string, format: date-time }
   stale: { type: boolean }

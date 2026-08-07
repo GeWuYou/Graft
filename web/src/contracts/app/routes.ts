@@ -23,3 +23,25 @@ export const APP_RESULT_ROUTE_NAME = {
   MAINTENANCE: 'ResultMaintenance',
   BROWSER_INCOMPATIBLE: 'ResultBrowserIncompatible',
 } as const;
+
+function isServiceUnavailableRoutePath(path: string | null | undefined): path is string {
+  return (
+    typeof path === 'string' &&
+    (path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE ||
+      path.startsWith(`${APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE}?`) ||
+      path.startsWith(`${APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE}#`))
+  );
+}
+
+export function resolveRecoveryRoutePath(
+  requestedPath: string | null | undefined,
+  pendingPath: string | null | undefined,
+): string {
+  if (typeof requestedPath === 'string' && requestedPath.length > 0 && !isServiceUnavailableRoutePath(requestedPath)) {
+    return requestedPath;
+  }
+  if (typeof pendingPath === 'string' && pendingPath.length > 0 && !isServiceUnavailableRoutePath(pendingPath)) {
+    return pendingPath;
+  }
+  return ROOT_ENTRY_PATH;
+}

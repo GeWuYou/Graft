@@ -59,7 +59,7 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 			for _, entry := range r.capabilityCoordinator.RegistryEntries() {
 				observation := observations[entry.Descriptor.Key]
 				status := dashboardHealthStatusForCapability(observation.Status)
-				if status != dashboard.HealthStatusHealthy {
+				if status != dashboard.HealthStatusHealthy && status != dashboard.HealthStatusDisabled {
 					abnormal++
 					summaryStatus = dashboard.HealthStatusDegraded
 				}

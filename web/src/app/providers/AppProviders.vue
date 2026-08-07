@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 
-import { APP_RESULT_ROUTE_PATH, ROOT_ENTRY_PATH } from '@/contracts/app/routes';
+import { APP_RESULT_ROUTE_PATH, resolveRecoveryRoutePath } from '@/contracts/app/routes';
 import SettingCom from '@/layouts/setting.vue';
 import { useLocale } from '@/locales/useLocale';
 import router from '@/router';
@@ -40,11 +40,10 @@ watch(
     }
 
     if (status === 'healthy' && currentRoute.path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
-      const redirect =
-        typeof currentRoute.query.redirect === 'string'
-          ? currentRoute.query.redirect
-          : availability.consumePendingPath();
-      void router.replace(redirect || ROOT_ENTRY_PATH);
+      const requestedRedirect = typeof currentRoute.query.redirect === 'string' ? currentRoute.query.redirect : null;
+      const pendingPath = availability.consumePendingPath();
+      const redirect = resolveRecoveryRoutePath(requestedRedirect, pendingPath);
+      void router.replace(redirect);
     }
   },
 );

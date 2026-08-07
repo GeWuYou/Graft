@@ -36,7 +36,6 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
   let activeConnectionId = 0;
   let activeClose: ((reason: TerminalLifecycleCloseReason) => void) | null = null;
   let resumeSize: TerminalResizePayload | null = null;
-  let suspendedByPlatform = false;
 
   const isConnected = computed(() => state.value === 'connected');
 
@@ -55,7 +54,7 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
       setState('disconnected');
       return;
     }
-    disconnect('manual_disconnect');
+    disconnect('manual_disconnect', true);
     setState('connecting');
     lastError.value = '';
     const connectionId = ++activeConnectionId;
@@ -156,8 +155,8 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     }
   }
 
-  function disconnect(reason: TerminalLifecycleCloseReason = 'manual_disconnect') {
-    if (!suspendedByPlatform && reason !== 'component_unmount') {
+  function disconnect(reason: TerminalLifecycleCloseReason = 'manual_disconnect', preserveRecoveryIntent = false) {
+    if (!preserveRecoveryIntent) {
       resumeSize = null;
     }
     if (state.value === 'connecting') {
@@ -229,12 +228,10 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
 
   const unregisterAvailability = registerRealtimeAvailabilityController({
     close: () => {
-      suspendedByPlatform = true;
-      disconnect('manual_disconnect');
+      disconnect('manual_disconnect', true);
     },
     reconnect: () => {
       const size = resumeSize;
-      suspendedByPlatform = false;
       if (size) void connect(size);
     },
   });

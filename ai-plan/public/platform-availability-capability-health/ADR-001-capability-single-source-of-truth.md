@@ -1,6 +1,6 @@
 # ADR-001: Platform Availability And Capability Health Authorities
 
-- Status: proposed
+- Status: accepted
 - Scope: server capability contracts and web availability projection
 
 ## Decision

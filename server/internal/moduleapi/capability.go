@@ -69,7 +69,8 @@ const (
 	CapabilityStatusUnsupported CapabilityStatus = "unsupported"
 )
 
-// CapabilityObservation is a provider result. The coordinator fills freshness fields.
+// CapabilityObservation 是 provider 返回的能力观测；coordinator 负责补全新鲜度字段。
+// Summary 只能包含面向调用方的稳定、安全摘要，绝不能携带 provider 的原始错误或敏感诊断内容。
 type CapabilityObservation struct {
 	Status     CapabilityStatus `json:"status"`
 	Summary    string           `json:"summary,omitempty"`

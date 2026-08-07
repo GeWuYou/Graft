@@ -2,6 +2,7 @@ package capability
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -77,5 +78,51 @@ func TestCoordinatorRejectsInvalidProviderStatus(t *testing.T) {
 	}
 	if got["x"].Status != moduleapi.CapabilityStatusUnavailable {
 		t.Fatalf("expected invalid status to normalize to unavailable, got %#v", got["x"])
+	}
+}
+
+func TestCoordinatorRedactsProviderErrors(t *testing.T) {
+	registry, err := NewRegistry([]Entry{{Descriptor: moduleapi.CapabilityDescriptor{Key: "x", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature}, Provider: provider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+		return moduleapi.CapabilityObservation{}, errors.New("dial tcp 10.0.0.7:6379: password=secret")
+	})}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	observations, err := NewCoordinator(registry).Observe(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := observations["x"]; got.Status != moduleapi.CapabilityStatusUnavailable || got.Summary != "Capability observation failed" {
+		t.Fatalf("expected redacted unavailable observation, got %#v", got)
+	}
+}
+
+func TestCoordinatorDoesNotPersistCancelledObservation(t *testing.T) {
+	var observeCalls int
+	var cancel context.CancelFunc
+	registry, err := NewRegistry([]Entry{{Descriptor: moduleapi.CapabilityDescriptor{Key: "x", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature}, Provider: provider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+		observeCalls++
+		if observeCalls == 2 {
+			cancel()
+			return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnavailable, Summary: "cancelled observation"}, nil
+		}
+		return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusHealthy, Summary: "previous observation"}, nil
+	})}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinator := NewCoordinator(registry)
+	if _, err := coordinator.Observe(context.Background()); err != nil {
+		t.Fatalf("seed observation: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if _, err := coordinator.Observe(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancelled observation to return context cancellation, got %v", err)
+	}
+	if got, ok := coordinator.Get("x"); !ok || got.Status != moduleapi.CapabilityStatusHealthy || got.Summary != "previous observation" {
+		t.Fatalf("cancelled observation must not replace the prior snapshot, got %#v, %v", got, ok)
 	}
 }

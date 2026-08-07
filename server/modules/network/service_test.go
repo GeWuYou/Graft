@@ -112,6 +112,43 @@ func TestServiceDiagnoseReturnsCompletedResultWhenHistoryPersistenceFails(t *tes
 	}
 }
 
+func TestServiceObserveCapabilityProjectsConnectivityAggregate(t *testing.T) {
+	completedAt := time.Date(2026, 8, 7, 10, 20, 30, 0, time.UTC)
+	tests := []struct {
+		name      string
+		aggregate ConnectivityAggregate
+		want      moduleapi.CapabilityStatus
+	}{
+		{name: "no completed checks", aggregate: ConnectivityAggregate{}, want: moduleapi.CapabilityStatusUnknown},
+		{name: "healthy", aggregate: ConnectivityAggregate{LastRunAt: &completedAt, TargetCount: 2, HealthyCount: 2}, want: moduleapi.CapabilityStatusHealthy},
+		{name: "degraded", aggregate: ConnectivityAggregate{LastRunAt: &completedAt, TargetCount: 2, HealthyCount: 1, DegradedCount: 1}, want: moduleapi.CapabilityStatusDegraded},
+		{name: "failed dominates degraded", aggregate: ConnectivityAggregate{LastRunAt: &completedAt, TargetCount: 2, DegradedCount: 1, FailedCount: 1}, want: moduleapi.CapabilityStatusUnavailable},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &Service{connectivity: &connectivityStoreStub{aggregate: test.aggregate}}
+			got, err := service.ObserveCapability(context.Background())
+			if err != nil {
+				t.Fatalf("observe capability: %v", err)
+			}
+			if got.Status != test.want {
+				t.Fatalf("status = %q, want %q", got.Status, test.want)
+			}
+			if test.aggregate.LastRunAt != nil && !got.ObservedAt.Equal(completedAt) {
+				t.Fatalf("observed at = %s, want %s", got.ObservedAt, completedAt)
+			}
+		})
+	}
+}
+
+func TestServiceObserveCapabilityReturnsAggregateError(t *testing.T) {
+	wantErr := errors.New("aggregate read failed")
+	service := &Service{connectivity: &connectivityStoreStub{aggregateErr: wantErr}}
+	if _, err := service.ObserveCapability(context.Background()); !errors.Is(err, wantErr) {
+		t.Fatalf("expected aggregate error, got %v", err)
+	}
+}
+
 type moduleConfigManagerStub struct {
 	value        moduleapi.ModuleConfigValue
 	updateCalled bool
@@ -133,6 +170,31 @@ type diagnosticHistoryStoreStub struct {
 	appended       moduleapi.OutboundDiagnosticResult
 	appendErr      error
 	listCalled     bool
+}
+
+type connectivityStoreStub struct {
+	aggregate    ConnectivityAggregate
+	aggregateErr error
+}
+
+func (s *connectivityStoreStub) Append(context.Context, moduleapi.ConnectivityReport) (ConnectivityCheck, error) {
+	return ConnectivityCheck{}, nil
+}
+
+func (s *connectivityStoreStub) Latest(context.Context) ([]ConnectivityCheck, error) {
+	return nil, nil
+}
+
+func (s *connectivityStoreStub) History(context.Context, moduleapi.ConnectivityTargetID, int) ([]ConnectivityCheck, error) {
+	return nil, nil
+}
+
+func (s *connectivityStoreStub) Report(context.Context, moduleapi.ConnectivityTargetID, int64) (moduleapi.ConnectivityReport, error) {
+	return moduleapi.ConnectivityReport{}, nil
+}
+
+func (s *connectivityStoreStub) Aggregate(context.Context) (ConnectivityAggregate, error) {
+	return s.aggregate, s.aggregateErr
 }
 
 func (s *diagnosticHistoryStoreStub) Append(_ context.Context, target string, result moduleapi.OutboundDiagnosticResult) error {
