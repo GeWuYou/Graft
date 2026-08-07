@@ -12,8 +12,10 @@ import sys
 import tempfile
 from typing import Any
 
-MANAGED_BLOCK_START = "<!-- graft-pr-create:managed-start -->"
-MANAGED_BLOCK_END = "<!-- graft-pr-create:managed-end -->"
+DESCRIPTION_BLOCK_START = "<!-- graft-pr-create:description-start -->"
+DESCRIPTION_BLOCK_END = "<!-- graft-pr-create:description-end -->"
+METADATA_BLOCK_START = "<!-- graft-pr-create:managed-start -->"
+METADATA_BLOCK_END = "<!-- graft-pr-create:managed-end -->"
 DEFAULT_GH_TIMEOUT_SECONDS = 60
 
 
@@ -91,10 +93,19 @@ def get_head_subject() -> str:
     return run_command(["git", "log", "-1", "--pretty=%s"])
 
 
-def load_body_file(path: str | None) -> str:
-    if not path:
-        return ""
-    return Path(path).read_text(encoding="utf-8")
+def load_description_file(path: str) -> str:
+    description = Path(path).read_text(encoding="utf-8").strip()
+    if not description:
+        raise PrCreateError("PR description file is empty.")
+    reserved_markers = (
+        DESCRIPTION_BLOCK_START,
+        DESCRIPTION_BLOCK_END,
+        METADATA_BLOCK_START,
+        METADATA_BLOCK_END,
+    )
+    if any(marker in description for marker in reserved_markers):
+        raise PrCreateError("PR description file must not contain graft-pr-create managed markers.")
+    return description
 
 
 def get_repo_info() -> dict[str, Any]:
@@ -167,10 +178,9 @@ def render_managed_block(
     base_branch: str,
     repo_info: dict[str, Any],
     diagnostics: list[str],
-    extra_body: str,
 ) -> str:
     lines = [
-        MANAGED_BLOCK_START,
+        METADATA_BLOCK_START,
         "graft-pr-create managed metadata",
         f"- repository: {repo_info['name_with_owner']}",
         f"- head: {head_branch}",
@@ -181,10 +191,7 @@ def render_managed_block(
         lines.extend(f"  - {item}" for item in diagnostics)
     else:
         lines.append("- diagnostics: none")
-    if extra_body.strip():
-        lines.append("- closeout:")
-        lines.extend(f"  {line}" if line else "  " for line in extra_body.strip().splitlines())
-    lines.append(MANAGED_BLOCK_END)
+    lines.append(METADATA_BLOCK_END)
     return "\n".join(lines)
 
 
@@ -196,11 +203,27 @@ def stable_managed_diagnostics(items: list[str]) -> list[str]:
     return [item for item in items if not item.startswith(unstable_prefixes)]
 
 
-def merge_body(existing_body: str, managed_block: str) -> str:
+def render_description_block(description: str) -> str:
+    return "\n".join((DESCRIPTION_BLOCK_START, description, DESCRIPTION_BLOCK_END))
+
+
+def merge_managed_block(
+    existing_body: str,
+    *,
+    start_marker: str,
+    end_marker: str,
+    managed_block: str,
+) -> str:
     existing_body = existing_body or ""
-    if MANAGED_BLOCK_START in existing_body and MANAGED_BLOCK_END in existing_body:
-        start_index = existing_body.index(MANAGED_BLOCK_START)
-        end_index = existing_body.index(MANAGED_BLOCK_END) + len(MANAGED_BLOCK_END)
+    start_count = existing_body.count(start_marker)
+    end_count = existing_body.count(end_marker)
+    if start_count != end_count:
+        raise PrCreateError("Existing PR body has incomplete graft-pr-create managed markers.")
+    if start_count > 1:
+        raise PrCreateError("Existing PR body has multiple graft-pr-create managed blocks.")
+    if start_count:
+        start_index = existing_body.index(start_marker)
+        end_index = existing_body.index(end_marker) + len(end_marker)
         merged = existing_body[:start_index].rstrip()
         suffix = existing_body[end_index:].lstrip()
         parts = [part for part in [merged, managed_block, suffix] if part]
@@ -208,6 +231,21 @@ def merge_body(existing_body: str, managed_block: str) -> str:
     if not existing_body.strip():
         return managed_block
     return f"{existing_body.rstrip()}\n\n{managed_block}"
+
+
+def merge_body(existing_body: str, description_block: str, metadata_block: str) -> str:
+    with_description = merge_managed_block(
+        existing_body,
+        start_marker=DESCRIPTION_BLOCK_START,
+        end_marker=DESCRIPTION_BLOCK_END,
+        managed_block=description_block,
+    )
+    return merge_managed_block(
+        with_description,
+        start_marker=METADATA_BLOCK_START,
+        end_marker=METADATA_BLOCK_END,
+        managed_block=metadata_block,
+    )
 
 
 def choose_merge_method(repo_info: dict[str, Any]) -> str:
@@ -321,7 +359,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="Print the planned action without changing GitHub state.")
     parser.add_argument("--base", help="Override the default PR base branch.")
     parser.add_argument("--title", help="Override the PR title.")
-    parser.add_argument("--body-file", help="Inject additional managed-block body content from a file.")
+    parser.add_argument(
+        "--description-file",
+        required=True,
+        help="Read the complete authored PR description from a file.",
+    )
     parser.add_argument("--enable-auto-merge", action="store_true", help="Request auto-merge enablement.")
     parser.add_argument(
         "--confirm-automerge",
@@ -375,7 +417,7 @@ def main() -> int:
                 diagnostics=[f"Matched PR numbers: {', '.join(str(pr['number']) for pr in existing_prs)}"],
             )
 
-        extra_body = load_body_file(args.body_file)
+        description = load_description_file(args.description_file)
         diagnostics: list[str] = []
         action = "dry_run" if args.dry_run else "created"
         pr: dict[str, Any] | None = None
@@ -397,9 +439,12 @@ def main() -> int:
             base_branch=base_branch,
             repo_info=repo_info,
             diagnostics=stable_managed_diagnostics(diagnostics),
-            extra_body=extra_body,
         )
-        body = merge_body(pr["body"] if pr else "", managed_block)
+        body = merge_body(
+            pr["body"] if pr else "",
+            render_description_block(description),
+            managed_block,
+        )
         title = args.title or (pr["title"] if pr else get_head_subject())
 
         if not args.dry_run:

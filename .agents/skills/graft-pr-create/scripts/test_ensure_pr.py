@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stderr
 import importlib.util
+from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 import unittest
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).with_name("ensure_pr.py")
@@ -15,26 +19,60 @@ SPEC.loader.exec_module(ensure_pr)
 
 
 class MergeBodyTests(unittest.TestCase):
-    def test_merge_body_appends_managed_block_to_existing_user_content(self) -> None:
-        original = "User content"
-        managed = "managed block"
-        merged = ensure_pr.merge_body(original, managed)
-        self.assertEqual(merged, "User content\n\nmanaged block")
+    def test_merge_body_appends_description_and_metadata_to_existing_user_content(self) -> None:
+        merged = ensure_pr.merge_body("User content", "description block", "metadata block")
+        self.assertEqual(merged, "User content\n\ndescription block\n\nmetadata block")
 
-    def test_merge_body_replaces_existing_managed_block_only(self) -> None:
+    def test_merge_body_replaces_owned_regions_only(self) -> None:
         original = (
             "User intro\n\n"
-            f"{ensure_pr.MANAGED_BLOCK_START}\nold\n{ensure_pr.MANAGED_BLOCK_END}\n\n"
+            f"{ensure_pr.DESCRIPTION_BLOCK_START}\nold description\n{ensure_pr.DESCRIPTION_BLOCK_END}\n\n"
+            "Reviewer content\n\n"
+            f"{ensure_pr.METADATA_BLOCK_START}\nold metadata\n{ensure_pr.METADATA_BLOCK_END}\n\n"
             "User footer"
         )
-        managed = f"{ensure_pr.MANAGED_BLOCK_START}\nnew\n{ensure_pr.MANAGED_BLOCK_END}"
-        merged = ensure_pr.merge_body(original, managed)
+        description = f"{ensure_pr.DESCRIPTION_BLOCK_START}\nnew description\n{ensure_pr.DESCRIPTION_BLOCK_END}"
+        metadata = f"{ensure_pr.METADATA_BLOCK_START}\nnew metadata\n{ensure_pr.METADATA_BLOCK_END}"
+        merged = ensure_pr.merge_body(original, description, metadata)
         self.assertEqual(
             merged,
             "User intro\n\n"
-            f"{ensure_pr.MANAGED_BLOCK_START}\nnew\n{ensure_pr.MANAGED_BLOCK_END}\n\n"
+            f"{ensure_pr.DESCRIPTION_BLOCK_START}\nnew description\n{ensure_pr.DESCRIPTION_BLOCK_END}\n\n"
+            "Reviewer content\n\n"
+            f"{ensure_pr.METADATA_BLOCK_START}\nnew metadata\n{ensure_pr.METADATA_BLOCK_END}\n\n"
             "User footer",
         )
+
+    def test_merge_managed_block_rejects_incomplete_markers(self) -> None:
+        with self.assertRaisesRegex(ensure_pr.PrCreateError, "incomplete"):
+            ensure_pr.merge_managed_block(
+                ensure_pr.DESCRIPTION_BLOCK_START,
+                start_marker=ensure_pr.DESCRIPTION_BLOCK_START,
+                end_marker=ensure_pr.DESCRIPTION_BLOCK_END,
+                managed_block="replacement",
+            )
+
+
+class DescriptionInputTests(unittest.TestCase):
+    def test_load_description_file_rejects_empty_content(self) -> None:
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+            handle.write(" \n")
+            handle.flush()
+            with self.assertRaisesRegex(ensure_pr.PrCreateError, "empty"):
+                ensure_pr.load_description_file(handle.name)
+
+    def test_load_description_file_rejects_managed_markers(self) -> None:
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+            handle.write(ensure_pr.DESCRIPTION_BLOCK_START)
+            handle.flush()
+            with self.assertRaisesRegex(ensure_pr.PrCreateError, "managed markers"):
+                ensure_pr.load_description_file(handle.name)
+
+    def test_parse_args_requires_description_file(self) -> None:
+        with patch("sys.argv", ["ensure_pr.py"]), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                ensure_pr.parse_args()
+        self.assertEqual(error.exception.code, 2)
 
 
 class BranchProtectionTests(unittest.TestCase):
@@ -97,20 +135,17 @@ class ResultRenderingTests(unittest.TestCase):
             ["base branch 'main' has no detected protection or required checks; auto-merge was not enabled"],
         )
 
-    def test_render_managed_block_includes_diagnostics_and_closeout(self) -> None:
+    def test_render_managed_block_includes_diagnostics_without_closeout(self) -> None:
         block = ensure_pr.render_managed_block(
             head_branch="feat/test",
             base_branch="main",
             repo_info={"name_with_owner": "GeWuYou/Graft"},
             diagnostics=["needs checks"],
-            extra_body="line1\nline2",
         )
         self.assertIn("repository: GeWuYou/Graft", block)
         self.assertIn("- diagnostics:", block)
         self.assertIn("  - needs checks", block)
-        self.assertIn("- closeout:", block)
-        self.assertIn("  line1", block)
-        self.assertIn("  line2", block)
+        self.assertNotIn("- closeout:", block)
 
     def test_build_result_preserves_dirty_tree_status(self) -> None:
         result = ensure_pr.build_result(
