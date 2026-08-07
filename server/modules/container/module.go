@@ -138,17 +138,10 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	}); err != nil {
 		return err
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImagePublicationCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return containerImageBuilder{service: service}, nil
-	}); err != nil {
-		return err
-	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), func(_ containerdi.Resolver) (any, error) {
 		return containerImageBuilder{service: service}, nil
 	}); err != nil {
 		return err
 	}
-	return ctx.Services.RegisterSingleton((*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return containerImageBuilder{service: service}, nil
-	})
+	return nil
 }

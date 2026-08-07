@@ -57,6 +57,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("mcp.max_concurrent_requests", defaultMCPMaxConcurrentRequests)
 	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
 	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
+	reader.SetDefault("registry.credentials_file", "")
 	reader.SetDefault("backup.artifact_root", defaultBackupArtifactRoot)
 	reader.SetDefault("project.log_debug", false)
 	reader.SetDefault("project.managed_create_debug", false)

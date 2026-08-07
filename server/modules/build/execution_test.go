@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
@@ -264,6 +266,70 @@ type providerConformanceCapabilityStub struct {
 	err    error
 }
 
+type builderReservationRepositoryStub struct {
+	markedLeg, markedFence   string
+	renewLeg, renewFence     string
+	releaseLeg, releaseFence string
+	releaseState             string
+	renewErr                 error
+}
+
+func (s *builderReservationRepositoryStub) ReserveBuilder(context.Context, *sql.Tx, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+}
+
+func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(context.Context, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+}
+
+func (s *builderReservationRepositoryStub) MarkBuilderReservationRunning(_ context.Context, _ uint64, legID, fence string) error {
+	s.markedLeg, s.markedFence = legID, fence
+	return nil
+}
+
+func (s *builderReservationRepositoryStub) RenewBuilderReservation(_ context.Context, _ uint64, legID, fence string, _ time.Time) error {
+	s.renewLeg, s.renewFence = legID, fence
+	return s.renewErr
+}
+
+func (s *builderReservationRepositoryStub) ReleaseBuilderReservation(_ context.Context, _ uint64, legID, fence, state string) error {
+	s.releaseLeg, s.releaseFence, s.releaseState = legID, fence, state
+	return nil
+}
+
+func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", BuilderInstanceID: "fallback", BuilderPlacements: []moduleapi.BuilderPlacement{{Platform: "linux/amd64", BuilderInstanceID: "builder-amd64", RuntimeTargetID: 4}}}
+	placement, found := plan.PlacementForPlatform("linux/amd64")
+	if !found {
+		t.Fatal("single-platform placement was not found")
+	}
+	repository := &builderReservationRepositoryStub{}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1})
+	if err != nil {
+		t.Fatalf("begin builder reservation: %v", err)
+	}
+	wantFence := buildstore.BuilderReservationFence(plan.ID, 42, "linux/amd64", 1)
+	if repository.markedLeg != "linux/amd64" || repository.markedFence != wantFence || repository.renewLeg != "linux/amd64" || repository.renewFence != wantFence {
+		t.Fatalf("reservation calls = mark(%q,%q) renew(%q,%q)", repository.markedLeg, repository.markedFence, repository.renewLeg, repository.renewFence)
+	}
+	var executionErr error
+	cleanup(&executionErr)
+	if repository.releaseState != moduleapi.BuilderReservationReleased || repository.releaseLeg != "linux/amd64" || repository.releaseFence != wantFence {
+		t.Fatalf("reservation release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
+}
+
+func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *testing.T) {
+	repository := &builderReservationRepositoryStub{renewErr: errors.New("renew failed")}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1})
+	if cleanup != nil || err == nil || !strings.Contains(err.Error(), "renew builder reservation") {
+		t.Fatalf("begin builder reservation = cleanup:%v err:%v", cleanup != nil, err)
+	}
+	if repository.releaseState != moduleapi.BuilderReservationAbandoned || repository.releaseLeg != "linux/amd64" || repository.releaseFence != buildstore.BuilderReservationFence("plan_1", 42, "linux/amd64", 1) {
+		t.Fatalf("renewal-failure release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
+}
+
 func (s providerConformanceCapabilityStub) ConformProviderExecution(context.Context, moduleapi.ProviderExecutionConformanceRequest) (moduleapi.ProviderExecutionConformanceResult, error) {
 	return s.result, s.err
 }
@@ -331,12 +397,20 @@ func (s *promotionRegistryStub) ResolveArtifactCopyBinding(_ context.Context, co
 	return s.binding, s.err
 }
 
-type promotionCopyProviderStub struct {
+type promotionExecutionAdapterStub struct {
 	copy func(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
 }
 
-func (s promotionCopyProviderStub) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+func (s promotionExecutionAdapterStub) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 	return s.copy(ctx, targetID, input, binding, sink)
+}
+
+func (promotionExecutionAdapterStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	return moduleapi.DockerImageBuildResult{}, errors.New("not implemented")
+}
+
+func (promotionExecutionAdapterStub) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	return moduleapi.OCIManifestPublicationResult{}, errors.New("not implemented")
 }
 
 func TestArtifactPromotionExecutorCopiesFrozenDigestThenSettles(t *testing.T) {
@@ -348,19 +422,19 @@ func TestArtifactPromotionExecutorCopiesFrozenDigestThenSettles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry := &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", Destination: moduleapi.RegistryPublicationBinding{Destination: destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}}
-	provider := promotionCopyProviderStub{copy: func(_ context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	registry := &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Destination: destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}}
+	adapter := promotionExecutionAdapterStub{copy: func(_ context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 		if targetID != 4 || input.Source != source || input.Destination != destination {
 			t.Fatalf("copy input = %#v target=%d", input, targetID)
 		}
 		return moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: source.MediaType, SizeBytes: 19}, nil
 	}}
-	executor := &artifactPromotionExecutor{service: service, provider: provider, registry: registry, cancels: make(map[uint64]context.CancelFunc)}
+	executor := &artifactPromotionExecutor{service: service, adapter: adapter, registry: registry, cancels: make(map[uint64]context.CancelFunc)}
 	payload, _ := json.Marshal(moduleapi.ArtifactPromotionTaskInput{Source: source, Destination: destination, RuntimeTargetID: 4})
 	if err := executor.Execute(context.Background(), buildStageRun{input: payload}); err != nil {
 		t.Fatal(err)
 	}
-	if !repository.promotionSettled || repository.promotionInput.Source != source || repository.promotionInput.Destination != destination || repository.promotionResult.Digest != digest || repository.promotionAuth.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+	if !repository.promotionSettled || repository.promotionInput.Source != source || repository.promotionInput.Destination != destination || repository.promotionResult.Digest != digest || repository.promotionAuth.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		t.Fatalf("promotion settlement = input:%#v result:%#v auth:%#v settled:%t", repository.promotionInput, repository.promotionResult, repository.promotionAuth, repository.promotionSettled)
 	}
 }
@@ -372,7 +446,7 @@ func TestArtifactPromotionExecutorCancellationDoesNotSettle(t *testing.T) {
 	repository := &recordingBuildRepository{}
 	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
 	started := make(chan struct{})
-	executor := &artifactPromotionExecutor{service: service, registry: &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{Destination: moduleapi.RegistryPublicationBinding{Destination: destination}}}, cancels: make(map[uint64]context.CancelFunc), provider: promotionCopyProviderStub{copy: func(ctx context.Context, _ int64, _ moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	executor := &artifactPromotionExecutor{service: service, registry: &promotionRegistryStub{binding: moduleapi.RegistryArtifactCopyBinding{Destination: moduleapi.RegistryPublicationBinding{Destination: destination}}}, cancels: make(map[uint64]context.CancelFunc), adapter: promotionExecutionAdapterStub{copy: func(ctx context.Context, _ int64, _ moduleapi.OCIArtifactCopyInput, _ moduleapi.RegistryArtifactCopyBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 		close(started)
 		<-ctx.Done()
 		return moduleapi.OCIArtifactCopyResult{}, ctx.Err()

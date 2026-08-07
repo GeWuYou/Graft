@@ -86,6 +86,9 @@ func readConfig(reader *viper.Viper) *Config {
 			Runtime:        reader.GetString("ops.container.runtime"),
 			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),
 		},
+		RegistryCredentials: RegistryCredentialSourceConfig{
+			File: reader.GetString("registry.credentials_file"),
+		},
 		Backup: BackupConfig{
 			ArtifactRoot: reader.GetString("backup.artifact_root"),
 		},

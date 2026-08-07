@@ -15,6 +15,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	"graft/server/internal/credential"
 	"graft/server/internal/database"
 	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
@@ -50,9 +51,24 @@ type serviceRegistration struct {
 func (r *Runtime) coreServiceRegistrations() []serviceRegistration {
 	registrations := make([]serviceRegistration, 0, coreServiceRegistrationCapacity)
 	registrations = append(registrations, r.foundationServiceRegistrations()...)
+	registrations = append(registrations, r.credentialServiceRegistrations()...)
 	registrations = append(registrations, r.runtimeDataServiceRegistrations()...)
 	registrations = append(registrations, r.redisBackedServiceRegistrations()...)
 	return registrations
+}
+
+func (r *Runtime) credentialServiceRegistrations() []serviceRegistration {
+	if r == nil || r.config == nil || strings.TrimSpace(r.config.RegistryCredentials.File) == "" {
+		return nil
+	}
+	return []serviceRegistration{
+		{
+			key: (*moduleapi.CredentialProvider)(nil),
+			provider: func() (any, error) {
+				return credential.NewFileProvider(r.config.RegistryCredentials.File)
+			},
+		},
+	}
 }
 
 func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {

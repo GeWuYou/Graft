@@ -7,6 +7,7 @@ import (
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	projectcontract "graft/server/modules/project/contract"
 )
@@ -131,6 +132,10 @@ func (s *Service) issueProjectListSummaryRealtimeSubscription(
 	}
 	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ApplicationViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
+	}
+	scope, err := s.permissionScope(ctx, projectcontract.ApplicationViewPermission.String())
+	if err != nil || scope != moduleapi.PermissionScopeAll {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
 	if err := s.ensureProjectListSummaryTopicStreaming(topic); err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict

@@ -1114,25 +1114,36 @@ def parse_comment_cards(comment_block: str) -> list[dict[str, str]]:
     )
 
     for path, _, body in pattern.findall(comment_block):
-        finding_match = re.search(r"`([^`]+)`: \*\*(.*?)\*\*", body, re.S)
-        prompt_match = re.search(r"<summary>🤖 Prompt for AI Agents</summary>\s*```(.*?)```", body, re.S)
-        suggestion_match = re.search(r"<summary>✏️ 建议文案调整</summary>\s*```diff(.*?)```", body, re.S)
+        finding_starts = list(re.finditer(r"(?m)^`[^`]+`:", body))
+        if finding_starts:
+            finding_positions = [match.start() for match in finding_starts]
+            finding_positions.append(len(body))
+            finding_bodies = [
+                body[finding_positions[index] : finding_positions[index + 1]].rstrip().removesuffix("---").rstrip()
+                for index in range(len(finding_positions) - 1)
+            ]
+        else:
+            finding_bodies = [body]
+        for finding_body in finding_bodies:
+            finding_match = re.search(r"`([^`]+)`:\s.*?\*\*(.*?)\*\*", finding_body, re.S)
+            prompt_match = re.search(r"<summary>🤖 Prompt for AI Agents</summary>\s*```(.*?)```", finding_body, re.S)
+            suggestion_match = re.search(r"<summary>✏️ 建议文案调整</summary>\s*```diff(.*?)```", finding_body, re.S)
 
-        body_without_details = body.split("<details>", 1)[0]
-        description = strip_tags(body_without_details)
-        if finding_match is not None:
-            description = description.replace(f"{finding_match.group(1)}: {finding_match.group(2)}", "").strip()
+            body_without_details = finding_body.split("<details>", 1)[0]
+            description = strip_tags(body_without_details)
+            if finding_match is not None:
+                description = description.replace(f"{finding_match.group(1)}: {finding_match.group(2)}", "").strip()
 
-        comments.append(
-            {
-                "path": path.strip(),
-                "range": finding_match.group(1).strip() if finding_match else "",
-                "title": collapse_whitespace(finding_match.group(2)) if finding_match else "",
-                "description": description,
-                "suggested_diff": suggestion_match.group(1).strip() if suggestion_match else "",
-                "ai_prompt": prompt_match.group(1).strip() if prompt_match else "",
-            }
-        )
+            comments.append(
+                {
+                    "path": path.strip(),
+                    "range": finding_match.group(1).strip() if finding_match else "",
+                    "title": collapse_whitespace(finding_match.group(2)) if finding_match else "",
+                    "description": description,
+                    "suggested_diff": suggestion_match.group(1).strip() if suggestion_match else "",
+                    "ai_prompt": prompt_match.group(1).strip() if prompt_match else "",
+                }
+            )
 
     return comments
 

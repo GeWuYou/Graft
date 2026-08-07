@@ -5,6 +5,18 @@
 Build Domain v2 makes Build a platform capability rather than a Docker command form. It supersedes the Docker-first
 write model in [Docker Build Center](docker-build-center.md) while retaining completed legacy jobs as read-only history.
 
+The execution authority for Registry credentials, Build capability matching, reservations, telemetry, Placement and
+failure handling is [Build Domain v2 Credential And Telemetry Authority RFC](build-domain-v2-credential-and-telemetry-authority.md).
+Provider integration seams are defined separately by the [Provider SDK And SPI RFC](build-domain-v2-provider-sdk-spi.md).
+Where this architecture's historical phase wording conflicts with that RFC, the RFC wins. In particular,
+`docker-runtime-store` is historical evidence only, Builder/Registry-local failure is not global availability, and
+Pool/dynamic placement exposure follows the RFC's four-phase gates. References below to former numbered delivery slices
+(`Phase 5` through `Phase 10`, including `9A` through `9D`) are historical implementation evidence only; they do not
+create release gates. Their explicit recovery mapping is: Phase 5--7 map to RFC Phase 1 (credential and manual
+reservation boundary); Phase 8 and 9A map to RFC Phase 2 (intent materialization and provider conformance); Phase 9B
+maps to RFC Phase 3 (authority evidence and controlled promotion); and Phase 9C, 9D and 10 map to RFC Phase 4
+(dynamic placement expansion). The RFC phase names remain normative wherever historical slices use different wording.
+
 The central immutable chain is:
 
 ```text
@@ -63,11 +75,12 @@ Driver without changing the user-level Build model.
 resource limits, platform limits and required labels. A `Builder Instance` binds one Profile to one eligible Runtime
 Target `build` capability. It represents a runnable builder realization, not a second physical connection record.
 
-`Builder Pool` is an optional collection of eligible Builder Instances and its scheduling policy. It selects Instances,
-not Runtime Targets directly. Phase 1 allows exactly one eligible Instance. Later pool policies may use round robin,
-least load, labels, affinity and region only after the associated capability signals are truthful and auditable.
-The first Pool implementation uses a persisted, transactionally locked round-robin cursor; other policy values remain
-disabled until their telemetry and placement authorities are available.
+`Builder Pool` is an optional collection of eligible Builder Instances and Build-owned placement policy. It selects
+Instances, not Runtime Targets directly. Phase 1 permits only manual single-Instance selection; Phase 3 can expose
+static Pool policies; Phase 4 alone can expose dynamic policies backed by provider-conformant telemetry and a fenced
+Build Reservation. A persisted round-robin cursor is an implementation asset, not proof that a policy is externally
+available. Labels remain static eligibility; `least_load`, `capacity`, `affinity` and `region` are latent/disabled until the RFC
+release gate.
 
 ### Execution Plan, Build Job, Artifact And Publication
 
@@ -98,17 +111,25 @@ prepare_workspace -> schedule_builder -> run_build -> export_artifact -> publish
 ```
 
 多平台执行的当前边界是：Task Runtime 负责 coordinated leg 的并行领取、取消、重试与恢复，Build executor 负责单 leg
-构建、临时平台引用发布和最终 Manifest 结算。Phase 8 才会把 Builder Pool 的平台级 placement 提升为可审计的
-多 Runtime Target 调度；在此之前，一个冻结计划只使用一个已选 Builder Instance，避免把未实现的负载或地域判断
-伪装成调度结果。
+构建、临时平台引用发布和最终 Manifest 结算。每个 leg 使用其自身冻结的 Builder Placement；同一 Execution Plan
+可以因此包含多个已选 Builder Instance 和 Runtime Target。历史实施切片曾将 Builder Pool 的平台级 placement 提升
+为可审计的多 Runtime Target 调度；在该能力未发布的路径中，计划仍只使用一个手工选择的 Builder Instance，避免
+把未实现的负载或地域判断伪装成调度结果。
 
-Phase 8 的第一项实现将 `Builder Placement` 冻结到 Execution Plan：每个目标平台记录 Builder Instance、
-Runtime Target、已采用的调度策略及其校验后的调度证据，并成为 Task Runtime leg 与 Build executor 的唯一目标依据。Workspace Snapshot
+`Builder Placement` is Build's persisted, per-`ExecutionPlanID` and per-platform authority record. Its stable key is
+the immutable Execution Plan identity plus target platform, and its canonical serialized form contributes to the
+Execution Plan digest. Each record freezes Builder Instance, Runtime Target, `PolicyID`, `PolicyVersion`, deterministic
+seed when applicable, policy-input fingerprint, selected output, capability profile/version, full
+capability-negotiation result, telemetry source/observation identity when applicable, selected
+`WorkspaceLocality`, selected `SnapshotDeliveryMode`, provider-backed Snapshot delivery proof and proof fingerprint,
+and the Reservation fence. Task Runtime and Build executor read that one persisted record as the leg input; they never
+maintain an independent recovery selection. A retry or replay reuses exactly that placement and its frozen delivery
+evidence, while only an explicit new scheduling flow may create a new placement record and Execution Plan. Workspace Snapshot
 已经由 Build 接管，因此 target 必须明确声明 `build-snapshot` locality 才能被 placement 选中；这不是 endpoint 或
 任意目录的兼容通道。
 
 Placement 只表达并冻结调度决定，不能证明一个 Provider 能消费该 Snapshot。Runtime Target 还必须声明
-`SnapshotDeliveryModes`；`WorkspaceLocalities` 只表示物化位置，不等于传输适配器。Phase 9 owns provider-backed Snapshot
+`SnapshotDeliveryModes`；`WorkspaceLocalities` 只表示物化位置，不等于传输适配器。历史 Phase 9 evidence owns provider-backed Snapshot
 delivery and remote execution: a provider receives or materializes the exact immutable Snapshot through a declared
 delivery mode, verifies its identity, then executes its declared Driver. The Docker provider now proves the same
 contract for local Unix-socket and validated remote TCP/SSH targets by invoking the selected target explicitly and
@@ -153,9 +174,9 @@ ownership while preserving a coherent Build-to-Deployment user experience.
 ## 6. Scheduling, Parallelism And Platforms
 
 Builder Pools are a later Build scheduling layer, not a replacement Task Runtime. They select an eligible Builder
-Instance according to the frozen Execution Plan and record the selection as execution evidence. Round robin, least load,
-label, affinity and region policies must be deterministic enough to audit and must fail closed when capacity telemetry is
-stale or incompatible.
+Instance according to the frozen Execution Plan and record the selection as execution evidence. The RFC gates manual
+single Builder, static Pool and dynamic Placement separately. Dynamic selection must fail closed for stale or
+incompatible provider telemetry; a static label selector is not dynamic telemetry.
 
 Multi-platform execution fans one Execution Plan out into platform-specific build legs, for example `linux/amd64` and
 `linux/arm64`, then performs a final manifest publication after every required platform Artifact is available. This
@@ -167,38 +188,13 @@ identity, cancellation, retry/recovery and aggregate terminal state; Build owns 
 manifest Publication. Until that contract is released, a Build executor must not loop over platforms or create an
 implicit fan-out scheduler.
 
-### Phase 8A: Builder Telemetry Authority
+### Telemetry And Reservation
 
-The remaining scheduler gap is not a selection algorithm. Runtime Target currently exposes only capability and UI
-summary projections; it does not expose a Build-facing, freshness-bounded fact for builder capacity, running builds,
-queued builds, region or affinity. Build therefore must not derive `least_load`, `region` or `affinity` from CPU charts,
-host load, endpoint names or static Builder labels.
-
-Phase 8A defines `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` as the narrow authority boundary.
-Each snapshot is Runtime Target-scoped, carries capacity/load dimensions, `ObservedAt`, `ExpiresAt`, a source reference
-and explicit region/affinity claims. Consumers must reject stale, unavailable or internally inconsistent snapshots. A
-future Runtime/Infrastructure provider must publish and authorize these facts, while Build Scheduler binds the accepted
-target fact to its Build-owned Builder Instance in placement evidence and replays the same decision without re-querying
-mutable telemetry.
-
-Until Phase 8A has a registered source implementation and integration evidence, only `round_robin` and static `labels`
-selection remain executable; `least_load`, `region` and `affinity` stay fail-closed.
-
-### Phase 8B: Builder Capacity And Telemetry Source Authority
-
-Phase 8A's contract cannot be implemented from Runtime UI summaries, Monitor data, Docker container counts or Task JSON.
-Phase 8B therefore introduces the missing durable authority rather than treating any of those projections as scheduler
-input. Runtime/Infrastructure owns a provider-conformant, target-scoped telemetry source with provenance, freshness and
-attested topology claims. Build separately owns atomic Builder Instance reservations, so physical target availability
-and Graft's own concurrent allocations are never conflated.
-
-Before freezing a placement, Build obtains a fresh target fact, selects an eligible Instance and atomically records a
-fenced reservation. The accepted source/version, capacity facts and reservation reference become frozen scheduling
-evidence. Task lifecycle completion, cancellation and restart recovery reconcile the reservation; provider execution
-may reject an unavailable target but must not silently re-schedule it. A provider source must be real for its Runtime:
-Docker requires a bounded Build agent/control plane or equivalent provider authority, Kubernetes requires its
-BuildKit/Kaniko controller or API evidence, and remote builders require their provider API. Until one source meets this
-release gate, `least_load`, `region` and `affinity` remain unavailable.
+`RuntimeTargetBuilderTelemetryReader` is the sole Build-visible telemetry facade, but its provider source is not yet
+implemented. Runtime UI summaries, Monitor data, Docker container counts, Task JSON, CPU charts, host load, endpoint
+names and static labels cannot supply Builder-scoped queue, slot, freshness and provenance facts. The authority RFC
+defines `BuilderTelemetryProvider`, `BuildExecutionCapability`, `CapabilityMatcher` and Build-owned fenced
+`BuilderReservation`; no dynamic policy is enabled until their conformance and recovery gates pass.
 
 ## 7. UI And API Information Architecture
 

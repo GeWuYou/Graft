@@ -288,8 +288,9 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		selectedBuilderID = placements[0].BuilderInstanceID
 	} else {
 		request.BuilderPlacements = make([]moduleapi.BuilderPlacement, 0, len(request.Platforms))
+		selectedBuilderID = fmt.Sprintf("runtime-target:%d", request.RuntimeTargetID)
 		for _, platform := range request.Platforms {
-			request.BuilderPlacements = append(request.BuilderPlacements, moduleapi.BuilderPlacement{Platform: platform, RuntimeTargetID: request.RuntimeTargetID, SchedulingPolicy: "direct"})
+			request.BuilderPlacements = append(request.BuilderPlacements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selectedBuilderID, RuntimeTargetID: request.RuntimeTargetID, SchedulingPolicy: "manual"})
 		}
 	}
 	for _, placement := range request.BuilderPlacements {

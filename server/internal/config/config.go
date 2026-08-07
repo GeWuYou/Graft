@@ -134,22 +134,23 @@ const (
 //
 // core 会把该快照作为只读依赖注入给运行时与模块，避免后续流程再隐式读取环境变量。
 type Config struct {
-	App       AppConfig
-	HTTP      HTTPConfig
-	HTTPX     HTTPXConfig
-	Audit     AuditConfig
-	Docs      DocsConfig
-	Modules   ModulesConfig
-	Database  DatabaseConfig
-	Redis     RedisConfig
-	Log       LogConfig
-	Runtime   RuntimeConfig
-	I18n      I18nConfig
-	Auth      AuthConfig
-	MCP       MCPConfig
-	Container ContainerConfig
-	Backup    BackupConfig
-	Project   ProjectConfig
+	App                 AppConfig
+	HTTP                HTTPConfig
+	HTTPX               HTTPXConfig
+	Audit               AuditConfig
+	Docs                DocsConfig
+	Modules             ModulesConfig
+	Database            DatabaseConfig
+	Redis               RedisConfig
+	Log                 LogConfig
+	Runtime             RuntimeConfig
+	I18n                I18nConfig
+	Auth                AuthConfig
+	MCP                 MCPConfig
+	Container           ContainerConfig
+	RegistryCredentials RegistryCredentialSourceConfig
+	Backup              BackupConfig
+	Project             ProjectConfig
 }
 
 // AppConfig 描述进程级应用标识配置。
@@ -268,6 +269,12 @@ type ContainerConfig struct {
 	DockerEndpoint string
 }
 
+// RegistryCredentialSourceConfig 描述 core 读取 Registry 凭据文件的位置。
+// 文件内容只由 CredentialProvider 消费，不能进入 Config 快照之外的控制面。
+type RegistryCredentialSourceConfig struct {
+	File string
+}
+
 // BackupConfig 描述 Backup 模块可写入的受控工件根目录。
 //
 // 该目录由部署层挂载和权限控制，不能由 HTTP 请求或 System Config 覆盖。
@@ -358,6 +365,7 @@ func (c *Config) Validate() error {
 		validateAuthConfig,
 		validateMCPConfig,
 		validateContainerConfig,
+		validateRegistryCredentialSourceConfig,
 		validateBackupConfig,
 	}
 	for _, validate := range validators {
@@ -365,6 +373,18 @@ func (c *Config) Validate() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateRegistryCredentialSourceConfig(c *Config) error {
+	file := strings.TrimSpace(c.RegistryCredentials.File)
+	if file == "" {
+		return nil
+	}
+	if !filepath.IsAbs(file) {
+		return errors.New("GRAFT_REGISTRY_CREDENTIALS_FILE must be an absolute path")
+	}
+	c.RegistryCredentials.File = filepath.Clean(file)
 	return nil
 }
 

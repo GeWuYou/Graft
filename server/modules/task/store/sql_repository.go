@@ -29,6 +29,33 @@ type SQLRepository struct {
 	placeholder placeholderStyle
 }
 
+// databaseOperationError 以稳定的操作名和 SQLSTATE 供日志归类，同时通过错误链保留驱动错误，避免将数据库详情直接暴露给上层。
+type databaseOperationError struct {
+	operation string
+	sqlState  string
+	err       error
+}
+
+func (e *databaseOperationError) Error() string {
+	if e.sqlState != "" {
+		return fmt.Sprintf("task store database operation %s failed (sqlstate=%s)", e.operation, e.sqlState)
+	}
+	return fmt.Sprintf("task store database operation %s failed", e.operation)
+}
+
+func (e *databaseOperationError) Unwrap() error { return e.err }
+
+func wrapDatabaseOperation(operation string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code != "" {
+		return &databaseOperationError{operation: operation, sqlState: pgErr.Code, err: err}
+	}
+	return &databaseOperationError{operation: operation, err: err}
+}
+
 // NewSQLRepository 创建明确选择 SQL 方言语义的仓储；SQLite 方言仅用于保持单元测试的等价执行路径。
 func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 	if db == nil {
@@ -53,7 +80,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return taskmodel.Task{}, nil, false, fmt.Errorf("begin create task transaction: %w", err)
+		return taskmodel.Task{}, nil, false, wrapDatabaseOperation("task_create_begin", err)
 	}
 	defer rollback(tx)
 	if err := r.lockOwner(ctx, tx, input.Task.Owner); err != nil {
@@ -74,7 +101,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 	}
 	var reservedSubmission bool
 	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT EXISTS(SELECT 1 FROM task_submissions WHERE owner_type = ? AND owner_id = ? AND state = ?)`), input.Task.Owner.Type, input.Task.Owner.ID, moduleapi.TaskSubmissionStateReserved).Scan(&reservedSubmission); err != nil {
-		return taskmodel.Task{}, nil, false, fmt.Errorf("check active task submission: %w", err)
+		return taskmodel.Task{}, nil, false, wrapDatabaseOperation("reserved_submission_check", err)
 	}
 	if reservedSubmission {
 		return taskmodel.Task{}, nil, false, moduleapi.ErrTaskOwnerBusy
@@ -149,7 +176,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 			now,
 			now,
 		).Scan(&current.ID); err != nil {
-			return taskmodel.Task{}, nil, false, fmt.Errorf("insert task stage %q: %w", current.Key, err)
+			return taskmodel.Task{}, nil, false, wrapDatabaseOperation("task_stage_insert", err)
 		}
 		stages = append(stages, current)
 	}
@@ -164,11 +191,11 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		createdPayload,
 		now,
 	).Scan(new(uint64)); err != nil {
-		return taskmodel.Task{}, nil, false, fmt.Errorf("insert task created event: %w", err)
+		return taskmodel.Task{}, nil, false, wrapDatabaseOperation("task_created_event_insert", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return taskmodel.Task{}, nil, false, fmt.Errorf("commit create task transaction: %w", err)
+		return taskmodel.Task{}, nil, false, wrapDatabaseOperation("task_create_commit", err)
 	}
 	return input.Task, stages, false, nil
 }
@@ -177,7 +204,7 @@ func mapCreateTaskError(err error) error {
 	if isActiveOwnerConflict(err) {
 		return fmt.Errorf("insert task: %w", moduleapi.ErrTaskOwnerBusy)
 	}
-	return fmt.Errorf("insert task: %w", err)
+	return wrapDatabaseOperation("task_insert", err)
 }
 
 func isActiveOwnerConflict(err error) bool {

@@ -123,6 +123,35 @@ Mention additional grouped review sections.
         self.assertEqual(parsed["minor_comments"][0]["path"], ".agents/skills/graft-pr-review/SKILL.md")
         self.assertEqual(parsed["comment_groups"]["major"]["section_name"], "Major comments")
 
+    def test_parse_latest_review_body_expands_multiple_findings_for_one_path(self) -> None:
+        """A folded file card may contain several independently actionable findings."""
+        review_body = """
+<details><summary>Nitpick comments (2)</summary><blockquote>
+<details><summary>server/main.go (2)</summary><blockquote>
+`L10-L12`: **First finding**
+First description.
+<!-- cr-comment:v1:first -->
+
+---
+
+`L20-L22`: **Second finding**
+Second description.
+<!-- cr-comment:v1:second -->
+</blockquote></details>
+</blockquote></details>
+"""
+
+        parsed = MODULE.parse_latest_review_body(review_body)
+
+        self.assertEqual(parsed["nitpick_count"], 2)
+        self.assertEqual(len(parsed["nitpick_comments"]), 2)
+        self.assertEqual([item["range"] for item in parsed["nitpick_comments"]], ["L10-L12", "L20-L22"])
+        self.assertNotIn("---", parsed["nitpick_comments"][0]["description"])
+        self.assertIn("First description.", parsed["nitpick_comments"][0]["description"])
+        self.assertNotIn("Second description.", parsed["nitpick_comments"][0]["description"])
+        self.assertIn("Second description.", parsed["nitpick_comments"][1]["description"])
+        self.assertNotIn("First description.", parsed["nitpick_comments"][1]["description"])
+
 
 class ParsePreMergeChecksTests(unittest.TestCase):
     """Cover CodeRabbit pre-merge status extraction and handling policy."""

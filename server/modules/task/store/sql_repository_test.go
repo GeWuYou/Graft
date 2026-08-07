@@ -8,12 +8,67 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
 	"graft/server/modules/task/testschema"
 )
+
+func TestWrapDatabaseOperationIncludesSQLStateAndPreservesCause(t *testing.T) {
+	t.Parallel()
+
+	cause := &pgconn.PgError{Code: "42501", Message: "permission denied for table tasks"}
+	err := wrapDatabaseOperation("task_insert", fmt.Errorf("insert task: %w", cause))
+
+	if got, want := err.Error(), "task store database operation task_insert failed (sqlstate=42501)"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("wrapped error does not preserve the PostgreSQL cause")
+	}
+	var got *pgconn.PgError
+	if !errors.As(err, &got) || got.Code != cause.Code {
+		t.Fatalf("wrapped error does not expose PostgreSQL SQLSTATE: %v", err)
+	}
+}
+
+func TestWrapDatabaseOperationDoesNotExposeDriverMessage(t *testing.T) {
+	t.Parallel()
+
+	err := wrapDatabaseOperation("task_insert", errors.New("permission denied for table tasks"))
+	if got, want := err.Error(), "task store database operation task_insert failed"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+}
+
+func TestOwnerLockKeyIsStableASCIIAndSeparatesOwners(t *testing.T) {
+	t.Parallel()
+
+	owners := []moduleapi.TaskOwner{
+		{Type: "application", ID: "app_1"},
+		{Type: "application", ID: "app_2"},
+		{Type: "application:team", ID: "app:1"},
+		{Type: "application", ID: "team:app:1"},
+	}
+	seen := make(map[string]struct{}, len(owners))
+	for _, owner := range owners {
+		key := ownerLockKey(owner)
+		if key != ownerLockKey(owner) || len(key) != 64 {
+			t.Fatalf("owner lock key is not stable 64-character SHA-256: owner=%#v key=%q", owner, key)
+		}
+		for _, character := range key {
+			if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+				t.Fatalf("owner lock key is not lowercase hexadecimal: %q", key)
+			}
+		}
+		if _, duplicate := seen[key]; duplicate {
+			t.Fatalf("owner lock key collision: owner=%#v key=%q", owner, key)
+		}
+		seen[key] = struct{}{}
+	}
+}
 
 func TestSQLRepositoryCreatePersistsFrozenTaskPlanAndCreatedEvent(t *testing.T) {
 	t.Parallel()
