@@ -619,6 +619,13 @@
         "subtitle": "平台正在维护，部分功能暂时不可用。",
         "back": "返回首页"
       },
+      "serviceUnavailable": {
+        "title": "平台暂不可用",
+        "subtitle": "当前无法连接平台，业务请求和实时连接已暂停。",
+        "copyDiagnostics": "复制诊断信息",
+        "copySuccess": "诊断信息已复制",
+        "copyFailed": "无法复制诊断信息"
+      },
       "browserIncompatible": {
         "title": "浏览器不兼容",
         "subtitle": "当前浏览器无法完整支持控制台功能，请使用推荐浏览器访问。",

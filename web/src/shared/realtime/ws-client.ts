@@ -2,6 +2,7 @@ import { createLogger } from '@/utils/logger';
 
 import type { RealtimeSubscriptionResponse } from './api';
 import { postRealtimeSubscription } from './api';
+import { isRealtimePlatformAvailable, registerRealtimeAvailabilityController } from './platform-availability';
 import { toRealtimeWebSocketUrl } from './url';
 
 type RealtimeSocketState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
@@ -73,7 +74,7 @@ export function openRealtimeTopicSocket<TMessage>(
 
   function scheduleReconnect(terminalErrorMessage = MAX_RECONNECT_ERROR_MESSAGE) {
     clearReconnectTimer();
-    if (closed) {
+    if (closed || !isRealtimePlatformAvailable()) {
       return false;
     }
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -99,7 +100,7 @@ export function openRealtimeTopicSocket<TMessage>(
   async function connect() {
     // 每次连接都绑定递增 ID；票据请求或旧 socket 延迟完成时，结果不能覆盖更新后的连接状态。
     clearReconnectTimer();
-    if (closed) {
+    if (closed || !isRealtimePlatformAvailable()) {
       return;
     }
 
@@ -213,8 +214,12 @@ export function openRealtimeTopicSocket<TMessage>(
     });
   });
 
+  const unregister = registerRealtimeAvailabilityController({ close, reconnect });
   return {
-    close,
+    close: () => {
+      unregister();
+      close();
+    },
     reconnect,
   };
 }

@@ -49,6 +49,14 @@ const storeState = vi.hoisted(() => ({
   },
 }));
 
+const availabilityState = vi.hoisted(() => ({
+  status: 'healthy' as 'unknown' | 'healthy' | 'degraded' | 'unavailable' | 'recovering',
+  isUnavailable: false,
+  pendingPath: null as string | null,
+  bindRequestBridge: vi.fn(),
+  checkHealth: vi.fn(),
+}));
+
 vi.mock('nprogress', () => ({
   default: {
     configure: vi.fn(),
@@ -96,6 +104,10 @@ vi.mock('@/store', () => ({
   getPermissionStore: () => storeState.permissionStore,
 }));
 
+vi.mock('@/store/modules/platform-availability', () => ({
+  usePlatformAvailabilityStore: () => availabilityState,
+}));
+
 vi.mock('@/modules/auth/store', () => ({
   useAuthSessionStore: () => storeState.userStore,
 }));
@@ -132,6 +144,11 @@ describe('permission restricted session guard', () => {
     storeState.permissionStore.restoreRoutes.mockReset();
     storeState.permissionStore.routesInitialized = true;
     storeState.permissionStore.globalRoutes = [];
+    availabilityState.status = 'healthy';
+    availabilityState.isUnavailable = false;
+    availabilityState.pendingPath = null;
+    availabilityState.bindRequestBridge.mockReset();
+    availabilityState.checkHealth.mockReset();
     storeState.userStore.ensureBootstrap.mockResolvedValue({
       must_change_password: true,
       roles: ['admin'],
@@ -257,6 +274,26 @@ describe('permission restricted session guard', () => {
     );
 
     expect(storeState.userStore.setPendingRestrictedRedirect).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('renders Service Unavailable without attempting session recovery or bootstrap', async () => {
+    const { beforeEach } = await loadPermissionGuards();
+    const next = vi.fn();
+
+    await beforeEach(
+      {
+        path: '/result/service-unavailable',
+        fullPath: '/result/service-unavailable?redirect=%2F',
+        name: 'ResultServiceUnavailable',
+        query: { redirect: '/' },
+      },
+      { path: '/', fullPath: '/', query: {} },
+      next,
+    );
+
+    expect(storeState.userStore.refreshToken).not.toHaveBeenCalled();
+    expect(storeState.userStore.ensureBootstrap).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith();
   });
 

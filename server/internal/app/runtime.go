@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
 	cachebackend "graft/server/internal/cachex/backend"
+	"graft/server/internal/capability"
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
@@ -99,6 +100,7 @@ type Runtime struct {
 	configRegistry            *configregistry.Registry
 	dashboardRegistry         *dashboard.Registry
 	moduleManager             *module.Manager
+	capabilityCoordinator     *capability.Coordinator
 	runtimeMetadata           module.RuntimeMetadata
 	appLogRepository          logger.AppLogRepository
 	canonicalAppLogger        logger.AppLogger
@@ -223,9 +225,7 @@ func newRuntimeCore(startupCtx context.Context, cfg *config.Config) (*Runtime, e
 func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)
-	if startupCtx == nil {
-		startupCtx = context.Background()
-	}
+	startupCtx = normalizeStartupContext(startupCtx)
 
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
@@ -307,6 +307,11 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		appLogRepository:     appLogRepo,
 		canonicalAppLogger:   runtimeAppLogger,
 	}
+	runtime.capabilityCoordinator, err = capability.NewRuntimeCoordinator(databaseResources.SQL, redisx.NewHealthReporter(redisClient), runtime.services)
+	if err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("create capability coordinator: %w", err)
+	}
 	menu.RegisterDomainGroups(runtime.menuRegistry)
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
 		_ = runtime.closeCoreResources()
@@ -314,6 +319,13 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 	}
 
 	return runtime, nil
+}
+
+func normalizeStartupContext(startupCtx context.Context) context.Context {
+	if startupCtx == nil {
+		return context.Background()
+	}
+	return startupCtx
 }
 
 // newRuntimeEventPipeline 组装可选 App Log consumer 与 durable event dispatcher，

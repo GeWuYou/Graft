@@ -10,6 +10,7 @@ const loggerError = vi.fn();
 const patchGlobalLoggerContext = vi.fn();
 const useMock = vi.fn();
 const mountMock = vi.fn();
+const initializeThemeWorkbenchRuntime = vi.fn();
 
 vi.mock('vue', () => ({
   createApp: () => ({
@@ -40,6 +41,9 @@ vi.mock('@/locales', () => ({
 
 vi.mock('@/store', () => ({
   store: {},
+  useSettingStore: () => ({
+    initializeThemeWorkbenchRuntime,
+  }),
   useTabsRouterStore: () => ({
     healPersistedState,
   }),
@@ -89,6 +93,7 @@ describe('bootstrapApp', () => {
     patchGlobalLoggerContext.mockReset();
     useMock.mockReset();
     mountMock.mockReset();
+    initializeThemeWorkbenchRuntime.mockReset();
   });
 
   it('suppresses ResizeObserver loop notifications from the global runtime error sink', async () => {
@@ -123,7 +128,7 @@ describe('bootstrapApp', () => {
     expect(loggerError).toHaveBeenCalled();
   });
 
-  it('heals persisted tab refresh residue before mounting the app', async () => {
+  it('initializes persisted theme tokens and heals tab refresh residue before mounting the app', async () => {
     const { bootstrapApp } = await import('./index');
 
     bootstrapApp();
@@ -133,9 +138,16 @@ describe('bootstrapApp', () => {
     expect(patchGlobalLoggerContext).toHaveBeenCalledWith({
       route: '/login',
     });
+    expect(initializeThemeWorkbenchRuntime).toHaveBeenCalledTimes(1);
     expect(healPersistedState).toHaveBeenCalledTimes(1);
     expect(useMock).toHaveBeenCalledTimes(4);
+    expect(useMock.mock.invocationCallOrder[0]).toBeLessThan(
+      initializeThemeWorkbenchRuntime.mock.invocationCallOrder[0],
+    );
     expect(useMock.mock.invocationCallOrder[0]).toBeLessThan(healPersistedState.mock.invocationCallOrder[0]);
+    expect(initializeThemeWorkbenchRuntime.mock.invocationCallOrder[0]).toBeLessThan(
+      mountMock.mock.invocationCallOrder[0],
+    );
     expect(registerPermissionDirective).toHaveBeenCalledTimes(1);
     expect(mountMock).toHaveBeenCalledWith('#app');
     expect(healPersistedState.mock.invocationCallOrder[0]).toBeLessThan(mountMock.mock.invocationCallOrder[0]);

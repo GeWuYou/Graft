@@ -25,8 +25,10 @@ import (
 
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
+	"graft/server/internal/capability"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	capcontract "graft/server/internal/contract/capability"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
@@ -52,6 +54,70 @@ import (
 type runtimeAccessLogRecorderRepo struct {
 	created []httpx.CreateAccessLogInput
 	deleted []time.Time
+}
+
+func TestDashboardHealthStatusForCapabilityPreservesWidgetContract(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   moduleapi.CapabilityStatus
+		expected dashboard.HealthStatus
+	}{
+		{name: "healthy", status: moduleapi.CapabilityStatusHealthy, expected: dashboard.HealthStatusHealthy},
+		{name: "disabled", status: moduleapi.CapabilityStatusDisabled, expected: dashboard.HealthStatusDisabled},
+		{name: "degraded", status: moduleapi.CapabilityStatusDegraded, expected: dashboard.HealthStatusDegraded},
+		{name: "unavailable", status: moduleapi.CapabilityStatusUnavailable, expected: dashboard.HealthStatusDegraded},
+		{name: "checking", status: moduleapi.CapabilityStatusChecking, expected: dashboard.HealthStatusUnknown},
+		{name: "unsupported", status: moduleapi.CapabilityStatusUnsupported, expected: dashboard.HealthStatusUnknown},
+		{name: "unknown", status: moduleapi.CapabilityStatusUnknown, expected: dashboard.HealthStatusUnknown},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dashboardHealthStatusForCapability(test.status); got != test.expected {
+				t.Fatalf("dashboard capability status projection = %q, want %q", got, test.expected)
+			}
+		})
+	}
+}
+
+func TestCapabilityDashboardDoesNotDegradeForDisabledRedis(t *testing.T) {
+	registry, err := capability.NewRegistry([]capability.Entry{{
+		Descriptor: moduleapi.CapabilityDescriptor{Key: "redis", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature},
+		Provider: capabilityProvider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+			return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusDisabled, Summary: "Redis is not configured"}, nil
+		}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &Runtime{dashboardRegistry: dashboard.NewRegistry(), capabilityCoordinator: capability.NewCoordinator(registry), i18n: mustNewRuntimeTestLocalizer(t)}
+	if err := runtime.registerCoreCapabilityDashboard(); err != nil {
+		t.Fatalf("register capability dashboard: %v", err)
+	}
+	widget, ok := runtime.dashboardRegistry.Get("core.platform-capability-health")
+	if !ok {
+		t.Fatal("expected capability dashboard widget")
+	}
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load capability dashboard: %v", err)
+	}
+	if got := payload["abnormal_services"]; got != 0 {
+		t.Fatalf("disabled Redis must not count as abnormal, got %#v", got)
+	}
+	if got := payload["state"]; got != string(dashboard.WidgetStateNormal) {
+		t.Fatalf("disabled Redis must not warn the widget, got %#v", got)
+	}
+	summary, ok := payload["summary"].(dashboard.HealthSummaryItem)
+	if !ok || summary.Status != dashboard.HealthStatusHealthy {
+		t.Fatalf("disabled Redis must preserve a healthy summary, got %#v", payload["summary"])
+	}
+}
+
+type capabilityProvider func(context.Context) (moduleapi.CapabilityObservation, error)
+
+func (p capabilityProvider) Observe(ctx context.Context) (moduleapi.CapabilityObservation, error) {
+	return p(ctx)
 }
 
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {
@@ -1360,9 +1426,36 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	if payload.DefaultLocale != "zh-CN" || payload.FallbackLocale != "en-US" {
 		t.Fatalf("expected locale snapshot zh-CN/en-US, got %s/%s", payload.DefaultLocale, payload.FallbackLocale)
 	}
-	if payload.Menus != 2 || payload.Permissions != 1 || payload.Jobs != 3 {
-		t.Fatalf("expected registry counts 2/1/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
+	if payload.Menus != 2 || payload.Permissions != 2 || payload.Jobs != 3 {
+		t.Fatalf("expected registry counts 2/2/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
 	}
+}
+
+func TestRegisterCoreRoutesRegistersPlatformCapabilityPermissionMetadata(t *testing.T) {
+	runtime := &Runtime{
+		config:             &config.Config{},
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		permissionRegistry: permission.NewRegistry(),
+	}
+
+	if err := runtime.registerCoreRoutes(gin.New()); err != nil {
+		t.Fatalf("register core routes: %v", err)
+	}
+
+	for _, item := range runtime.permissionRegistry.Items() {
+		if item.Code != capcontract.ReadPermission {
+			continue
+		}
+		if item.DisplayKey != "rbac.permissionCatalog.platformCapabilitiesRead.display" ||
+			item.DescriptionKey != "rbac.permissionCatalog.platformCapabilitiesRead.description" ||
+			item.Module != "core" || item.Resource != "platform-capabilities" || item.Action != "read" ||
+			item.RiskLevel != permission.RiskLevelLow || item.RiskCategory != permission.RiskCategoryRead {
+			t.Fatalf("unexpected platform capability permission metadata: %#v", item)
+		}
+		return
+	}
+
+	t.Fatalf("platform capability permission %q was not registered", capcontract.ReadPermission)
 }
 
 func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {

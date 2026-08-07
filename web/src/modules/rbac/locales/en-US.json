@@ -234,6 +234,10 @@
       }
     },
     "permissionCatalog": {
+      "platformCapabilitiesRead": {
+        "display": "Platform Capability Health Read",
+        "description": "Allows reading the platform infrastructure and integration capability health snapshot."
+      },
       "userRead": {
         "display": "Read Users",
         "description": "Allows reading user management data."

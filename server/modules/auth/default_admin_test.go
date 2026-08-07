@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"graft/server/internal/config"
+	capabilitycontract "graft/server/internal/contract/capability"
 	"graft/server/internal/i18n"
 	"graft/server/internal/permission"
 	rbaclocales "graft/server/modules/rbac/locales"
@@ -85,5 +86,44 @@ func TestPermissionSeedsFromItemsResolvesDockerImagePermissionLocales(t *testing
 		if seed.Description != wantDescriptions[index] {
 			t.Errorf("seed %d description = %q, want %q", index, seed.Description, wantDescriptions[index])
 		}
+	}
+}
+
+func TestPermissionSeedsFromItemsResolvesPlatformCapabilityPermissionLocales(t *testing.T) {
+	for _, test := range []struct {
+		locale          string
+		wantDisplay     string
+		wantDescription string
+	}{
+		{locale: "zh-CN", wantDisplay: "平台能力状态读取", wantDescription: "允许读取平台基础设施与集成能力的健康快照。"},
+		{locale: "en-US", wantDisplay: "Platform Capability Health Read", wantDescription: "Allows reading the platform infrastructure and integration capability health snapshot."},
+	} {
+		t.Run(test.locale, func(t *testing.T) {
+			localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: test.locale, FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+			resources, err := rbaclocales.EmbeddedLocaleResources()
+			if err != nil {
+				t.Fatalf("load rbac locale resources: %v", err)
+			}
+			if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+				t.Fatalf("register rbac locale resources: %v", err)
+			}
+
+			seeds, err := permissionSeedsFromItems(localizer, []permission.Item{{
+				Code:           capabilitycontract.ReadPermission,
+				DisplayKey:     "rbac.permissionCatalog.platformCapabilitiesRead.display",
+				DescriptionKey: "rbac.permissionCatalog.platformCapabilitiesRead.description",
+				Module:         "core",
+				Resource:       "platform-capabilities",
+				Action:         "read",
+				RiskLevel:      permission.RiskLevelLow,
+				RiskCategory:   permission.RiskCategoryRead,
+			}})
+			if err != nil {
+				t.Fatalf("build platform capability permission seed: %v", err)
+			}
+			if len(seeds) != 1 || seeds[0].Display != test.wantDisplay || seeds[0].Description != test.wantDescription {
+				t.Fatalf("unexpected platform capability permission seed: %#v", seeds)
+			}
+		})
 	}
 }

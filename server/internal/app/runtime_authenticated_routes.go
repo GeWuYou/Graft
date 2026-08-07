@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	capabilityruntime "graft/server/internal/capability"
 	"graft/server/internal/container"
+	capabilitycontract "graft/server/internal/contract/capability"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	productmcp "graft/server/internal/mcp"
@@ -22,7 +24,10 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	if err != nil {
 		return fmt.Errorf("resolve log explorer auth service: %w", err)
 	}
+	return r.registerCoreAuthenticatedRoutesWith(authService, authorizer)
+}
 
+func (r *Runtime) registerCoreAuthenticatedRoutesWith(authService moduleapi.AuthService, authorizer moduleapi.Authorizer) error {
 	if err := r.registerAccessLogExplorerWithAuth(authService, authorizer); err != nil {
 		return err
 	}
@@ -38,6 +43,9 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	if err := r.registerDashboardWithAuth(authService, authorizer); err != nil {
 		return err
 	}
+	if err := r.registerCapabilityRoutes(authService, authorizer); err != nil {
+		return fmt.Errorf("register capability routes: %w", err)
+	}
 	if err := r.registerRealtimeSubscriptionRoutes(); err != nil {
 		return err
 	}
@@ -46,6 +54,10 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	}
 
 	return nil
+}
+
+func (r *Runtime) registerCapabilityRoutes(authService moduleapi.AuthService, authorizer moduleapi.Authorizer) error {
+	return capabilityruntime.RegisterRoutes(r.server.Engine().Group("/api"), r.services, r.capabilityCoordinator, httpx.RequirePermission(r.i18n, authService, authorizer, capabilitycontract.ReadPermission))
 }
 
 func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {

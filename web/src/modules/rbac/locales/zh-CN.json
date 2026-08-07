@@ -234,6 +234,10 @@
       }
     },
     "permissionCatalog": {
+      "platformCapabilitiesRead": {
+        "display": "平台能力状态读取",
+        "description": "允许读取平台基础设施与集成能力的健康快照。"
+      },
       "userRead": {
         "display": "读取用户",
         "description": "允许读取用户管理数据。"

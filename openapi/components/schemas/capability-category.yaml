@@ -1,0 +1,2 @@
+type: string
+enum: [infrastructure, runtime, storage, integration, security, observability, platform, ai, extension]

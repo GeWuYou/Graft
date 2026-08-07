@@ -12,6 +12,8 @@ rbac.permissionCatalog.auditManage.display: 审计策略管理
 rbac.permissionCatalog.auditManage.description: 允许管理审计可见性默认策略和单事件覆盖策略。
 rbac.permissionCatalog.moduleRuntimeRead.display: 模块运行时读取
 rbac.permissionCatalog.moduleRuntimeRead.description: 允许读取核心模块运行时快照。
+rbac.permissionCatalog.platformCapabilitiesRead.display: 平台能力状态读取
+rbac.permissionCatalog.platformCapabilitiesRead.description: 允许读取平台基础设施与集成能力的健康快照。
 rbac.permissionCatalog.monitorServerStatusRead.display: 服务器状态读取
 rbac.permissionCatalog.monitorServerStatusRead.description: 允许读取服务器状态概览。
 rbac.permissionCatalog.notificationView.display: 通知查看

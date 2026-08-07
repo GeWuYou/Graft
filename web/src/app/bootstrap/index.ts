@@ -8,7 +8,7 @@ import { isProjectMonacoBenignCancellationError } from '@/modules/project/shared
 import { initDebugRuntime } from '@/shared/debug/runtime';
 import { queryClient } from '@/shared/query';
 import router from '@/router';
-import { store, useTabsRouterStore } from '@/store';
+import { store, useSettingStore, useTabsRouterStore } from '@/store';
 import { isHandledAuthRequestError } from '@/utils/auth-request-error';
 import { createLogger, patchGlobalLoggerContext } from '@/utils/logger';
 
@@ -43,6 +43,8 @@ export function bootstrapApp() {
   app.use(store);
   app.use(VueQueryPlugin, { queryClient });
   initDebugRuntime();
+  // 主题 token 必须在首个路由视图挂载前写入，异常页不依赖主题工作台宿主也能继承持久化主题。
+  useSettingStore(store).initializeThemeWorkbenchRuntime();
   const tabsRouterStore = useTabsRouterStore(store);
 
   // 必须在 app.use(store) 之后再创建带 persist 的 store，避免启动阶段拿到未 hydrate 的初始 tabs 状态。

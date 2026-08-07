@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	capabilitycontract "graft/server/internal/contract/capability"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 )
@@ -65,7 +66,7 @@ func TestSystemRolePolicyRestrictsConnectivitySensitivePermissionsToAdmin(t *tes
 		entries[entry.Code] = entry
 	}
 
-	for _, code := range []string{"platform-network.targets.manage", "platform-network.exit-ip.read"} {
+	for _, code := range []string{"platform-network.targets.manage", "platform-network.exit-ip.read", capabilitycontract.ReadPermission} {
 		entry, exists := entries[code]
 		if !exists {
 			t.Fatalf("system role policy does not cover %s", code)

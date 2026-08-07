@@ -1,5 +1,10 @@
 import { computed, ref, shallowRef } from 'vue';
 
+import {
+  isRealtimePlatformAvailable,
+  registerRealtimeAvailabilityController,
+} from '@/shared/realtime/platform-availability';
+
 import type {
   TerminalClientMessage,
   TerminalConnectionState,
@@ -30,6 +35,7 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
   const lastError = ref<string>('');
   let activeConnectionId = 0;
   let activeClose: ((reason: TerminalLifecycleCloseReason) => void) | null = null;
+  let resumeSize: TerminalResizePayload | null = null;
 
   const isConnected = computed(() => state.value === 'connected');
 
@@ -43,7 +49,12 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
   }
 
   async function connect(initialSize: TerminalResizePayload) {
-    disconnect('manual_disconnect');
+    resumeSize = initialSize;
+    if (!isRealtimePlatformAvailable()) {
+      setState('disconnected');
+      return;
+    }
+    disconnect('manual_disconnect', true);
     setState('connecting');
     lastError.value = '';
     const connectionId = ++activeConnectionId;
@@ -144,7 +155,10 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     }
   }
 
-  function disconnect(reason: TerminalLifecycleCloseReason = 'manual_disconnect') {
+  function disconnect(reason: TerminalLifecycleCloseReason = 'manual_disconnect', preserveRecoveryIntent = false) {
+    if (!preserveRecoveryIntent) {
+      resumeSize = null;
+    }
     if (state.value === 'connecting') {
       activeConnectionId += 1;
     }
@@ -212,9 +226,26 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     }
   }
 
+  const unregisterAvailability = registerRealtimeAvailabilityController({
+    close: () => {
+      disconnect('manual_disconnect', true);
+    },
+    reconnect: () => {
+      const size = resumeSize;
+      if (size) void connect(size);
+    },
+  });
+
+  function dispose() {
+    unregisterAvailability();
+    resumeSize = null;
+    disconnect('component_unmount');
+  }
+
   return {
     connect,
     disconnect,
+    dispose,
     isConnected,
     lastError,
     sendInput,

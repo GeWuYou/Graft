@@ -1,0 +1,7 @@
+type: object
+required: [items, observed_at]
+properties:
+  items:
+    type: array
+    items: { $ref: ./platform-capability.yaml }
+  observed_at: { type: string, format: date-time }

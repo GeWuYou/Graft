@@ -4,6 +4,21 @@ import { nextTick } from 'vue';
 import type { TerminalResizePayload, TerminalSessionConnector } from './terminal-types';
 import { useTerminalSession } from './useTerminalSession';
 
+let realtimePlatformAvailable = true;
+let availabilityController: { close(): void; reconnect(): void } | null = null;
+
+vi.mock('@/shared/realtime/platform-availability', () => ({
+  isRealtimePlatformAvailable: () => realtimePlatformAvailable,
+  registerRealtimeAvailabilityController: (controller: { close(): void; reconnect(): void }) => {
+    availabilityController = controller;
+    return () => {
+      if (availabilityController === controller) {
+        availabilityController = null;
+      }
+    };
+  },
+}));
+
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
   static readonly CONNECTING = 0;
@@ -71,6 +86,8 @@ describe('useTerminalSession', () => {
 
   beforeEach(() => {
     MockWebSocket.instances = [];
+    realtimePlatformAvailable = true;
+    availabilityController = null;
     globalThis.WebSocket = Object.assign(MockWebSocket, {
       CONNECTING: MockWebSocket.CONNECTING,
       OPEN: MockWebSocket.OPEN,
@@ -130,6 +147,41 @@ describe('useTerminalSession', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledWith('manual_disconnect');
     expect(session.state.value).toBe('disconnected');
+  });
+
+  it('cancels platform recovery after a user manually disconnects a suspended session', async () => {
+    const { connector, open } = createConnector();
+    const session = useTerminalSession({ connector });
+
+    await session.connect(createSize());
+    const socket = MockWebSocket.instances[0];
+    socket.emitOpen();
+
+    expect(availabilityController).not.toBeNull();
+    availabilityController!.close();
+    session.disconnect();
+    availabilityController!.reconnect();
+    await nextTick();
+
+    expect(socket.close).toHaveBeenCalledWith(1000, 'manual_disconnect');
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances).toHaveLength(1);
+  });
+
+  it('reconnects a session that platform availability suspended without a user disconnect', async () => {
+    const { connector, open } = createConnector();
+    const session = useTerminalSession({ connector });
+
+    await session.connect(createSize());
+    MockWebSocket.instances[0].emitOpen();
+
+    expect(availabilityController).not.toBeNull();
+    availabilityController!.close();
+    availabilityController!.reconnect();
+    await nextTick();
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(MockWebSocket.instances).toHaveLength(2);
   });
 
   it('cancels an in-flight connect when disconnected before connector resolves', async () => {

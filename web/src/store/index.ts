@@ -1,5 +1,6 @@
 export * from './modules/debug';
 export * from './modules/permission';
+export * from './modules/platform-availability';
 export * from './modules/realtime-scheduler';
 export * from './modules/setting';
 export { useTabsRouterStore } from './modules/tabs-router';

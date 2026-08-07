@@ -1,5 +1,34 @@
 # Backend Lessons
 
+## LESSON-BACKEND-CAPABILITY-AUTHORITY-001：能力健康必须与平台可达性分层
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `server/internal/moduleapi/capability.go`
+  - `server/internal/capability/**`
+  - 能力 provider、OpenAPI projection 与 web shell consumer
+- Source:
+  - 2026-08-07 平台可用性机制补充设计指出，`Degraded` 内的 Database、Redis、Docker、Registry 等能力不能继续只停留在概念层。
+- Problem:
+  将浏览器控制面不可达与单项能力故障放进同一个状态源，会导致能力降级误触发整页接管；让每个模块自行维护健康状态，又会产生重复 registry、重试和诊断语义。
+- Correct pattern:
+  `PlatformAvailabilityStore` 只拥有浏览器控制面可达性；`CapabilityCoordinator` 只拥有服务端 capability observation。能力通过静态 compile-time descriptor/provider 注册，经统一 coordinator 归一化状态、TTL 和 impact，再由 OpenAPI 与 Dashboard 派生消费。
+- Anti-pattern:
+  用 Monitor 页面或前端 Dashboard 推断能力 authority；把 Runtime Target、Resource 或 Operation 状态复制成平台 capability；为插件/MCP 动态发现另造 registry。
+- Enforcement:
+  新 capability 必须声明稳定 key、category、impact、provider 和状态契约，并通过 coordinator/API 进入 consumer；新增平台级接管逻辑必须只读取 PlatformAvailabilityStore，不能读取 capability 状态直接重定向。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `server/internal/moduleapi/capability.go`
+  - `server/internal/capability/coordinator.go`
+  - `web/src/store/modules/platform-availability.ts`
+  - `openapi/paths/platform-capabilities.yaml`
+- Updated at:
+  2026-08-07
+
 ## LESSON-BACKEND-TASK-OWNER-001：跨模块 Task owner 必须使用资源公开稳定标识
 
 - Status: active

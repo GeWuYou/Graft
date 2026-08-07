@@ -18,6 +18,9 @@ Overlay note:
 - `build-domain-v2`
   - Recovery entry: `ai-plan/public/build-domain-v2/README.md`
 
+- `platform-availability-capability-health`
+  - Recovery entry: `ai-plan/public/platform-availability-capability-health/README.md`
+
 - `task-submission-lifecycle`
   - Recovery entry: `ai-plan/public/task-submission-lifecycle/README.md`
 

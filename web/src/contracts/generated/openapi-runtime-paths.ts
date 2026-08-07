@@ -108,6 +108,7 @@ export const OPENAPI_RUNTIME_PATH = {
   getPermissions: '/api/permissions',
   getPermissionSavedViews: '/api/permissions/saved-views',
   getPlatformBackup: '/api/platform/backups/{id}',
+  getPlatformCapabilities: '/api/platform/capabilities',
   getPlatformConnectivityAggregate: '/api/platform/network/connectivity/aggregate',
   getPlatformConnectivityCustomTargets: '/api/platform/network/connectivity/custom-targets',
   getPlatformConnectivityExport: '/api/platform/network/connectivity/{targetId}/reports/{checkId}/export',
