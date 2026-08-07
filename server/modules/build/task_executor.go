@@ -232,7 +232,7 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 	reservationRepository, reservationOK := e.repository.(moduleapi.BuilderReservationRepository)
 	reservationLegID := "single"
 	reservationInstanceID := plan.BuilderInstanceID
-	if len(plan.Platforms) > 1 {
+	if len(plan.BuilderPlacements) > 0 {
 		placement, found := plan.PlacementForPlatform(input.Platform)
 		if !found || strings.TrimSpace(input.Platform) == "" {
 			return errors.New("execution plan reservation leg is missing")
@@ -254,9 +254,6 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 			return fmt.Errorf("reserve builder retry capacity: %w", err)
 		}
 	}
-	if err := reservationRepository.RenewBuilderReservation(ctx, run.TaskID(), reservationLegID, reservationFence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); err != nil {
-		return fmt.Errorf("renew builder reservation: %w", err)
-	}
 	defer func() {
 		state := moduleapi.BuilderReservationReleased
 		if err != nil {
@@ -270,6 +267,9 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 			err = errors.Join(err, fmt.Errorf("release builder reservation: %w", releaseErr))
 		}
 	}()
+	if err := reservationRepository.RenewBuilderReservation(ctx, run.TaskID(), reservationLegID, reservationFence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); err != nil {
+		return fmt.Errorf("renew builder reservation: %w", err)
+	}
 	if plan.RuntimeTargetID < 1 || e.intents == nil || !e.compatibleIntent(plan) {
 		return errors.New("execution plan is not supported by the selected build driver")
 	}

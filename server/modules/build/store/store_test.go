@@ -64,7 +64,7 @@ func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testin
 		t.Fatal(err)
 	}
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("INSERT INTO build_builder_reservations").WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
+	expectBuilderReservationInsert(mock, reservation, expiresAt)
 	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
 	if err != nil {
 		t.Fatalf("reserve builder: %v", err)
@@ -99,6 +99,38 @@ func TestRenewBuilderReservationRequiresMatchingRunningFenceAndLeg(t *testing.T)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestReserveBuilderAttemptAbandonsOnlyOlderAttempts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := time.Date(2026, time.August, 7, 12, 5, 0, 0, time.UTC)
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_1_3", InstanceID: "builder_1", PlanID: "plan_1", TaskID: 42, Attempt: 3, LegID: "linux/amd64", FenceToken: BuilderReservationFence("plan_1", 42, "linux/amd64", 3), State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: expiresAt}
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'abandoned'").WithArgs(uint64(42), "linux/amd64", 3).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 0))
+	expectBuilderReservationInsert(mock, reservation, expiresAt)
+	mock.ExpectCommit()
+	if _, err := repository.ReserveBuilderAttempt(context.Background(), reservation); err != nil {
+		t.Fatalf("reserve builder retry: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectBuilderReservationInsert(mock sqlmock.Sqlmock, reservation moduleapi.BuilderReservation, timestamp time.Time) {
+	mock.ExpectQuery("INSERT INTO build_builder_reservations").
+		WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).
+		WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).
+			AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, timestamp, timestamp.Add(-time.Minute), timestamp.Add(-time.Minute)))
 }
 
 func TestListV2ArtifactsReturnsDigestAddressedProjection(t *testing.T) {

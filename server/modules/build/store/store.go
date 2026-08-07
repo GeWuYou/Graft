@@ -432,7 +432,7 @@ func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation m
 		return moduleapi.BuilderReservation{}, fmt.Errorf("begin builder retry reservation: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND state IN ('accepted','running')`, reservation.TaskID, reservation.LegID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND attempt < $3 AND state IN ('accepted','running')`, reservation.TaskID, reservation.LegID, reservation.Attempt); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("abandon prior builder reservation: %w", err)
 	}
 	stored, err := r.ReserveBuilder(ctx, tx, reservation)
