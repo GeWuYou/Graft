@@ -16,6 +16,7 @@ import type {
   ThemeAuthorityState,
   ThemeIdentitySummary,
   ThemeModeTokenState,
+  ThemePresetApplicationScope,
   ThemePresetDefinition,
   ThemeSourceType,
   ThemeTokenGroupKey,
@@ -57,6 +58,7 @@ import {
   buildUpdatedThemeDraft,
   clearThemeTokenGroupOverrides,
   closeThemeWorkbenchDraft,
+  createCompleteThemePresetState,
   openThemeWorkbenchDraft,
   previewThemeWorkbenchDraft,
   resetThemeWorkbenchDraftToDefault,
@@ -96,6 +98,9 @@ export type SettingState = typeof STYLE_CONFIG & {
 
 function createInitialSettingState(): SettingState {
   const defaultPreset = THEME_PRESET_DEFINITIONS.find((item) => item.id === DEFAULT_THEME_PRESET_ID);
+  const defaultThemeState = defaultPreset
+    ? createCompleteThemePresetState(defaultPreset, STYLE_CONFIG.mode as ModeType | 'auto')
+    : null;
 
   return {
     ...STYLE_CONFIG,
@@ -111,14 +116,16 @@ function createInitialSettingState(): SettingState {
     themeDraftApplied: false,
     themeResetting: false,
     themeResetFeedbackKey: 0,
-    selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
-    themeSource: 'preset',
-    fontFamilyPreset: 'system',
-    fontSizePreset: 'standard',
-    radiusPreset: 'standard',
-    shadowPreset: defaultPreset?.authorityPatch?.shadowPreset ?? 'standard',
-    densityPreset: defaultPreset?.authorityPatch?.densityPreset ?? 'standard',
-    themeTokenOverrides: createEmptyThemeModeTokenState(),
+    mode: defaultThemeState?.mode ?? STYLE_CONFIG.mode,
+    brandTheme: defaultThemeState?.brandTheme ?? STYLE_CONFIG.brandTheme,
+    selectedThemePresetId: defaultThemeState?.selectedThemePresetId ?? DEFAULT_THEME_PRESET_ID,
+    themeSource: defaultThemeState?.themeSource ?? 'preset',
+    fontFamilyPreset: defaultThemeState?.fontFamilyPreset ?? 'system',
+    fontSizePreset: defaultThemeState?.fontSizePreset ?? 'standard',
+    radiusPreset: defaultThemeState?.radiusPreset ?? 'standard',
+    shadowPreset: defaultThemeState?.shadowPreset ?? 'standard',
+    densityPreset: defaultThemeState?.densityPreset ?? 'standard',
+    themeTokenOverrides: defaultThemeState?.themeTokenOverrides ?? createEmptyThemeModeTokenState(),
     themeResolvedTokens: createEmptyThemeModeTokenState(),
     themeAuthorityLastModifiedAt: null,
     colorList: {},
@@ -299,23 +306,14 @@ export const useSettingStore = defineStore('setting', {
       return colorMap;
     },
     buildResolvedThemeTokens() {
-      const preset =
-        THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(this.selectedThemePresetId)) ?? null;
       const brandTokens: ThemeModeTokenState = {
         light: this.getCachedBrandTokens(this.brandTheme, 'light'),
         dark: this.getCachedBrandTokens(this.brandTheme, 'dark'),
       };
       const userTokens = buildUserThemeTokens(this.createThemeAuthoritySnapshot());
-      const isFirstRunDefault =
-        this.selectedThemePresetId === DEFAULT_THEME_PRESET_ID &&
-        this.brandTheme === STYLE_CONFIG.brandTheme &&
-        this.themeAuthorityLastModifiedAt === null;
-
       this.themeResolvedTokens = buildThemeModeSnapshot({
         baseTokens: GRAFT_BASE_THEME_TOKENS,
         brandTokens,
-        preset,
-        preserveThemePersonalization: this.preserveThemePersonalization && !isFirstRunDefault,
         userTokens,
         customTokens: this.themeTokenOverrides,
       });
@@ -418,10 +416,8 @@ export const useSettingStore = defineStore('setting', {
       if (!defaultPreset) {
         return;
       }
-      resetThemeWorkbenchDraftToDefault(this, defaultPreset, this.preserveThemePersonalization, options);
-      if (!this.preserveThemePersonalization) {
-        this.updateConfig(defaultPreset.stylePatch ?? {});
-      }
+      resetThemeWorkbenchDraftToDefault(this, defaultPreset, options);
+      this.updateConfig(defaultPreset.stylePatch ?? {});
     },
     async resetDefaultThemeWithFeedback() {
       const feedbackKey = this.themeResetFeedbackKey + 1;
@@ -438,9 +434,12 @@ export const useSettingStore = defineStore('setting', {
         this.themeResetting = false;
       }
     },
-    selectThemePreset(presetId: string | null) {
+    selectThemePreset(presetId: string | null, scope: ThemePresetApplicationScope = 'palette') {
       const resolvedPresetId = resolvePresetId(presetId);
       const preset = THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvedPresetId);
+      const currentPresetId = this.themeDraft?.selectedThemePresetId ?? this.selectedThemePresetId;
+      const currentPreset =
+        THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(currentPresetId)) ?? null;
 
       if (!preset) {
         return;
@@ -457,10 +456,11 @@ export const useSettingStore = defineStore('setting', {
           shadowPreset: this.shadowPreset,
           densityPreset: this.densityPreset,
         },
-        this.preserveThemePersonalization,
+        scope,
+        currentPreset,
       );
       this.updateThemeDraft(nextState);
-      if (!this.preserveThemePersonalization && preset.stylePatch) {
+      if (scope === 'complete' && preset.stylePatch) {
         this.updateConfig(preset.stylePatch);
       }
     },

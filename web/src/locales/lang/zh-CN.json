@@ -118,7 +118,9 @@
           "text": "文本颜色",
           "background": "背景颜色",
           "border": "边框颜色",
-          "component": "组件变量"
+          "chart": "图表颜色",
+          "component": "组件变量",
+          "material": "材质效果"
         },
         "layout": {
           "side": "侧边布局",
@@ -394,6 +396,10 @@
           "scrollbarThumbHover": "滚动条悬停",
           "shellBorder": "应用壳边框",
           "cardBorder": "卡片边框",
+          "chartText": "图表文本",
+          "chartPlaceholder": "图表占位文本",
+          "chartBorder": "图表边框",
+          "chartContainer": "图表表面",
           "successFeedback": "成功反馈",
           "errorFeedback": "错误反馈",
           "warningFeedback": "警告反馈",
@@ -419,7 +425,18 @@
           "componentSizeS": "组件尺寸 S",
           "componentSizeM": "组件尺寸 M",
           "componentSizeL": "组件尺寸 L",
-          "componentSizeXl": "组件尺寸 XL"
+          "componentSizeXl": "组件尺寸 XL",
+          "glassAmbient": "玻璃环境色",
+          "glassBackground": "玻璃背景",
+          "glassBorder": "玻璃边框",
+          "glassShadow": "玻璃阴影",
+          "glassBlur": "玻璃模糊",
+          "glassHighlight": "玻璃高光",
+          "glassContentBackground": "玻璃内容背景",
+          "glassContentBorder": "玻璃内容边框",
+          "glassContentShadow": "玻璃内容阴影",
+          "glassContentBlur": "玻璃内容模糊",
+          "glassNoiseOpacity": "玻璃噪点透明度"
         },
         "actions": {
           "reset": "恢复默认主题",

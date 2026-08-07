@@ -295,6 +295,26 @@ export const THEME_TOKEN_DEFINITIONS: ThemeTokenDefinition[] = [
     labelKey: 'layout.setting.workbench.tokenDefinitions.cardBorder',
   },
   {
+    key: '--graft-chart-text-color',
+    group: 'chart',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.chartText',
+  },
+  {
+    key: '--graft-chart-placeholder-color',
+    group: 'chart',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.chartPlaceholder',
+  },
+  {
+    key: '--graft-chart-border-color',
+    group: 'chart',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.chartBorder',
+  },
+  {
+    key: '--graft-chart-container-color',
+    group: 'chart',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.chartContainer',
+  },
+  {
     key: '--td-success-color',
     group: 'component',
     labelKey: 'layout.setting.workbench.tokenDefinitions.successFeedback',
@@ -387,6 +407,45 @@ export const THEME_TOKEN_DEFINITIONS: ThemeTokenDefinition[] = [
     key: '--td-comp-size-xl',
     group: 'component',
     labelKey: 'layout.setting.workbench.tokenDefinitions.componentSizeXl',
+  },
+  {
+    key: '--graft-glass-ambient-color',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassAmbient',
+  },
+  { key: '--graft-glass-bg', group: 'material', labelKey: 'layout.setting.workbench.tokenDefinitions.glassBackground' },
+  { key: '--graft-glass-border', group: 'material', labelKey: 'layout.setting.workbench.tokenDefinitions.glassBorder' },
+  { key: '--graft-glass-shadow', group: 'material', labelKey: 'layout.setting.workbench.tokenDefinitions.glassShadow' },
+  { key: '--graft-glass-blur', group: 'material', labelKey: 'layout.setting.workbench.tokenDefinitions.glassBlur' },
+  {
+    key: '--graft-glass-highlight',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassHighlight',
+  },
+  {
+    key: '--graft-glass-content-bg',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassContentBackground',
+  },
+  {
+    key: '--graft-glass-content-border',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassContentBorder',
+  },
+  {
+    key: '--graft-glass-content-shadow',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassContentShadow',
+  },
+  {
+    key: '--graft-glass-content-blur',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassContentBlur',
+  },
+  {
+    key: '--graft-glass-noise-opacity',
+    group: 'material',
+    labelKey: 'layout.setting.workbench.tokenDefinitions.glassNoiseOpacity',
   },
 ];
 

@@ -1,5 +1,5 @@
 import { DEFAULT_THEME_PRESET_ID } from '@/config/theme-workbench';
-import type { ThemeModeTokenState, ThemePresetDefinition, ThemeTokenMap } from '@/types/theme';
+import type { ThemeModeTokenState, ThemeTokenMap } from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
 /**
@@ -35,30 +35,14 @@ function mergeThemeTokenMaps(...sources: Array<ThemeTokenMap | undefined>): Them
 export function buildThemeModeSnapshot(options: {
   baseTokens?: ThemeModeTokenState;
   brandTokens: ThemeModeTokenState;
-  preset?: ThemePresetDefinition | null;
-  preserveThemePersonalization?: boolean;
   userTokens?: Partial<ThemeModeTokenState>;
   customTokens: ThemeModeTokenState;
 }): ThemeModeTokenState {
-  const { baseTokens, brandTokens, preset, preserveThemePersonalization, userTokens, customTokens } = options;
+  const { baseTokens, brandTokens, userTokens, customTokens } = options;
 
   return {
-    light: mergeThemeTokenMaps(
-      brandTokens.light,
-      baseTokens?.light,
-      preset?.tokenOverrides?.light,
-      preserveThemePersonalization ? undefined : preset?.materialTokenOverrides?.light,
-      userTokens?.light,
-      customTokens.light,
-    ),
-    dark: mergeThemeTokenMaps(
-      brandTokens.dark,
-      baseTokens?.dark,
-      preset?.tokenOverrides?.dark,
-      preserveThemePersonalization ? undefined : preset?.materialTokenOverrides?.dark,
-      userTokens?.dark,
-      customTokens.dark,
-    ),
+    light: mergeThemeTokenMaps(brandTokens.light, baseTokens?.light, userTokens?.light, customTokens.light),
+    dark: mergeThemeTokenMaps(brandTokens.dark, baseTokens?.dark, userTokens?.dark, customTokens.dark),
   };
 }
 

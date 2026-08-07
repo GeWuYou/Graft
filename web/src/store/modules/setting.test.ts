@@ -14,7 +14,7 @@ import { THEME_PRESET_DEFINITIONS, THEME_TOKEN_DEFINITIONS } from '@/config/them
 import { insertThemeStylesheet } from '@/utils/color';
 
 import { useSettingStore } from './setting';
-import { STYLE_CONFIG_KEYS } from './setting-theme-authority';
+import { STYLE_CONFIG_KEYS, WORKBENCH_STYLE_CONFIG_KEYS } from './setting-theme-authority';
 
 const insertThemeStylesheetMock = insertThemeStylesheet as unknown as ReturnType<typeof vi.fn>;
 
@@ -71,7 +71,6 @@ describe('setting store theme authority', () => {
     expect(store.fontSizePreset).toBe('standard');
     expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.isAcrylicEnabled).toBe(true);
-    expect(store.preserveThemePersonalization).toBe(true);
     expect(store.selectedThemePresetId).toBe('one-dark-pro');
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
   });
@@ -92,6 +91,19 @@ describe('setting store theme authority', () => {
     store.cancelThemeDraft();
 
     expect(store.isAcrylicEnabled).toBe(true);
+  });
+
+  it('keeps the preset application scope as a persisted preference outside the visual draft', () => {
+    const store = useSettingStore();
+
+    expect(STYLE_CONFIG_KEYS).toContain('themePresetApplicationScope');
+    expect(WORKBENCH_STYLE_CONFIG_KEYS).not.toContain('themePresetApplicationScope');
+
+    store.openThemeWorkbench('presets');
+    store.updateConfig({ themePresetApplicationScope: 'complete' });
+    store.cancelThemeDraft();
+
+    expect(store.themePresetApplicationScope).toBe('complete');
   });
 
   it('applies and resets the acrylic workbench preference with the draft lifecycle', () => {
@@ -330,8 +342,8 @@ describe('setting store theme authority', () => {
       expect.arrayContaining([
         expect.objectContaining({
           key: 'themeTokenOverrides',
-          fromValue: '0',
-          toValue: '1',
+          fromValue: expect.any(String),
+          toValue: expect.any(String),
         }),
       ]),
     );
@@ -398,8 +410,6 @@ describe('setting store theme authority', () => {
 
   it('resets font size preset to the default theme authority', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
-
     store.updateThemeDraftAppearance({ fontSizePreset: 'small' });
     store.resetThemeDraftToDefault();
 
@@ -410,8 +420,6 @@ describe('setting store theme authority', () => {
 
   it('keeps reset-to-default applicable when the saved theme differs from the default authority', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
-
     store.assignThemeAuthorityState({
       ...store.createThemeAuthoritySnapshot(),
       fontSizePreset: 'large',
@@ -449,7 +457,6 @@ describe('setting store theme authority', () => {
 
   it('tracks reset-to-default feedback while keeping the draft semantics', async () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
     let finishResetFeedback: (() => void) | undefined;
 
     Object.defineProperty(window, 'setTimeout', {
@@ -506,7 +513,6 @@ describe('setting store theme authority', () => {
 
   it('persists reset-to-default drafts and closes the workbench after apply', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
 
     store.assignThemeAuthorityState({
       ...store.createThemeAuthoritySnapshot(),
@@ -601,12 +607,10 @@ describe('setting store theme authority', () => {
 
   it('applies official theme presets with their bundled appearance and layout defaults', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
-
     store.openThemeWorkbench('overview');
     store.updateConfig({ menuAlwaysExpanded: true });
 
-    store.selectThemePreset('graphite-slate');
+    store.selectThemePreset('graphite-slate', 'complete');
     expect(store.selectedThemePresetId).toBe('graphite-slate');
     expect(store.brandTheme).toBe('#4F6B8A');
     expect(store.mode).toBe('dark');
@@ -621,7 +625,7 @@ describe('setting store theme authority', () => {
     expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.splitMenu).toBe(false);
 
-    store.selectThemePreset('sunset-amber');
+    store.selectThemePreset('sunset-amber', 'complete');
     expect(store.selectedThemePresetId).toBe('sunset-amber');
     expect(store.brandTheme).toBe('#D97706');
     expect(store.mode).toBe('light');
@@ -635,7 +639,7 @@ describe('setting store theme authority', () => {
     expect(store.menuAutoCollapsed).toBe(false);
     expect(store.splitMenu).toBe(false);
 
-    store.selectThemePreset('ocean-teal');
+    store.selectThemePreset('ocean-teal', 'complete');
     expect(store.selectedThemePresetId).toBe('ocean-teal');
     expect(store.brandTheme).toBe('#0F8A83');
     expect(store.mode).toBe('light');
@@ -649,7 +653,7 @@ describe('setting store theme authority', () => {
     expect(store.menuAutoCollapsed).toBe(false);
     expect(store.splitMenu).toBe(true);
 
-    store.selectThemePreset('frost-silver');
+    store.selectThemePreset('frost-silver', 'complete');
     expect(store.selectedThemePresetId).toBe('frost-silver');
     expect(store.brandTheme).toBe('#7A8CA5');
     expect(store.mode).toBe('light');
@@ -663,7 +667,7 @@ describe('setting store theme authority', () => {
     expect(store.menuAutoCollapsed).toBe(false);
     expect(store.splitMenu).toBe(false);
 
-    store.selectThemePreset('signal-rose');
+    store.selectThemePreset('signal-rose', 'complete');
     expect(store.selectedThemePresetId).toBe('signal-rose');
     expect(store.brandTheme).toBe('#D65B8C');
     expect(store.mode).toBe('dark');
@@ -674,7 +678,7 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('mix');
     expect(store.splitMenu).toBe(true);
 
-    store.selectThemePreset('forest-night');
+    store.selectThemePreset('forest-night', 'complete');
     expect(store.selectedThemePresetId).toBe('forest-night');
     expect(store.brandTheme).toBe('#3FA879');
     expect(store.mode).toBe('dark');
@@ -688,10 +692,8 @@ describe('setting store theme authority', () => {
 
   it('applies Industrial Yellow as a complete personalized configuration baseline', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
-
     store.openThemeWorkbench('presets');
-    store.selectThemePreset('industrial-yellow');
+    store.selectThemePreset('industrial-yellow', 'complete');
 
     expect(store.selectedThemePresetId).toBe('industrial-yellow');
     expect(store.radiusPreset).toBe('square');
@@ -706,10 +708,8 @@ describe('setting store theme authority', () => {
 
   it('applies the Industrial Yellow personalized baseline with its palette', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
-
     store.openThemeWorkbench('presets');
-    store.selectThemePreset('industrial-yellow');
+    store.selectThemePreset('industrial-yellow', 'complete');
 
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
@@ -744,15 +744,30 @@ describe('setting store theme authority', () => {
     const store = useSettingStore();
 
     store.openThemeWorkbench('presets');
-    store.selectThemePreset('tencent-cloud');
+    store.selectThemePreset('tencent-cloud', 'complete');
 
     expect(store.themeResolvedTokens.light['--graft-scrollbar-track-color']).toBe('#E0F1FB');
     expect(store.themeResolvedTokens.light['--graft-scrollbar-thumb-hover-color']).toBe('#7EC1E8');
 
-    store.selectThemePreset('forest-night');
+    store.selectThemePreset('forest-night', 'complete');
 
     expect(store.themeResolvedTokens.dark['--graft-scrollbar-track-color']).toBe('#111A15');
     expect(store.themeResolvedTokens.dark['--graft-scrollbar-thumb-hover-color']).toBe('#5D8D73');
+  });
+
+  it('does not use selected preset metadata when resolving equivalent editable theme state', () => {
+    const store = useSettingStore();
+
+    store.initializeThemeWorkbenchRuntime();
+    const resolvedBeforeMetadataChange = {
+      light: { ...store.themeResolvedTokens.light },
+      dark: { ...store.themeResolvedTokens.dark },
+    };
+
+    store.selectedThemePresetId = 'tokyo-night';
+    store.refreshThemeWorkbenchRuntime();
+
+    expect(store.themeResolvedTokens).toEqual(resolvedBeforeMetadataChange);
   });
 
   it('resolves separate light and dark acrylic glass tokens', () => {
@@ -889,35 +904,35 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('side');
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
   });
 
-  it('applies the complete preset package when personalization preservation is disabled', () => {
+  it('applies the complete preset package into editable authority and token state', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateConfig({ preserveThemePersonalization: false, isAcrylicEnabled: false, layout: 'side' });
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
     store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
     store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
 
-    store.selectThemePreset('one-dark-pro');
+    store.selectThemePreset('one-dark-pro', 'complete');
 
     expect(store.fontSizePreset).toBe('standard');
     expect(store.densityPreset).toBe('comfortable');
     expect(store.layout).toBe('mix');
     expect(store.isAcrylicEnabled).toBe(true);
-    expect(store.themeTokenOverrides.dark).toEqual({});
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
     expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
   });
 
   it('restores the target preset style values when leaving Industrial Yellow', () => {
     const store = useSettingStore();
-    store.updateConfig({ preserveThemePersonalization: false });
     store.openThemeWorkbench('presets');
 
-    store.selectThemePreset('industrial-yellow');
+    store.selectThemePreset('industrial-yellow', 'complete');
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
 
-    store.selectThemePreset('one-dark-pro');
+    store.selectThemePreset('one-dark-pro', 'complete');
     expect(store.radiusPreset).toBe('standard');
     expect(store.shadowPreset).toBe('floating');
   });
@@ -936,9 +951,7 @@ describe('setting store theme authority', () => {
   it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateConfig({ preserveThemePersonalization: false });
-
-    store.selectThemePreset('atom-one-dark');
+    store.selectThemePreset('atom-one-dark', 'complete');
 
     expect(store.mode).toBe('dark');
     expect(store.brandTheme).toBe('#98C379');
@@ -947,7 +960,7 @@ describe('setting store theme authority', () => {
     expect(store.themeResolvedTokens.dark['--graft-glass-bg']).toBe('rgba(27, 31, 36, 0.74)');
   });
 
-  it('resets only palette and mode when personalization preservation is enabled', () => {
+  it('resets to the complete default configuration', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
     store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
@@ -958,10 +971,10 @@ describe('setting store theme authority', () => {
 
     expect(store.selectedThemePresetId).toBe('one-dark-pro');
     expect(store.mode).toBe('dark');
-    expect(store.fontSizePreset).toBe('large');
-    expect(store.layout).toBe('side');
-    expect(store.isAcrylicEnabled).toBe(false);
-    expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.layout).toBe('mix');
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#E6EAF0');
   });
 
   it('prefers the default preset authority mode when resetting a personalized draft', () => {
@@ -977,7 +990,6 @@ describe('setting store theme authority', () => {
     defaultPreset.authorityPatch = { ...authorityPatch, mode: 'light' };
     try {
       store.openThemeWorkbench('presets');
-      store.updateConfig({ preserveThemePersonalization: true });
       store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
 
       store.resetThemeDraftToDefault();

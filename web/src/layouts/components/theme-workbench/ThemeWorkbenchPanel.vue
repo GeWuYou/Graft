@@ -119,11 +119,9 @@
             <theme-workbench-preset-catalog
               :presets="presetDefinitions"
               :active-preset-id="effectivePresetId"
-              :preserve-theme-personalization="settingStore.preserveThemePersonalization"
-              @select="settingStore.selectThemePreset"
-              @update:preserve-theme-personalization="
-                (value) => settingStore.updateConfig({ preserveThemePersonalization: value })
-              "
+              :application-scope="settingStore.themePresetApplicationScope"
+              @select="handlePresetSelect"
+              @update:application-scope="settingStore.updateConfig({ themePresetApplicationScope: $event })"
             />
           </div>
 
@@ -682,6 +680,7 @@ import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
 import type {
   ThemeAuthorityState,
+  ThemePresetApplicationScope,
   ThemeTokenGroupKey,
   ThemeWorkbenchGroupKey,
   ThemeWorkbenchScenarioPresetDefinition,
@@ -842,6 +841,12 @@ const tokenSections = computed<
         icon: 'component-divider-horizontal',
         countLabelKey: 'layout.setting.workbench.advanced.colorVariableCount',
       },
+      {
+        value: 'chart',
+        label: t('layout.setting.workbench.groups.chart'),
+        icon: 'chart-line',
+        countLabelKey: 'layout.setting.workbench.advanced.colorVariableCount',
+      },
     ],
   },
   {
@@ -852,6 +857,12 @@ const tokenSections = computed<
         value: 'component',
         label: t('layout.setting.workbench.groups.component'),
         icon: 'setting',
+        countLabelKey: 'layout.setting.workbench.advanced.styleVariableCount',
+      },
+      {
+        value: 'material',
+        label: t('layout.setting.workbench.groups.material'),
+        icon: 'layers',
         countLabelKey: 'layout.setting.workbench.advanced.styleVariableCount',
       },
     ],
@@ -1032,6 +1043,10 @@ const resetFeedbackClass = computed(() => {
 const resetButtonWidthStyle = computed(() =>
   resetButtonLockedWidth.value === undefined ? undefined : { width: `${resetButtonLockedWidth.value}px` },
 );
+
+const handlePresetSelect = (presetId: string, scope: ThemePresetApplicationScope) => {
+  settingStore.selectThemePreset(presetId, scope);
+};
 
 const drawerVisible = computed({
   get: () => settingStore.showThemeWorkbench,

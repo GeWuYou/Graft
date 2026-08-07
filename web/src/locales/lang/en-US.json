@@ -118,7 +118,9 @@
           "text": "Text Colors",
           "background": "Background Colors",
           "border": "Border Colors",
-          "component": "Component Variables"
+          "chart": "Chart Colors",
+          "component": "Component Variables",
+          "material": "Material Effects"
         },
         "layout": {
           "side": "Side Layout",
@@ -394,6 +396,10 @@
           "scrollbarThumbHover": "Scrollbar Hover",
           "shellBorder": "App Shell Border",
           "cardBorder": "Card Border",
+          "chartText": "Chart Text",
+          "chartPlaceholder": "Chart Placeholder",
+          "chartBorder": "Chart Border",
+          "chartContainer": "Chart Surface",
           "successFeedback": "Success Feedback",
           "errorFeedback": "Error Feedback",
           "warningFeedback": "Warning Feedback",
@@ -419,7 +425,18 @@
           "componentSizeS": "Component Size S",
           "componentSizeM": "Component Size M",
           "componentSizeL": "Component Size L",
-          "componentSizeXl": "Component Size XL"
+          "componentSizeXl": "Component Size XL",
+          "glassAmbient": "Glass Ambient Color",
+          "glassBackground": "Glass Background",
+          "glassBorder": "Glass Border",
+          "glassShadow": "Glass Shadow",
+          "glassBlur": "Glass Blur",
+          "glassHighlight": "Glass Highlight",
+          "glassContentBackground": "Glass Content Background",
+          "glassContentBorder": "Glass Content Border",
+          "glassContentShadow": "Glass Content Shadow",
+          "glassContentBlur": "Glass Content Blur",
+          "glassNoiseOpacity": "Glass Noise Opacity"
         },
         "actions": {
           "reset": "Reset Theme",

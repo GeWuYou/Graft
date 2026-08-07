@@ -6,7 +6,10 @@ export type SettingStyleConfig = typeof STYLE_CONFIG;
 export type ThemeWorkbenchGroupKey =
   'overview' | 'presets' | 'appearance' | 'layout' | 'typography' | 'style' | 'advanced';
 
-export type ThemeTokenGroupKey = 'brand' | 'text' | 'background' | 'border' | 'component';
+export type ThemeTokenGroupKey = 'brand' | 'text' | 'background' | 'border' | 'chart' | 'component' | 'material';
+
+/** 预设应用范围只在工作台当前交互中生效，不作为主题视觉状态持久化。 */
+export type ThemePresetApplicationScope = 'palette' | 'complete';
 
 export type ThemeSourceType = 'preset' | 'customized';
 

@@ -53,12 +53,12 @@ const switchStub = defineComponent({
   },
 });
 
-function mountCatalog(preserveThemePersonalization = true) {
+function mountCatalog() {
   return mount(ThemeWorkbenchPresetCatalog, {
     props: {
       presets: THEME_PRESET_DEFINITIONS,
       activePresetId: 'tdesign-default',
-      preserveThemePersonalization,
+      applicationScope: 'palette',
     },
     global: {
       stubs: {
@@ -120,16 +120,16 @@ describe('ThemeWorkbenchPresetCatalog', () => {
     expect(atomOneDarkCard.style.getPropertyValue('--preset-thumbnail-sidebar')).toBe('#1B1F24');
   });
 
-  it('emits the selected preset id and exposes the active card state', async () => {
+  it('emits the selected preset id with the local application scope and exposes the active card state', async () => {
     const wrapper = mountCatalog();
 
     expect(wrapper.findAll('.preset-card[aria-pressed="true"]')).toHaveLength(1);
     await wrapper.get('[data-theme-preset-id="tencent-cloud"]').trigger('click');
 
-    expect(wrapper.emitted('select')?.[0]).toEqual(['tencent-cloud']);
+    expect(wrapper.emitted('select')?.[0]).toEqual(['tencent-cloud', 'palette']);
   });
 
-  it('emits the default personalization setting and changes the application guidance', async () => {
+  it('emits the application preference and uses the persisted scope for selection', async () => {
     const wrapper = mountCatalog();
 
     expect(wrapper.get('[data-testid="preset-application-switch"]').attributes('aria-pressed')).toBe('true');
@@ -137,9 +137,12 @@ describe('ThemeWorkbenchPresetCatalog', () => {
 
     await wrapper.get('[data-testid="preset-application-switch"]').trigger('click');
 
-    expect(wrapper.emitted('update:preserveThemePersonalization')?.[0]).toEqual([false]);
+    expect(wrapper.emitted('update:applicationScope')?.[0]).toEqual(['complete']);
 
-    await wrapper.setProps({ preserveThemePersonalization: false });
+    await wrapper.setProps({ applicationScope: 'complete' });
     expect(wrapper.text()).toContain('layout.setting.workbench.presets.completePresetHint');
+
+    await wrapper.get('[data-theme-preset-id="tencent-cloud"]').trigger('click');
+    expect(wrapper.emitted('select')?.[0]).toEqual(['tencent-cloud', 'complete']);
   });
 });
