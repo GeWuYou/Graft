@@ -27,6 +27,7 @@ import (
 	"graft/server/internal/cachex"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	capcontract "graft/server/internal/contract/capability"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
@@ -1387,6 +1388,33 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	if payload.Menus != 2 || payload.Permissions != 2 || payload.Jobs != 3 {
 		t.Fatalf("expected registry counts 2/2/3, got %d/%d/%d", payload.Menus, payload.Permissions, payload.Jobs)
 	}
+}
+
+func TestRegisterCoreRoutesRegistersPlatformCapabilityPermissionMetadata(t *testing.T) {
+	runtime := &Runtime{
+		config:             &config.Config{},
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		permissionRegistry: permission.NewRegistry(),
+	}
+
+	if err := runtime.registerCoreRoutes(gin.New()); err != nil {
+		t.Fatalf("register core routes: %v", err)
+	}
+
+	for _, item := range runtime.permissionRegistry.Items() {
+		if item.Code != capcontract.ReadPermission {
+			continue
+		}
+		if item.DisplayKey != "rbac.permissionCatalog.platformCapabilitiesRead.display" ||
+			item.DescriptionKey != "rbac.permissionCatalog.platformCapabilitiesRead.description" ||
+			item.Module != "core" || item.Resource != "platform-capabilities" || item.Action != "read" ||
+			item.RiskLevel != permission.RiskLevelLow || item.RiskCategory != permission.RiskCategoryRead {
+			t.Fatalf("unexpected platform capability permission metadata: %#v", item)
+		}
+		return
+	}
+
+	t.Fatalf("platform capability permission %q was not registered", capcontract.ReadPermission)
 }
 
 func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {

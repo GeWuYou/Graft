@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-
 	"graft/server/internal/container"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
@@ -46,10 +44,10 @@ func RegisterRoutes(group *gin.RouterGroup, resolver container.Resolver, coordin
 }
 
 // NewRuntimeCoordinator 构造 core 能力 coordinator，并通过容器延迟解析模块 observation source。
-func NewRuntimeCoordinator(db *sql.DB, redisClient *redis.Client, resolver container.Resolver) (*Coordinator, error) {
+func NewRuntimeCoordinator(db *sql.DB, redisReporter redisx.HealthReporter, resolver container.Resolver) (*Coordinator, error) {
 	entries := []Entry{
 		{Descriptor: moduleapi.CapabilityDescriptor{Key: "postgresql", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactPlatform, StaleAfter: capabilityObservationTTL}, Provider: databaseProvider{db: db}},
-		{Descriptor: moduleapi.CapabilityDescriptor{Key: "redis", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature, StaleAfter: capabilityObservationTTL}, Provider: redisProvider{reporter: redisx.NewHealthReporter(redisClient)}},
+		{Descriptor: moduleapi.CapabilityDescriptor{Key: "redis", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature, StaleAfter: capabilityObservationTTL}, Provider: redisProvider{reporter: redisReporter}},
 		{Descriptor: moduleapi.CapabilityDescriptor{Key: "outbound-network", Category: moduleapi.CapabilityCategoryIntegration, Impact: moduleapi.CapabilityImpactFeature, StaleAfter: capabilityObservationTTL}, Provider: resolverProvider{resolver: resolver}},
 	}
 	registry, err := NewRegistry(entries)

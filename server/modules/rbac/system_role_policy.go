@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	capabilitycontract "graft/server/internal/contract/capability"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	rbacstore "graft/server/modules/rbac/store"
@@ -84,7 +85,7 @@ func operatorScope() map[string]moduleapi.PermissionScope {
 
 func adminOnlySystemPermissions() []string {
 	return []string{
-		"container.shell", "container.environment", "container.remove", "container.volume.remove", "container.image.tag", "container.image.untag", "container.image.remove", "container.network.create", "container.network.remove", "app_log.delete", "modules.runtime.read",
+		"container.shell", "container.environment", "container.remove", "container.volume.remove", "container.image.tag", "container.image.untag", "container.image.remove", "container.network.create", "container.network.remove", "app_log.delete", "modules.runtime.read", capabilitycontract.ReadPermission,
 		"notification.view", "notification.read", "notification.manage", "platform-backup.read", "platform-backup.create", "platform-network.read", "platform-network.write", "platform-network.diagnose", "platform-network.targets.manage", "platform-network.exit-ip.read", "platform-update.read", "platform-update.check", "platform-update.manage",
 		"build.read", "build.create", "build.cancel", "build.retry",
 		"application.destroy", "application.creation-method.view", "application.template.manage", "application.template.publish",

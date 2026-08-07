@@ -83,7 +83,23 @@ export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
     const availability = usePlatformAvailabilityStore(pinia);
     availability.bindRequestBridge();
-    if (availability.isUnavailable && to.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+
+    // Service Unavailable 是控制面失败时唯一无需会话和 bootstrap 的本地壳层页面。
+    if (to.path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+      next();
+      return;
+    }
+
+    if (availability.status === 'unknown' || availability.status === 'recovering') {
+      const healthy = await availability.checkHealth();
+      if (!healthy) {
+        availability.pendingPath = to.fullPath;
+        next({ path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE, query: { redirect: to.fullPath }, replace: true });
+        return;
+      }
+    }
+
+    if (availability.isUnavailable) {
       availability.pendingPath = to.fullPath;
       next({ path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE, query: { redirect: to.fullPath }, replace: true });
       return;

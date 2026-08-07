@@ -3,13 +3,13 @@
     <div class="app-theme-surface" :class="mode" :data-theme-mode="mode">
       <router-view />
     </div>
-    <setting-com />
+    <setting-com v-if="showSetting" />
   </t-config-provider>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
-import { APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
+import { APP_RESULT_ROUTE_PATH, ROOT_ENTRY_PATH } from '@/contracts/app/routes';
 import SettingCom from '@/layouts/setting.vue';
 import { useLocale } from '@/locales/useLocale';
 import router from '@/router';
@@ -22,22 +22,54 @@ const store = useSettingStore();
 const availability = usePlatformAvailabilityStore(pinia);
 availability.bindRequestBridge();
 
+watch(
+  () => availability.status,
+  (status) => {
+    const currentRoute = router.currentRoute.value;
+
+    if (status === 'unavailable') {
+      if (currentRoute.path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+        return;
+      }
+      availability.pendingPath = currentRoute.fullPath;
+      void router.replace({
+        path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE,
+        query: { redirect: currentRoute.fullPath },
+      });
+      return;
+    }
+
+    if (status === 'healthy' && currentRoute.path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+      const redirect =
+        typeof currentRoute.query.redirect === 'string'
+          ? currentRoute.query.redirect
+          : availability.consumePendingPath();
+      void router.replace(redirect || ROOT_ENTRY_PATH);
+    }
+  },
+);
+
 const mode = computed(() => {
   return store.displayMode;
 });
 
+// 不可用或恢复探测期间只保留结果页，避免主题工作台等壳层插件继续初始化业务副作用。
+const showSetting = computed(() => availability.status !== 'unavailable' && availability.status !== 'recovering');
+
 const { getComponentsLocale } = useLocale();
 
 if (import.meta.env.MODE !== 'test') {
-  void availability.checkHealth().then((healthy) => {
-    if (!healthy && router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
-      availability.pendingPath = router.currentRoute.value.fullPath;
-      void router.replace({
-        path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE,
-        query: { redirect: router.currentRoute.value.fullPath },
-      });
-    }
-  });
+  if (availability.status === 'unknown') {
+    void availability.checkHealth().then((healthy) => {
+      if (!healthy && router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+        availability.pendingPath = router.currentRoute.value.fullPath;
+        void router.replace({
+          path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE,
+          query: { redirect: router.currentRoute.value.fullPath },
+        });
+      }
+    });
+  }
 }
 </script>
 <style lang="less" scoped>

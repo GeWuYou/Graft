@@ -44,7 +44,16 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) error {
 	if err := r.registerRealtimeGatewayRoute(engine); err != nil {
 		return err
 	}
-	r.permissionRegistry.Register(permission.Item{Code: capcontract.ReadPermission, Module: "core", Resource: "platform-capabilities", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead})
+	r.permissionRegistry.Register(permission.Item{
+		Code:           capcontract.ReadPermission,
+		DisplayKey:     "rbac.permissionCatalog.platformCapabilitiesRead.display",
+		DescriptionKey: "rbac.permissionCatalog.platformCapabilitiesRead.description",
+		Module:         "core",
+		Resource:       "platform-capabilities",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
+	})
 	r.registerHealthRoute(engine)
 	r.registerOpenAPIRoutes(engine)
 	r.registerMCPDocsRoutes(engine)

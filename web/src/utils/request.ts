@@ -57,7 +57,7 @@ type AuthSessionBridge = {
 
 type PlatformAvailabilityBridge = {
   allowsBusinessTraffic(): boolean;
-  reportTransportFailure(path?: string): void;
+  reportTransportFailure(): void;
 };
 
 const AUTH_REFRESH_URL = OPENAPI_RUNTIME_PATH.postAuthRefresh;
@@ -101,6 +101,17 @@ function resolveBaseURL() {
 
   const apiTarget = import.meta.env.VITE_API_TARGET || '';
   return apiTarget.replace(/\/+$/, '');
+}
+
+// probePlatformHealth 是绕过业务请求拦截器的控制面探测，避免不可用状态下的恢复检查被业务流量门禁阻断。
+export async function probePlatformHealth(signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${resolveBaseURL()}${OPENAPI_RUNTIME_PATH.getHealthz}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`healthz probe failed with status ${response.status}`);
+  }
 }
 
 const client = axios.create({
@@ -152,7 +163,7 @@ client.interceptors.response.use(
     const config = error.config as AxiosRequestConfigRetry | undefined;
 
     if (shouldReportPlatformFailure(requestError, config)) {
-      platformAvailabilityBridge?.reportTransportFailure(config?.url);
+      platformAvailabilityBridge?.reportTransportFailure();
     }
 
     if (shouldRefresh(requestError, config)) {
@@ -230,7 +241,7 @@ async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false
     }
     if (isApiRequestError(error)) {
       if (shouldReportPlatformFailure(error, { url: config.url })) {
-        platformAvailabilityBridge?.reportTransportFailure(config.url);
+        platformAvailabilityBridge?.reportTransportFailure();
       }
       throw error;
     }
@@ -241,7 +252,7 @@ async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false
       message: error instanceof Error ? error.message : i18n.global.t('app.request.failed'),
       traceId: '',
     });
-    platformAvailabilityBridge?.reportTransportFailure(config.url);
+    platformAvailabilityBridge?.reportTransportFailure();
     throw requestError;
   } finally {
     if (reader) {

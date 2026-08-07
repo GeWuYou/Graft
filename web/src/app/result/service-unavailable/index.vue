@@ -13,7 +13,7 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed } from 'vue';
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ROOT_ENTRY_PATH } from '@/contracts/app/routes';
@@ -29,12 +29,22 @@ defineOptions({ name: 'ResultServiceUnavailable' });
 const route = useRoute();
 const router = useRouter();
 const availability = usePlatformAvailabilityStore();
-const checking = computed(() => availability.status === 'recovering');
+const checking = ref(false);
 
 async function retry() {
-  if (!(await availability.checkHealth())) return;
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : availability.consumePendingPath();
-  await router.replace(redirect || ROOT_ENTRY_PATH);
+  if (checking.value) {
+    return;
+  }
+
+  checking.value = true;
+  try {
+    if (!(await availability.checkHealth())) return;
+    const redirect =
+      typeof route.query.redirect === 'string' ? route.query.redirect : availability.consumePendingPath();
+    await router.replace(redirect || ROOT_ENTRY_PATH);
+  } finally {
+    checking.value = false;
+  }
 }
 
 async function copyDiagnostics() {

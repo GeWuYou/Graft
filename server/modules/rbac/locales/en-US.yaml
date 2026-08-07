@@ -12,6 +12,8 @@ rbac.permissionCatalog.auditManage.display: Audit Policy Manage
 rbac.permissionCatalog.auditManage.description: Allows managing audit visibility defaults and per-event overrides.
 rbac.permissionCatalog.moduleRuntimeRead.display: Module Runtime Read
 rbac.permissionCatalog.moduleRuntimeRead.description: Allows reading the core module runtime snapshot.
+rbac.permissionCatalog.platformCapabilitiesRead.display: Platform Capability Health Read
+rbac.permissionCatalog.platformCapabilitiesRead.description: Allows reading the platform infrastructure and integration capability health snapshot.
 rbac.permissionCatalog.monitorServerStatusRead.display: Server Status Read
 rbac.permissionCatalog.monitorServerStatusRead.description: Allows reading the server status overview.
 rbac.permissionCatalog.notificationView.display: Notification View

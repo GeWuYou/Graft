@@ -21,15 +21,24 @@ const (
 type CapabilityCategory string
 
 const (
+	// CapabilityCategoryInfrastructure 表示基础设施能力。
 	CapabilityCategoryInfrastructure CapabilityCategory = "infrastructure"
-	CapabilityCategoryRuntime        CapabilityCategory = "runtime"
-	CapabilityCategoryStorage        CapabilityCategory = "storage"
-	CapabilityCategoryIntegration    CapabilityCategory = "integration"
-	CapabilityCategorySecurity       CapabilityCategory = "security"
-	CapabilityCategoryObservability  CapabilityCategory = "observability"
-	CapabilityCategoryPlatform       CapabilityCategory = "platform"
-	CapabilityCategoryAI             CapabilityCategory = "ai"
-	CapabilityCategoryExtension      CapabilityCategory = "extension"
+	// CapabilityCategoryRuntime 表示运行时能力。
+	CapabilityCategoryRuntime CapabilityCategory = "runtime"
+	// CapabilityCategoryStorage 表示存储能力。
+	CapabilityCategoryStorage CapabilityCategory = "storage"
+	// CapabilityCategoryIntegration 表示集成能力。
+	CapabilityCategoryIntegration CapabilityCategory = "integration"
+	// CapabilityCategorySecurity 表示安全能力。
+	CapabilityCategorySecurity CapabilityCategory = "security"
+	// CapabilityCategoryObservability 表示可观测能力。
+	CapabilityCategoryObservability CapabilityCategory = "observability"
+	// CapabilityCategoryPlatform 表示平台能力。
+	CapabilityCategoryPlatform CapabilityCategory = "platform"
+	// CapabilityCategoryAI 表示 AI 能力。
+	CapabilityCategoryAI CapabilityCategory = "ai"
+	// CapabilityCategoryExtension 表示扩展能力。
+	CapabilityCategoryExtension CapabilityCategory = "extension"
 )
 
 // CapabilityDescriptor is the static declaration of a capability.

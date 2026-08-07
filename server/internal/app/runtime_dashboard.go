@@ -17,6 +17,8 @@ import (
 	"graft/server/internal/moduleruntime"
 )
 
+const coreCapabilityDashboardWidgetOrder = 15
+
 func (r *Runtime) registerCoreDashboardWidgets() error {
 	if r.dashboardRegistry == nil {
 		return errors.New("dashboard registry is unavailable")
@@ -41,7 +43,7 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 		ID: "core.platform-capability-health", ModuleKey: "core",
 		TitleKey: "dashboard.widget.platformCapabilityHealth.title", Title: r.mustLookupCoreDisplay("dashboard.widget.platformCapabilityHealth.title"),
 		DescriptionKey: "dashboard.widget.platformCapabilityHealth.description", Description: r.mustLookupCoreDisplay("dashboard.widget.platformCapabilityHealth.description"),
-		Type: dashboard.WidgetTypeHealth, Size: dashboard.WidgetSizeMedium, Category: dashboard.WidgetCategorySystem, Priority: dashboard.WidgetPriorityInfo, Order: 15,
+		Type: dashboard.WidgetTypeHealth, Size: dashboard.WidgetSizeMedium, Category: dashboard.WidgetCategorySystem, Priority: dashboard.WidgetPriorityInfo, Order: coreCapabilityDashboardWidgetOrder,
 		RequiredPermissions: []string{capabilitycontract.ReadPermission},
 		Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
 			if r.capabilityCoordinator == nil {
