@@ -46,15 +46,27 @@ func TestWrapDatabaseOperationDoesNotExposeDriverMessage(t *testing.T) {
 func TestOwnerLockKeyIsStableASCIIAndSeparatesOwners(t *testing.T) {
 	t.Parallel()
 
-	first := ownerLockKey(moduleapi.TaskOwner{Type: "application", ID: "app_1"})
-	second := ownerLockKey(moduleapi.TaskOwner{Type: "application", ID: "app_2"})
-	if first == second || len(first) != 64 {
-		t.Fatalf("owner lock keys are not stable distinct SHA-256 values: %q %q", first, second)
+	owners := []moduleapi.TaskOwner{
+		{Type: "application", ID: "app_1"},
+		{Type: "application", ID: "app_2"},
+		{Type: "application:team", ID: "app:1"},
+		{Type: "application", ID: "team:app:1"},
 	}
-	for index := range first {
-		if first[index] == 0 {
-			t.Fatalf("owner lock key contains NUL byte: %q", first)
+	seen := make(map[string]struct{}, len(owners))
+	for _, owner := range owners {
+		key := ownerLockKey(owner)
+		if key != ownerLockKey(owner) || len(key) != 64 {
+			t.Fatalf("owner lock key is not stable 64-character SHA-256: owner=%#v key=%q", owner, key)
 		}
+		for _, character := range key {
+			if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+				t.Fatalf("owner lock key is not lowercase hexadecimal: %q", key)
+			}
+		}
+		if _, duplicate := seen[key]; duplicate {
+			t.Fatalf("owner lock key collision: owner=%#v key=%q", owner, key)
+		}
+		seen[key] = struct{}{}
 	}
 }
 

@@ -12,7 +12,10 @@ Where this architecture's historical phase wording conflicts with that RFC, the 
 `docker-runtime-store` is historical evidence only, Builder/Registry-local failure is not global availability, and
 Pool/dynamic placement exposure follows the RFC's four-phase gates. References below to former numbered delivery slices
 (`Phase 5` through `Phase 10`, including `9A` through `9D`) are historical implementation evidence only; they do not
-create release gates and map to the four RFC phases by their described capability.
+create release gates. Their explicit recovery mapping is: Phase 5--7 map to RFC Phase 1 (credential and manual
+reservation boundary); Phase 8 and 9A map to RFC Phase 2 (intent materialization and provider conformance); Phase 9B
+maps to RFC Phase 3 (authority evidence and controlled promotion); and Phase 9C, 9D and 10 map to RFC Phase 4
+(dynamic placement expansion). The RFC phase names remain normative wherever historical slices use different wording.
 
 The central immutable chain is:
 
