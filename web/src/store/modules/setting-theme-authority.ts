@@ -8,15 +8,17 @@ import type {
   ThemePresetDefinition,
   ThemeTokenMap,
 } from '@/types/theme';
-import { createEmptyThemeModeTokenState } from '@/utils/theme-workbench';
 import type { ModeType } from '@/utils/types';
 
 export const STYLE_CONFIG_KEYS = keys(STYLE_CONFIG) as Array<keyof typeof STYLE_CONFIG>;
 
 const THEME_AUTHORITY_STYLE_KEYS = ['mode', 'brandTheme'] as const;
+const WORKBENCH_APPLICATION_PREFERENCE_KEYS = ['themePresetApplicationScope'] as const;
 
 export const WORKBENCH_STYLE_CONFIG_KEYS = STYLE_CONFIG_KEYS.filter(
-  (key) => !(THEME_AUTHORITY_STYLE_KEYS as readonly string[]).includes(key),
+  (key) =>
+    !(THEME_AUTHORITY_STYLE_KEYS as readonly string[]).includes(key) &&
+    !(WORKBENCH_APPLICATION_PREFERENCE_KEYS as readonly string[]).includes(key),
 );
 
 const FONT_FAMILY_MAP: Record<ThemeAuthorityState['fontFamilyPreset'], string> = {
@@ -27,6 +29,14 @@ const FONT_FAMILY_MAP: Record<ThemeAuthorityState['fontFamilyPreset'], string> =
 };
 
 const RADIUS_PRESET_MAP: Record<ThemeAuthorityState['radiusPreset'], ThemeTokenMap> = {
+  square: {
+    '--td-radius-small': '0',
+    '--td-radius-default': '0',
+    '--td-radius-medium': '0',
+    '--td-radius-large': '0',
+    '--td-radius-extraLarge': '0',
+    '--td-radius-circle': '999px',
+  },
   business: {
     '--td-radius-small': '4px',
     '--td-radius-default': '4px',
@@ -62,6 +72,11 @@ const RADIUS_PRESET_MAP: Record<ThemeAuthorityState['radiusPreset'], ThemeTokenM
 };
 
 const SHADOW_PRESET_MAP: Record<ThemeAuthorityState['shadowPreset'], ThemeTokenMap> = {
+  'hard-offset': {
+    '--td-shadow-1': '2px 2px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+    '--td-shadow-2': '4px 4px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+    '--td-shadow-3': '6px 6px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+  },
   flat: {
     '--td-shadow-1': 'none',
     '--td-shadow-2': 'none',
@@ -316,7 +331,16 @@ export function createThemeAuthoritySourceSnapshot(
     radiusPreset: preset?.authorityPatch?.radiusPreset ?? 'standard',
     shadowPreset: preset?.authorityPatch?.shadowPreset ?? 'standard',
     densityPreset: preset?.authorityPatch?.densityPreset ?? 'standard',
-    themeTokenOverrides: createEmptyThemeModeTokenState(),
+    themeTokenOverrides: {
+      light: {
+        ...(preset?.tokenOverrides?.light ?? {}),
+        ...(preset?.materialTokenOverrides?.light ?? {}),
+      },
+      dark: {
+        ...(preset?.tokenOverrides?.dark ?? {}),
+        ...(preset?.materialTokenOverrides?.dark ?? {}),
+      },
+    },
   };
 }
 

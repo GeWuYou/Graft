@@ -119,11 +119,9 @@
             <theme-workbench-preset-catalog
               :presets="presetDefinitions"
               :active-preset-id="effectivePresetId"
-              :preserve-theme-personalization="settingStore.preserveThemePersonalization"
-              @select="settingStore.selectThemePreset"
-              @update:preserve-theme-personalization="
-                (value) => settingStore.updateConfig({ preserveThemePersonalization: value })
-              "
+              :application-scope="settingStore.themePresetApplicationScope"
+              @select="handlePresetSelect"
+              @update:application-scope="settingStore.updateConfig({ themePresetApplicationScope: $event })"
             />
           </div>
 
@@ -502,6 +500,7 @@
                   type="button"
                   class="style-preview-card"
                   :class="{ 'style-preview-card--active': effectiveTheme.radiusPreset === item.value }"
+                  :data-testid="`radius-${item.value}`"
                   @click="
                     settingStore.updateThemeDraftAppearance({
                       radiusPreset: item.value,
@@ -528,6 +527,7 @@
                   type="button"
                   class="style-preview-card"
                   :class="{ 'style-preview-card--active': effectiveTheme.shadowPreset === item.value }"
+                  :data-testid="`shadow-${item.value}`"
                   @click="
                     settingStore.updateThemeDraftAppearance({
                       shadowPreset: item.value,
@@ -680,6 +680,7 @@ import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
 import type {
   ThemeAuthorityState,
+  ThemePresetApplicationScope,
   ThemeTokenGroupKey,
   ThemeWorkbenchGroupKey,
   ThemeWorkbenchScenarioPresetDefinition,
@@ -767,6 +768,7 @@ const fontSizeSelectOptions = computed(() => fontSizeOptions.value.map(({ label,
 const radiusOptions = computed(
   () =>
     [
+      { value: 'square', label: t('layout.setting.workbench.style.square') },
       { value: 'business', label: t('layout.setting.workbench.style.business') },
       { value: 'standard', label: t('layout.setting.workbench.style.standard') },
       { value: 'rounded', label: t('layout.setting.workbench.style.rounded') },
@@ -778,6 +780,7 @@ const shadowOptions = computed(
   () =>
     [
       { value: 'flat', label: t('layout.setting.workbench.style.flat') },
+      { value: 'hard-offset', label: t('layout.setting.workbench.style.hardOffset') },
       { value: 'standard', label: t('layout.setting.workbench.style.standard') },
       { value: 'floating', label: t('layout.setting.workbench.style.floating') },
     ] as const,
@@ -838,6 +841,12 @@ const tokenSections = computed<
         icon: 'component-divider-horizontal',
         countLabelKey: 'layout.setting.workbench.advanced.colorVariableCount',
       },
+      {
+        value: 'chart',
+        label: t('layout.setting.workbench.groups.chart'),
+        icon: 'chart-line',
+        countLabelKey: 'layout.setting.workbench.advanced.colorVariableCount',
+      },
     ],
   },
   {
@@ -848,6 +857,12 @@ const tokenSections = computed<
         value: 'component',
         label: t('layout.setting.workbench.groups.component'),
         icon: 'setting',
+        countLabelKey: 'layout.setting.workbench.advanced.styleVariableCount',
+      },
+      {
+        value: 'material',
+        label: t('layout.setting.workbench.groups.material'),
+        icon: 'layers',
         countLabelKey: 'layout.setting.workbench.advanced.styleVariableCount',
       },
     ],
@@ -1028,6 +1043,10 @@ const resetFeedbackClass = computed(() => {
 const resetButtonWidthStyle = computed(() =>
   resetButtonLockedWidth.value === undefined ? undefined : { width: `${resetButtonLockedWidth.value}px` },
 );
+
+const handlePresetSelect = (presetId: string, scope: ThemePresetApplicationScope) => {
+  settingStore.selectThemePreset(presetId, scope);
+};
 
 const drawerVisible = computed({
   get: () => settingStore.showThemeWorkbench,
@@ -2363,6 +2382,11 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   border-radius: 6px;
 }
 
+.radius-preview--square .radius-preview__surface--main,
+.radius-preview--square .radius-preview__surface--sub {
+  border-radius: 0;
+}
+
 .radius-preview--standard .radius-preview__surface--main,
 .radius-preview--standard .radius-preview__surface--sub {
   border-radius: 12px;
@@ -2406,6 +2430,13 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .shadow-preview--flat .shadow-preview__card {
   box-shadow: none;
+}
+
+.shadow-preview--hard-offset .shadow-preview__card {
+  border-color: var(--td-text-color-primary);
+  border-radius: 0;
+  border-width: 2px;
+  box-shadow: 4px 4px 0 var(--td-text-color-primary);
 }
 
 .shadow-preview--standard .shadow-preview__card--back {

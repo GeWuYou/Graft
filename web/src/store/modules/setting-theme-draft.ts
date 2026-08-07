@@ -1,6 +1,7 @@
 import type {
   ThemeAuthorityState,
   ThemeModeTokenState,
+  ThemePresetApplicationScope,
   ThemePresetDefinition,
   ThemeTokenMap,
   ThemeWorkbenchGroupKey,
@@ -10,23 +11,60 @@ import type { ModeType } from '@/utils/types';
 
 import type { WorkbenchStyleConfigSnapshot } from './setting-theme-authority';
 
-function createDefaultThemeAuthorityState(
-  mode: ModeType | 'auto',
-  brandTheme: string,
-  selectedThemePresetId: string,
-  authorityPatch?: ThemePresetDefinition['authorityPatch'],
+function createPresetThemeTokenOverrides(
+  preset: ThemePresetDefinition,
+  scope: ThemePresetApplicationScope,
+  currentTokens?: ThemeModeTokenState,
+  previousPreset?: ThemePresetDefinition | null,
+): ThemeModeTokenState {
+  const materialTokens = scope === 'complete' ? preset.materialTokenOverrides : undefined;
+  const currentPaletteTokens = {
+    light: { ...(currentTokens?.light ?? {}) },
+    dark: { ...(currentTokens?.dark ?? {}) },
+  };
+
+  if (scope === 'palette' && previousPreset) {
+    (['light', 'dark'] as const).forEach((mode) => {
+      Object.entries({
+        ...(previousPreset.tokenOverrides?.[mode] ?? {}),
+        ...(previousPreset.materialTokenOverrides?.[mode] ?? {}),
+      }).forEach(([tokenKey, tokenValue]) => {
+        if (currentPaletteTokens[mode][tokenKey] === tokenValue) {
+          delete currentPaletteTokens[mode][tokenKey];
+        }
+      });
+    });
+  }
+
+  return {
+    light: {
+      ...(preset.tokenOverrides?.light ?? {}),
+      ...(materialTokens?.light ?? {}),
+      ...(scope === 'palette' ? currentPaletteTokens.light : {}),
+    },
+    dark: {
+      ...(preset.tokenOverrides?.dark ?? {}),
+      ...(materialTokens?.dark ?? {}),
+      ...(scope === 'palette' ? currentPaletteTokens.dark : {}),
+    },
+  };
+}
+
+export function createCompleteThemePresetState(
+  preset: ThemePresetDefinition,
+  fallbackMode: ModeType | 'auto',
 ): ThemeAuthorityState {
   return {
-    mode,
-    brandTheme,
-    selectedThemePresetId,
+    mode: preset.authorityPatch?.mode ?? preset.mode ?? fallbackMode,
+    brandTheme: preset.brandTheme,
+    selectedThemePresetId: preset.id,
     themeSource: 'preset',
-    fontFamilyPreset: authorityPatch?.fontFamilyPreset ?? 'system',
-    fontSizePreset: authorityPatch?.fontSizePreset ?? 'standard',
-    radiusPreset: authorityPatch?.radiusPreset ?? 'standard',
-    shadowPreset: authorityPatch?.shadowPreset ?? 'standard',
-    densityPreset: authorityPatch?.densityPreset ?? 'standard',
-    themeTokenOverrides: createEmptyThemeModeTokenState(),
+    fontFamilyPreset: preset.authorityPatch?.fontFamilyPreset ?? 'system',
+    fontSizePreset: preset.authorityPatch?.fontSizePreset ?? 'standard',
+    radiusPreset: preset.authorityPatch?.radiusPreset ?? 'standard',
+    shadowPreset: preset.authorityPatch?.shadowPreset ?? 'standard',
+    densityPreset: preset.authorityPatch?.densityPreset ?? 'standard',
+    themeTokenOverrides: createPresetThemeTokenOverrides(preset, 'complete'),
   };
 }
 
@@ -50,31 +88,34 @@ export function buildSelectedThemePresetState(
     ThemeAuthorityState,
     'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
   >,
-  preserveThemePersonalization: boolean,
+  scope: ThemePresetApplicationScope,
+  previousPreset?: ThemePresetDefinition | null,
 ): ThemeAuthorityState {
+  const current = draftState ?? {
+    ...persistedState,
+    themeTokenOverrides: createEmptyThemeModeTokenState(),
+  };
+
+  if (scope === 'complete') {
+    return createCompleteThemePresetState(preset, persistedState.mode);
+  }
+
   return {
-    mode: preset.authorityPatch?.mode ?? preset.mode ?? draftState?.mode ?? persistedState.mode,
+    mode: preset.authorityPatch?.mode ?? preset.mode ?? current.mode,
     brandTheme: preset.brandTheme,
     selectedThemePresetId: preset.id,
     themeSource: 'preset',
-    fontFamilyPreset: preserveThemePersonalization
-      ? (draftState?.fontFamilyPreset ?? persistedState.fontFamilyPreset)
-      : (preset.authorityPatch?.fontFamilyPreset ?? draftState?.fontFamilyPreset ?? persistedState.fontFamilyPreset),
-    fontSizePreset: preserveThemePersonalization
-      ? (draftState?.fontSizePreset ?? persistedState.fontSizePreset)
-      : (preset.authorityPatch?.fontSizePreset ?? draftState?.fontSizePreset ?? persistedState.fontSizePreset),
-    radiusPreset: preserveThemePersonalization
-      ? (draftState?.radiusPreset ?? persistedState.radiusPreset)
-      : (preset.authorityPatch?.radiusPreset ?? draftState?.radiusPreset ?? persistedState.radiusPreset),
-    shadowPreset: preserveThemePersonalization
-      ? (draftState?.shadowPreset ?? persistedState.shadowPreset)
-      : (preset.authorityPatch?.shadowPreset ?? draftState?.shadowPreset ?? persistedState.shadowPreset),
-    densityPreset: preserveThemePersonalization
-      ? (draftState?.densityPreset ?? persistedState.densityPreset)
-      : (preset.authorityPatch?.densityPreset ?? draftState?.densityPreset ?? persistedState.densityPreset),
-    themeTokenOverrides: preserveThemePersonalization
-      ? cloneThemeModeTokenState(draftState?.themeTokenOverrides ?? createEmptyThemeModeTokenState())
-      : createEmptyThemeModeTokenState(),
+    fontFamilyPreset: current.fontFamilyPreset,
+    fontSizePreset: current.fontSizePreset,
+    radiusPreset: current.radiusPreset,
+    shadowPreset: current.shadowPreset,
+    densityPreset: current.densityPreset,
+    themeTokenOverrides: createPresetThemeTokenOverrides(
+      preset,
+      'palette',
+      current.themeTokenOverrides,
+      previousPreset,
+    ),
   };
 }
 
@@ -232,7 +273,6 @@ export function applyThemeWorkbenchDraft(store: ThemeWorkbenchDraftStore) {
 export function resetThemeWorkbenchDraftToDefault(
   store: ThemeWorkbenchDraftStore,
   defaultPreset: ThemePresetDefinition,
-  preserveThemePersonalization: boolean,
   options: { preserveResettingFeedback?: boolean } = {},
 ) {
   if (!store.themeDraftBaseline) {
@@ -240,21 +280,7 @@ export function resetThemeWorkbenchDraftToDefault(
   }
 
   const current = store.themeDraft ?? store.createThemeAuthoritySnapshot();
-  store.themeDraft = preserveThemePersonalization
-    ? {
-        ...current,
-        mode: defaultPreset.authorityPatch?.mode ?? defaultPreset.mode ?? current.mode,
-        brandTheme: defaultPreset.brandTheme,
-        selectedThemePresetId: defaultPreset.id,
-        themeSource: 'preset',
-        themeTokenOverrides: cloneThemeModeTokenState(current.themeTokenOverrides),
-      }
-    : createDefaultThemeAuthorityState(
-        defaultPreset.authorityPatch?.mode ?? defaultPreset.mode ?? current.mode,
-        defaultPreset.brandTheme,
-        defaultPreset.id,
-        defaultPreset.authorityPatch,
-      );
+  store.themeDraft = createCompleteThemePresetState(defaultPreset, current.mode);
   previewThemeWorkbenchDraft(store);
   if (!options.preserveResettingFeedback) {
     store.themeResetting = false;

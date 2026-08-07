@@ -15,6 +15,7 @@ export default {
   showHeader: true,
   showThemeWorkbenchDock: true,
   isAcrylicEnabled: true,
-  preserveThemePersonalization: true,
+  // 仅决定下一次应用预设的范围，不参与运行时主题 token 合成。
+  themePresetApplicationScope: 'palette' as 'palette' | 'complete',
   brandTheme: '#61AFEF',
 };

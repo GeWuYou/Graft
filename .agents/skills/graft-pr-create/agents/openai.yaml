@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft PR Create"
-  short_description: "Create or reconcile the current branch PR"
-  default_prompt: "Use $graft-pr-create to inspect PR state with GitHub MCP when available, then create or reuse the current branch PR through the guarded helper workflow."
+  short_description: "Author and reconcile the current branch PR"
+  default_prompt: "Use $graft-pr-create to inspect the current branch and its repository context, author an evidence-based PR description, then create or reuse the PR through the guarded helper workflow."

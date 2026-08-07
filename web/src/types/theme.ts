@@ -6,7 +6,10 @@ export type SettingStyleConfig = typeof STYLE_CONFIG;
 export type ThemeWorkbenchGroupKey =
   'overview' | 'presets' | 'appearance' | 'layout' | 'typography' | 'style' | 'advanced';
 
-export type ThemeTokenGroupKey = 'brand' | 'text' | 'background' | 'border' | 'component';
+export type ThemeTokenGroupKey = 'brand' | 'text' | 'background' | 'border' | 'chart' | 'component' | 'material';
+
+/** 预设应用范围只在工作台当前交互中生效，不作为主题视觉状态持久化。 */
+export type ThemePresetApplicationScope = 'palette' | 'complete';
 
 export type ThemeSourceType = 'preset' | 'customized';
 
@@ -107,8 +110,8 @@ export interface ThemeAuthorityState {
   themeSource: ThemeSourceType;
   fontFamilyPreset: 'system' | 'harmonyos' | 'inter' | 'source-han-sans';
   fontSizePreset: 'extra-small' | 'small' | 'standard' | 'large' | 'extra-large';
-  radiusPreset: 'business' | 'standard' | 'rounded' | 'capsule';
-  shadowPreset: 'flat' | 'standard' | 'floating';
+  radiusPreset: 'square' | 'business' | 'standard' | 'rounded' | 'capsule';
+  shadowPreset: 'flat' | 'standard' | 'floating' | 'hard-offset';
   densityPreset: 'compact' | 'standard' | 'comfortable';
   themeTokenOverrides: ThemeModeTokenState;
 }

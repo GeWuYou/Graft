@@ -58,12 +58,49 @@ const switchStub = defineComponent({
   },
 });
 
+const presetCatalogStub = defineComponent({
+  name: 'ThemeWorkbenchPresetCatalogStub',
+  props: {
+    applicationScope: { type: String, required: true },
+  },
+  emits: ['select', 'update:applicationScope'],
+  setup(props, { emit }) {
+    return () =>
+      h(
+        'div',
+        {
+          class: 'preset-catalog__apply-mode',
+        },
+        [
+          h(
+            'button',
+            {
+              'data-testid': 'preset-application-button',
+              onClick: () => emit('select', 'one-dark-pro', 'complete'),
+            },
+            'preset catalog',
+          ),
+          h(
+            'button',
+            {
+              'data-testid': 'preset-application-scope-toggle',
+              onClick: () =>
+                emit('update:applicationScope', props.applicationScope === 'palette' ? 'complete' : 'palette'),
+            },
+            'scope toggle',
+          ),
+        ],
+      );
+  },
+});
+
 function mountPanel() {
   return mount(ThemeWorkbenchPanel, {
     global: {
       stubs: {
         't-drawer': drawerStub,
         't-switch': switchStub,
+        'theme-workbench-preset-catalog': presetCatalogStub,
         't-button': true,
         't-color-picker': true,
         't-icon': true,
@@ -101,16 +138,40 @@ describe('ThemeWorkbenchPanel', () => {
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
 
-  it('passes the preset application preference through to the workbench store', async () => {
+  it('passes the local preset application scope to the workbench store', async () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
     const wrapper = mountPanel();
 
-    const preferenceSwitch = wrapper.get('.preset-catalog__apply-mode button');
-    expect(preferenceSwitch.attributes('aria-pressed')).toBe('true');
+    const selectThemePreset = vi.spyOn(store, 'selectThemePreset');
+    await wrapper.get('[data-testid="preset-application-button"]').trigger('click');
 
-    await preferenceSwitch.trigger('click');
+    expect(selectThemePreset).toHaveBeenCalledWith('one-dark-pro', 'complete');
+  });
 
-    expect(store.preserveThemePersonalization).toBe(false);
+  it('persists the preset application scope separately from visual workbench state', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    const wrapper = mountPanel();
+
+    expect(store.themePresetApplicationScope).toBe('palette');
+    await wrapper.get('[data-testid="preset-application-scope-toggle"]').trigger('click');
+    expect(store.themePresetApplicationScope).toBe('complete');
+
+    store.cancelThemeDraft();
+    expect(store.themePresetApplicationScope).toBe('complete');
+  });
+
+  it('allows every preset to compose the Industrial treatment from manual style options', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="radius-square"]').trigger('click');
+    await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
+
+    expect(store.radiusPreset).toBe('square');
+    expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
 });

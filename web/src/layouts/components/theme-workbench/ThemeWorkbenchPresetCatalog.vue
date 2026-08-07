@@ -13,7 +13,7 @@
         <div class="preset-catalog__apply-mode-hint">
           {{
             t(
-              props.preserveThemePersonalization
+              applicationScope === 'palette'
                 ? 'layout.setting.workbench.presets.preserveThemePersonalizationHint'
                 : 'layout.setting.workbench.presets.completePresetHint',
             )
@@ -21,9 +21,9 @@
         </div>
       </div>
       <t-switch
-        :model-value="preserveThemePersonalization"
+        :model-value="applicationScope === 'palette'"
         :aria-label="t('layout.setting.workbench.presets.preserveThemePersonalization')"
-        @update:model-value="$emit('update:preserveThemePersonalization', $event)"
+        @update:model-value="$emit('update:applicationScope', $event ? 'palette' : 'complete')"
       />
     </div>
 
@@ -56,7 +56,7 @@
       <theme-workbench-preset-grid
         :presets="featuredPresets"
         :active-preset-id="activePresetId"
-        @select="$emit('select', $event)"
+        @select="handlePresetSelect"
       />
     </div>
 
@@ -69,7 +69,7 @@
       <theme-workbench-preset-grid
         :presets="catalogPresets"
         :active-preset-id="activePresetId"
-        @select="$emit('select', $event)"
+        @select="handlePresetSelect"
       />
     </div>
 
@@ -83,7 +83,7 @@ import { computed, ref } from 'vue';
 
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
-import type { ThemePresetCategory, ThemePresetDefinition } from '@/types/theme';
+import type { ThemePresetApplicationScope, ThemePresetCategory, ThemePresetDefinition } from '@/types/theme';
 
 import ThemeWorkbenchPresetGrid from './ThemeWorkbenchPresetGrid.vue';
 
@@ -93,17 +93,17 @@ type PresetFilter = 'all' | ThemePresetCategory;
 const props = defineProps<{
   presets: ThemePresetDefinition[];
   activePresetId: string | null;
-  preserveThemePersonalization: boolean;
-}>();
-
-defineEmits<{
-  select: [presetId: string];
-  'update:preserveThemePersonalization': [value: boolean];
+  applicationScope: ThemePresetApplicationScope;
 }>();
 
 const { locale } = useLocale();
 const keyword = ref('');
 const activeCategory = ref<PresetFilter>('all');
+
+const emit = defineEmits<{
+  select: [presetId: string, scope: ThemePresetApplicationScope];
+  'update:applicationScope': [scope: ThemePresetApplicationScope];
+}>();
 
 const availableCategories = computed(() => {
   const categories = new Set(props.presets.map((preset) => preset.category));
@@ -163,6 +163,10 @@ const catalogPresets = computed(() => {
 
 function handleCategoryChange(value: string | number | boolean) {
   activeCategory.value = value as PresetFilter;
+}
+
+function handlePresetSelect(presetId: string) {
+  emit('select', presetId, props.applicationScope);
 }
 </script>
 <style lang="less" scoped>
