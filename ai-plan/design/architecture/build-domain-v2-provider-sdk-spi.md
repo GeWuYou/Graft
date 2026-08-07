@@ -55,8 +55,9 @@ Registered -> Validated -> Active -> Degraded -> Unavailable -> Retired
   recovery and are not guessed as successful.
 - `Retired`: new bindings and execution are rejected; historical evidence remains readable for replay.
 
-Lifecycle transitions are driven by the owning Runtime Target/Provider registry and conformance results, not by UI,
-Monitor, Builder Telemetry or a Provider goroutine. A provider MUST expose deterministic `Validate`, `Start` and
+Runtime Target/Provider registry supplies binding and conformance facts, while the Build provider authority owns lifecycle
+admission and transitions. Neither UI, Monitor, Builder Telemetry nor a Provider goroutine may transition lifecycle.
+A provider MUST expose deterministic `Validate`, `Start` and
 `Stop` hooks (or equivalent synchronous lifecycle methods) and MUST release all provider-owned resources on `Stop`.
 Startup failure is fail-closed and local to the provider capability; it does not make the platform globally
 unavailable.
@@ -71,7 +72,8 @@ but the semantic inputs and outputs below are stable.
 ```text
 ProviderDescriptor {
   provider_id, sdk_version, implementation_version,
-  driver_ids, snapshot_delivery_modes, capability_version
+  driver_ids, snapshot_delivery_modes, capability_version,
+  compatibility_contract
 }
 
 ProviderLifecycle {
@@ -81,7 +83,9 @@ ProviderLifecycle {
 }
 ```
 
-`Validate` MUST be side-effect bounded and MUST prove every advertised mandatory adapter. `Start` may prepare
+`compatibility_contract` declares the Capability, Execution Context, Snapshot Delivery, Credential Adapter, Telemetry
+and Evidence schema versions the provider consumes or produces, plus each relation's compatibility direction. `Validate`
+MUST be side-effect bounded, reject an incompatible mandatory relation, and prove every advertised mandatory adapter. `Start` may prepare
 provider-local clients, but may not start an independent scheduler or worker queue. `Stop` is idempotent; a failed
 cleanup produces redacted evidence and leaves the capability unavailable until operator recovery.
 

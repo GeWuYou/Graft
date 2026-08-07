@@ -25,7 +25,7 @@ Provider integration follows [Build Domain v2 Provider SDK And SPI RFC](../../de
 - `RuntimeTargetBuilderTelemetryReader` remains the Build-visible read facade, but it does not yet have a real Provider
   source. UI summaries, Monitor charts, Docker/host metrics and Task JSON cannot enable dynamic placement.
 - Existing Pool/Placement material is retained, but public capability exposure is reset to the RFC's four phases.
-  `least_load`, `affinity` and `region` are latent/disabled until Phase 4 evidence exists.
+  `least_load`, `capacity`, `affinity` and `region` are latent/disabled until Phase 4 evidence exists.
 - Provider lifecycle and adapter conformance are defined by the separate SDK/SPI RFC; no concrete new provider is
   claimed by this documentation batch.
 
@@ -33,6 +33,7 @@ Provider integration follows [Build Domain v2 Provider SDK And SPI RFC](../../de
 
 - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
 - `ai-plan/design/architecture/build-domain-v2.md`
+- `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
 - `ai-plan/roadmap/build-domain-v2.md`
 - this active topic's tracking and trace materials
 

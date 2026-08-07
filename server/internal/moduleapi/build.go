@@ -111,10 +111,10 @@ const (
 // BuilderReservationRepository 是 Build-owned 的最小容量 lease 持久化边界。
 // 实现不得启动 scheduler，也不得写入 PlatformAvailabilityStore。
 type BuilderReservationRepository interface {
-	ReserveBuilder(context.Context, *sql.Tx, BuilderReservation) (BuilderReservation, error)
-	ReserveBuilderAttempt(context.Context, BuilderReservation) (BuilderReservation, error)
-	MarkBuilderReservationRunning(context.Context, uint64, string) error
-	ReleaseBuilderReservation(context.Context, uint64, string, string) error
+	ReserveBuilder(ctx context.Context, tx *sql.Tx, reservation BuilderReservation) (BuilderReservation, error)
+	ReserveBuilderAttempt(ctx context.Context, reservation BuilderReservation) (BuilderReservation, error)
+	MarkBuilderReservationRunning(ctx context.Context, taskID uint64, fenceToken string) error
+	ReleaseBuilderReservation(ctx context.Context, taskID uint64, fenceToken, state string) error
 }
 
 // BuilderResourceRepository 是 Builder Profile、Instance、Pool 及成员关系的持久化边界。

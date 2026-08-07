@@ -30,7 +30,7 @@ metadata. Registry/Builder-local failure must not alter platform-wide availabili
 | Builder Agent / distributed Build | no | no | no | yes |
 
 Existing Pool, Placement and provider-conformance code is retained as future implementation material. It does not widen
-the exposed feature set ahead of these gates. `least_load`, `affinity` and `region` remain latent/disabled until Phase 4.
+the exposed feature set ahead of these gates. `least_load`, `capacity`, `affinity` and `region` remain latent/disabled until Phase 4.
 
 ## Phase 1: Single Builder Authority
 
@@ -94,7 +94,8 @@ host value, Task JSON or unproven provider observation changes selection.
 - Treat `Abandoned` Reservation, credential cleanup failure and unknown external outcomes as `Needs Attention` until
   recovery proves a terminal result.
 
-**Release gate:** dynamic decisions replay from capability profile, fresh telemetry and Reservation fence; Provider
+**Release gate:** dynamic decisions replay from frozen capability/profile, telemetry observation, policy/version inputs,
+negotiation result and Reservation fence; fresh telemetry is only an input to a new decision. Provider
 conformance and recovery cover cancellation, timeout, restart and cleanup; and distributed execution does not create a
 second Build queue, Task state machine or event store.
 

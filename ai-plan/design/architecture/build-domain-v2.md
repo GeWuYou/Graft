@@ -10,7 +10,9 @@ failure handling is [Build Domain v2 Credential And Telemetry Authority RFC](bui
 Provider integration seams are defined separately by the [Provider SDK And SPI RFC](build-domain-v2-provider-sdk-spi.md).
 Where this architecture's historical phase wording conflicts with that RFC, the RFC wins. In particular,
 `docker-runtime-store` is historical evidence only, Builder/Registry-local failure is not global availability, and
-Pool/dynamic placement exposure follows the RFC's four-phase gates.
+Pool/dynamic placement exposure follows the RFC's four-phase gates. References below to former numbered delivery slices
+(`Phase 5` through `Phase 10`, including `9A` through `9D`) are historical implementation evidence only; they do not
+create release gates and map to the four RFC phases by their described capability.
 
 The central immutable chain is:
 
@@ -74,7 +76,7 @@ Target `build` capability. It represents a runnable builder realization, not a s
 Instances, not Runtime Targets directly. Phase 1 permits only manual single-Instance selection; Phase 3 can expose
 static Pool policies; Phase 4 alone can expose dynamic policies backed by provider-conformant telemetry and a fenced
 Build Reservation. A persisted round-robin cursor is an implementation asset, not proof that a policy is externally
-available. Labels remain static eligibility; `least_load`, `affinity` and `region` are latent/disabled until the RFC
+available. Labels remain static eligibility; `least_load`, `capacity`, `affinity` and `region` are latent/disabled until the RFC
 release gate.
 
 ### Execution Plan, Build Job, Artifact And Publication
@@ -106,18 +108,21 @@ prepare_workspace -> schedule_builder -> run_build -> export_artifact -> publish
 ```
 
 多平台执行的当前边界是：Task Runtime 负责 coordinated leg 的并行领取、取消、重试与恢复，Build executor 负责单 leg
-构建、临时平台引用发布和最终 Manifest 结算。Phase 8 才会把 Builder Pool 的平台级 placement 提升为可审计的
-多 Runtime Target 调度；在此之前，一个冻结计划只使用一个已选 Builder Instance，避免把未实现的负载或地域判断
-伪装成调度结果。
+构建、临时平台引用发布和最终 Manifest 结算。每个 leg 使用其自身冻结的 Builder Placement；同一 Execution Plan
+可以因此包含多个已选 Builder Instance 和 Runtime Target。历史实施切片曾将 Builder Pool 的平台级 placement 提升
+为可审计的多 Runtime Target 调度；在该能力未发布的路径中，计划仍只使用一个手工选择的 Builder Instance，避免
+把未实现的负载或地域判断伪装成调度结果。
 
 `Builder Placement` freezes accepted selection evidence: each target platform records Builder Instance, Runtime Target,
-policy, capability profile and, when applicable, telemetry source and Reservation fence. It remains Task Runtime leg
+`PolicyID`, `PolicyVersion`, deterministic seed when applicable, policy-input fingerprint, selected output, capability
+profile/version, full capability-negotiation result, telemetry source/observation identity when applicable, and the
+Reservation fence. It remains Task Runtime leg
 and Build executor input, but does not alter the Execution Plan's existing public structure. Workspace Snapshot
 已经由 Build 接管，因此 target 必须明确声明 `build-snapshot` locality 才能被 placement 选中；这不是 endpoint 或
 任意目录的兼容通道。
 
 Placement 只表达并冻结调度决定，不能证明一个 Provider 能消费该 Snapshot。Runtime Target 还必须声明
-`SnapshotDeliveryModes`；`WorkspaceLocalities` 只表示物化位置，不等于传输适配器。Phase 9 owns provider-backed Snapshot
+`SnapshotDeliveryModes`；`WorkspaceLocalities` 只表示物化位置，不等于传输适配器。历史 Phase 9 evidence owns provider-backed Snapshot
 delivery and remote execution: a provider receives or materializes the exact immutable Snapshot through a declared
 delivery mode, verifies its identity, then executes its declared Driver. The Docker provider now proves the same
 contract for local Unix-socket and validated remote TCP/SSH targets by invoking the selected target explicitly and

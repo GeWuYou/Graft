@@ -262,7 +262,10 @@ func (p dockerTargetProvider) PublishOCIManifestOnTarget(ctx context.Context, ta
 //
 //nolint:cyclop,gocyclo // Provider 必须逐项校验私有 binding、不可变来源与复制后的 Registry 证明。
 func (p dockerTargetProvider) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
-	if !hasIsolatedCredentialConfig(ctx) || targetID < 1 || !validOCIArtifactCopyInput(input) || !validOCIArtifactCopyBinding(input, binding) {
+	if !hasIsolatedCredentialConfig(ctx) {
+		return moduleapi.OCIArtifactCopyResult{}, errors.New("isolated Docker credential context is required")
+	}
+	if targetID < 1 || !validOCIArtifactCopyInput(input) || !validOCIArtifactCopyBinding(input, binding) {
 		return moduleapi.OCIArtifactCopyResult{}, errors.New("OCI artifact copy input is invalid")
 	}
 	connection, err := p.connection(ctx, targetID)
@@ -327,7 +330,7 @@ func validOCIArtifactCopyInput(input moduleapi.OCIArtifactCopyInput) bool {
 func validOCIArtifactCopyBinding(input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding) bool {
 	destination := binding.Destination
 	return strings.TrimSpace(binding.SourceEndpoint) != "" && strings.TrimSpace(binding.SourceCredentialRef) != "" && binding.SourceAuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral &&
-		strings.TrimSpace(destination.Endpoint) != "" && destination.AuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral &&
+		strings.TrimSpace(destination.Endpoint) != "" && strings.TrimSpace(destination.CredentialRef) != "" && destination.AuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral &&
 		destination.Destination == input.Destination
 }
 
@@ -442,9 +445,7 @@ func providerImageDigest(digests []string, repository string) string {
 
 func runProviderOutput(ctx context.Context, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, "docker", args...) // #nosec G204 -- args are assembled only from validated provider facts.
-	if configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string); ok && configDir != "" {
-		command.Env = isolatedDockerEnvironment(configDir)
-	}
+	applyIsolatedDockerEnvironment(ctx, command)
 	output, err := command.Output()
 	if err != nil {
 		return nil, fmt.Errorf("docker provider command failed: %w", err)
@@ -454,9 +455,7 @@ func runProviderOutput(ctx context.Context, args ...string) ([]byte, error) {
 
 func runProviderCommand(ctx context.Context, sink moduleapi.DockerImageBuildLogSink, args ...string) error {
 	command := exec.CommandContext(ctx, "docker", args...) // #nosec G204 -- args are assembled only from validated provider facts.
-	if configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string); ok && configDir != "" {
-		command.Env = isolatedDockerEnvironment(configDir)
-	}
+	applyIsolatedDockerEnvironment(ctx, command)
 	logs := newProviderLogSink(ctx, sink)
 	command.Stdout = logs.writer("stdout")
 	command.Stderr = logs.writer("stderr")
@@ -472,8 +471,9 @@ func runProviderCommand(ctx context.Context, sink moduleapi.DockerImageBuildLogS
 
 // isolatedDockerEnvironment 删除继承的 Docker 认证变量，仅为本次受控操作传入隔离配置目录。
 func isolatedDockerEnvironment(configDir string) []string {
-	environment := make([]string, 0, len(os.Environ())+1)
-	for _, entry := range os.Environ() {
+	inherited := os.Environ()
+	environment := make([]string, 0, len(inherited)+1)
+	for _, entry := range inherited {
 		key, _, _ := strings.Cut(entry, "=")
 		if key == "DOCKER_CONFIG" || key == "DOCKER_AUTH_CONFIG" {
 			continue
@@ -481,6 +481,12 @@ func isolatedDockerEnvironment(configDir string) []string {
 		environment = append(environment, entry)
 	}
 	return append(environment, "DOCKER_CONFIG="+configDir)
+}
+
+func applyIsolatedDockerEnvironment(ctx context.Context, command *exec.Cmd) {
+	if configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string); ok && configDir != "" {
+		command.Env = isolatedDockerEnvironment(configDir)
+	}
 }
 
 func hasIsolatedCredentialConfig(ctx context.Context) bool {

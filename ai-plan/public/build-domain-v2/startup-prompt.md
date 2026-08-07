@@ -60,7 +60,8 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Start Phase 2 intent/materialization conformance. Preserve Phase 1's secure Registry Push: the optional core
+1. Close out the current Phase 1 secure credential execution and manual-reservation batch before starting Phase 2.
+   Preserve Phase 1's secure Registry Push: the optional core
    secret-file provider issues only scoped ephemeral sessions to Runtime Target's isolated adapter, and every retry
    uses a new Build Reservation fence.
 2. Do not promote historical Pool, Docker adapter or telemetry contract work into dynamic-placement acceptance evidence.

@@ -71,6 +71,12 @@ closeout:
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
 
+## Historical Implementation Evidence
+
+The numbered Phase 1.5 through Phase 10 entries below record completed or pending historical implementation slices.
+They are not a second release-gate plan: active delivery authority is the RFC four-phase state above and the loop batch
+state below. A historical item may support an RFC phase but cannot independently mark that phase releasable.
+
 ## Task Checklist
 
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.

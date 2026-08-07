@@ -53,7 +53,6 @@ type fileCredential struct {
 type sessionRecord struct {
 	endpoint   string
 	repository string
-	operations map[string]struct{}
 	username   string
 	password   string
 	expiresAt  time.Time
@@ -105,7 +104,12 @@ func (p *FileProvider) Prepare(ctx context.Context, request moduleapi.Credential
 		}
 		id := uuid.NewString()
 		p.mu.Lock()
-		p.sessions[id] = sessionRecord{endpoint: candidate.Endpoint, repository: request.RepositoryRef, operations: operationSet(candidate.Operations), username: candidate.Username, password: candidate.Password, expiresAt: expiresAt}
+		for existingID, existing := range p.sessions {
+			if !existing.expiresAt.After(now) {
+				delete(p.sessions, existingID)
+			}
+		}
+		p.sessions[id] = sessionRecord{endpoint: candidate.Endpoint, repository: request.RepositoryRef, username: candidate.Username, password: candidate.Password, expiresAt: expiresAt}
 		p.mu.Unlock()
 		return moduleapi.EphemeralCredentialSession{ID: id, ExpiresAt: expiresAt}, nil
 	}
@@ -269,28 +273,35 @@ func operationSet(operations []string) map[string]struct{} {
 
 func writeDockerConfig(directory, endpoint, username, password string) error {
 	info, err := os.Stat(directory)
-	if err != nil || !info.IsDir() || info.Mode().Perm() != credentialConfigDirMode {
+	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
 		return errors.New("registry credential injection target is invalid")
 	}
 	config := struct {
 		Auths map[string]struct {
 			Auth string `json:"auth"`
 		} `json:"auths"`
-	}{Auths: map[string]struct {
+	}{Auths: make(map[string]struct {
 		Auth string `json:"auth"`
-	}{endpoint: {Auth: base64.StdEncoding.EncodeToString([]byte(username + ":" + password))}}}
+	})}
+	path := filepath.Join(directory, "config.json")
+	// #nosec G304 -- directory is the adapter-created isolated credential directory.
+	if contents, readErr := os.ReadFile(path); readErr == nil {
+		if err := json.Unmarshal(contents, &config); err != nil || config.Auths == nil {
+			return errors.New("read registry credential config")
+		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return errors.New("read registry credential config")
+	}
+	config.Auths[endpoint] = struct {
+		Auth string `json:"auth"`
+	}{Auth: base64.StdEncoding.EncodeToString([]byte(username + ":" + password))}
 	contents, err := json.Marshal(config)
 	if err != nil {
 		return errors.New("create registry credential config")
 	}
-	// #nosec G304 -- directory 已验证为 adapter 创建的隔离凭据目录。
-	file, err := os.OpenFile(filepath.Join(directory, "config.json"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, credentialConfigFileMode)
-	if err != nil {
-		return errors.New("write registry credential config")
-	}
-	defer func() { _ = file.Close() }()
-	if _, err := file.Write(contents); err != nil {
+	// #nosec G304 -- directory is the adapter-created isolated credential directory.
+	if err := os.WriteFile(path, contents, credentialConfigFileMode); err != nil {
 		return fmt.Errorf("write registry credential config: %w", err)
 	}
-	return file.Close()
+	return nil
 }

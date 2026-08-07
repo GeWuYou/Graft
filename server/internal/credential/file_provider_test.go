@@ -33,8 +33,7 @@ func TestFileProviderScopesAndRevokesCredentialSessions(t *testing.T) {
 	if err := provider.Inject(context.Background(), session, moduleapi.CredentialInjectionTarget{ConfigDir: directory, Endpoint: "https://registry.example", RepositoryRef: "team/api"}); err != nil {
 		t.Fatalf("inject credential: %v", err)
 	}
-	// #nosec G304 -- directory 是测试所有的临时隔离凭据目录。
-	contents, err := os.ReadFile(filepath.Join(directory, "config.json"))
+	contents, err := os.ReadFile(filepath.Join(directory, "config.json")) // #nosec G304 -- test reads its own fixed temporary config path.
 	if err != nil {
 		t.Fatalf("read injected config: %v", err)
 	}
@@ -51,6 +50,40 @@ func TestFileProviderScopesAndRevokesCredentialSessions(t *testing.T) {
 	}
 	if err := provider.Inject(context.Background(), session, moduleapi.CredentialInjectionTarget{ConfigDir: t.TempDir(), Endpoint: "https://registry.example", RepositoryRef: "team/api"}); err == nil || !strings.Contains(err.Error(), "session is invalid") {
 		t.Fatalf("inject revoked session error = %v", err)
+	}
+}
+
+func TestFileProviderMergesExistingDockerConfigAuths(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	provider := newTestFileProvider(t, now)
+	directory := t.TempDir()
+	if err := os.Chmod(directory, credentialConfigDirMode); err != nil {
+		t.Fatalf("secure credential directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "config.json"), []byte(`{"auths":{"https://existing.example":{"auth":"existing"}}}`), credentialConfigFileMode); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+	session, err := provider.Prepare(context.Background(), moduleapi.CredentialRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "team/api", Operation: "push", ExpiresAt: now.Add(time.Minute)})
+	if err != nil {
+		t.Fatalf("prepare credential: %v", err)
+	}
+	if err := provider.Inject(context.Background(), session, moduleapi.CredentialInjectionTarget{ConfigDir: directory, Endpoint: "https://registry.example", RepositoryRef: "team/api"}); err != nil {
+		t.Fatalf("inject credential: %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(directory, "config.json")) // #nosec G304 -- The test reads only the config file created in its t.TempDir.
+	if err != nil {
+		t.Fatalf("read merged config: %v", err)
+	}
+	var config struct {
+		Auths map[string]struct {
+			Auth string `json:"auth"`
+		} `json:"auths"`
+	}
+	if err := json.Unmarshal(contents, &config); err != nil {
+		t.Fatalf("decode merged config: %v", err)
+	}
+	if config.Auths["https://existing.example"].Auth != "existing" || config.Auths["https://registry.example"].Auth == "" {
+		t.Fatalf("merged auths = %#v", config.Auths)
 	}
 }
 

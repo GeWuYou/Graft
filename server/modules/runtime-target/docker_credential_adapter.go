@@ -16,6 +16,8 @@ const credentialSessionTTL = 5 * time.Minute
 
 const dockerCredentialConfigFileMode os.FileMode = 0o600
 
+const dockerCredentialConfigDirMode os.FileMode = 0o700
+
 // dockerCredentialExecutionAdapter 将 Registry 的短期凭据会话限制在单次 Docker
 // 操作的临时 DOCKER_CONFIG 中，并在所有终态撤销会话。
 type dockerCredentialExecutionAdapter struct {
@@ -137,6 +139,11 @@ func isolatedDockerConfig(session moduleapi.EphemeralCredentialSession) (string,
 		return "", nil, fmt.Errorf("create isolated Docker credential context: %w", err)
 	}
 	cleanup := func() error { return os.RemoveAll(dir) }
+	// #nosec G302 -- credential directories require owner execute while forbidding group/other access.
+	if err := os.Chmod(dir, dockerCredentialConfigDirMode); err != nil {
+		_ = cleanup()
+		return "", nil, fmt.Errorf("secure isolated Docker credential context: %w", err)
+	}
 	path := filepath.Join(dir, "config.json")
 	if err := os.WriteFile(path, []byte("{}\n"), dockerCredentialConfigFileMode); err != nil {
 		_ = cleanup()

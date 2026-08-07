@@ -177,7 +177,9 @@ type BuilderReservationRepository interface {
 	moduleapi.BuilderReservationRepository
 }
 
-const builderReservationLeaseTTL = 5 * time.Minute
+// BuilderReservationLeaseTTL 限制尚未进入运行态的容量租约。运行态 lease 由 fencing
+// 和显式释放控制，不通过该超时回收。
+const BuilderReservationLeaseTTL = 5 * time.Minute
 
 // WorkspaceRepository 是 Build-owned Workspace 定义的持久化边界；来源适配器只
 // 负责提供授权输入，不能直接写入 Build 表或改变已冻结 Snapshot。
@@ -372,7 +374,7 @@ ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.D
 		Attempt:        1,
 		FenceToken:     BuilderReservationFence(plan.ID, *submission.TaskID, 1),
 		State:          moduleapi.BuilderReservationAccepted,
-		LeaseExpiresAt: time.Now().UTC().Add(builderReservationLeaseTTL),
+		LeaseExpiresAt: time.Now().UTC().Add(BuilderReservationLeaseTTL),
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}); err != nil {

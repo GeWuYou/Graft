@@ -239,7 +239,8 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 			return fmt.Errorf("start builder reservation: %w", err)
 		}
 	} else {
-		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%d", plan.ID, run.Attempt()), InstanceID: plan.BuilderInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: time.Now().UTC(), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}); err != nil {
+		now := time.Now().UTC()
+		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%d", plan.ID, run.Attempt()), InstanceID: plan.BuilderInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: now.Add(buildstore.BuilderReservationLeaseTTL), CreatedAt: now, UpdatedAt: now}); err != nil {
 			return fmt.Errorf("reserve builder retry capacity: %w", err)
 		}
 	}
@@ -248,7 +249,11 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		if err != nil {
 			state = moduleapi.BuilderReservationAbandoned
 		}
-		_ = reservationRepository.ReleaseBuilderReservation(context.WithoutCancel(ctx), run.TaskID(), reservationFence, state)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), artifactSettlementTimeout)
+		defer cleanupCancel()
+		if releaseErr := reservationRepository.ReleaseBuilderReservation(cleanupCtx, run.TaskID(), reservationFence, state); releaseErr != nil {
+			err = errors.Join(err, fmt.Errorf("release builder reservation: %w", releaseErr))
+		}
 	}()
 	if plan.RuntimeTargetID < 1 || e.intents == nil || !e.compatibleIntent(plan) {
 		return errors.New("execution plan is not supported by the selected build driver")

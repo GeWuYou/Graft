@@ -58,6 +58,11 @@ Build policy. They also do not alter Execution Plan structure. Requirements are 
 fields, while accepted matcher results are retained as Placement Evidence. This keeps API, Execution Plan, Workspace
 Snapshot and Artifact identity stable.
 
+Placement Evidence is immutable and contains the policy identifier and version, deterministic selection seed, input
+fingerprint, ordered candidate/output decision, telemetry observation identity and freshness, selected provider
+capability version, and the complete capability-negotiation result. Replay consumes this evidence with the frozen Plan;
+it never substitutes current telemetry, current capability or a later policy implementation for an earlier decision.
+
 ### Capability negotiation
 
 `CapabilityMatcher` may negotiate a result from one requirement against one or more provider capabilities, but it never
@@ -129,7 +134,9 @@ new work. Its conceptual states are `Registered -> Validated -> Active -> Degrad
 policies allowed by its phase, `Degraded` may serve only explicitly safe static/manual paths, `Unavailable` cannot
 receive work, and `Retired` is retained for historical evidence but cannot be selected. Lifecycle transitions are owned
 by the Build provider authority and are local to Build; they do not write `CapabilityCoordinator` or global availability.
-Provider health observations may justify a transition, but do not themselves redefine lifecycle authority.
+Runtime Target/Provider registry reports binding and conformance facts to the Build provider authority; it does not
+admit providers or transition Build lifecycle state itself. Provider health observations may justify a transition, but
+do not themselves redefine lifecycle authority.
 
 Every Provider exposes a `ProviderCompatibilityContract` alongside its capability version. It declares the versions of
 Capability, Execution Context, Snapshot delivery, Credential Adapter, Telemetry and Evidence it can consume or produce,
@@ -156,7 +163,8 @@ Reserved -> Accepted -> Running -> Released
 
 - `Reserved`: Matcher selected a Builder and Build atomically acquired its fenced lease.
 - `Accepted`: Task Runtime accepted the frozen Task or leg binding; it may still expire safely before execution.
-- `Running`: Task Runtime started the execution stage. Only renewal and fencing preserve it; ordinary TTL cannot reclaim it.
+- `Running`: Task Runtime started the execution stage. Only a fence-matched renewal preserves its lease; ordinary TTL
+  expiry cannot reclaim it. A missing renewal is recovery evidence, not permission to reassign capacity.
 - `Released`: success, failure, cancellation or a provably stopped attempt returned capacity with reason and evidence.
 - `Expired`: a pre-running lease timed out.
 - `Abandoned`: crash, restart or external uncertainty prevents confirmation. It enters Task Runtime recovery and is not
@@ -315,5 +323,6 @@ gates. Retries keep their frozen Plan and never implicitly select another Target
    Runtime Execution Adapter.
 
 Acceptance requires that every new execution avoids the default Docker credential store; every dynamic Placement can be
-replayed from fresh telemetry, capability profile and reservation fence; secret and cleanup failures are redacted and
+replayed from its frozen telemetry observation, capability profile, policy/version inputs, negotiation result and
+reservation fence; fresh telemetry is used only for a new Placement decision. Secret and cleanup failures are redacted and
 fail closed; and Registry/Builder-local failure leaves platform availability unchanged.
