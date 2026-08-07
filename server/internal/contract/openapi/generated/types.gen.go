@@ -12849,7 +12849,9 @@ type PlatformCapability struct {
 	ObservedAt time.Time          `json:"observed_at"`
 	Stale      bool               `json:"stale"`
 	Status     CapabilityStatus   `json:"status"`
-	Summary    *string            `json:"summary,omitempty"`
+
+	// Summary Stable, caller-safe capability summary. It must not contain raw provider errors or sensitive diagnostic details.
+	Summary *string `json:"summary,omitempty"`
 }
 
 // PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.

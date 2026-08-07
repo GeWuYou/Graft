@@ -5098,6 +5098,7 @@ export interface components {
       category: components['schemas']['capability-category'];
       impact: components['schemas']['capability-impact'];
       status: components['schemas']['capability-status'];
+      /** @description Stable, caller-safe capability summary. It must not contain raw provider errors or sensitive diagnostic details. */
       summary?: string;
       /** Format: date-time */
       observed_at: string;

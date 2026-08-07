@@ -24369,7 +24369,8 @@
             "$ref": "#/components/schemas/capability-status"
           },
           "summary": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable, caller-safe capability summary. It must not contain raw provider errors or sensitive diagnostic details."
           },
           "observed_at": {
             "type": "string",
