@@ -64,6 +64,9 @@ Overlay note:
   - Recovery entry: `ai-plan/public/cross-boundary-contract-projection-convergence/README.md`
 - `user-auth-transaction-ownership`
   - Recovery entry: `ai-plan/public/user-auth-transaction-ownership/README.md`
+
+- `theme-preset-governance-audit`
+  - Recovery entry: `ai-plan/public/theme-preset-governance-audit/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.
