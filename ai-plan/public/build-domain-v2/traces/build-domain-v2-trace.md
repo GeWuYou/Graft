@@ -424,6 +424,23 @@
   no authorized `publication_id` discovery contract, so no selector, tag inference, or modal was introduced. Registry
   endpoint, credential and private binding facts remain outside the HTTP request, Task input and response.
 
+## 2026-08-07 credential-and-telemetry-authority-rfc
+
+- Accepted the repository-wide `Build Domain v2 Credential And Telemetry Authority RFC` as the authority for Registry
+  credential execution, capability matching, Builder Reservation, telemetry, Placement, Evidence, event projection and
+  failure taxonomy. It complements rather than replaces the immutable Snapshot/Plan/Artifact model.
+- Historical `docker-runtime-store` evidence remains readable, but all new publication must resolve a scoped ephemeral
+  credential through `CredentialProvider` and inject it through a provider-owned `RuntimeExecutionAdapter`. Default
+  Docker credential-store access and environment-default authentication are prohibited and fail closed.
+- The existing `RuntimeTargetBuilderTelemetryReader` contract remains the only Build-visible facade, but no source
+  implementation is claimed. Docker/host metrics, UI/Monitor projections and Task JSON are diagnostic only; they cannot
+  enable `least_load`, `capacity`, `affinity` or `region` placement.
+- Existing Pool and Placement work remains an implementation asset. Feature exposure is reset to four RFC gates:
+  manual single Builder; complete intent/materialization; static Pool policies; then real telemetry, dynamic placement
+  and Task Runtime-owned distributed Build. Builder/Registry-local failure does not enter global availability state.
+- Documentation validation remains `git diff --check` plus the bounded `validate_ai_plan_structure.py` guard. Runtime,
+  OpenAPI and web validation are intentionally deferred because this batch changes documentation only.
+
 ## Loop Batch State
 
 ```json
@@ -432,25 +449,24 @@
   "completed_batches": [
     "authority-bootstrap",
     "phase-1-single-builder",
-    "phase-1-registry-credential-execution",
+    "phase-1-registry-credential-execution-historical",
     "phase-1.75-snapshot-materialization-retention",
     "phase-2-workspaces-templates-drivers",
     "phase-9b-remote-docker-provider",
     "phase-10-build-selector-read-model",
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
-    "phase-8a-builder-telemetry-contract"
+    "phase-8a-builder-telemetry-contract",
+    "credential-and-telemetry-authority-rfc"
   ],
   "pending_batches": [
-    "phase-3-pools-scheduling-platforms",
-    "phase-4-artifact-supply-chain-automation",
-    "phase-6-distributed-leg-coordinator",
-    "phase-8a-builder-telemetry-authority",
-    "phase-9c-provider-execution-foundation",
-    "phase-9d-provider-adapters"
+    "phase-1-secure-credential-execution-and-manual-reservation",
+    "phase-2-intent-materialization-conformance",
+    "phase-3-static-pool-placement",
+    "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "phase-8a-builder-telemetry-authority",
-  "next_batch": "phase-9c-provider-connection-authority-or-phase-9d-provider-adapter",
+  "current_batch": "credential-and-telemetry-authority-rfc",
+  "next_batch": "phase-1-secure-credential-execution-and-manual-reservation",
   "closeout_status": "recovery-required"
 }
 ```

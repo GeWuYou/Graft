@@ -1,116 +1,49 @@
-# Build Domain v2
+# Build Domain v2 Topic
 
-## Current Status Summary
+## Objective
 
-- Topic objective: replace the Docker-first Build Center authority with an immutable, Runtime Target-capability based
-  Build Domain that can evolve across the approved staged phases.
-- Current status: `active`
-- Task class: `cross-boundary`
-- Intake summary: long-running cross-boundary feature requiring repository design, roadmap, active topic recovery and
-  loop-driven phased delivery.
-- Canonical authority:
-  - `ai-plan/design/architecture/build-domain-v2.md`
-  - `ai-plan/roadmap/build-domain-v2.md`
-- Completed so far: Work Intake, v2 authority/bootstrap, immutable Snapshot/Execution Plan persistence, Runtime Target
-  build capability, Registry Connection/Repository authority, and the first single-builder server/web contract slice.
-- Completed: Phase 1.5 Registry credential execution authority for target-bound OCI publication.
-- Completed: Phase 1.75 Snapshot materialization ownership, provenance uniqueness and retention-state authority.
-- Completed: Phase 2 Build-owned Workspaces/Snapshots, versioned Templates/Drivers and Application source materialization.
-- Completed foundation: Phase 3 Builder Pools, transactional Round Robin selection and Pool-bound plan freezing.
-- Completed foundation: Phase 6 coordinated Task Runtime legs, cancellation/recovery and per-platform Artifact facts.
-- Completed execution slice: Phase 7 Docker Buildx Manifest publication and Build-owned finalization path.
-- Current: Phase 8 placement foundation freezes one Builder Placement per platform; its remaining work is truthful
-  scheduling policy beyond round robin. Static `labels` selection and selector evidence are now supported; load,
-  affinity and region policies remain fail-closed until their telemetry is authoritative. Phase 9B Docker remote
-  execution is complete; the provider execution foundation is a separately gated Phase 9C, while concrete
-  Kubernetes/BuildKit/Kaniko adapters remain Phase 9D.
-- Phase 8A contract delivered: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define the
-  freshness/provenance boundary for future capacity, queue, region and affinity scheduling. No Runtime/Infrastructure
-  source implementation exists yet, so the unsupported policies remain fail-closed.
-- Phase 8B is the explicit prerequisite for implementing that contract: a real Runtime/Infrastructure telemetry
-  source plus Build-owned capacity reservations and Task lifecycle reconciliation. It does not block `round_robin` or
-  static `labels`.
-- Phase 9A completed: provider-owned Snapshot delivery contract and Local Docker identity proof.
-- Phase 9B completed for Docker: Runtime Target owns private target-scoped connection validation and registers the
-  target-bound Docker provider. Unix-socket targets use `target-local`; validated TCP/SSH targets use
-  `provider-transfer` and execute build/publication/manifest commands against the selected target. Kubernetes and other
-  providers remain fail-closed for future Phase 9D work; Phase 9C first establishes the provider execution foundation.
-- Phase 9C foundation delivered: Runtime Target owns the aggregate Docker reference adapter and private generic connection
-  reader; Build verifies and persists non-secret conformance evidence after Snapshot delivery. Conflicting evidence
-  replays fail with `ErrConflict`; no concrete non-Docker provider is claimed.
-- Phase 10 completed: Build-owned selector APIs expose authorized Workspaces, Build-capable Runtime Targets and Builder
-  Pools; the create page uses controlled selectors with loading, empty and error states.
-- Phase 4 Artifact read delivery completed: Build exposes immutable Artifact facts through the canonical API and the
-  Build > Artifacts browser; legacy Job projections remain separately readable.
-- Phase 4 Promotion Task Runtime stage completed: Build freezes a Publication-selected digest source and Registry-authorized
-  destination, then delegates copy, cancellation, manual recovery and settlement to the existing Task Runtime. The public
-  OpenAPI/HTTP promotion write contract is now complete; authorized Publication discovery and the Artifact page workflow
-  remain a later contract.
+Evolve the Docker-first Build Center into a Build Domain with immutable source and artifact authority, Task Runtime-owned
+execution, secure Registry credential execution and evidence-backed Builder placement. The current design authority is
+[Build Domain v2 Credential And Telemetry Authority RFC](../../design/architecture/build-domain-v2-credential-and-telemetry-authority.md).
 
 ## Recovery Receipt
 
 - governance source: root `AGENTS.md`
-- task class: `cross-boundary`
+- task class: `docs/automation` for this RFC alignment; subsequent implementation may be `cross-boundary`
 - recovery source: `parent topic`
-- authority summary: Runtime Target owns build capability, Build owns immutable source/plan/artifact authority, and
-  Task Runtime owns execution state.
+- authority summary: Task Runtime owns execution lifecycle; Runtime Target owns connections and provider entry; Registry
+  Connection owns endpoint/repository policy and credential reference; Credential Provider owns secret issuance; Build
+  owns Builder resources, capability matching, placement evidence and reservations.
+
+## Current Decision
+
+- New Build execution must not use `docker-runtime-store`, a default Docker credential store or environment-default
+  Registry authentication. Historical records remain readable only.
+- Builder/Registry-local failure is a local Build capability failure. It cannot alter `PlatformAvailabilityStore` or
+  `CapabilityCoordinator` global availability decisions.
+- `RuntimeTargetBuilderTelemetryReader` remains the Build-visible read facade, but it does not yet have a real Provider
+  source. UI summaries, Monitor charts, Docker/host metrics and Task JSON cannot enable dynamic placement.
+- Existing Pool/Placement material is retained, but public capability exposure is reset to the RFC's four phases.
+  `least_load`, `affinity` and `region` are latent/disabled until Phase 4 evidence exists.
 
 ## Owned Scope
 
+- `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
 - `ai-plan/design/architecture/build-domain-v2.md`
 - `ai-plan/roadmap/build-domain-v2.md`
-- `server/modules/build/**`, Runtime Target, Infrastructure registry owners, Task, OpenAPI and Build web contracts.
+- this active topic's tracking and trace materials
 
-Out of scope:
+Implementation scope, when activated, spans Build, Runtime Target, Infrastructure Registry, Secret/Credential Provider,
+Task Runtime, OpenAPI and Build web contracts. It must repair the highest authority first and must not create a second
+Task Runtime, Scheduler, Registry resource model, event store, evidence database or global health registry.
 
-- Implementing a Graft Registry server or exposing Runtime endpoint/credential details.
-- Creating a second Build execution, queue, log or realtime runtime.
+## Pending Direction
 
-## Locked Decisions
-
-1. Build consumes immutable Workspace Snapshots and Execution Plans; retry never refreshes source.
-2. Artifact is first-class and immutable; Publication binds it to mutable tags, manifests, promotions or copies.
-3. Runtime Target reports physical build capability; Builder Profile, Instance and Pool are Build-owned logical resources.
-4. OCI Registry is the Phase 1 deployment-grade Destination, but Artifact Destination remains provider-neutral.
-
-## Phase Plan
-
-- `authority-bootstrap`
-- `phase-1-single-builder`
-- `phase-1-registry-credential-execution`
-- `phase-1.75-snapshot-materialization-retention`
-- `phase-2-workspaces-templates-drivers`
-- `phase-3-pools-scheduling-platforms`
-- `phase-4-artifact-supply-chain-automation`
-- `phase-5-task-runtime-distributed-legs`
-- `phase-6-distributed-leg-coordinator`
-- `phase-7-driver-owned-manifest-publication`
-- `phase-8-platform-aware-builder-placement`
-- `phase-8b-builder-capacity-telemetry-source-authority`
-- `phase-9-snapshot-delivery-remote-execution`
-- `phase-9c-provider-execution-foundation`
-- `phase-9d-concrete-provider-adapters`
-
-## Current Recovery Point
-
-- `authority-bootstrap` was accepted and committed as `084ae531`.
-- Legacy Docker Build Center history is preserved, but its new-write model is superseded.
-- Phase 1 through Phase 7 foundations are implemented, including immutable plan/artifact facts and coordinated
-  Buildx manifest settlement. Phase 8 has immutable per-platform placement and deterministic labels selection;
-  round-robin is the only other enabled policy. Docker provider execution covers local Unix-socket and validated
-  remote TCP/SSH targets; non-Docker providers remain fail-closed.
-
-## Work Intake
-
-- This topic was created through `Work Intake`.
-- Persisted Work Contract: `ai-plan/public/build-domain-v2/todos/build-domain-v2-tracking.md`.
-
-## Pending Batch Direction
-
-- Phase 10 closes the selector/read-model gap independently. Phase 8 continues with evidence-backed placement policies.
-  Phase 9C now closes the provider execution foundation gap; Phase 9D then adds non-Docker provider-backed Snapshot
-  delivery and remote execution. The user has pre-authorized normal in-scope `execute_repair` actions for this topic; preserve
-  authority and validation checks without repeating authorization requests.
+1. Phase 1 implementation: replace new Registry Push execution with Credential Provider plus Runtime Execution Adapter;
+   introduce matcher, manual single-Builder evidence and fenced Reservation lifecycle.
+2. Phase 2: complete Driver, Template, Instance and immutable Workspace materialization conformance.
+3. Phase 3: expose static Pool policies only.
+4. Phase 4: implement real Provider telemetry, dynamic policies and Task Runtime-owned distributed execution.
 
 ## Validation Targets
 

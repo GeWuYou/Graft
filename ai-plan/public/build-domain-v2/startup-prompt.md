@@ -14,6 +14,7 @@ Round context:
   - `ai-plan/AGENTS.md` when changing topic/design/roadmap materials
 - design authority:
   - `ai-plan/design/architecture/build-domain-v2.md`
+  - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
   - `ai-plan/roadmap/build-domain-v2.md`
 - AI skills:
   - `$graft-multi-agent-loop`
@@ -35,18 +36,21 @@ Locked decisions:
 1. Submission freezes Workspace Snapshot and Execution Plan before Task Runtime submission.
 2. Runtime Target owns physical build capability, Task Runtime owns execution, and Artifact is an immutable first-class
    resource independent of Build Job.
+3. Registry Connection selects a credential reference only; `CredentialProvider` issues short-lived credentials and
+   `RuntimeExecutionAdapter` injects and removes them in an isolated provider context. Default Docker credential stores
+   and environment-default authentication are forbidden for new execution.
+4. Builder/Registry-local failure is local Build capability failure, not global platform availability. Build-owned
+   Reservation is a fenced capacity lease, never a second Task state machine.
 
 Implementation guardrails:
 
 - Repair the highest available authority first and promote the task to cross-boundary when shared contracts change.
 - Do not introduce compatibility fields for Docker-first writes, arbitrary host paths, endpoint details or credentials.
-- Treat cross-Runtime Builder Pool placement as Phase 8 work. Phase 6/7 now own coordinated leg execution and manifest
-  finalization; Phase 8 freezes placements but must not invent load, region or affinity evidence.
-- Treat provider-backed Snapshot delivery and Remote Builder execution as Phase 9 work. Docker now supports validated
-  Unix-socket and TCP/SSH provider paths; a `build-snapshot` locality declaration alone is never permission to use a
-  host path or local Docker process for another Runtime Target. Phase 9C now includes aggregate Docker adapter registration,
-  private connection authority and persisted conformance evidence; it still does not claim a concrete non-Docker provider.
-  Kubernetes/BuildKit/Kaniko remain concrete Phase 9D adapters.
+- Follow the RFC's four release gates: manual single Builder; completed Build intent/materialization; static Pool
+  placement; then real provider telemetry, dynamic policy and Task Runtime-owned distributed Build.
+- `RuntimeTargetBuilderTelemetryReader` is a facade, not a telemetry source. UI, Monitor, Docker/host metrics and Task
+  JSON are diagnostic only. `least_load`, `capacity`, `affinity` and `region` remain disabled until Phase 4 conformance.
+- A `build-snapshot` locality declaration alone never permits a host path, local Docker fallback or remote execution.
 - The user has pre-authorized normal in-scope `execute_repair` actions for this topic. Do not pause for repeated repair
   confirmation; retain the normal authority, ownership and validation checks.
 - Treat Build-owned selector read APIs and the controlled create flow as completed Phase 10; do not reintroduce manual
@@ -55,12 +59,10 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Preserve immutable Plan/Placement authority while completing the selected bounded Phase.
-2. Phase 10 selector/read-model work is complete; continue with Phase 8A telemetry authority or Phase 9D provider proof.
-   Phase 8A has a provider-neutral freshness/provenance contract but no source implementation; `least_load`, `region`
-   and `affinity` remain fail-closed. Phase 9C's aggregate Docker foundation, private connection authority and evidence
-   persistence are implemented. Phase 9B's Docker adapter may not be represented by a local fallback and must retain
-   target-scoped provider authority.
+1. Implement Phase 1 authority first: secure Registry Push with Credential Provider and Runtime Execution Adapter,
+   capability matcher, manual single-Builder Placement Evidence and fenced Reservation lifecycle.
+2. Do not promote historical Pool, Docker adapter or telemetry contract work into new-execution acceptance evidence.
+   Preserve immutable Plan/Placement authority throughout each bounded phase.
 
 Validation expectations:
 

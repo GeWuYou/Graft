@@ -16,6 +16,7 @@ Runtime Target build capability, artifact delivery, and the approved staged evol
 - `web/AGENTS.md`
 - `ai-plan/AGENTS.md`
 - `ai-plan/design/architecture/build-domain-v2.md`
+- `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
 - `ai-plan/roadmap/build-domain-v2.md`
 
 ## Work Contract
@@ -50,11 +51,13 @@ closeout:
 ## Current Recovery Point
 
 - `authority-bootstrap` was accepted and committed as `084ae531` after structure and diff validation.
-- Current batch: Phase 8 placement foundation is complete. Remaining Phase 8 scope is scheduler-policy truth beyond
-  round robin. Phase 9 is a separately releasable provider-backed Snapshot delivery and remote execution gap closure.
-- Recovery authority: Phase 1 completed the v2 vertical path. Phase 1.5 completed the Registry-to-Runtime credential
-  execution boundary. Phase 1 permits only the system-managed Local Docker Runtime Target, because Container has no
-  remote Docker execution adapter. Preserve the existing route-prefix correction without reverting or overwriting it.
+- Current design recovery point: the authority RFC replaces the old phase numbering as the release gate. Registry
+  credentials require `CredentialProvider` plus `RuntimeExecutionAdapter`; `docker-runtime-store` is historical-only.
+  Dynamic Builder placement requires a real provider telemetry source plus a Build-owned fenced Reservation, not UI,
+  Monitor, Docker/host metrics or Task JSON.
+- Phase 1 is now manual single Builder, capability matching, secure publication and minimum Reservation. Phase 2
+  completes Driver/Template/Materializer; Phase 3 opens static Pool policies; Phase 4 alone opens dynamic telemetry,
+  dynamic policies and distributed Build.
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
@@ -62,12 +65,16 @@ closeout:
 ## Task Checklist
 
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
+- [x] Authority RFC: credential execution, capability matching, reservation, telemetry, placement, evidence, event and
+  failure authorities are defined; the roadmap and recovery entry align to four release phases.
 - [x] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.
-- [x] Phase 1.5: Registry credential execution binding for the selected Runtime adapter.
+- [x] Historical Phase 1.5: Registry credential execution binding for the selected Runtime adapter. It is superseded
+  for new publication by the RFC credential-provider and isolated-adapter requirement; it is not acceptance evidence
+  for default Docker credential-store use.
 - [x] Phase 1.75: Snapshot materialization ownership, retention state and provenance uniqueness foundation.
 - [x] Phase 1.75 foundation: Build-owned expired materialization cleanup lease and private-path enforcement.
 - [x] Phase 2: Build-owned Workspaces/Snapshots, versioned Templates/Drivers and Application source materialization.
-- [ ] Phase 3: Builder Profiles/Instances/Pools, scheduling and multi-platform fan-out.
+- [ ] Phase 3: static Builder Pools (`Manual`, `RoundRobin`, deterministic `Random`) only; no telemetry input.
 - [x] Phase 3 foundation: Builder Pool membership, transactional Round Robin selection and Pool-bound plan freezing.
 - [ ] Phase 4: promotion, OCI supply-chain evidence, remote/distributed builders and deployment/pipeline handoff.
 - [x] Phase 4 foundation: Build-owned v2 Artifact read model exposes digest-addressed Artifact facts independently of
@@ -91,13 +98,14 @@ closeout:
 - [x] Phase 7 foundation: Container Buildx provider adapter with target-declared `docker-buildx` capability gate.
 - [x] Phase 7 execution slice: coordinated Build legs now build and publish per-platform immutable digests, then
   attempt provider-owned OCI Manifest publication and Build-owned settlement.
-- [ ] Phase 8: Platform-aware Builder Pool scheduling across multiple Runtime Targets (additional gap).
+- [ ] Phase 4: provider-conformant dynamic placement and Task Runtime-owned distributed Build; existing dynamic policy
+  literals remain disabled until this release gate.
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
   by coordinated Task legs and the Build executor; targets must declare `build-snapshot` locality.
 - [x] Phase 8 foundation: deterministic `labels` Pool selection freezes validated selector evidence in each Placement.
 - [ ] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority for fresh capacity, queue, region and affinity evidence.
-- [x] Phase 8A contract: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define the provider-neutral
-  freshness/provenance boundary; no source implementation is claimed yet.
+- [x] Historical telemetry read contract: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define a
+  narrow facade only. The RFC retains the facade but requires a real `BuilderTelemetryProvider` before dynamic policy.
 - [ ] Phase 8B: Builder Capacity And Telemetry Source Authority. Runtime/Infrastructure must provide a real,
   restart-safe target telemetry source; Build must add atomic Instance reservations and Task lifecycle reconciliation
   before dynamic policies can be enabled.
@@ -133,6 +141,10 @@ closeout:
 ## Acceptance Conditions
 
 - Every submitted build has exactly one immutable Workspace Snapshot and Execution Plan.
+- Every new Registry Push resolves only a short-lived operation-scoped credential and injects it through an isolated
+  Runtime adapter; no default Docker credential store or environment fallback is permitted.
+- Every dynamic Placement can replay its capability profile, fresh telemetry source and Reservation fence. Local
+  Registry/Builder failure does not change platform-wide availability.
 - Retries retain their original source and plan; rebuild-current creates a new plan.
 - Artifacts are digest-addressed, reusable outside Build Job and published through provider-neutral destinations.
 - Runtime endpoint and credential details, arbitrary host paths and a second Build execution runtime never enter v2.
@@ -155,7 +167,7 @@ closeout:
   "completed_batches": [
     "authority-bootstrap",
     "phase-1-single-builder",
-    "phase-1-registry-credential-execution",
+    "phase-1-registry-credential-execution-historical",
     "phase-1.75-snapshot-materialization-retention",
     "phase-2-workspaces-templates-drivers",
     "phase-3-pool-round-robin-foundation",
@@ -168,19 +180,17 @@ closeout:
     "phase-10-build-selector-read-model",
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
-    "phase-8a-builder-telemetry-contract"
+    "phase-8a-builder-telemetry-contract",
+    "credential-and-telemetry-authority-rfc"
   ],
   "pending_batches": [
-    "phase-3-pools-scheduling-platforms",
-    "phase-4-artifact-supply-chain-automation",
-    "phase-8-platform-aware-builder-placement",
-    "phase-8a-builder-telemetry-authority",
-    "phase-8b-builder-capacity-telemetry-source-authority",
-    "phase-9c-provider-execution-foundation",
-    "phase-9d-provider-adapters"
+    "phase-1-secure-credential-execution-and-manual-reservation",
+    "phase-2-intent-materialization-conformance",
+    "phase-3-static-pool-placement",
+    "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "phase-8a-builder-telemetry-authority",
-  "next_batch": "phase-9c-provider-connection-authority-or-phase-9d-provider-adapter",
+  "current_batch": "credential-and-telemetry-authority-rfc",
+  "next_batch": "phase-1-secure-credential-execution-and-manual-reservation",
   "closeout_status": "recovery-required"
 }
 ```
