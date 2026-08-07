@@ -965,6 +965,23 @@ func TestValidateBackupConfigDefaultsAndNormalizesAbsoluteRoot(t *testing.T) {
 	}
 }
 
+func TestValidateRegistryCredentialSourceConfigAllowsUnsetAndRequiresAbsolutePath(t *testing.T) {
+	t.Parallel()
+	if err := validateRegistryCredentialSourceConfig(&Config{}); err != nil {
+		t.Fatalf("validate unset credential source: %v", err)
+	}
+	cfg := &Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "  /run/secrets/registry.json/../registry.json  "}}
+	if err := validateRegistryCredentialSourceConfig(cfg); err != nil {
+		t.Fatalf("validate credential source: %v", err)
+	}
+	if cfg.RegistryCredentials.File != "/run/secrets/registry.json" {
+		t.Fatalf("credential source = %q", cfg.RegistryCredentials.File)
+	}
+	if err := validateRegistryCredentialSourceConfig(&Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "registry.json"}}); err == nil {
+		t.Fatal("relative credential source unexpectedly accepted")
+	}
+}
+
 func TestValidateBackupConfigRejectsRelativeRootAndConfigValidateWiresIt(t *testing.T) {
 	t.Parallel()
 

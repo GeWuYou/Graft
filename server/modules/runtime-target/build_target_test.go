@@ -7,13 +7,59 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	containerdi "graft/server/internal/container"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	store "graft/server/modules/runtime-target/store"
 )
+
+type moduleCredentialProvider struct{}
+
+func (moduleCredentialProvider) Prepare(context.Context, moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
+	return moduleapi.EphemeralCredentialSession{}, nil
+}
+
+func (moduleCredentialProvider) Inject(context.Context, moduleapi.EphemeralCredentialSession, moduleapi.CredentialInjectionTarget) error {
+	return nil
+}
+
+func (moduleCredentialProvider) Revoke(context.Context, moduleapi.EphemeralCredentialSession) error {
+	return nil
+}
+
+func TestRegisterReadersRegistersRuntimeExecutionAdapterWhenCredentialProviderExists(t *testing.T) {
+	services := containerdi.New()
+	if err := services.RegisterSingleton((*moduleapi.CredentialProvider)(nil), func(containerdi.Resolver) (any, error) {
+		return moduleCredentialProvider{}, nil
+	}); err != nil {
+		t.Fatalf("register credential provider: %v", err)
+	}
+	if err := NewModule(nil).registerReaders(&module.Context{Services: services}); err != nil {
+		t.Fatalf("register runtime target readers: %v", err)
+	}
+	if _, err := services.Resolve((*moduleapi.RuntimeExecutionAdapter)(nil)); err != nil {
+		t.Fatalf("resolve runtime execution adapter: %v", err)
+	}
+}
+
+func TestIsolatedDockerEnvironmentRejectsInheritedAuthentication(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", "/ambient/docker")
+	t.Setenv("DOCKER_AUTH_CONFIG", "ambient-auth")
+	environment := isolatedDockerEnvironment("/isolated/docker")
+	for _, entry := range environment {
+		if strings.HasPrefix(entry, "DOCKER_AUTH_CONFIG=") || entry == "DOCKER_CONFIG=/ambient/docker" {
+			t.Fatalf("inherited Docker authentication remained in child environment: %q", entry)
+		}
+	}
+	if !slices.Contains(environment, "DOCKER_CONFIG=/isolated/docker") {
+		t.Fatalf("isolated Docker config missing from child environment: %#v", environment)
+	}
+}
 
 func TestBuildTargetReaderOnlyReturnsAssignedHealthyBuildTargets(t *testing.T) {
 	db := openBuildTargetTestDB(t)
@@ -187,9 +233,10 @@ func TestDockerProviderCopiesOCIArtifactByDigestAndVerifiesDestination(t *testin
 	}
 	binding := moduleapi.RegistryArtifactCopyBinding{
 		SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source",
+		SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral},
 		Destination: moduleapi.RegistryPublicationBinding{
 			Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination",
-			AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore},
+			AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral},
 		},
 	}
 	raw := []byte(`{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.oci.image.config.v1+json","size":1,"digest":"sha256:` + strings.Repeat("b", 64) + `"},"layers":[]}`)
@@ -206,7 +253,7 @@ func TestDockerProviderCopiesOCIArtifactByDigestAndVerifiesDestination(t *testin
 		}
 		return []byte(digest + "\n"), nil
 	}
-	result, err := provider.CopyOCIArtifactOnTarget(context.Background(), 1, input, binding, nil)
+	result, err := provider.CopyOCIArtifactOnTarget(context.WithValue(context.Background(), dockerCredentialConfigContextKey{}, "/tmp/isolated"), 1, input, binding, nil)
 	if err != nil {
 		t.Fatalf("copy OCI artifact: %v", err)
 	}
@@ -227,7 +274,7 @@ func TestDockerProviderRejectsOCIArtifactCopyDigestMismatch(t *testing.T) {
 	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{
 		ArtifactID: "artifact-1", PublicationID: "publication-1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/api",
 	}, Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/api", Reference: "promoted"}}
-	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}}
+	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
 	oldCommand, oldOutput := providerCommandRunner, providerOutputRunner
 	t.Cleanup(func() { providerCommandRunner, providerOutputRunner = oldCommand, oldOutput })
 	providerCommandRunner = func(_ context.Context, _ moduleapi.DockerImageBuildLogSink, _ ...string) error { return nil }
@@ -237,7 +284,7 @@ func TestDockerProviderRejectsOCIArtifactCopyDigestMismatch(t *testing.T) {
 		}
 		return []byte("sha256:" + strings.Repeat("c", 64)), nil
 	}
-	if _, err := provider.CopyOCIArtifactOnTarget(context.Background(), 1, input, binding, nil); err == nil {
+	if _, err := provider.CopyOCIArtifactOnTarget(context.WithValue(context.Background(), dockerCredentialConfigContextKey{}, "/tmp/isolated"), 1, input, binding, nil); err == nil {
 		t.Fatal("digest mismatch unexpectedly succeeded")
 	}
 }

@@ -5,6 +5,7 @@
 Evolve the Docker-first Build Center into a Build Domain with immutable source and artifact authority, Task Runtime-owned
 execution, secure Registry credential execution and evidence-backed Builder placement. The current design authority is
 [Build Domain v2 Credential And Telemetry Authority RFC](../../design/architecture/build-domain-v2-credential-and-telemetry-authority.md).
+Provider integration follows [Build Domain v2 Provider SDK And SPI RFC](../../design/architecture/build-domain-v2-provider-sdk-spi.md).
 
 ## Recovery Receipt
 
@@ -25,6 +26,8 @@ execution, secure Registry credential execution and evidence-backed Builder plac
   source. UI summaries, Monitor charts, Docker/host metrics and Task JSON cannot enable dynamic placement.
 - Existing Pool/Placement material is retained, but public capability exposure is reset to the RFC's four phases.
   `least_load`, `affinity` and `region` are latent/disabled until Phase 4 evidence exists.
+- Provider lifecycle and adapter conformance are defined by the separate SDK/SPI RFC; no concrete new provider is
+  claimed by this documentation batch.
 
 ## Owned Scope
 
@@ -39,8 +42,9 @@ Task Runtime, Scheduler, Registry resource model, event store, evidence database
 
 ## Pending Direction
 
-1. Phase 1 implementation: replace new Registry Push execution with Credential Provider plus Runtime Execution Adapter;
-   introduce matcher, manual single-Builder evidence and fenced Reservation lifecycle.
+1. Phase 1 implementation is complete: new Registry Push uses Credential Provider plus Runtime Execution Adapter with
+   manual single-Builder evidence and a fenced Reservation lifecycle. Operator deployment conformance still requires a
+   mounted expiring credential file; no ambient-auth substitute exists.
 2. Phase 2: complete Driver, Template, Instance and immutable Workspace materialization conformance.
 3. Phase 3: expose static Pool policies only.
 4. Phase 4: implement real Provider telemetry, dynamic policies and Task Runtime-owned distributed execution.

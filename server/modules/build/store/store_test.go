@@ -32,6 +32,52 @@ func TestJobListFiltersPreserveExactFilterArgumentOrder(t *testing.T) {
 	}
 }
 
+func TestBuilderReservationFenceChangesForRetryAttempt(t *testing.T) {
+	first := BuilderReservationFence("plan_1", 42, 1)
+	retry := BuilderReservationFence("plan_1", 42, 2)
+	if first == retry {
+		t.Fatal("retry reservation fence must differ from the first attempt")
+	}
+	if first != BuilderReservationFence("plan_1", 42, 1) {
+		t.Fatal("reservation fence must be deterministic for one attempt")
+	}
+}
+
+func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := time.Date(2026, time.August, 7, 12, 5, 0, 0, time.UTC)
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_1", InstanceID: "builder_1", PlanID: "plan_1", TaskID: 42, Attempt: 1, FenceToken: BuilderReservationFence("plan_1", 42, 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: expiresAt}
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("INSERT INTO build_builder_reservations").WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
+	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
+	if err != nil {
+		t.Fatalf("reserve builder: %v", err)
+	}
+	if stored.ID != reservation.ID || stored.LeaseExpiresAt != expiresAt {
+		t.Fatalf("stored reservation = %#v", stored)
+	}
+	mock.ExpectCommit()
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestListV2ArtifactsReturnsDigestAddressedProjection(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -102,9 +148,9 @@ func TestSettleArtifactPromotionRequiresMatchingImmutableArtifactAndPreservesDes
 	result := moduleapi.OCIArtifactCopyResult{Digest: digest, MediaType: input.Source.MediaType, SizeBytes: 42}
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT id FROM build_v2_artifacts WHERE artifact_id = \\$1 AND artifact_digest = \\$2").WithArgs("artifact_1", digest).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
-	mock.ExpectExec("INSERT INTO build_publications").WithArgs(sqlmock.AnyArg(), int64(7), "oci_registry", "registry:target", "team/api", "promoted", "docker-runtime-store").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO build_publications").WithArgs(sqlmock.AnyArg(), int64(7), "oci_registry", "registry:target", "team/api", "promoted", "ephemeral-credential").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
-	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}); err != nil {
+	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}); err != nil {
 		t.Fatalf("SettleArtifactPromotion() error = %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -125,7 +171,7 @@ func TestSettleArtifactPromotionRejectsProviderDigestMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}); !errors.Is(err, ErrConflict) {
+	if err := repository.SettleArtifactPromotion(context.Background(), input, result, moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}); !errors.Is(err, ErrConflict) {
 		t.Fatalf("SettleArtifactPromotion() error = %v, want %v", err, ErrConflict)
 	}
 }

@@ -74,6 +74,12 @@ environment:
     default: /var/lib/graft/backups
     description: Backup artifact root inside the server container.
     introduced: v1.0.0
+  - name: GRAFT_REGISTRY_CREDENTIALS_FILE
+    type: string
+    default: null
+    description: Absolute read-only secret-file path used only by the Registry Credential Provider. Leave unset to fail closed for new Registry publication.
+    introduced: v0.1.0-phase-1
+    sensitive: true
   - name: GRAFT_OLD_STORAGE_PATH
     type: string
     default: null

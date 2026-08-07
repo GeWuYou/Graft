@@ -78,15 +78,13 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	configureBuildV2Submission(ctx, service)
 	configureArtifactPromotion(ctx, service)
-	publication, _ := module.ResolveService[moduleapi.TargetBoundDockerImagePublicationCapability](ctx.Services, (*moduleapi.TargetBoundDockerImagePublicationCapability)(nil))
-	manifestPublication, _ := module.ResolveService[moduleapi.TargetBoundOCIManifestPublicationCapability](ctx.Services, (*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil))
 	snapshotDelivery, _ := module.ResolveService[moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability](ctx.Services, (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil))
 	conformance, _ := module.ResolveService[moduleapi.TargetBoundProviderExecutionConformanceCapability](ctx.Services, (*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil))
 	provider, _ := module.ResolveService[moduleapi.TargetBoundDockerBuildProvider](ctx.Services, (*moduleapi.TargetBoundDockerBuildProvider)(nil))
 	registryPublication, _ := module.ResolveService[moduleapi.RegistryPublicationResolver](ctx.Services, (*moduleapi.RegistryPublicationResolver)(nil))
-	artifactCopy, _ := module.ResolveService[moduleapi.TargetBoundOCIArtifactCopyCapability](ctx.Services, (*moduleapi.TargetBoundOCIArtifactCopyCapability)(nil))
+	executionAdapter, _ := module.ResolveService[moduleapi.RuntimeExecutionAdapter](ctx.Services, (*moduleapi.RuntimeExecutionAdapter)(nil))
 	artifactCopyRegistry, _ := module.ResolveService[moduleapi.RegistryArtifactCopyResolver](ctx.Services, (*moduleapi.RegistryArtifactCopyResolver)(nil))
-	if err := registerBuildTaskExecutor(registrar, m.repository, docker, service, targetDocker, publication, manifestPublication, snapshotDelivery, conformance, provider, registryPublication, artifactCopy, artifactCopyRegistry, service.intents, targetReader); err != nil {
+	if err := registerBuildTaskExecutor(registrar, m.repository, docker, service, targetDocker, snapshotDelivery, conformance, provider, registryPublication, executionAdapter, artifactCopyRegistry, service.intents, targetReader); err != nil {
 		return err
 	}
 	if err := registerSnapshotMaterializationCleanupJob(ctx.CronRegistry, service); err != nil {

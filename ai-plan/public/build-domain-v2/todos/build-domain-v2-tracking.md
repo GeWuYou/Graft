@@ -17,6 +17,7 @@ Runtime Target build capability, artifact delivery, and the approved staged evol
 - `ai-plan/AGENTS.md`
 - `ai-plan/design/architecture/build-domain-v2.md`
 - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
+- `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
 - `ai-plan/roadmap/build-domain-v2.md`
 
 ## Work Contract
@@ -58,6 +59,14 @@ closeout:
 - Phase 1 is now manual single Builder, capability matching, secure publication and minimum Reservation. Phase 2
   completes Driver/Template/Materializer; Phase 3 opens static Pool policies; Phase 4 alone opens dynamic telemetry,
   dynamic policies and distributed Build.
+- Current implementation recovery: v2 publication is now gated on `RuntimeExecutionAdapter`; the adapter requests an
+  ephemeral Registry credential session and uses an isolated Docker config, while the historical
+  `docker-runtime-store` mode is rejected by new Runtime Target publication and OCI artifact promotion copy. Build
+  materialization atomically creates a fenced `build_builder_reservations` lease and the v2 executor releases or
+  abandons it using the matching fence. Core now supplies an optional file-backed `CredentialProvider` only when
+  `GRAFT_REGISTRY_CREDENTIALS_FILE` names a valid deployment-mounted source. It reloads scoped, expiring entries for
+  every opaque session and writes plaintext only to the adapter-created temporary Docker config. An unset source omits
+  the adapter; an invalid source blocks Runtime Target registration. No Docker-store or environment fallback exists.
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
@@ -67,7 +76,13 @@ closeout:
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
 - [x] Authority RFC: credential execution, capability matching, reservation, telemetry, placement, evidence, event and
   failure authorities are defined; the roadmap and recovery entry align to four release phases.
+- [x] Provider SDK/SPI RFC: compile-time lifecycle, capability, telemetry, credential, workspace, execution and evidence
+  adapter seams plus MUST/SHOULD/MAY conformance and compatibility rules are defined; concrete bindings remain future.
 - [x] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.
+- [x] Phase 1 secure credential execution and manual Reservation: Registry Push and promotion copy use only scoped
+  ephemeral sessions through the Runtime Target adapter; the Build-owned fenced lease is attempt-scoped and retries use
+  a new fence. The core file-backed provider is explicit deployment configuration, never a Build or Registry secret
+  store. Live-registry deployment conformance remains an operator environment proof, not a fabricated unit-test claim.
 - [x] Historical Phase 1.5: Registry credential execution binding for the selected Runtime adapter. It is superseded
   for new publication by the RFC credential-provider and isolated-adapter requirement; it is not acceptance evidence
   for default Docker credential-store use.
@@ -181,16 +196,17 @@ closeout:
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
-    "credential-and-telemetry-authority-rfc"
+    "credential-and-telemetry-authority-rfc",
+    "provider-sdk-spi-rfc",
+    "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-1-secure-credential-execution-and-manual-reservation",
     "phase-2-intent-materialization-conformance",
     "phase-3-static-pool-placement",
     "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "credential-and-telemetry-authority-rfc",
-  "next_batch": "phase-1-secure-credential-execution-and-manual-reservation",
+  "current_batch": "phase-1-secure-credential-execution-and-manual-reservation",
+  "next_batch": "phase-2-intent-materialization-conformance",
   "closeout_status": "recovery-required"
 }
 ```

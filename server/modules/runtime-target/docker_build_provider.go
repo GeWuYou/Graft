@@ -31,6 +31,8 @@ var (
 	providerOutputRunner  = runProviderOutput
 )
 
+type dockerCredentialConfigContextKey struct{}
+
 // ProviderID 返回 Runtime Target provider 的稳定内部标识，不包含连接信息。
 func (p dockerTargetProvider) ProviderID() string { return "docker-target" }
 
@@ -173,12 +175,17 @@ func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID i
 }
 
 // PublishImageOnTarget 在选定 Docker 目标上发布已构建镜像，并返回目标产生的摘要事实。
+//
+//nolint:cyclop // 发布边界必须集中复验隔离凭据、目标与摘要证据。
 func (p dockerTargetProvider) PublishImageOnTarget(ctx context.Context, targetID int64, result moduleapi.DockerImageBuildResult, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	if !hasIsolatedCredentialConfig(ctx) {
+		return result, errors.New("isolated Docker credential context is required")
+	}
 	connection, err := p.connection(ctx, targetID)
 	if err != nil {
 		return result, err
 	}
-	if result.ImageID == "" || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+	if result.ImageID == "" || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		return result, errors.New("docker publication input is invalid")
 	}
 	ref, repository, err := providerPublicationReference(binding)
@@ -208,11 +215,14 @@ func (p dockerTargetProvider) PublishImageOnTarget(ctx context.Context, targetID
 //
 //nolint:cyclop // Provider boundary keeps input, source, publication and digest validation atomic.
 func (p dockerTargetProvider) PublishOCIManifestOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIManifestPublicationInput, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	if !hasIsolatedCredentialConfig(ctx) {
+		return moduleapi.OCIManifestPublicationResult{}, errors.New("isolated Docker credential context is required")
+	}
 	connection, err := p.connection(ctx, targetID)
 	if err != nil {
 		return moduleapi.OCIManifestPublicationResult{}, err
 	}
-	if len(input.PlatformArtifacts) < 2 || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+	if len(input.PlatformArtifacts) < 2 || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		return moduleapi.OCIManifestPublicationResult{}, errors.New("OCI manifest publication input is invalid")
 	}
 	ref, _, err := providerPublicationReference(binding)
@@ -250,9 +260,9 @@ func (p dockerTargetProvider) PublishOCIManifestOnTarget(ctx context.Context, ta
 // CopyOCIArtifactOnTarget copies one immutable OCI artifact through the selected
 // Docker target. Registry bindings remain private to this execution boundary.
 //
-//nolint:cyclop // Provider 必须逐项校验私有 binding、不可变来源与复制后的 Registry 证明。
+//nolint:cyclop,gocyclo // Provider 必须逐项校验私有 binding、不可变来源与复制后的 Registry 证明。
 func (p dockerTargetProvider) CopyOCIArtifactOnTarget(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
-	if targetID < 1 || !validOCIArtifactCopyInput(input) || !validOCIArtifactCopyBinding(input, binding) {
+	if !hasIsolatedCredentialConfig(ctx) || targetID < 1 || !validOCIArtifactCopyInput(input) || !validOCIArtifactCopyBinding(input, binding) {
 		return moduleapi.OCIArtifactCopyResult{}, errors.New("OCI artifact copy input is invalid")
 	}
 	connection, err := p.connection(ctx, targetID)
@@ -316,8 +326,8 @@ func validOCIArtifactCopyInput(input moduleapi.OCIArtifactCopyInput) bool {
 
 func validOCIArtifactCopyBinding(input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding) bool {
 	destination := binding.Destination
-	return strings.TrimSpace(binding.SourceEndpoint) != "" && strings.TrimSpace(binding.SourceCredentialRef) != "" &&
-		strings.TrimSpace(destination.Endpoint) != "" && destination.AuthExecution.Mode == moduleapi.RegistryAuthExecutionDockerStore &&
+	return strings.TrimSpace(binding.SourceEndpoint) != "" && strings.TrimSpace(binding.SourceCredentialRef) != "" && binding.SourceAuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral &&
+		strings.TrimSpace(destination.Endpoint) != "" && destination.AuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral &&
 		destination.Destination == input.Destination
 }
 
@@ -432,6 +442,9 @@ func providerImageDigest(digests []string, repository string) string {
 
 func runProviderOutput(ctx context.Context, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, "docker", args...) // #nosec G204 -- args are assembled only from validated provider facts.
+	if configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string); ok && configDir != "" {
+		command.Env = isolatedDockerEnvironment(configDir)
+	}
 	output, err := command.Output()
 	if err != nil {
 		return nil, fmt.Errorf("docker provider command failed: %w", err)
@@ -441,6 +454,9 @@ func runProviderOutput(ctx context.Context, args ...string) ([]byte, error) {
 
 func runProviderCommand(ctx context.Context, sink moduleapi.DockerImageBuildLogSink, args ...string) error {
 	command := exec.CommandContext(ctx, "docker", args...) // #nosec G204 -- args are assembled only from validated provider facts.
+	if configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string); ok && configDir != "" {
+		command.Env = isolatedDockerEnvironment(configDir)
+	}
 	logs := newProviderLogSink(ctx, sink)
 	command.Stdout = logs.writer("stdout")
 	command.Stderr = logs.writer("stderr")
@@ -452,6 +468,24 @@ func runProviderCommand(ctx context.Context, sink moduleapi.DockerImageBuildLogS
 		return err
 	}
 	return logs.err()
+}
+
+// isolatedDockerEnvironment 删除继承的 Docker 认证变量，仅为本次受控操作传入隔离配置目录。
+func isolatedDockerEnvironment(configDir string) []string {
+	environment := make([]string, 0, len(os.Environ())+1)
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if key == "DOCKER_CONFIG" || key == "DOCKER_AUTH_CONFIG" {
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	return append(environment, "DOCKER_CONFIG="+configDir)
+}
+
+func hasIsolatedCredentialConfig(ctx context.Context) bool {
+	configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string)
+	return ok && strings.TrimSpace(configDir) != ""
 }
 
 type providerLogSink struct {

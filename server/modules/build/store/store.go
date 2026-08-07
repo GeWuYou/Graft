@@ -172,6 +172,13 @@ type ExecutionPlanRepository interface {
 	MaterializeExecutionPlan(context.Context, *sql.Tx, moduleapi.TaskSubmission, moduleapi.BuildExecutionPlan, uint64) (string, error)
 }
 
+// BuilderReservationRepository 暴露 Build 容量租约的事务化写入与终态更新。
+type BuilderReservationRepository interface {
+	moduleapi.BuilderReservationRepository
+}
+
+const builderReservationLeaseTTL = 5 * time.Minute
+
 // WorkspaceRepository 是 Build-owned Workspace 定义的持久化边界；来源适配器只
 // 负责提供授权输入，不能直接写入 Build 表或改变已冻结 Snapshot。
 type WorkspaceRepository interface {
@@ -331,6 +338,8 @@ func (r *SQLRepository) ReleaseSnapshotMaterializationClaim(ctx context.Context,
 
 // MaterializeExecutionPlan 在创建 Task 的 Task Runtime transaction 中持久化
 // immutable workspace 与 plan。
+//
+//nolint:cyclop // Plan、Snapshot 与容量 lease 必须在同一 Task materialization transaction 内保持原子。
 func (r *SQLRepository) MaterializeExecutionPlan(ctx context.Context, tx *sql.Tx, submission moduleapi.TaskSubmission, plan moduleapi.BuildExecutionPlan, requestedBy uint64) (string, error) {
 	if r == nil || tx == nil || submission.TaskID == nil || *submission.TaskID == 0 || !validExecutionPlan(plan) {
 		return "", errors.New("invalid build execution plan")
@@ -348,7 +357,116 @@ VALUES ($1,$2,$3,$4,NULLIF($5, ''),NULLIF($6, ''),$7,$8,$9,$10,$11,$12,$13)
 ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.Digest, snapshotPK, *submission.TaskID, plan.BuilderPoolID, plan.BuilderInstanceID, plan.RuntimeTargetID, plan.Driver, plan.TemplateRef, encodedPlan.platforms, encodedPlan.placements, encodedPlan.destination, nullableUint64(requestedBy)); err != nil {
 		return "", fmt.Errorf("materialize execution plan: %w", err)
 	}
+	if plan.BuilderInstanceID == "" {
+		return "", errors.New("execution plan builder instance is missing")
+	}
+	reservationRepository, ok := any(r).(moduleapi.BuilderReservationRepository)
+	if !ok {
+		return "", errors.New("builder reservation persistence is unavailable")
+	}
+	if _, err := reservationRepository.ReserveBuilder(ctx, tx, moduleapi.BuilderReservation{
+		ID:             "reservation_" + plan.ID,
+		InstanceID:     plan.BuilderInstanceID,
+		PlanID:         plan.ID,
+		TaskID:         *submission.TaskID,
+		Attempt:        1,
+		FenceToken:     BuilderReservationFence(plan.ID, *submission.TaskID, 1),
+		State:          moduleapi.BuilderReservationAccepted,
+		LeaseExpiresAt: time.Now().UTC().Add(builderReservationLeaseTTL),
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}); err != nil {
+		return "", err
+	}
 	return plan.ID, nil
+}
+
+// BuilderReservationFence 生成与冻结计划绑定的稳定 fencing token。
+func BuilderReservationFence(planID string, taskID uint64, attempt int) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d", planID, taskID, attempt)))
+	return hex.EncodeToString(sum[:])
+}
+
+// ReserveBuilder 在 Task materialization transaction 内取得唯一的 Builder 容量 lease。
+//
+//nolint:cyclop // 唯一性、fence replay 与数据库错误必须在容量 owner 边界集中校验。
+func (r *SQLRepository) ReserveBuilder(ctx context.Context, tx *sql.Tx, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	if r == nil || tx == nil || strings.TrimSpace(reservation.ID) == "" || strings.TrimSpace(reservation.InstanceID) == "" || strings.TrimSpace(reservation.PlanID) == "" || reservation.TaskID == 0 || strings.TrimSpace(reservation.FenceToken) == "" || reservation.LeaseExpiresAt.IsZero() {
+		return moduleapi.BuilderReservation{}, errors.New("invalid builder reservation")
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'expired', updated_at = NOW() WHERE builder_instance_id = $1 AND state IN ('reserved','accepted') AND lease_expires_at <= NOW()`, reservation.InstanceID); err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("expire builder reservation: %w", err)
+	}
+	var stored moduleapi.BuilderReservation
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, fence_token, state, lease_expires_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+ON CONFLICT (plan_id, task_id, attempt) DO UPDATE SET reservation_id = build_builder_reservations.reservation_id
+RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
+	if err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("reserve builder capacity: %w", err)
+	}
+	if stored.InstanceID != reservation.InstanceID || stored.FenceToken != reservation.FenceToken || stored.State != reservation.State {
+		return moduleapi.BuilderReservation{}, ErrConflict
+	}
+	return stored, nil
+}
+
+// ReserveBuilderAttempt 在旧尝试已经进入终态后取得新的容量 lease 与 fence。
+func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	if r == nil || r.db == nil || reservation.Attempt < 2 {
+		return moduleapi.BuilderReservation{}, errors.New("invalid builder retry reservation")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("begin builder retry reservation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND state IN ('accepted','running')`, reservation.TaskID); err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("abandon prior builder reservation: %w", err)
+	}
+	stored, err := r.ReserveBuilder(ctx, tx, reservation)
+	if err != nil {
+		return moduleapi.BuilderReservation{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("commit builder retry reservation: %w", err)
+	}
+	return stored, nil
+}
+
+// MarkBuilderReservationRunning 只允许 accepted lease 进入执行中，旧 fence 会被拒绝。
+func (r *SQLRepository) MarkBuilderReservationRunning(ctx context.Context, taskID uint64, fenceToken string) error {
+	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(fenceToken) == "" {
+		return errors.New("invalid builder reservation transition")
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'running', updated_at = NOW() WHERE task_id = $1 AND fence_token = $2 AND state = 'accepted'`, taskID, fenceToken)
+	if err != nil {
+		return fmt.Errorf("start builder reservation: %w", err)
+	}
+	return requireReservationUpdate(result)
+}
+
+// ReleaseBuilderReservation 仅以匹配 fence 更新 lease，避免 retry 释放新尝试的容量。
+func (r *SQLRepository) ReleaseBuilderReservation(ctx context.Context, taskID uint64, fenceToken, state string) error {
+	if r == nil || r.db == nil || taskID == 0 || strings.TrimSpace(fenceToken) == "" || (state != moduleapi.BuilderReservationReleased && state != moduleapi.BuilderReservationAbandoned) {
+		return errors.New("invalid builder reservation release")
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE build_builder_reservations SET state = $3, updated_at = NOW() WHERE task_id = $1 AND fence_token = $2 AND state IN ('accepted','running')`, taskID, fenceToken, state)
+	if err != nil {
+		return fmt.Errorf("release builder reservation: %w", err)
+	}
+	return requireReservationUpdate(result)
+}
+
+func requireReservationUpdate(result sql.Result) error {
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count builder reservation transition: %w", err)
+	}
+	if count != 1 {
+		return ErrConflict
+	}
+	return nil
 }
 
 func materializeWorkspaceSnapshot(ctx context.Context, tx *sql.Tx, snapshot moduleapi.WorkspaceSnapshot, requestedBy uint64) (uint64, error) {
@@ -486,7 +604,7 @@ func validProviderEvidence(result moduleapi.ProviderExecutionConformanceResult) 
 //
 //nolint:cyclop // Settlement 在同一 transaction boundary 内维护 plan ownership、immutable identity 与 publication idempotency。
 func (r *SQLRepository) SettleV2Artifact(ctx context.Context, taskID uint64, plan moduleapi.BuildExecutionPlan, result moduleapi.DockerImageBuildResult, authExecution moduleapi.RegistryAuthExecution) error {
-	if r == nil || r.db == nil || taskID == 0 || plan.ID == "" || strings.TrimSpace(result.Digest) == "" || strings.TrimSpace(authExecution.Mode) == "" {
+	if r == nil || r.db == nil || taskID == 0 || plan.ID == "" || strings.TrimSpace(result.Digest) == "" || authExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		return errors.New("invalid v2 artifact settlement")
 	}
 	platforms, err := json.Marshal([]string{firstPlatform(result.OS, result.Architecture, result.Variant)})
@@ -733,7 +851,7 @@ func platformArtifactSetComplete(platforms []string, artifacts []moduleapi.Platf
 //
 //nolint:gocyclo,cyclop,gocognit // 事务必须把完整性复验、Artifact 身份与 Publication 指向作为一个不可分割的提交。
 func (r *SQLRepository) SettleOCIManifestPublication(ctx context.Context, taskID uint64, plan moduleapi.BuildExecutionPlan, result moduleapi.OCIManifestPublicationResult, authExecution moduleapi.RegistryAuthExecution) error {
-	if r == nil || r.db == nil || taskID == 0 || plan.ID == "" || strings.TrimSpace(result.Digest) == "" || strings.TrimSpace(result.MediaType) == "" || result.SizeBytes < 0 || strings.TrimSpace(authExecution.Mode) == "" {
+	if r == nil || r.db == nil || taskID == 0 || plan.ID == "" || strings.TrimSpace(result.Digest) == "" || strings.TrimSpace(result.MediaType) == "" || result.SizeBytes < 0 || authExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		return errors.New("invalid OCI manifest settlement")
 	}
 	if _, err := r.PrepareOCIManifestPublication(ctx, taskID, plan); err != nil {
@@ -822,7 +940,7 @@ func validPromotionSettlement(input moduleapi.OCIArtifactCopyInput, result modul
 		strings.TrimSpace(input.Source.ArtifactID) != "" && strings.TrimSpace(input.Source.MediaType) != "" &&
 		strings.HasPrefix(digest, "sha256:") && len(strings.TrimPrefix(digest, "sha256:")) == 64 &&
 		strings.TrimSpace(input.Destination.ConnectionRef) != "" && strings.TrimSpace(input.Destination.RepositoryRef) != "" && strings.TrimSpace(input.Destination.Reference) != "" &&
-		strings.TrimSpace(result.Digest) != "" && strings.TrimSpace(result.MediaType) != "" && result.SizeBytes >= 0 && strings.TrimSpace(authExecution.Mode) != ""
+		strings.TrimSpace(result.Digest) != "" && strings.TrimSpace(result.MediaType) != "" && result.SizeBytes >= 0 && authExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral
 }
 
 func publicationIDFor(digest string, destination moduleapi.AuthorizedArtifactDestination) string {

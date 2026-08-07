@@ -15,6 +15,7 @@ Round context:
 - design authority:
   - `ai-plan/design/architecture/build-domain-v2.md`
   - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
+  - `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
   - `ai-plan/roadmap/build-domain-v2.md`
 - AI skills:
   - `$graft-multi-agent-loop`
@@ -59,9 +60,10 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Implement Phase 1 authority first: secure Registry Push with Credential Provider and Runtime Execution Adapter,
-   capability matcher, manual single-Builder Placement Evidence and fenced Reservation lifecycle.
-2. Do not promote historical Pool, Docker adapter or telemetry contract work into new-execution acceptance evidence.
+1. Start Phase 2 intent/materialization conformance. Preserve Phase 1's secure Registry Push: the optional core
+   secret-file provider issues only scoped ephemeral sessions to Runtime Target's isolated adapter, and every retry
+   uses a new Build Reservation fence.
+2. Do not promote historical Pool, Docker adapter or telemetry contract work into dynamic-placement acceptance evidence.
    Preserve immutable Plan/Placement authority throughout each bounded phase.
 
 Validation expectations:

@@ -62,7 +62,7 @@ func (s *Service) ResolvePublicationBinding(ctx context.Context, destination mod
 		Endpoint:      repository.Endpoint,
 		CredentialRef: repository.CredentialRef,
 		AuthExecution: moduleapi.RegistryAuthExecution{
-			Mode: moduleapi.RegistryAuthExecutionDockerStore,
+			Mode: moduleapi.RegistryAuthExecutionEphemeral,
 		},
 	}, nil
 }
@@ -107,6 +107,7 @@ func (s *Service) ResolveArtifactCopyBinding(ctx context.Context, copy moduleapi
 	return moduleapi.RegistryArtifactCopyBinding{
 		SourceEndpoint:      source.Endpoint,
 		SourceCredentialRef: source.CredentialRef,
+		SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral},
 		Destination:         destination,
 	}, nil
 }

@@ -7,6 +7,7 @@ write model in [Docker Build Center](docker-build-center.md) while retaining com
 
 The execution authority for Registry credentials, Build capability matching, reservations, telemetry, Placement and
 failure handling is [Build Domain v2 Credential And Telemetry Authority RFC](build-domain-v2-credential-and-telemetry-authority.md).
+Provider integration seams are defined separately by the [Provider SDK And SPI RFC](build-domain-v2-provider-sdk-spi.md).
 Where this architecture's historical phase wording conflicts with that RFC, the RFC wins. In particular,
 `docker-runtime-store` is historical evidence only, Builder/Registry-local failure is not global availability, and
 Pool/dynamic placement exposure follows the RFC's four-phase gates.

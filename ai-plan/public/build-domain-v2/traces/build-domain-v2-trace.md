@@ -1,5 +1,33 @@
 # Build Domain v2 Trace
 
+## 2026-08-07 phase-1-secure-credential-execution-and-manual-reservation implementation
+
+- Replaced the new v2 publication execution edge with the `RuntimeExecutionAdapter` contract. Runtime Target requests a
+  short-lived `CredentialProvider` session, creates an isolated per-operation Docker config, and revokes/removes it on
+  every adapter terminal path. New publication rejects historical `docker-runtime-store` execution mode; no environment
+  default or platform-wide availability mutation is introduced.
+- Routed OCI artifact-promotion copy through the same adapter. Source pull and destination push each receive their own
+  scoped ephemeral session in one isolated Docker config; direct capability registration was removed so a caller cannot
+  select the historical Docker-store path through DI.
+- Added Build-owned `build_builder_reservations` capacity leases. Execution-plan materialization reserves the selected
+  manual Builder and freezes a deterministic fence; the Task executor transitions the matching lease to `running` and
+  releases or marks it `abandoned` without creating a second Task Runtime or scheduler.
+- Tightened adapter cleanup semantics: credential revoke and isolated Docker directory cleanup are now part of the
+  returned execution error, and focused Runtime Target tests cover provider failure and expired-session paths.
+- Reservation fence derivation is attempt-scoped and deterministic; a retry receives a new reservation row and fence
+  after the preceding live attempt is abandoned.
+- Core now registers a file-backed `CredentialProvider` only when the explicit absolute
+  `GRAFT_REGISTRY_CREDENTIALS_FILE` source is valid. The provider reloads an expiring, endpoint/repository/operation-
+  scoped entry for every request, exposes only an opaque session and writes Docker auth only into the adapter-created
+  `0700` directory. Missing configuration still omits the adapter; an invalid configured source prevents Runtime Target
+  registration. No default credential store or environment authentication is introduced.
+- Focused provider, core DI and Runtime Target registration tests cover source validation, scope mismatch, expiry,
+  revocation, isolated-target permissions and plaintext-free failure messages. A live registry publication remains a
+  deployment conformance check requiring an operator-provisioned expiring secret file; it was not claimed by local
+  tests.
+- Validation evidence: `python3 scripts/validate_sql_migrations.py`; focused Go tests for `internal/moduleapi`, Build,
+  Registry, Runtime Target and Container passed. Full backend, OpenAPI and web validation is recorded with this slice.
+
 ## 2026-08-06 authority-bootstrap
 
 - Work Intake classified Build Domain v2 as a long-running cross-boundary feature requiring repository-level design,
@@ -56,18 +84,18 @@
 - The v2 executor now performs target-bound Docker build and OCI publication, then settles a digest-addressed Artifact
   and its mutable Publication in one Build-owned transaction.
 - Runtime Target selection was narrowed to the system-managed Local Docker target. A remote Docker target must not
-  silently execute through Container's local Docker process; it will require a later provider-owned execution adapter.
-- Registry endpoint and opaque credential references remain execution-only. The current adapter uses the Docker
-  environment/credential helper for push; the follow-up Phase 1.5 owns the explicit credential execution contract.
+  silently execute through Container's local Docker process; it requires the provider-owned execution adapter now
+  implemented by this Phase 1 repair.
+- Registry endpoint and opaque credential references remain execution-only. The historical environment/credential-helper
+  path is retained only as evidence; new publication uses the explicit credential execution contract below.
 - Focused and full Go tests, backend validation, OpenAPI validation, web validation, migration gates and diff checks
   passed. Existing backend DTO-boundary warnings are unrelated baseline warnings.
 
 ## 2026-08-06 phase-1-registry-credential-execution
 
-- Phase 1.5 is an explicit continuation, not a topic blocker: Registry chooses a non-plaintext credential execution
-  mode and Container rejects modes its selected Runtime cannot execute.
-- The initial mode delegates authentication to the selected Docker Runtime credential store. It never copies secret
-  material, a Docker config path or a login command into Build-owned state.
+- The historical Phase 1.5 mode delegated authentication to the selected Docker Runtime credential store. That path is
+  superseded for new writes by the ephemeral credential session and isolated adapter contract; historical evidence
+  remains readable only.
 
 ## 2026-08-06 phase-1-registry-credential-execution validation
 
@@ -441,6 +469,16 @@
 - Documentation validation remains `git diff --check` plus the bounded `validate_ai_plan_structure.py` guard. Runtime,
   OpenAPI and web validation are intentionally deferred because this batch changes documentation only.
 
+## 2026-08-07 provider-sdk-spi-rfc
+
+- Added the standalone Provider SDK/SPI RFC. Provider lifecycle, capability negotiation, telemetry, credential,
+  Workspace, execution and evidence adapters are now one compile-time integration surface.
+- The SPI requires MUST conformance for lifecycle ordering, isolated credentials, Snapshot identity, cancellation,
+  fencing, cleanup, freshness and redacted evidence. Unknown or failed conformance remains static/manual only and does
+  not enter dynamic Placement.
+- The SPI deliberately excludes a second runtime, scheduler, queue, event store, evidence database, Registry model and
+  global health registry. Concrete Provider language bindings and registration locations remain implementation work.
+
 ## Loop Batch State
 
 ```json
@@ -457,16 +495,17 @@
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
-    "credential-and-telemetry-authority-rfc"
+    "credential-and-telemetry-authority-rfc",
+    "provider-sdk-spi-rfc",
+    "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-1-secure-credential-execution-and-manual-reservation",
     "phase-2-intent-materialization-conformance",
     "phase-3-static-pool-placement",
     "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "credential-and-telemetry-authority-rfc",
-  "next_batch": "phase-1-secure-credential-execution-and-manual-reservation",
+  "current_batch": "phase-1-secure-credential-execution-and-manual-reservation",
+  "next_batch": "phase-2-intent-materialization-conformance",
   "closeout_status": "recovery-required"
 }
 ```

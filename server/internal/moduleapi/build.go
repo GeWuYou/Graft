@@ -78,6 +78,45 @@ type BuilderPlacement struct {
 	SchedulingEvidence json.RawMessage
 }
 
+// BuilderReservation 是 Build 对单个 Builder Instance 的容量租约事实。
+// FenceToken 只用于拒绝旧执行尝试，不能替代 Task Runtime 的执行状态。
+type BuilderReservation struct {
+	ID             string
+	InstanceID     string
+	PlanID         string
+	TaskID         uint64
+	Attempt        int
+	FenceToken     string
+	State          string
+	LeaseExpiresAt time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+const (
+	// BuilderReservationReserved 表示容量已被 Build 原子占用。
+	BuilderReservationReserved = "reserved"
+	// BuilderReservationAccepted 表示 Task 已接受该容量租约。
+	BuilderReservationAccepted = "accepted"
+	// BuilderReservationRunning 表示执行器已开始使用该租约。
+	BuilderReservationRunning = "running"
+	// BuilderReservationReleased 表示执行终态已释放容量。
+	BuilderReservationReleased = "released"
+	// BuilderReservationExpired 表示租约过期且不可再使用。
+	BuilderReservationExpired = "expired"
+	// BuilderReservationAbandoned 表示外部结果未知，等待人工恢复。
+	BuilderReservationAbandoned = "abandoned"
+)
+
+// BuilderReservationRepository 是 Build-owned 的最小容量 lease 持久化边界。
+// 实现不得启动 scheduler，也不得写入 PlatformAvailabilityStore。
+type BuilderReservationRepository interface {
+	ReserveBuilder(context.Context, *sql.Tx, BuilderReservation) (BuilderReservation, error)
+	ReserveBuilderAttempt(context.Context, BuilderReservation) (BuilderReservation, error)
+	MarkBuilderReservationRunning(context.Context, uint64, string) error
+	ReleaseBuilderReservation(context.Context, uint64, string, string) error
+}
+
 // BuilderResourceRepository 是 Builder Profile、Instance、Pool 及成员关系的持久化边界。
 type BuilderResourceRepository interface {
 	CreateBuilderProfile(context.Context, BuilderProfile, uint64) error
@@ -140,7 +179,7 @@ type RegistryPublicationBinding struct {
 }
 
 // RegistryAuthExecution 描述 Runtime adapter 使用 Registry 凭据的非明文方式。
-// Phase 1 只允许 Docker daemon credential store，凭据值和配置路径仍由运行环境持有。
+// 新执行只允许 ephemeral session；Docker credential store 仅保留历史事实读取。
 type RegistryAuthExecution struct {
 	Mode string
 }
@@ -148,12 +187,52 @@ type RegistryAuthExecution struct {
 const (
 	// RegistryAuthExecutionDockerStore 表示由 Docker credential store 负责认证。
 	RegistryAuthExecutionDockerStore = "docker-runtime-store"
+	// RegistryAuthExecutionEphemeral 表示本次操作只使用隔离的短期凭据会话。
+	RegistryAuthExecutionEphemeral = "ephemeral-credential"
 )
 
 // RegistryPublicationResolver 解析所选 Runtime Target 发布已构建镜像所需的
 // 私有提供方绑定。
 type RegistryPublicationResolver interface {
 	ResolvePublicationBinding(context.Context, AuthorizedArtifactDestination) (RegistryPublicationBinding, error)
+}
+
+// EphemeralCredentialSession 是一次 Registry 操作的短期凭据会话。
+// Secret 只允许在 CredentialProvider 与 RuntimeExecutionAdapter 的进程内边界流转。
+type EphemeralCredentialSession struct {
+	ID        string
+	ExpiresAt time.Time
+}
+
+// CredentialRequest 描述一次最小作用域的 Registry 凭据申请。
+type CredentialRequest struct {
+	CredentialRef string
+	Endpoint      string
+	RepositoryRef string
+	Operation     string
+	ExpiresAt     time.Time
+}
+
+// CredentialProvider 从 Secret authority 申请短期凭据，并负责终态撤销。
+type CredentialProvider interface {
+	Prepare(context.Context, CredentialRequest) (EphemeralCredentialSession, error)
+	Inject(context.Context, EphemeralCredentialSession, CredentialInjectionTarget) error
+	Revoke(context.Context, EphemeralCredentialSession) error
+}
+
+// CredentialInjectionTarget 是 Runtime adapter 提供的隔离注入位置，不携带凭据原文。
+type CredentialInjectionTarget struct {
+	ConfigDir     string
+	Endpoint      string
+	RepositoryRef string
+}
+
+// RuntimeExecutionAdapter 是 Runtime Target 唯一拥有的隔离 Registry 执行边界。
+// 调用方只提交非秘密 binding，adapter 自己申请、注入并清理 ephemeral session。
+type RuntimeExecutionAdapter interface {
+	PublishImage(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
+	PublishManifest(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
+	CopyOCIArtifact(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
 }
 
 // ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。
@@ -179,6 +258,7 @@ type AuthorizedArtifactCopy struct {
 type RegistryArtifactCopyBinding struct {
 	SourceEndpoint      string
 	SourceCredentialRef string
+	SourceAuthExecution RegistryAuthExecution
 	Destination         RegistryPublicationBinding
 }
 
@@ -443,8 +523,6 @@ type TargetBoundProviderExecutionConformanceCapability interface {
 type TargetBoundDockerBuildProvider interface {
 	TargetBoundDockerImageBuildCapability
 	TargetBoundWorkspaceSnapshotDeliveryCapability
-	TargetBoundDockerImagePublicationCapability
-	TargetBoundOCIManifestPublicationCapability
 	TargetBoundProviderExecutionConformanceCapability
 	ProviderID() string
 }

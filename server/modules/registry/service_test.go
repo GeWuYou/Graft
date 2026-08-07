@@ -62,7 +62,7 @@ func TestResolveArtifactDestinationRejectsUnauthorizedAndUnavailableRepositories
 	}
 }
 
-func TestResolvePublicationBindingUsesDockerCredentialStoreMode(t *testing.T) {
+func TestResolvePublicationBindingUsesEphemeralCredentialMode(t *testing.T) {
 	db := openRegistryTestDB(t)
 	seedRegistryDestination(t, db, true, true, false, true)
 	repository, err := registrystore.NewSQLRepository(db)
@@ -75,7 +75,7 @@ func TestResolvePublicationBindingUsesDockerCredentialStoreMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve publication binding: %v", err)
 	}
-	if binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionDockerStore {
+	if binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		t.Fatalf("credential execution mode = %q", binding.AuthExecution.Mode)
 	}
 	if binding.Endpoint != "https://registry.example" || binding.CredentialRef != "credential:registry-primary" {

@@ -81,14 +81,12 @@ func (e *dockerfileBuildExecutor) Cancel(_ context.Context, run moduleapi.StageR
 
 type buildTaskExecutorDependencies struct {
 	provider             moduleapi.TargetBoundDockerBuildProvider
-	publication          moduleapi.TargetBoundDockerImagePublicationCapability
-	manifestPublication  moduleapi.TargetBoundOCIManifestPublicationCapability
 	snapshotDelivery     moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
 	conformance          moduleapi.TargetBoundProviderExecutionConformanceCapability
 	registry             moduleapi.RegistryPublicationResolver
+	executionAdapter     moduleapi.RuntimeExecutionAdapter
 	targets              moduleapi.BuildRuntimeTargetReader
 	intent               IntentResolver
-	artifactCopy         moduleapi.TargetBoundOCIArtifactCopyCapability
 	artifactCopyRegistry moduleapi.RegistryArtifactCopyResolver
 }
 
@@ -103,10 +101,10 @@ func registerBuildTaskExecutor(registrar moduleapi.TaskRuntimeRegistrar, reposit
 	}
 	// V2 plan 在执行前已被接受并持久化。可选 capability 使 legacy-focused test
 	// 仍可构造，而 production wiring 提供完整的 target/publish boundary。
-	if err := registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, publisher: dependencies.publication, manifestPublisher: dependencies.manifestPublication, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent}); err != nil {
+	if err := registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, executionAdapter: dependencies.executionAdapter, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent}); err != nil {
 		return err
 	}
-	return registrar.RegisterStageExecutor(&artifactPromotionExecutor{service: promotions, provider: dependencies.artifactCopy, registry: dependencies.artifactCopyRegistry, cancels: make(map[uint64]context.CancelFunc)})
+	return registrar.RegisterStageExecutor(&artifactPromotionExecutor{service: promotions, adapter: dependencies.executionAdapter, registry: dependencies.artifactCopyRegistry, cancels: make(map[uint64]context.CancelFunc)})
 }
 
 func targetBoundDockerFromCapabilities(legacy moduleapi.DockerImageBuildCapability, capabilities []any) moduleapi.TargetBoundDockerImageBuildCapability {
@@ -126,24 +124,20 @@ func resolveBuildTaskExecutorDependencies(capabilities []any) buildTaskExecutorD
 		switch value := capability.(type) {
 		case moduleapi.TargetBoundDockerBuildProvider:
 			dependencies.provider = value
-		case moduleapi.TargetBoundDockerImagePublicationCapability:
-			dependencies.publication = value
-		case moduleapi.TargetBoundOCIManifestPublicationCapability:
-			dependencies.manifestPublication = value
 		case moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability:
 			dependencies.snapshotDelivery = value
 		case moduleapi.TargetBoundProviderExecutionConformanceCapability:
 			dependencies.conformance = value
 		case moduleapi.RegistryPublicationResolver:
 			dependencies.registry = value
+		case moduleapi.RuntimeExecutionAdapter:
+			dependencies.executionAdapter = value
 		case moduleapi.BuildRuntimeTargetReader:
 			dependencies.targets = value
 		case IntentResolver:
 			if value != nil {
 				dependencies.intent = value
 			}
-		case moduleapi.TargetBoundOCIArtifactCopyCapability:
-			dependencies.artifactCopy = value
 		case moduleapi.RegistryArtifactCopyResolver:
 			dependencies.artifactCopyRegistry = value
 		}
@@ -153,7 +147,7 @@ func resolveBuildTaskExecutorDependencies(capabilities []any) buildTaskExecutorD
 
 type artifactPromotionExecutor struct {
 	service  *Service
-	provider moduleapi.TargetBoundOCIArtifactCopyCapability
+	adapter  moduleapi.RuntimeExecutionAdapter
 	registry moduleapi.RegistryArtifactCopyResolver
 	mu       sync.Mutex
 	cancels  map[uint64]context.CancelFunc
@@ -165,7 +159,7 @@ func (*artifactPromotionExecutor) Type() moduleapi.StageExecutorType {
 
 //nolint:cyclop // 复制、取消和结算必须保持在同一个 Task Runtime Stage 信任边界内。
 func (e *artifactPromotionExecutor) Execute(ctx context.Context, run moduleapi.StageRun) error {
-	if e == nil || e.service == nil || e.provider == nil || e.registry == nil {
+	if e == nil || e.service == nil || e.adapter == nil || e.registry == nil {
 		return errors.New("artifact promotion executor is unavailable")
 	}
 	var input moduleapi.ArtifactPromotionTaskInput
@@ -185,7 +179,7 @@ func (e *artifactPromotionExecutor) Execute(ctx context.Context, run moduleapi.S
 	e.cancels[run.StageID()] = cancel
 	e.mu.Unlock()
 	defer func() { e.mu.Lock(); delete(e.cancels, run.StageID()); e.mu.Unlock(); cancel() }()
-	result, err := e.provider.CopyOCIArtifactOnTarget(commandCtx, input.RuntimeTargetID, moduleapi.OCIArtifactCopyInput{Source: input.Source, Destination: input.Destination}, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	result, err := e.adapter.CopyOCIArtifact(commandCtx, input.RuntimeTargetID, moduleapi.OCIArtifactCopyInput{Source: input.Source, Destination: input.Destination}, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		return err
 	}
@@ -205,24 +199,23 @@ func (e *artifactPromotionExecutor) Cancel(_ context.Context, run moduleapi.Stag
 }
 
 type v2ExecutionPlanExecutor struct {
-	repository        buildstore.Repository
-	provider          moduleapi.TargetBoundDockerBuildProvider
-	targetDocker      moduleapi.TargetBoundDockerImageBuildCapability
-	publisher         moduleapi.TargetBoundDockerImagePublicationCapability
-	manifestPublisher moduleapi.TargetBoundOCIManifestPublicationCapability
-	snapshotDelivery  moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
-	conformance       moduleapi.TargetBoundProviderExecutionConformanceCapability
-	registry          moduleapi.RegistryPublicationResolver
-	targets           moduleapi.BuildRuntimeTargetReader
-	intents           IntentResolver
+	repository       buildstore.Repository
+	provider         moduleapi.TargetBoundDockerBuildProvider
+	targetDocker     moduleapi.TargetBoundDockerImageBuildCapability
+	snapshotDelivery moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
+	conformance      moduleapi.TargetBoundProviderExecutionConformanceCapability
+	registry         moduleapi.RegistryPublicationResolver
+	executionAdapter moduleapi.RuntimeExecutionAdapter
+	targets          moduleapi.BuildRuntimeTargetReader
+	intents          IntentResolver
 }
 
 func (v2ExecutionPlanExecutor) Type() moduleapi.StageExecutorType { return v2BuildStageExecutor }
 
-//nolint:cyclop,gocyclo // v2 executor 是 frozen-plan validation 与 target-bound publication 的唯一 audited boundary。
-func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.StageRun) error {
+//nolint:cyclop,gocyclo,gocognit // v2 executor 是 frozen-plan validation 与 target-bound publication 的唯一 audited boundary。
+func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.StageRun) (err error) {
 	reader, ok := e.repository.(buildstore.ExecutionPlanReader)
-	if !ok || e.provider == nil || e.targetDocker == nil || e.publisher == nil || e.registry == nil || e.snapshotDelivery == nil || e.conformance == nil {
+	if !ok || e.provider == nil || e.targetDocker == nil || e.executionAdapter == nil || e.registry == nil || e.snapshotDelivery == nil || e.conformance == nil {
 		return errors.New("build execution plan requires target-bound build and registry publication capability")
 	}
 	var input moduleapi.BuildPlanTaskInput
@@ -236,6 +229,27 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		}
 		return errors.New("execution plan identity does not match task input")
 	}
+	reservationRepository, reservationOK := e.repository.(moduleapi.BuilderReservationRepository)
+	reservationFence := buildstore.BuilderReservationFence(plan.ID, run.TaskID(), run.Attempt())
+	if !reservationOK {
+		return errors.New("builder reservation repository is unavailable")
+	}
+	if run.Attempt() == 1 {
+		if err := reservationRepository.MarkBuilderReservationRunning(ctx, run.TaskID(), reservationFence); err != nil {
+			return fmt.Errorf("start builder reservation: %w", err)
+		}
+	} else {
+		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%d", plan.ID, run.Attempt()), InstanceID: plan.BuilderInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: time.Now().UTC(), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}); err != nil {
+			return fmt.Errorf("reserve builder retry capacity: %w", err)
+		}
+	}
+	defer func() {
+		state := moduleapi.BuilderReservationReleased
+		if err != nil {
+			state = moduleapi.BuilderReservationAbandoned
+		}
+		_ = reservationRepository.ReleaseBuilderReservation(context.WithoutCancel(ctx), run.TaskID(), reservationFence, state)
+	}()
 	if plan.RuntimeTargetID < 1 || e.intents == nil || !e.compatibleIntent(plan) {
 		return errors.New("execution plan is not supported by the selected build driver")
 	}
@@ -268,7 +282,7 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		cancel()
 		return err
 	}
-	result, err = e.publisher.PublishImageOnTarget(commandCtx, plan.RuntimeTargetID, result, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	result, err = e.executionAdapter.PublishImage(commandCtx, plan.RuntimeTargetID, result, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		cancel()
 		return err
@@ -278,7 +292,7 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 }
 
 func (e v2ExecutionPlanExecutor) executePlatformLeg(ctx context.Context, run moduleapi.StageRun, input moduleapi.BuildPlanTaskInput, plan moduleapi.BuildExecutionPlan) error {
-	placement, err := validatePlatformLeg(plan, input, e.manifestPublisher)
+	placement, err := validatePlatformLeg(plan, input, e.executionAdapter)
 	if err != nil {
 		return err
 	}
@@ -291,8 +305,8 @@ func (e v2ExecutionPlanExecutor) executePlatformLeg(ctx context.Context, run mod
 	return e.recordPlatformArtifactAndPublishManifest(ctx, run, plan, input, result)
 }
 
-func validatePlatformLeg(plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, manifestPublisher moduleapi.TargetBoundOCIManifestPublicationCapability) (moduleapi.BuilderPlacement, error) {
-	if manifestPublisher == nil || strings.TrimSpace(input.Platform) == "" || strings.TrimSpace(input.LegID) == "" || !containsString(plan.Platforms, input.Platform) {
+func validatePlatformLeg(plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, executionAdapter moduleapi.RuntimeExecutionAdapter) (moduleapi.BuilderPlacement, error) {
+	if executionAdapter == nil || strings.TrimSpace(input.Platform) == "" || strings.TrimSpace(input.LegID) == "" || !containsString(plan.Platforms, input.Platform) {
 		return moduleapi.BuilderPlacement{}, errors.New("multi-platform build leg is incomplete")
 	}
 	placement, found := plan.PlacementForPlatform(input.Platform)
@@ -329,7 +343,7 @@ func (e v2ExecutionPlanExecutor) buildAndPublishPlatformLeg(ctx context.Context,
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
-	result, err = e.publisher.PublishImageOnTarget(ctx, placement.RuntimeTargetID, result, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	result, err = e.executionAdapter.PublishImage(ctx, placement.RuntimeTargetID, result, binding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
@@ -363,7 +377,7 @@ func (e v2ExecutionPlanExecutor) recordPlatformArtifactAndPublishManifest(ctx co
 	if err != nil {
 		return err
 	}
-	manifest, err := e.manifestPublisher.PublishOCIManifestOnTarget(settlementCtx, plan.RuntimeTargetID, manifestInput, finalBinding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	manifest, err := e.executionAdapter.PublishManifest(settlementCtx, plan.RuntimeTargetID, manifestInput, finalBinding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,23 @@
 schema_version: 1
-updated_at: "2026-07-23"
+updated_at: "2026-08-07"
 assets:
+  - name: "runtime-credential-provider"
+    type: "backend-runtime-helper"
+    path: "server/internal/credential"
+    owner: "server/core/credential"
+    purpose: "Core-owned scoped Registry credential source that exposes opaque ephemeral sessions and writes secret material only into a Runtime Target isolated injection directory."
+    use_when:
+      - "Registering a deployment-owned credential source that implements the stable CredentialProvider contract."
+    do_not_use_when:
+      - "Persisting Registry credentials, adding HTTP credential fields, or bypassing RuntimeExecutionAdapter with ambient Docker authentication."
+    examples:
+      - "server/internal/credential/file_provider.go"
+      - "server/internal/app/runtime_services.go"
+    related_assets:
+      - "moduleapi-contracts"
+      - "app-logger"
+    validation_commands:
+      - "cd server && go test ./internal/credential ./internal/app ./modules/runtime-target"
   - name: "async-event-infrastructure"
     type: "backend-runtime-helper"
     path: "server/internal/event"

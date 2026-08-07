@@ -3,6 +3,7 @@
 ## Delivery Rule
 
 This roadmap implements [Build Domain v2 Credential And Telemetry Authority RFC](../design/architecture/build-domain-v2-credential-and-telemetry-authority.md)
+and its provider integration surface in the [Provider SDK And SPI RFC](../design/architecture/build-domain-v2-provider-sdk-spi.md)
 without replacing the existing immutable chain:
 
 ```text
@@ -41,6 +42,10 @@ the exposed feature set ahead of these gates. `least_load`, `affinity` and `regi
 - Introduce `CredentialProvider` and `RuntimeExecutionAdapter` for every Registry Push. Registry Connection selects only
   `credential_ref`; adapters create isolated per-operation credentials and remove them on every terminal or recovery
   path.
+- Phase 1 deployment uses the optional absolute `GRAFT_REGISTRY_CREDENTIALS_FILE` only as a mounted secret-file
+  location. The core provider reloads scoped, expiring entries and returns opaque sessions; Build, Registry records,
+  Task Runtime and all external projections remain credential-plaintext-free. An unset or invalid source omits or
+  blocks adapter admission and fails closed.
 - Prohibit default Docker credential-store reads/writes and all environment-default authentication fallback. Preserve
   historical `docker-runtime-store` records as read-only evidence.
 - Preserve existing Snapshot materialization, Artifact identity and Publication lifecycle.
@@ -103,6 +108,8 @@ second Build queue, Task state machine or event store.
 - Dynamic policy failure maps to Task Runtime's existing taxonomy: transient uses bounded retry, permanent/configuration/
   authorization do not retry, infrastructure re-conforms the same placement, Provider disables locally, Internal is an
   incident, and Unknown requires attention without guessed success or rescheduling.
+- New Provider integrations must implement the Provider SDK/SPI conformance surface before entering Matcher or Placement;
+  concrete language bindings and registration locations remain implementation follow-ups.
 
 ## Migration Order
 

@@ -112,7 +112,7 @@ func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationS
 	return registrationServices{auth: auth, authorizer: authorizer, users: users, savedViews: savedViews}, nil
 }
 
-//nolint:cyclop // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
+//nolint:cyclop,gocyclo // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
 func (m *Module) registerReaders(ctx *module.Context) error {
 	reader := func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), reader); err != nil {
@@ -137,10 +137,11 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	provider := func(_ containerdi.Resolver) (any, error) {
 		return dockerTargetProvider{repository: m.repository}, nil
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), provider); err != nil {
-		return err
+	credentialProvider, credentialErr := module.ResolveService[moduleapi.CredentialProvider](ctx.Services, (*moduleapi.CredentialProvider)(nil))
+	if credentialErr != nil && !errors.Is(credentialErr, containerdi.ErrServiceNotRegistered) {
+		return credentialErr
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImagePublicationCapability)(nil), provider); err != nil {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), provider); err != nil {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), provider); err != nil {
@@ -149,11 +150,15 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil), provider); err != nil {
 		return err
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundOCIManifestPublicationCapability)(nil), provider); err != nil {
-		return err
-	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerBuildProvider)(nil), provider); err != nil {
 		return err
+	}
+	if credentialErr == nil && credentialProvider != nil {
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), func(_ containerdi.Resolver) (any, error) {
+			return dockerCredentialExecutionAdapter{provider: credentialProvider, client: dockerTargetProvider{repository: m.repository}}, nil
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
