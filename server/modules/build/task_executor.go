@@ -262,7 +262,9 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		if err != nil {
 			state = moduleapi.BuilderReservationAbandoned
 		}
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), artifactSettlementTimeout)
+		// Reservation release is durable settlement: preserve request values but give it
+		// its own bounded budget after the task context has been canceled.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
 		defer cleanupCancel()
 		if releaseErr := reservationRepository.ReleaseBuilderReservation(cleanupCtx, run.TaskID(), reservationLegID, reservationFence, state); releaseErr != nil {
 			err = errors.Join(err, fmt.Errorf("release builder reservation: %w", releaseErr))

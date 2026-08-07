@@ -141,7 +141,7 @@ func (p *FileProvider) Inject(ctx context.Context, session moduleapi.EphemeralCr
 		return errors.New("registry credential session is invalid")
 	}
 	p.mu.Unlock()
-	return writeDockerConfig(target.ConfigDir, endpoint, record.username, record.password)
+	return writeDockerConfig(target.ConfigDir, dockerAuthKey(endpoint), record.username, record.password)
 }
 
 // Revoke 删除活跃会话；重复清理保持无害。
@@ -227,6 +227,14 @@ func normalizeEndpoint(raw string) (string, error) {
 	parsed.Host = strings.ToLower(parsed.Host)
 	parsed.Path = strings.TrimRight(parsed.Path, "/")
 	return parsed.String(), nil
+}
+
+func dockerAuthKey(endpoint string) string {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return endpoint
+	}
+	return parsed.Host
 }
 
 func normalizeRepository(value string) string {

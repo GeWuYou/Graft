@@ -15,6 +15,22 @@ import (
 
 const testRegistrySecret = "registry-secret-value"
 
+func TestDockerAuthKeyUsesRegistryHost(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		endpoint string
+		want     string
+	}{
+		{endpoint: "https://registry.example", want: "registry.example"},
+		{endpoint: "https://registry.example:5443/team", want: "registry.example:5443"},
+	} {
+		if got := dockerAuthKey(test.endpoint); got != test.want {
+			t.Errorf("dockerAuthKey(%q) = %q, want %q", test.endpoint, got, test.want)
+		}
+	}
+}
+
 func TestFileProviderScopesAndRevokesCredentialSessions(t *testing.T) {
 	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
 	provider := newTestFileProvider(t, now)
@@ -42,7 +58,7 @@ func TestFileProviderScopesAndRevokesCredentialSessions(t *testing.T) {
 			Auth string `json:"auth"`
 		} `json:"auths"`
 	}
-	if err := json.Unmarshal(contents, &config); err != nil || config.Auths["https://registry.example"].Auth == "" {
+	if err := json.Unmarshal(contents, &config); err != nil || config.Auths["registry.example"].Auth == "" {
 		t.Fatalf("injected Docker config is invalid: %v", err)
 	}
 	if err := provider.Revoke(context.Background(), session); err != nil {
@@ -82,7 +98,7 @@ func TestFileProviderMergesExistingDockerConfigAuths(t *testing.T) {
 	if err := json.Unmarshal(contents, &config); err != nil {
 		t.Fatalf("decode merged config: %v", err)
 	}
-	if config.Auths["https://existing.example"].Auth != "existing" || config.Auths["https://registry.example"].Auth == "" {
+	if config.Auths["https://existing.example"].Auth != "existing" || config.Auths["registry.example"].Auth == "" {
 		t.Fatalf("merged auths = %#v", config.Auths)
 	}
 }
