@@ -18,7 +18,7 @@ Preset ID
   -> stylesheet、chartColors、root attributes、CSS -> 实际渲染
 ```
 
-`selectedThemePresetId` 在 [setting.ts](/home/gewuyou/project/go/graft/web/src/store/modules/setting.ts:301) 被持续解析为预设对象，并在 [theme-workbench.ts](/home/gewuyou/project/go/graft/web/src/utils/theme-workbench.ts:35) 参与每次 token 合成。因此它不是“最近应用的预设”元数据，而是视觉 authority。
+`selectedThemePresetId` 在 [web/src/store/modules/setting.ts](web/src/store/modules/setting.ts#L301) 被持续解析为预设对象，并在 [web/src/utils/theme-workbench.ts](web/src/utils/theme-workbench.ts#L35) 参与每次 token 合成。因此它不是“最近应用的预设”元数据，而是视觉 authority。
 
 ## 手工入口
 
@@ -93,8 +93,8 @@ Material 基础层另有 `--graft-glass-highlight` 与 `--graft-glass-noise-opac
 
 以下为合法共享派生规则：
 
-- `data-graft-hard-surface` 只依赖可编辑的 `radiusPreset === square && shadowPreset === hard-offset`，由 [setting.ts](/home/gewuyou/project/go/graft/web/src/store/modules/setting.ts:323) 写入并由 [neo-brutalist.less](/home/gewuyou/project/go/graft/web/src/style/neo-brutalist.less:9) 消费。
-- `data-acrylic-glass` 只依赖可编辑的 `isAcrylicEnabled`，由 [layouts/index.vue](/home/gewuyou/project/go/graft/web/src/layouts/index.vue:146) 写入并由共享 Acrylic CSS 消费。
+- `data-graft-hard-surface` 只依赖可编辑的 `radiusPreset === square && shadowPreset === hard-offset`，由 [web/src/store/modules/setting.ts](web/src/store/modules/setting.ts#L323) 写入并由 [web/src/style/neo-brutalist.less](web/src/style/neo-brutalist.less#L9) 消费。
+- `data-acrylic-glass` 只依赖可编辑的 `isAcrylicEnabled`，由 [web/src/layouts/index.vue](web/src/layouts/index.vue#L146) 写入并由共享 Acrylic CSS 消费。
 - `theme-mode` 只依赖可编辑 `mode`。
 
 真正的违规是运行时对象读取：`selectedThemePresetId -> preset.tokenOverrides/materialTokenOverrides`。此外，`preserveThemePersonalization` 作为持久化状态决定是否注入 Material token，并在首启默认预设上存在例外；同一预设 ID 因历史状态不同可产生不同视觉结果。
@@ -111,5 +111,5 @@ Material 基础层另有 `--graft-glass-highlight` 与 `--graft-glass-noise-opac
 ## 验证证据与限制
 
 - 已完成源码链路、selector、Token 定义和 Workbench 控件的交叉审计。
-- `bun test src/store/modules/setting.test.ts` 通过 48 项主题状态测试。
-- 同次运行的 `ThemeWorkbenchPresetCatalog.test.ts` 有 6 项失败，原因是 Vue Test Utils stub 注册触发 `WeakMap keys must be objects`；`ThemeWorkbenchPanel.test.ts` 另有 `i18n` named export 缺失。两者均为当前工作树测试装配问题，未在本轮修复，也不影响静态 authority 结论。
+- 审计阶段历史验证：`bun test src/store/modules/setting.test.ts` 通过 48 项主题状态测试。
+- 审计阶段历史验证：同次运行的 `ThemeWorkbenchPresetCatalog.test.ts` 有 6 项失败，原因是 Vue Test Utils stub 注册触发 `WeakMap keys must be objects`；`ThemeWorkbenchPanel.test.ts` 另有 `i18n` named export 缺失。后续修复验证见 [trace](../traces/theme-preset-governance-audit-trace.md)：49 项 store 测试、57 项 Vitest 测试和 `bun run check` 均通过。这些历史装配问题不影响静态 authority 结论。

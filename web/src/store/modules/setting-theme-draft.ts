@@ -25,7 +25,10 @@ function createPresetThemeTokenOverrides(
 
   if (scope === 'palette' && previousPreset) {
     (['light', 'dark'] as const).forEach((mode) => {
-      Object.entries(previousPreset.tokenOverrides?.[mode] ?? {}).forEach(([tokenKey, tokenValue]) => {
+      Object.entries({
+        ...(previousPreset.tokenOverrides?.[mode] ?? {}),
+        ...(previousPreset.materialTokenOverrides?.[mode] ?? {}),
+      }).forEach(([tokenKey, tokenValue]) => {
         if (currentPaletteTokens[mode][tokenKey] === tokenValue) {
           delete currentPaletteTokens[mode][tokenKey];
         }

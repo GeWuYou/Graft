@@ -5,6 +5,7 @@ Round context:
 - governance source: root `AGENTS.md`
 - task class: `web`
 - recovery source: `parent topic`
+- authority summary: writable theme authority state, editable token definitions, and shared derived CSS rules own rendered visuals; preset definitions may only materialize initial values into those owners.
 - recovery entry: `ai-plan/public/theme-preset-governance-audit/README.md`
 - local execution truth:
   - `web/AGENTS.md`
@@ -15,6 +16,7 @@ Round context:
   - `web/src/config/theme-workbench.ts`
 - AI skills:
   - `$graft-multi-agent-batch`
+  - `$graft-ai-plan-governance` when updating this topic's recovery material
   - `$graft-platform-architecture-review`
   - `$graft-consistency-review`
   - `$graft-delete-review`
@@ -42,4 +44,5 @@ Validation expectations:
 ```bash
 git diff --check
 python3 scripts/validate_ai_plan_structure.py
+cd web && bun run check
 ```

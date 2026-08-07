@@ -31,7 +31,7 @@ requires:
   adr: false
 execution:
   engine: direct-specialized-skill
-  dispatch_skill: graft-multi-agent-batch
+  dispatch_skill: graft-ai-plan-governance
 bootstrap:
   targets:
     - ai-plan/public/theme-preset-governance-audit/README.md

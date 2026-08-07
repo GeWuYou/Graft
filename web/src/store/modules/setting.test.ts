@@ -904,7 +904,7 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('side');
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
-    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBeUndefined();
   });
 
   it('applies the complete preset package into editable authority and token state', () => {
@@ -922,6 +922,18 @@ describe('setting store theme authority', () => {
     expect(store.isAcrylicEnabled).toBe(true);
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
     expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
+  });
+
+  it('clears previous material tokens when applying only a new palette', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset('one-dark-pro', 'complete');
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
+
+    store.selectThemePreset('industrial-yellow', 'palette');
+
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBeUndefined();
   });
 
   it('restores the target preset style values when leaving Industrial Yellow', () => {

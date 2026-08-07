@@ -36,6 +36,12 @@
 - Moved it to persisted setting config while excluding it from `WORKBENCH_STYLE_CONFIG_KEYS`; closing or canceling a visual draft no longer discards the user's next-application preference.
 - Focused Vitest coverage now verifies the persisted scope is outside visual draft rollback. It never becomes runtime visual authority.
 
+## 2026-08-07 PR Review Remediation
+
+- Aligned the topic recovery receipt, AI-plan skill routing, and listed web completion validation with repository governance.
+- Replaced local filesystem links in the historical audit with repository-relative references and labeled superseded test evidence as historical.
+- Added palette-scope regression coverage to ensure a complete preset's Material tokens do not survive a subsequent palette-only preset selection.
+
 ## Loop Batch State
 
 ```json

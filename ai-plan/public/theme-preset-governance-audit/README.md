@@ -17,7 +17,7 @@
 
 - governance source: root `AGENTS.md`
 - task class: `web`
-- recovery source: `none`
+- recovery source: `parent topic`
 - authority summary: editable setting state and its derived token/runtime outputs must own theme visuals; preset metadata may only initialize that state.
 
 ## Owned Scope
@@ -61,6 +61,7 @@ Out of scope:
 ```bash
 git diff --check
 python3 scripts/validate_ai_plan_structure.py
+cd web && bun run check
 ```
 
 ## Loop Entry
