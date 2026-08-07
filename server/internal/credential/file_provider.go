@@ -234,6 +234,9 @@ func dockerAuthKey(endpoint string) string {
 	if err != nil {
 		return endpoint
 	}
+	if parsed.Host == "docker.io" || parsed.Host == "index.docker.io" {
+		return "https://index.docker.io/v1/"
+	}
 	return parsed.Host
 }
 

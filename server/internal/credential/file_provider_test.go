@@ -24,6 +24,8 @@ func TestDockerAuthKeyUsesRegistryHost(t *testing.T) {
 	}{
 		{endpoint: "https://registry.example", want: "registry.example"},
 		{endpoint: "https://registry.example:5443/team", want: "registry.example:5443"},
+		{endpoint: "https://docker.io", want: "https://index.docker.io/v1/"},
+		{endpoint: "https://index.docker.io/v1", want: "https://index.docker.io/v1/"},
 	} {
 		if got := dockerAuthKey(test.endpoint); got != test.want {
 			t.Errorf("dockerAuthKey(%q) = %q, want %q", test.endpoint, got, test.want)
