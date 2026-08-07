@@ -240,36 +240,14 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		reservationLegID = input.Platform
 		reservationInstanceID = placement.BuilderInstanceID
 	}
-	reservationFence := buildstore.BuilderReservationFence(plan.ID, run.TaskID(), reservationLegID, run.Attempt())
 	if !reservationOK {
 		return errors.New("builder reservation repository is unavailable")
 	}
-	if run.Attempt() == 1 {
-		if err := reservationRepository.MarkBuilderReservationRunning(ctx, run.TaskID(), reservationLegID, reservationFence); err != nil {
-			return fmt.Errorf("start builder reservation: %w", err)
-		}
-	} else {
-		now := time.Now().UTC()
-		if _, err := reservationRepository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%s_%d", plan.ID, reservationLegID, run.Attempt()), InstanceID: reservationInstanceID, PlanID: plan.ID, TaskID: run.TaskID(), Attempt: run.Attempt(), LegID: reservationLegID, FenceToken: reservationFence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: now.Add(buildstore.BuilderReservationLeaseTTL), CreatedAt: now, UpdatedAt: now}); err != nil {
-			return fmt.Errorf("reserve builder retry capacity: %w", err)
-		}
+	cleanupReservation, err := beginBuilderReservation(ctx, reservationRepository, builderReservationStart{planID: plan.ID, taskID: run.TaskID(), instanceID: reservationInstanceID, legID: reservationLegID, attempt: run.Attempt()})
+	if err != nil {
+		return err
 	}
-	defer func() {
-		state := moduleapi.BuilderReservationReleased
-		if err != nil {
-			state = moduleapi.BuilderReservationAbandoned
-		}
-		// Reservation release is durable settlement: preserve request values but give it
-		// its own bounded budget after the task context has been canceled.
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
-		defer cleanupCancel()
-		if releaseErr := reservationRepository.ReleaseBuilderReservation(cleanupCtx, run.TaskID(), reservationLegID, reservationFence, state); releaseErr != nil {
-			err = errors.Join(err, fmt.Errorf("release builder reservation: %w", releaseErr))
-		}
-	}()
-	if err := reservationRepository.RenewBuilderReservation(ctx, run.TaskID(), reservationLegID, reservationFence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); err != nil {
-		return fmt.Errorf("renew builder reservation: %w", err)
-	}
+	defer cleanupReservation(&err)
 	if plan.RuntimeTargetID < 1 || e.intents == nil || !e.compatibleIntent(plan) {
 		return errors.New("execution plan is not supported by the selected build driver")
 	}
@@ -309,6 +287,47 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 	}
 	cancel()
 	return settleV2Artifact(ctx, e.repository, run.TaskID(), plan, result, binding.AuthExecution)
+}
+
+type builderReservationStart struct {
+	planID, instanceID, legID string
+	taskID                    uint64
+	attempt                   int
+}
+
+//nolint:cyclop // 容量租约获取、续租与有界释放必须保留在同一 fencing 审计边界。
+func beginBuilderReservation(ctx context.Context, repository moduleapi.BuilderReservationRepository, start builderReservationStart) (func(*error), error) {
+	if repository == nil || strings.TrimSpace(start.planID) == "" || start.taskID == 0 || strings.TrimSpace(start.instanceID) == "" || strings.TrimSpace(start.legID) == "" || start.attempt < 1 {
+		return nil, errors.New("builder reservation is invalid")
+	}
+	fence := buildstore.BuilderReservationFence(start.planID, start.taskID, start.legID, start.attempt)
+	if start.attempt == 1 {
+		if err := repository.MarkBuilderReservationRunning(ctx, start.taskID, start.legID, fence); err != nil {
+			return nil, fmt.Errorf("start builder reservation: %w", err)
+		}
+	} else {
+		now := time.Now().UTC()
+		if _, err := repository.ReserveBuilderAttempt(ctx, moduleapi.BuilderReservation{ID: fmt.Sprintf("reservation_%s_%s_%d", start.planID, start.legID, start.attempt), InstanceID: start.instanceID, PlanID: start.planID, TaskID: start.taskID, Attempt: start.attempt, LegID: start.legID, FenceToken: fence, State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: now.Add(buildstore.BuilderReservationLeaseTTL), CreatedAt: now, UpdatedAt: now}); err != nil {
+			return nil, fmt.Errorf("reserve builder retry capacity: %w", err)
+		}
+	}
+	cleanup := func(executionErr *error) {
+		state := moduleapi.BuilderReservationReleased
+		if executionErr != nil && *executionErr != nil {
+			state = moduleapi.BuilderReservationAbandoned
+		}
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
+		defer cleanupCancel()
+		if releaseErr := repository.ReleaseBuilderReservation(cleanupCtx, start.taskID, start.legID, fence, state); releaseErr != nil && executionErr != nil {
+			*executionErr = errors.Join(*executionErr, fmt.Errorf("release builder reservation: %w", releaseErr))
+		}
+	}
+	if err := repository.RenewBuilderReservation(ctx, start.taskID, start.legID, fence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); err != nil {
+		renewErr := fmt.Errorf("renew builder reservation: %w", err)
+		cleanup(&renewErr)
+		return nil, renewErr
+	}
+	return cleanup, nil
 }
 
 func (e v2ExecutionPlanExecutor) executePlatformLeg(ctx context.Context, run moduleapi.StageRun, input moduleapi.BuildPlanTaskInput, plan moduleapi.BuildExecutionPlan) error {

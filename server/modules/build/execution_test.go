@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
@@ -262,6 +264,70 @@ type snapshotDeliveryCapabilityStub struct {
 type providerConformanceCapabilityStub struct {
 	result moduleapi.ProviderExecutionConformanceResult
 	err    error
+}
+
+type builderReservationRepositoryStub struct {
+	markedLeg, markedFence   string
+	renewLeg, renewFence     string
+	releaseLeg, releaseFence string
+	releaseState             string
+	renewErr                 error
+}
+
+func (s *builderReservationRepositoryStub) ReserveBuilder(context.Context, *sql.Tx, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+}
+
+func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(context.Context, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+}
+
+func (s *builderReservationRepositoryStub) MarkBuilderReservationRunning(_ context.Context, _ uint64, legID, fence string) error {
+	s.markedLeg, s.markedFence = legID, fence
+	return nil
+}
+
+func (s *builderReservationRepositoryStub) RenewBuilderReservation(_ context.Context, _ uint64, legID, fence string, _ time.Time) error {
+	s.renewLeg, s.renewFence = legID, fence
+	return s.renewErr
+}
+
+func (s *builderReservationRepositoryStub) ReleaseBuilderReservation(_ context.Context, _ uint64, legID, fence, state string) error {
+	s.releaseLeg, s.releaseFence, s.releaseState = legID, fence, state
+	return nil
+}
+
+func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", BuilderInstanceID: "fallback", BuilderPlacements: []moduleapi.BuilderPlacement{{Platform: "linux/amd64", BuilderInstanceID: "builder-amd64", RuntimeTargetID: 4}}}
+	placement, found := plan.PlacementForPlatform("linux/amd64")
+	if !found {
+		t.Fatal("single-platform placement was not found")
+	}
+	repository := &builderReservationRepositoryStub{}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1})
+	if err != nil {
+		t.Fatalf("begin builder reservation: %v", err)
+	}
+	wantFence := buildstore.BuilderReservationFence(plan.ID, 42, "linux/amd64", 1)
+	if repository.markedLeg != "linux/amd64" || repository.markedFence != wantFence || repository.renewLeg != "linux/amd64" || repository.renewFence != wantFence {
+		t.Fatalf("reservation calls = mark(%q,%q) renew(%q,%q)", repository.markedLeg, repository.markedFence, repository.renewLeg, repository.renewFence)
+	}
+	var executionErr error
+	cleanup(&executionErr)
+	if repository.releaseState != moduleapi.BuilderReservationReleased || repository.releaseLeg != "linux/amd64" || repository.releaseFence != wantFence {
+		t.Fatalf("reservation release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
+}
+
+func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *testing.T) {
+	repository := &builderReservationRepositoryStub{renewErr: errors.New("renew failed")}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1})
+	if cleanup != nil || err == nil || !strings.Contains(err.Error(), "renew builder reservation") {
+		t.Fatalf("begin builder reservation = cleanup:%v err:%v", cleanup != nil, err)
+	}
+	if repository.releaseState != moduleapi.BuilderReservationAbandoned || repository.releaseLeg != "linux/amd64" || repository.releaseFence != buildstore.BuilderReservationFence("plan_1", 42, "linux/amd64", 1) {
+		t.Fatalf("renewal-failure release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
 }
 
 func (s providerConformanceCapabilityStub) ConformProviderExecution(context.Context, moduleapi.ProviderExecutionConformanceRequest) (moduleapi.ProviderExecutionConformanceResult, error) {
