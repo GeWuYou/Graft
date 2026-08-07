@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -251,11 +253,18 @@ func (r *SQLRepository) lockOwner(ctx context.Context, tx *sql.Tx, owner modulea
 	if r.placeholder == placeholderQuestion {
 		return nil
 	}
-	_, err := tx.ExecContext(ctx, r.placeholder.rebind(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`), owner.Type+"\x00"+owner.ID)
+	_, err := tx.ExecContext(ctx, r.placeholder.rebind(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`), ownerLockKey(owner))
 	if err != nil {
 		return wrapDatabaseOperation("task_owner_capacity_lock", err)
 	}
 	return nil
+}
+
+// ownerLockKey 将任务 owner 编码为只含 ASCII 的稳定 advisory lock 键，避免 PostgreSQL text 参数拒绝 NUL 字节。
+func ownerLockKey(owner moduleapi.TaskOwner) string {
+	canonical := fmt.Sprintf("%d:%s:%d:%s", len(owner.Type), owner.Type, len(owner.ID), owner.ID)
+	digest := sha256.Sum256([]byte(canonical))
+	return hex.EncodeToString(digest[:])
 }
 
 func (r *SQLRepository) ownerHasActiveTask(ctx context.Context, tx *sql.Tx, owner moduleapi.TaskOwner) (bool, error) {

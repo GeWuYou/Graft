@@ -43,6 +43,21 @@ func TestWrapDatabaseOperationDoesNotExposeDriverMessage(t *testing.T) {
 	}
 }
 
+func TestOwnerLockKeyIsStableASCIIAndSeparatesOwners(t *testing.T) {
+	t.Parallel()
+
+	first := ownerLockKey(moduleapi.TaskOwner{Type: "application", ID: "app_1"})
+	second := ownerLockKey(moduleapi.TaskOwner{Type: "application", ID: "app_2"})
+	if first == second || len(first) != 64 {
+		t.Fatalf("owner lock keys are not stable distinct SHA-256 values: %q %q", first, second)
+	}
+	for index := range first {
+		if first[index] == 0 {
+			t.Fatalf("owner lock key contains NUL byte: %q", first)
+		}
+	}
+}
+
 func TestSQLRepositoryCreatePersistsFrozenTaskPlanAndCreatedEvent(t *testing.T) {
 	t.Parallel()
 
