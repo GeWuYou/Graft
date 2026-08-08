@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,6 +64,16 @@ func TestAdoptSnapshotMaterializationRejectsSymbolicLink(t *testing.T) {
 	}
 	if _, err := adoptSnapshotMaterialization(moduleapi.WorkspaceSnapshot{ID: "snapshot_test", MaterializedRoot: source}); err == nil {
 		t.Fatal("expected symbolic link materialization to be rejected")
+	}
+}
+
+func TestAdoptSnapshotMaterializationRejectsDigestMismatch(t *testing.T) {
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adoptSnapshotMaterialization(moduleapi.WorkspaceSnapshot{ID: "snapshot_test", ContentDigest: "sha256:" + strings.Repeat("0", 64), MaterializedRoot: source}); err == nil {
+		t.Fatal("expected immutable snapshot digest mismatch to fail closed")
 	}
 }
 

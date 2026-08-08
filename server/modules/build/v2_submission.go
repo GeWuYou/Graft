@@ -300,12 +300,12 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	// Project 仅负责来源授权和初次捕获；提交后由 Build 保留执行物化内容，
 	// 后续保留策略不会改变 Snapshot identity。
-	managedSnapshot, adoptErr := adoptSnapshotMaterialization(snapshot)
+	materialization, materializeErr := (buildWorkspaceMaterializer{}).MaterializeSnapshot(ctx, snapshot, moduleapi.WorkspaceMaterializationRequest{ExecutionID: request.IdempotencyKey})
 	_ = os.RemoveAll(snapshot.MaterializedRoot)
-	if adoptErr != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("adopt workspace snapshot materialization: %w", adoptErr)
+	if materializeErr != nil {
+		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize workspace snapshot: %w", materializeErr)
 	}
-	snapshot = managedSnapshot
+	snapshot.MaterializedRoot = materialization.MaterializedRoot
 	plan, err := freezeExecutionPlan(snapshot, request, selectedBuilderID)
 	if err != nil {
 		_ = os.RemoveAll(snapshot.MaterializedRoot)

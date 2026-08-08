@@ -67,18 +67,19 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { createBuildJob, getBuildBuilderPools, getBuildRuntimeTargets, getBuildWorkspaces } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
-import type { BuildJobCreateRequest } from '../../types/build';
+import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
 const { t } = useI18n();
 const router = useRouter();
 const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
 const selectionMode = ref<'target' | 'pool'>('target');
-const form = ref<BuildJobCreateRequest>({
+type BuildJobForm = Parameters<typeof createBuildJob>[0];
+const form = ref<BuildJobForm>({
   workspace_id: '',
   runtime_target_id: 0,
-  template_ref: 'oci-dockerfile/default@v1',
-  driver: 'docker-engine@v1',
+  template_ref: BUILD_TEMPLATE_REF,
+  driver: BUILD_DRIVER_REF,
   platforms: ['linux/amd64'],
   destination: { kind: 'oci_registry', connection_ref: 'registry:default', repository_ref: '', reference: 'latest' },
 });

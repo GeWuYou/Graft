@@ -52,6 +52,57 @@ type BuilderInstance struct {
 	DriverVersion   string
 }
 
+// BuildCapabilityRequirement 是由冻结 Template、Driver、平台和 Snapshot 交付要求推导出的静态要求。
+// 它不携带 Runtime Target 连接、凭据或动态遥测事实。
+type BuildCapabilityRequirement struct {
+	DriverRef             string
+	Platforms             []string
+	SnapshotDeliveryModes []string
+	RequiredFeatures      []string
+}
+
+// BuildExecutionCapability 是 Runtime provider 对单个 Builder 的版本化静态能力事实。
+// ProviderCapabilityVersion 才是能力语义版本；DriverVersion 仅用于诊断。
+type BuildExecutionCapability struct {
+	ProviderCapabilityVersion string
+	SupportedDrivers          []string
+	SupportedPlatforms        []string
+	SnapshotDeliveryModes     []string
+	Features                  []string
+}
+
+// NegotiatedCapability 是 CapabilityMatcher 对一次静态匹配的可重放结果。
+type NegotiatedCapability struct {
+	ProviderCapabilityVersion string
+	DriverRef                 string
+	SnapshotDeliveryMode      string
+	SatisfiedFeatures         []string
+	UnsatisfiedFeatures       []string
+}
+
+// CapabilityMatcher 是 Build-owned 的纯能力协商边界；实现不得读取遥测或重新选择 Target。
+type CapabilityMatcher interface {
+	MatchBuildCapability(BuildCapabilityRequirement, BuildExecutionCapability) (NegotiatedCapability, error)
+}
+
+// WorkspaceMaterializationRequest 描述一次按不可变 Snapshot 身份隔离的执行物化。
+type WorkspaceMaterializationRequest struct {
+	ExecutionID string
+}
+
+// WorkspaceMaterialization 是 Build-owned 执行字节的私有引用，不能进入 Task metadata 或 HTTP。
+type WorkspaceMaterialization struct {
+	SnapshotID       string
+	ContentDigest    string
+	MaterializedRoot string
+}
+
+// WorkspaceMaterializer 负责 Snapshot -> execution workspace -> cleanup 生命周期。
+type WorkspaceMaterializer interface {
+	MaterializeSnapshot(context.Context, WorkspaceSnapshot, WorkspaceMaterializationRequest) (WorkspaceMaterialization, error)
+	ReleaseMaterialization(context.Context, WorkspaceMaterialization) error
+}
+
 // BuilderPool 是 Builder Instance 的选择策略集合，不拥有 Task 状态或独立调度循环。
 type BuilderPool struct {
 	ID               string

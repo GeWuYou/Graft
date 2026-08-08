@@ -100,7 +100,7 @@
         "workspace": "工作区",
         "workspaceId": "工作区 ID",
         "workspaceIdRequired": "请输入工作区 ID。",
-        "workspacePlaceholder": "选择工作区快照",
+        "workspacePlaceholder": "选择 Build 工作区",
         "runtimeTarget": "构建运行目标",
         "runtimeTargetRequired": "请输入构建运行目标。",
         "runtimeTargetPlaceholder": "选择支持构建的 Runtime Target",

@@ -105,7 +105,7 @@
         "workspace": "Workspace",
         "workspaceId": "Workspace ID",
         "workspaceIdRequired": "Workspace ID is required.",
-        "workspacePlaceholder": "Select a workspace snapshot",
+        "workspacePlaceholder": "Select a Build workspace",
         "runtimeTarget": "Build runtime target",
         "runtimeTargetRequired": "Build runtime target is required.",
         "runtimeTargetPlaceholder": "Select a build-capable Runtime Target",
