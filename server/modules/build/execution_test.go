@@ -293,6 +293,7 @@ type builderReservationRepositoryStub struct {
 	renewLeg, renewFence     string
 	releaseLeg, releaseFence string
 	releaseState             string
+	retryReservation         moduleapi.BuilderReservation
 	renewErr                 error
 }
 
@@ -300,8 +301,9 @@ func (s *builderReservationRepositoryStub) ReserveBuilder(context.Context, *sql.
 	return moduleapi.BuilderReservation{}, errors.New("not implemented")
 }
 
-func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(context.Context, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
-	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(_ context.Context, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	s.retryReservation = reservation
+	return reservation, nil
 }
 
 func (s *builderReservationRepositoryStub) MarkBuilderReservationRunning(_ context.Context, _ uint64, legID, fence string) error {
@@ -349,6 +351,23 @@ func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *te
 	}
 	if repository.releaseState != moduleapi.BuilderReservationAbandoned || repository.releaseLeg != "linux/amd64" || repository.releaseFence != buildstore.BuilderReservationFence("plan_1", 42, "linux/amd64", 1) {
 		t.Fatalf("renewal-failure release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
+}
+
+func TestBeginBuilderReservationRetryPreservesFrozenBuilderIdentityAndUsesNewFence(t *testing.T) {
+	repository := &builderReservationRepositoryStub{}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_frozen", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 2})
+	if err != nil {
+		t.Fatalf("begin retry reservation: %v", err)
+	}
+	wantFence := buildstore.BuilderReservationFence("plan_frozen", 42, "linux/amd64", 2)
+	if repository.retryReservation.InstanceID != "builder-amd64" || repository.retryReservation.PlanID != "plan_frozen" || repository.retryReservation.FenceToken != wantFence || repository.retryReservation.Attempt != 2 {
+		t.Fatalf("retry reservation = %#v", repository.retryReservation)
+	}
+	var executionErr error
+	cleanup(&executionErr)
+	if repository.releaseFence != wantFence || repository.releaseState != moduleapi.BuilderReservationReleased {
+		t.Fatalf("retry release = (%q,%q)", repository.releaseFence, repository.releaseState)
 	}
 }
 

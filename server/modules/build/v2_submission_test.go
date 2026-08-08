@@ -58,6 +58,30 @@ func (a placementAssignments) CanUseBuildTarget(_ context.Context, _ uint64, tar
 	return a[targetID], nil
 }
 
+type builderTelemetryReaderStub struct {
+	snapshots map[int64]moduleapi.BuilderTelemetrySnapshot
+	admitted  map[int64]bool
+}
+
+func (r builderTelemetryReaderStub) ListBuilderTelemetry(_ context.Context, targetIDs []int64) ([]moduleapi.BuilderTelemetrySnapshot, error) {
+	results := make([]moduleapi.BuilderTelemetrySnapshot, 0, len(targetIDs))
+	for _, targetID := range targetIDs {
+		if snapshot, ok := r.snapshots[targetID]; ok {
+			results = append(results, snapshot)
+		}
+	}
+	return results, nil
+}
+
+func (r builderTelemetryReaderStub) ConformBuilderTelemetry(_ context.Context, targetIDs []int64) (bool, error) {
+	for _, targetID := range targetIDs {
+		if !r.admitted[targetID] {
+			return false, nil
+		}
+	}
+	return len(targetIDs) > 0, nil
+}
+
 type placementBuilderResources struct {
 	pool       moduleapi.BuilderPool
 	members    []moduleapi.BuilderInstance
@@ -282,6 +306,62 @@ func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *te
 	}
 	if len(placements) != 2 || placements[0].RuntimeTargetID != 4 || placements[1].RuntimeTargetID != 5 || placements[0].BuilderInstanceID != "builder-amd64" || placements[1].BuilderInstanceID != "builder-arm64" {
 		t.Fatalf("placements = %#v", placements)
+	}
+}
+
+func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamicEvidence(t *testing.T) {
+	now := time.Now().UTC()
+	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-capacity", SchedulingPolicy: "capacity"}, members: []moduleapi.BuilderInstance{
+		{ID: "builder-small", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
+		{ID: "builder-large", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
+		{ID: "builder-rejected", RuntimeTargetID: 6, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
+	}}
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.builderResources = resources
+	service.buildTargets = placementTargetReader{
+		4: {ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+		5: {ID: 5, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+		6: {ID: 6, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+	}
+	service.buildAssignments = placementAssignments{4: true, 5: true, 6: true}
+	service.ConfigureBuilderTelemetry(builderTelemetryReaderStub{admitted: map[int64]bool{4: true, 5: true, 6: false}, snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{
+		4: {TargetID: 4, BuilderScope: "builder:small", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, Running: 1, Queued: 0, AllocatableSlots: 1, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:small", Provenance: "agent", Integrity: "sha256:small"},
+		5: {TargetID: 5, BuilderScope: "builder:large", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v2", Available: true, Running: 2, Queued: 0, AllocatableSlots: 4, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:large", Provenance: "agent", Integrity: "sha256:large"},
+		6: {TargetID: 6, BuilderScope: "builder:rejected", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, Running: 0, Queued: 0, AllocatableSlots: 99, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:rejected", Provenance: "agent", Integrity: "sha256:rejected"},
+	}})
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	placements, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-capacity", v2DockerEngineDriver, []string{"linux/amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(placements) != 1 || placements[0].BuilderInstanceID != "builder-large" || placements[0].RuntimeTargetID != 5 {
+		t.Fatalf("dynamic placement = %#v", placements)
+	}
+	var evidence dynamicPlacementEvidence
+	if err := json.Unmarshal(placements[0].SchedulingEvidence, &evidence); err != nil {
+		t.Fatal(err)
+	}
+	if evidence.PolicyID != "build.pool.capacity" || evidence.PolicyVersion != "v1" || evidence.SelectedInstanceID != "builder-large" || evidence.Telemetry.SourceRef != "report:large" || evidence.Telemetry.CapabilityVersion != "v2" || evidence.Telemetry.Integrity != "sha256:large" || evidence.CandidateFingerprint == "" {
+		t.Fatalf("frozen dynamic evidence = %#v", evidence)
+	}
+}
+
+func TestSelectBuilderPlacementsFromPoolRejectsDynamicPolicyWithoutConformantTelemetry(t *testing.T) {
+	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-load", SchedulingPolicy: "least_load"}, members: []moduleapi.BuilderInstance{{ID: "builder-a", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"}}}
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.builderResources = resources
+	service.buildTargets = placementTargetReader{4: {ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}}
+	service.buildAssignments = placementAssignments{4: true}
+	service.ConfigureBuilderTelemetry(builderTelemetryReaderStub{admitted: map[int64]bool{4: false}})
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	if _, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-load", v2DockerEngineDriver, []string{"linux/amd64"}); err == nil || !strings.Contains(err.Error(), "dynamically conformant") {
+		t.Fatalf("dynamic placement error = %v", err)
 	}
 }
 

@@ -63,6 +63,14 @@ func (s *Service) ConfigureV2Submission(snapshots moduleapi.ApplicationWorkspace
 	}
 }
 
+// ConfigureBuilderTelemetry 注入 Runtime Target 的窄化 Builder 遥测读取器，用于 Phase 4 动态 Placement。
+// 读取器缺失时静态 Pool 策略仍保持可用，动态策略则 fail-closed。
+func (s *Service) ConfigureBuilderTelemetry(telemetry moduleapi.RuntimeTargetBuilderTelemetryReader) {
+	if s != nil {
+		s.builderTelemetry = telemetry
+	}
+}
+
 // SelectBuilderFromPool 通过 Build-owned Pool 选择一个 ready Builder，并在返回前
 // 重新校验操作者、Runtime Target capability 与冻结的 Driver 意图。它不提交 Task；
 // 后续 Pool write contract 必须将结果冻结到 Execution Plan。
@@ -137,8 +145,9 @@ func (s *Service) selectBuilderFromPool(ctx context.Context, pool moduleapi.Buil
 }
 
 type builderLabelSelector struct {
-	Labels     map[string]string `json:"labels"`
-	InstanceID string            `json:"instance_id"`
+	Labels      map[string]string `json:"labels"`
+	InstanceID  string            `json:"instance_id"`
+	AffinityKey string            `json:"affinity_key"`
 }
 
 func decodeBuilderSelector(raw json.RawMessage) (builderLabelSelector, error) {
@@ -155,6 +164,7 @@ func decodeBuilderSelector(raw json.RawMessage) (builderLabelSelector, error) {
 		}
 	}
 	selector.InstanceID = strings.TrimSpace(selector.InstanceID)
+	selector.AffinityKey = strings.TrimSpace(selector.AffinityKey)
 	return selector, nil
 }
 
@@ -176,8 +186,43 @@ type staticPoolSelectionInput struct {
 	MemberCount  int
 }
 
+type frozenBuilderTelemetryEvidence struct {
+	TargetID              int64     `json:"target_id"`
+	BuilderScope          string    `json:"builder_scope"`
+	ProviderID            string    `json:"provider_id"`
+	CapabilityProfile     string    `json:"capability_profile"`
+	CapabilityVersion     string    `json:"capability_version"`
+	Available             bool      `json:"available"`
+	Running               int       `json:"running"`
+	Queued                int       `json:"queued"`
+	AllocatableSlots      int       `json:"allocatable_slots"`
+	ObservedAt            time.Time `json:"observed_at"`
+	ExpiresAt             time.Time `json:"expires_at"`
+	SourceRef             string    `json:"source_ref"`
+	Provenance            string    `json:"provenance"`
+	Integrity             string    `json:"integrity"`
+	AffinityKey           string    `json:"affinity_key,omitempty"`
+	UnsupportedDimensions []string  `json:"unsupported_dimensions"`
+}
+
+type dynamicPlacementEvidence struct {
+	PolicyID             string                         `json:"policy_id"`
+	PolicyVersion        string                         `json:"policy_version"`
+	CandidateFingerprint string                         `json:"candidate_fingerprint"`
+	SelectedInstanceID   string                         `json:"selected_instance_id"`
+	Telemetry            frozenBuilderTelemetryEvidence `json:"telemetry"`
+}
+
+type dynamicBuilderCandidate struct {
+	instance  moduleapi.BuilderInstance
+	telemetry moduleapi.BuilderTelemetrySnapshot
+}
+
 //nolint:cyclop // Static placement must keep policy admission, eligibility and frozen evidence in one authority boundary.
 func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, members []moduleapi.BuilderInstance, input staticPoolSelectionInput) (staticBuilderSelection, error) {
+	if isDynamicSchedulingPolicy(pool.SchedulingPolicy) {
+		return s.selectDynamicPoolCandidate(ctx, pool, members, input)
+	}
 	if pool.SchedulingPolicy != "manual" && pool.SchedulingPolicy != "round_robin" && pool.SchedulingPolicy != "random" {
 		return staticBuilderSelection{}, fmt.Errorf("builder pool scheduling policy %q is not supported", pool.SchedulingPolicy)
 	}
@@ -208,6 +253,110 @@ func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool modu
 		return staticBuilderSelection{}, fmt.Errorf("marshal static placement evidence: %w", err)
 	}
 	return staticBuilderSelection{instance: selected, evidence: raw}, nil
+}
+
+func isDynamicSchedulingPolicy(policy string) bool {
+	return policy == "least_load" || policy == "capacity" || policy == "affinity"
+}
+
+// selectDynamicPoolCandidate admits each candidate only from fresh, provider-conformant Runtime Target telemetry.
+// It freezes the observation used to rank the Builder so a retry never re-reads mutable telemetry or reselects placement.
+func (s *Service) selectDynamicPoolCandidate(ctx context.Context, pool moduleapi.BuilderPool, members []moduleapi.BuilderInstance, input staticPoolSelectionInput) (staticBuilderSelection, error) {
+	if s == nil || s.builderTelemetry == nil {
+		return staticBuilderSelection{}, errors.New("dynamic builder placement telemetry authority is unavailable")
+	}
+	selector, err := decodeBuilderSelector(pool.Selector)
+	if err != nil {
+		return staticBuilderSelection{}, err
+	}
+	candidates := make([]dynamicBuilderCandidate, 0, len(members))
+	for _, instance := range members {
+		candidate, eligible, candidateErr := s.dynamicEligibleCandidate(ctx, pool.SchedulingPolicy, selector, instance, input)
+		if candidateErr != nil {
+			return staticBuilderSelection{}, candidateErr
+		}
+		if eligible {
+			candidates = append(candidates, candidate)
+		}
+	}
+	if len(candidates) == 0 {
+		return staticBuilderSelection{}, errors.New("builder pool has no dynamically conformant eligible instance")
+	}
+	less := dynamicCandidateLess(pool.SchedulingPolicy)
+	sort.Slice(candidates, func(i, j int) bool { return less(candidates[i], candidates[j]) })
+	selected := candidates[0]
+	evidence := dynamicPlacementEvidence{
+		PolicyID: "build.pool." + pool.SchedulingPolicy, PolicyVersion: "v1",
+		CandidateFingerprint: dynamicCandidateFingerprint(pool, selector, candidates), SelectedInstanceID: selected.instance.ID,
+		Telemetry: freezeBuilderTelemetryEvidence(selected.telemetry),
+	}
+	raw, err := json.Marshal(evidence)
+	if err != nil {
+		return staticBuilderSelection{}, fmt.Errorf("marshal dynamic placement evidence: %w", err)
+	}
+	return staticBuilderSelection{instance: selected.instance, evidence: raw}, nil
+}
+
+// dynamicEligibleCandidate validates one Builder using only Runtime Target's provider-conformant telemetry authority.
+//
+//nolint:cyclop // Fail-closed eligibility must keep provider admission, freshness and policy constraints together.
+func (s *Service) dynamicEligibleCandidate(ctx context.Context, policy string, selector builderLabelSelector, instance moduleapi.BuilderInstance, input staticPoolSelectionInput) (dynamicBuilderCandidate, bool, error) {
+	if instance.Status != "ready" || !matchesBuilderLabels(instance.Labels, selector.Labels) || !s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID) {
+		return dynamicBuilderCandidate{}, false, nil
+	}
+	admitted, err := s.builderTelemetry.ConformBuilderTelemetry(ctx, []int64{instance.RuntimeTargetID})
+	if err != nil {
+		return dynamicBuilderCandidate{}, false, fmt.Errorf("conform builder telemetry: %w", err)
+	}
+	if !admitted {
+		return dynamicBuilderCandidate{}, false, nil
+	}
+	snapshots, err := s.builderTelemetry.ListBuilderTelemetry(ctx, []int64{instance.RuntimeTargetID})
+	if err != nil {
+		return dynamicBuilderCandidate{}, false, fmt.Errorf("read builder telemetry: %w", err)
+	}
+	if len(snapshots) != 1 || snapshots[0].TargetID != instance.RuntimeTargetID || !snapshots[0].DynamicPlacementConformantAt(time.Now().UTC()) || (policy == "affinity" && (selector.AffinityKey == "" || snapshots[0].AffinityKey != selector.AffinityKey)) {
+		return dynamicBuilderCandidate{}, false, nil
+	}
+	return dynamicBuilderCandidate{instance: instance, telemetry: snapshots[0]}, true, nil
+}
+
+func dynamicCandidateLess(policy string) func(dynamicBuilderCandidate, dynamicBuilderCandidate) bool {
+	return func(left, right dynamicBuilderCandidate) bool {
+		if policy == "capacity" && left.telemetry.AllocatableSlots != right.telemetry.AllocatableSlots {
+			return left.telemetry.AllocatableSlots > right.telemetry.AllocatableSlots
+		}
+		leftLoad, rightLoad := left.telemetry.Running+left.telemetry.Queued, right.telemetry.Running+right.telemetry.Queued
+		if policy != "capacity" && leftLoad != rightLoad {
+			return leftLoad < rightLoad
+		}
+		if left.telemetry.AllocatableSlots != right.telemetry.AllocatableSlots {
+			return left.telemetry.AllocatableSlots > right.telemetry.AllocatableSlots
+		}
+		return left.instance.ID < right.instance.ID
+	}
+}
+
+func freezeBuilderTelemetryEvidence(snapshot moduleapi.BuilderTelemetrySnapshot) frozenBuilderTelemetryEvidence {
+	return frozenBuilderTelemetryEvidence{TargetID: snapshot.TargetID, BuilderScope: snapshot.BuilderScope, ProviderID: snapshot.ProviderID, CapabilityProfile: snapshot.CapabilityProfile, CapabilityVersion: snapshot.CapabilityVersion, Available: snapshot.Available, Running: snapshot.Running, Queued: snapshot.Queued, AllocatableSlots: snapshot.AllocatableSlots, ObservedAt: snapshot.ObservedAt.UTC(), ExpiresAt: snapshot.ExpiresAt.UTC(), SourceRef: snapshot.SourceRef, Provenance: snapshot.Provenance, Integrity: snapshot.Integrity, AffinityKey: snapshot.AffinityKey, UnsupportedDimensions: append([]string(nil), snapshot.UnsupportedDimensions...)}
+}
+
+func dynamicCandidateFingerprint(pool moduleapi.BuilderPool, selector builderLabelSelector, candidates []dynamicBuilderCandidate) string {
+	type fingerprintCandidate struct {
+		InstanceID string                         `json:"instance_id"`
+		Telemetry  frozenBuilderTelemetryEvidence `json:"telemetry"`
+	}
+	fingerprintCandidates := make([]fingerprintCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		fingerprintCandidates = append(fingerprintCandidates, fingerprintCandidate{InstanceID: candidate.instance.ID, Telemetry: freezeBuilderTelemetryEvidence(candidate.telemetry)})
+	}
+	payload, _ := json.Marshal(struct {
+		PoolID, Policy string
+		Selector       builderLabelSelector
+		Candidates     []fingerprintCandidate
+	}{pool.ID, pool.SchedulingPolicy, selector, fingerprintCandidates})
+	sum := sha256.Sum256(payload)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 type staticPoolSelectionEvidence struct {

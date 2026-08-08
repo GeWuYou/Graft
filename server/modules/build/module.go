@@ -131,6 +131,9 @@ func configureBuildV2Submission(ctx *module.Context, service *Service) {
 	if snapshotErr == nil && targetErr == nil && assignmentErr == nil && registryErr == nil {
 		service.ConfigureV2Submission(snapshots, targets, assignments, registry)
 	}
+	if telemetry, telemetryErr := module.ResolveService[moduleapi.RuntimeTargetBuilderTelemetryReader](ctx.Services, (*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil)); telemetryErr == nil {
+		service.ConfigureBuilderTelemetry(telemetry)
+	}
 }
 
 // Boot 当前无常驻构建资源。

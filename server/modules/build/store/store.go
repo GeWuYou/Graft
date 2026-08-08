@@ -1579,7 +1579,7 @@ func validBuilderInstanceStatus(status string) bool {
 	return status == "pending" || status == "ready" || status == "draining" || status == "unavailable"
 }
 func validBuilderPoolPolicy(policy string) bool {
-	return policy == "manual" || policy == "round_robin" || policy == "random"
+	return policy == "manual" || policy == "round_robin" || policy == "random" || policy == "least_load" || policy == "capacity" || policy == "affinity"
 }
 
 // CreateJob 在 Task 分配稳定任务标识后存储 Build 快照。

@@ -60,6 +60,7 @@ type Service struct {
 	snapshots         moduleapi.ApplicationWorkspaceSnapshotResolver
 	buildTargets      moduleapi.BuildRuntimeTargetReader
 	buildAssignments  moduleapi.RuntimeTargetBuildAssignmentReader
+	builderTelemetry  moduleapi.RuntimeTargetBuilderTelemetryReader
 	registry          moduleapi.RegistryDestinationResolver
 	intents           IntentResolver
 	workspaces        buildstore.WorkspaceRepository
