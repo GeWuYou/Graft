@@ -119,6 +119,13 @@ type BuilderPoolMember struct {
 	Priority   int
 }
 
+// BuilderPoolSelection 是持久化 Pool 策略返回的静态选择事实。Cursor 只在
+// RoundRobin 策略中有值，调用方必须把它冻结为 Placement Evidence。
+type BuilderPoolSelection struct {
+	Instance BuilderInstance
+	Cursor   *int64
+}
+
 // BuilderPlacement 是冻结计划中一个目标平台到 Builder Instance/Runtime Target 的可重放分配。
 // 它由 Build scheduler 在提交前解析，Task Runtime 只消费其稳定身份而不重新调度。
 type BuilderPlacement struct {
@@ -178,7 +185,7 @@ type BuilderResourceRepository interface {
 	ReplaceBuilderPoolMembers(context.Context, string, []BuilderPoolMember, uint64) error
 	GetBuilderPool(context.Context, string) (BuilderPool, error)
 	ListBuilderPoolMembers(context.Context, string) ([]BuilderInstance, error)
-	SelectRoundRobinBuilderInstance(context.Context, string) (BuilderInstance, error)
+	SelectRoundRobinBuilderInstance(context.Context, string) (BuilderPoolSelection, error)
 }
 
 const (

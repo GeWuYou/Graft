@@ -97,7 +97,7 @@ describe('BuildCreatePage', () => {
     mocks.getBuildWorkspaces.mockResolvedValue({ items: [{ workspace_id: 'workspace_app', name: 'Application' }] });
     mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
     mocks.getBuildBuilderPools.mockResolvedValue({
-      items: [{ pool_id: 'pool:default', display_name: 'Default Pool' }],
+      items: [{ pool_id: 'pool:default', display_name: 'Default Pool', scheduling_policy: 'round_robin' }],
     });
   });
 
@@ -109,6 +109,21 @@ describe('BuildCreatePage', () => {
     expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).not.toContain('selectorsUnavailable');
+  });
+
+  it('projects only the server-authorized static Pool policy beside its display name', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(
+      (wrapper.vm as unknown as { builderPoolOptions: Array<{ label: string; policy: string }> }).builderPoolOptions,
+    ).toEqual([
+      {
+        label: 'Default Pool (build.jobs.create.builderPoolPolicy.roundRobin)',
+        policy: 'round_robin',
+        value: 'pool:default',
+      },
+    ]);
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {

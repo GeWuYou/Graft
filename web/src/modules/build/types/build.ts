@@ -12,6 +12,7 @@ export type BuildJobListResponse = components['schemas']['build-job-list'];
 export type BuildArtifact = components['schemas']['build-artifact'];
 export type BuildArtifactListResponse = components['schemas']['build-artifact-list'];
 export type BuildArtifactPromotionCreateRequest = components['schemas']['build-artifact-promotion-create-request'];
+export type BuildBuilderPool = components['schemas']['build-builder-pool'];
 
 // 这些引用由 OpenAPI enum 派生，避免创建表单与提交契约各自维护一份可发布意图。
 export const BUILD_TEMPLATE_REF = 'oci-dockerfile/default@v1' satisfies BuildTemplateRef;

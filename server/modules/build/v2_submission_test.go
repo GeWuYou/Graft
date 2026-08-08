@@ -101,13 +101,14 @@ func (r *placementBuilderResources) GetBuilderPool(context.Context, string) (mod
 func (r *placementBuilderResources) ListBuilderPoolMembers(context.Context, string) ([]moduleapi.BuilderInstance, error) {
 	return append([]moduleapi.BuilderInstance(nil), r.members...), nil
 }
-func (r *placementBuilderResources) SelectRoundRobinBuilderInstance(context.Context, string) (moduleapi.BuilderInstance, error) {
+func (r *placementBuilderResources) SelectRoundRobinBuilderInstance(context.Context, string) (moduleapi.BuilderPoolSelection, error) {
 	if r.next >= len(r.selections) {
-		return moduleapi.BuilderInstance{}, errors.New("no selected builder")
+		return moduleapi.BuilderPoolSelection{}, errors.New("no selected builder")
 	}
 	instance := r.selections[r.next]
+	cursor := int64(r.next)
 	r.next++
-	return instance, nil
+	return moduleapi.BuilderPoolSelection{Instance: instance, Cursor: &cursor}, nil
 }
 
 type v2RegistryResolver struct{}
@@ -248,8 +249,11 @@ func TestFreezeExecutionPlanDigestIncludesPlatformPlacements(t *testing.T) {
 
 func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *testing.T) {
 	resources := &placementBuilderResources{
-		pool:    moduleapi.BuilderPool{ID: "pool-buildx", SchedulingPolicy: "round_robin"},
-		members: []moduleapi.BuilderInstance{{ID: "builder-amd64"}, {ID: "builder-arm64"}},
+		pool: moduleapi.BuilderPool{ID: "pool-buildx", SchedulingPolicy: "round_robin"},
+		members: []moduleapi.BuilderInstance{
+			{ID: "builder-amd64", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-buildx", DriverVersion: "v1"},
+			{ID: "builder-arm64", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-buildx", DriverVersion: "v1"},
+		},
 		selections: []moduleapi.BuilderInstance{
 			{ID: "builder-amd64", RuntimeTargetID: 4, DriverRef: "docker-buildx", DriverVersion: "v1"},
 			{ID: "builder-arm64", RuntimeTargetID: 5, DriverRef: "docker-buildx", DriverVersion: "v1"},
@@ -277,7 +281,7 @@ func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *te
 
 func TestSelectBuilderFromPoolUsesDeterministicLabelSelector(t *testing.T) {
 	resources := &placementBuilderResources{
-		pool: moduleapi.BuilderPool{ID: "pool-labels", SchedulingPolicy: "labels", Selector: json.RawMessage(`{"labels":{"region":"us-east"}}`)},
+		pool: moduleapi.BuilderPool{ID: "pool-labels", SchedulingPolicy: "manual", Selector: json.RawMessage(`{"instance_id":"builder-east","labels":{"region":"us-east"}}`)},
 		members: []moduleapi.BuilderInstance{
 			{ID: "builder-west", RuntimeTargetID: 4, Status: "ready", Labels: map[string]string{"region": "us-west"}, DriverRef: "docker-engine", DriverVersion: "v1"},
 			{ID: "builder-east", RuntimeTargetID: 5, Status: "ready", Labels: map[string]string{"region": "us-east"}, DriverRef: "docker-engine", DriverVersion: "v1"},
@@ -299,8 +303,34 @@ func TestSelectBuilderFromPoolUsesDeterministicLabelSelector(t *testing.T) {
 		t.Fatalf("selected instance = %#v", instance)
 	}
 	placements, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-labels", v2DockerEngineDriver, []string{"linux/amd64"})
-	if err != nil || len(placements) != 1 || string(placements[0].SchedulingEvidence) != string(resources.pool.Selector) {
+	if err != nil || len(placements) != 1 || !strings.Contains(string(placements[0].SchedulingEvidence), `"labels":{"region":"us-east"}`) {
 		t.Fatalf("scheduling evidence = %#v, err=%v", placements, err)
+	}
+}
+
+func TestSelectBuilderFromPoolRandomIsDeterministicAndFreezesSeed(t *testing.T) {
+	resources := &placementBuilderResources{
+		pool: moduleapi.BuilderPool{ID: "pool-random", SchedulingPolicy: "random"},
+		members: []moduleapi.BuilderInstance{
+			{ID: "builder-a", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
+			{ID: "builder-b", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
+		},
+	}
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.builderResources = resources
+	service.buildTargets = placementTargetReader{4: {ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}, 5: {ID: 5, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}}
+	service.buildAssignments = placementAssignments{4: true, 5: true}
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	first, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-random", v2DockerEngineDriver, []string{"linux/amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-random", v2DockerEngineDriver, []string{"linux/amd64"})
+	if err != nil || len(first) != 1 || len(second) != 1 || first[0].BuilderInstanceID != second[0].BuilderInstanceID || !strings.Contains(string(first[0].SchedulingEvidence), `"seed":"`) {
+		t.Fatalf("random placement is not deterministic/evidenced: first=%#v second=%#v err=%v", first, second, err)
 	}
 }
 

@@ -331,7 +331,7 @@ func (s *Service) ListBuilderPools(ctx context.Context, requestedBy uint64) ([]m
 }
 
 func supportedBuilderPoolPolicy(policy string) bool {
-	return policy == "round_robin" || policy == "labels"
+	return policy == "manual" || policy == "round_robin" || policy == "random"
 }
 
 func filterSupportedBuilderPools(pools []moduleapi.BuilderPool) []moduleapi.BuilderPool {

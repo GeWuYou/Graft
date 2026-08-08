@@ -1,5 +1,18 @@
 # Build Domain v2 Trace
 
+## 2026-08-08: Phase 3 Static Pool Release Gate
+
+- Authority discovery kept placement policy in Build, capability facts in Runtime Target, execution lifecycle in Task
+  Runtime, and the wire enum in `openapi/**`; no downstream compatibility projection was added.
+- Static Pool exposure is now limited to `manual`, persisted `round_robin`, and deterministic seeded `random`. Labels
+  are eligibility evidence only. Placement freezes policy/version, candidate fingerprint, selected Instance, and the
+  cursor or seed; BuilderReservation fencing and immutable Workspace Snapshot/Materializer ownership remain unchanged.
+- Historical dynamic-policy rows remain readable for migration compatibility but are rejected by new Build writes and
+  omitted from the selector projection. No telemetry, LeastLoad, Capacity, Affinity, Region, second Task Runtime,
+  scheduler, Build queue, event store, or global health registry was introduced.
+- Validation: `go run ./cmd/graft validate backend`, `bun run check`, `just openapi-check`,
+  `python3 scripts/validate_sql_migrations.py`, and focused Build tests passed.
+
 ## 2026-08-07 phase-1-secure-credential-execution-and-manual-reservation implementation
 
 - Replaced the new v2 publication execution edge with the `RuntimeExecutionAdapter` contract. Runtime Target requests a

@@ -67,6 +67,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { createBuildJob, getBuildBuilderPools, getBuildRuntimeTargets, getBuildWorkspaces } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
+import type { BuildBuilderPool } from '../../types/build';
 import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
 const { t } = useI18n();
 const router = useRouter();
@@ -84,9 +85,10 @@ const form = ref<BuildJobForm>({
   destination: { kind: 'oci_registry', connection_ref: 'registry:default', repository_ref: '', reference: 'latest' },
 });
 type SelectorOption = { label: string; value: string | number };
+type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
 const workspaceOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
-const builderPoolOptions = ref<SelectorOption[]>([]);
+const builderPoolOptions = ref<BuilderPoolOption[]>([]);
 const selectorLoading = ref(false);
 const selectorError = ref('');
 const selectorOptionsUnavailable = computed(
@@ -114,13 +116,29 @@ async function loadSelectorOptions() {
       label: item.display_name,
       value: item.target_id,
     }));
-    builderPoolOptions.value = (pools.items ?? []).map((item) => ({ label: item.display_name, value: item.pool_id }));
+    builderPoolOptions.value = (pools.items ?? []).map((item) => ({
+      label: `${item.display_name} (${builderPoolPolicyLabel(item.scheduling_policy)})`,
+      value: item.pool_id,
+      policy: item.scheduling_policy,
+    }));
   } catch (error) {
     selectorError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.selectorsLoadFailed'));
   } finally {
     selectorLoading.value = false;
   }
 }
+
+function builderPoolPolicyLabel(policy: BuildBuilderPool['scheduling_policy']) {
+  switch (policy) {
+    case 'manual':
+      return t('build.jobs.create.builderPoolPolicy.manual');
+    case 'round_robin':
+      return t('build.jobs.create.builderPoolPolicy.roundRobin');
+    case 'random':
+      return t('build.jobs.create.builderPoolPolicy.random');
+  }
+}
+
 watch(selectionMode, (mode) => {
   if (mode === 'pool') {
     form.value.runtime_target_id = undefined;

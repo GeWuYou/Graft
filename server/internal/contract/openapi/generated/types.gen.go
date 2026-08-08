@@ -1868,6 +1868,27 @@ func (e BuildArtifactPromotionCreateRequestDestinationKind) Valid() bool {
 	}
 }
 
+// Defines values for BuildBuilderPoolSchedulingPolicy.
+const (
+	BuildBuilderPoolSchedulingPolicyManual     BuildBuilderPoolSchedulingPolicy = "manual"
+	BuildBuilderPoolSchedulingPolicyRandom     BuildBuilderPoolSchedulingPolicy = "random"
+	BuildBuilderPoolSchedulingPolicyRoundRobin BuildBuilderPoolSchedulingPolicy = "round_robin"
+)
+
+// Valid indicates whether the value is a known member of the BuildBuilderPoolSchedulingPolicy enum.
+func (e BuildBuilderPoolSchedulingPolicy) Valid() bool {
+	switch e {
+	case BuildBuilderPoolSchedulingPolicyManual:
+		return true
+	case BuildBuilderPoolSchedulingPolicyRandom:
+		return true
+	case BuildBuilderPoolSchedulingPolicyRoundRobin:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BuildJobCreateRequestDestinationKind.
 const (
 	BuildJobCreateRequestDestinationKindOciRegistry BuildJobCreateRequestDestinationKind = "oci_registry"
@@ -4873,19 +4894,19 @@ func (e ScheduledTaskRunItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTriggerType.
 const (
-	Cron    ScheduledTaskRunItemTriggerType = "cron"
-	Manual  ScheduledTaskRunItemTriggerType = "manual"
-	Startup ScheduledTaskRunItemTriggerType = "startup"
+	ScheduledTaskRunItemTriggerTypeCron    ScheduledTaskRunItemTriggerType = "cron"
+	ScheduledTaskRunItemTriggerTypeManual  ScheduledTaskRunItemTriggerType = "manual"
+	ScheduledTaskRunItemTriggerTypeStartup ScheduledTaskRunItemTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTriggerType enum.
 func (e ScheduledTaskRunItemTriggerType) Valid() bool {
 	switch e {
-	case Cron:
+	case ScheduledTaskRunItemTriggerTypeCron:
 		return true
-	case Manual:
+	case ScheduledTaskRunItemTriggerTypeManual:
 		return true
-	case Startup:
+	case ScheduledTaskRunItemTriggerTypeStartup:
 		return true
 	default:
 		return false
@@ -8341,10 +8362,15 @@ type BuildArtifactPromotionCreateRequestDestinationKind string
 
 // BuildBuilderPool defines model for build-builder-pool.
 type BuildBuilderPool struct {
-	DisplayName      string `json:"display_name"`
-	PoolId           string `json:"pool_id"`
-	SchedulingPolicy string `json:"scheduling_policy"`
+	DisplayName string `json:"display_name"`
+	PoolId      string `json:"pool_id"`
+
+	// SchedulingPolicy Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+	SchedulingPolicy BuildBuilderPoolSchedulingPolicy `json:"scheduling_policy"`
 }
+
+// BuildBuilderPoolSchedulingPolicy Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+type BuildBuilderPoolSchedulingPolicy string
 
 // BuildBuilderPoolList defines model for build-builder-pool-list.
 type BuildBuilderPoolList struct {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -75,7 +76,8 @@ func (s *Service) SelectBuilderFromPool(ctx context.Context, poolID, driverRef s
 	if err != nil {
 		return moduleapi.BuilderInstance{}, err
 	}
-	return s.selectBuilderFromPool(ctx, pool, driverRef, platforms)
+	selection, selectionErr := s.selectBuilderFromPool(ctx, pool, driverRef, platforms, poolID+":"+driverRef+":"+strings.Join(platforms, ","))
+	return selection.instance, selectionErr
 }
 
 // SelectBuilderPlacementsFromPool 为每个冻结平台独立选择 Builder。选择顺序和策略也会
@@ -90,11 +92,11 @@ func (s *Service) SelectBuilderPlacementsFromPool(ctx context.Context, poolID, d
 	}
 	placements := make([]moduleapi.BuilderPlacement, 0, len(platforms))
 	for _, platform := range platforms {
-		instance, selectionErr := s.selectBuilderFromPool(ctx, pool, driverRef, []string{platform})
+		selection, selectionErr := s.selectBuilderFromPool(ctx, pool, driverRef, []string{platform}, poolID+":"+driverRef+":"+platform)
 		if selectionErr != nil {
 			return nil, fmt.Errorf("select builder for %s: %w", platform, selectionErr)
 		}
-		placements = append(placements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: instance.ID, RuntimeTargetID: instance.RuntimeTargetID, SchedulingPolicy: pool.SchedulingPolicy, SchedulingEvidence: schedulingEvidence(pool)})
+		placements = append(placements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selection.instance.ID, RuntimeTargetID: selection.instance.RuntimeTargetID, SchedulingPolicy: pool.SchedulingPolicy, SchedulingEvidence: selection.evidence})
 	}
 	return placements, nil
 }
@@ -110,89 +112,159 @@ func (s *Service) builderPool(ctx context.Context, poolID string) (moduleapi.Bui
 	return pool, nil
 }
 
-func (s *Service) selectBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, driverRef string, platforms []string) (moduleapi.BuilderInstance, error) {
+type staticBuilderSelection struct {
+	instance moduleapi.BuilderInstance
+	evidence json.RawMessage
+}
+
+func (s *Service) selectBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, driverRef string, platforms []string, seedMaterial string) (staticBuilderSelection, error) {
 	if s == nil || s.builderResources == nil || s.buildTargets == nil || s.buildAssignments == nil || s.intents == nil {
-		return moduleapi.BuilderInstance{}, errors.New("builder pool selection dependencies are unavailable")
+		return staticBuilderSelection{}, errors.New("builder pool selection dependencies are unavailable")
 	}
 	_, driver, err := s.intents.ResolveBuildIntent(v2DockerfileTemplate, driverRef)
 	if err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("resolve builder pool driver: %w", err)
+		return staticBuilderSelection{}, fmt.Errorf("resolve builder pool driver: %w", err)
 	}
 	auth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || auth.User == nil {
-		return moduleapi.BuilderInstance{}, moduleapi.ErrUnauthenticated
+		return staticBuilderSelection{}, moduleapi.ErrUnauthenticated
 	}
 	members, err := s.builderResources.ListBuilderPoolMembers(ctx, strings.TrimSpace(pool.ID))
 	if err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("list builder pool members: %w", err)
+		return staticBuilderSelection{}, fmt.Errorf("list builder pool members: %w", err)
 	}
-	return s.selectCompatibleBuilderFromPool(ctx, pool, members, driver.Ref, platforms, auth.User.ID)
-}
-
-func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, members []moduleapi.BuilderInstance, driverRef string, platforms []string, actorID uint64) (moduleapi.BuilderInstance, error) {
-	if pool.SchedulingPolicy == "labels" {
-		return s.selectLabeledBuilder(ctx, pool.Selector, members, driverRef, platforms, actorID)
-	}
-	if pool.SchedulingPolicy != "round_robin" {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("builder pool scheduling policy %q is not supported", pool.SchedulingPolicy)
-	}
-	return s.selectRoundRobinBuilder(ctx, pool.ID, len(members), driverRef, platforms, actorID)
-}
-
-func (s *Service) selectLabeledBuilder(ctx context.Context, rawSelector json.RawMessage, members []moduleapi.BuilderInstance, driverRef string, platforms []string, actorID uint64) (moduleapi.BuilderInstance, error) {
-	selector, err := decodeBuilderLabelSelector(rawSelector)
-	if err != nil {
-		return moduleapi.BuilderInstance{}, err
-	}
-	for _, instance := range members {
-		if instance.Status == "ready" && matchesBuilderLabels(instance.Labels, selector) && s.builderInstanceSupportsPlan(ctx, instance, driverRef, platforms, actorID) {
-			return instance, nil
-		}
-	}
-	return moduleapi.BuilderInstance{}, errors.New("builder pool has no compatible labeled instance")
-}
-
-func (s *Service) selectRoundRobinBuilder(ctx context.Context, poolID string, memberCount int, driverRef string, platforms []string, actorID uint64) (moduleapi.BuilderInstance, error) {
-	for range memberCount {
-		instance, err := s.builderResources.SelectRoundRobinBuilderInstance(ctx, poolID)
-		if err != nil {
-			return moduleapi.BuilderInstance{}, fmt.Errorf("select builder pool instance: %w", err)
-		}
-		if s.builderInstanceSupportsPlan(ctx, instance, driverRef, platforms, actorID) {
-			return instance, nil
-		}
-	}
-	return moduleapi.BuilderInstance{}, errors.New("builder pool has no compatible assigned instance")
+	return s.selectCompatibleBuilderFromPool(ctx, pool, members, staticPoolSelectionInput{DriverRef: driver.Ref, Platforms: platforms, ActorID: auth.User.ID, SeedMaterial: seedMaterial, MemberCount: len(members)})
 }
 
 type builderLabelSelector struct {
-	Labels map[string]string `json:"labels"`
+	Labels     map[string]string `json:"labels"`
+	InstanceID string            `json:"instance_id"`
 }
 
-func decodeBuilderLabelSelector(raw json.RawMessage) (map[string]string, error) {
+func decodeBuilderSelector(raw json.RawMessage) (builderLabelSelector, error) {
 	selector := builderLabelSelector{Labels: map[string]string{}}
 	if len(raw) == 0 {
-		return nil, errors.New("builder labels selector is empty")
+		return selector, nil
 	}
 	if err := json.Unmarshal(raw, &selector); err != nil || selector.Labels == nil {
-		return nil, errors.New("invalid builder labels selector")
-	}
-	if len(selector.Labels) == 0 {
-		return nil, errors.New("builder labels selector is empty")
+		return builderLabelSelector{}, errors.New("invalid builder pool selector")
 	}
 	for key, value := range selector.Labels {
 		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
-			return nil, errors.New("invalid builder labels selector")
+			return builderLabelSelector{}, errors.New("invalid builder pool selector")
 		}
 	}
-	return selector.Labels, nil
+	selector.InstanceID = strings.TrimSpace(selector.InstanceID)
+	return selector, nil
 }
 
-func schedulingEvidence(pool moduleapi.BuilderPool) json.RawMessage {
-	if len(pool.Selector) == 0 {
-		return json.RawMessage(`{}`)
+type staticPlacementEvidence struct {
+	PolicyID             string            `json:"policy_id"`
+	PolicyVersion        string            `json:"policy_version"`
+	Labels               map[string]string `json:"labels,omitempty"`
+	CandidateFingerprint string            `json:"candidate_fingerprint"`
+	SelectedInstanceID   string            `json:"selected_instance_id"`
+	Seed                 string            `json:"seed,omitempty"`
+	Cursor               *int64            `json:"cursor,omitempty"`
+}
+
+type staticPoolSelectionInput struct {
+	DriverRef    string
+	Platforms    []string
+	ActorID      uint64
+	SeedMaterial string
+	MemberCount  int
+}
+
+//nolint:cyclop // Static placement must keep policy admission, eligibility and frozen evidence in one authority boundary.
+func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, members []moduleapi.BuilderInstance, input staticPoolSelectionInput) (staticBuilderSelection, error) {
+	if pool.SchedulingPolicy != "manual" && pool.SchedulingPolicy != "round_robin" && pool.SchedulingPolicy != "random" {
+		return staticBuilderSelection{}, fmt.Errorf("builder pool scheduling policy %q is not supported", pool.SchedulingPolicy)
 	}
-	return append(json.RawMessage(nil), pool.Selector...)
+	selector, err := decodeBuilderSelector(pool.Selector)
+	if err != nil {
+		return staticBuilderSelection{}, err
+	}
+	candidates := make([]moduleapi.BuilderInstance, 0, len(members))
+	for _, instance := range members {
+		if instance.Status == "ready" && matchesBuilderLabels(instance.Labels, selector.Labels) && s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID) {
+			candidates = append(candidates, instance)
+		}
+	}
+	if len(candidates) == 0 {
+		return staticBuilderSelection{}, errors.New("builder pool has no compatible eligible instance")
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
+	fingerprint := staticCandidateFingerprint(pool, selector, candidates)
+	evidence := staticPlacementEvidence{PolicyID: "build.pool." + pool.SchedulingPolicy, PolicyVersion: "v1", Labels: selector.Labels, CandidateFingerprint: fingerprint}
+	selected, selectionEvidence, err := s.selectStaticPoolCandidate(ctx, pool, selector, candidates, input, fingerprint)
+	if err != nil {
+		return staticBuilderSelection{}, err
+	}
+	evidence.Seed, evidence.Cursor = selectionEvidence.Seed, selectionEvidence.Cursor
+	evidence.SelectedInstanceID = selected.ID
+	raw, err := json.Marshal(evidence)
+	if err != nil {
+		return staticBuilderSelection{}, fmt.Errorf("marshal static placement evidence: %w", err)
+	}
+	return staticBuilderSelection{instance: selected, evidence: raw}, nil
+}
+
+type staticPoolSelectionEvidence struct {
+	Seed   string
+	Cursor *int64
+}
+
+func (s *Service) selectStaticPoolCandidate(ctx context.Context, pool moduleapi.BuilderPool, selector builderLabelSelector, candidates []moduleapi.BuilderInstance, input staticPoolSelectionInput, fingerprint string) (moduleapi.BuilderInstance, staticPoolSelectionEvidence, error) {
+	switch pool.SchedulingPolicy {
+	case "manual":
+		selected, err := selectManualPoolCandidate(selector.InstanceID, candidates)
+		return selected, staticPoolSelectionEvidence{}, err
+	case "random":
+		sum := sha256.Sum256([]byte(input.SeedMaterial + ":" + fingerprint))
+		return candidates[int(sum[0])%len(candidates)], staticPoolSelectionEvidence{Seed: hex.EncodeToString(sum[:])}, nil
+	case "round_robin":
+		return s.selectRoundRobinPoolCandidate(ctx, pool.ID, candidates, input.MemberCount)
+	}
+	return moduleapi.BuilderInstance{}, staticPoolSelectionEvidence{}, fmt.Errorf("builder pool scheduling policy %q is not supported", pool.SchedulingPolicy)
+}
+
+func selectManualPoolCandidate(instanceID string, candidates []moduleapi.BuilderInstance) (moduleapi.BuilderInstance, error) {
+	if instanceID == "" {
+		return moduleapi.BuilderInstance{}, errors.New("manual builder pool requires instance_id selector")
+	}
+	for _, candidate := range candidates {
+		if candidate.ID == instanceID {
+			return candidate, nil
+		}
+	}
+	return moduleapi.BuilderInstance{}, errors.New("manual builder pool instance is not eligible")
+}
+
+func (s *Service) selectRoundRobinPoolCandidate(ctx context.Context, poolID string, candidates []moduleapi.BuilderInstance, memberCount int) (moduleapi.BuilderInstance, staticPoolSelectionEvidence, error) {
+	for range memberCount {
+		choice, err := s.builderResources.SelectRoundRobinBuilderInstance(ctx, poolID)
+		if err != nil {
+			return moduleapi.BuilderInstance{}, staticPoolSelectionEvidence{}, fmt.Errorf("select builder pool instance: %w", err)
+		}
+		for _, candidate := range candidates {
+			if candidate.ID == choice.Instance.ID {
+				return candidate, staticPoolSelectionEvidence{Cursor: choice.Cursor}, nil
+			}
+		}
+	}
+	return moduleapi.BuilderInstance{}, staticPoolSelectionEvidence{}, errors.New("builder pool has no compatible assigned instance")
+}
+
+func staticCandidateFingerprint(pool moduleapi.BuilderPool, selector builderLabelSelector, candidates []moduleapi.BuilderInstance) string {
+	input := struct {
+		PoolID, Policy string
+		Selector       builderLabelSelector
+		Candidates     []moduleapi.BuilderInstance
+	}{pool.ID, pool.SchedulingPolicy, selector, candidates}
+	payload, _ := json.Marshal(input)
+	sum := sha256.Sum256(payload)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 func matchesBuilderLabels(labels, selector map[string]string) bool {

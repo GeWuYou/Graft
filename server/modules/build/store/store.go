@@ -1478,13 +1478,13 @@ WHERE b.pool_id = $1 AND m.deleted_at = 0 ORDER BY m.priority ASC, i.instance_id
 // 它只决定 Builder resource，不创建任务或维护第二个执行队列。
 //
 //nolint:cyclop // 选择路径显式处理事务、空集合和策略边界，不能隐藏失败语义。
-func (r *SQLRepository) SelectRoundRobinBuilderInstance(ctx context.Context, poolID string) (moduleapi.BuilderInstance, error) {
+func (r *SQLRepository) SelectRoundRobinBuilderInstance(ctx context.Context, poolID string) (moduleapi.BuilderPoolSelection, error) {
 	if r == nil || r.db == nil || strings.TrimSpace(poolID) == "" {
-		return moduleapi.BuilderInstance{}, ErrNotFound
+		return moduleapi.BuilderPoolSelection{}, ErrNotFound
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("begin select builder instance: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("begin select builder instance: %w", err)
 	}
 	committed := false
 	defer func() {
@@ -1496,12 +1496,12 @@ func (r *SQLRepository) SelectRoundRobinBuilderInstance(ctx context.Context, poo
 	var policy string
 	if err := tx.QueryRowContext(ctx, `SELECT id, selection_cursor, scheduling_policy FROM build_builder_pools WHERE pool_id = $1 AND deleted_at = 0 FOR UPDATE`, strings.TrimSpace(poolID)).Scan(&poolPK, &cursor, &policy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return moduleapi.BuilderInstance{}, ErrNotFound
+			return moduleapi.BuilderPoolSelection{}, ErrNotFound
 		}
-		return moduleapi.BuilderInstance{}, fmt.Errorf("lock builder pool selection: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("lock builder pool selection: %w", err)
 	}
 	if policy != "round_robin" {
-		return moduleapi.BuilderInstance{}, errors.New("builder pool does not use round robin scheduling")
+		return moduleapi.BuilderPoolSelection{}, errors.New("builder pool does not use round robin scheduling")
 	}
 	var item moduleapi.BuilderInstance
 	var labels []byte
@@ -1513,22 +1513,22 @@ WHERE m.pool_id = $1 AND m.deleted_at = 0 AND i.status = 'ready'
 ORDER BY m.priority ASC, i.instance_id ASC
 OFFSET ($2 % NULLIF((SELECT COUNT(*) FROM build_builder_pool_members m2 JOIN build_builder_instances i2 ON i2.id = m2.instance_id AND i2.deleted_at = 0 WHERE m2.pool_id = $1 AND m2.deleted_at = 0 AND i2.status = 'ready'), 0)) LIMIT 1`, poolPK, cursor).Scan(&item.ID, &item.ProfileID, &item.RuntimeTargetID, &item.Status, &labels, &item.DriverRef, &item.DriverVersion)
 	if errors.Is(err, sql.ErrNoRows) {
-		return moduleapi.BuilderInstance{}, ErrNotFound
+		return moduleapi.BuilderPoolSelection{}, ErrNotFound
 	}
 	if err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("select builder pool member: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("select builder pool member: %w", err)
 	}
 	if err := json.Unmarshal(labels, &item.Labels); err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("decode selected builder labels: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("decode selected builder labels: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_pools SET selection_cursor = selection_cursor + 1, updated_at = NOW() WHERE id = $1`, poolPK); err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("advance builder pool cursor: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("advance builder pool cursor: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return moduleapi.BuilderInstance{}, fmt.Errorf("commit builder selection: %w", err)
+		return moduleapi.BuilderPoolSelection{}, fmt.Errorf("commit builder selection: %w", err)
 	}
 	committed = true
-	return item, nil
+	return moduleapi.BuilderPoolSelection{Instance: item, Cursor: &cursor}, nil
 }
 
 func normalizeBuilderProfile(profile moduleapi.BuilderProfile) (moduleapi.BuilderProfile, error) {
@@ -1579,7 +1579,7 @@ func validBuilderInstanceStatus(status string) bool {
 	return status == "pending" || status == "ready" || status == "draining" || status == "unavailable"
 }
 func validBuilderPoolPolicy(policy string) bool {
-	return policy == "round_robin" || policy == "least_load" || policy == "labels" || policy == "affinity" || policy == "region"
+	return policy == "manual" || policy == "round_robin" || policy == "random"
 }
 
 // CreateJob 在 Task 分配稳定任务标识后存储 Build 快照。

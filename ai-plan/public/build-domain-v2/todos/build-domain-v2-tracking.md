@@ -95,7 +95,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 1.75: Snapshot materialization ownership, retention state and provenance uniqueness foundation.
 - [x] Phase 1.75 foundation: Build-owned expired materialization cleanup lease and private-path enforcement.
 - [x] Phase 2: Build-owned Workspaces/Snapshots, versioned Templates/Drivers and Application source materialization.
-- [ ] Phase 3: static Builder Pools (`Manual`, `RoundRobin`, deterministic `Random`) only; no telemetry input.
+- [x] Phase 3: static Builder Pools (`Manual`, `RoundRobin`, deterministic `Random`) only; no telemetry input. The
+  release-gate slice now freezes policy/version, static eligibility candidate fingerprint, selected Instance, and
+  cursor/seed evidence; labels remain eligibility only and historical dynamic-policy rows stay read-only.
 - [x] Phase 3 foundation: Builder Pool membership, transactional Round Robin selection and Pool-bound plan freezing.
 - [ ] Phase 4: promotion, OCI supply-chain evidence, remote/distributed builders and deployment/pipeline handoff.
 - [x] Phase 4 foundation: Build-owned v2 Artifact read model exposes digest-addressed Artifact facts independently of

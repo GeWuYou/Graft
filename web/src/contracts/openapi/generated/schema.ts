@@ -9231,7 +9231,11 @@ export interface components {
     'build-builder-pool': {
       pool_id: string;
       display_name: string;
-      scheduling_policy: string;
+      /**
+       * @description Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+       * @enum {string}
+       */
+      scheduling_policy: 'manual' | 'round_robin' | 'random';
     };
     'build-builder-pool-list': {
       items: components['schemas']['build-builder-pool'][];

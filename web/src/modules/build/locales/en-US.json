@@ -115,6 +115,11 @@
         "builderPool": "Builder Pool",
         "builderPoolRequired": "Builder Pool is required.",
         "builderPoolPlaceholder": "Select a Builder Pool",
+        "builderPoolPolicy": {
+          "manual": "Manual",
+          "roundRobin": "Round Robin",
+          "random": "Random"
+        },
         "selectorsUnavailable": "Build selectors are unavailable until the Build read API is configured.",
         "selectorsLoadFailed": "Unable to load Build selectors.",
         "selectorsEmpty": "No authorized Build workspace and builder options are available.",
