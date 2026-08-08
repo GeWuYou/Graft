@@ -555,6 +555,14 @@
 - Controller accepted `95a25b57` and follow-up repair `cfec66f2` after focused Build/Task/Runtime Target tests and
   `graft validate backend`. Phase 4d OpenAPI and web projection is now the sole pending batch.
 
+## 2026-08-08 phase-4d-contract-and-web-projection
+
+- The canonical Builder Pool OpenAPI enum now exposes exactly `least_load`, `capacity` and `affinity` in addition to
+  the static policies. Generated web schema and localized Build selector labels follow that contract; no browser
+  telemetry, policy evaluation, target selection or `region` path was introduced.
+- Controller accepted `6bc99b07` after OpenAPI freshness and the Build selector page test. The Phase 4 acceptance
+  conditions are met; the topic is archive-ready.
+
 ## Loop Batch State
 
 ```json
@@ -576,16 +584,15 @@
     "phase-8a-builder-telemetry-contract",
     "phase-4a-telemetry-authority",
     "phase-4b-task-runtime-distributed-coordination",
+    "phase-4c-reservation-recovery-and-dynamic-placement",
+    "phase-4d-contract-and-web-projection",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
-  "pending_batches": [
-    "phase-4c-reservation-recovery-and-dynamic-placement",
-    "phase-4d-contract-and-web-projection"
-  ],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "phase-4c-reservation-recovery-and-dynamic-placement",
-  "closeout_status": "phase-4b-task-runtime-distributed-coordination-complete"
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
