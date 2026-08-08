@@ -88,13 +88,18 @@ func dockerSnapshotDeliveryMode(connectionKind string) string {
 }
 
 // DeliverWorkspaceSnapshot 校验快照物化根和目标连接类型，并返回不携带连接细节的交付证明。
+//
+//nolint:cyclop // 交付边界必须依次校验身份、引用、连接和模式，保持 fail-closed 顺序。
 func (p dockerTargetProvider) DeliverWorkspaceSnapshot(ctx context.Context, request moduleapi.WorkspaceSnapshotDeliveryRequest) (moduleapi.WorkspaceSnapshotDeliveryResult, error) {
 	if request.TargetID < 1 || strings.TrimSpace(request.SnapshotID) == "" || strings.TrimSpace(request.ContentDigest) == "" {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("workspace snapshot delivery input is invalid")
 	}
-	root, err := managedSnapshotRootForReference(request.MaterializationRef)
+	root, snapshotID, contentDigest, err := parseManagedSnapshotReference(request.MaterializationRef)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, err
+	}
+	if snapshotID != request.SnapshotID || contentDigest != request.ContentDigest {
+		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("workspace snapshot materialization reference does not match snapshot")
 	}
 	connection, err := p.connection(ctx, request.TargetID)
 	if err != nil {
@@ -435,12 +440,24 @@ func managedSnapshotRootForInput(input moduleapi.DockerImageBuildInput) (string,
 }
 
 func managedSnapshotRootForReference(reference string) (string, error) {
-	const prefix = "build-snapshot:"
-	name := strings.TrimPrefix(strings.TrimSpace(reference), prefix)
-	if name == "" || name == reference || name != filepath.Base(name) || !strings.HasPrefix(name, "snapshot-") {
-		return "", errors.New("workspace snapshot materialization reference is invalid")
+	name, _, _, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(reference)
+	if err != nil {
+		return "", err
 	}
 	return managedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
+}
+
+//nolint:revive // 返回目录与绑定身份是一次不可拆分的 capability 解析结果。
+func parseManagedSnapshotReference(reference string) (string, string, string, error) {
+	name, snapshotID, contentDigest, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(reference)
+	if err != nil {
+		return "", "", "", err
+	}
+	root, err := managedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
+	if err != nil {
+		return "", "", "", err
+	}
+	return root, snapshotID, contentDigest, nil
 }
 
 func safeProviderRelativePath(value string, allowDot bool) (string, error) {

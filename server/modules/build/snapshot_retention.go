@@ -48,7 +48,13 @@ func purgeClaimedSnapshotMaterialization(ctx context.Context, repository buildst
 		_ = repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID)
 		return fmt.Errorf("purge snapshot materialization %q: %w", item.SnapshotID, err)
 	}
-	return repository.MarkSnapshotMaterializationPurged(ctx, item.SnapshotID)
+	if err := repository.MarkSnapshotMaterializationPurged(ctx, item.SnapshotID); err != nil {
+		if releaseErr := repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID); releaseErr != nil {
+			return fmt.Errorf("mark snapshot materialization %q purged: %w; release claim: %v", item.SnapshotID, err, releaseErr)
+		}
+		return fmt.Errorf("mark snapshot materialization %q purged: %w", item.SnapshotID, err)
+	}
+	return nil
 }
 
 func isManagedSnapshotMaterialization(path string) bool {

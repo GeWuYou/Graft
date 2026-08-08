@@ -44,7 +44,11 @@ func TestDeliverWorkspaceSnapshotProvesManagedTargetLocalMaterialization(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := (containerImageBuilder{service: service}).DeliverWorkspaceSnapshot(context.Background(), moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:" + filepath.Base(root), DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal})
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference("snapshot-1", "sha256:source", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := (containerImageBuilder{service: service}).DeliverWorkspaceSnapshot(context.Background(), moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: reference, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal})
 	if err != nil {
 		t.Fatal(err)
 	}

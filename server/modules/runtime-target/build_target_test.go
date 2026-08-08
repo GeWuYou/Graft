@@ -173,7 +173,11 @@ func TestRemoteDockerProviderRequiresProviderTransferAndPreservesSnapshotIdentit
 	if target.SnapshotDeliveryModes[0] != moduleapi.SnapshotDeliveryModeProviderTransfer || len(target.WorkspaceLocalities) != 1 || target.WorkspaceLocalities[0] != "build-snapshot" {
 		t.Fatalf("remote build target delivery = %#v, localities = %#v", target.SnapshotDeliveryModes, target.WorkspaceLocalities)
 	}
-	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:" + filepath.Base(root), DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference("snapshot-remote", "sha256:source", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializationRef: reference, DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
 	result, err := provider.DeliverWorkspaceSnapshot(context.Background(), request)
 	if err != nil {
 		t.Fatalf("deliver remote snapshot: %v", err)

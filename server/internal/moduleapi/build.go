@@ -3,7 +3,11 @@ package moduleapi
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -528,6 +532,38 @@ type WorkspaceSnapshotDeliveryResult struct {
 	SnapshotID    string
 	ContentDigest string
 	DeliveryMode  string
+}
+
+// NewWorkspaceSnapshotMaterializationReference 生成绑定 Snapshot 身份、内容摘要和物化目录的 opaque 引用。
+func NewWorkspaceSnapshotMaterializationReference(snapshotID, contentDigest, root string) (string, error) {
+	rootName := filepath.Base(filepath.Clean(strings.TrimSpace(root)))
+	if strings.TrimSpace(snapshotID) == "" || strings.TrimSpace(contentDigest) == "" || rootName == "." || rootName == ".." || !strings.HasPrefix(rootName, "snapshot-") {
+		return "", errors.New("workspace snapshot materialization reference input is invalid")
+	}
+	encode := base64.RawURLEncoding.EncodeToString
+	return "build-snapshot:v1:" + encode([]byte(rootName)) + ":" + encode([]byte(snapshotID)) + ":" + encode([]byte(contentDigest)), nil
+}
+
+// ParseWorkspaceSnapshotMaterializationReference 解析并返回物化目录、Snapshot 身份和内容摘要。
+//
+//nolint:revive,cyclop // 解析结果是同一 opaque capability 的完整三元组，拆分会增加调用方错配风险。
+func ParseWorkspaceSnapshotMaterializationReference(reference string) (rootName, snapshotID, contentDigest string, err error) {
+	parts := strings.Split(strings.TrimSpace(reference), ":")
+	if len(parts) != 5 || parts[0] != "build-snapshot" || parts[1] != "v1" {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	decode := base64.RawURLEncoding.DecodeString
+	rootBytes, rootErr := decode(parts[2])
+	idBytes, idErr := decode(parts[3])
+	digestBytes, digestErr := decode(parts[4])
+	if rootErr != nil || idErr != nil || digestErr != nil || len(rootBytes) == 0 || len(idBytes) == 0 || len(digestBytes) == 0 {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	rootName, snapshotID, contentDigest = string(rootBytes), string(idBytes), string(digestBytes)
+	if rootName != filepath.Base(rootName) || strings.HasPrefix(rootName, ".") || !strings.HasPrefix(rootName, "snapshot-") {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	return rootName, snapshotID, contentDigest, nil
 }
 
 // TargetBoundWorkspaceSnapshotDeliveryCapability 负责证明选定 Runtime 能消费冻结 Snapshot。

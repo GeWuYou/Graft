@@ -41,7 +41,7 @@ func (b containerImageBuilder) DeliverWorkspaceSnapshot(ctx context.Context, req
 	if !supportsSnapshotDeliveryTarget(target, request.TargetID) {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("snapshot delivery runtime target is unsupported")
 	}
-	if err := validateManagedSnapshotReference(request.MaterializationRef); err != nil {
+	if err := validateManagedSnapshotReference(request); err != nil {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, err
 	}
 	return moduleapi.WorkspaceSnapshotDeliveryResult{TargetID: request.TargetID, SnapshotID: request.SnapshotID, ContentDigest: request.ContentDigest, DeliveryMode: request.DeliveryMode}, nil
@@ -51,11 +51,13 @@ func validSnapshotDeliveryRequest(service *service, request moduleapi.WorkspaceS
 	return service != nil && request.TargetID > 0 && strings.TrimSpace(request.SnapshotID) != "" && strings.TrimSpace(request.ContentDigest) != "" && strings.TrimSpace(request.MaterializationRef) != ""
 }
 
-func validateManagedSnapshotReference(reference string) error {
-	const prefix = "build-snapshot:"
-	name := strings.TrimPrefix(strings.TrimSpace(reference), prefix)
-	if name == "" || name == reference || name != filepath.Base(name) || !strings.HasPrefix(name, "snapshot-") {
-		return errors.New("workspace snapshot materialization reference is invalid")
+func validateManagedSnapshotReference(request moduleapi.WorkspaceSnapshotDeliveryRequest) error {
+	name, snapshotID, contentDigest, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(request.MaterializationRef)
+	if err != nil {
+		return err
+	}
+	if snapshotID != request.SnapshotID || contentDigest != request.ContentDigest {
+		return errors.New("workspace snapshot materialization reference does not match snapshot")
 	}
 	return validateManagedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
 }

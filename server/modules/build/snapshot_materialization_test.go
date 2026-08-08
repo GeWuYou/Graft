@@ -89,7 +89,11 @@ func TestCleanupExpiredSnapshotMaterializationsPurgesOnlyManagedMaterialization(
 	if err := os.WriteFile(filepath.Join(materialization, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: materializationReference(materialization)}}}
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference("snapshot_expired", "sha256:test", materialization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: reference}}}
 	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)

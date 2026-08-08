@@ -26,7 +26,11 @@ func (buildWorkspaceMaterializer) MaterializeSnapshot(_ context.Context, snapsho
 	if err != nil {
 		return moduleapi.WorkspaceMaterialization{}, err
 	}
-	return moduleapi.WorkspaceMaterialization{SnapshotID: materialized.ID, ContentDigest: materialized.ContentDigest, MaterializationRef: materializationReference(materialized.MaterializedRoot)}, nil
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference(materialized.ID, materialized.ContentDigest, materialized.MaterializedRoot)
+	if err != nil {
+		return moduleapi.WorkspaceMaterialization{}, err
+	}
+	return moduleapi.WorkspaceMaterialization{SnapshotID: materialized.ID, ContentDigest: materialized.ContentDigest, MaterializationRef: reference}, nil
 }
 
 func (buildWorkspaceMaterializer) ReleaseMaterialization(_ context.Context, materialization moduleapi.WorkspaceMaterialization) error {
@@ -37,16 +41,10 @@ func (buildWorkspaceMaterializer) ReleaseMaterialization(_ context.Context, mate
 	return os.RemoveAll(root)
 }
 
-const materializationReferencePrefix = "build-snapshot:"
-
-func materializationReference(root string) string {
-	return materializationReferencePrefix + filepath.Base(root)
-}
-
 func resolveMaterializationReference(reference string) (string, error) {
-	name := strings.TrimPrefix(strings.TrimSpace(reference), materializationReferencePrefix)
-	if name == "" || name == reference || name != filepath.Base(name) || !strings.HasPrefix(name, "snapshot-") {
-		return "", errors.New("invalid workspace materialization reference")
+	name, _, _, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(reference)
+	if err != nil {
+		return "", err
 	}
 	return filepath.Join(os.TempDir(), "graft-build-snapshots", name), nil
 }
