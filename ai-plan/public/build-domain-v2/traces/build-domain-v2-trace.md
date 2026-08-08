@@ -537,6 +537,13 @@
   event store, telemetry source, dynamic policy, OpenAPI or web projection. Reservation recovery still blocks dynamic
   placement acceptance.
 
+## 2026-08-08 phase-4b-controller-settlement
+
+- Controller accepted `9c1fe6d8` after verifying that Task Runtime owns one aggregate stage and Build legs cannot
+  invoke manifest publication or final settlement.
+- The loop advances to Phase 4c Reservation recovery and dynamic placement. Phase 4d contract/web projection remains
+  pending until a dynamic policy is executable.
+
 ## Loop Batch State
 
 ```json
@@ -557,17 +564,17 @@
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
     "phase-4a-telemetry-authority",
+    "phase-4b-task-runtime-distributed-coordination",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-4b-task-runtime-distributed-coordination",
     "phase-4c-reservation-recovery-and-dynamic-placement",
     "phase-4d-contract-and-web-projection"
   ],
   "current_batch": null,
-  "next_batch": "phase-4b-task-runtime-distributed-coordination",
-  "closeout_status": "phase-4a-telemetry-authority-complete"
+  "next_batch": "phase-4c-reservation-recovery-and-dynamic-placement",
+  "closeout_status": "phase-4b-task-runtime-distributed-coordination-complete"
 }
 ```

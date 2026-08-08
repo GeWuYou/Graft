@@ -219,17 +219,17 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
     "phase-4a-telemetry-authority",
+    "phase-4b-task-runtime-distributed-coordination",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-4b-task-runtime-distributed-coordination",
     "phase-4c-reservation-recovery-and-dynamic-placement",
     "phase-4d-contract-and-web-projection"
   ],
   "current_batch": null,
-  "next_batch": "phase-4b-task-runtime-distributed-coordination",
-  "closeout_status": "phase-4a-telemetry-authority-complete"
+  "next_batch": "phase-4c-reservation-recovery-and-dynamic-placement",
+  "closeout_status": "phase-4b-task-runtime-distributed-coordination-complete"
 }
 ```
