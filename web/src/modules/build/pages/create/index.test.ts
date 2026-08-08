@@ -60,14 +60,41 @@ const InputStub = defineComponent({
   },
 });
 const SelectStub = defineComponent({
-  props: { modelValue: { type: [Number, String], default: '' } },
+  props: {
+    modelValue: { type: [Number, String], default: '' },
+    options: { type: Array, default: () => [] },
+  },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     return () =>
       h('select', {
         value: props.modelValue,
+        'data-options': JSON.stringify(props.options),
         onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
       });
+  },
+});
+const RadioGroupStub = defineComponent({
+  props: { modelValue: { type: [Number, String], default: '' } },
+  emits: ['update:modelValue'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        (slots.default?.() ?? []).map((node) => {
+          const value = node.props?.value as string | number | undefined;
+          const label = typeof node.children === 'string' ? node.children : String(value ?? '');
+          return h(
+            'button',
+            {
+              type: 'button',
+              'data-value': value,
+              onClick: () => emit('update:modelValue', value),
+            },
+            label,
+          );
+        }),
+      );
   },
 });
 const ButtonStub = defineComponent({
@@ -86,6 +113,8 @@ function mountPage() {
         't-form': FormStub,
         't-form-item': WrapperStub,
         't-input': InputStub,
+        't-radio-group': RadioGroupStub,
+        't-radio': WrapperStub,
         't-select': SelectStub,
         't-input-number': InputStub,
       },
@@ -129,9 +158,17 @@ describe('BuildCreatePage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(
-      (wrapper.vm as unknown as { builderPoolOptions: Array<{ label: string; policy: string }> }).builderPoolOptions,
-    ).toEqual([
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await flushPromises();
+
+    const select = wrapper
+      .findAll('select')
+      .find((candidate) => JSON.parse(candidate.attributes('data-options') ?? '[]').length === 6);
+    expect(select).toBeDefined();
+    if (!select) {
+      return;
+    }
+    expect(JSON.parse(select.attributes('data-options') ?? '[]')).toEqual([
       {
         label: 'Manual Pool (en-US:build.jobs.create.builderPoolPolicy.manual)',
         policy: 'manual',
@@ -168,9 +205,7 @@ describe('BuildCreatePage', () => {
     await nextTick();
 
     expect(
-      (wrapper.vm as unknown as { builderPoolOptions: Array<{ label: string }> }).builderPoolOptions.map(
-        ({ label }) => label,
-      ),
+      (JSON.parse(select.attributes('data-options') ?? '[]') as Array<{ label: string }>).map(({ label }) => label),
     ).toEqual([
       'Manual Pool (zh-CN:build.jobs.create.builderPoolPolicy.manual)',
       'Round Robin Pool (zh-CN:build.jobs.create.builderPoolPolicy.roundRobin)',
