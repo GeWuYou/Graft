@@ -30,7 +30,7 @@
         <div
           ref="tableHostRef"
           class="management-paged-table__table-host graft-scrollbar"
-          :data-table-mode="resolveTableWidthPolicyFor(variant.density).mode"
+          :data-table-mode="resolveTableModeFor(variant.density)"
         >
           <t-table
             :key="props.size ?? 'default-size'"
@@ -43,7 +43,7 @@
             :size="props.size"
             :sort="props.sort"
             table-layout="fixed"
-            :table-content-width="resolveTableWidthPolicyFor(variant.density).tableContentWidth"
+            :table-content-width="resolveTableContentWidthFor(variant.density)"
             cell-empty-content="-"
             hover
             @row-click="emitRowClick"
@@ -211,6 +211,15 @@ function resolveColumns(density: ResponsiveDensity) {
 
 function resolveTableWidthPolicyFor(density: ResponsiveDensity) {
   return resolveTableWidthPolicy(resolveColumns(density), tableHostWidth.value);
+}
+
+function resolveTableModeFor(density: ResponsiveDensity) {
+  return props.rows.length > 0 ? resolveTableWidthPolicyFor(density).mode : 'fill';
+}
+
+function resolveTableContentWidthFor(density: ResponsiveDensity) {
+  // 空态没有需要横向查看的行，使用宿主宽度避免 TDesign 以超宽表格内容区作为空态居中基准。
+  return props.rows.length > 0 ? resolveTableWidthPolicyFor(density).tableContentWidth : undefined;
 }
 
 function emitPageChange(pageInfo: PageInfo) {

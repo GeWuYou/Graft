@@ -1,12 +1,21 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
-import { defineComponent, h, nextTick } from 'vue';
+import { describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import ManagementPagedTable from './ManagementPagedTable.vue';
 
+const tableHostWidth = ref(0);
+
+vi.mock('./use-table-host-width', () => ({
+  useTableHostWidth: () => ({
+    tableHostRef: ref(null),
+    tableHostWidth,
+  }),
+}));
+
 const TTableStub = defineComponent({
   name: 'TTableStub',
-  props: ['columns', 'data', 'selectedRowKeys'],
+  props: ['columns', 'data', 'selectedRowKeys', 'tableContentWidth'],
   emits: ['page-change', 'row-click', 'select-change', 'sort-change'],
   setup(props, { slots }) {
     return () =>
@@ -41,6 +50,36 @@ const TPaginationStub = defineComponent({
 });
 
 describe('ManagementPagedTable', () => {
+  it('uses the table host width for an empty wide table and restores horizontal scrolling for rows', async () => {
+    tableHostWidth.value = 960;
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [
+          { colKey: 'name', title: 'Name', width: 600 },
+          { colKey: 'repository', title: 'Repository', width: 600 },
+        ],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '0-0 / 0',
+        pageSize: 10,
+        rows: [],
+        total: 0,
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('fill');
+    expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBeUndefined();
+
+    await wrapper.setProps({ rows: [{ id: 'build-1', name: 'web', repository: 'graft' }] });
+
+    expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('scroll');
+    expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBe('1200px');
+  });
+
   it('routes table cell slots and renders the shared empty/pagination frame', async () => {
     const wrapper = mount(ManagementPagedTable, {
       global: {
