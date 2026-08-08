@@ -48,7 +48,8 @@ func (p controlPlaneBuilderTelemetryProvider) ListBuilderTelemetry(ctx context.C
 		results = append(results, moduleapi.BuilderTelemetrySnapshot{
 			TargetID: observation.TargetID, BuilderScope: observation.BuilderScope, ProviderID: observation.ProviderID,
 			CapabilityProfile: observation.CapabilityProfile, CapabilityVersion: observation.CapabilityVersion,
-			Available: observation.Available, Running: observation.Running, Queued: observation.Queued,
+			AffinityKey: observation.AffinityKey,
+			Available:   observation.Available, Running: observation.Running, Queued: observation.Queued,
 			AllocatableSlots: observation.AllocatableSlots, ObservedAt: observation.ObservedAt, ExpiresAt: observation.ExpiresAt,
 			SourceRef: observation.SourceRef, Provenance: observation.Provenance, Integrity: observation.Integrity,
 			UnsupportedDimensions: append([]string(nil), observation.UnsupportedDimensions...),

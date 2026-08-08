@@ -156,7 +156,7 @@ func TestRemoteDockerProviderRequiresProviderTransferAndPreservesSnapshotIdentit
 	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, system_managed, deleted_at) VALUES (?, 'docker', ?, ?, 'redacted', 'tcp', ?, true, '', false, 0)`, 2, "tcp://remote.example:2376", "Remote Docker", `["image_build"]`); err != nil {
 		t.Fatalf("seed remote target: %v", err)
 	}
-	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "provider-test-")
+	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "snapshot-provider-test-")
 	if err != nil {
 		t.Fatalf("create managed snapshot root: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestRemoteDockerProviderRequiresProviderTransferAndPreservesSnapshotIdentit
 	if target.SnapshotDeliveryModes[0] != moduleapi.SnapshotDeliveryModeProviderTransfer || len(target.WorkspaceLocalities) != 1 || target.WorkspaceLocalities[0] != "build-snapshot" {
 		t.Fatalf("remote build target delivery = %#v, localities = %#v", target.SnapshotDeliveryModes, target.WorkspaceLocalities)
 	}
-	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializedRoot: root, DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
+	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:" + filepath.Base(root), DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
 	result, err := provider.DeliverWorkspaceSnapshot(context.Background(), request)
 	if err != nil {
 		t.Fatalf("deliver remote snapshot: %v", err)
@@ -236,7 +236,11 @@ func TestDockerProviderExecutionChangesDurableAgentLedger(t *testing.T) {
 	if err := repository.EnsureBuilderAgentLedger(context.Background(), agent.TargetID, agent.AgentID, 1); err != nil {
 		t.Fatalf("create Docker ledger: %v", err)
 	}
-	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "ledger-test-")
+	managedRoot := filepath.Join(os.TempDir(), "graft-build-snapshots")
+	if err := os.MkdirAll(managedRoot, 0o700); err != nil {
+		t.Fatalf("create managed workspace root: %v", err)
+	}
+	root, err := os.MkdirTemp(managedRoot, "ledger-test-")
 	if err != nil {
 		t.Fatalf("create workspace root: %v", err)
 	}
@@ -387,6 +391,7 @@ func seedBuildTarget(t *testing.T, db *sql.DB, id int, displayName, capabilities
 	}
 }
 
+//nolint:dupl // 测试数据库必须显式覆盖 Build Target 需要的约束，不能共享会掩盖缺失列的 fixture。
 func openBuildTargetTestDB(t *testing.T) *sql.DB {
 	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_targets (

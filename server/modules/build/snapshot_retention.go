@@ -30,20 +30,25 @@ func (s *Service) CleanupExpiredSnapshotMaterializations(ctx context.Context, no
 	}
 	purged := 0
 	for _, item := range items {
-		if !isManagedSnapshotMaterialization(item.MaterializationRef) {
-			_ = repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID)
-			return purged, fmt.Errorf("snapshot materialization %q is outside Build-owned storage", item.SnapshotID)
-		}
-		if err := os.RemoveAll(item.MaterializationRef); err != nil {
-			_ = repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID)
-			return purged, fmt.Errorf("purge snapshot materialization %q: %w", item.SnapshotID, err)
-		}
-		if err := repository.MarkSnapshotMaterializationPurged(ctx, item.SnapshotID); err != nil {
+		if err := purgeClaimedSnapshotMaterialization(ctx, repository, item); err != nil {
 			return purged, err
 		}
 		purged++
 	}
 	return purged, nil
+}
+
+func purgeClaimedSnapshotMaterialization(ctx context.Context, repository buildstore.SnapshotMaterializationRetentionRepository, item buildstore.ExpiredSnapshotMaterialization) error {
+	root, resolveErr := resolveMaterializationReference(item.MaterializationRef)
+	if resolveErr != nil || !isManagedSnapshotMaterialization(root) {
+		_ = repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID)
+		return fmt.Errorf("snapshot materialization %q is outside Build-owned storage", item.SnapshotID)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		_ = repository.ReleaseSnapshotMaterializationClaim(ctx, item.SnapshotID)
+		return fmt.Errorf("purge snapshot materialization %q: %w", item.SnapshotID, err)
+	}
+	return repository.MarkSnapshotMaterializationPurged(ctx, item.SnapshotID)
 }
 
 func isManagedSnapshotMaterialization(path string) bool {

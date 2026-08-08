@@ -82,14 +82,14 @@ func TestCleanupExpiredSnapshotMaterializationsPurgesOnlyManagedMaterialization(
 	if err := os.MkdirAll(root, managedSnapshotDirectoryMode); err != nil {
 		t.Fatal(err)
 	}
-	materialization, err := os.MkdirTemp(root, "cleanup-")
+	materialization, err := os.MkdirTemp(root, "snapshot-cleanup-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(materialization, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: materialization}}}
+	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: materializationReference(materialization)}}}
 	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)

@@ -281,7 +281,7 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		return err
 	}
 	commandCtx, cancel := context.WithCancel(ctx)
-	result, err := e.targetDocker.BuildImageOnTarget(commandCtx, plan.RuntimeTargetID, moduleapi.DockerImageBuildInput{WorkspaceRoot: plan.Workspace.MaterializedRoot, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: plan.Destination.RepositoryRef, ImageTag: plan.Destination.Reference, Platform: plan.Platforms[0]}, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	result, err := e.targetDocker.BuildImageOnTarget(commandCtx, plan.RuntimeTargetID, moduleapi.DockerImageBuildInput{MaterializationRef: plan.Workspace.MaterializationRef, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: plan.Destination.RepositoryRef, ImageTag: plan.Destination.Reference, Platform: plan.Platforms[0]}, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		cancel()
 		return err
@@ -525,7 +525,7 @@ func (e v2ExecutionPlanExecutor) buildAndPublishPlatformLeg(ctx context.Context,
 	if err := recordProviderExecutionEvidence(ctx, e.repository, plan, moduleapi.ProviderExecutionEvidence{TaskID: run.TaskID(), StageID: run.StageID(), TargetID: placement.RuntimeTargetID, Platform: input.Platform, Conformance: conformance}); err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
-	result, err := e.targetDocker.BuildImageOnTarget(ctx, placement.RuntimeTargetID, moduleapi.DockerImageBuildInput{WorkspaceRoot: plan.Workspace.MaterializedRoot, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: plan.Destination.RepositoryRef, ImageTag: legTag, Platform: input.Platform}, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	result, err := e.targetDocker.BuildImageOnTarget(ctx, placement.RuntimeTargetID, moduleapi.DockerImageBuildInput{MaterializationRef: plan.Workspace.MaterializationRef, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: plan.Destination.RepositoryRef, ImageTag: legTag, Platform: input.Platform}, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
@@ -565,17 +565,15 @@ func (e v2ExecutionPlanExecutor) publishPlatformManifest(ctx context.Context, ru
 	if !ok {
 		return errors.New("OCI manifest settlement is unavailable")
 	}
-	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
-	defer settlementCancel()
-	manifestInput, err := repository.PrepareOCIManifestPublication(settlementCtx, run.TaskID(), plan)
+	manifestInput, err := repository.PrepareOCIManifestPublication(ctx, run.TaskID(), plan)
 	if err != nil {
 		return err
 	}
-	finalBinding, err := e.registry.ResolvePublicationBinding(settlementCtx, manifestInput.Destination)
+	finalBinding, err := e.registry.ResolvePublicationBinding(ctx, manifestInput.Destination)
 	if err != nil {
 		return err
 	}
-	manifest, err := e.executionAdapter.PublishManifest(settlementCtx, plan.RuntimeTargetID, manifestInput, finalBinding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
+	manifest, err := e.executionAdapter.PublishManifest(ctx, plan.RuntimeTargetID, manifestInput, finalBinding, func(logCtx context.Context, entry moduleapi.TaskLogEntry) error { return run.AppendLog(logCtx, entry) })
 	if err != nil {
 		return err
 	}
@@ -583,6 +581,8 @@ func (e v2ExecutionPlanExecutor) publishPlatformManifest(ctx context.Context, ru
 	if !ok {
 		return errors.New("OCI manifest publication did not return a valid digest")
 	}
+	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
+	defer settlementCancel()
 	return settler.SettleOCIManifestPublication(settlementCtx, run.TaskID(), plan, manifest, finalBinding.AuthExecution)
 }
 
@@ -633,11 +633,11 @@ func verifySnapshotDelivery(ctx context.Context, capability moduleapi.TargetBoun
 		return errors.New("execution plan snapshot delivery input is incomplete")
 	}
 	result, err := capability.DeliverWorkspaceSnapshot(ctx, moduleapi.WorkspaceSnapshotDeliveryRequest{
-		TargetID:         targetID,
-		SnapshotID:       snapshot.ID,
-		ContentDigest:    snapshot.ContentDigest,
-		MaterializedRoot: snapshot.MaterializedRoot,
-		DeliveryMode:     deliveryMode,
+		TargetID:           targetID,
+		SnapshotID:         snapshot.ID,
+		ContentDigest:      snapshot.ContentDigest,
+		MaterializationRef: snapshot.MaterializationRef,
+		DeliveryMode:       deliveryMode,
 	})
 	if err != nil {
 		return fmt.Errorf("deliver workspace snapshot: %w", err)
@@ -649,7 +649,7 @@ func verifySnapshotDelivery(ctx context.Context, capability moduleapi.TargetBoun
 }
 
 func validSnapshotDeliveryInput(capability moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability, targetID int64, snapshot moduleapi.WorkspaceSnapshot, deliveryMode string) bool {
-	return capability != nil && targetID > 0 && snapshot.ID != "" && snapshot.ContentDigest != "" && snapshot.MaterializedRoot != "" && strings.TrimSpace(deliveryMode) != ""
+	return capability != nil && targetID > 0 && snapshot.ID != "" && snapshot.ContentDigest != "" && snapshot.MaterializationRef != "" && strings.TrimSpace(deliveryMode) != ""
 }
 
 func matchesSnapshotDeliveryProof(result moduleapi.WorkspaceSnapshotDeliveryResult, targetID int64, snapshot moduleapi.WorkspaceSnapshot, deliveryMode string) bool {

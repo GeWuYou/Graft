@@ -627,6 +627,12 @@
 - Added the Credential Vault And Runtime Target Agent Protocol RFC. It fixes the PR1 experimental wire/module contract
   scope and rejects server push, streaming, legacy dual admission and Runtime Target secret custody.
 
+## 2026-08-08 startup authority alignment
+
+- Added ADR-023 and the Credential Vault And Runtime Target Agent Protocol RFC to the reusable startup prompt and the
+  topic tracking repository-truth list. Recovery sessions implementing the Docker Builder Agent protocol must read
+  both documents before changing trust, enrollment, credential delivery, telemetry, or revocation behavior.
+
 ## Loop Batch State
 
 ```json

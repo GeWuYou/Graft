@@ -69,7 +69,7 @@ import { createBuildJob, getBuildBuilderPools, getBuildRuntimeTargets, getBuildW
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildBuilderPool } from '../../types/build';
 import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const router = useRouter();
 const submitting = ref(false);
 const message = ref('');
@@ -88,7 +88,14 @@ type SelectorOption = { label: string; value: string | number };
 type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
 const workspaceOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
-const builderPoolOptions = ref<BuilderPoolOption[]>([]);
+const builderPools = ref<BuildBuilderPool[]>([]);
+const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
+  return builderPools.value.map((item) => ({
+    label: `${item.display_name} (${builderPoolPolicyLabel(item.scheduling_policy)})`,
+    value: item.pool_id,
+    policy: item.scheduling_policy,
+  }));
+});
 const selectorLoading = ref(false);
 const selectorError = ref('');
 const selectorOptionsUnavailable = computed(
@@ -116,11 +123,7 @@ async function loadSelectorOptions() {
       label: item.display_name,
       value: item.target_id,
     }));
-    builderPoolOptions.value = (pools.items ?? []).map((item) => ({
-      label: `${item.display_name} (${builderPoolPolicyLabel(item.scheduling_policy)})`,
-      value: item.pool_id,
-      policy: item.scheduling_policy,
-    }));
+    builderPools.value = pools.items ?? [];
   } catch (error) {
     selectorError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.selectorsLoadFailed'));
   } finally {
@@ -131,17 +134,17 @@ async function loadSelectorOptions() {
 function builderPoolPolicyLabel(policy: BuildBuilderPool['scheduling_policy']) {
   switch (policy) {
     case 'manual':
-      return t('build.jobs.create.builderPoolPolicy.manual');
+      return t('build.jobs.create.builderPoolPolicy.manual', locale.value);
     case 'round_robin':
-      return t('build.jobs.create.builderPoolPolicy.roundRobin');
+      return t('build.jobs.create.builderPoolPolicy.roundRobin', locale.value);
     case 'random':
-      return t('build.jobs.create.builderPoolPolicy.random');
+      return t('build.jobs.create.builderPoolPolicy.random', locale.value);
     case 'least_load':
-      return t('build.jobs.create.builderPoolPolicy.leastLoad');
+      return t('build.jobs.create.builderPoolPolicy.leastLoad', locale.value);
     case 'capacity':
-      return t('build.jobs.create.builderPoolPolicy.capacity');
+      return t('build.jobs.create.builderPoolPolicy.capacity', locale.value);
     case 'affinity':
-      return t('build.jobs.create.builderPoolPolicy.affinity');
+      return t('build.jobs.create.builderPoolPolicy.affinity', locale.value);
   }
 }
 

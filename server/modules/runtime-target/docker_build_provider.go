@@ -92,7 +92,7 @@ func (p dockerTargetProvider) DeliverWorkspaceSnapshot(ctx context.Context, requ
 	if request.TargetID < 1 || strings.TrimSpace(request.SnapshotID) == "" || strings.TrimSpace(request.ContentDigest) == "" {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("workspace snapshot delivery input is invalid")
 	}
-	root, err := managedSnapshotRoot(request.MaterializedRoot)
+	root, err := managedSnapshotRootForReference(request.MaterializationRef)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, err
 	}
@@ -409,7 +409,7 @@ type providerBuildPaths struct {
 }
 
 func normalizeProviderBuildInput(input moduleapi.DockerImageBuildInput) (providerBuildPaths, error) {
-	root, err := managedSnapshotRoot(input.WorkspaceRoot)
+	root, err := managedSnapshotRootForInput(input)
 	if err != nil {
 		return providerBuildPaths{}, err
 	}
@@ -425,6 +425,22 @@ func normalizeProviderBuildInput(input moduleapi.DockerImageBuildInput) (provide
 		return providerBuildPaths{}, errors.New("docker build image reference is invalid")
 	}
 	return providerBuildPaths{root: root, contextPath: filepath.Join(root, contextPath), dockerfilePath: filepath.Join(root, dockerfilePath)}, nil
+}
+
+func managedSnapshotRootForInput(input moduleapi.DockerImageBuildInput) (string, error) {
+	if strings.TrimSpace(input.MaterializationRef) != "" {
+		return managedSnapshotRootForReference(input.MaterializationRef)
+	}
+	return managedSnapshotRoot(input.WorkspaceRoot)
+}
+
+func managedSnapshotRootForReference(reference string) (string, error) {
+	const prefix = "build-snapshot:"
+	name := strings.TrimPrefix(strings.TrimSpace(reference), prefix)
+	if name == "" || name == reference || name != filepath.Base(name) || !strings.HasPrefix(name, "snapshot-") {
+		return "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	return managedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
 }
 
 func safeProviderRelativePath(value string, allowDot bool) (string, error) {

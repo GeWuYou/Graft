@@ -54,11 +54,6 @@ func NewDurableDockerBuilderAgent(ctx context.Context, registration moduleapi.Bu
 	return agent, nil
 }
 
-// QueueBuild 将一个待执行 Build 记入 Agent 自有队列账本。
-func (a *DockerBuilderAgent) QueueBuild() error {
-	return a.QueueBuildContext(context.Background())
-}
-
 // QueueBuildContext 将一个待执行 Build 写入持久化或内存账本。
 func (a *DockerBuilderAgent) QueueBuildContext(ctx context.Context) error {
 	if a == nil {
@@ -71,11 +66,6 @@ func (a *DockerBuilderAgent) QueueBuildContext(ctx context.Context) error {
 	a.queued++
 	a.mu.Unlock()
 	return nil
-}
-
-// StartBuild 将一个排队 Build 转为受控执行，并拒绝超过 Agent slot budget 的启动。
-func (a *DockerBuilderAgent) StartBuild() error {
-	return a.StartBuildContext(context.Background())
 }
 
 // StartBuildContext 原子地将一个排队 Build 转为运行 Build。
@@ -94,11 +84,6 @@ func (a *DockerBuilderAgent) StartBuildContext(ctx context.Context) error {
 	a.queued--
 	a.running++
 	return nil
-}
-
-// FinishBuild 结算一个由 Agent 账本确认的运行 Build。
-func (a *DockerBuilderAgent) FinishBuild() error {
-	return a.FinishBuildContext(context.Background())
 }
 
 // FinishBuildContext 结算一个运行 Build。
@@ -156,7 +141,8 @@ func (a *DockerBuilderAgent) PublishTelemetry(ctx context.Context, controlPlane 
 		AgentID: a.registration.AgentID, TargetID: a.registration.TargetID, Sequence: state.TelemetrySequence,
 		BuilderScope: a.registration.BuilderScope, ProviderID: a.registration.ProviderID,
 		CapabilityProfile: a.registration.CapabilityProfile, CapabilityVersion: a.registration.CapabilityVersion,
-		Available: true, Running: state.Running, Queued: state.Queued, AllocatableSlots: state.SlotBudget - state.Running - state.Queued,
+		AffinityKey: a.registration.BuilderScope,
+		Available:   true, Running: state.Running, Queued: state.Queued, AllocatableSlots: state.SlotBudget - state.Running - state.Queued,
 		ObservedAt: now, ExpiresAt: now.Add(dockerBuilderAgentTelemetryTTL),
 		SourceRef: fmt.Sprintf("docker-agent-ledger:%s", a.registration.AgentID), Provenance: "docker-builder-agent-ledger",
 		UnsupportedDimensions: []string{"cache_state"},

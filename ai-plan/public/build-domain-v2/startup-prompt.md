@@ -16,6 +16,8 @@ Round context:
   - `ai-plan/design/architecture/build-domain-v2.md`
   - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
   - `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
+  - `ai-plan/design/decisions/ADR-023-runtime-target-agent-trust-model.md`
+  - `ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md`
   - `ai-plan/roadmap/build-domain-v2.md`
 - AI skills:
   - `$graft-multi-agent-loop`

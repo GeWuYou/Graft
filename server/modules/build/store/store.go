@@ -434,6 +434,19 @@ func (r *SQLRepository) reserveBuilderCapacity(ctx context.Context, tx *sql.Tx, 
 	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'expired', updated_at = NOW() WHERE builder_instance_id = $1 AND state IN ('reserved','accepted') AND lease_expires_at <= NOW()`, reservation.InstanceID); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("expire builder reservation: %w", err)
 	}
+	var existing moduleapi.BuilderReservation
+	err := tx.QueryRowContext(ctx, `SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, created_at, updated_at
+FROM build_builder_reservations
+WHERE plan_id = $1 AND task_id = $2 AND attempt = $3 AND leg_id = $4`, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).Scan(&existing.ID, &existing.InstanceID, &existing.PlanID, &existing.TaskID, &existing.Attempt, &existing.LegID, &existing.FenceToken, &existing.State, &existing.LeaseExpiresAt, &existing.CreatedAt, &existing.UpdatedAt)
+	if err == nil {
+		if existing.InstanceID != reservation.InstanceID || existing.FenceToken != reservation.FenceToken || existing.State != reservation.State {
+			return moduleapi.BuilderReservation{}, ErrConflict
+		}
+		return existing, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("read existing builder reservation: %w", err)
+	}
 	var usedUnits int
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(capacity_units), 0) FROM build_builder_reservations WHERE builder_instance_id = $1 AND state IN ('reserved','accepted','running') AND ($2::timestamptz IS NULL OR created_at > $2)`, reservation.InstanceID, nullableObservationTime(observedAt)).Scan(&usedUnits); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("read builder reserved capacity: %w", err)
@@ -442,7 +455,7 @@ func (r *SQLRepository) reserveBuilderCapacity(ctx context.Context, tx *sql.Tx, 
 		return moduleapi.BuilderReservation{}, ErrConflict
 	}
 	var stored moduleapi.BuilderReservation
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, capacity_units, slot_budget)
+	err = tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, capacity_units, slot_budget)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10)
 ON CONFLICT (plan_id, task_id, attempt, leg_id) DO UPDATE SET reservation_id = build_builder_reservations.reservation_id
 RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt, slotBudget).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.LegID, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
@@ -551,7 +564,7 @@ func materializeWorkspaceSnapshot(ctx context.Context, tx *sql.Tx, snapshot modu
 	if err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, created_by)
 VALUES ($1, $2, $3, $4, $5, 'build', 'available', 'task_lifetime', $6)
 ON CONFLICT (snapshot_id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id
-RETURNING id`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializedRoot, nullableUint64(requestedBy)).Scan(&snapshotPK); err != nil {
+RETURNING id`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&snapshotPK); err != nil {
 		return 0, fmt.Errorf("materialize workspace snapshot: %w", err)
 	}
 	return snapshotPK, nil
@@ -579,7 +592,7 @@ func marshalExecutionPlanFields(plan moduleapi.BuildExecutionPlan) (executionPla
 
 //nolint:cyclop,gocyclo // 显式校验必须枚举每一个不可变计划边界。
 func validExecutionPlan(plan moduleapi.BuildExecutionPlan) bool {
-	if plan.ID == "" || plan.Digest == "" || plan.Workspace.ID == "" || plan.Workspace.ContentDigest == "" || plan.Workspace.MaterializedRoot == "" || plan.RuntimeTargetID < 1 || plan.Driver == "" || plan.TemplateRef == "" || plan.CachePolicy == "" || plan.SecurityPolicy == "" || len(plan.Platforms) == 0 || plan.Destination.Kind == "" || plan.Destination.ConnectionRef == "" || plan.Destination.RepositoryRef == "" || plan.Destination.Reference == "" {
+	if plan.ID == "" || plan.Digest == "" || plan.Workspace.ID == "" || plan.Workspace.ContentDigest == "" || plan.Workspace.MaterializationRef == "" || plan.RuntimeTargetID < 1 || plan.Driver == "" || plan.TemplateRef == "" || plan.CachePolicy == "" || plan.SecurityPolicy == "" || len(plan.Platforms) == 0 || plan.Destination.Kind == "" || plan.Destination.ConnectionRef == "" || plan.Destination.RepositoryRef == "" || plan.Destination.Reference == "" {
 		return false
 	}
 	if len(plan.BuilderPlacements) > 0 {
@@ -610,7 +623,7 @@ func (r *SQLRepository) GetExecutionPlanByTaskID(ctx context.Context, taskID uin
 FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE p.task_id = $1`
 	var plan moduleapi.BuildExecutionPlan
 	var platformsJSON, placementsJSON, destinationJSON []byte
-	if err := r.db.QueryRowContext(ctx, query, taskID).Scan(&plan.ID, &plan.Digest, &plan.Workspace.ID, &plan.Workspace.SourceKind, &plan.Workspace.SourceReference, &plan.Workspace.ContentDigest, &plan.Workspace.MaterializedRoot, &plan.Workspace.CreatedAt, &plan.BuilderPoolID, &plan.BuilderInstanceID, &plan.RuntimeTargetID, &plan.Driver, &plan.TemplateRef, &plan.CachePolicy, &plan.SecurityPolicy, &platformsJSON, &placementsJSON, &destinationJSON, &plan.CreatedAt); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, taskID).Scan(&plan.ID, &plan.Digest, &plan.Workspace.ID, &plan.Workspace.SourceKind, &plan.Workspace.SourceReference, &plan.Workspace.ContentDigest, &plan.Workspace.MaterializationRef, &plan.Workspace.CreatedAt, &plan.BuilderPoolID, &plan.BuilderInstanceID, &plan.RuntimeTargetID, &plan.Driver, &plan.TemplateRef, &plan.CachePolicy, &plan.SecurityPolicy, &platformsJSON, &placementsJSON, &destinationJSON, &plan.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return moduleapi.BuildExecutionPlan{}, ErrNotFound
 		}

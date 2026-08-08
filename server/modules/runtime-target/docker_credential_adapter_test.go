@@ -12,13 +12,19 @@ import (
 )
 
 type recordingCredentialProvider struct {
-	session   moduleapi.EphemeralCredentialSession
-	injected  moduleapi.CredentialInjectionTarget
-	revoked   int
-	revokeErr error
+	session      moduleapi.EphemeralCredentialSession
+	injected     moduleapi.CredentialInjectionTarget
+	revoked      int
+	revokeErr    error
+	prepareErrAt int
+	prepares     int
 }
 
 func (p *recordingCredentialProvider) Prepare(context.Context, moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
+	p.prepares++
+	if p.prepareErrAt == p.prepares {
+		return moduleapi.EphemeralCredentialSession{}, errors.New("prepare failed")
+	}
 	return p.session, nil
 }
 
@@ -94,6 +100,28 @@ func TestCredentialAdapterRejectsExpiredSessionWithoutInjection(t *testing.T) {
 	}
 	if provider.revoked != 1 {
 		t.Fatalf("expired session revoke count = %d, want 1", provider.revoked)
+	}
+}
+
+func TestCredentialAdapterFailsClosedWhenEarlyRevokeCannotBeVerified(t *testing.T) {
+	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "expired", ExpiresAt: time.Now().UTC().Add(-time.Minute)}, revokeErr: errors.New("revoke failed")}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: "credential:one", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil) // #nosec G101 -- 测试用凭据引用不是认证秘密。
+	var failure *moduleapi.ExecutionFailure
+	if !errors.As(err, &failure) || failure.Code != credentialCleanupUnverifiedCode {
+		t.Fatalf("early cleanup error = %v, want %s", err, credentialCleanupUnverifiedCode)
+	}
+}
+
+func TestCredentialAdapterCopyFailsClosedWhenSourceRevokeCannotBeVerified(t *testing.T) {
+	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}, prepareErrAt: 2, revokeErr: errors.New("revoke failed")}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
+	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{RepositoryRef: "team/source"}, Destination: moduleapi.AuthorizedArtifactDestination{RepositoryRef: "team/destination"}}
+	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
+	_, err := adapter.CopyOCIArtifact(context.Background(), 1, input, binding, nil)
+	var failure *moduleapi.ExecutionFailure
+	if !errors.As(err, &failure) || failure.Code != credentialCleanupUnverifiedCode {
+		t.Fatalf("early copy cleanup error = %v, want %s", err, credentialCleanupUnverifiedCode)
 	}
 }
 

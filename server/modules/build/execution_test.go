@@ -14,26 +14,27 @@ import (
 )
 
 type recordingBuildRepository struct {
-	created            buildstore.JobSnapshot
-	snapshot           buildstore.JobSnapshot
-	settledID          uint64
-	settleCanceled     bool
-	settleDeadline     bool
-	getBuildIDErr      error
-	createErr          error
-	listResult         buildstore.ListResult
-	listQuery          buildstore.ListQuery
-	artifactResult     buildstore.V2ArtifactListResult
-	v2Plan             moduleapi.BuildExecutionPlan
-	workspaces         []moduleapi.BuildWorkspace
-	publicationSources []moduleapi.ArtifactPublicationSource
-	promotionInput     moduleapi.OCIArtifactCopyInput
-	promotionResult    moduleapi.OCIArtifactCopyResult
-	promotionAuth      moduleapi.RegistryAuthExecution
-	promotionSettled   bool
-	platformArtifacts  []moduleapi.PlatformArtifact
-	manifestInput      moduleapi.OCIManifestPublicationInput
-	manifestSettled    bool
+	created                buildstore.JobSnapshot
+	snapshot               buildstore.JobSnapshot
+	settledID              uint64
+	settleCanceled         bool
+	settleDeadline         bool
+	getBuildIDErr          error
+	createErr              error
+	listResult             buildstore.ListResult
+	listQuery              buildstore.ListQuery
+	artifactResult         buildstore.V2ArtifactListResult
+	v2Plan                 moduleapi.BuildExecutionPlan
+	workspaces             []moduleapi.BuildWorkspace
+	publicationSources     []moduleapi.ArtifactPublicationSource
+	promotionInput         moduleapi.OCIArtifactCopyInput
+	promotionResult        moduleapi.OCIArtifactCopyResult
+	promotionAuth          moduleapi.RegistryAuthExecution
+	promotionSettled       bool
+	platformArtifacts      []moduleapi.PlatformArtifact
+	manifestInput          moduleapi.OCIManifestPublicationInput
+	manifestSettled        bool
+	manifestSettleDeadline bool
 }
 
 func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {
@@ -50,8 +51,9 @@ func (r *recordingBuildRepository) PrepareOCIManifestPublication(_ context.Conte
 	return r.manifestInput, nil
 }
 
-func (r *recordingBuildRepository) SettleOCIManifestPublication(context.Context, uint64, moduleapi.BuildExecutionPlan, moduleapi.OCIManifestPublicationResult, moduleapi.RegistryAuthExecution) error {
+func (r *recordingBuildRepository) SettleOCIManifestPublication(ctx context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, _ moduleapi.OCIManifestPublicationResult, _ moduleapi.RegistryAuthExecution) error {
 	r.manifestSettled = true
+	_, r.manifestSettleDeadline = ctx.Deadline()
 	return nil
 }
 
@@ -424,7 +426,7 @@ func (s *snapshotDeliveryCapabilityStub) DeliverWorkspaceSnapshot(_ context.Cont
 }
 
 func TestVerifySnapshotDeliveryRequiresMatchingFrozenIdentity(t *testing.T) {
-	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: "/tmp/graft-build-snapshots/snapshot-1"}
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:snapshot-1"}
 	capability := &snapshotDeliveryCapabilityStub{result: moduleapi.WorkspaceSnapshotDeliveryResult{TargetID: 4, SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}}
 	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err != nil {
 		t.Fatal(err)
@@ -493,14 +495,18 @@ func (s manifestRegistryStub) ResolvePublicationBinding(context.Context, modulea
 	return s.binding, nil
 }
 
-type manifestExecutionAdapterStub struct{ calls int }
+type manifestExecutionAdapterStub struct {
+	calls       int
+	hasDeadline bool
+}
 
 func (*manifestExecutionAdapterStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
 	return moduleapi.DockerImageBuildResult{}, errors.New("not implemented")
 }
 
-func (s *manifestExecutionAdapterStub) PublishManifest(_ context.Context, _ int64, input moduleapi.OCIManifestPublicationInput, _ moduleapi.RegistryPublicationBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+func (s *manifestExecutionAdapterStub) PublishManifest(ctx context.Context, _ int64, input moduleapi.OCIManifestPublicationInput, _ moduleapi.RegistryPublicationBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
 	s.calls++
+	_, s.hasDeadline = ctx.Deadline()
 	if len(input.PlatformArtifacts) != 2 {
 		return moduleapi.OCIManifestPublicationResult{}, errors.New("platform artifacts are incomplete")
 	}
@@ -728,7 +734,7 @@ func TestAggregateStagePublishesManifestAfterPlatformArtifacts(t *testing.T) {
 	if err := executor.publishPlatformManifest(context.Background(), buildStageRun{}, plan); err != nil {
 		t.Fatalf("publish platform manifest: %v", err)
 	}
-	if adapter.calls != 1 || !repository.manifestSettled {
+	if adapter.calls != 1 || adapter.hasDeadline || !repository.manifestSettled || !repository.manifestSettleDeadline {
 		t.Fatalf("aggregate manifest settlement calls=%d settled=%t", adapter.calls, repository.manifestSettled)
 	}
 }

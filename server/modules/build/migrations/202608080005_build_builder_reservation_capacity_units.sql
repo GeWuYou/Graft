@@ -1,13 +1,15 @@
+-- atlas:txmode none
+
 ALTER TABLE build_builder_reservations
   ADD COLUMN capacity_units INTEGER NOT NULL DEFAULT 1,
   ADD COLUMN slot_budget INTEGER NOT NULL DEFAULT 1,
-  ADD CONSTRAINT build_builder_reservations_capacity_units_positive CHECK (capacity_units > 0),
-  ADD CONSTRAINT build_builder_reservations_slot_budget_positive CHECK (slot_budget > 0),
-  ADD CONSTRAINT build_builder_reservations_capacity_within_slot_budget CHECK (capacity_units <= slot_budget);
+  ADD CONSTRAINT build_builder_reservations_capacity_units_positive CHECK (capacity_units > 0) NOT VALID,
+  ADD CONSTRAINT build_builder_reservations_slot_budget_positive CHECK (slot_budget > 0) NOT VALID,
+  ADD CONSTRAINT build_builder_reservations_capacity_within_slot_budget CHECK (capacity_units <= slot_budget) NOT VALID;
 
-DROP INDEX uq_build_builder_reservations_live_instance;
+DROP INDEX CONCURRENTLY uq_build_builder_reservations_live_instance;
 
-CREATE INDEX idx_build_builder_reservations_live_instance
+CREATE INDEX CONCURRENTLY idx_build_builder_reservations_live_instance
   ON build_builder_reservations (builder_instance_id)
   WHERE state IN ('reserved', 'accepted', 'running');
 

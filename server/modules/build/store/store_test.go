@@ -113,6 +113,8 @@ func TestReserveBuilderCapacityRejectsUnitBeyondFrozenSlotBudget(t *testing.T) {
 	}
 	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(capacity_units\\), 0\\)").WithArgs(reservation.InstanceID, nil).
 		WillReturnRows(sqlmock.NewRows([]string{"used_units"}).AddRow(4))
 	if _, err := repository.reserveBuilderCapacity(context.Background(), tx, reservation, 4, time.Time{}); !errors.Is(err, ErrConflict) {
@@ -120,6 +122,41 @@ func TestReserveBuilderCapacityRejectsUnitBeyondFrozenSlotBudget(t *testing.T) {
 	}
 	mock.ExpectRollback()
 	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReserveBuilderCapacityReplaysMatchingReservationBeforeCapacityCheck(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := time.Date(2026, time.August, 8, 12, 5, 0, 0, time.UTC)
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_replay", InstanceID: "builder_1", PlanID: "plan_replay", TaskID: 43, Attempt: 1, LegID: "single", FenceToken: BuilderReservationFence("plan_replay", 43, "single", 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: expiresAt}
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).
+			AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
+	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
+	if err != nil || stored.ID != reservation.ID {
+		t.Fatalf("reserve replay = %#v, %v", stored, err)
+	}
+	mock.ExpectCommit()
+	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -174,6 +211,8 @@ func TestReserveBuilderAttemptAbandonsOnlyOlderAttempts(t *testing.T) {
 }
 
 func expectBuilderReservationCapacity(mock sqlmock.Sqlmock, reservation moduleapi.BuilderReservation, timestamp time.Time, slotBudget int) {
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(capacity_units\\), 0\\)").WithArgs(reservation.InstanceID, nil).
 		WillReturnRows(sqlmock.NewRows([]string{"used_units"}).AddRow(0))
 	mock.ExpectQuery("INSERT INTO build_builder_reservations").

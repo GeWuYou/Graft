@@ -7,16 +7,17 @@ import (
 	"time"
 )
 
-// WorkspaceSnapshot 是 Build 执行消费的不可变、已物化源码输入；MaterializedRoot
-// 仅供执行器使用，绝不能越过 HTTP 或 Task metadata 边界。
+// WorkspaceSnapshot 是 Build 执行消费的不可变源码输入。MaterializedRoot 仅是来源
+// adapter 交接时的临时输入；Build 持久化或执行时必须只使用 MaterializationRef。
 type WorkspaceSnapshot struct {
-	ID               string
-	WorkspaceID      string
-	SourceKind       string
-	SourceReference  string
-	ContentDigest    string
-	MaterializedRoot string
-	CreatedAt        time.Time
+	ID                 string
+	WorkspaceID        string
+	SourceKind         string
+	SourceReference    string
+	ContentDigest      string
+	MaterializedRoot   string
+	MaterializationRef string
+	CreatedAt          time.Time
 }
 
 // BuildWorkspace 是 Build 所有的可复用来源定义；实际源码内容由 Snapshot 冻结，
@@ -116,9 +117,9 @@ type WorkspaceMaterializationRequest struct {
 
 // WorkspaceMaterialization 是 Build-owned 执行字节的私有引用，不能进入 Task metadata 或 HTTP。
 type WorkspaceMaterialization struct {
-	SnapshotID       string
-	ContentDigest    string
-	MaterializedRoot string
+	SnapshotID         string
+	ContentDigest      string
+	MaterializationRef string
 }
 
 // WorkspaceMaterializer 负责 Snapshot -> execution workspace -> cleanup 生命周期。
@@ -462,13 +463,14 @@ type ApplicationBuildContextResolver interface {
 // DockerImageBuildInput 是 Container 模块接受的受控 Docker 构建请求。
 // 路径必须相对于已授权 workspace，调用方不能传入 daemon、host 或任意 CLI 参数。
 type DockerImageBuildInput struct {
-	WorkspaceRoot   string
-	ContextPath     string
-	DockerfilePath  string
-	ImageRepository string
-	ImageTag        string
-	Platform        string
-	BuildArgs       []DockerImageBuildArg
+	WorkspaceRoot      string
+	MaterializationRef string
+	ContextPath        string
+	DockerfilePath     string
+	ImageRepository    string
+	ImageTag           string
+	Platform           string
+	BuildArgs          []DockerImageBuildArg
 }
 
 // DockerImageBuildArg 表示非敏感 Docker 构建参数。
@@ -510,13 +512,13 @@ type TargetBoundDockerImageBuildCapability interface {
 }
 
 // WorkspaceSnapshotDeliveryRequest 是 Build 将冻结 Snapshot 交给 Runtime provider 的受控请求。
-// MaterializedRoot 只允许在 execution-private provider boundary 内流转，不得进入 Task metadata 或 HTTP。
+// MaterializationRef 是 Build-owned opaque reference；provider 不接收宿主机路径。
 type WorkspaceSnapshotDeliveryRequest struct {
-	TargetID         int64
-	SnapshotID       string
-	ContentDigest    string
-	MaterializedRoot string
-	DeliveryMode     string
+	TargetID           int64
+	SnapshotID         string
+	ContentDigest      string
+	MaterializationRef string
+	DeliveryMode       string
 }
 
 // WorkspaceSnapshotDeliveryResult 是 provider 对 Snapshot 消费前校验的不可变证明。

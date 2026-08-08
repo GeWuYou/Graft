@@ -70,6 +70,7 @@ func canonicalBuilderTelemetryReport(report moduleapi.BuilderTelemetryReport, no
 		ProviderID            string   `json:"provider_id"`
 		CapabilityProfile     string   `json:"capability_profile"`
 		CapabilityVersion     string   `json:"capability_version"`
+		AffinityKey           string   `json:"affinity_key"`
 		Available             bool     `json:"available"`
 		Running               int      `json:"running"`
 		Queued                int      `json:"queued"`
@@ -81,7 +82,7 @@ func canonicalBuilderTelemetryReport(report moduleapi.BuilderTelemetryReport, no
 		UnsupportedDimensions []string `json:"unsupported_dimensions"`
 	}{
 		AgentID: report.AgentID, TargetID: report.TargetID, Sequence: report.Sequence, BuilderScope: report.BuilderScope, ProviderID: report.ProviderID,
-		CapabilityProfile: report.CapabilityProfile, CapabilityVersion: report.CapabilityVersion, Available: report.Available,
+		CapabilityProfile: report.CapabilityProfile, CapabilityVersion: report.CapabilityVersion, AffinityKey: report.AffinityKey, Available: report.Available,
 		Running: report.Running, Queued: report.Queued, AllocatableSlots: report.AllocatableSlots,
 		ObservedAt: report.ObservedAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00"),
 		ExpiresAt:  report.ExpiresAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00"), SourceRef: report.SourceRef,
@@ -118,7 +119,7 @@ func safeBuilderTelemetryEvidence(value string) bool {
 
 func builderTelemetryObservationFromReport(report moduleapi.BuilderTelemetryReport, payload []byte) store.BuilderTelemetryObservation {
 	digest := sha256.Sum256(payload)
-	return store.BuilderTelemetryObservation{TargetID: report.TargetID, BuilderScope: report.BuilderScope, ProviderID: report.ProviderID, CapabilityProfile: report.CapabilityProfile, CapabilityVersion: report.CapabilityVersion, Available: report.Available, Running: report.Running, Queued: report.Queued, AllocatableSlots: report.AllocatableSlots, ObservedAt: report.ObservedAt.UTC(), ExpiresAt: report.ExpiresAt.UTC(), SourceRef: report.SourceRef, Provenance: report.Provenance, Integrity: "sha256:" + hex.EncodeToString(digest[:]), UnsupportedDimensions: append([]string(nil), report.UnsupportedDimensions...)}
+	return store.BuilderTelemetryObservation{TargetID: report.TargetID, AgentID: report.AgentID, TelemetrySequence: report.Sequence, BuilderScope: report.BuilderScope, ProviderID: report.ProviderID, CapabilityProfile: report.CapabilityProfile, CapabilityVersion: report.CapabilityVersion, AffinityKey: report.AffinityKey, Available: report.Available, Running: report.Running, Queued: report.Queued, AllocatableSlots: report.AllocatableSlots, ObservedAt: report.ObservedAt.UTC(), ExpiresAt: report.ExpiresAt.UTC(), SourceRef: report.SourceRef, Provenance: report.Provenance, Integrity: "sha256:" + hex.EncodeToString(digest[:]), UnsupportedDimensions: append([]string(nil), report.UnsupportedDimensions...)}
 }
 
 func (p controlPlaneBuilderTelemetryIngress) currentTime() time.Time {

@@ -201,7 +201,10 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 		t.Fatal(err)
 	}
 	assertFrozenV2Submission(t, receipt, repository.v2Plan)
-	t.Cleanup(func() { _ = os.RemoveAll(repository.v2Plan.Workspace.MaterializedRoot) })
+	if repository.v2Plan.Workspace.MaterializedRoot != "" || repository.v2Plan.Workspace.MaterializationRef == "" {
+		t.Fatalf("persisted snapshot must retain only opaque materialization reference: %#v", repository.v2Plan.Workspace)
+	}
+	t.Cleanup(func() { _ = releaseMaterialization(repository.v2Plan.Workspace.MaterializationRef) })
 	var input moduleapi.BuildPlanTaskInput
 	if err := json.Unmarshal(tasks.input.Input, &input); err != nil {
 		t.Fatal(err)
@@ -343,7 +346,7 @@ func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *te
 //nolint:cyclop,gocyclo // This integration seam keeps candidate admission, telemetry and frozen evidence in one scenario.
 func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamicEvidence(t *testing.T) {
 	now := time.Now().UTC()
-	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-capacity", SchedulingPolicy: "capacity"}, members: []moduleapi.BuilderInstance{
+	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-least-load", SchedulingPolicy: "least_load"}, members: []moduleapi.BuilderInstance{
 		{ID: "builder-small", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
 		{ID: "builder-large", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
 		{ID: "builder-rejected", RuntimeTargetID: 6, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
@@ -359,24 +362,24 @@ func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamic
 		6: {ID: 6, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
 	}
 	service.buildAssignments = placementAssignments{4: true, 5: true, 6: true}
-	service.ConfigureBuilderTelemetry(builderTelemetryReaderStub{admitted: map[int64]bool{4: true, 5: true, 6: false}, snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{
+	service.ConfigureBuilderTelemetry(builderTelemetryReaderStub{admitted: map[int64]bool{4: true, 5: true, 6: true}, snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{
 		4: {TargetID: 4, BuilderScope: "builder:small", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, Running: 1, Queued: 0, AllocatableSlots: 1, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:small", Provenance: "agent", Integrity: "sha256:small"},
 		5: {TargetID: 5, BuilderScope: "builder:large", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v2", Available: true, Running: 2, Queued: 0, AllocatableSlots: 4, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:large", Provenance: "agent", Integrity: "sha256:large"},
-		6: {TargetID: 6, BuilderScope: "builder:rejected", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, Running: 0, Queued: 0, AllocatableSlots: 99, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:rejected", Provenance: "agent", Integrity: "sha256:rejected"},
+		6: {TargetID: 6, BuilderScope: "builder:zero", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, Running: 0, Queued: 0, AllocatableSlots: 0, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:zero", Provenance: "agent", Integrity: "sha256:zero"},
 	}})
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
-	placements, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-capacity", v2DockerEngineDriver, []string{"linux/amd64"})
+	placements, err := service.SelectBuilderPlacementsFromPool(ctx, "pool-least-load", v2DockerEngineDriver, []string{"linux/amd64"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(placements) != 1 || placements[0].BuilderInstanceID != "builder-large" || placements[0].RuntimeTargetID != 5 {
+	if len(placements) != 1 || placements[0].BuilderInstanceID != "builder-small" || placements[0].RuntimeTargetID != 4 {
 		t.Fatalf("dynamic placement = %#v", placements)
 	}
 	var evidence dynamicPlacementEvidence
 	if err := json.Unmarshal(placements[0].SchedulingEvidence, &evidence); err != nil {
 		t.Fatal(err)
 	}
-	if evidence.PolicyID != "build.pool.capacity" || evidence.PolicyVersion != "v1" || evidence.SelectedInstanceID != "builder-large" || evidence.Telemetry.SourceRef != "report:large" || evidence.Telemetry.CapabilityVersion != "v2" || evidence.Telemetry.Integrity != "sha256:large" || evidence.CandidateFingerprint == "" || evidence.ReservationSlotBudget != 4 || evidence.ReservationObservedAt.IsZero() || evidence.CapabilityRequirementFingerprint == "" || evidence.CapabilityProfile != "buildkit" || evidence.CapabilityVersion != "v2" || evidence.CapabilityNegotiation.SnapshotDeliveryMode == "" {
+	if evidence.PolicyID != "build.pool.least_load" || evidence.PolicyVersion != "v1" || evidence.SelectedInstanceID != "builder-small" || evidence.Telemetry.SourceRef != "report:small" || evidence.Telemetry.CapabilityVersion != "v1" || evidence.Telemetry.Integrity != "sha256:small" || evidence.CandidateFingerprint == "" || evidence.ReservationSlotBudget != 1 || evidence.ReservationObservedAt.IsZero() || evidence.CapabilityRequirementFingerprint == "" || evidence.CapabilityProfile != "buildkit" || evidence.CapabilityVersion != "v1" || evidence.CapabilityNegotiation.SnapshotDeliveryMode == "" {
 		t.Fatalf("frozen dynamic evidence = %#v", evidence)
 	}
 }

@@ -38,7 +38,7 @@ func TestDockerBuilderAgentTelemetryReflectsControlledLedgerState(t *testing.T) 
 	}
 	agent.now = func() time.Time { return now }
 	sink := &telemetryReportSink{}
-	if err := agent.QueueBuild(); err != nil {
+	if err := agent.QueueBuildContext(context.Background()); err != nil {
 		t.Fatalf("queue build: %v", err)
 	}
 	if err := agent.PublishTelemetry(context.Background(), sink); err != nil {
@@ -47,7 +47,7 @@ func TestDockerBuilderAgentTelemetryReflectsControlledLedgerState(t *testing.T) 
 	if sink.report.Queued != 1 || sink.report.Running != 0 || sink.report.AllocatableSlots != 1 || sink.report.Sequence != 1 {
 		t.Fatalf("queued telemetry = %#v", sink.report)
 	}
-	if err := agent.StartBuild(); err != nil {
+	if err := agent.StartBuildContext(context.Background()); err != nil {
 		t.Fatalf("start build: %v", err)
 	}
 	if err := agent.PublishTelemetry(context.Background(), sink); err != nil {
@@ -56,7 +56,7 @@ func TestDockerBuilderAgentTelemetryReflectsControlledLedgerState(t *testing.T) 
 	if sink.report.Queued != 0 || sink.report.Running != 1 || sink.report.AllocatableSlots != 1 || sink.report.Sequence != 2 {
 		t.Fatalf("running telemetry = %#v", sink.report)
 	}
-	if err := agent.FinishBuild(); err != nil {
+	if err := agent.FinishBuildContext(context.Background()); err != nil {
 		t.Fatalf("finish build: %v", err)
 	}
 	if err := agent.PublishTelemetry(context.Background(), sink); err != nil {
@@ -85,10 +85,10 @@ func TestDockerBuilderAgentPublishesSignedLedgerToRuntimeTarget(t *testing.T) {
 		t.Fatalf("new Docker builder agent: %v", err)
 	}
 	agent.now = func() time.Time { return now }
-	if err := agent.QueueBuild(); err != nil {
+	if err := agent.QueueBuildContext(context.Background()); err != nil {
 		t.Fatalf("queue build: %v", err)
 	}
-	if err := agent.StartBuild(); err != nil {
+	if err := agent.StartBuildContext(context.Background()); err != nil {
 		t.Fatalf("start build: %v", err)
 	}
 	if err := agent.PublishTelemetry(context.Background(), ingress); err != nil {

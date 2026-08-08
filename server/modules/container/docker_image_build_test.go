@@ -31,7 +31,7 @@ func TestDeliverWorkspaceSnapshotProvesManagedTargetLocalMaterialization(t *test
 	if err := os.MkdirAll(filepath.Join(os.TempDir(), "graft-build-snapshots"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "delivery-test-")
+	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "snapshot-delivery-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestDeliverWorkspaceSnapshotProvesManagedTargetLocalMaterialization(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := (containerImageBuilder{service: service}).DeliverWorkspaceSnapshot(context.Background(), moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: root, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal})
+	result, err := (containerImageBuilder{service: service}).DeliverWorkspaceSnapshot(context.Background(), moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:" + filepath.Base(root), DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestDeliverWorkspaceSnapshotRejectsUnsupportedTransferAndUnmanagedRoot(t *t
 		t.Fatal(err)
 	}
 	builder := containerImageBuilder{service: service}
-	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: t.TempDir(), DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
+	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 4, SnapshotID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:outside", DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
 	if _, err := builder.DeliverWorkspaceSnapshot(context.Background(), request); err == nil {
 		t.Fatal("provider-transfer unexpectedly succeeded without a provider adapter")
 	}

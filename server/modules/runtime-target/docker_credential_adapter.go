@@ -34,61 +34,71 @@ type credentialPublicationClient interface {
 	CopyOCIArtifactOnTarget(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
 }
 
+type publicationSession struct {
+	session   moduleapi.EphemeralCredentialSession
+	configDir string
+	cleanup   func() error
+}
+
 func (a dockerCredentialExecutionAdapter) PublishImage(ctx context.Context, targetID int64, result moduleapi.DockerImageBuildResult, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (published moduleapi.DockerImageBuildResult, err error) {
-	if a.provider == nil || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.CredentialRef) == "" || strings.TrimSpace(binding.Endpoint) == "" {
-		return result, errors.New("ephemeral registry credential provider is unavailable")
-	}
-	session, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.CredentialRef, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef, Operation: "push", ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
+	prepared, err := a.preparePublicationSession(ctx, binding, "push")
 	if err != nil {
-		return result, fmt.Errorf("prepare registry credential: %w", err)
-	}
-	configDir, cleanup, err := isolatedDockerConfig(session)
-	if err != nil {
-		_ = a.provider.Revoke(context.WithoutCancel(ctx), session)
 		return result, err
 	}
 	defer func() {
-		revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session)
-		cleanupErr := cleanup()
-		if revokeErr != nil || cleanupErr != nil {
-			err = credentialCleanupFailure(err)
-		}
+		err = finalizePublicationSession(ctx, a.provider, prepared.session, prepared.cleanup, err)
 	}()
-	if err := a.provider.Inject(ctx, session, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
+	if err := a.provider.Inject(ctx, prepared.session, moduleapi.CredentialInjectionTarget{ConfigDir: prepared.configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
 		return result, fmt.Errorf("inject registry credential: %w", err)
 	}
-	return a.client.PublishImageOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, configDir), targetID, result, binding, sink)
+	return a.client.PublishImageOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, prepared.configDir), targetID, result, binding, sink)
 }
 
 func (a dockerCredentialExecutionAdapter) PublishManifest(ctx context.Context, targetID int64, input moduleapi.OCIManifestPublicationInput, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (published moduleapi.OCIManifestPublicationResult, err error) {
-	if a.provider == nil || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.CredentialRef) == "" || strings.TrimSpace(binding.Endpoint) == "" {
-		return moduleapi.OCIManifestPublicationResult{}, errors.New("ephemeral registry credential provider is unavailable")
-	}
-	session, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.CredentialRef, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef, Operation: "manifest-push", ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
+	prepared, err := a.preparePublicationSession(ctx, binding, "manifest-push")
 	if err != nil {
-		return moduleapi.OCIManifestPublicationResult{}, fmt.Errorf("prepare registry credential: %w", err)
-	}
-	configDir, cleanup, err := isolatedDockerConfig(session)
-	if err != nil {
-		_ = a.provider.Revoke(context.WithoutCancel(ctx), session)
 		return moduleapi.OCIManifestPublicationResult{}, err
 	}
 	defer func() {
-		revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session)
-		cleanupErr := cleanup()
-		if revokeErr != nil || cleanupErr != nil {
-			err = credentialCleanupFailure(err)
-		}
+		err = finalizePublicationSession(ctx, a.provider, prepared.session, prepared.cleanup, err)
 	}()
-	if err := a.provider.Inject(ctx, session, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
+	if err := a.provider.Inject(ctx, prepared.session, moduleapi.CredentialInjectionTarget{ConfigDir: prepared.configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
 		return moduleapi.OCIManifestPublicationResult{}, fmt.Errorf("inject registry credential: %w", err)
 	}
-	return a.client.PublishOCIManifestOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, configDir), targetID, input, binding, sink)
+	return a.client.PublishOCIManifestOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, prepared.configDir), targetID, input, binding, sink)
+}
+
+//nolint:revive // 统一返回会话、隔离配置和清理函数，确保调用方建立同一终态清理边界。
+func (a dockerCredentialExecutionAdapter) preparePublicationSession(ctx context.Context, binding moduleapi.RegistryPublicationBinding, operation string) (publicationSession, error) {
+	if a.provider == nil || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.CredentialRef) == "" || strings.TrimSpace(binding.Endpoint) == "" {
+		return publicationSession{}, errors.New("ephemeral registry credential provider is unavailable")
+	}
+	session, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.CredentialRef, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef, Operation: operation, ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
+	if err != nil {
+		return publicationSession{}, fmt.Errorf("prepare registry credential: %w", err)
+	}
+	configDir, cleanup, err := isolatedDockerConfig(session)
+	if err != nil {
+		if revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session); revokeErr != nil {
+			return publicationSession{}, credentialCleanupFailure(err)
+		}
+		return publicationSession{}, err
+	}
+	return publicationSession{session: session, configDir: configDir, cleanup: cleanup}, nil
+}
+
+func finalizePublicationSession(ctx context.Context, provider moduleapi.CredentialProvider, session moduleapi.EphemeralCredentialSession, cleanup func() error, err error) error {
+	revokeErr := provider.Revoke(context.WithoutCancel(ctx), session)
+	cleanupErr := cleanup()
+	if revokeErr != nil || cleanupErr != nil {
+		return credentialCleanupFailure(err)
+	}
+	return err
 }
 
 // CopyOCIArtifact 为来源读取和目标写入分别申请最小范围的短期凭据，二者只存在于同一隔离 Docker 配置中。
 //
-//nolint:cyclop,gocyclo // 双端凭据、隔离注入和全部终态撤销必须保持在同一安全边界内。
+//nolint:cyclop,gocyclo,gocognit // 双端凭据、隔离注入和全部终态撤销必须保持在同一安全边界内。
 func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (copied moduleapi.OCIArtifactCopyResult, err error) {
 	if a.provider == nil || binding.SourceAuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || binding.Destination.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.SourceCredentialRef) == "" || strings.TrimSpace(binding.SourceEndpoint) == "" || strings.TrimSpace(binding.Destination.CredentialRef) == "" || strings.TrimSpace(binding.Destination.Endpoint) == "" {
 		return moduleapi.OCIArtifactCopyResult{}, errors.New("ephemeral registry credential provider is unavailable")
@@ -99,13 +109,18 @@ func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, t
 	}
 	destinationSession, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.Destination.CredentialRef, Endpoint: binding.Destination.Endpoint, RepositoryRef: input.Destination.RepositoryRef, Operation: "push", ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
 	if err != nil {
-		_ = a.provider.Revoke(context.WithoutCancel(ctx), sourceSession)
+		if revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), sourceSession); revokeErr != nil {
+			return moduleapi.OCIArtifactCopyResult{}, credentialCleanupFailure(err)
+		}
 		return moduleapi.OCIArtifactCopyResult{}, fmt.Errorf("prepare destination registry credential: %w", err)
 	}
 	configDir, cleanup, err := isolatedDockerConfig(sourceSession)
 	if err != nil {
-		_ = a.provider.Revoke(context.WithoutCancel(ctx), destinationSession)
-		_ = a.provider.Revoke(context.WithoutCancel(ctx), sourceSession)
+		cleanupFailed := a.provider.Revoke(context.WithoutCancel(ctx), destinationSession) != nil
+		cleanupFailed = a.provider.Revoke(context.WithoutCancel(ctx), sourceSession) != nil || cleanupFailed
+		if cleanupFailed {
+			return moduleapi.OCIArtifactCopyResult{}, credentialCleanupFailure(err)
+		}
 		return moduleapi.OCIArtifactCopyResult{}, err
 	}
 	defer func() {

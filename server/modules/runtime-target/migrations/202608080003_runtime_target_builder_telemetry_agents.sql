@@ -17,3 +17,9 @@ COMMENT ON COLUMN runtime_target_builder_telemetry_agents.public_key IS '仅用�
 COMMENT ON COLUMN runtime_target_builder_telemetry_agents.enabled IS '是否允许该构建代理继续提交遥测报告';
 COMMENT ON COLUMN runtime_target_builder_telemetry_agents.created_at IS '构建代理验证身份创建时间';
 COMMENT ON COLUMN runtime_target_builder_telemetry_agents.updated_at IS '构建代理验证身份最近更新时间';
+
+ALTER TABLE runtime_target_builder_telemetry_observations
+  ADD CONSTRAINT fk_runtime_target_builder_telemetry_observations_agent
+  FOREIGN KEY (runtime_target_id, agent_id)
+  REFERENCES runtime_target_builder_telemetry_agents (runtime_target_id, agent_id)
+  ON DELETE RESTRICT;

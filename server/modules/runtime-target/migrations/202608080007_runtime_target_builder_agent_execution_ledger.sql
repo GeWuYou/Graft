@@ -8,7 +8,8 @@ CREATE TABLE runtime_target_builder_execution_ledgers (
   telemetry_sequence BIGINT NOT NULL DEFAULT 0 CHECK (telemetry_sequence >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_runtime_target_builder_execution_ledgers_target_agent UNIQUE (runtime_target_id, agent_id),
+	CONSTRAINT uq_runtime_target_builder_execution_ledgers_target_agent UNIQUE (runtime_target_id, agent_id),
+	CONSTRAINT fk_runtime_target_builder_execution_ledgers_agent FOREIGN KEY (runtime_target_id, agent_id) REFERENCES runtime_target_builder_telemetry_agents (runtime_target_id, agent_id) ON DELETE RESTRICT,
   CONSTRAINT runtime_target_builder_execution_ledgers_capacity_check CHECK (running_builds <= slot_budget)
 );
 

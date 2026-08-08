@@ -3,6 +3,7 @@ package build
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -25,19 +26,29 @@ func (buildWorkspaceMaterializer) MaterializeSnapshot(_ context.Context, snapsho
 	if err != nil {
 		return moduleapi.WorkspaceMaterialization{}, err
 	}
-	return moduleapi.WorkspaceMaterialization{SnapshotID: materialized.ID, ContentDigest: materialized.ContentDigest, MaterializedRoot: materialized.MaterializedRoot}, nil
+	return moduleapi.WorkspaceMaterialization{SnapshotID: materialized.ID, ContentDigest: materialized.ContentDigest, MaterializationRef: materializationReference(materialized.MaterializedRoot)}, nil
 }
 
 func (buildWorkspaceMaterializer) ReleaseMaterialization(_ context.Context, materialization moduleapi.WorkspaceMaterialization) error {
-	if strings.TrimSpace(materialization.MaterializedRoot) == "" {
+	root, err := resolveMaterializationReference(materialization.MaterializationRef)
+	if err != nil {
 		return errors.New("invalid workspace materialization")
 	}
-	managedRoot := filepath.Join(os.TempDir(), "graft-build-snapshots")
-	relative, err := filepath.Rel(managedRoot, materialization.MaterializedRoot)
-	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return errors.New("workspace materialization is outside Build-owned root")
+	return os.RemoveAll(root)
+}
+
+const materializationReferencePrefix = "build-snapshot:"
+
+func materializationReference(root string) string {
+	return materializationReferencePrefix + filepath.Base(root)
+}
+
+func resolveMaterializationReference(reference string) (string, error) {
+	name := strings.TrimPrefix(strings.TrimSpace(reference), materializationReferencePrefix)
+	if name == "" || name == reference || name != filepath.Base(name) || !strings.HasPrefix(name, "snapshot-") {
+		return "", errors.New("invalid workspace materialization reference")
 	}
-	return os.RemoveAll(materialization.MaterializedRoot)
+	return filepath.Join(os.TempDir(), "graft-build-snapshots", name), nil
 }
 
 // adoptSnapshotMaterialization 将来源 adapter 交付的临时物化副本转交给 Build。
@@ -161,7 +172,10 @@ func materializationDigest(root string) (string, error) {
 	sort.Strings(entries)
 	hash := sha256.New()
 	for _, entry := range entries {
-		_, _ = io.WriteString(hash, entry+"\n")
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(entry)))
+		_, _ = hash.Write(length[:])
+		_, _ = io.WriteString(hash, entry)
 	}
 	return "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
 }

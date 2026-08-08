@@ -185,6 +185,7 @@ type BuilderTelemetryReport struct {
 	ProviderID            string
 	CapabilityProfile     string
 	CapabilityVersion     string
+	AffinityKey           string
 	Available             bool
 	Running               int
 	Queued                int

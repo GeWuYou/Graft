@@ -338,7 +338,7 @@ func (s *Service) dynamicEligibleCandidate(ctx context.Context, policy string, s
 	if err != nil {
 		return dynamicBuilderCandidate{}, false, fmt.Errorf("read builder telemetry: %w", err)
 	}
-	if len(snapshots) != 1 || snapshots[0].TargetID != instance.RuntimeTargetID || !snapshots[0].DynamicPlacementConformantAt(time.Now().UTC()) || (policy == "affinity" && (selector.AffinityKey == "" || snapshots[0].AffinityKey != selector.AffinityKey)) {
+	if len(snapshots) != 1 || snapshots[0].TargetID != instance.RuntimeTargetID || snapshots[0].AllocatableSlots < 1 || !snapshots[0].DynamicPlacementConformantAt(time.Now().UTC()) || (policy == "affinity" && (selector.AffinityKey == "" || snapshots[0].AffinityKey != selector.AffinityKey)) {
 		return dynamicBuilderCandidate{}, false, nil
 	}
 	target, err := s.buildTargets.ReadBuildTarget(ctx, instance.RuntimeTargetID)
@@ -542,7 +542,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	if request.BuilderPoolID == "" {
 		for index, placement := range request.BuilderPlacements {
-			authorization, authorizeErr := s.authorizeBuildPlacement(ctx, placement.RuntimeTargetID, request.Driver, placement.Platform)
+			authorization, authorizeErr := s.authorizeBuildPlacementForPlatforms(ctx, actorID, placement.RuntimeTargetID, request.Driver, []string{placement.Platform})
 			if authorizeErr != nil {
 				return moduleapi.TaskReceipt{}, authorizeErr
 			}
@@ -560,15 +560,16 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	if materializeErr != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize workspace snapshot: %w", materializeErr)
 	}
-	snapshot.MaterializedRoot = materialization.MaterializedRoot
+	snapshot.MaterializedRoot = ""
+	snapshot.MaterializationRef = materialization.MaterializationRef
 	plan, err := freezeExecutionPlan(snapshot, request, selectedBuilderID)
 	if err != nil {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return moduleapi.TaskReceipt{}, err
 	}
 	input, err := json.Marshal(moduleapi.BuildPlanTaskInput{BuildID: plan.ID, ExecutionPlanID: plan.ID})
 	if err != nil {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal execution plan task input: %w", err)
 	}
 	stageTemplate := moduleapi.StagePlan{Key: "execution-plan", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}
@@ -599,23 +600,27 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	handle, err := s.submissions.BeginSubmission(ctx, moduleapi.BeginTaskSubmissionInput{Task: task, Policy: moduleapi.TaskSubmissionPolicy{LeaseTTL: buildSubmissionLeaseTTL, AbsoluteDeadline: buildSubmissionDeadline, RenewBefore: buildSubmissionRenewBefore, AllowRenew: true, PrerequisiteKind: "build.execution_plan.v2"}})
 	if err != nil {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return moduleapi.TaskReceipt{}, err
 	}
 	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return s.activatedSubmissionReceipt(ctx, *handle.Submission.TaskID)
 	}
 	repository, ok := s.repository.(buildstore.ExecutionPlanRepository)
 	if !ok {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return moduleapi.TaskReceipt{}, errors.New("build execution plan persistence is unavailable")
 	}
 	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, task, executionPlanSubmissionWriter{repository: repository, plan: plan, requestedBy: request.RequestedBy})
 	if err != nil {
-		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		_ = releaseMaterialization(snapshot.MaterializationRef)
 	}
 	return receipt, err
+}
+
+func releaseMaterialization(reference string) error {
+	return (buildWorkspaceMaterializer{}).ReleaseMaterialization(context.Background(), moduleapi.WorkspaceMaterialization{MaterializationRef: reference})
 }
 
 type executionPlanSubmissionWriter struct {
@@ -635,14 +640,6 @@ type placementCapabilityAuthorization struct {
 	capabilityProfile      string
 	capabilityVersion      string
 	negotiation            moduleapi.NegotiatedCapability
-}
-
-func (s *Service) authorizeBuildPlacement(ctx context.Context, runtimeTargetID int64, driverRef, platform string) (placementCapabilityAuthorization, error) {
-	auth, ok := moduleapi.RequestAuthContextFromContext(ctx)
-	if !ok || auth.User == nil {
-		return placementCapabilityAuthorization{}, moduleapi.ErrUnauthenticated
-	}
-	return s.authorizeBuildPlacementForPlatforms(ctx, auth.User.ID, runtimeTargetID, driverRef, []string{platform})
 }
 
 func (s *Service) authorizeBuildPlacementForPlatforms(ctx context.Context, actorID uint64, runtimeTargetID int64, driverRef string, platforms []string) (placementCapabilityAuthorization, error) {

@@ -134,10 +134,13 @@ type DockerTargetConnection struct {
 // 它不保存连接端点、凭据或 Docker/主机指标，只保留 Builder 范围的调度输入和可验证出处。
 type BuilderTelemetryObservation struct {
 	TargetID              int64
+	AgentID               string
+	TelemetrySequence     int64
 	BuilderScope          string
 	ProviderID            string
 	CapabilityProfile     string
 	CapabilityVersion     string
+	AffinityKey           string
 	Available             bool
 	Running               int
 	Queued                int
@@ -179,16 +182,23 @@ func (r *SQLRepository) EnsureBuilderAgentLedger(ctx context.Context, targetID i
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || slotBudget < 1 {
 		return ErrBuilderLedgerRejected
 	}
-	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_execution_ledgers (runtime_target_id, agent_id, slot_budget, queued_builds, running_builds, telemetry_sequence) VALUES ($1,$2,$3,0,0,0) ON CONFLICT (runtime_target_id, agent_id) DO UPDATE SET slot_budget = EXCLUDED.slot_budget, updated_at = CURRENT_TIMESTAMP`, targetID, agentID, slotBudget)
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_execution_ledgers (runtime_target_id, agent_id, slot_budget, queued_builds, running_builds, telemetry_sequence) VALUES ($1,$2,$3,0,0,0) ON CONFLICT (runtime_target_id, agent_id) DO UPDATE SET slot_budget = EXCLUDED.slot_budget, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_builder_execution_ledgers.running_builds <= EXCLUDED.slot_budget`, targetID, agentID, slotBudget)
 	if err != nil {
 		return fmt.Errorf("ensure builder execution ledger: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read builder execution ledger result: %w", err)
+	}
+	if affected != 1 {
+		return ErrBuilderLedgerRejected
 	}
 	return nil
 }
 
 // QueueBuilderAgentBuild 将一个构建加入代理自有排队账本。
 func (r *SQLRepository) QueueBuilderAgentBuild(ctx context.Context, targetID int64, agentID string) error {
-	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `queued_builds = queued_builds + 1`, "queue builder execution")
+	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `queued_builds = queued_builds + 1`, "queue builder execution", "")
 }
 
 // StartBuilderAgentBuild 原子地将排队构建转为运行构建，并核对 slot budget。
@@ -206,20 +216,24 @@ func (r *SQLRepository) FinishBuilderAgentBuild(ctx context.Context, targetID in
 	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `running_builds = running_builds - 1`, "finish builder execution", "running_builds > 0")
 }
 
-func (r *SQLRepository) transitionBuilderAgentLedger(ctx context.Context, targetID int64, agentID, assignments, operation string, predicates ...string) error {
+func (r *SQLRepository) transitionBuilderAgentLedger(ctx context.Context, targetID int64, agentID, assignments, operation, predicate string) error {
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
 		return ErrBuilderLedgerRejected
 	}
 	where := "runtime_target_id = $1 AND agent_id = $2"
-	if len(predicates) > 0 {
-		where += " AND " + predicates[0]
+	if predicate != "" {
+		where += " AND " + predicate
 	}
 	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
 		result, err := r.executor(txCtx).ExecContext(txCtx, "UPDATE runtime_target_builder_execution_ledgers SET "+assignments+", updated_at = CURRENT_TIMESTAMP WHERE "+where, targetID, agentID)
 		if err != nil {
 			return fmt.Errorf("%s: %w", operation, err)
 		}
-		if affected, _ := result.RowsAffected(); affected != 1 {
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("%s rows affected: %w", operation, err)
+		}
+		if affected != 1 {
 			return ErrBuilderLedgerRejected
 		}
 		return nil
@@ -448,7 +462,7 @@ func (r *SQLRepository) RecordBuilderTelemetryObservation(ctx context.Context, o
 	if err != nil {
 		return fmt.Errorf("encode unsupported builder telemetry dimensions: %w", err)
 	}
-	_, err = r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_observations (runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, observation.TargetID, observation.BuilderScope, observation.ProviderID, observation.CapabilityProfile, observation.CapabilityVersion, observation.Available, observation.Running, observation.Queued, observation.AllocatableSlots, observation.ObservedAt, observation.ExpiresAt, observation.SourceRef, observation.Provenance, observation.Integrity, unsupported)
+	_, err = r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_observations (runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`, observation.TargetID, observation.AgentID, observation.TelemetrySequence, observation.BuilderScope, observation.ProviderID, observation.CapabilityProfile, observation.CapabilityVersion, observation.AffinityKey, observation.Available, observation.Running, observation.Queued, observation.AllocatableSlots, observation.ObservedAt, observation.ExpiresAt, observation.SourceRef, observation.Provenance, observation.Integrity, unsupported)
 	if err != nil {
 		return fmt.Errorf("record builder telemetry observation: %w", err)
 	}
@@ -465,7 +479,11 @@ func (r *SQLRepository) UpsertBuilderTelemetryAgent(ctx context.Context, agent B
 	if err != nil {
 		return fmt.Errorf("upsert builder telemetry agent: %w", err)
 	}
-	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read builder telemetry agent upsert result: %w", err)
+	}
+	if affected == 0 {
 		return errors.New("builder telemetry key rotation requires disabled agent binding")
 	}
 	return nil
@@ -569,7 +587,7 @@ func builderTelemetryTargetArguments(targetIDs []int64) ([]string, []any, error)
 }
 
 func latestBuilderTelemetryQuery(placeholders []string) string {
-	return `SELECT runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json FROM (SELECT runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json, ROW_NUMBER() OVER (PARTITION BY runtime_target_id ORDER BY observed_at DESC, id DESC) AS observation_rank FROM runtime_target_builder_telemetry_observations WHERE runtime_target_id IN (` + strings.Join(placeholders, ",") + `)) latest WHERE observation_rank = 1 ORDER BY runtime_target_id`
+	return `SELECT runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json FROM (SELECT runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json, ROW_NUMBER() OVER (PARTITION BY runtime_target_id ORDER BY observed_at DESC, id DESC) AS observation_rank FROM runtime_target_builder_telemetry_observations WHERE runtime_target_id IN (` + strings.Join(placeholders, ",") + `)) latest WHERE observation_rank = 1 ORDER BY runtime_target_id`
 }
 
 func scanBuilderTelemetryObservations(rows *sql.Rows, capacity int) ([]BuilderTelemetryObservation, error) {
@@ -587,7 +605,7 @@ func scanBuilderTelemetryObservations(rows *sql.Rows, capacity int) ([]BuilderTe
 func scanBuilderTelemetryObservation(rows *sql.Rows) (BuilderTelemetryObservation, error) {
 	var observation BuilderTelemetryObservation
 	var unsupported []byte
-	if err := rows.Scan(&observation.TargetID, &observation.BuilderScope, &observation.ProviderID, &observation.CapabilityProfile, &observation.CapabilityVersion, &observation.Available, &observation.Running, &observation.Queued, &observation.AllocatableSlots, &observation.ObservedAt, &observation.ExpiresAt, &observation.SourceRef, &observation.Provenance, &observation.Integrity, &unsupported); err != nil {
+	if err := rows.Scan(&observation.TargetID, &observation.AgentID, &observation.TelemetrySequence, &observation.BuilderScope, &observation.ProviderID, &observation.CapabilityProfile, &observation.CapabilityVersion, &observation.AffinityKey, &observation.Available, &observation.Running, &observation.Queued, &observation.AllocatableSlots, &observation.ObservedAt, &observation.ExpiresAt, &observation.SourceRef, &observation.Provenance, &observation.Integrity, &unsupported); err != nil {
 		return BuilderTelemetryObservation{}, fmt.Errorf("scan latest builder telemetry: %w", err)
 	}
 	if err := json.Unmarshal(unsupported, &observation.UnsupportedDimensions); err != nil {
