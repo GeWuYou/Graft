@@ -884,13 +884,48 @@ func TestRuntimeSubmitCoordinatedMaterializesParallelLegStages(t *testing.T) {
 		t.Fatalf("SubmitCoordinated: %v", err)
 	}
 	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
-	if err != nil || len(stages) != 2 {
+	if err != nil || len(stages) != 3 {
 		t.Fatalf("coordinated stages = %#v err=%v", stages, err)
 	}
-	for _, stage := range stages {
+	for _, stage := range stages[:2] {
 		if stage.CoordinationGroup != "build-aggregate" || stage.LegID == "" {
 			t.Fatalf("coordinated stage = %#v", stage)
 		}
+	}
+	aggregate := stages[2]
+	if aggregate.Key != "build-aggregate" || aggregate.CoordinationGroup != "" || aggregate.LegID != "" {
+		t.Fatalf("aggregate stage = %#v", aggregate)
+	}
+}
+
+func TestRuntimeCompletesCoordinatedTaskOnlyAfterAggregateStage(t *testing.T) {
+	runtime, repository := newRuntimeForTest(t)
+	executor := &recordingExecutor{}
+	if err := runtime.RegisterStageExecutor(executor); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Plan.Coordination = &moduleapi.CoordinatedTaskPlan{Version: "build-legs/v1", AggregateStageKey: "build-aggregate", Legs: []moduleapi.CoordinatedLegPlan{{ID: "amd64", Platform: "linux/amd64", BuilderInstanceID: "builder-a", RuntimeTargetID: 1}, {ID: "arm64", Platform: "linux/arm64", BuilderInstanceID: "builder-b", RuntimeTargetID: 2}}}
+	receipt, err := runtime.SubmitCoordinated(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit coordinated task: %v", err)
+	}
+	for range 2 {
+		if err := runtime.runOne(context.Background()); err != nil {
+			t.Fatalf("run coordinated leg: %v", err)
+		}
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("task completed before aggregate stage: %#v", task)
+	}
+	if executor.calls() != 2 {
+		t.Fatalf("leg calls = %d, want 2", executor.calls())
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("run aggregate stage: %v", err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusSuccess || executor.calls() != 3 {
+		t.Fatalf("aggregate completion = %#v calls=%d", task, executor.calls())
 	}
 }
 

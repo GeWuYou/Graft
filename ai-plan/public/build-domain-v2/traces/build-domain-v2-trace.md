@@ -526,6 +526,17 @@
 - Phase 4a remains a telemetry authority gate only. The loop advances to Phase 4b Task Runtime distributed coordination;
   Phase 4c Reservation recovery/dynamic placement and Phase 4d OpenAPI/web projection remain pending in order.
 
+## 2026-08-08 phase-4b-task-runtime-distributed-coordination
+
+- Task Runtime now expands each frozen coordinated template into its parallel platform legs plus one final serial
+  aggregate stage. The normal persisted stage state machine therefore owns cancellation, retry, restart recovery and
+  the single aggregate terminal transition; Build cannot complete the Task from a leg.
+- Build leg execution records only its immutable platform Artifact. The final aggregate stage is the sole caller of
+  provider manifest publication and Build-owned Artifact/Publication settlement, after all leg Artifacts exist.
+- This establishes the Phase 4b coordination boundary only. It does not add a scheduler, queue, second Task Runtime,
+  event store, telemetry source, dynamic policy, OpenAPI or web projection. Reservation recovery still blocks dynamic
+  placement acceptance.
+
 ## Loop Batch State
 
 ```json

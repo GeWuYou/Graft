@@ -31,6 +31,28 @@ type recordingBuildRepository struct {
 	promotionResult    moduleapi.OCIArtifactCopyResult
 	promotionAuth      moduleapi.RegistryAuthExecution
 	promotionSettled   bool
+	platformArtifacts  []moduleapi.PlatformArtifact
+	manifestInput      moduleapi.OCIManifestPublicationInput
+	manifestSettled    bool
+}
+
+func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {
+	r.platformArtifacts = append(r.platformArtifacts, artifact)
+	return nil
+}
+
+func (r *recordingBuildRepository) ListPlatformArtifacts(context.Context, uint64, moduleapi.BuildExecutionPlan) ([]moduleapi.PlatformArtifact, error) {
+	return append([]moduleapi.PlatformArtifact(nil), r.platformArtifacts...), nil
+}
+
+func (r *recordingBuildRepository) PrepareOCIManifestPublication(_ context.Context, _ uint64, plan moduleapi.BuildExecutionPlan) (moduleapi.OCIManifestPublicationInput, error) {
+	r.manifestInput = moduleapi.OCIManifestPublicationInput{Destination: moduleapi.AuthorizedArtifactDestination(plan.Destination), PlatformArtifacts: append([]moduleapi.PlatformArtifact(nil), r.platformArtifacts...)}
+	return r.manifestInput, nil
+}
+
+func (r *recordingBuildRepository) SettleOCIManifestPublication(context.Context, uint64, moduleapi.BuildExecutionPlan, moduleapi.OCIManifestPublicationResult, moduleapi.RegistryAuthExecution) error {
+	r.manifestSettled = true
+	return nil
 }
 
 func (r *recordingBuildRepository) CreateWorkspace(context.Context, moduleapi.BuildWorkspace) error {
@@ -401,6 +423,32 @@ type promotionExecutionAdapterStub struct {
 	copy func(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
 }
 
+type manifestRegistryStub struct {
+	binding moduleapi.RegistryPublicationBinding
+}
+
+func (s manifestRegistryStub) ResolvePublicationBinding(context.Context, moduleapi.AuthorizedArtifactDestination) (moduleapi.RegistryPublicationBinding, error) {
+	return s.binding, nil
+}
+
+type manifestExecutionAdapterStub struct{ calls int }
+
+func (*manifestExecutionAdapterStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	return moduleapi.DockerImageBuildResult{}, errors.New("not implemented")
+}
+
+func (s *manifestExecutionAdapterStub) PublishManifest(_ context.Context, _ int64, input moduleapi.OCIManifestPublicationInput, _ moduleapi.RegistryPublicationBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	s.calls++
+	if len(input.PlatformArtifacts) != 2 {
+		return moduleapi.OCIManifestPublicationResult{}, errors.New("platform artifacts are incomplete")
+	}
+	return moduleapi.OCIManifestPublicationResult{Digest: "sha256:" + strings.Repeat("b", 64), MediaType: "application/vnd.oci.image.index.v1+json"}, nil
+}
+
+func (*manifestExecutionAdapterStub) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return moduleapi.OCIArtifactCopyResult{}, errors.New("not implemented")
+}
+
 func (s promotionExecutionAdapterStub) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 	return s.copy(ctx, targetID, input, binding, sink)
 }
@@ -594,6 +642,32 @@ func TestExecutorSettlesArtifactAfterCallerCancellation(t *testing.T) {
 	}
 	if !repository.settleDeadline {
 		t.Fatal("artifact settlement has no bounded timeout")
+	}
+}
+
+func TestPlatformLegRecordsArtifactWithoutSettlingFinalManifest(t *testing.T) {
+	repository := &recordingBuildRepository{}
+	executor := v2ExecutionPlanExecutor{repository: repository}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", Platforms: []string{"linux/amd64", "linux/arm64"}}
+	result := moduleapi.DockerImageBuildResult{Digest: "sha256:" + strings.Repeat("a", 64), SizeBytes: 7}
+	if err := executor.recordPlatformArtifact(context.Background(), buildStageRun{}, plan, moduleapi.BuildPlanTaskInput{LegID: "platform-1", Platform: "linux/amd64"}, result); err != nil {
+		t.Fatalf("record platform artifact: %v", err)
+	}
+	if len(repository.platformArtifacts) != 1 || repository.manifestSettled || len(repository.manifestInput.PlatformArtifacts) != 0 {
+		t.Fatalf("platform leg unexpectedly settled a manifest: %#v", repository)
+	}
+}
+
+func TestAggregateStagePublishesManifestAfterPlatformArtifacts(t *testing.T) {
+	repository := &recordingBuildRepository{platformArtifacts: []moduleapi.PlatformArtifact{{LegID: "platform-1", Platform: "linux/amd64", Digest: "sha256:" + strings.Repeat("a", 64)}, {LegID: "platform-2", Platform: "linux/arm64", Digest: "sha256:" + strings.Repeat("c", 64)}}}
+	adapter := &manifestExecutionAdapterStub{}
+	executor := v2ExecutionPlanExecutor{repository: repository, registry: manifestRegistryStub{binding: moduleapi.RegistryPublicationBinding{AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}, executionAdapter: adapter}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", RuntimeTargetID: 4, Platforms: []string{"linux/amd64", "linux/arm64"}}
+	if err := executor.publishPlatformManifest(context.Background(), buildStageRun{}, plan); err != nil {
+		t.Fatalf("publish platform manifest: %v", err)
+	}
+	if adapter.calls != 1 || !repository.manifestSettled {
+		t.Fatalf("aggregate manifest settlement calls=%d settled=%t", adapter.calls, repository.manifestSettled)
 	}
 }
 

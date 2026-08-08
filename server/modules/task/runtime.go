@@ -368,7 +368,7 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 	if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
 		return moduleapi.TaskPlan{}, err
 	}
-	if len(plan.Stages) == len(plan.Coordination.Legs) {
+	if len(plan.Stages) == len(plan.Coordination.Legs)+1 {
 		return plan, nil
 	}
 	if len(plan.Stages) != 1 {
@@ -378,7 +378,7 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 	if template.ExternalReceipt != nil || template.ExecutorType == "" || template.Key == "" {
 		return moduleapi.TaskPlan{}, errors.New("coordinated task stage template is unsupported")
 	}
-	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs))
+	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs)+1)
 	for index, leg := range plan.Coordination.Legs {
 		stageInput := template.Input
 		if len(leg.Input) > 0 {
@@ -386,6 +386,8 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 		}
 		plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: fmt.Sprintf("%s-%d", template.Key, index+1), ExecutorType: template.ExecutorType, CoordinationGroup: plan.Coordination.AggregateStageKey, LegID: leg.ID, Input: stageInput, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
 	}
+	// 聚合阶段沿用冻结模板输入，只有全部并行 leg 成功后才可由 Task Runtime 领取。
+	plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: plan.Coordination.AggregateStageKey, ExecutorType: template.ExecutorType, Input: template.Input, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
 	return plan, nil
 }
 
@@ -1126,8 +1128,8 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 		if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
 			return err
 		}
-		if len(plan.Stages) != len(plan.Coordination.Legs) {
-			return errors.New("coordinated task stages do not match legs")
+		if err := validateCoordinatedStages(plan); err != nil {
+			return err
 		}
 	}
 	if len(plan.Stages) == 0 {
@@ -1138,6 +1140,25 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 		if err := r.validateStagePlan(stage, index, len(plan.Stages), seen); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// validateCoordinatedStages 确保 Runtime 持久化并行 leg 及其唯一的串行聚合阶段。
+// 聚合阶段是最终结算的唯一入口，不能由任一 Build leg 直接触发。
+func validateCoordinatedStages(plan moduleapi.TaskPlan) error {
+	if len(plan.Stages) != len(plan.Coordination.Legs)+1 {
+		return errors.New("coordinated task stages do not match legs")
+	}
+	for index, leg := range plan.Coordination.Legs {
+		stage := plan.Stages[index]
+		if stage.CoordinationGroup != plan.Coordination.AggregateStageKey || stage.LegID != leg.ID {
+			return errors.New("coordinated task leg stages do not match the frozen coordination plan")
+		}
+	}
+	aggregate := plan.Stages[len(plan.Stages)-1]
+	if aggregate.Key != plan.Coordination.AggregateStageKey || aggregate.CoordinationGroup != "" || aggregate.LegID != "" {
+		return errors.New("coordinated task aggregate stage is invalid")
 	}
 	return nil
 }

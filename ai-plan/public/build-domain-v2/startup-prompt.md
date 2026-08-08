@@ -60,9 +60,9 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Phase 4a telemetry authority is complete: Runtime Target owns the signed Builder Agent/control-plane ingress and
-   restart-safe telemetry facade. Begin Phase 4b with Task Runtime-owned coordinated legs, cancellation, retries,
-   recovery and aggregate terminal settlement. Build remains Artifact and Publication owner.
+1. Phase 4a telemetry authority is complete and Phase 4b implementation evidence now establishes Task Runtime-owned
+   coordinated legs, cancellation, retries, recovery and aggregate terminal settlement. Build remains Artifact and
+   Publication owner; controller acceptance remains separate from this worker evidence.
 2. Phase 4c may begin only after Phase 4b acceptance, and must freeze fresh, conformant telemetry, capability profile,
    Placement Evidence and Reservation fence without retry-time reselection. Phase 4d may project OpenAPI and web only
    after a dynamic policy is genuinely executable.

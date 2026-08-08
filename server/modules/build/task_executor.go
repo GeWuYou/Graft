@@ -229,6 +229,9 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		}
 		return errors.New("execution plan identity does not match task input")
 	}
+	if len(plan.Platforms) > 1 && input.Platform == "" && input.LegID == "" {
+		return e.publishPlatformManifest(ctx, run, plan)
+	}
 	reservationRepository, reservationOK := e.repository.(moduleapi.BuilderReservationRepository)
 	reservationLegID := "single"
 	reservationInstanceID := plan.BuilderInstanceID
@@ -341,7 +344,7 @@ func (e v2ExecutionPlanExecutor) executePlatformLeg(ctx context.Context, run mod
 	if err != nil {
 		return err
 	}
-	return e.recordPlatformArtifactAndPublishManifest(ctx, run, plan, input, result)
+	return e.recordPlatformArtifact(ctx, run, plan, input, result)
 }
 
 func validatePlatformLeg(plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, executionAdapter moduleapi.RuntimeExecutionAdapter) (moduleapi.BuilderPlacement, error) {
@@ -389,7 +392,7 @@ func (e v2ExecutionPlanExecutor) buildAndPublishPlatformLeg(ctx context.Context,
 	return result, nil
 }
 
-func (e v2ExecutionPlanExecutor) recordPlatformArtifactAndPublishManifest(ctx context.Context, run moduleapi.StageRun, plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, result moduleapi.DockerImageBuildResult) error {
+func (e v2ExecutionPlanExecutor) recordPlatformArtifact(ctx context.Context, run moduleapi.StageRun, plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, result moduleapi.DockerImageBuildResult) error {
 	digest, ok := normalizePlatformDigest(result.Digest)
 	if !ok {
 		return errors.New("platform build did not return a valid digest")
@@ -398,16 +401,28 @@ func (e v2ExecutionPlanExecutor) recordPlatformArtifactAndPublishManifest(ctx co
 	if !ok {
 		return errors.New("platform artifact repository is unavailable")
 	}
-	settler, ok := e.repository.(buildstore.OCIManifestSettlementRepository)
-	if !ok {
-		return errors.New("OCI manifest settlement is unavailable")
-	}
 	artifact := moduleapi.PlatformArtifact{LegID: input.LegID, Platform: input.Platform, Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", SizeBytes: result.SizeBytes, ProducedAt: time.Now().UTC()}
 	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
 	defer settlementCancel()
 	if err := repository.RecordPlatformArtifact(settlementCtx, run.TaskID(), plan, artifact); err != nil {
 		return err
 	}
+	return nil
+}
+
+// publishPlatformManifest 只由 Task Runtime 领取的聚合阶段调用。
+// Build 保持 Artifact/Publication 结算 owner，但单个平台 leg 不能自行判断协调组是否完成。
+func (e v2ExecutionPlanExecutor) publishPlatformManifest(ctx context.Context, run moduleapi.StageRun, plan moduleapi.BuildExecutionPlan) error {
+	repository, ok := e.repository.(buildstore.PlatformArtifactRepository)
+	if !ok {
+		return errors.New("platform artifact repository is unavailable")
+	}
+	settler, ok := e.repository.(buildstore.OCIManifestSettlementRepository)
+	if !ok {
+		return errors.New("OCI manifest settlement is unavailable")
+	}
+	settlementCtx, settlementCancel := context.WithTimeout(context.WithoutCancel(ctx), artifactSettlementTimeout)
+	defer settlementCancel()
 	manifestInput, err := repository.PrepareOCIManifestPublication(settlementCtx, run.TaskID(), plan)
 	if err != nil {
 		return err

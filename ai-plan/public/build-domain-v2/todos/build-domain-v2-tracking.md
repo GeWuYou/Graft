@@ -121,7 +121,7 @@ state below. A historical item may support an RFC phase but cannot independently
   wired through the Build permission and Task Runtime submission boundary. Authorized Publication discovery and the
   Artifact page workflow remain a later reviewed contract; no selector or modal is inferred from the Artifact list.
 - [x] Phase 5: Task Runtime distributed-leg coordination contract and manifest aggregation authority.
-- [ ] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
+- [x] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.
 - [x] Phase 6 foundation: multi-instance untracked coordinated-leg cancellation and restart cancellation recovery.
 - [x] Phase 6 foundation: Build-owned per-platform immutable Artifact persistence with non-overwriting leg settlement.
@@ -129,8 +129,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 7 foundation: complete-platform Artifact validation and Driver publication input contract.
 - [x] Phase 7 foundation: final OCI Manifest Artifact and Publication settlement after Driver-proven digest result.
 - [x] Phase 7 foundation: Container Buildx provider adapter with target-declared `docker-buildx` capability gate.
-- [x] Phase 7 execution slice: coordinated Build legs now build and publish per-platform immutable digests, then
-  attempt provider-owned OCI Manifest publication and Build-owned settlement.
+- [x] Phase 7 execution slice: coordinated Build legs only build and publish per-platform immutable digests. Task
+  Runtime then claims one final aggregate stage after every leg succeeds; that stage performs provider-owned OCI
+  Manifest publication and Build-owned settlement exactly once.
 - [ ] Phase 4: provider-conformant dynamic placement and Task Runtime-owned distributed Build; existing dynamic policy
   literals remain disabled until this release gate.
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
@@ -187,10 +188,11 @@ state below. A historical item may support an RFC phase but cannot independently
   selectable; Phase 9D is the first phase allowed to claim a concrete Kubernetes/BuildKit/Kaniko adapter.
 - Phase 3 partial release evidence: Pool selection is now a public builder selector and freezes the selected Pool and
   Instance; multi-platform fan-out remains gated by Phase 6 coordination plus Phase 7 Driver manifest publication.
-- Phase 7 partial release evidence: multi-platform submission is materialized as Task Runtime coordinated legs and the
-  executor performs per-leg publication plus manifest finalization when all immutable platform Artifacts are present.
-  Placement is now frozen per platform; scheduler policy truth is Phase 8 and provider-backed cross-target delivery is
-  Phase 9. Neither phase permits a local execution fallback for another Runtime Target.
+- Phase 7 partial release evidence: multi-platform submission is materialized as Task Runtime coordinated legs plus a
+  final serial aggregate stage. Per-leg executors only record immutable platform Artifacts; the aggregate stage alone
+  invokes manifest publication and Build settlement. Placement is frozen per platform; scheduler policy truth is Phase
+  8 and provider-backed cross-target delivery is Phase 9. Neither phase permits a local execution fallback for another
+  Runtime Target.
 
 ## Loop Batch State
 
