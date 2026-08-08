@@ -83,6 +83,7 @@ type buildTaskExecutorDependencies struct {
 	provider             moduleapi.TargetBoundDockerBuildProvider
 	snapshotDelivery     moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
 	conformance          moduleapi.TargetBoundProviderExecutionConformanceCapability
+	builderTelemetry     moduleapi.RuntimeTargetBuilderTelemetryReader
 	registry             moduleapi.RegistryPublicationResolver
 	executionAdapter     moduleapi.RuntimeExecutionAdapter
 	targets              moduleapi.BuildRuntimeTargetReader
@@ -101,7 +102,7 @@ func registerBuildTaskExecutor(registrar moduleapi.TaskRuntimeRegistrar, reposit
 	}
 	// V2 plan 在执行前已被接受并持久化。可选 capability 使 legacy-focused test
 	// 仍可构造，而 production wiring 提供完整的 target/publish boundary。
-	if err := registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, executionAdapter: dependencies.executionAdapter, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent}); err != nil {
+	if err := registrar.RegisterStageExecutor(v2ExecutionPlanExecutor{repository: repository, provider: dependencies.provider, targetDocker: targetDocker, executionAdapter: dependencies.executionAdapter, snapshotDelivery: dependencies.snapshotDelivery, conformance: dependencies.conformance, builderTelemetry: dependencies.builderTelemetry, registry: dependencies.registry, targets: dependencies.targets, intents: dependencies.intent}); err != nil {
 		return err
 	}
 	return registrar.RegisterStageExecutor(&artifactPromotionExecutor{service: promotions, adapter: dependencies.executionAdapter, registry: dependencies.artifactCopyRegistry, cancels: make(map[uint64]context.CancelFunc)})
@@ -128,6 +129,8 @@ func resolveBuildTaskExecutorDependencies(capabilities []any) buildTaskExecutorD
 			dependencies.snapshotDelivery = value
 		case moduleapi.TargetBoundProviderExecutionConformanceCapability:
 			dependencies.conformance = value
+		case moduleapi.RuntimeTargetBuilderTelemetryReader:
+			dependencies.builderTelemetry = value
 		case moduleapi.RegistryPublicationResolver:
 			dependencies.registry = value
 		case moduleapi.RuntimeExecutionAdapter:
@@ -204,6 +207,7 @@ type v2ExecutionPlanExecutor struct {
 	targetDocker     moduleapi.TargetBoundDockerImageBuildCapability
 	snapshotDelivery moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability
 	conformance      moduleapi.TargetBoundProviderExecutionConformanceCapability
+	builderTelemetry moduleapi.RuntimeTargetBuilderTelemetryReader
 	registry         moduleapi.RegistryPublicationResolver
 	executionAdapter moduleapi.RuntimeExecutionAdapter
 	targets          moduleapi.BuildRuntimeTargetReader
@@ -233,18 +237,12 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 		return e.publishPlatformManifest(ctx, run, plan)
 	}
 	reservationRepository, reservationOK := e.repository.(moduleapi.BuilderReservationRepository)
-	reservationLegID := "single"
-	reservationInstanceID := plan.BuilderInstanceID
-	if len(plan.BuilderPlacements) > 0 {
-		placement, found := plan.PlacementForPlatform(input.Platform)
-		if !found || strings.TrimSpace(input.Platform) == "" {
-			return errors.New("execution plan reservation leg is missing")
-		}
-		reservationLegID = input.Platform
-		reservationInstanceID = placement.BuilderInstanceID
-	}
 	if !reservationOK {
 		return errors.New("builder reservation repository is unavailable")
+	}
+	reservationLegID, reservationInstanceID, err := e.reservationIdentityForRun(ctx, plan, input, run.Attempt())
+	if err != nil {
+		return err
 	}
 	cleanupReservation, err := beginBuilderReservation(ctx, reservationRepository, builderReservationStart{planID: plan.ID, taskID: run.TaskID(), instanceID: reservationInstanceID, legID: reservationLegID, attempt: run.Attempt()})
 	if err != nil {
@@ -290,6 +288,48 @@ func (e v2ExecutionPlanExecutor) Execute(ctx context.Context, run moduleapi.Stag
 	}
 	cancel()
 	return settleV2Artifact(ctx, e.repository, run.TaskID(), plan, result, binding.AuthExecution)
+}
+
+// reservationIdentityForRun derives retry capacity inputs from the frozen plan and never selects a new Builder.
+func (e v2ExecutionPlanExecutor) reservationIdentityForRun(ctx context.Context, plan moduleapi.BuildExecutionPlan, input moduleapi.BuildPlanTaskInput, attempt int) (string, string, error) {
+	if len(plan.BuilderPlacements) == 0 {
+		return "single", plan.BuilderInstanceID, nil
+	}
+	placement, found := plan.PlacementForPlatform(input.Platform)
+	if !found || strings.TrimSpace(input.Platform) == "" {
+		return "", "", errors.New("execution plan reservation leg is missing")
+	}
+	if attempt > 1 {
+		if err := e.reconfirmFrozenDynamicPlacement(ctx, placement); err != nil {
+			return "", "", err
+		}
+	}
+	return input.Platform, placement.BuilderInstanceID, nil
+}
+
+// reconfirmFrozenDynamicPlacement 只验证已冻结 Placement 对应的 Runtime Target；重试不得重新读取 Pool 或选择其他目标。
+func (e v2ExecutionPlanExecutor) reconfirmFrozenDynamicPlacement(ctx context.Context, placement moduleapi.BuilderPlacement) error {
+	if !isDynamicSchedulingPolicy(placement.SchedulingPolicy) {
+		return nil
+	}
+	if e.builderTelemetry == nil || placement.RuntimeTargetID < 1 {
+		return errors.New("dynamic retry telemetry authority is unavailable")
+	}
+	conformant, err := e.builderTelemetry.ConformBuilderTelemetry(ctx, []int64{placement.RuntimeTargetID})
+	if err != nil {
+		return fmt.Errorf("reconfirm frozen builder telemetry: %w", err)
+	}
+	if !conformant {
+		return errors.New("frozen builder placement is no longer dynamically conformant")
+	}
+	snapshots, err := e.builderTelemetry.ListBuilderTelemetry(ctx, []int64{placement.RuntimeTargetID})
+	if err != nil {
+		return fmt.Errorf("read frozen builder telemetry: %w", err)
+	}
+	if len(snapshots) != 1 || snapshots[0].TargetID != placement.RuntimeTargetID || !snapshots[0].DynamicPlacementConformantAt(time.Now().UTC()) {
+		return errors.New("frozen builder placement telemetry is stale or invalid")
+	}
+	return nil
 }
 
 type builderReservationStart struct {

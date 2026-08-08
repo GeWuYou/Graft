@@ -371,6 +371,20 @@ func TestBeginBuilderReservationRetryPreservesFrozenBuilderIdentityAndUsesNewFen
 	}
 }
 
+func TestReconfirmFrozenDynamicPlacementDoesNotReselectTarget(t *testing.T) {
+	now := time.Now().UTC()
+	executor := v2ExecutionPlanExecutor{builderTelemetry: builderTelemetryReaderStub{
+		admitted:  map[int64]bool{4: true},
+		snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{4: {TargetID: 4, BuilderScope: "builder:frozen", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:retry", Provenance: "agent", Integrity: "sha256:retry"}},
+	}}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), moduleapi.BuilderPlacement{RuntimeTargetID: 4, SchedulingPolicy: "least_load"}); err != nil {
+		t.Fatalf("reconfirm frozen placement: %v", err)
+	}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), moduleapi.BuilderPlacement{RuntimeTargetID: 5, SchedulingPolicy: "least_load"}); err == nil {
+		t.Fatal("expected the frozen target to fail closed rather than be reselected")
+	}
+}
+
 func (s providerConformanceCapabilityStub) ConformProviderExecution(context.Context, moduleapi.ProviderExecutionConformanceRequest) (moduleapi.ProviderExecutionConformanceResult, error) {
 	return s.result, s.err
 }
