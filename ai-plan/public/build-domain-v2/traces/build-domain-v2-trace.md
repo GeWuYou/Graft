@@ -504,15 +504,18 @@
 
 ## 2026-08-08 phase-4a-telemetry-authority
 
-- Runtime Target now registers a concrete `controlPlaneBuilderTelemetryProvider` behind the only Build-visible
-  `RuntimeTargetBuilderTelemetryReader` facade. It reads the latest durable Builder Agent/control-plane observation
-  per Runtime Target from the append-only `runtime_target_builder_telemetry_observations` ledger.
+- Runtime Target now registers a private `RuntimeTargetBuilderTelemetryControlPlane` plus concrete
+  `controlPlaneBuilderTelemetryProvider` behind the only Build-visible `RuntimeTargetBuilderTelemetryReader` facade.
+  The control plane provisions target-bound Builder Agent public keys, verifies signed reports and derives integrity
+  before appending the latest durable observation per Runtime Target to the
+  `runtime_target_builder_telemetry_observations` ledger.
 - Each observation carries Builder scope, running Builds, queue, allocatable slots, health, capability profile/version,
   redacted source/provenance/integrity, observation window and explicit unsupported dimensions. The provider has no
   Docker client, host metrics reader, Task JSON, UI or Monitor dependency, and its durable table excludes endpoint and
   credential fields.
-- Admission is fail-closed for missing, stale, malformed, duplicate or required-unsupported observations. The focused
-  provider tests cover latest-observation selection plus missing, expired and unsupported required dimensions.
+- Admission is fail-closed for missing, stale, malformed, duplicate, unauthenticated or required-unsupported
+  observations. The focused provider tests cover control-plane registration, signature rejection, durable readback,
+  latest-observation selection plus missing, expired and unsupported required dimensions.
 - This establishes only Phase 4a authority. It does not enable `least_load`, `capacity` or `affinity`, change OpenAPI
   or web, add a scheduler/queue/health registry, implement a Task Runtime, Reservation recovery or target reselection.
 

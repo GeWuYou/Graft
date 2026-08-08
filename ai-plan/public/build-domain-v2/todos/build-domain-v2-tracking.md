@@ -70,14 +70,16 @@ closeout:
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
-- Phase 4a telemetry authority (2026-08-08): Runtime Target registers a durable Builder Agent/control-plane telemetry
-  provider beneath the narrow `RuntimeTargetBuilderTelemetryReader` facade. Its append-only observation ledger records
-  Builder scope, running/queued Builds, allocatable slots, health, capability profile/version, provenance/integrity,
-  observation window and explicit unsupported dimensions without endpoint or credential fields. Missing, expired,
-  malformed or required-unsupported observations fail closed during admission. Docker connection facts, Docker/host
-  metrics, UI/Monitor projections and Task JSON remain prohibited inputs. Dynamic `least_load`, `capacity` and
-  `affinity` policies remain blocked until the separate Reservation recovery and Task Runtime distributed-leg gates;
-  retries continue to use the same frozen Placement and Reservation fence.
+- Phase 4a telemetry authority (2026-08-08): Runtime Target registers a Builder Agent/control-plane ingress and a
+  durable telemetry provider beneath the narrow `RuntimeTargetBuilderTelemetryReader` facade. The private ingress
+  provisions target-bound Agent public keys, verifies each signed report and derives its integrity digest before
+  appending the observation ledger. The provider records Builder scope, running/queued Builds, allocatable slots,
+  health, capability profile/version, provenance, observation window and explicit unsupported dimensions without
+  endpoint or credential fields. Missing, expired, malformed, unauthenticated or required-unsupported observations
+  fail closed during admission. Docker connection facts, Docker/host metrics, UI/Monitor projections and Task JSON
+  remain prohibited inputs. Dynamic `least_load`, `capacity` and `affinity` policies remain blocked until the separate
+  Reservation recovery and Task Runtime distributed-leg gates; retries continue to use the same frozen Placement and
+  Reservation fence.
 
 ## Historical Implementation Evidence
 

@@ -61,8 +61,8 @@ Implementation guardrails:
 Current batch plan:
 
 1. Phase 1, Phase 2 and Phase 3 release gates are complete. Phase 4a has registered a durable Builder
-   Agent/control-plane telemetry provider, but Reservation recovery and Task Runtime distributed-leg gaps still block
-   Phase 4 dynamic placement acceptance.
+   Agent/control-plane ingress and telemetry provider; signed reports are verified against target-bound Agent public
+   keys before persistence. Reservation recovery and Task Runtime distributed-leg gaps still block Phase 4 acceptance.
 2. Do not promote the telemetry provider alone, historical Pool/Docker adapter work, or a persisted observation into
    dynamic-policy acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
 

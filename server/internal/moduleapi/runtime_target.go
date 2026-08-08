@@ -168,6 +168,43 @@ type BuilderTelemetryProvider interface {
 	ConformBuilderTelemetry(context.Context, []int64) (bool, error)
 }
 
+// BuilderTelemetryReport 是 Builder Agent 向 Runtime Target 控制平面提交的已签名观测。
+// Signature 覆盖除自身外的全部字段；控制平面验证后自行生成完整性摘要。
+type BuilderTelemetryReport struct {
+	AgentID               string
+	TargetID              int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Provenance            string
+	UnsupportedDimensions []string
+	Signature             []byte
+}
+
+// RuntimeTargetBuilderTelemetryControlPlane 是 Runtime Target 提供给已绑定 Builder Agent 的私有写入边界。
+// 它不是 Build API；未经 Agent 公钥验证的报告不会进入持久化遥测账本。
+type RuntimeTargetBuilderTelemetryControlPlane interface {
+	ProvisionBuilderTelemetryAgent(context.Context, BuilderTelemetryAgentRegistration) error
+	SubmitBuilderTelemetry(context.Context, BuilderTelemetryReport) error
+}
+
+// BuilderTelemetryAgentRegistration 是 Runtime Target 控制平面为已绑定 Agent 保存的验证公钥。
+// 它只能由 provider/控制平面装配调用，不能由 Build、UI 或普通 Task 元数据建立。
+type BuilderTelemetryAgentRegistration struct {
+	TargetID  int64
+	AgentID   string
+	PublicKey []byte
+	Enabled   bool
+}
+
 // RuntimeTargetProviderConnection 是 provider 私有执行边界使用的连接事实；不得进入 HTTP、Build Plan 或 Task metadata。
 type RuntimeTargetProviderConnection struct {
 	TargetID       int64

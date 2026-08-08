@@ -137,6 +137,11 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil), telemetry); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil), func(_ containerdi.Resolver) (any, error) {
+		return controlPlaneBuilderTelemetryIngress{repository: m.repository}, nil
+	}); err != nil {
+		return err
+	}
 	connectionReader := func(_ containerdi.Resolver) (any, error) { return m.repository, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
 		return err

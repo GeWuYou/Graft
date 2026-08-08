@@ -144,6 +144,15 @@ type BuilderTelemetryObservation struct {
 	UnsupportedDimensions []string
 }
 
+// BuilderTelemetryAgent 是获准向指定运行目标提交遥测的 Builder Agent 身份。
+// PublicKey 只用于验证报告签名，私钥永远不进入 Runtime Target 持久化或 Build 边界。
+type BuilderTelemetryAgent struct {
+	TargetID  int64
+	AgentID   string
+	PublicKey []byte
+	Enabled   bool
+}
+
 // UserAssignment 表示一条有效部署使用授权，不携带运行目标凭据。
 type UserAssignment struct {
 	TargetID  uint64
@@ -337,6 +346,38 @@ func (r *SQLRepository) RecordBuilderTelemetryObservation(ctx context.Context, o
 	return nil
 }
 
+// UpsertBuilderTelemetryAgent 由 Runtime Target 控制平面配置已绑定 Builder Agent 的验证公钥。
+// 该方法不是 HTTP 或 Build API；Agent 只能使用已登记公钥签名报告，不能自行注册身份。
+func (r *SQLRepository) UpsertBuilderTelemetryAgent(ctx context.Context, agent BuilderTelemetryAgent) error {
+	if r == nil || r.db == nil || !validBuilderTelemetryAgent(agent) {
+		return errors.New("invalid builder telemetry agent")
+	}
+	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_agents (runtime_target_id, agent_id, public_key, enabled) VALUES ($1,$2,$3,$4) ON CONFLICT (runtime_target_id, agent_id) DO UPDATE SET public_key = EXCLUDED.public_key, enabled = EXCLUDED.enabled`, agent.TargetID, agent.AgentID, agent.PublicKey, agent.Enabled)
+	if err != nil {
+		return fmt.Errorf("upsert builder telemetry agent: %w", err)
+	}
+	return nil
+}
+
+// GetBuilderTelemetryAgent 读取指定运行目标上仍获准提交遥测的 Builder Agent 公钥。
+func (r *SQLRepository) GetBuilderTelemetryAgent(ctx context.Context, targetID int64, agentID string) (BuilderTelemetryAgent, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	var agent BuilderTelemetryAgent
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, agent_id, public_key, enabled FROM runtime_target_builder_telemetry_agents WHERE runtime_target_id = $1 AND agent_id = $2`, targetID, agentID).Scan(&agent.TargetID, &agent.AgentID, &agent.PublicKey, &agent.Enabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	if err != nil {
+		return BuilderTelemetryAgent{}, fmt.Errorf("get builder telemetry agent: %w", err)
+	}
+	if !agent.Enabled || !validBuilderTelemetryAgent(agent) {
+		return BuilderTelemetryAgent{}, ErrUnavailable
+	}
+	return agent, nil
+}
+
 // ListLatestBuilderTelemetry 返回每个目标最新的一条控制平面 Builder 观测。
 // 缺失记录由调用方按 fail-closed 处理，不能回退到 Docker 或宿主机诊断指标。
 func (r *SQLRepository) ListLatestBuilderTelemetry(ctx context.Context, targetIDs []int64) ([]BuilderTelemetryObservation, error) {
@@ -415,6 +456,10 @@ func builderTelemetryWindowValid(observation BuilderTelemetryObservation) bool {
 
 func builderTelemetryEvidenceValid(observation BuilderTelemetryObservation) bool {
 	return strings.TrimSpace(observation.SourceRef) != "" && strings.TrimSpace(observation.Provenance) != "" && strings.TrimSpace(observation.Integrity) != ""
+}
+
+func validBuilderTelemetryAgent(agent BuilderTelemetryAgent) bool {
+	return agent.TargetID > 0 && strings.TrimSpace(agent.AgentID) != "" && len(agent.PublicKey) == 32
 }
 
 // ListBuildTargets 返回仍存活且声明镜像构建能力的 Docker Target；连接事实仍由 provider 私有查询读取。

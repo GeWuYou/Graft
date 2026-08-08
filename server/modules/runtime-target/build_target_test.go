@@ -48,6 +48,9 @@ func TestRegisterReadersRegistersRuntimeExecutionAdapterWhenCredentialProviderEx
 	if _, err := services.Resolve((*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil)); err != nil {
 		t.Fatalf("resolve builder telemetry facade: %v", err)
 	}
+	if _, err := services.Resolve((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil)); err != nil {
+		t.Fatalf("resolve builder telemetry control plane: %v", err)
+	}
 	if _, err := services.Resolve((*moduleapi.BuilderTelemetryProvider)(nil)); !errors.Is(err, containerdi.ErrServiceNotRegistered) {
 		t.Fatalf("provider must not bypass the runtime target facade: %v", err)
 	}
@@ -344,12 +347,7 @@ func seedBuildTarget(t *testing.T, db *sql.DB, id int, displayName, capabilities
 }
 
 func openBuildTargetTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-	db, err := sql.Open("sqlite3", "file:"+t.Name()+"?mode=memory&cache=shared")
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
+	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_targets (
 		id INTEGER PRIMARY KEY,
 		provider TEXT NOT NULL,
@@ -378,5 +376,15 @@ func openBuildTargetTestDB(t *testing.T) *sql.DB {
 	)`); err != nil {
 		t.Fatalf("create runtime_target_user_assignments: %v", err)
 	}
+	return db
+}
+
+func openRuntimeTargetTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", "file:"+t.Name()+"?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
