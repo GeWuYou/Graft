@@ -60,10 +60,9 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Phase 4a telemetry authority and Phase 4b Task Runtime coordination are complete. Begin Phase 4c: Build must
-   consume only fresh, conformant telemetry and freeze capability profile, Placement Evidence and Reservation fence.
-   Infrastructure retry must re-conform that same frozen Placement without selecting another Runtime Target.
-2. Phase 4d may project OpenAPI and web only after a dynamic policy is genuinely executable.
+1. Phase 4a telemetry authority, Phase 4b Task Runtime coordination, and Phase 4c dynamic Placement are complete.
+   Dynamic retry re-confirms only its frozen Runtime Target before creating a new Build Reservation fence.
+2. Begin Phase 4d: project the executable dynamic policy contract through OpenAPI and the Build web selector.
 3. Do not promote telemetry, historical Pool/Docker adapter work, or a persisted observation into dynamic-policy
    acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
 

@@ -544,6 +544,17 @@
 - The loop advances to Phase 4c Reservation recovery and dynamic placement. Phase 4d contract/web projection remains
   pending until a dynamic policy is executable.
 
+## 2026-08-08 phase-4c-reservation-recovery-and-dynamic-placement
+
+- Build enables only `least_load`, `capacity` and `affinity` after Runtime Target telemetry admission. Selection uses
+  the narrow reader, rejects missing, stale or non-conformant observations, and freezes policy/version, candidate
+  fingerprint, capability profile/version, source, provenance and integrity into placement evidence.
+- Retry derives its Builder identity only from the persisted Placement. Before a retry creates a new attempt-scoped
+  Reservation fence, the V2 executor re-confirms that same Runtime Target through the telemetry reader; it fails
+  closed instead of querying a Pool or selecting another target. `region` remains disabled.
+- Controller accepted `95a25b57` and follow-up repair `cfec66f2` after focused Build/Task/Runtime Target tests and
+  `graft validate backend`. Phase 4d OpenAPI and web projection is now the sole pending batch.
+
 ## Loop Batch State
 
 ```json
