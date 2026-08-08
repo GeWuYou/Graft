@@ -60,12 +60,11 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Close out the current Phase 1 secure credential execution and manual-reservation batch before starting Phase 2.
-   Preserve Phase 1's secure Registry Push: the optional core
-   secret-file provider issues only scoped ephemeral sessions to Runtime Target's isolated adapter, and every retry
-   uses a new Build Reservation fence.
-2. Do not promote historical Pool, Docker adapter or telemetry contract work into dynamic-placement acceptance evidence.
-   Preserve immutable Plan/Placement authority throughout each bounded phase.
+1. Phase 1, Phase 2 and Phase 3 release gates are complete. Phase 4a has registered a durable Builder
+   Agent/control-plane telemetry provider, but Reservation recovery and Task Runtime distributed-leg gaps still block
+   Phase 4 dynamic placement acceptance.
+2. Do not promote the telemetry provider alone, historical Pool/Docker adapter work, or a persisted observation into
+   dynamic-policy acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
 
 Validation expectations:
 

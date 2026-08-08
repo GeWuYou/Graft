@@ -70,6 +70,14 @@ closeout:
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
+- Phase 4a telemetry authority (2026-08-08): Runtime Target registers a durable Builder Agent/control-plane telemetry
+  provider beneath the narrow `RuntimeTargetBuilderTelemetryReader` facade. Its append-only observation ledger records
+  Builder scope, running/queued Builds, allocatable slots, health, capability profile/version, provenance/integrity,
+  observation window and explicit unsupported dimensions without endpoint or credential fields. Missing, expired,
+  malformed or required-unsupported observations fail closed during admission. Docker connection facts, Docker/host
+  metrics, UI/Monitor projections and Task JSON remain prohibited inputs. Dynamic `least_load`, `capacity` and
+  `affinity` policies remain blocked until the separate Reservation recovery and Task Runtime distributed-leg gates;
+  retries continue to use the same frozen Placement and Reservation fence.
 
 ## Historical Implementation Evidence
 
@@ -193,7 +201,9 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-1-registry-credential-execution-historical",
     "phase-1.75-snapshot-materialization-retention",
     "phase-2-workspaces-templates-drivers",
+    "phase-2-intent-materialization-conformance",
     "phase-3-pool-round-robin-foundation",
+    "phase-3-static-pool-placement",
     "phase-5-task-coordination-contract",
     "phase-6-coordinated-leg-foundation",
     "phase-7-manifest-publication-foundation",
@@ -209,12 +219,10 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-2-intent-materialization-conformance",
-    "phase-3-static-pool-placement",
     "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "phase-1-secure-credential-execution-and-manual-reservation",
-  "next_batch": "phase-2-intent-materialization-conformance",
-  "closeout_status": "recovery-required"
+  "current_batch": null,
+  "next_batch": "phase-4-dynamic-placement-and-distributed-build",
+  "closeout_status": "phase-3-static-pool-placement-complete"
 }
 ```

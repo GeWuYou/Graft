@@ -97,16 +97,23 @@ type RuntimeTargetBuildAssignmentReader interface {
 // BuilderTelemetrySnapshot 是 Runtime/Infrastructure 提供给 Build Scheduler 的目标级事实。
 // 它必须带有来源、观察时间和过期时间；UI 资源摘要、主机负载或静态 Builder 标签不能替代该事实。
 type BuilderTelemetrySnapshot struct {
-	TargetID    int64
-	Available   bool
-	Capacity    int
-	Running     int
-	Queued      int
-	ObservedAt  time.Time
-	ExpiresAt   time.Time
-	SourceRef   string
-	Region      string
-	AffinityKey string
+	TargetID              int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Region                string
+	AffinityKey           string
+	Provenance            string
+	Integrity             string
+	UnsupportedDimensions []string
 }
 
 // FreshAt 判断调度器在指定时刻是否可以使用该快照；失效或不自洽的快照必须 fail-closed。
@@ -119,17 +126,46 @@ func (s BuilderTelemetrySnapshot) validIdentity() bool {
 }
 
 func (s BuilderTelemetrySnapshot) validCapacity() bool {
-	return s.Capacity > 0 && s.Running >= 0 && s.Queued >= 0 && s.Running <= s.Capacity
+	return s.Running >= 0 && s.Queued >= 0 && s.AllocatableSlots >= 0
 }
 
 func (s BuilderTelemetrySnapshot) validWindow(now time.Time) bool {
 	return !s.ObservedAt.IsZero() && !s.ExpiresAt.IsZero() && now.Before(s.ExpiresAt) && !s.ObservedAt.After(now)
 }
 
+// Conformant 判断快照是否具备进入动态 Placement 所需的 provider 证明。
+// 该门槛与 FreshAt 分离，使现有静态诊断读取不会被误当作动态调度 authority。
+func (s BuilderTelemetrySnapshot) Conformant() bool {
+	return s.BuilderScope != "" && s.ProviderID != "" && s.CapabilityProfile != "" && s.CapabilityVersion != "" && s.Provenance != "" && s.Integrity != ""
+}
+
+// DynamicPlacementConformantAt 仅在每个调度基础维度都有可信值时允许动态 Placement。
+// 未知维度必须由 provider 显式列出；缺失的运行、排队、容量或健康事实一律拒绝。
+func (s BuilderTelemetrySnapshot) DynamicPlacementConformantAt(now time.Time) bool {
+	if !s.FreshAt(now) || !s.Conformant() {
+		return false
+	}
+	for _, dimension := range s.UnsupportedDimensions {
+		switch dimension {
+		case "running_builds", "queue", "allocatable_slots", "health", "capability_profile", "capability_version", "provenance", "integrity":
+			return false
+		}
+	}
+	return true
+}
+
 // RuntimeTargetBuilderTelemetryReader 是 Runtime Target 对构建调度器的窄化遥测边界。
 // 实现必须返回带 freshness 和来源证明的目标事实，不能把端点、凭据或运行时内部对象泄漏给 Build。
 type RuntimeTargetBuilderTelemetryReader interface {
 	ListBuilderTelemetry(context.Context, []int64) ([]BuilderTelemetrySnapshot, error)
+	ConformBuilderTelemetry(context.Context, []int64) (bool, error)
+}
+
+// BuilderTelemetryProvider 是 Runtime Target facade 下方的 provider-owned 观察适配器。
+// Provider 必须返回 Builder 范围事实；Docker/host 指标、UI 投影和 Task JSON 不得实现此接口。
+type BuilderTelemetryProvider interface {
+	ListBuilderTelemetry(context.Context, []int64) ([]BuilderTelemetrySnapshot, error)
+	ConformBuilderTelemetry(context.Context, []int64) (bool, error)
 }
 
 // RuntimeTargetProviderConnection 是 provider 私有执行边界使用的连接事实；不得进入 HTTP、Build Plan 或 Task metadata。

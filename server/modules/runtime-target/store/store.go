@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,6 +122,26 @@ type DockerTargetConnection struct {
 	TargetID       uint64
 	Endpoint       string
 	ConnectionKind string
+}
+
+// BuilderTelemetryObservation 是 Builder Agent 或控制平面写入的持久化观测事实。
+// 它不保存连接端点、凭据或 Docker/主机指标，只保留 Builder 范围的调度输入和可验证出处。
+type BuilderTelemetryObservation struct {
+	TargetID              int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Provenance            string
+	Integrity             string
+	UnsupportedDimensions []string
 }
 
 // UserAssignment 表示一条有效部署使用授权，不携带运行目标凭据。
@@ -297,6 +318,103 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 		return Target{}, err
 	}
 	return item, nil
+}
+
+// RecordBuilderTelemetryObservation 追加控制平面已验证的 Builder 遥测观察。
+// 该仓储写入仅供 Runtime Target 内部的 Builder Agent/控制平面接入使用，不是 HTTP 或 Build 写入边界。
+func (r *SQLRepository) RecordBuilderTelemetryObservation(ctx context.Context, observation BuilderTelemetryObservation) error {
+	if r == nil || r.db == nil || !validBuilderTelemetryObservation(observation) {
+		return errors.New("invalid builder telemetry observation")
+	}
+	unsupported, err := json.Marshal(observation.UnsupportedDimensions)
+	if err != nil {
+		return fmt.Errorf("encode unsupported builder telemetry dimensions: %w", err)
+	}
+	_, err = r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_observations (runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, observation.TargetID, observation.BuilderScope, observation.ProviderID, observation.CapabilityProfile, observation.CapabilityVersion, observation.Available, observation.Running, observation.Queued, observation.AllocatableSlots, observation.ObservedAt, observation.ExpiresAt, observation.SourceRef, observation.Provenance, observation.Integrity, unsupported)
+	if err != nil {
+		return fmt.Errorf("record builder telemetry observation: %w", err)
+	}
+	return nil
+}
+
+// ListLatestBuilderTelemetry 返回每个目标最新的一条控制平面 Builder 观测。
+// 缺失记录由调用方按 fail-closed 处理，不能回退到 Docker 或宿主机诊断指标。
+func (r *SQLRepository) ListLatestBuilderTelemetry(ctx context.Context, targetIDs []int64) ([]BuilderTelemetryObservation, error) {
+	if r == nil || r.db == nil || len(targetIDs) == 0 {
+		return []BuilderTelemetryObservation{}, nil
+	}
+	placeholders, args, err := builderTelemetryTargetArguments(targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	query := latestBuilderTelemetryQuery(placeholders)
+	rows, err := r.executor(ctx).QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list latest builder telemetry: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanBuilderTelemetryObservations(rows, len(targetIDs))
+}
+
+func validBuilderTelemetryObservation(observation BuilderTelemetryObservation) bool {
+	return builderTelemetryIdentityValid(observation) && builderTelemetryCapacityValid(observation) && builderTelemetryWindowValid(observation) && builderTelemetryEvidenceValid(observation)
+}
+
+func builderTelemetryTargetArguments(targetIDs []int64) ([]string, []any, error) {
+	placeholders := make([]string, 0, len(targetIDs))
+	args := make([]any, 0, len(targetIDs))
+	for index, targetID := range targetIDs {
+		if targetID < 1 {
+			return nil, nil, errors.New("invalid builder telemetry target id")
+		}
+		placeholders = append(placeholders, "$"+strconv.Itoa(index+1))
+		args = append(args, targetID)
+	}
+	return placeholders, args, nil
+}
+
+func latestBuilderTelemetryQuery(placeholders []string) string {
+	return `SELECT runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json FROM (SELECT runtime_target_id, builder_scope, provider_id, capability_profile, capability_version, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json, ROW_NUMBER() OVER (PARTITION BY runtime_target_id ORDER BY observed_at DESC, id DESC) AS observation_rank FROM runtime_target_builder_telemetry_observations WHERE runtime_target_id IN (` + strings.Join(placeholders, ",") + `)) latest WHERE observation_rank = 1 ORDER BY runtime_target_id`
+}
+
+func scanBuilderTelemetryObservations(rows *sql.Rows, capacity int) ([]BuilderTelemetryObservation, error) {
+	results := make([]BuilderTelemetryObservation, 0, capacity)
+	for rows.Next() {
+		observation, err := scanBuilderTelemetryObservation(rows)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, observation)
+	}
+	return results, rows.Err()
+}
+
+func scanBuilderTelemetryObservation(rows *sql.Rows) (BuilderTelemetryObservation, error) {
+	var observation BuilderTelemetryObservation
+	var unsupported []byte
+	if err := rows.Scan(&observation.TargetID, &observation.BuilderScope, &observation.ProviderID, &observation.CapabilityProfile, &observation.CapabilityVersion, &observation.Available, &observation.Running, &observation.Queued, &observation.AllocatableSlots, &observation.ObservedAt, &observation.ExpiresAt, &observation.SourceRef, &observation.Provenance, &observation.Integrity, &unsupported); err != nil {
+		return BuilderTelemetryObservation{}, fmt.Errorf("scan latest builder telemetry: %w", err)
+	}
+	if err := json.Unmarshal(unsupported, &observation.UnsupportedDimensions); err != nil {
+		return BuilderTelemetryObservation{}, fmt.Errorf("decode unsupported builder telemetry dimensions: %w", err)
+	}
+	return observation, nil
+}
+
+func builderTelemetryIdentityValid(observation BuilderTelemetryObservation) bool {
+	return observation.TargetID > 0 && strings.TrimSpace(observation.BuilderScope) != "" && strings.TrimSpace(observation.ProviderID) != "" && strings.TrimSpace(observation.CapabilityProfile) != "" && strings.TrimSpace(observation.CapabilityVersion) != ""
+}
+
+func builderTelemetryCapacityValid(observation BuilderTelemetryObservation) bool {
+	return observation.Running >= 0 && observation.Queued >= 0 && observation.AllocatableSlots >= 0
+}
+
+func builderTelemetryWindowValid(observation BuilderTelemetryObservation) bool {
+	return !observation.ObservedAt.IsZero() && !observation.ExpiresAt.IsZero() && observation.ExpiresAt.After(observation.ObservedAt)
+}
+
+func builderTelemetryEvidenceValid(observation BuilderTelemetryObservation) bool {
+	return strings.TrimSpace(observation.SourceRef) != "" && strings.TrimSpace(observation.Provenance) != "" && strings.TrimSpace(observation.Integrity) != ""
 }
 
 // ListBuildTargets 返回仍存活且声明镜像构建能力的 Docker Target；连接事实仍由 provider 私有查询读取。

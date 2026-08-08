@@ -13,6 +13,16 @@
 - Validation: `go run ./cmd/graft validate backend`, `bun run check`, `just openapi-check`,
   `python3 scripts/validate_sql_migrations.py`, and focused Build tests passed.
 
+## 2026-08-08: Phase 4 Pre-Gate Recovery Reconciliation
+
+- Authority review found no missing Phase 3 implementation: the static Pool gate is satisfied by the Build-owned
+  `manual`, `round_robin` and deterministic `random` paths, frozen placement evidence, and the OpenAPI static enum.
+- Tracking and trace loop state had remained at an earlier recovery point. Phase 2 intent/materialization conformance
+  and Phase 3 static Pool placement are now recorded as completed; the only pending batch is Phase 4 dynamic placement
+  and distributed Build.
+- This reconciliation changes recovery metadata only. It does not enable telemetry, dynamic policies, Region, a second
+  scheduler/runtime, or any Build-owned queue or event store.
+
 ## 2026-08-07 phase-1-secure-credential-execution-and-manual-reservation implementation
 
 - Replaced the new v2 publication execution edge with the `RuntimeExecutionAdapter` contract. Runtime Target requests a
@@ -492,6 +502,20 @@
 - The SPI deliberately excludes a second runtime, scheduler, queue, event store, evidence database, Registry model and
   global health registry. Concrete Provider language bindings and registration locations remain implementation work.
 
+## 2026-08-08 phase-4a-telemetry-authority
+
+- Runtime Target now registers a concrete `controlPlaneBuilderTelemetryProvider` behind the only Build-visible
+  `RuntimeTargetBuilderTelemetryReader` facade. It reads the latest durable Builder Agent/control-plane observation
+  per Runtime Target from the append-only `runtime_target_builder_telemetry_observations` ledger.
+- Each observation carries Builder scope, running Builds, queue, allocatable slots, health, capability profile/version,
+  redacted source/provenance/integrity, observation window and explicit unsupported dimensions. The provider has no
+  Docker client, host metrics reader, Task JSON, UI or Monitor dependency, and its durable table excludes endpoint and
+  credential fields.
+- Admission is fail-closed for missing, stale, malformed, duplicate or required-unsupported observations. The focused
+  provider tests cover latest-observation selection plus missing, expired and unsupported required dimensions.
+- This establishes only Phase 4a authority. It does not enable `least_load`, `capacity` or `affinity`, change OpenAPI
+  or web, add a scheduler/queue/health registry, implement a Task Runtime, Reservation recovery or target reselection.
+
 ## Loop Batch State
 
 ```json
@@ -503,6 +527,9 @@
     "phase-1-registry-credential-execution-historical",
     "phase-1.75-snapshot-materialization-retention",
     "phase-2-workspaces-templates-drivers",
+    "phase-2-intent-materialization-conformance",
+    "phase-3-pool-round-robin-foundation",
+    "phase-3-static-pool-placement",
     "phase-9b-remote-docker-provider",
     "phase-10-build-selector-read-model",
     "phase-9c-provider-conformance-evidence",
@@ -513,12 +540,10 @@
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-2-intent-materialization-conformance",
-    "phase-3-static-pool-placement",
     "phase-4-dynamic-placement-and-distributed-build"
   ],
-  "current_batch": "phase-1-secure-credential-execution-and-manual-reservation",
-  "next_batch": "phase-2-intent-materialization-conformance",
-  "closeout_status": "recovery-required"
+  "current_batch": null,
+  "next_batch": "phase-4-dynamic-placement-and-distributed-build",
+  "closeout_status": "phase-3-static-pool-placement-complete"
 }
 ```

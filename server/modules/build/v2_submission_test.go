@@ -180,8 +180,14 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	}
 }
 
-func TestListBuilderPoolsFiltersByRuntimeTargetAssignment(t *testing.T) {
-	repository := &selectorRepository{recordingBuildRepository: &recordingBuildRepository{}, pools: []moduleapi.BuilderPool{{ID: "pool:allowed", DisplayName: "Allowed", SchedulingPolicy: "round_robin"}, {ID: "pool:hidden", DisplayName: "Hidden", SchedulingPolicy: "round_robin"}, {ID: "pool:unsupported", DisplayName: "Unsupported", SchedulingPolicy: "least_load"}}}
+func TestListBuilderPoolsFiltersByRuntimeTargetAssignmentAndPhaseFourPolicyGate(t *testing.T) {
+	repository := &selectorRepository{recordingBuildRepository: &recordingBuildRepository{}, pools: []moduleapi.BuilderPool{
+		{ID: "pool:allowed", DisplayName: "Allowed", SchedulingPolicy: "round_robin"},
+		{ID: "pool:hidden", DisplayName: "Hidden", SchedulingPolicy: "round_robin"},
+		{ID: "pool:least-load", DisplayName: "Least Load", SchedulingPolicy: "least_load"},
+		{ID: "pool:capacity", DisplayName: "Capacity", SchedulingPolicy: "capacity"},
+		{ID: "pool:affinity", DisplayName: "Affinity", SchedulingPolicy: "affinity"},
+	}}
 	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)

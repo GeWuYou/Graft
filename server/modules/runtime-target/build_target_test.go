@@ -45,6 +45,12 @@ func TestRegisterReadersRegistersRuntimeExecutionAdapterWhenCredentialProviderEx
 	if _, err := services.Resolve((*moduleapi.RuntimeExecutionAdapter)(nil)); err != nil {
 		t.Fatalf("resolve runtime execution adapter: %v", err)
 	}
+	if _, err := services.Resolve((*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil)); err != nil {
+		t.Fatalf("resolve builder telemetry facade: %v", err)
+	}
+	if _, err := services.Resolve((*moduleapi.BuilderTelemetryProvider)(nil)); !errors.Is(err, containerdi.ErrServiceNotRegistered) {
+		t.Fatalf("provider must not bypass the runtime target facade: %v", err)
+	}
 }
 
 func TestIsolatedDockerEnvironmentRejectsInheritedAuthentication(t *testing.T) {
