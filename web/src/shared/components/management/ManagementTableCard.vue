@@ -54,6 +54,7 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 .management-table-card__footer {
   align-items: center;
   border-bottom: 1px solid var(--td-component-stroke);
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
@@ -108,6 +109,7 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 .management-table-card__body {
   --td-comp-paddingTB-m: 11px;
 
+  box-sizing: border-box;
   display: block;
   max-width: 100%;
   min-width: 0;
