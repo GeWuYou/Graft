@@ -45,6 +45,15 @@ func TestRegisterReadersRegistersRuntimeExecutionAdapterWhenCredentialProviderEx
 	if _, err := services.Resolve((*moduleapi.RuntimeExecutionAdapter)(nil)); err != nil {
 		t.Fatalf("resolve runtime execution adapter: %v", err)
 	}
+	if _, err := services.Resolve((*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil)); err != nil {
+		t.Fatalf("resolve builder telemetry facade: %v", err)
+	}
+	if _, err := services.Resolve((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil)); err != nil {
+		t.Fatalf("resolve builder telemetry control plane: %v", err)
+	}
+	if _, err := services.Resolve((*moduleapi.BuilderTelemetryProvider)(nil)); !errors.Is(err, containerdi.ErrServiceNotRegistered) {
+		t.Fatalf("provider must not bypass the runtime target facade: %v", err)
+	}
 }
 
 func TestIsolatedDockerEnvironmentRejectsInheritedAuthentication(t *testing.T) {
@@ -78,7 +87,7 @@ func TestBuildTargetReaderOnlyReturnsAssignedHealthyBuildTargets(t *testing.T) {
 	if len(targets) != 1 {
 		t.Fatalf("target count = %d, want 1", len(targets))
 	}
-	if target := targets[0]; target.ID != 1 || target.DisplayName != "Docker builder" || target.Provider != "docker" || !target.Available || !reflect.DeepEqual(target.SupportedDrivers, []string{"docker-engine"}) || !reflect.DeepEqual(target.SupportedPlatforms, []string{"linux/amd64"}) || !reflect.DeepEqual(target.WorkspaceLocalities, []string{"target-local", "build-snapshot"}) || !reflect.DeepEqual(target.SnapshotDeliveryModes, []string{moduleapi.SnapshotDeliveryModeTargetLocal}) {
+	if target := targets[0]; target.ID != 1 || target.DisplayName != "Docker builder" || target.Provider != "docker" || !target.Available || target.ProviderCapabilityProfile != "oci-build" || target.ProviderCapabilityVersion != "docker/v1" || !reflect.DeepEqual(target.SupportedDrivers, []string{"docker-engine"}) || !reflect.DeepEqual(target.SupportedPlatforms, []string{"linux/amd64"}) || !reflect.DeepEqual(target.WorkspaceLocalities, []string{"target-local", "build-snapshot"}) || !reflect.DeepEqual(target.SnapshotDeliveryModes, []string{moduleapi.SnapshotDeliveryModeTargetLocal}) || !reflect.DeepEqual(target.BuildFeatures, []string{"registry-login"}) {
 		t.Fatalf("build target = %#v", target)
 	}
 	assertBuildTargetSummaryDoesNotExposeConnection(t)
@@ -147,7 +156,7 @@ func TestRemoteDockerProviderRequiresProviderTransferAndPreservesSnapshotIdentit
 	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, system_managed, deleted_at) VALUES (?, 'docker', ?, ?, 'redacted', 'tcp', ?, true, '', false, 0)`, 2, "tcp://remote.example:2376", "Remote Docker", `["image_build"]`); err != nil {
 		t.Fatalf("seed remote target: %v", err)
 	}
-	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "provider-test-")
+	root, err := os.MkdirTemp(filepath.Join(os.TempDir(), "graft-build-snapshots"), "snapshot-provider-test-")
 	if err != nil {
 		t.Fatalf("create managed snapshot root: %v", err)
 	}
@@ -164,7 +173,11 @@ func TestRemoteDockerProviderRequiresProviderTransferAndPreservesSnapshotIdentit
 	if target.SnapshotDeliveryModes[0] != moduleapi.SnapshotDeliveryModeProviderTransfer || len(target.WorkspaceLocalities) != 1 || target.WorkspaceLocalities[0] != "build-snapshot" {
 		t.Fatalf("remote build target delivery = %#v, localities = %#v", target.SnapshotDeliveryModes, target.WorkspaceLocalities)
 	}
-	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializedRoot: root, DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference("snapshot-remote", "sha256:source", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := moduleapi.WorkspaceSnapshotDeliveryRequest{TargetID: 2, SnapshotID: "snapshot-remote", ContentDigest: "sha256:source", MaterializationRef: reference, DeliveryMode: moduleapi.SnapshotDeliveryModeProviderTransfer}
 	result, err := provider.DeliverWorkspaceSnapshot(context.Background(), request)
 	if err != nil {
 		t.Fatalf("deliver remote snapshot: %v", err)
@@ -213,6 +226,51 @@ func TestProviderBuildInputAcceptsWorkspaceRootContext(t *testing.T) {
 	}
 	if paths.root != root || paths.contextPath != root || paths.dockerfilePath != filepath.Join(root, "Dockerfile") {
 		t.Fatalf("normalized paths = %#v", paths)
+	}
+}
+
+func TestDockerProviderExecutionChangesDurableAgentLedger(t *testing.T) {
+	db := openBuildTargetTestDB(t)
+	seedBuildTarget(t, db, 1, "Local Docker", `["image_build"]`, true)
+	repository := store.NewSQLRepository(db)
+	agent := store.BuilderTelemetryAgent{TargetID: 1, AgentID: "agent:docker-1", ProviderID: "docker", BuilderScope: "builder-agent:docker-1", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: make([]byte, 32), Enabled: true}
+	if err := repository.UpsertBuilderTelemetryAgent(context.Background(), agent); err != nil {
+		t.Fatalf("provision Docker agent: %v", err)
+	}
+	if err := repository.EnsureBuilderAgentLedger(context.Background(), agent.TargetID, agent.AgentID, 1); err != nil {
+		t.Fatalf("create Docker ledger: %v", err)
+	}
+	managedRoot := filepath.Join(os.TempDir(), "graft-build-snapshots")
+	if err := os.MkdirAll(managedRoot, 0o700); err != nil {
+		t.Fatalf("create managed workspace root: %v", err)
+	}
+	root, err := os.MkdirTemp(managedRoot, "ledger-test-")
+	if err != nil {
+		t.Fatalf("create workspace root: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	if err := os.WriteFile(filepath.Join(root, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
+		t.Fatalf("write Dockerfile: %v", err)
+	}
+	oldCommand, oldOutput := providerCommandRunner, providerOutputRunner
+	t.Cleanup(func() { providerCommandRunner, providerOutputRunner = oldCommand, oldOutput })
+	providerCommandRunner = func(_ context.Context, _ moduleapi.DockerImageBuildLogSink, _ ...string) error {
+		state, stateErr := repository.SnapshotBuilderAgentLedger(context.Background(), agent.TargetID, agent.AgentID)
+		if stateErr != nil || state.Running != 1 || state.Queued != 0 {
+			t.Fatalf("ledger during Docker execution = %+v, err=%v", state, stateErr)
+		}
+		return nil
+	}
+	providerOutputRunner = func(_ context.Context, _ ...string) ([]byte, error) {
+		return []byte(`{"Size":1,"Os":"linux","Architecture":"amd64","RepoDigests":["example/app@sha256:` + strings.Repeat("a", 64) + `"]}`), nil
+	}
+	provider := dockerTargetProvider{repository: repository}
+	if _, err := provider.BuildImageOnTarget(context.Background(), 1, moduleapi.DockerImageBuildInput{WorkspaceRoot: root, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: "example/app", ImageTag: "v1"}, nil); err != nil {
+		t.Fatalf("execute Docker build: %v", err)
+	}
+	state, err := repository.SnapshotBuilderAgentLedger(context.Background(), agent.TargetID, agent.AgentID)
+	if err != nil || state.Running != 0 || state.Queued != 0 {
+		t.Fatalf("ledger after Docker execution = %+v, err=%v", state, err)
 	}
 }
 
@@ -337,13 +395,9 @@ func seedBuildTarget(t *testing.T, db *sql.DB, id int, displayName, capabilities
 	}
 }
 
+//nolint:dupl // 测试数据库必须显式覆盖 Build Target 需要的约束，不能共享会掩盖缺失列的 fixture。
 func openBuildTargetTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-	db, err := sql.Open("sqlite3", "file:"+t.Name()+"?mode=memory&cache=shared")
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
+	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_targets (
 		id INTEGER PRIMARY KEY,
 		provider TEXT NOT NULL,
@@ -372,5 +426,21 @@ func openBuildTargetTestDB(t *testing.T) *sql.DB {
 	)`); err != nil {
 		t.Fatalf("create runtime_target_user_assignments: %v", err)
 	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_telemetry_agents (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, provider_id TEXT NOT NULL, builder_scope TEXT NOT NULL, capability_profile TEXT NOT NULL, capability_version TEXT NOT NULL, public_key BLOB NOT NULL, last_sequence INTEGER NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL, updated_at DATETIME, UNIQUE(runtime_target_id, agent_id))`); err != nil {
+		t.Fatalf("create builder telemetry agents: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_execution_ledgers (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, slot_budget INTEGER NOT NULL, queued_builds INTEGER NOT NULL DEFAULT 0, running_builds INTEGER NOT NULL DEFAULT 0, telemetry_sequence INTEGER NOT NULL DEFAULT 0, created_at DATETIME, updated_at DATETIME, UNIQUE(runtime_target_id, agent_id))`); err != nil {
+		t.Fatalf("create builder execution ledgers: %v", err)
+	}
+	return db
+}
+
+func openRuntimeTargetTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", "file:"+t.Name()+"?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }

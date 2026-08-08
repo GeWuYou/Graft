@@ -139,6 +139,13 @@
           "showFooterHint": "Show page footer information.",
           "useTagTabsHint": "Enable multi-page tab switching.",
           "showThemeWorkbenchDockHint": "Show the draggable entry for personalization settings.",
+          "tabAppearance": "Tab Indicator",
+          "tabAppearanceDescription": "Choose where the theme-colored indicator appears on the active tab.",
+          "tabIndicator": {
+            "none": "No Indicator",
+            "top": "Top Bar",
+            "bottom": "Bottom Bar"
+          },
           "onlyMix": "Only available in mixed layout",
           "onlySideOrMix": "Only available in side or mixed layouts",
           "notIntegrated": "Not integrated yet"

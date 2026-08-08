@@ -1,3 +1,6 @@
+export const TAB_INDICATOR_POSITIONS = ['none', 'top', 'bottom'] as const;
+export type TabIndicatorPosition = (typeof TAB_INDICATOR_POSITIONS)[number];
+
 export default {
   showFooter: true,
   isSidebarCompact: false,
@@ -12,6 +15,7 @@ export default {
   isSidebarFixed: true,
   isHeaderFixed: true,
   isUseTabsRouter: true,
+  tabIndicatorPosition: 'none' as TabIndicatorPosition,
   showHeader: true,
   showThemeWorkbenchDock: true,
   isAcrylicEnabled: true,

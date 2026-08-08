@@ -139,6 +139,13 @@
           "showFooterHint": "显示页面底部信息。",
           "useTagTabsHint": "开启多页面标签切换。",
           "showThemeWorkbenchDockHint": "显示可拖动的个性化设置入口。",
+          "tabAppearance": "标签页指示条",
+          "tabAppearanceDescription": "选择当前激活标签页的主题色指示条位置。",
+          "tabIndicator": {
+            "none": "无指示条",
+            "top": "顶部色条",
+            "bottom": "底部色条"
+          },
           "onlyMix": "仅混合布局可用",
           "onlySideOrMix": "仅侧边与混合布局可用",
           "notIntegrated": "暂未接入"

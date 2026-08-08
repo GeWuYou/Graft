@@ -31,6 +31,66 @@ type TaskType string
 // StageExecutorType 标识执行一个 Stage 的业务执行器类型。
 type StageExecutorType string
 
+// ExecutionFailureClass 是执行器向 Task Runtime 报告的稳定失败分类。它只表达恢复
+// 语义，不能携带 Provider、凭据或基础设施的实现细节。
+type ExecutionFailureClass string
+
+const (
+	// ExecutionFailureClassTransient 表示可由既有幂等重试策略处理的短暂失败。
+	ExecutionFailureClassTransient ExecutionFailureClass = "transient"
+	// ExecutionFailureClassPermanent 表示确定性业务或输入失败。
+	ExecutionFailureClassPermanent ExecutionFailureClass = "permanent"
+	// ExecutionFailureClassConfiguration 表示需要纠正受控配置的失败。
+	ExecutionFailureClassConfiguration ExecutionFailureClass = "configuration"
+	// ExecutionFailureClassAuthorization 表示授权或凭据作用域不满足执行要求。
+	ExecutionFailureClassAuthorization ExecutionFailureClass = "authorization"
+	// ExecutionFailureClassProvider 表示目标 Provider 未能满足冻结执行契约。
+	ExecutionFailureClassProvider ExecutionFailureClass = "provider"
+	// ExecutionFailureClassInfrastructure 表示需要重验冻结执行环境的基础设施失败。
+	ExecutionFailureClassInfrastructure ExecutionFailureClass = "infrastructure"
+	// ExecutionFailureClassInternal 表示系统内部失败，需要保留人工恢复事实。
+	ExecutionFailureClassInternal ExecutionFailureClass = "internal"
+	// ExecutionFailureClassUnknown 表示外部结果无法被安全确认。
+	ExecutionFailureClassUnknown ExecutionFailureClass = "unknown"
+)
+
+// RecoveryDisposition 是 Task Runtime 对受限执行失败结果允许作出的状态裁决。
+type RecoveryDisposition string
+
+const (
+	// RecoveryDispositionRetry 使用 Stage 已冻结的幂等重试策略。
+	RecoveryDispositionRetry RecoveryDisposition = "retry"
+	// RecoveryDispositionFailed 将 Task 结算为确定失败。
+	RecoveryDispositionFailed RecoveryDisposition = "failed"
+	// RecoveryDispositionNeedsAttention 保留未知或安全敏感结果，禁止自动重试。
+	RecoveryDispositionNeedsAttention RecoveryDisposition = "needs_attention"
+)
+
+// ExecutionFailure 是 StageExecutor 返回给 Task Runtime 的脱敏结构化失败结果。
+// Runtime 独占状态转换；消费者只能提供稳定 code、分类和恢复 disposition。
+type ExecutionFailure struct {
+	Code        string
+	Class       ExecutionFailureClass
+	Disposition RecoveryDisposition
+	Cause       error
+}
+
+// Error 实现 error，避免将 Cause 以外的执行实现细节暴露到 Task 状态之外。
+func (f *ExecutionFailure) Error() string {
+	if f == nil || f.Cause == nil {
+		return "stage execution failed"
+	}
+	return f.Cause.Error()
+}
+
+// Unwrap 保持 callers 可使用 errors.Is 和 errors.As 检查底层失败。
+func (f *ExecutionFailure) Unwrap() error {
+	if f == nil {
+		return nil
+	}
+	return f.Cause
+}
+
 // TaskStatus 标识持久化 Task 状态机的状态。
 type TaskStatus string
 

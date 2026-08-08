@@ -32,7 +32,7 @@ func mapBuildRuntimeTargets(items []moduleapi.BuildRuntimeTargetSummary) []opena
 func mapBuilderPools(items []moduleapi.BuilderPool) []openapigen.BuildBuilderPool {
 	result := make([]openapigen.BuildBuilderPool, 0, len(items))
 	for _, item := range items {
-		result = append(result, openapigen.BuildBuilderPool{PoolId: item.ID, DisplayName: item.DisplayName, SchedulingPolicy: item.SchedulingPolicy})
+		result = append(result, openapigen.BuildBuilderPool{PoolId: item.ID, DisplayName: item.DisplayName, SchedulingPolicy: openapigen.BuildBuilderPoolSchedulingPolicy(item.SchedulingPolicy)})
 	}
 	return result
 }

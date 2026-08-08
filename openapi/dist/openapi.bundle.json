@@ -37138,7 +37138,13 @@
             "type": "string"
           },
           "scheduling_policy": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "manual",
+              "round_robin",
+              "random"
+            ],
+            "description": "Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed."
           }
         },
         "additionalProperties": false

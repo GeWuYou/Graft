@@ -72,6 +72,12 @@ reason a preferred feature was not selected. A `required` miss is a deny; a `pre
 an `optional` miss is omitted from the execution context. Negotiation output is frozen Placement Evidence and is replayed
 from that evidence rather than recomputed from later provider state.
 
+Every new Placement, including manual selection, static Pool selection, dynamic Pool selection and every distributed
+leg, MUST call `CapabilityMatcher` before a Builder is selected. The frozen evidence records the requirement
+fingerprint, ordered candidate fingerprint, selected capability profile and version, complete negotiation result,
+policy ID/version and Reservation fence. A required miss denies the Placement; preferred and optional misses remain
+explicit negotiated results rather than implicit provider fallbacks.
+
 ### Builder Profile separation
 
 `BuilderProfile` is Build-owned static intent and eligibility metadata (for example `secure`, `gpu`, `large-memory` or
@@ -126,6 +132,12 @@ failure is a security failure: retain only redacted evidence, block reuse and pu
 manual action. Harbor, Docker Hub, GHCR, ECR, GCR and ACR join through credential-provider and adapter conformance,
 not Build-side special cases. Historical `docker-runtime-store` evidence stays readable; new execution may not use it.
 
+`credential_cleanup_unverified` is a stable `Internal` failure code with the `Needs Attention` recovery disposition.
+Task Runtime remains the sole state-transition authority: it maps this constrained outcome without learning credential
+or provider details, never auto-retries it, and prevents reservation or credential-session reuse while retaining only
+redacted cleanup evidence. Credential resolution, scope, expiry and injection failures, plus Provider and
+Infrastructure failures, retain their respective RFC taxonomy instead of being collapsed into `stage_executor_failed`.
+
 ## Provider Lifecycle And Compatibility
 
 Provider conformance is an admission gate, while `ProviderLifecycle` controls whether an admitted provider can receive
@@ -172,6 +184,14 @@ Reserved -> Accepted -> Running -> Released
 
 Task Runtime triggers, settles and recovers the association; Provider or Agent contributes only constrained execution
 facts. Every retry receives a new reservation and fencing token. Old leases are never revived.
+
+Phase 4 Reservation is slot-aware: every Build leg reserves one explicit Builder capacity unit. `allocatable_slots` is
+the Provider's instantaneous budget for Graft at the accepted observation. Under the Builder's serialized reservation
+boundary, Build compares that budget only with live reservations created after that observation, so Provider-reported
+running work is not charged twice and concurrent requests cannot over-allocate. Capacity ranking chooses among trusted
+slots, but the atomic Reservation is the final verdict. A failed verdict denies that Placement; it never silently
+chooses another target. `least_load` ranks only Provider-owned running/queued facts, and `affinity` filters only proven
+affinity claims.
 
 ## Queue, Dependencies And Resource Accounting (Future)
 
@@ -235,6 +255,49 @@ do not prove Builder scope, Graft/external work coverage, time window, provenanc
   resources as Builder capacity.
 - Future Providers pass conformance before entering Matcher or Placement.
 
+The Phase 4 Docker admission proof is a provisioned Builder Agent bound to one Runtime Target, Provider, Builder scope
+and capability profile/version. Its reports require a monotonic sequence, bounded clock skew, replay rejection and an
+explicit lifecycle; running, queued and slots come from the Agent's controlled execution ledger or Driver controller.
+The Docker provider's sole CLI execution boundary updates that durable Driver-controller ledger around each real build;
+one enabled Agent scope is allowed per Runtime Target until frozen Placement carries a scope identity. This proves the
+source of the execution counts, but does not itself define an out-of-process Agent transport, private-key bootstrap or
+operator lifecycle. Those deployment facts require their own authority-owned protocol before this phase can be released.
+A generic signed ingress, Docker stats, container counts, host metrics, Task projections or UI data is not that proof.
+Profile/version, scope, provenance, integrity and unsupported dimensions must all validate before telemetry can enter a
+dynamic decision. Until this gate is proven, dynamic policy remains disabled and historical dynamic Pool rows remain
+readable but non-executable.
+
+### Docker Agent deployment control plane
+
+Runtime Target owns the operator-facing Docker Builder Agent deployment control plane. It is a narrow telemetry
+identity and lifecycle authority, not a Build scheduler, Task Runtime, Registry model or platform health registry.
+The control plane owns enrollment, installation metadata, target/provider/scope/profile binding, one-active-scope
+uniqueness, report transport authentication, agent retirement and the redacted audit trail. Build continues to own
+requirements, matching, placement and reservations; Task Runtime continues to own execution, cancellation, retry and
+recovery.
+
+The first deployable protocol follows the accepted [Runtime Target Agent Trust Model ADR](../decisions/ADR-023-runtime-target-agent-trust-model.md)
+and [Credential Vault And Runtime Target Agent Protocol RFC](credential-vault-and-runtime-target-agent-protocol.md),
+which define Vault-backed issuance, exact URI SAN identity, vault-managed enrollment/private-key delivery, mTLS
+snapshot acknowledgement, OCI packaging and revocation propagation together with a Runtime Target-bound enrollment
+record and mutually authenticated Agent transport. Runtime Target stores only opaque references, digests, expiry and
+binding facts. Bootstrap credentials and private keys never enter Build, Task, browser, telemetry reads, logs or
+execution evidence. Rotation creates a new enrollment generation and revokes the old generation before accepting a
+new sequence; disable, retirement and target rebinding reject all later reports from that generation.
+
+Each accepted report is bound to the enrollment generation, Runtime Target, Docker Provider ID, Builder scope and
+capability profile/version. The transport authenticates the enrolled Agent identity, while the signed report preserves
+integrity across queued delivery. Sequence, clock skew, freshness, scope/profile/version, unsupported dimensions and
+ledger provenance are validated together. The Agent service owns restart reconciliation for its durable Driver ledger;
+unknown external work is reported as unavailable rather than inferred from host metrics or Task state. Installation,
+upgrade, rotation, revocation, disable and recovery require Runtime Target operator authorization and produce redacted
+audit facts.
+
+No Build HTTP route, Docker daemon API, ambient configuration, global agent registry or ad-hoc CLI is an enrollment or
+telemetry authority. The ADR's concrete wire schema, operator API and service packaging must be introduced together under
+this Runtime Target control-plane contract, with end-to-end conformance proving bootstrap, rotation/revocation,
+restart/reconnect and real Docker CLI ledger reporting before Phase 4 can be released.
+
 Provider conformance extends the existing `TargetBoundProviderExecutionConformanceCapability`; it does not create a
 competing specification. Providers MUST prove capability version, credential injection, Snapshot delivery,
 cancellation/recovery, cleanup, redacted evidence, telemetry freshness and unsupported dimensions. They SHOULD prove
@@ -276,7 +339,9 @@ must not duplicate Stage lifecycle records.
 | Internal | no default retry; record incident |
 | Unknown | `Needs Attention`; do not guess success or reschedule |
 
-The taxonomy maps to existing Task Runtime failure codes and recovery policies.
+The taxonomy maps to existing Task Runtime failure codes and recovery policies. In particular,
+`credential_cleanup_unverified` is `Internal` with `Needs Attention`, no automatic retry and no reuse of its
+Reservation or credential session.
 
 ## Execution Context
 

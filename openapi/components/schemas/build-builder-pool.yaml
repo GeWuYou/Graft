@@ -3,5 +3,8 @@ required: [pool_id, display_name, scheduling_policy]
 properties:
   pool_id: { type: string }
   display_name: { type: string }
-  scheduling_policy: { type: string }
+  scheduling_policy:
+    type: string
+    enum: [manual, round_robin, random, least_load, capacity, affinity]
+    description: Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed.
 additionalProperties: false

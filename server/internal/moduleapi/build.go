@@ -3,20 +3,25 @@ package moduleapi
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
-// WorkspaceSnapshot 是 Build 执行消费的不可变、已物化源码输入；MaterializedRoot
-// 仅供执行器使用，绝不能越过 HTTP 或 Task metadata 边界。
+// WorkspaceSnapshot 是 Build 执行消费的不可变源码输入。MaterializedRoot 仅是来源
+// adapter 交接时的临时输入；Build 持久化或执行时必须只使用 MaterializationRef。
 type WorkspaceSnapshot struct {
-	ID               string
-	WorkspaceID      string
-	SourceKind       string
-	SourceReference  string
-	ContentDigest    string
-	MaterializedRoot string
-	CreatedAt        time.Time
+	ID                 string
+	WorkspaceID        string
+	SourceKind         string
+	SourceReference    string
+	ContentDigest      string
+	MaterializedRoot   string
+	MaterializationRef string
+	CreatedAt          time.Time
 }
 
 // BuildWorkspace 是 Build 所有的可复用来源定义；实际源码内容由 Snapshot 冻结，
@@ -52,6 +57,81 @@ type BuilderInstance struct {
 	DriverVersion   string
 }
 
+// BuildCapabilityRequirement 是由冻结 Template、Driver、平台和 Snapshot 交付要求推导出的静态要求。
+// 它不携带 Runtime Target 连接、凭据或动态遥测事实。
+type BuildCapabilityRequirement struct {
+	DriverRef             string
+	TemplateRef           string
+	DestinationKind       string
+	CachePolicy           string
+	SecurityPolicy        string
+	Platforms             []string
+	SnapshotDeliveryModes []string
+	RequiredFeatures      []string
+	FeatureRequirements   []BuildCapabilityFeatureRequirement
+}
+
+// BuildCapabilityFeatureRequirement 保留单项 Provider feature 的冻结请求意图，供执行重试复放协商结论。
+type BuildCapabilityFeatureRequirement struct {
+	Feature string
+	Mode    string
+}
+
+const (
+	// BuildCapabilityFeatureRequired requires the provider capability.
+	BuildCapabilityFeatureRequired = "required"
+	// BuildCapabilityFeaturePreferred records a preferred provider capability.
+	BuildCapabilityFeaturePreferred = "preferred"
+	// BuildCapabilityFeatureOptional permits omission of the provider capability.
+	BuildCapabilityFeatureOptional = "optional"
+)
+
+// BuildExecutionCapability 是 Runtime provider 对单个 Builder 的版本化静态能力事实。
+// ProviderCapabilityVersion 才是能力语义版本；DriverVersion 仅用于诊断。
+type BuildExecutionCapability struct {
+	ProviderCapabilityProfile string
+	ProviderCapabilityVersion string
+	SupportedDrivers          []string
+	SupportedPlatforms        []string
+	SnapshotDeliveryModes     []string
+	Features                  []string
+}
+
+// NegotiatedCapability 是 CapabilityMatcher 对一次静态匹配的可重放结果。
+type NegotiatedCapability struct {
+	ProviderCapabilityProfile string
+	ProviderCapabilityVersion string
+	DriverRef                 string
+	SnapshotDeliveryMode      string
+	SatisfiedFeatures         []string
+	UnsatisfiedFeatures       []string
+	PreferredMissReasons      map[string]string
+	OptionalOmissionReasons   map[string]string
+}
+
+// CapabilityMatcher 是 Build-owned 的纯能力协商边界；实现不得读取遥测或重新选择 Target。
+type CapabilityMatcher interface {
+	MatchBuildCapability(BuildCapabilityRequirement, BuildExecutionCapability) (NegotiatedCapability, error)
+}
+
+// WorkspaceMaterializationRequest 描述一次按不可变 Snapshot 身份隔离的执行物化。
+type WorkspaceMaterializationRequest struct {
+	ExecutionID string
+}
+
+// WorkspaceMaterialization 是 Build-owned 执行字节的私有引用，不能进入 Task metadata 或 HTTP。
+type WorkspaceMaterialization struct {
+	SnapshotID         string
+	ContentDigest      string
+	MaterializationRef string
+}
+
+// WorkspaceMaterializer 负责 Snapshot -> execution workspace -> cleanup 生命周期。
+type WorkspaceMaterializer interface {
+	MaterializeSnapshot(context.Context, WorkspaceSnapshot, WorkspaceMaterializationRequest) (WorkspaceMaterialization, error)
+	ReleaseMaterialization(context.Context, WorkspaceMaterialization) error
+}
+
 // BuilderPool 是 Builder Instance 的选择策略集合，不拥有 Task 状态或独立调度循环。
 type BuilderPool struct {
 	ID               string
@@ -66,6 +146,13 @@ type BuilderPoolMember struct {
 	PoolID     string
 	InstanceID string
 	Priority   int
+}
+
+// BuilderPoolSelection 是持久化 Pool 策略返回的静态选择事实。Cursor 只在
+// RoundRobin 策略中有值，调用方必须把它冻结为 Placement Evidence。
+type BuilderPoolSelection struct {
+	Instance BuilderInstance
+	Cursor   *int64
 }
 
 // BuilderPlacement 是冻结计划中一个目标平台到 Builder Instance/Runtime Target 的可重放分配。
@@ -127,7 +214,7 @@ type BuilderResourceRepository interface {
 	ReplaceBuilderPoolMembers(context.Context, string, []BuilderPoolMember, uint64) error
 	GetBuilderPool(context.Context, string) (BuilderPool, error)
 	ListBuilderPoolMembers(context.Context, string) ([]BuilderInstance, error)
-	SelectRoundRobinBuilderInstance(context.Context, string) (BuilderInstance, error)
+	SelectRoundRobinBuilderInstance(context.Context, string) (BuilderPoolSelection, error)
 }
 
 const (
@@ -283,6 +370,8 @@ type BuildExecutionPlan struct {
 	BuilderPlacements []BuilderPlacement
 	Driver            string
 	TemplateRef       string
+	CachePolicy       string
+	SecurityPolicy    string
 	Platforms         []string
 	Destination       BuildDestination
 	CreatedAt         time.Time
@@ -378,13 +467,14 @@ type ApplicationBuildContextResolver interface {
 // DockerImageBuildInput 是 Container 模块接受的受控 Docker 构建请求。
 // 路径必须相对于已授权 workspace，调用方不能传入 daemon、host 或任意 CLI 参数。
 type DockerImageBuildInput struct {
-	WorkspaceRoot   string
-	ContextPath     string
-	DockerfilePath  string
-	ImageRepository string
-	ImageTag        string
-	Platform        string
-	BuildArgs       []DockerImageBuildArg
+	WorkspaceRoot      string
+	MaterializationRef string
+	ContextPath        string
+	DockerfilePath     string
+	ImageRepository    string
+	ImageTag           string
+	Platform           string
+	BuildArgs          []DockerImageBuildArg
 }
 
 // DockerImageBuildArg 表示非敏感 Docker 构建参数。
@@ -426,13 +516,13 @@ type TargetBoundDockerImageBuildCapability interface {
 }
 
 // WorkspaceSnapshotDeliveryRequest 是 Build 将冻结 Snapshot 交给 Runtime provider 的受控请求。
-// MaterializedRoot 只允许在 execution-private provider boundary 内流转，不得进入 Task metadata 或 HTTP。
+// MaterializationRef 是 Build-owned opaque reference；provider 不接收宿主机路径。
 type WorkspaceSnapshotDeliveryRequest struct {
-	TargetID         int64
-	SnapshotID       string
-	ContentDigest    string
-	MaterializedRoot string
-	DeliveryMode     string
+	TargetID           int64
+	SnapshotID         string
+	ContentDigest      string
+	MaterializationRef string
+	DeliveryMode       string
 }
 
 // WorkspaceSnapshotDeliveryResult 是 provider 对 Snapshot 消费前校验的不可变证明。
@@ -442,6 +532,38 @@ type WorkspaceSnapshotDeliveryResult struct {
 	SnapshotID    string
 	ContentDigest string
 	DeliveryMode  string
+}
+
+// NewWorkspaceSnapshotMaterializationReference 生成绑定 Snapshot 身份、内容摘要和物化目录的 opaque 引用。
+func NewWorkspaceSnapshotMaterializationReference(snapshotID, contentDigest, root string) (string, error) {
+	rootName := filepath.Base(filepath.Clean(strings.TrimSpace(root)))
+	if strings.TrimSpace(snapshotID) == "" || strings.TrimSpace(contentDigest) == "" || rootName == "." || rootName == ".." || !strings.HasPrefix(rootName, "snapshot-") {
+		return "", errors.New("workspace snapshot materialization reference input is invalid")
+	}
+	encode := base64.RawURLEncoding.EncodeToString
+	return "build-snapshot:v1:" + encode([]byte(rootName)) + ":" + encode([]byte(snapshotID)) + ":" + encode([]byte(contentDigest)), nil
+}
+
+// ParseWorkspaceSnapshotMaterializationReference 解析并返回物化目录、Snapshot 身份和内容摘要。
+//
+//nolint:revive,cyclop // 解析结果是同一 opaque capability 的完整三元组，拆分会增加调用方错配风险。
+func ParseWorkspaceSnapshotMaterializationReference(reference string) (rootName, snapshotID, contentDigest string, err error) {
+	parts := strings.Split(strings.TrimSpace(reference), ":")
+	if len(parts) != 5 || parts[0] != "build-snapshot" || parts[1] != "v1" {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	decode := base64.RawURLEncoding.DecodeString
+	rootBytes, rootErr := decode(parts[2])
+	idBytes, idErr := decode(parts[3])
+	digestBytes, digestErr := decode(parts[4])
+	if rootErr != nil || idErr != nil || digestErr != nil || len(rootBytes) == 0 || len(idBytes) == 0 || len(digestBytes) == 0 {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	rootName, snapshotID, contentDigest = string(rootBytes), string(idBytes), string(digestBytes)
+	if rootName != filepath.Base(rootName) || strings.HasPrefix(rootName, ".") || !strings.HasPrefix(rootName, "snapshot-") {
+		return "", "", "", errors.New("workspace snapshot materialization reference is invalid")
+	}
+	return rootName, snapshotID, contentDigest, nil
 }
 
 // TargetBoundWorkspaceSnapshotDeliveryCapability 负责证明选定 Runtime 能消费冻结 Snapshot。

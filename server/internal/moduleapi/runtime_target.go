@@ -64,14 +64,17 @@ type RuntimeTargetDeploymentAssignmentReader interface {
 // BuildRuntimeTargetSummary 是 Build domain 可消费的运行目标构建能力投影。
 // 它只公开调度所需的能力事实，不公开连接端点或凭据。
 type BuildRuntimeTargetSummary struct {
-	ID                    int64
-	DisplayName           string
-	Provider              string
-	Available             bool
-	SupportedDrivers      []string
-	SupportedPlatforms    []string
-	WorkspaceLocalities   []string
-	SnapshotDeliveryModes []string
+	ID                        int64
+	DisplayName               string
+	Provider                  string
+	Available                 bool
+	ProviderCapabilityProfile string
+	ProviderCapabilityVersion string
+	SupportedDrivers          []string
+	SupportedPlatforms        []string
+	WorkspaceLocalities       []string
+	SnapshotDeliveryModes     []string
+	BuildFeatures             []string
 }
 
 const (
@@ -97,16 +100,23 @@ type RuntimeTargetBuildAssignmentReader interface {
 // BuilderTelemetrySnapshot 是 Runtime/Infrastructure 提供给 Build Scheduler 的目标级事实。
 // 它必须带有来源、观察时间和过期时间；UI 资源摘要、主机负载或静态 Builder 标签不能替代该事实。
 type BuilderTelemetrySnapshot struct {
-	TargetID    int64
-	Available   bool
-	Capacity    int
-	Running     int
-	Queued      int
-	ObservedAt  time.Time
-	ExpiresAt   time.Time
-	SourceRef   string
-	Region      string
-	AffinityKey string
+	TargetID              int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Region                string
+	AffinityKey           string
+	Provenance            string
+	Integrity             string
+	UnsupportedDimensions []string
 }
 
 // FreshAt 判断调度器在指定时刻是否可以使用该快照；失效或不自洽的快照必须 fail-closed。
@@ -119,17 +129,93 @@ func (s BuilderTelemetrySnapshot) validIdentity() bool {
 }
 
 func (s BuilderTelemetrySnapshot) validCapacity() bool {
-	return s.Capacity > 0 && s.Running >= 0 && s.Queued >= 0 && s.Running <= s.Capacity
+	return s.Running >= 0 && s.Queued >= 0 && s.AllocatableSlots >= 0
 }
 
 func (s BuilderTelemetrySnapshot) validWindow(now time.Time) bool {
 	return !s.ObservedAt.IsZero() && !s.ExpiresAt.IsZero() && now.Before(s.ExpiresAt) && !s.ObservedAt.After(now)
 }
 
+// Conformant 判断快照是否具备进入动态 Placement 所需的 provider 证明。
+// 该门槛与 FreshAt 分离，使现有静态诊断读取不会被误当作动态调度 authority。
+func (s BuilderTelemetrySnapshot) Conformant() bool {
+	return s.BuilderScope != "" && s.ProviderID != "" && s.CapabilityProfile != "" && s.CapabilityVersion != "" && s.Provenance != "" && s.Integrity != ""
+}
+
+// DynamicPlacementConformantAt 仅在每个调度基础维度都有可信值时允许动态 Placement。
+// 未知维度必须由 provider 显式列出；缺失的运行、排队、容量或健康事实一律拒绝。
+func (s BuilderTelemetrySnapshot) DynamicPlacementConformantAt(now time.Time) bool {
+	if !s.FreshAt(now) || !s.Conformant() {
+		return false
+	}
+	for _, dimension := range s.UnsupportedDimensions {
+		switch dimension {
+		case "cache_state":
+			// 当前 OCI 准入契约将缓存遥测列为可选维度。
+		case "running_builds", "queue", "allocatable_slots", "health", "capability_profile", "capability_version", "provenance", "integrity":
+			return false
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // RuntimeTargetBuilderTelemetryReader 是 Runtime Target 对构建调度器的窄化遥测边界。
 // 实现必须返回带 freshness 和来源证明的目标事实，不能把端点、凭据或运行时内部对象泄漏给 Build。
 type RuntimeTargetBuilderTelemetryReader interface {
 	ListBuilderTelemetry(context.Context, []int64) ([]BuilderTelemetrySnapshot, error)
+	ConformBuilderTelemetry(context.Context, []int64) (bool, error)
+}
+
+// BuilderTelemetryProvider 是 Runtime Target facade 下方的 provider-owned 观察适配器。
+// Provider 必须返回 Builder 范围事实；Docker/host 指标、UI 投影和 Task JSON 不得实现此接口。
+type BuilderTelemetryProvider interface {
+	ListBuilderTelemetry(context.Context, []int64) ([]BuilderTelemetrySnapshot, error)
+	ConformBuilderTelemetry(context.Context, []int64) (bool, error)
+}
+
+// BuilderTelemetryReport 是 Builder Agent 向 Runtime Target 控制平面提交的已签名观测。
+// Signature 覆盖除自身外的全部字段；控制平面验证后自行生成完整性摘要。
+type BuilderTelemetryReport struct {
+	AgentID               string
+	TargetID              int64
+	Sequence              int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	AffinityKey           string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Provenance            string
+	UnsupportedDimensions []string
+	Signature             []byte
+}
+
+// RuntimeTargetBuilderTelemetryControlPlane 是 Runtime Target 提供给已绑定 Builder Agent 的私有写入边界。
+// 它不是 Build API；未经 Agent 公钥验证的报告不会进入持久化遥测账本。
+type RuntimeTargetBuilderTelemetryControlPlane interface {
+	ProvisionBuilderTelemetryAgent(context.Context, BuilderTelemetryAgentRegistration) error
+	SubmitBuilderTelemetry(context.Context, BuilderTelemetryReport) error
+}
+
+// BuilderTelemetryAgentRegistration 是 Runtime Target 控制平面为已绑定 Agent 保存的验证公钥。
+// 它只能由 provider/控制平面装配调用，不能由 Build、UI 或普通 Task 元数据建立。
+type BuilderTelemetryAgentRegistration struct {
+	TargetID          int64
+	AgentID           string
+	ProviderID        string
+	BuilderScope      string
+	CapabilityProfile string
+	CapabilityVersion string
+	PublicKey         []byte
+	Enabled           bool
 }
 
 // RuntimeTargetProviderConnection 是 provider 私有执行边界使用的连接事实；不得进入 HTTP、Build Plan 或 Task metadata。

@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import BuildCreatePage from './index.vue';
 
@@ -22,7 +22,10 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+const testLocale = ref('en-US');
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ locale: testLocale, t: (key: string) => `${testLocale.value}:${key}` }),
+}));
 
 const WrapperStub = defineComponent({
   setup(_props, { slots }) {
@@ -57,14 +60,41 @@ const InputStub = defineComponent({
   },
 });
 const SelectStub = defineComponent({
-  props: { modelValue: { type: [Number, String], default: '' } },
+  props: {
+    modelValue: { type: [Number, String], default: '' },
+    options: { type: Array, default: () => [] },
+  },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     return () =>
       h('select', {
         value: props.modelValue,
+        'data-options': JSON.stringify(props.options),
         onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
       });
+  },
+});
+const RadioGroupStub = defineComponent({
+  props: { modelValue: { type: [Number, String], default: '' } },
+  emits: ['update:modelValue'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        (slots.default?.() ?? []).map((node) => {
+          const value = node.props?.value as string | number | undefined;
+          const label = typeof node.children === 'string' ? node.children : String(value ?? '');
+          return h(
+            'button',
+            {
+              type: 'button',
+              'data-value': value,
+              onClick: () => emit('update:modelValue', value),
+            },
+            label,
+          );
+        }),
+      );
   },
 });
 const ButtonStub = defineComponent({
@@ -83,6 +113,8 @@ function mountPage() {
         't-form': FormStub,
         't-form-item': WrapperStub,
         't-input': InputStub,
+        't-radio-group': RadioGroupStub,
+        't-radio': WrapperStub,
         't-select': SelectStub,
         't-input-number': InputStub,
       },
@@ -93,11 +125,12 @@ function mountPage() {
 describe('BuildCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    testLocale.value = 'en-US';
     mocks.push.mockResolvedValue(undefined);
     mocks.getBuildWorkspaces.mockResolvedValue({ items: [{ workspace_id: 'workspace_app', name: 'Application' }] });
     mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
     mocks.getBuildBuilderPools.mockResolvedValue({
-      items: [{ pool_id: 'pool:default', display_name: 'Default Pool' }],
+      items: [{ pool_id: 'pool:default', display_name: 'Default Pool', scheduling_policy: 'round_robin' }],
     });
   });
 
@@ -109,6 +142,78 @@ describe('BuildCreatePage', () => {
     expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).not.toContain('selectorsUnavailable');
+  });
+
+  it('projects every server-authorized Pool policy beside its display name', async () => {
+    mocks.getBuildBuilderPools.mockResolvedValue({
+      items: [
+        { pool_id: 'pool:manual', display_name: 'Manual Pool', scheduling_policy: 'manual' },
+        { pool_id: 'pool:round-robin', display_name: 'Round Robin Pool', scheduling_policy: 'round_robin' },
+        { pool_id: 'pool:random', display_name: 'Random Pool', scheduling_policy: 'random' },
+        { pool_id: 'pool:least-load', display_name: 'Least Load Pool', scheduling_policy: 'least_load' },
+        { pool_id: 'pool:capacity', display_name: 'Capacity Pool', scheduling_policy: 'capacity' },
+        { pool_id: 'pool:affinity', display_name: 'Affinity Pool', scheduling_policy: 'affinity' },
+      ],
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await flushPromises();
+
+    const select = wrapper
+      .findAll('select')
+      .find((candidate) => JSON.parse(candidate.attributes('data-options') ?? '[]').length === 6);
+    expect(select).toBeDefined();
+    if (!select) {
+      return;
+    }
+    expect(JSON.parse(select.attributes('data-options') ?? '[]')).toEqual([
+      {
+        label: 'Manual Pool (en-US:build.jobs.create.builderPoolPolicy.manual)',
+        policy: 'manual',
+        value: 'pool:manual',
+      },
+      {
+        label: 'Round Robin Pool (en-US:build.jobs.create.builderPoolPolicy.roundRobin)',
+        policy: 'round_robin',
+        value: 'pool:round-robin',
+      },
+      {
+        label: 'Random Pool (en-US:build.jobs.create.builderPoolPolicy.random)',
+        policy: 'random',
+        value: 'pool:random',
+      },
+      {
+        label: 'Least Load Pool (en-US:build.jobs.create.builderPoolPolicy.leastLoad)',
+        policy: 'least_load',
+        value: 'pool:least-load',
+      },
+      {
+        label: 'Capacity Pool (en-US:build.jobs.create.builderPoolPolicy.capacity)',
+        policy: 'capacity',
+        value: 'pool:capacity',
+      },
+      {
+        label: 'Affinity Pool (en-US:build.jobs.create.builderPoolPolicy.affinity)',
+        policy: 'affinity',
+        value: 'pool:affinity',
+      },
+    ]);
+
+    testLocale.value = 'zh-CN';
+    await nextTick();
+
+    expect(
+      (JSON.parse(select.attributes('data-options') ?? '[]') as Array<{ label: string }>).map(({ label }) => label),
+    ).toEqual([
+      'Manual Pool (zh-CN:build.jobs.create.builderPoolPolicy.manual)',
+      'Round Robin Pool (zh-CN:build.jobs.create.builderPoolPolicy.roundRobin)',
+      'Random Pool (zh-CN:build.jobs.create.builderPoolPolicy.random)',
+      'Least Load Pool (zh-CN:build.jobs.create.builderPoolPolicy.leastLoad)',
+      'Capacity Pool (zh-CN:build.jobs.create.builderPoolPolicy.capacity)',
+      'Affinity Pool (zh-CN:build.jobs.create.builderPoolPolicy.affinity)',
+    ]);
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {

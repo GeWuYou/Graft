@@ -46,6 +46,19 @@ func TestBuilderReservationFenceChangesForRetryAttempt(t *testing.T) {
 	}
 }
 
+func TestPlacementReservationCapacityRequiresDynamicObservationTime(t *testing.T) {
+	observedAt := time.Date(2026, time.August, 8, 12, 0, 0, 0, time.UTC)
+	placement := moduleapi.BuilderPlacement{SchedulingPolicy: "capacity", SchedulingEvidence: []byte(`{"reservation_slot_budget":4,"reservation_observed_at":"2026-08-08T12:00:00Z"}`)}
+	slotBudget, frozenObservedAt, err := placementReservationCapacity(placement)
+	if err != nil || slotBudget != 4 || !frozenObservedAt.Equal(observedAt) {
+		t.Fatalf("dynamic reservation capacity = (%d,%s,%v)", slotBudget, frozenObservedAt, err)
+	}
+	placement.SchedulingEvidence = []byte(`{"reservation_slot_budget":4}`)
+	if _, _, err := placementReservationCapacity(placement); err == nil {
+		t.Fatal("dynamic reservation without observation time unexpectedly passed")
+	}
+}
+
 func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -63,14 +76,84 @@ func TestReserveBuilderExpiresAcceptedLeaseBeforeAcquiringSameInstance(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 1))
-	expectBuilderReservationInsert(mock, reservation, expiresAt)
+	expectBuilderReservationCapacity(mock, reservation, expiresAt, 1)
 	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
 	if err != nil {
 		t.Fatalf("reserve builder: %v", err)
 	}
 	if stored.ID != reservation.ID || stored.LeaseExpiresAt != expiresAt {
 		t.Fatalf("stored reservation = %#v", stored)
+	}
+	mock.ExpectCommit()
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReserveBuilderCapacityRejectsUnitBeyondFrozenSlotBudget(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_2", InstanceID: "builder_1", PlanID: "plan_2", TaskID: 43, Attempt: 1, LegID: "single", FenceToken: BuilderReservationFence("plan_2", 43, "single", 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(capacity_units\\), 0\\)").WithArgs(reservation.InstanceID, nil).
+		WillReturnRows(sqlmock.NewRows([]string{"used_units"}).AddRow(4))
+	if _, err := repository.reserveBuilderCapacity(context.Background(), tx, reservation, 4, time.Time{}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("reserve builder capacity error = %v, want conflict", err)
+	}
+	mock.ExpectRollback()
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReserveBuilderCapacityReplaysMatchingReservationBeforeCapacityCheck(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := time.Date(2026, time.August, 8, 12, 5, 0, 0, time.UTC)
+	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_replay", InstanceID: "builder_1", PlanID: "plan_replay", TaskID: 43, Attempt: 1, LegID: "single", FenceToken: BuilderReservationFence("plan_replay", 43, "single", 1), State: moduleapi.BuilderReservationAccepted, LeaseExpiresAt: expiresAt}
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).
+			AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, expiresAt, expiresAt.Add(-time.Minute), expiresAt.Add(-time.Minute)))
+	stored, err := repository.ReserveBuilder(context.Background(), tx, reservation)
+	if err != nil || stored.ID != reservation.ID {
+		t.Fatalf("reserve replay = %#v, %v", stored, err)
 	}
 	mock.ExpectCommit()
 	if err := tx.Commit(); err != nil {
@@ -115,8 +198,9 @@ func TestReserveBuilderAttemptAbandonsOnlyOlderAttempts(t *testing.T) {
 	reservation := moduleapi.BuilderReservation{ID: "reservation_plan_1_3", InstanceID: "builder_1", PlanID: "plan_1", TaskID: 42, Attempt: 3, LegID: "linux/amd64", FenceToken: BuilderReservationFence("plan_1", 42, "linux/amd64", 3), State: moduleapi.BuilderReservationRunning, LeaseExpiresAt: expiresAt}
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'abandoned'").WithArgs(uint64(42), "linux/amd64", 3).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(reservation.InstanceID).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE build_builder_reservations SET state = 'expired'").WithArgs("builder_1").WillReturnResult(sqlmock.NewResult(0, 0))
-	expectBuilderReservationInsert(mock, reservation, expiresAt)
+	expectBuilderReservationCapacity(mock, reservation, expiresAt, 1)
 	mock.ExpectCommit()
 	if _, err := repository.ReserveBuilderAttempt(context.Background(), reservation); err != nil {
 		t.Fatalf("reserve builder retry: %v", err)
@@ -126,9 +210,13 @@ func TestReserveBuilderAttemptAbandonsOnlyOlderAttempts(t *testing.T) {
 	}
 }
 
-func expectBuilderReservationInsert(mock sqlmock.Sqlmock, reservation moduleapi.BuilderReservation, timestamp time.Time) {
+func expectBuilderReservationCapacity(mock sqlmock.Sqlmock, reservation moduleapi.BuilderReservation, timestamp time.Time, slotBudget int) {
+	mock.ExpectQuery("SELECT reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state").WithArgs(reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(capacity_units\\), 0\\)").WithArgs(reservation.InstanceID, nil).
+		WillReturnRows(sqlmock.NewRows([]string{"used_units"}).AddRow(0))
 	mock.ExpectQuery("INSERT INTO build_builder_reservations").
-		WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).
+		WithArgs(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt, slotBudget).
 		WillReturnRows(sqlmock.NewRows([]string{"reservation_id", "builder_instance_id", "plan_id", "task_id", "attempt", "leg_id", "fence_token", "state", "lease_expires_at", "created_at", "updated_at"}).
 			AddRow(reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, timestamp, timestamp.Add(-time.Minute), timestamp.Add(-time.Minute)))
 }
@@ -424,14 +512,17 @@ func TestGetExecutionPlanByTaskIDReadsFrozenPlatformPlacements(t *testing.T) {
       },{
         "Platform":"linux/arm64","BuilderInstanceID":"builder-arm64","RuntimeTargetID":5,"SchedulingPolicy":"round_robin"
       }]`
-	columns := []string{"plan_id", "plan_digest", "snapshot_id", "source_kind", "source_reference", "content_digest", "materialization_ref", "snapshot_created_at", "builder_pool_id", "builder_instance_id", "runtime_target_id", "driver", "template_ref", "platforms_json", "builder_placements_json", "destination_json", "created_at"}
-	mock.ExpectQuery("SELECT p.plan_id").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows(columns).AddRow("plan_test", "sha256:plan", "snapshot_test", "application_workspace", "app_test", "sha256:source", "/managed/snapshot", time.Now(), "pool_builders", "builder-amd64", int64(4), "docker-buildx@v1", "oci-dockerfile/default@v1", `["linux/amd64","linux/arm64"]`, placements, `{"kind":"oci_registry","connection_ref":"registry","repository_ref":"team/app","reference":"v1"}`, time.Now()))
+	columns := []string{"plan_id", "plan_digest", "snapshot_id", "source_kind", "source_reference", "content_digest", "materialization_ref", "snapshot_created_at", "builder_pool_id", "builder_instance_id", "runtime_target_id", "driver", "template_ref", "cache_policy", "security_policy", "platforms_json", "builder_placements_json", "destination_json", "created_at"}
+	mock.ExpectQuery("SELECT p.plan_id").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows(columns).AddRow("plan_test", "sha256:plan", "snapshot_test", "application_workspace", "app_test", "sha256:source", "/managed/snapshot", time.Now(), "pool_builders", "builder-amd64", int64(4), "docker-buildx@v1", "oci-dockerfile/default@v1", "disabled", "default", `["linux/amd64","linux/arm64"]`, placements, `{"kind":"oci_registry","connection_ref":"registry","repository_ref":"team/app","reference":"v1"}`, time.Now()))
 	plan, err := repository.GetExecutionPlanByTaskID(context.Background(), 42)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if placement, ok := plan.PlacementForPlatform("linux/arm64"); !ok || placement.BuilderInstanceID != "builder-arm64" || placement.RuntimeTargetID != 5 {
 		t.Fatalf("placement = %#v ok=%t", placement, ok)
+	}
+	if plan.CachePolicy != "disabled" || plan.SecurityPolicy != "default" {
+		t.Fatalf("resolved policies = %#v", plan)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

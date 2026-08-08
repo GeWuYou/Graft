@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,12 @@ var ErrNotFound = errors.New("runtime target not found")
 
 // ErrUnavailable 表示目标记录存在但当前不可用于 provider 执行。
 var ErrUnavailable = errors.New("runtime target unavailable")
+
+// ErrTelemetryRejected 表示报告无法通过已绑定 Agent 的原子重放与身份校验。
+var ErrTelemetryRejected = errors.New("builder telemetry report rejected")
+
+// ErrBuilderLedgerRejected 表示构建代理执行账本拒绝了不合法或超出容量的状态转换。
+var ErrBuilderLedgerRejected = errors.New("builder agent execution ledger rejected")
 
 // LocalDockerProbe 记录一次受限的本机 Docker 探测结果；调用方应保留探测时间和失败原因，供运行时目标状态查询使用。
 type LocalDockerProbe struct {
@@ -121,6 +128,152 @@ type DockerTargetConnection struct {
 	TargetID       uint64
 	Endpoint       string
 	ConnectionKind string
+}
+
+// BuilderTelemetryObservation 是 Builder Agent 或控制平面写入的持久化观测事实。
+// 它不保存连接端点、凭据或 Docker/主机指标，只保留 Builder 范围的调度输入和可验证出处。
+type BuilderTelemetryObservation struct {
+	TargetID              int64
+	AgentID               string
+	TelemetrySequence     int64
+	BuilderScope          string
+	ProviderID            string
+	CapabilityProfile     string
+	CapabilityVersion     string
+	AffinityKey           string
+	Available             bool
+	Running               int
+	Queued                int
+	AllocatableSlots      int
+	ObservedAt            time.Time
+	ExpiresAt             time.Time
+	SourceRef             string
+	Provenance            string
+	Integrity             string
+	UnsupportedDimensions []string
+}
+
+// BuilderTelemetryAgent 是获准向指定运行目标提交遥测的 Builder Agent 身份。
+// PublicKey 只用于验证报告签名，私钥永远不进入 Runtime Target 持久化或 Build 边界。
+type BuilderTelemetryAgent struct {
+	TargetID          int64
+	AgentID           string
+	ProviderID        string
+	BuilderScope      string
+	CapabilityProfile string
+	CapabilityVersion string
+	PublicKey         []byte
+	LastSequence      int64
+	Enabled           bool
+}
+
+// BuilderAgentLedgerState 是 Runtime Target 持有的构建代理执行账本快照。
+type BuilderAgentLedgerState struct {
+	TargetID          int64
+	AgentID           string
+	SlotBudget        int
+	Queued            int
+	Running           int
+	TelemetrySequence int64
+}
+
+// EnsureBuilderAgentLedger 创建或更新一个代理的容量预算，但不会重置已有执行计数或遥测序列。
+func (r *SQLRepository) EnsureBuilderAgentLedger(ctx context.Context, targetID int64, agentID string, slotBudget int) error {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || slotBudget < 1 {
+		return ErrBuilderLedgerRejected
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_execution_ledgers (runtime_target_id, agent_id, slot_budget, queued_builds, running_builds, telemetry_sequence) VALUES ($1,$2,$3,0,0,0) ON CONFLICT (runtime_target_id, agent_id) DO UPDATE SET slot_budget = EXCLUDED.slot_budget, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_builder_execution_ledgers.running_builds <= EXCLUDED.slot_budget`, targetID, agentID, slotBudget)
+	if err != nil {
+		return fmt.Errorf("ensure builder execution ledger: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read builder execution ledger result: %w", err)
+	}
+	if affected != 1 {
+		return ErrBuilderLedgerRejected
+	}
+	return nil
+}
+
+// QueueBuilderAgentBuild 将一个构建加入代理自有排队账本。
+func (r *SQLRepository) QueueBuilderAgentBuild(ctx context.Context, targetID int64, agentID string) error {
+	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `queued_builds = queued_builds + 1`, "queue builder execution", "")
+}
+
+// StartBuilderAgentBuild 原子地将排队构建转为运行构建，并核对 slot budget。
+func (r *SQLRepository) StartBuilderAgentBuild(ctx context.Context, targetID int64, agentID string) error {
+	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `queued_builds = queued_builds - 1, running_builds = running_builds + 1`, "start builder execution", "queued_builds > 0 AND running_builds < slot_budget")
+}
+
+// CancelQueuedBuilderAgentBuild 移除尚未启动的构建，避免容量裁决失败留下幽灵排队计数。
+func (r *SQLRepository) CancelQueuedBuilderAgentBuild(ctx context.Context, targetID int64, agentID string) error {
+	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `queued_builds = queued_builds - 1`, "cancel queued builder execution", "queued_builds > 0")
+}
+
+// FinishBuilderAgentBuild 原子地结算一个运行构建。
+func (r *SQLRepository) FinishBuilderAgentBuild(ctx context.Context, targetID int64, agentID string) error {
+	return r.transitionBuilderAgentLedger(ctx, targetID, agentID, `running_builds = running_builds - 1`, "finish builder execution", "running_builds > 0")
+}
+
+func (r *SQLRepository) transitionBuilderAgentLedger(ctx context.Context, targetID int64, agentID, assignments, operation, predicate string) error {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
+		return ErrBuilderLedgerRejected
+	}
+	where := "runtime_target_id = $1 AND agent_id = $2"
+	if predicate != "" {
+		where += " AND " + predicate
+	}
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		result, err := r.executor(txCtx).ExecContext(txCtx, "UPDATE runtime_target_builder_execution_ledgers SET "+assignments+", updated_at = CURRENT_TIMESTAMP WHERE "+where, targetID, agentID)
+		if err != nil {
+			return fmt.Errorf("%s: %w", operation, err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("%s rows affected: %w", operation, err)
+		}
+		if affected != 1 {
+			return ErrBuilderLedgerRejected
+		}
+		return nil
+	})
+}
+
+// SnapshotBuilderAgentLedger 返回当前受控执行账本状态。
+func (r *SQLRepository) SnapshotBuilderAgentLedger(ctx context.Context, targetID int64, agentID string) (BuilderAgentLedgerState, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
+		return BuilderAgentLedgerState{}, ErrBuilderLedgerRejected
+	}
+	var state BuilderAgentLedgerState
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, agent_id, slot_budget, queued_builds, running_builds, telemetry_sequence FROM runtime_target_builder_execution_ledgers WHERE runtime_target_id = $1 AND agent_id = $2`, targetID, agentID).Scan(&state.TargetID, &state.AgentID, &state.SlotBudget, &state.Queued, &state.Running, &state.TelemetrySequence)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BuilderAgentLedgerState{}, ErrBuilderLedgerRejected
+	}
+	if err != nil {
+		return BuilderAgentLedgerState{}, fmt.Errorf("snapshot builder execution ledger: %w", err)
+	}
+	return state, nil
+}
+
+// AdvanceBuilderAgentTelemetry 原子推进遥测序列并返回同一时刻的执行账本快照。
+func (r *SQLRepository) AdvanceBuilderAgentTelemetry(ctx context.Context, targetID int64, agentID string) (BuilderAgentLedgerState, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
+		return BuilderAgentLedgerState{}, ErrBuilderLedgerRejected
+	}
+	var state BuilderAgentLedgerState
+	err := r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_builder_execution_ledgers SET telemetry_sequence = telemetry_sequence + 1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $1 AND agent_id = $2`, targetID, agentID)
+		if err != nil {
+			return fmt.Errorf("advance builder telemetry sequence: %w", err)
+		}
+		if affected, _ := result.RowsAffected(); affected != 1 {
+			return ErrBuilderLedgerRejected
+		}
+		state, err = r.SnapshotBuilderAgentLedger(txCtx, targetID, agentID)
+		return err
+	})
+	return state, err
 }
 
 // UserAssignment 表示一条有效部署使用授权，不携带运行目标凭据。
@@ -297,6 +450,188 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 		return Target{}, err
 	}
 	return item, nil
+}
+
+// RecordBuilderTelemetryObservation 追加控制平面已验证的 Builder 遥测观察。
+// 该仓储写入仅供 Runtime Target 内部的 Builder Agent/控制平面接入使用，不是 HTTP 或 Build 写入边界。
+func (r *SQLRepository) RecordBuilderTelemetryObservation(ctx context.Context, observation BuilderTelemetryObservation) error {
+	if r == nil || r.db == nil || !validBuilderTelemetryObservation(observation) {
+		return errors.New("invalid builder telemetry observation")
+	}
+	unsupported, err := json.Marshal(observation.UnsupportedDimensions)
+	if err != nil {
+		return fmt.Errorf("encode unsupported builder telemetry dimensions: %w", err)
+	}
+	_, err = r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_observations (runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`, observation.TargetID, observation.AgentID, observation.TelemetrySequence, observation.BuilderScope, observation.ProviderID, observation.CapabilityProfile, observation.CapabilityVersion, observation.AffinityKey, observation.Available, observation.Running, observation.Queued, observation.AllocatableSlots, observation.ObservedAt, observation.ExpiresAt, observation.SourceRef, observation.Provenance, observation.Integrity, unsupported)
+	if err != nil {
+		return fmt.Errorf("record builder telemetry observation: %w", err)
+	}
+	return nil
+}
+
+// UpsertBuilderTelemetryAgent 由 Runtime Target 控制平面配置已绑定 Builder Agent 的验证公钥。
+// 该方法不是 HTTP 或 Build API；Agent 只能使用已登记公钥签名报告，不能自行注册身份。
+func (r *SQLRepository) UpsertBuilderTelemetryAgent(ctx context.Context, agent BuilderTelemetryAgent) error {
+	if r == nil || r.db == nil || !validBuilderTelemetryAgent(agent) {
+		return errors.New("invalid builder telemetry agent")
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_builder_telemetry_agents (runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, last_sequence, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8) ON CONFLICT (runtime_target_id, agent_id) DO UPDATE SET provider_id = EXCLUDED.provider_id, builder_scope = EXCLUDED.builder_scope, capability_profile = EXCLUDED.capability_profile, capability_version = EXCLUDED.capability_version, public_key = EXCLUDED.public_key, last_sequence = CASE WHEN runtime_target_builder_telemetry_agents.public_key = EXCLUDED.public_key THEN runtime_target_builder_telemetry_agents.last_sequence ELSE 0 END, enabled = EXCLUDED.enabled WHERE runtime_target_builder_telemetry_agents.public_key = EXCLUDED.public_key OR runtime_target_builder_telemetry_agents.enabled = false`, agent.TargetID, agent.AgentID, agent.ProviderID, agent.BuilderScope, agent.CapabilityProfile, agent.CapabilityVersion, agent.PublicKey, agent.Enabled)
+	if err != nil {
+		return fmt.Errorf("upsert builder telemetry agent: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read builder telemetry agent upsert result: %w", err)
+	}
+	if affected == 0 {
+		return errors.New("builder telemetry key rotation requires disabled agent binding")
+	}
+	return nil
+}
+
+// GetBuilderTelemetryAgent 读取指定运行目标上仍获准提交遥测的 Builder Agent 公钥。
+func (r *SQLRepository) GetBuilderTelemetryAgent(ctx context.Context, targetID int64, agentID string) (BuilderTelemetryAgent, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	var agent BuilderTelemetryAgent
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, last_sequence, enabled FROM runtime_target_builder_telemetry_agents WHERE runtime_target_id = $1 AND agent_id = $2`, targetID, agentID).Scan(&agent.TargetID, &agent.AgentID, &agent.ProviderID, &agent.BuilderScope, &agent.CapabilityProfile, &agent.CapabilityVersion, &agent.PublicKey, &agent.LastSequence, &agent.Enabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	if err != nil {
+		return BuilderTelemetryAgent{}, fmt.Errorf("get builder telemetry agent: %w", err)
+	}
+	if !agent.Enabled || !validBuilderTelemetryAgent(agent) {
+		return BuilderTelemetryAgent{}, ErrUnavailable
+	}
+	return agent, nil
+}
+
+// GetActiveDockerBuilderTelemetryAgent 返回目标唯一启用的 Docker Agent 绑定。
+// Build 的动态 Placement 目前只携带 Runtime Target 标识，因此一个目标不能同时暴露多个可执行 Builder scope。
+func (r *SQLRepository) GetActiveDockerBuilderTelemetryAgent(ctx context.Context, targetID int64) (BuilderTelemetryAgent, error) {
+	if r == nil || r.db == nil || targetID < 1 {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	var agent BuilderTelemetryAgent
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, last_sequence, enabled FROM runtime_target_builder_telemetry_agents WHERE runtime_target_id = $1 AND provider_id = 'docker' AND enabled = true`, targetID).Scan(&agent.TargetID, &agent.AgentID, &agent.ProviderID, &agent.BuilderScope, &agent.CapabilityProfile, &agent.CapabilityVersion, &agent.PublicKey, &agent.LastSequence, &agent.Enabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BuilderTelemetryAgent{}, ErrNotFound
+	}
+	if err != nil {
+		return BuilderTelemetryAgent{}, fmt.Errorf("get active Docker builder telemetry agent: %w", err)
+	}
+	if !validBuilderTelemetryAgent(agent) {
+		return BuilderTelemetryAgent{}, ErrUnavailable
+	}
+	return agent, nil
+}
+
+// RecordBoundBuilderTelemetryObservation 将已经验签的报告与单调序列原子写入。
+// 先更新绑定行可防止同一 Agent 的并发或重放报告超过最后已接受的序列。
+func (r *SQLRepository) RecordBoundBuilderTelemetryObservation(ctx context.Context, agent BuilderTelemetryAgent, sequence int64, observation BuilderTelemetryObservation) error {
+	if r == nil || r.db == nil || sequence < 1 || !validBuilderTelemetryAgent(agent) || !validBuilderTelemetryObservation(observation) {
+		return ErrTelemetryRejected
+	}
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_builder_telemetry_agents SET last_sequence = $1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $2 AND agent_id = $3 AND provider_id = $4 AND builder_scope = $5 AND capability_profile = $6 AND capability_version = $7 AND public_key = $8 AND enabled = true AND last_sequence < $1`, sequence, agent.TargetID, agent.AgentID, agent.ProviderID, agent.BuilderScope, agent.CapabilityProfile, agent.CapabilityVersion, agent.PublicKey)
+		if err != nil {
+			return fmt.Errorf("advance builder telemetry sequence: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read builder telemetry sequence result: %w", err)
+		}
+		if affected != 1 {
+			return ErrTelemetryRejected
+		}
+		return r.RecordBuilderTelemetryObservation(txCtx, observation)
+	})
+}
+
+// ListLatestBuilderTelemetry 返回每个目标最新的一条控制平面 Builder 观测。
+// 缺失记录由调用方按 fail-closed 处理，不能回退到 Docker 或宿主机诊断指标。
+func (r *SQLRepository) ListLatestBuilderTelemetry(ctx context.Context, targetIDs []int64) ([]BuilderTelemetryObservation, error) {
+	if r == nil || r.db == nil || len(targetIDs) == 0 {
+		return []BuilderTelemetryObservation{}, nil
+	}
+	placeholders, args, err := builderTelemetryTargetArguments(targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	query := latestBuilderTelemetryQuery(placeholders)
+	rows, err := r.executor(ctx).QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list latest builder telemetry: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanBuilderTelemetryObservations(rows, len(targetIDs))
+}
+
+func validBuilderTelemetryObservation(observation BuilderTelemetryObservation) bool {
+	return builderTelemetryIdentityValid(observation) && builderTelemetryCapacityValid(observation) && builderTelemetryWindowValid(observation) && builderTelemetryEvidenceValid(observation)
+}
+
+func builderTelemetryTargetArguments(targetIDs []int64) ([]string, []any, error) {
+	placeholders := make([]string, 0, len(targetIDs))
+	args := make([]any, 0, len(targetIDs))
+	for index, targetID := range targetIDs {
+		if targetID < 1 {
+			return nil, nil, errors.New("invalid builder telemetry target id")
+		}
+		placeholders = append(placeholders, "$"+strconv.Itoa(index+1))
+		args = append(args, targetID)
+	}
+	return placeholders, args, nil
+}
+
+func latestBuilderTelemetryQuery(placeholders []string) string {
+	return `SELECT runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json FROM (SELECT runtime_target_id, agent_id, telemetry_sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running_builds, queued_builds, allocatable_slots, observed_at, expires_at, source_ref, provenance, integrity, unsupported_dimensions_json, ROW_NUMBER() OVER (PARTITION BY runtime_target_id ORDER BY observed_at DESC, id DESC) AS observation_rank FROM runtime_target_builder_telemetry_observations WHERE runtime_target_id IN (` + strings.Join(placeholders, ",") + `)) latest WHERE observation_rank = 1 ORDER BY runtime_target_id`
+}
+
+func scanBuilderTelemetryObservations(rows *sql.Rows, capacity int) ([]BuilderTelemetryObservation, error) {
+	results := make([]BuilderTelemetryObservation, 0, capacity)
+	for rows.Next() {
+		observation, err := scanBuilderTelemetryObservation(rows)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, observation)
+	}
+	return results, rows.Err()
+}
+
+func scanBuilderTelemetryObservation(rows *sql.Rows) (BuilderTelemetryObservation, error) {
+	var observation BuilderTelemetryObservation
+	var unsupported []byte
+	if err := rows.Scan(&observation.TargetID, &observation.AgentID, &observation.TelemetrySequence, &observation.BuilderScope, &observation.ProviderID, &observation.CapabilityProfile, &observation.CapabilityVersion, &observation.AffinityKey, &observation.Available, &observation.Running, &observation.Queued, &observation.AllocatableSlots, &observation.ObservedAt, &observation.ExpiresAt, &observation.SourceRef, &observation.Provenance, &observation.Integrity, &unsupported); err != nil {
+		return BuilderTelemetryObservation{}, fmt.Errorf("scan latest builder telemetry: %w", err)
+	}
+	if err := json.Unmarshal(unsupported, &observation.UnsupportedDimensions); err != nil {
+		return BuilderTelemetryObservation{}, fmt.Errorf("decode unsupported builder telemetry dimensions: %w", err)
+	}
+	return observation, nil
+}
+
+func builderTelemetryIdentityValid(observation BuilderTelemetryObservation) bool {
+	return observation.TargetID > 0 && strings.TrimSpace(observation.BuilderScope) != "" && strings.TrimSpace(observation.ProviderID) != "" && strings.TrimSpace(observation.CapabilityProfile) != "" && strings.TrimSpace(observation.CapabilityVersion) != ""
+}
+
+func builderTelemetryCapacityValid(observation BuilderTelemetryObservation) bool {
+	return observation.Running >= 0 && observation.Queued >= 0 && observation.AllocatableSlots >= 0
+}
+
+func builderTelemetryWindowValid(observation BuilderTelemetryObservation) bool {
+	return !observation.ObservedAt.IsZero() && !observation.ExpiresAt.IsZero() && observation.ExpiresAt.After(observation.ObservedAt)
+}
+
+func builderTelemetryEvidenceValid(observation BuilderTelemetryObservation) bool {
+	return strings.TrimSpace(observation.SourceRef) != "" && strings.TrimSpace(observation.Provenance) != "" && strings.TrimSpace(observation.Integrity) != ""
+}
+
+func validBuilderTelemetryAgent(agent BuilderTelemetryAgent) bool {
+	return agent.TargetID > 0 && strings.TrimSpace(agent.AgentID) != "" && agent.ProviderID == "docker" && strings.TrimSpace(agent.BuilderScope) != "" && strings.TrimSpace(agent.CapabilityProfile) != "" && strings.TrimSpace(agent.CapabilityVersion) != "" && len(agent.PublicKey) == 32 && agent.LastSequence >= 0
 }
 
 // ListBuildTargets 返回仍存活且声明镜像构建能力的 Docker Target；连接事实仍由 provider 私有查询读取。

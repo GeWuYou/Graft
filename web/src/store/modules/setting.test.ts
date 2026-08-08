@@ -71,6 +71,7 @@ describe('setting store theme authority', () => {
     expect(store.fontSizePreset).toBe('standard');
     expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.tabIndicatorPosition).toBe('none');
     expect(store.selectedThemePresetId).toBe('one-dark-pro');
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
   });
@@ -91,6 +92,16 @@ describe('setting store theme authority', () => {
     store.cancelThemeDraft();
 
     expect(store.isAcrylicEnabled).toBe(true);
+  });
+
+  it('keeps the tab indicator position in the persisted shell configuration', () => {
+    const store = useSettingStore();
+
+    expect(STYLE_CONFIG_KEYS).toContain('tabIndicatorPosition');
+
+    store.updateConfig({ tabIndicatorPosition: 'top' });
+
+    expect(store.tabIndicatorPosition).toBe('top');
   });
 
   it('keeps the preset application scope as a persisted preference outside the visual draft', () => {

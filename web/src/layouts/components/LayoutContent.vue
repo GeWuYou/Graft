@@ -4,7 +4,11 @@
       v-if="showRouteTabs"
       drag-sort
       theme="card"
-      :class="[`${prefix}-layout-tabs-nav`, 'graft-scrollbar-tabs']"
+      :class="[
+        `${prefix}-layout-tabs-nav`,
+        'graft-scrollbar-tabs',
+        `graft-tab-indicator--${settingStore.tabIndicatorPosition}`,
+      ]"
       :value="activeTabKey"
       :style="{ position: 'sticky', top: 0, width: '100%' }"
       @change="(value) => handleChangeCurrentTab(value as string)"
@@ -602,6 +606,26 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   display: inline-flex;
   gap: var(--td-comp-margin-xs);
   min-width: 0;
+}
+
+/* TDesign 已在完整导航项上标记激活状态，色条直接贴合可点击标签项的上下边缘。 */
+:deep(.graft-tab-indicator--top .t-tabs__nav-item.t-is-active::before),
+:deep(.graft-tab-indicator--bottom .t-tabs__nav-item.t-is-active::after) {
+  background: var(--td-brand-color);
+  content: '';
+  display: block;
+  height: 3px;
+  inset-inline: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+:deep(.graft-tab-indicator--top .t-tabs__nav-item.t-is-active::before) {
+  top: 0;
+}
+
+:deep(.graft-tab-indicator--bottom .t-tabs__nav-item.t-is-active::after) {
+  bottom: 0;
 }
 
 .route-tabs-label__pin {

@@ -67,25 +67,35 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { createBuildJob, getBuildBuilderPools, getBuildRuntimeTargets, getBuildWorkspaces } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
-import type { BuildJobCreateRequest } from '../../types/build';
-const { t } = useI18n();
+import type { BuildBuilderPool } from '../../types/build';
+import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
+const { locale, t } = useI18n();
 const router = useRouter();
 const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
 const selectionMode = ref<'target' | 'pool'>('target');
-const form = ref<BuildJobCreateRequest>({
+type BuildJobForm = Parameters<typeof createBuildJob>[0];
+const form = ref<BuildJobForm>({
   workspace_id: '',
   runtime_target_id: 0,
-  template_ref: 'oci-dockerfile/default@v1',
-  driver: 'docker-engine@v1',
+  template_ref: BUILD_TEMPLATE_REF,
+  driver: BUILD_DRIVER_REF,
   platforms: ['linux/amd64'],
   destination: { kind: 'oci_registry', connection_ref: 'registry:default', repository_ref: '', reference: 'latest' },
 });
 type SelectorOption = { label: string; value: string | number };
+type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
 const workspaceOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
-const builderPoolOptions = ref<SelectorOption[]>([]);
+const builderPools = ref<BuildBuilderPool[]>([]);
+const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
+  return builderPools.value.map((item) => ({
+    label: `${item.display_name} (${builderPoolPolicyLabel(item.scheduling_policy)})`,
+    value: item.pool_id,
+    policy: item.scheduling_policy,
+  }));
+});
 const selectorLoading = ref(false);
 const selectorError = ref('');
 const selectorOptionsUnavailable = computed(
@@ -113,13 +123,31 @@ async function loadSelectorOptions() {
       label: item.display_name,
       value: item.target_id,
     }));
-    builderPoolOptions.value = (pools.items ?? []).map((item) => ({ label: item.display_name, value: item.pool_id }));
+    builderPools.value = pools.items ?? [];
   } catch (error) {
     selectorError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.selectorsLoadFailed'));
   } finally {
     selectorLoading.value = false;
   }
 }
+
+function builderPoolPolicyLabel(policy: BuildBuilderPool['scheduling_policy']) {
+  switch (policy) {
+    case 'manual':
+      return t('build.jobs.create.builderPoolPolicy.manual', locale.value);
+    case 'round_robin':
+      return t('build.jobs.create.builderPoolPolicy.roundRobin', locale.value);
+    case 'random':
+      return t('build.jobs.create.builderPoolPolicy.random', locale.value);
+    case 'least_load':
+      return t('build.jobs.create.builderPoolPolicy.leastLoad', locale.value);
+    case 'capacity':
+      return t('build.jobs.create.builderPoolPolicy.capacity', locale.value);
+    case 'affinity':
+      return t('build.jobs.create.builderPoolPolicy.affinity', locale.value);
+  }
+}
+
 watch(selectionMode, (mode) => {
   if (mode === 'pool') {
     form.value.runtime_target_id = undefined;

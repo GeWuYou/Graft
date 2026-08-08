@@ -14,23 +14,47 @@ import (
 )
 
 type recordingBuildRepository struct {
-	created            buildstore.JobSnapshot
-	snapshot           buildstore.JobSnapshot
-	settledID          uint64
-	settleCanceled     bool
-	settleDeadline     bool
-	getBuildIDErr      error
-	createErr          error
-	listResult         buildstore.ListResult
-	listQuery          buildstore.ListQuery
-	artifactResult     buildstore.V2ArtifactListResult
-	v2Plan             moduleapi.BuildExecutionPlan
-	workspaces         []moduleapi.BuildWorkspace
-	publicationSources []moduleapi.ArtifactPublicationSource
-	promotionInput     moduleapi.OCIArtifactCopyInput
-	promotionResult    moduleapi.OCIArtifactCopyResult
-	promotionAuth      moduleapi.RegistryAuthExecution
-	promotionSettled   bool
+	created                buildstore.JobSnapshot
+	snapshot               buildstore.JobSnapshot
+	settledID              uint64
+	settleCanceled         bool
+	settleDeadline         bool
+	getBuildIDErr          error
+	createErr              error
+	listResult             buildstore.ListResult
+	listQuery              buildstore.ListQuery
+	artifactResult         buildstore.V2ArtifactListResult
+	v2Plan                 moduleapi.BuildExecutionPlan
+	workspaces             []moduleapi.BuildWorkspace
+	publicationSources     []moduleapi.ArtifactPublicationSource
+	promotionInput         moduleapi.OCIArtifactCopyInput
+	promotionResult        moduleapi.OCIArtifactCopyResult
+	promotionAuth          moduleapi.RegistryAuthExecution
+	promotionSettled       bool
+	platformArtifacts      []moduleapi.PlatformArtifact
+	manifestInput          moduleapi.OCIManifestPublicationInput
+	manifestSettled        bool
+	manifestSettleDeadline bool
+}
+
+func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {
+	r.platformArtifacts = append(r.platformArtifacts, artifact)
+	return nil
+}
+
+func (r *recordingBuildRepository) ListPlatformArtifacts(context.Context, uint64, moduleapi.BuildExecutionPlan) ([]moduleapi.PlatformArtifact, error) {
+	return append([]moduleapi.PlatformArtifact(nil), r.platformArtifacts...), nil
+}
+
+func (r *recordingBuildRepository) PrepareOCIManifestPublication(_ context.Context, _ uint64, plan moduleapi.BuildExecutionPlan) (moduleapi.OCIManifestPublicationInput, error) {
+	r.manifestInput = moduleapi.OCIManifestPublicationInput{Destination: moduleapi.AuthorizedArtifactDestination(plan.Destination), PlatformArtifacts: append([]moduleapi.PlatformArtifact(nil), r.platformArtifacts...)}
+	return r.manifestInput, nil
+}
+
+func (r *recordingBuildRepository) SettleOCIManifestPublication(ctx context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, _ moduleapi.OCIManifestPublicationResult, _ moduleapi.RegistryAuthExecution) error {
+	r.manifestSettled = true
+	_, r.manifestSettleDeadline = ctx.Deadline()
+	return nil
 }
 
 func (r *recordingBuildRepository) CreateWorkspace(context.Context, moduleapi.BuildWorkspace) error {
@@ -271,6 +295,7 @@ type builderReservationRepositoryStub struct {
 	renewLeg, renewFence     string
 	releaseLeg, releaseFence string
 	releaseState             string
+	retryReservation         moduleapi.BuilderReservation
 	renewErr                 error
 }
 
@@ -278,8 +303,17 @@ func (s *builderReservationRepositoryStub) ReserveBuilder(context.Context, *sql.
 	return moduleapi.BuilderReservation{}, errors.New("not implemented")
 }
 
-func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(context.Context, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
-	return moduleapi.BuilderReservation{}, errors.New("not implemented")
+func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(_ context.Context, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	s.retryReservation = reservation
+	return reservation, nil
+}
+
+func (s *builderReservationRepositoryStub) ReserveBuilderAttemptWithCapacity(_ context.Context, reservation moduleapi.BuilderReservation, slotBudget int) (moduleapi.BuilderReservation, error) {
+	if slotBudget < 1 {
+		return moduleapi.BuilderReservation{}, errors.New("invalid slot budget")
+	}
+	s.retryReservation = reservation
+	return reservation, nil
 }
 
 func (s *builderReservationRepositoryStub) MarkBuilderReservationRunning(_ context.Context, _ uint64, legID, fence string) error {
@@ -304,7 +338,7 @@ func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
 		t.Fatal("single-platform placement was not found")
 	}
 	repository := &builderReservationRepositoryStub{}
-	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1})
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1, slotBudget: 1})
 	if err != nil {
 		t.Fatalf("begin builder reservation: %v", err)
 	}
@@ -321,12 +355,64 @@ func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
 
 func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *testing.T) {
 	repository := &builderReservationRepositoryStub{renewErr: errors.New("renew failed")}
-	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1})
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1, slotBudget: 1})
 	if cleanup != nil || err == nil || !strings.Contains(err.Error(), "renew builder reservation") {
 		t.Fatalf("begin builder reservation = cleanup:%v err:%v", cleanup != nil, err)
 	}
 	if repository.releaseState != moduleapi.BuilderReservationAbandoned || repository.releaseLeg != "linux/amd64" || repository.releaseFence != buildstore.BuilderReservationFence("plan_1", 42, "linux/amd64", 1) {
 		t.Fatalf("renewal-failure release = (%q,%q,%q)", repository.releaseLeg, repository.releaseFence, repository.releaseState)
+	}
+}
+
+func TestBeginBuilderReservationRetryPreservesFrozenBuilderIdentityAndUsesNewFence(t *testing.T) {
+	repository := &builderReservationRepositoryStub{}
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_frozen", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 2, slotBudget: 1})
+	if err != nil {
+		t.Fatalf("begin retry reservation: %v", err)
+	}
+	wantFence := buildstore.BuilderReservationFence("plan_frozen", 42, "linux/amd64", 2)
+	if repository.retryReservation.InstanceID != "builder-amd64" || repository.retryReservation.PlanID != "plan_frozen" || repository.retryReservation.FenceToken != wantFence || repository.retryReservation.Attempt != 2 {
+		t.Fatalf("retry reservation = %#v", repository.retryReservation)
+	}
+	var executionErr error
+	cleanup(&executionErr)
+	if repository.releaseFence != wantFence || repository.releaseState != moduleapi.BuilderReservationReleased {
+		t.Fatalf("retry release = (%q,%q)", repository.releaseFence, repository.releaseState)
+	}
+}
+
+func TestReconfirmFrozenDynamicPlacementDoesNotReselectTarget(t *testing.T) {
+	now := time.Now().UTC()
+	plan := moduleapi.BuildExecutionPlan{CachePolicy: "disabled", SecurityPolicy: "default"}
+	requirement := buildCapabilityRequirement("docker-engine@v1", "linux/amd64")
+	negotiation, err := (staticCapabilityMatcher{}).MatchBuildCapability(requirement, moduleapi.BuildExecutionCapability{ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, Features: []string{"registry-login"}})
+	if err != nil {
+		t.Fatalf("match frozen capability: %v", err)
+	}
+	evidence, err := freezePlacementNegotiation(json.RawMessage(`{"policy_id":"build.pool.least_load"}`), placementCapabilityAuthorization{requirement: requirement, requirementFingerprint: fingerprintBuildCapabilityRequirement(requirement), capabilityProfile: "buildkit", capabilityVersion: "v1", negotiation: negotiation})
+	if err != nil {
+		t.Fatalf("marshal frozen placement evidence: %v", err)
+	}
+	executor := v2ExecutionPlanExecutor{builderTelemetry: builderTelemetryReaderStub{
+		admitted:  map[int64]bool{4: true},
+		snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{4: {TargetID: 4, BuilderScope: "builder:frozen", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:retry", Provenance: "agent", Integrity: "sha256:retry"}},
+	}, targets: placementTargetReader{4: {ID: 4, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}}}
+	placement := moduleapi.BuilderPlacement{Platform: "linux/amd64", RuntimeTargetID: 4, SchedulingPolicy: "least_load", SchedulingEvidence: evidence}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err != nil {
+		t.Fatalf("reconfirm frozen placement: %v", err)
+	}
+	policyDrift := plan
+	policyDrift.SecurityPolicy = "provenance-required"
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), policyDrift, placement); err == nil {
+		t.Fatal("expected frozen resolved policy drift to fail closed")
+	}
+	executor.targets = placementTargetReader{4: {ID: 4, Available: true, ProviderCapabilityProfile: "buildkit-next", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err == nil {
+		t.Fatal("expected frozen capability profile drift to fail closed")
+	}
+	placement.RuntimeTargetID = 5
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err == nil {
+		t.Fatal("expected the frozen target to fail closed rather than be reselected")
 	}
 }
 
@@ -340,7 +426,7 @@ func (s *snapshotDeliveryCapabilityStub) DeliverWorkspaceSnapshot(_ context.Cont
 }
 
 func TestVerifySnapshotDeliveryRequiresMatchingFrozenIdentity(t *testing.T) {
-	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializedRoot: "/tmp/graft-build-snapshots/snapshot-1"}
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot-1", ContentDigest: "sha256:source", MaterializationRef: "build-snapshot:snapshot-1"}
 	capability := &snapshotDeliveryCapabilityStub{result: moduleapi.WorkspaceSnapshotDeliveryResult{TargetID: 4, SnapshotID: snapshot.ID, ContentDigest: snapshot.ContentDigest, DeliveryMode: moduleapi.SnapshotDeliveryModeTargetLocal}}
 	if err := verifySnapshotDelivery(context.Background(), capability, 4, snapshot, moduleapi.SnapshotDeliveryModeTargetLocal); err != nil {
 		t.Fatal(err)
@@ -399,6 +485,36 @@ func (s *promotionRegistryStub) ResolveArtifactCopyBinding(_ context.Context, co
 
 type promotionExecutionAdapterStub struct {
 	copy func(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
+}
+
+type manifestRegistryStub struct {
+	binding moduleapi.RegistryPublicationBinding
+}
+
+func (s manifestRegistryStub) ResolvePublicationBinding(context.Context, moduleapi.AuthorizedArtifactDestination) (moduleapi.RegistryPublicationBinding, error) {
+	return s.binding, nil
+}
+
+type manifestExecutionAdapterStub struct {
+	calls       int
+	hasDeadline bool
+}
+
+func (*manifestExecutionAdapterStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	return moduleapi.DockerImageBuildResult{}, errors.New("not implemented")
+}
+
+func (s *manifestExecutionAdapterStub) PublishManifest(ctx context.Context, _ int64, input moduleapi.OCIManifestPublicationInput, _ moduleapi.RegistryPublicationBinding, _ moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	s.calls++
+	_, s.hasDeadline = ctx.Deadline()
+	if len(input.PlatformArtifacts) != 2 {
+		return moduleapi.OCIManifestPublicationResult{}, errors.New("platform artifacts are incomplete")
+	}
+	return moduleapi.OCIManifestPublicationResult{Digest: "sha256:" + strings.Repeat("b", 64), MediaType: "application/vnd.oci.image.index.v1+json"}, nil
+}
+
+func (*manifestExecutionAdapterStub) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return moduleapi.OCIArtifactCopyResult{}, errors.New("not implemented")
 }
 
 func (s promotionExecutionAdapterStub) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
@@ -594,6 +710,32 @@ func TestExecutorSettlesArtifactAfterCallerCancellation(t *testing.T) {
 	}
 	if !repository.settleDeadline {
 		t.Fatal("artifact settlement has no bounded timeout")
+	}
+}
+
+func TestPlatformLegRecordsArtifactWithoutSettlingFinalManifest(t *testing.T) {
+	repository := &recordingBuildRepository{}
+	executor := v2ExecutionPlanExecutor{repository: repository}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", Platforms: []string{"linux/amd64", "linux/arm64"}}
+	result := moduleapi.DockerImageBuildResult{Digest: "sha256:" + strings.Repeat("a", 64), SizeBytes: 7}
+	if err := executor.recordPlatformArtifact(context.Background(), buildStageRun{}, plan, moduleapi.BuildPlanTaskInput{LegID: "platform-1", Platform: "linux/amd64"}, result); err != nil {
+		t.Fatalf("record platform artifact: %v", err)
+	}
+	if len(repository.platformArtifacts) != 1 || repository.manifestSettled || len(repository.manifestInput.PlatformArtifacts) != 0 {
+		t.Fatalf("platform leg unexpectedly settled a manifest: %#v", repository)
+	}
+}
+
+func TestAggregateStagePublishesManifestAfterPlatformArtifacts(t *testing.T) {
+	repository := &recordingBuildRepository{platformArtifacts: []moduleapi.PlatformArtifact{{LegID: "platform-1", Platform: "linux/amd64", Digest: "sha256:" + strings.Repeat("a", 64)}, {LegID: "platform-2", Platform: "linux/arm64", Digest: "sha256:" + strings.Repeat("c", 64)}}}
+	adapter := &manifestExecutionAdapterStub{}
+	executor := v2ExecutionPlanExecutor{repository: repository, registry: manifestRegistryStub{binding: moduleapi.RegistryPublicationBinding{AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}, executionAdapter: adapter}
+	plan := moduleapi.BuildExecutionPlan{ID: "plan_1", RuntimeTargetID: 4, Platforms: []string{"linux/amd64", "linux/arm64"}}
+	if err := executor.publishPlatformManifest(context.Background(), buildStageRun{}, plan); err != nil {
+		t.Fatalf("publish platform manifest: %v", err)
+	}
+	if adapter.calls != 1 || adapter.hasDeadline || !repository.manifestSettled || !repository.manifestSettleDeadline {
+		t.Fatalf("aggregate manifest settlement calls=%d settled=%t", adapter.calls, repository.manifestSettled)
 	}
 }
 

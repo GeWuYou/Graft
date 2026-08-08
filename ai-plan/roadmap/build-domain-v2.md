@@ -81,23 +81,38 @@ host value, Task JSON or unproven provider observation changes selection.
 
 ## Phase 4: Dynamic Placement And Distributed Build
 
-- Implement `BuilderTelemetryProvider` beneath `RuntimeTargetBuilderTelemetryReader`. Require Builder-scoped running
-  builds, queue length, allocatable slots, health, capability profile, source identity, `ObservedAt`, `ExpiresAt`,
-  integrity and unsupported dimensions.
-- Add Builder Agent/control-plane or equivalent telemetry authority for Docker; use bounded BuildKit/Kaniko controller
-  or workload facts for Kubernetes. Never use Docker Engine metrics, host metrics or whole-cluster capacity as a Builder
-  source.
-- Enable `LeastLoad`, `Capacity` and `Affinity` only for fresh, conformant Provider observations paired with a valid
-  Reservation. Recheck the same frozen Placement before an infrastructure retry; do not silently choose another target.
+- Restore Phase 4 as incomplete. A generic signed ingress is not a dynamic telemetry source; historical dynamic policy
+  rows remain readable but are non-executable until Provider admission succeeds.
+- Implement `BuilderTelemetryProvider` beneath `RuntimeTargetBuilderTelemetryReader` using a provisioned Docker Builder
+  Agent bound to its Runtime Target, Provider, Builder scope and capability profile/version. Require monotonic sequence,
+  bounded clock skew, replay rejection, report lifecycle, source/provenance/integrity checks and explicit unsupported
+  dimensions. Running, queued and slots must come from the Agent's controlled execution ledger or Driver controller,
+  never Docker Engine metrics, host metrics, Task JSON, UI data or whole-cluster capacity.
+- The Docker provider's real CLI build boundary updates the durable Driver-controller ledger before and after execution;
+  the current target-only Placement contract permits one enabled Agent scope per target. The out-of-process Agent
+  transport, vault-managed enrollment/private-key delivery and operator lifecycle are now governed by ADR-023 and the
+  Credential Vault And Runtime Target Agent Protocol RFC; PR1 contracts precede runtime activation.
+- Require `CapabilityMatcher` before every manual, static, dynamic and distributed-leg Placement. Freeze requirement,
+  candidate, profile/version, complete negotiation, policy/version, telemetry observation and Reservation-fence evidence.
+- Make Reservation slot-aware: each Build leg claims one explicit capacity unit; atomically compare live reservations
+  created after the telemetry observation with Provider `allocatable_slots`. A failed capacity verdict denies the current
+  Placement and requires a new placement flow, never an implicit target swap.
+- Enable `LeastLoad`, `Capacity` and `Affinity` only after all Provider admission gates pass. `least_load` uses only
+  Provider-owned running/queued facts; affinity uses only proven affinity claims. Recheck the same frozen Placement
+  before an infrastructure retry; do not silently choose another target.
 - Deliver Task Runtime-owned distributed legs, cancellation, retries and recovery. Build maps derived `BuildEvent`
   vocabulary to Task facts and settles immutable platform Artifacts and final manifest Publication.
-- Treat `Abandoned` Reservation, credential cleanup failure and unknown external outcomes as `Needs Attention` until
-  recovery proves a terminal result.
+- Treat `Abandoned` Reservation, `credential_cleanup_unverified` and unknown external outcomes as `Needs Attention`
+  until recovery proves a terminal result. Cleanup is `Internal`, never auto-retried, and its reservation/credential
+  session cannot be reused.
 
-**Release gate:** dynamic decisions replay from frozen capability/profile, telemetry observation, policy/version inputs,
-negotiation result and Reservation fence; fresh telemetry is only an input to a new decision. Provider
-conformance and recovery cover cancellation, timeout, restart and cleanup; and distributed execution does not create a
-second Build queue, Task state machine or event store.
+**Release gate:** Docker Agent conformance proves telemetry is sourced from its controlled execution ledger or Driver
+controller; stale, duplicate, signature-invalid, scope-invalid, version-mismatched or unsupported reports fail closed.
+Dynamic decisions replay from frozen capability/profile, telemetry observation, policy/version inputs, negotiation
+result and Reservation fence; fresh telemetry is only an input to a new decision. Provider conformance and recovery
+cover cancellation, timeout, restart and cleanup; and distributed execution does not create a second Build queue, Task
+state machine or event store. BuildKit, Kaniko and Kubernetes remain future extensions until each passes equivalent
+conformance.
 
 ## Cross-Phase Constraints
 

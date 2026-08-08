@@ -16,6 +16,8 @@ Round context:
   - `ai-plan/design/architecture/build-domain-v2.md`
   - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
   - `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
+  - `ai-plan/design/decisions/ADR-023-runtime-target-agent-trust-model.md`
+  - `ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md`
   - `ai-plan/roadmap/build-domain-v2.md`
 - AI skills:
   - `$graft-multi-agent-loop`
@@ -60,12 +62,16 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Close out the current Phase 1 secure credential execution and manual-reservation batch before starting Phase 2.
-   Preserve Phase 1's secure Registry Push: the optional core
-   secret-file provider issues only scoped ephemeral sessions to Runtime Target's isolated adapter, and every retry
-   uses a new Build Reservation fence.
-2. Do not promote historical Pool, Docker adapter or telemetry contract work into dynamic-placement acceptance evidence.
-   Preserve immutable Plan/Placement authority throughout each bounded phase.
+1. Restore Phase 4 to incomplete: generic signed telemetry ingress and the existing per-Instance exclusive Reservation
+   are insufficient for dynamic admission. Dynamic Pool rows remain readable but non-executable.
+2. Add constrained Task Runtime executor outcomes for the RFC failure taxonomy, beginning with
+   `credential_cleanup_unverified` as `Internal` / `Needs Attention`, no automatic retry and no credential or
+   Reservation reuse.
+3. Make `CapabilityMatcher` mandatory before every Placement and freeze requirement, profile/version, negotiation,
+   policy/version, candidate, telemetry and Reservation-fence evidence.
+4. Implement slot-aware Reservation and a provisioned Docker Builder Agent protocol, then admit dynamic policies only
+   after telemetry, provider, retry and capacity conformance is proven. A dynamic retry validates only its frozen target
+   and never reselects a Builder.
 
 Validation expectations:
 

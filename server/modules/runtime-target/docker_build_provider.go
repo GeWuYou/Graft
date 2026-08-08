@@ -88,13 +88,18 @@ func dockerSnapshotDeliveryMode(connectionKind string) string {
 }
 
 // DeliverWorkspaceSnapshot 校验快照物化根和目标连接类型，并返回不携带连接细节的交付证明。
+//
+//nolint:cyclop // 交付边界必须依次校验身份、引用、连接和模式，保持 fail-closed 顺序。
 func (p dockerTargetProvider) DeliverWorkspaceSnapshot(ctx context.Context, request moduleapi.WorkspaceSnapshotDeliveryRequest) (moduleapi.WorkspaceSnapshotDeliveryResult, error) {
 	if request.TargetID < 1 || strings.TrimSpace(request.SnapshotID) == "" || strings.TrimSpace(request.ContentDigest) == "" {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("workspace snapshot delivery input is invalid")
 	}
-	root, err := managedSnapshotRoot(request.MaterializedRoot)
+	root, snapshotID, contentDigest, err := parseManagedSnapshotReference(request.MaterializationRef)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshotDeliveryResult{}, err
+	}
+	if snapshotID != request.SnapshotID || contentDigest != request.ContentDigest {
+		return moduleapi.WorkspaceSnapshotDeliveryResult{}, errors.New("workspace snapshot materialization reference does not match snapshot")
 	}
 	connection, err := p.connection(ctx, request.TargetID)
 	if err != nil {
@@ -115,12 +120,21 @@ func (p dockerTargetProvider) DeliverWorkspaceSnapshot(ctx context.Context, requ
 
 // BuildImageOnTarget 使用 Runtime Target 私有连接在选定 Docker 目标上执行受控构建。
 //
-//nolint:cyclop // Provider boundary keeps target validation, command construction and immutable result inspection together.
-func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID int64, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+//nolint:cyclop,gocyclo // Provider boundary keeps target validation, command construction and immutable result inspection together.
+func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID int64, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (result moduleapi.DockerImageBuildResult, err error) {
 	connection, err := p.connection(ctx, targetID)
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
+	agentID, err := p.trackDockerBuilderExecution(ctx, targetID)
+	if err != nil {
+		return moduleapi.DockerImageBuildResult{}, err
+	}
+	defer func() {
+		if finishErr := p.finishDockerBuilderExecution(context.WithoutCancel(ctx), targetID, agentID); finishErr != nil && err == nil {
+			err = fmt.Errorf("finish Docker builder execution: %w", finishErr)
+		}
+	}()
 	paths, err := normalizeProviderBuildInput(input)
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
@@ -172,6 +186,31 @@ func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID i
 		return moduleapi.DockerImageBuildResult{}, fmt.Errorf("decode Docker image inspection: %w", err)
 	}
 	return moduleapi.DockerImageBuildResult{ImageID: imageID, Digest: providerImageDigest(image.RepoDigests, input.ImageRepository), Repository: input.ImageRepository, Tag: input.ImageTag, SizeBytes: image.Size, OS: image.Os, Architecture: image.Architecture, Variant: image.Variant}, nil
+}
+
+func (p dockerTargetProvider) trackDockerBuilderExecution(ctx context.Context, targetID int64) (string, error) {
+	agent, err := p.repository.GetActiveDockerBuilderTelemetryAgent(ctx, targetID)
+	if errors.Is(err, store.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("resolve Docker builder agent: %w", err)
+	}
+	if err := p.repository.QueueBuilderAgentBuild(ctx, targetID, agent.AgentID); err != nil {
+		return "", fmt.Errorf("queue Docker builder execution: %w", err)
+	}
+	if err := p.repository.StartBuilderAgentBuild(ctx, targetID, agent.AgentID); err != nil {
+		_ = p.repository.CancelQueuedBuilderAgentBuild(context.WithoutCancel(ctx), targetID, agent.AgentID)
+		return "", fmt.Errorf("start Docker builder execution: %w", err)
+	}
+	return agent.AgentID, nil
+}
+
+func (p dockerTargetProvider) finishDockerBuilderExecution(ctx context.Context, targetID int64, agentID string) error {
+	if strings.TrimSpace(agentID) == "" {
+		return nil
+	}
+	return p.repository.FinishBuilderAgentBuild(ctx, targetID, agentID)
 }
 
 // PublishImageOnTarget 在选定 Docker 目标上发布已构建镜像，并返回目标产生的摘要事实。
@@ -375,7 +414,7 @@ type providerBuildPaths struct {
 }
 
 func normalizeProviderBuildInput(input moduleapi.DockerImageBuildInput) (providerBuildPaths, error) {
-	root, err := managedSnapshotRoot(input.WorkspaceRoot)
+	root, err := managedSnapshotRootForInput(input)
 	if err != nil {
 		return providerBuildPaths{}, err
 	}
@@ -391,6 +430,34 @@ func normalizeProviderBuildInput(input moduleapi.DockerImageBuildInput) (provide
 		return providerBuildPaths{}, errors.New("docker build image reference is invalid")
 	}
 	return providerBuildPaths{root: root, contextPath: filepath.Join(root, contextPath), dockerfilePath: filepath.Join(root, dockerfilePath)}, nil
+}
+
+func managedSnapshotRootForInput(input moduleapi.DockerImageBuildInput) (string, error) {
+	if strings.TrimSpace(input.MaterializationRef) != "" {
+		return managedSnapshotRootForReference(input.MaterializationRef)
+	}
+	return managedSnapshotRoot(input.WorkspaceRoot)
+}
+
+func managedSnapshotRootForReference(reference string) (string, error) {
+	name, _, _, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(reference)
+	if err != nil {
+		return "", err
+	}
+	return managedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
+}
+
+//nolint:revive // 返回目录与绑定身份是一次不可拆分的 capability 解析结果。
+func parseManagedSnapshotReference(reference string) (string, string, string, error) {
+	name, snapshotID, contentDigest, err := moduleapi.ParseWorkspaceSnapshotMaterializationReference(reference)
+	if err != nil {
+		return "", "", "", err
+	}
+	root, err := managedSnapshotRoot(filepath.Join(os.TempDir(), "graft-build-snapshots", name))
+	if err != nil {
+		return "", "", "", err
+	}
+	return root, snapshotID, contentDigest, nil
 }
 
 func safeProviderRelativePath(value string, allowDot bool) (string, error) {

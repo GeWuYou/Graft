@@ -9231,7 +9231,11 @@ export interface components {
     'build-builder-pool': {
       pool_id: string;
       display_name: string;
-      scheduling_policy: string;
+      /**
+       * @description Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed.
+       * @enum {string}
+       */
+      scheduling_policy: 'manual' | 'round_robin' | 'random' | 'least_load' | 'capacity' | 'affinity';
     };
     'build-builder-pool-list': {
       items: components['schemas']['build-builder-pool'][];

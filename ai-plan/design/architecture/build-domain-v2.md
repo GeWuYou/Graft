@@ -190,11 +190,13 @@ implicit fan-out scheduler.
 
 ### Telemetry And Reservation
 
-`RuntimeTargetBuilderTelemetryReader` is the sole Build-visible telemetry facade, but its provider source is not yet
-implemented. Runtime UI summaries, Monitor data, Docker container counts, Task JSON, CPU charts, host load, endpoint
-names and static labels cannot supply Builder-scoped queue, slot, freshness and provenance facts. The authority RFC
-defines `BuilderTelemetryProvider`, `BuildExecutionCapability`, `CapabilityMatcher` and Build-owned fenced
-`BuilderReservation`; no dynamic policy is enabled until their conformance and recovery gates pass.
+`RuntimeTargetBuilderTelemetryReader` is the sole Build-visible telemetry facade. A historical generic signed ingress
+does not prove the required Docker Builder Agent source, so it is not Provider admission evidence. Runtime UI summaries,
+Monitor data, Docker container counts, Task JSON, CPU charts, host load, endpoint names and static labels cannot supply
+Builder-scoped queue, slot, freshness and provenance facts. The authority RFC defines `BuilderTelemetryProvider`,
+`BuildExecutionCapability`, `CapabilityMatcher` and Build-owned fenced `BuilderReservation`; dynamic policy remains
+disabled until the real Provider admission, slot-aware Reservation and recovery gates pass. Historical dynamic Pool rows
+remain readable but are not executable.
 
 ## 7. UI And API Information Architecture
 

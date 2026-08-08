@@ -18,6 +18,8 @@ Runtime Target build capability, artifact delivery, and the approved staged evol
 - `ai-plan/design/architecture/build-domain-v2.md`
 - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
 - `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
+- `ai-plan/design/decisions/ADR-023-runtime-target-agent-trust-model.md`
+- `ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md`
 - `ai-plan/roadmap/build-domain-v2.md`
 
 ## Work Contract
@@ -70,6 +72,11 @@ closeout:
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
+- Phase 4 recovery (2026-08-08): the historical signed telemetry ingress is not a proven Docker Builder Agent protocol
+  and must not admit dynamic policy. The remaining gates are: Task Runtime mapping of credential cleanup uncertainty to
+  `Internal` / `Needs Attention`; mandatory matcher invocation and frozen negotiation evidence for every Placement;
+  slot-aware Reservation rather than one live lease per Instance; and provisioned Docker Agent reports from a controlled
+  execution ledger or Driver controller. Dynamic rows stay readable but non-executable until all gates pass.
 
 ## Historical Implementation Evidence
 
@@ -82,6 +89,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
 - [x] Authority RFC: credential execution, capability matching, reservation, telemetry, placement, evidence, event and
   failure authorities are defined; the roadmap and recovery entry align to four release phases.
+- [x] Runtime Target Agent Trust Model ADR and protocol RFC: Vault-backed issuance, exact URI SAN identity,
+  vault-managed enrollment/private-key delivery, mTLS snapshot acknowledgement, OCI packaging and fail-closed
+  revocation propagation are accepted before PR1 contracts.
 - [x] Provider SDK/SPI RFC: compile-time lifecycle, capability, telemetry, credential, workspace, execution and evidence
   adapter seams plus MUST/SHOULD/MAY conformance and compatibility rules are defined; concrete bindings remain future.
 - [x] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.
@@ -95,7 +105,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 1.75: Snapshot materialization ownership, retention state and provenance uniqueness foundation.
 - [x] Phase 1.75 foundation: Build-owned expired materialization cleanup lease and private-path enforcement.
 - [x] Phase 2: Build-owned Workspaces/Snapshots, versioned Templates/Drivers and Application source materialization.
-- [ ] Phase 3: static Builder Pools (`Manual`, `RoundRobin`, deterministic `Random`) only; no telemetry input.
+- [x] Phase 3: static Builder Pools (`Manual`, `RoundRobin`, deterministic `Random`) only; no telemetry input. The
+  release-gate slice now freezes policy/version, static eligibility candidate fingerprint, selected Instance, and
+  cursor/seed evidence; labels remain eligibility only and historical dynamic-policy rows stay read-only.
 - [x] Phase 3 foundation: Builder Pool membership, transactional Round Robin selection and Pool-bound plan freezing.
 - [ ] Phase 4: promotion, OCI supply-chain evidence, remote/distributed builders and deployment/pipeline handoff.
 - [x] Phase 4 foundation: Build-owned v2 Artifact read model exposes digest-addressed Artifact facts independently of
@@ -109,7 +121,7 @@ state below. A historical item may support an RFC phase but cannot independently
   wired through the Build permission and Task Runtime submission boundary. Authorized Publication discovery and the
   Artifact page workflow remain a later reviewed contract; no selector or modal is inferred from the Artifact list.
 - [x] Phase 5: Task Runtime distributed-leg coordination contract and manifest aggregation authority.
-- [ ] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
+- [x] Phase 6: Persisted distributed-leg coordinator, shared cancellation, recovery and Build manifest publication.
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.
 - [x] Phase 6 foundation: multi-instance untracked coordinated-leg cancellation and restart cancellation recovery.
 - [x] Phase 6 foundation: Build-owned per-platform immutable Artifact persistence with non-overwriting leg settlement.
@@ -117,8 +129,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 7 foundation: complete-platform Artifact validation and Driver publication input contract.
 - [x] Phase 7 foundation: final OCI Manifest Artifact and Publication settlement after Driver-proven digest result.
 - [x] Phase 7 foundation: Container Buildx provider adapter with target-declared `docker-buildx` capability gate.
-- [x] Phase 7 execution slice: coordinated Build legs now build and publish per-platform immutable digests, then
-  attempt provider-owned OCI Manifest publication and Build-owned settlement.
+- [x] Phase 7 execution slice: coordinated Build legs only build and publish per-platform immutable digests. Task
+  Runtime then claims one final aggregate stage after every leg succeeds; that stage performs provider-owned OCI
+  Manifest publication and Build-owned settlement exactly once.
 - [ ] Phase 4: provider-conformant dynamic placement and Task Runtime-owned distributed Build; existing dynamic policy
   literals remain disabled until this release gate.
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
@@ -175,10 +188,11 @@ state below. A historical item may support an RFC phase but cannot independently
   selectable; Phase 9D is the first phase allowed to claim a concrete Kubernetes/BuildKit/Kaniko adapter.
 - Phase 3 partial release evidence: Pool selection is now a public builder selector and freezes the selected Pool and
   Instance; multi-platform fan-out remains gated by Phase 6 coordination plus Phase 7 Driver manifest publication.
-- Phase 7 partial release evidence: multi-platform submission is materialized as Task Runtime coordinated legs and the
-  executor performs per-leg publication plus manifest finalization when all immutable platform Artifacts are present.
-  Placement is now frozen per platform; scheduler policy truth is Phase 8 and provider-backed cross-target delivery is
-  Phase 9. Neither phase permits a local execution fallback for another Runtime Target.
+- Phase 7 partial release evidence: multi-platform submission is materialized as Task Runtime coordinated legs plus a
+  final serial aggregate stage. Per-leg executors only record immutable platform Artifacts; the aggregate stage alone
+  invokes manifest publication and Build settlement. Placement is frozen per platform; scheduler policy truth is Phase
+  8 and provider-backed cross-target delivery is Phase 9. Neither phase permits a local execution fallback for another
+  Runtime Target.
 
 ## Loop Batch State
 
@@ -191,7 +205,9 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-1-registry-credential-execution-historical",
     "phase-1.75-snapshot-materialization-retention",
     "phase-2-workspaces-templates-drivers",
+    "phase-2-intent-materialization-conformance",
     "phase-3-pool-round-robin-foundation",
+    "phase-3-static-pool-placement",
     "phase-5-task-coordination-contract",
     "phase-6-coordinated-leg-foundation",
     "phase-7-manifest-publication-foundation",
@@ -204,15 +220,19 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-8a-builder-telemetry-contract",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
-    "phase-1-secure-credential-execution-and-manual-reservation"
+    "phase-1-secure-credential-execution-and-manual-reservation",
+    "phase-4-cleanup-failure-taxonomy",
+    "phase-4-mandatory-capability-matching",
+    "phase-4-slot-aware-reservation",
+    "phase-4-capability-intent-and-frozen-negotiation",
+    "phase-4-resolved-policy-freezing"
   ],
   "pending_batches": [
-    "phase-2-intent-materialization-conformance",
-    "phase-3-static-pool-placement",
-    "phase-4-dynamic-placement-and-distributed-build"
+    "phase-4-docker-builder-agent-admission",
+    "phase-4-provider-admission-and-dynamic-retry"
   ],
-  "current_batch": "phase-1-secure-credential-execution-and-manual-reservation",
-  "next_batch": "phase-2-intent-materialization-conformance",
-  "closeout_status": "recovery-required"
+  "current_batch": "phase-4-docker-builder-agent-admission",
+  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
+  "closeout_status": "active-incomplete"
 }
 ```

@@ -300,6 +300,38 @@
               </div>
             </div>
 
+            <div class="section settings-layout__section settings-layout__section--tab-indicator">
+              <div class="section-title">{{ t('layout.setting.workbench.layout.tabAppearance') }}</div>
+              <div class="section-desc">{{ t('layout.setting.workbench.layout.tabAppearanceDescription') }}</div>
+              <div class="choice-grid">
+                <button
+                  v-for="item in tabIndicatorOptions"
+                  :key="item.value"
+                  :data-testid="`tab-indicator-${item.value}`"
+                  type="button"
+                  class="choice-card tab-indicator-choice-card"
+                  :class="{ 'choice-card--active': settingStore.tabIndicatorPosition === item.value }"
+                  @click="settingStore.updateConfig({ tabIndicatorPosition: item.value })"
+                >
+                  <span class="choice-card__check">
+                    <t-icon v-if="settingStore.tabIndicatorPosition === item.value" name="check" />
+                  </span>
+                  <span
+                    class="tab-indicator-thumbnail"
+                    :class="`tab-indicator-thumbnail--${item.value}`"
+                    aria-hidden="true"
+                  >
+                    <span class="tab-indicator-thumbnail__nav">
+                      <span class="tab-indicator-thumbnail__tab tab-indicator-thumbnail__tab--active" />
+                      <span class="tab-indicator-thumbnail__tab" />
+                      <span class="tab-indicator-thumbnail__tab" />
+                    </span>
+                  </span>
+                  <span class="choice-card__title">{{ item.label }}</span>
+                </button>
+              </div>
+            </div>
+
             <div class="section">
               <div class="section-title">{{ t('layout.setting.workbench.layout.navigationBehavior') }}</div>
               <div class="section-desc">{{ t('layout.setting.workbench.layout.behaviorDescription') }}</div>
@@ -673,6 +705,7 @@ import SettingAutoIcon from '@/assets/assets-setting-auto.svg';
 import SettingDarkIcon from '@/assets/assets-setting-dark.svg';
 import SettingLightIcon from '@/assets/assets-setting-light.svg';
 import { DEFAULT_COLOR_OPTIONS } from '@/config/color';
+import { TAB_INDICATOR_POSITIONS } from '@/config/style';
 import { t } from '@/locales';
 import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
@@ -888,6 +921,13 @@ const layoutOptions = computed(
       { value: 'top', label: t('layout.setting.workbench.layout.top') },
       { value: 'mix', label: t('layout.setting.workbench.layout.mix') },
     ] as const,
+);
+
+const tabIndicatorOptions = computed(() =>
+  TAB_INDICATOR_POSITIONS.map((value) => ({
+    value,
+    label: t(`layout.setting.workbench.layout.tabIndicator.${value}`),
+  })),
 );
 
 const quickModeOptions = computed(() => modeOptions.value.map(({ text, type }) => ({ label: text, value: type })));
@@ -1824,6 +1864,62 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   position: absolute;
   top: 34px;
   width: 16px;
+}
+
+.tab-indicator-choice-card {
+  min-height: 148px;
+}
+
+.tab-indicator-thumbnail {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 12px;
+  display: flex;
+  height: 92px;
+  overflow: hidden;
+  padding: var(--graft-density-gap-12);
+}
+
+.tab-indicator-thumbnail__nav {
+  align-items: stretch;
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 8px;
+  display: flex;
+  gap: var(--graft-density-gap-4);
+  height: 36px;
+  padding: var(--graft-density-gap-4);
+  width: 100%;
+}
+
+.tab-indicator-thumbnail__tab {
+  background: color-mix(in srgb, var(--td-text-color-secondary) 18%, var(--td-bg-color-container));
+  border-radius: 4px;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.tab-indicator-thumbnail__tab--active {
+  background: color-mix(in srgb, var(--td-brand-color) 18%, var(--td-bg-color-container));
+}
+
+.tab-indicator-thumbnail--top .tab-indicator-thumbnail__tab--active::before,
+.tab-indicator-thumbnail--bottom .tab-indicator-thumbnail__tab--active::after {
+  background: var(--td-brand-color);
+  content: '';
+  height: 2px;
+  inset-inline: 0;
+  position: absolute;
+}
+
+.tab-indicator-thumbnail--top .tab-indicator-thumbnail__tab--active::before {
+  top: 0;
+}
+
+.tab-indicator-thumbnail--bottom .tab-indicator-thumbnail__tab--active::after {
+  bottom: 0;
 }
 
 .switch-list {

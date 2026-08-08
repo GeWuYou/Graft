@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,19 +67,33 @@ func TestAdoptSnapshotMaterializationRejectsSymbolicLink(t *testing.T) {
 	}
 }
 
+func TestAdoptSnapshotMaterializationRejectsDigestMismatch(t *testing.T) {
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adoptSnapshotMaterialization(moduleapi.WorkspaceSnapshot{ID: "snapshot_test", ContentDigest: "sha256:" + strings.Repeat("0", 64), MaterializedRoot: source}); err == nil {
+		t.Fatal("expected immutable snapshot digest mismatch to fail closed")
+	}
+}
+
 func TestCleanupExpiredSnapshotMaterializationsPurgesOnlyManagedMaterialization(t *testing.T) {
 	root := filepath.Join(os.TempDir(), "graft-build-snapshots")
 	if err := os.MkdirAll(root, managedSnapshotDirectoryMode); err != nil {
 		t.Fatal(err)
 	}
-	materialization, err := os.MkdirTemp(root, "cleanup-")
+	materialization, err := os.MkdirTemp(root, "snapshot-cleanup-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(materialization, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: materialization}}}
+	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference("snapshot_expired", "sha256:test", materialization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: reference}}}
 	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
 	if err != nil {
 		t.Fatal(err)

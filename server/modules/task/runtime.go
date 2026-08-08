@@ -368,7 +368,7 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 	if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
 		return moduleapi.TaskPlan{}, err
 	}
-	if len(plan.Stages) == len(plan.Coordination.Legs) {
+	if len(plan.Stages) == len(plan.Coordination.Legs)+1 {
 		return plan, nil
 	}
 	if len(plan.Stages) != 1 {
@@ -378,7 +378,7 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 	if template.ExternalReceipt != nil || template.ExecutorType == "" || template.Key == "" {
 		return moduleapi.TaskPlan{}, errors.New("coordinated task stage template is unsupported")
 	}
-	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs))
+	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs)+1)
 	for index, leg := range plan.Coordination.Legs {
 		stageInput := template.Input
 		if len(leg.Input) > 0 {
@@ -386,6 +386,8 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 		}
 		plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: fmt.Sprintf("%s-%d", template.Key, index+1), ExecutorType: template.ExecutorType, CoordinationGroup: plan.Coordination.AggregateStageKey, LegID: leg.ID, Input: stageInput, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
 	}
+	// 聚合阶段沿用冻结模板输入，只有全部并行 leg 成功后才可由 Task Runtime 领取。
+	plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: plan.Coordination.AggregateStageKey, ExecutorType: template.ExecutorType, Input: template.Input, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
 	return plan, nil
 }
 
@@ -1029,7 +1031,29 @@ func (r *Runtime) finishClaim(ctx context.Context, claim taskstore.StageClaim, e
 	if executeErr == nil {
 		return r.completeClaim(ctx, claim)
 	}
+	var failure *moduleapi.ExecutionFailure
+	if errors.As(executeErr, &failure) {
+		return r.settleExecutionFailure(ctx, claim, failure)
+	}
 	return r.failClaim(ctx, claim, errorCodeExecutor, executeErr.Error())
+}
+
+// settleExecutionFailure 将消费模块返回的受限结果映射到 Runtime 自有状态机，
+// 不读取 Provider、凭据或 Reservation 的内部事实。
+func (r *Runtime) settleExecutionFailure(ctx context.Context, claim taskstore.StageClaim, failure *moduleapi.ExecutionFailure) error {
+	if failure == nil || failure.Code == "" {
+		return r.failClaim(ctx, claim, errorCodeExecutor, "stage execution failed")
+	}
+	switch failure.Disposition {
+	case moduleapi.RecoveryDispositionRetry:
+		return r.failClaim(ctx, claim, failure.Code, failure.Error())
+	case moduleapi.RecoveryDispositionFailed:
+		return r.failClaimFinal(ctx, claim, failure.Code, failure.Error())
+	case moduleapi.RecoveryDispositionNeedsAttention:
+		return r.needsAttentionClaim(ctx, claim, failure.Code, failure.Error())
+	default:
+		return r.failClaim(ctx, claim, errorCodeExecutor, "stage execution failure disposition is invalid")
+	}
 }
 
 func (r *Runtime) completeClaim(ctx context.Context, claim taskstore.StageClaim) error {
@@ -1071,6 +1095,14 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 		r.signalWake()
 		return nil
 	}
+	return r.failClaimFinalAt(ctx, claim, code, message, now)
+}
+
+func (r *Runtime) failClaimFinal(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
+	return r.failClaimFinalAt(ctx, claim, code, message, time.Now().UTC())
+}
+
+func (r *Runtime) failClaimFinalAt(ctx context.Context, claim taskstore.StageClaim, code string, message string, now time.Time) error {
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusFailed, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
@@ -1085,6 +1117,21 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 		return nil
 	}
 	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
+}
+
+func (r *Runtime) needsAttentionClaim(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
+	now := time.Now().UTC()
+	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusUnknown, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
+		return err
+	}
+	if claim.Stage.CoordinationGroup != "" {
+		r.cancelOtherTrackedStages(ctx, claim.Task.ID, claim.Stage.ID)
+	}
+	current, err := r.repository.Get(ctx, claim.Task.ID)
+	if err != nil || current.Status != moduleapi.TaskStatusRunning {
+		return err
+	}
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusNeedsAttention, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
 }
 
 func (r *Runtime) cancelOtherTrackedStages(ctx context.Context, taskID uint64, failedStageID uint64) {
@@ -1126,8 +1173,8 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 		if err := moduleapi.ValidateCoordinatedTaskPlan(plan.Coordination); err != nil {
 			return err
 		}
-		if len(plan.Stages) != len(plan.Coordination.Legs) {
-			return errors.New("coordinated task stages do not match legs")
+		if err := validateCoordinatedStages(plan); err != nil {
+			return err
 		}
 	}
 	if len(plan.Stages) == 0 {
@@ -1138,6 +1185,25 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 		if err := r.validateStagePlan(stage, index, len(plan.Stages), seen); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// validateCoordinatedStages 确保 Runtime 持久化并行 leg 及其唯一的串行聚合阶段。
+// 聚合阶段是最终结算的唯一入口，不能由任一 Build leg 直接触发。
+func validateCoordinatedStages(plan moduleapi.TaskPlan) error {
+	if len(plan.Stages) != len(plan.Coordination.Legs)+1 {
+		return errors.New("coordinated task stages do not match legs")
+	}
+	for index, leg := range plan.Coordination.Legs {
+		stage := plan.Stages[index]
+		if stage.CoordinationGroup != plan.Coordination.AggregateStageKey || stage.LegID != leg.ID {
+			return errors.New("coordinated task leg stages do not match the frozen coordination plan")
+		}
+	}
+	aggregate := plan.Stages[len(plan.Stages)-1]
+	if aggregate.Key != plan.Coordination.AggregateStageKey || aggregate.CoordinationGroup != "" || aggregate.LegID != "" {
+		return errors.New("coordinated task aggregate stage is invalid")
 	}
 	return nil
 }

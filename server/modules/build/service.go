@@ -60,6 +60,7 @@ type Service struct {
 	snapshots         moduleapi.ApplicationWorkspaceSnapshotResolver
 	buildTargets      moduleapi.BuildRuntimeTargetReader
 	buildAssignments  moduleapi.RuntimeTargetBuildAssignmentReader
+	builderTelemetry  moduleapi.RuntimeTargetBuilderTelemetryReader
 	registry          moduleapi.RegistryDestinationResolver
 	intents           IntentResolver
 	workspaces        buildstore.WorkspaceRepository
@@ -331,7 +332,7 @@ func (s *Service) ListBuilderPools(ctx context.Context, requestedBy uint64) ([]m
 }
 
 func supportedBuilderPoolPolicy(policy string) bool {
-	return policy == "round_robin" || policy == "labels"
+	return policy == "manual" || policy == "round_robin" || policy == "random"
 }
 
 func filterSupportedBuilderPools(pools []moduleapi.BuilderPool) []moduleapi.BuilderPool {

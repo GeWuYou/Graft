@@ -174,4 +174,18 @@ describe('ThemeWorkbenchPanel', () => {
     expect(store.shadowPreset).toBe('hard-offset');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
+
+  it('updates the active tab indicator position from layout settings', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('layout');
+    const wrapper = mountPanel();
+
+    expect(store.tabIndicatorPosition).toBe('none');
+    expect(wrapper.get('[data-testid="tab-indicator-none"]').classes()).toContain('choice-card--active');
+
+    await wrapper.get('[data-testid="tab-indicator-bottom"]').trigger('click');
+
+    expect(store.tabIndicatorPosition).toBe('bottom');
+    expect(wrapper.get('[data-testid="tab-indicator-bottom"]').classes()).toContain('choice-card--active');
+  });
 });

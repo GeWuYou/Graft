@@ -130,6 +130,18 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), reader); err != nil {
 		return err
 	}
+	telemetry := func(_ containerdi.Resolver) (any, error) {
+		provider := controlPlaneBuilderTelemetryProvider{repository: m.repository}
+		return controlPlaneBuilderTelemetryReader{provider: provider}, nil
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryReader)(nil), telemetry); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil), func(_ containerdi.Resolver) (any, error) {
+		return controlPlaneBuilderTelemetryIngress{repository: m.repository}, nil
+	}); err != nil {
+		return err
+	}
 	connectionReader := func(_ containerdi.Resolver) (any, error) { return m.repository, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
 		return err
@@ -452,14 +464,17 @@ func buildTargetSummary(target store.Target) (moduleapi.BuildRuntimeTargetSummar
 			localities = []string{"build-snapshot"}
 		}
 		return moduleapi.BuildRuntimeTargetSummary{
-			ID:                    int64(target.ID),
-			DisplayName:           target.DisplayName,
-			Provider:              target.Provider,
-			Available:             true,
-			SupportedDrivers:      []string{"docker-engine"},
-			SupportedPlatforms:    []string{"linux/amd64"},
-			WorkspaceLocalities:   localities,
-			SnapshotDeliveryModes: []string{delivery},
+			ID:                        int64(target.ID),
+			DisplayName:               target.DisplayName,
+			Provider:                  target.Provider,
+			Available:                 true,
+			ProviderCapabilityProfile: "oci-build",
+			ProviderCapabilityVersion: "docker/v1",
+			SupportedDrivers:          []string{"docker-engine"},
+			SupportedPlatforms:        []string{"linux/amd64"},
+			WorkspaceLocalities:       localities,
+			SnapshotDeliveryModes:     []string{delivery},
+			BuildFeatures:             []string{"registry-login"},
 		}, true
 	default:
 		return moduleapi.BuildRuntimeTargetSummary{}, false

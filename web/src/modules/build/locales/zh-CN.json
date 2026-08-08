@@ -100,7 +100,7 @@
         "workspace": "工作区",
         "workspaceId": "工作区 ID",
         "workspaceIdRequired": "请输入工作区 ID。",
-        "workspacePlaceholder": "选择工作区快照",
+        "workspacePlaceholder": "选择 Build 工作区",
         "runtimeTarget": "构建运行目标",
         "runtimeTargetRequired": "请输入构建运行目标。",
         "runtimeTargetPlaceholder": "选择支持构建的 Runtime Target",
@@ -110,6 +110,14 @@
         "builderPool": "Builder Pool",
         "builderPoolRequired": "请输入 Builder Pool。",
         "builderPoolPlaceholder": "选择 Builder Pool",
+        "builderPoolPolicy": {
+          "manual": "手动",
+          "roundRobin": "轮询",
+          "random": "随机",
+          "leastLoad": "最低负载",
+          "capacity": "容量优先",
+          "affinity": "亲和"
+        },
         "selectorsUnavailable": "Build 选择器暂不可用，请先配置 Build 读取 API。",
         "selectorsLoadFailed": "无法加载 Build 选择器。",
         "selectorsEmpty": "当前没有可用且已授权的 Build 工作区或构建器选项。",

@@ -385,3 +385,33 @@
   - `web/src/style/layout.less`
 - Updated at:
   2026-06-05
+
+## LESSON-WEB-UI-TAB-INDICATOR-001：TDesign Tab 指示条必须定位在完整激活导航项边缘
+
+- Status: active
+- Level: L1
+- Applies to:
+  - TDesign Vue Next `Tabs` / `TabPanel` 的自定义导航样式
+  - 后台壳层 Tab 激活态、主题色指示器和类似边缘状态标记
+- Source:
+  - 用户反馈 Tab 色条无法正确预览，顶部和底部效果都落在标签文字中央
+  - 修复主题工作台中的 Tab 指示条定位与 TDesign 激活态选择器
+- Problem:
+  把边缘指示器伪元素挂在 Tab 的文字包裹层时，伪元素尺寸只跟随文案内容，`top` / `bottom` 视觉上会退化成文字区域中央的色块；如果同时创建两个未定位的伪元素，顶部和底部也会看起来没有区别。
+- Correct pattern:
+  先确认 TDesign 的 DOM 结构，再把指示器定位在完整 `.t-tabs__nav-item.t-is-active` 上；顶部只生成 `::before` 并设 `top: 0`，底部只生成 `::after` 并设 `bottom: 0`。预览缩略图应复用同样的上下边缘语义，并使用主题 token 颜色。
+- Anti-pattern:
+  - 把 Tab 边缘色条挂在内部文字或 dropdown 包裹节点
+  - 依赖文案节点的 active 标记或 `:has()` 反推组件激活态
+  - 同时创建上下两个未定位的伪元素
+- Enforcement:
+  修改 TDesign Tab 样式时查询组件 DOM，检查选择器是否命中完整激活导航项；为 `none`、`top`、`bottom` 补组件测试，并运行 `bun run check`。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/layouts/components/LayoutContent.vue`
+  - `web/src/layouts/components/theme-workbench/ThemeWorkbenchPanel.vue`
+  - `web/src/layouts/components/LayoutContent.test.ts`
+- Updated at:
+  2026-08-08
