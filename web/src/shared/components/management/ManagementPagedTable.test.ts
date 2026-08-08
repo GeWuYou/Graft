@@ -72,11 +72,13 @@ describe('ManagementPagedTable', () => {
     await nextTick();
 
     expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('fill');
+    expect(wrapper.get('.management-paged-table__table-host').classes()).not.toContain('graft-scrollbar--horizontal');
     expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBeUndefined();
 
     await wrapper.setProps({ rows: [{ id: 'build-1', name: 'web', repository: 'graft' }] });
 
     expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('scroll');
+    expect(wrapper.get('.management-paged-table__table-host').classes()).toContain('graft-scrollbar--horizontal');
     expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBe('1200px');
   });
 

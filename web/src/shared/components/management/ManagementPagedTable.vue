@@ -29,7 +29,10 @@
       <template #default="{ variant }">
         <div
           ref="tableHostRef"
-          class="management-paged-table__table-host graft-scrollbar"
+          :class="[
+            'management-paged-table__table-host',
+            { 'graft-scrollbar--horizontal': resolveTableModeFor(variant.density) === 'scroll' },
+          ]"
           :data-table-mode="resolveTableModeFor(variant.density)"
         >
           <t-table

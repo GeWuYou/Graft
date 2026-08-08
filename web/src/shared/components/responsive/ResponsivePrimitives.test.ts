@@ -128,6 +128,7 @@ describe('responsive primitives', () => {
 
     expect(dataTable.attributes('data-responsive-presentation')).toBe('data');
     expect(dataTable.find('.responsive-table__scroll table').exists()).toBe(true);
+    expect(dataTable.get('.responsive-table__scroll').classes()).not.toContain('graft-scrollbar');
     expect(entityTable.attributes('data-responsive-presentation')).toBe('entity');
     expect(form.find('.responsive-form__actions').text()).toContain('save');
     expect(cards.text()).toContain('entity');
