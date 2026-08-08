@@ -53,6 +53,7 @@ const routerMock = vi.hoisted(() => ({
 const storeState = vi.hoisted(() => ({
   settingStore: {
     isUseTabsRouter: true,
+    tabIndicatorPosition: 'none' as 'none' | 'top' | 'bottom',
     showBreadcrumb: true,
     showFooter: true,
   },
@@ -534,6 +535,30 @@ describe('LayoutContent', () => {
 
     expect(wrapper.findAll('[data-testid="tab-panel"]')).toHaveLength(2);
     expect(wrapper.text()).toContain('ContainerDetail');
+  });
+
+  it('marks only the active route tab for the configured indicator position', () => {
+    storeState.settingStore.tabIndicatorPosition = 'bottom';
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      createTab('/server/runtime', 'Runtime'),
+      createTab('/security/audit', 'Audit'),
+    ];
+    storeState.tabsRouterStore.activeTabKey = '/server/runtime';
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.get('[data-testid="tabs"]').classes()).toContain('graft-tab-indicator--bottom');
+    expect(wrapper.findAll('.route-tabs-label')).toHaveLength(3);
+    expect(layoutContentStyleSource).toContain('.graft-tab-indicator--top .t-tabs__nav-item.t-is-active::before');
+    expect(layoutContentStyleSource).toContain('.graft-tab-indicator--bottom .t-tabs__nav-item.t-is-active::after');
+    expect(layoutContentStyleSource).not.toContain(':has(.route-tabs-label--active)');
+
+    wrapper.unmount();
+    storeState.settingStore.tabIndicatorPosition = 'none';
+    const resetWrapper = mountLayoutContent();
+    expect(resetWrapper.get('[data-testid="tabs"]').classes()).toContain('graft-tab-indicator--none');
+    resetWrapper.unmount();
   });
 
   it('derives compact tab labels from route metadata when no open tab shares the menu name', () => {
