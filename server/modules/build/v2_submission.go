@@ -39,6 +39,8 @@ type ExecutionPlanRequest struct {
 	BuilderPlacements []moduleapi.BuilderPlacement
 	TemplateRef       string
 	Driver            string
+	CachePolicy       string
+	SecurityPolicy    string
 	Platforms         []string
 	Destination       moduleapi.BuildDestination
 	RequestedBy       uint64
@@ -104,7 +106,11 @@ func (s *Service) SelectBuilderPlacementsFromPool(ctx context.Context, poolID, d
 		if selectionErr != nil {
 			return nil, fmt.Errorf("select builder for %s: %w", platform, selectionErr)
 		}
-		placements = append(placements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selection.instance.ID, RuntimeTargetID: selection.instance.RuntimeTargetID, SchedulingPolicy: pool.SchedulingPolicy, SchedulingEvidence: selection.evidence})
+		evidence, evidenceErr := freezePlacementNegotiation(selection.evidence, selection.authorization)
+		if evidenceErr != nil {
+			return nil, evidenceErr
+		}
+		placements = append(placements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selection.instance.ID, RuntimeTargetID: selection.instance.RuntimeTargetID, SchedulingPolicy: pool.SchedulingPolicy, SchedulingEvidence: evidence})
 	}
 	return placements, nil
 }
@@ -121,8 +127,9 @@ func (s *Service) builderPool(ctx context.Context, poolID string) (moduleapi.Bui
 }
 
 type staticBuilderSelection struct {
-	instance moduleapi.BuilderInstance
-	evidence json.RawMessage
+	instance      moduleapi.BuilderInstance
+	evidence      json.RawMessage
+	authorization placementCapabilityAuthorization
 }
 
 func (s *Service) selectBuilderFromPool(ctx context.Context, pool moduleapi.BuilderPool, driverRef string, platforms []string, seedMaterial string) (staticBuilderSelection, error) {
@@ -169,13 +176,18 @@ func decodeBuilderSelector(raw json.RawMessage) (builderLabelSelector, error) {
 }
 
 type staticPlacementEvidence struct {
-	PolicyID             string            `json:"policy_id"`
-	PolicyVersion        string            `json:"policy_version"`
-	Labels               map[string]string `json:"labels,omitempty"`
-	CandidateFingerprint string            `json:"candidate_fingerprint"`
-	SelectedInstanceID   string            `json:"selected_instance_id"`
-	Seed                 string            `json:"seed,omitempty"`
-	Cursor               *int64            `json:"cursor,omitempty"`
+	PolicyID                         string                         `json:"policy_id"`
+	PolicyVersion                    string                         `json:"policy_version"`
+	Labels                           map[string]string              `json:"labels,omitempty"`
+	CandidateFingerprint             string                         `json:"candidate_fingerprint"`
+	SelectedInstanceID               string                         `json:"selected_instance_id"`
+	Seed                             string                         `json:"seed,omitempty"`
+	Cursor                           *int64                         `json:"cursor,omitempty"`
+	ReservationSlotBudget            int                            `json:"reservation_slot_budget"`
+	CapabilityRequirementFingerprint string                         `json:"capability_requirement_fingerprint"`
+	CapabilityProfile                string                         `json:"capability_profile"`
+	CapabilityVersion                string                         `json:"capability_version"`
+	CapabilityNegotiation            moduleapi.NegotiatedCapability `json:"capability_negotiation"`
 }
 
 type staticPoolSelectionInput struct {
@@ -206,16 +218,23 @@ type frozenBuilderTelemetryEvidence struct {
 }
 
 type dynamicPlacementEvidence struct {
-	PolicyID             string                         `json:"policy_id"`
-	PolicyVersion        string                         `json:"policy_version"`
-	CandidateFingerprint string                         `json:"candidate_fingerprint"`
-	SelectedInstanceID   string                         `json:"selected_instance_id"`
-	Telemetry            frozenBuilderTelemetryEvidence `json:"telemetry"`
+	PolicyID                         string                         `json:"policy_id"`
+	PolicyVersion                    string                         `json:"policy_version"`
+	CandidateFingerprint             string                         `json:"candidate_fingerprint"`
+	SelectedInstanceID               string                         `json:"selected_instance_id"`
+	Telemetry                        frozenBuilderTelemetryEvidence `json:"telemetry"`
+	ReservationSlotBudget            int                            `json:"reservation_slot_budget"`
+	ReservationObservedAt            time.Time                      `json:"reservation_observed_at"`
+	CapabilityRequirementFingerprint string                         `json:"capability_requirement_fingerprint"`
+	CapabilityProfile                string                         `json:"capability_profile"`
+	CapabilityVersion                string                         `json:"capability_version"`
+	CapabilityNegotiation            moduleapi.NegotiatedCapability `json:"capability_negotiation"`
 }
 
 type dynamicBuilderCandidate struct {
-	instance  moduleapi.BuilderInstance
-	telemetry moduleapi.BuilderTelemetrySnapshot
+	instance      moduleapi.BuilderInstance
+	telemetry     moduleapi.BuilderTelemetrySnapshot
+	authorization placementCapabilityAuthorization
 }
 
 //nolint:cyclop // Static placement must keep policy admission, eligibility and frozen evidence in one authority boundary.
@@ -231,9 +250,12 @@ func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool modu
 		return staticBuilderSelection{}, err
 	}
 	candidates := make([]moduleapi.BuilderInstance, 0, len(members))
+	authorizations := make(map[string]placementCapabilityAuthorization, len(members))
 	for _, instance := range members {
-		if instance.Status == "ready" && matchesBuilderLabels(instance.Labels, selector.Labels) && s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID) {
+		authorization, eligible := s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID)
+		if instance.Status == "ready" && matchesBuilderLabels(instance.Labels, selector.Labels) && eligible {
 			candidates = append(candidates, instance)
+			authorizations[instance.ID] = authorization
 		}
 	}
 	if len(candidates) == 0 {
@@ -241,7 +263,7 @@ func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool modu
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
 	fingerprint := staticCandidateFingerprint(pool, selector, candidates)
-	evidence := staticPlacementEvidence{PolicyID: "build.pool." + pool.SchedulingPolicy, PolicyVersion: "v1", Labels: selector.Labels, CandidateFingerprint: fingerprint}
+	evidence := staticPlacementEvidence{PolicyID: "build.pool." + pool.SchedulingPolicy, PolicyVersion: "v1", Labels: selector.Labels, CandidateFingerprint: fingerprint, ReservationSlotBudget: 1}
 	selected, selectionEvidence, err := s.selectStaticPoolCandidate(ctx, pool, selector, candidates, input, fingerprint)
 	if err != nil {
 		return staticBuilderSelection{}, err
@@ -252,7 +274,7 @@ func (s *Service) selectCompatibleBuilderFromPool(ctx context.Context, pool modu
 	if err != nil {
 		return staticBuilderSelection{}, fmt.Errorf("marshal static placement evidence: %w", err)
 	}
-	return staticBuilderSelection{instance: selected, evidence: raw}, nil
+	return staticBuilderSelection{instance: selected, evidence: raw, authorization: authorizations[selected.ID]}, nil
 }
 
 func isDynamicSchedulingPolicy(policy string) bool {
@@ -288,20 +310,21 @@ func (s *Service) selectDynamicPoolCandidate(ctx context.Context, pool moduleapi
 	evidence := dynamicPlacementEvidence{
 		PolicyID: "build.pool." + pool.SchedulingPolicy, PolicyVersion: "v1",
 		CandidateFingerprint: dynamicCandidateFingerprint(pool, selector, candidates), SelectedInstanceID: selected.instance.ID,
-		Telemetry: freezeBuilderTelemetryEvidence(selected.telemetry),
+		Telemetry: freezeBuilderTelemetryEvidence(selected.telemetry), ReservationSlotBudget: selected.telemetry.AllocatableSlots, ReservationObservedAt: selected.telemetry.ObservedAt.UTC(),
 	}
 	raw, err := json.Marshal(evidence)
 	if err != nil {
 		return staticBuilderSelection{}, fmt.Errorf("marshal dynamic placement evidence: %w", err)
 	}
-	return staticBuilderSelection{instance: selected.instance, evidence: raw}, nil
+	return staticBuilderSelection{instance: selected.instance, evidence: raw, authorization: selected.authorization}, nil
 }
 
 // dynamicEligibleCandidate validates one Builder using only Runtime Target's provider-conformant telemetry authority.
 //
-//nolint:cyclop // Fail-closed eligibility must keep provider admission, freshness and policy constraints together.
+//nolint:cyclop,gocyclo // Fail-closed eligibility must keep provider admission, freshness and policy constraints together.
 func (s *Service) dynamicEligibleCandidate(ctx context.Context, policy string, selector builderLabelSelector, instance moduleapi.BuilderInstance, input staticPoolSelectionInput) (dynamicBuilderCandidate, bool, error) {
-	if instance.Status != "ready" || !matchesBuilderLabels(instance.Labels, selector.Labels) || !s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID) {
+	authorization, eligible := s.builderInstanceSupportsPlan(ctx, instance, input.DriverRef, input.Platforms, input.ActorID)
+	if instance.Status != "ready" || !matchesBuilderLabels(instance.Labels, selector.Labels) || !eligible {
 		return dynamicBuilderCandidate{}, false, nil
 	}
 	admitted, err := s.builderTelemetry.ConformBuilderTelemetry(ctx, []int64{instance.RuntimeTargetID})
@@ -318,7 +341,14 @@ func (s *Service) dynamicEligibleCandidate(ctx context.Context, policy string, s
 	if len(snapshots) != 1 || snapshots[0].TargetID != instance.RuntimeTargetID || !snapshots[0].DynamicPlacementConformantAt(time.Now().UTC()) || (policy == "affinity" && (selector.AffinityKey == "" || snapshots[0].AffinityKey != selector.AffinityKey)) {
 		return dynamicBuilderCandidate{}, false, nil
 	}
-	return dynamicBuilderCandidate{instance: instance, telemetry: snapshots[0]}, true, nil
+	target, err := s.buildTargets.ReadBuildTarget(ctx, instance.RuntimeTargetID)
+	if err != nil {
+		return dynamicBuilderCandidate{}, false, fmt.Errorf("read dynamic builder capability: %w", err)
+	}
+	if snapshots[0].CapabilityProfile != target.ProviderCapabilityProfile || snapshots[0].CapabilityVersion != target.ProviderCapabilityVersion {
+		return dynamicBuilderCandidate{}, false, nil
+	}
+	return dynamicBuilderCandidate{instance: instance, telemetry: snapshots[0], authorization: authorization}, true, nil
 }
 
 func dynamicCandidateLess(policy string) func(dynamicBuilderCandidate, dynamicBuilderCandidate) bool {
@@ -426,27 +456,19 @@ func matchesBuilderLabels(labels, selector map[string]string) bool {
 }
 
 //nolint:cyclop // Builder compatibility must retain driver, assignment, target and snapshot-delivery gates together.
-func (s *Service) builderInstanceSupportsPlan(ctx context.Context, instance moduleapi.BuilderInstance, driverRef string, platforms []string, actorID uint64) bool {
+func (s *Service) builderInstanceSupportsPlan(ctx context.Context, instance moduleapi.BuilderInstance, driverRef string, platforms []string, actorID uint64) (placementCapabilityAuthorization, bool) {
 	selectedDriverRef := instance.DriverRef
 	if !strings.Contains(selectedDriverRef, "@") && instance.DriverVersion != "" {
 		selectedDriverRef += "@" + instance.DriverVersion
 	}
 	if !containsBuildRef([]string{selectedDriverRef}, driverRef) {
-		return false
+		return placementCapabilityAuthorization{}, false
 	}
-	allowed, err := s.buildAssignments.CanUseBuildTarget(ctx, actorID, instance.RuntimeTargetID)
-	if err != nil || !allowed {
-		return false
-	}
-	target, err := s.buildTargets.ReadBuildTarget(ctx, instance.RuntimeTargetID)
+	authorization, err := s.authorizeBuildPlacementForPlatforms(ctx, actorID, instance.RuntimeTargetID, driverRef, platforms)
 	if err != nil {
-		return false
+		return placementCapabilityAuthorization{}, false
 	}
-	return target.Available &&
-		containsBuildRef(target.SupportedDrivers, driverRef) &&
-		slices.Contains(target.WorkspaceLocalities, "build-snapshot") &&
-		hasSnapshotDeliveryMode(target.SnapshotDeliveryModes) &&
-		containsAll(target.SupportedPlatforms, platforms)
+	return authorization, true
 }
 
 // SubmitExecutionPlan freezes an Application Workspace Snapshot and a
@@ -511,12 +533,24 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		request.BuilderPlacements = make([]moduleapi.BuilderPlacement, 0, len(request.Platforms))
 		selectedBuilderID = fmt.Sprintf("runtime-target:%d", request.RuntimeTargetID)
 		for _, platform := range request.Platforms {
-			request.BuilderPlacements = append(request.BuilderPlacements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selectedBuilderID, RuntimeTargetID: request.RuntimeTargetID, SchedulingPolicy: "manual"})
+			evidence, marshalErr := json.Marshal(staticPlacementEvidence{PolicyID: "build.direct.manual", PolicyVersion: "v1", SelectedInstanceID: selectedBuilderID, ReservationSlotBudget: 1})
+			if marshalErr != nil {
+				return moduleapi.TaskReceipt{}, fmt.Errorf("marshal direct placement evidence: %w", marshalErr)
+			}
+			request.BuilderPlacements = append(request.BuilderPlacements, moduleapi.BuilderPlacement{Platform: platform, BuilderInstanceID: selectedBuilderID, RuntimeTargetID: request.RuntimeTargetID, SchedulingPolicy: "manual", SchedulingEvidence: evidence})
 		}
 	}
-	for _, placement := range request.BuilderPlacements {
-		if err := s.authorizeBuildPlacement(ctx, placement.RuntimeTargetID, request.Driver, placement.Platform); err != nil {
-			return moduleapi.TaskReceipt{}, err
+	if request.BuilderPoolID == "" {
+		for index, placement := range request.BuilderPlacements {
+			authorization, authorizeErr := s.authorizeBuildPlacement(ctx, placement.RuntimeTargetID, request.Driver, placement.Platform)
+			if authorizeErr != nil {
+				return moduleapi.TaskReceipt{}, authorizeErr
+			}
+			evidence, evidenceErr := freezePlacementNegotiation(placement.SchedulingEvidence, authorization)
+			if evidenceErr != nil {
+				return moduleapi.TaskReceipt{}, evidenceErr
+			}
+			request.BuilderPlacements[index].SchedulingEvidence = evidence
 		}
 	}
 	// Project 仅负责来源授权和初次捕获；提交后由 Build 保留执行物化内容，
@@ -595,26 +629,131 @@ func (w executionPlanSubmissionWriter) MaterializeTaskSubmission(ctx context.Con
 }
 
 //nolint:cyclop // Placement authorization intentionally rechecks identity, assignment and all target capability gates.
-func (s *Service) authorizeBuildPlacement(ctx context.Context, runtimeTargetID int64, driverRef, platform string) error {
+type placementCapabilityAuthorization struct {
+	requirement            moduleapi.BuildCapabilityRequirement
+	requirementFingerprint string
+	capabilityProfile      string
+	capabilityVersion      string
+	negotiation            moduleapi.NegotiatedCapability
+}
+
+func (s *Service) authorizeBuildPlacement(ctx context.Context, runtimeTargetID int64, driverRef, platform string) (placementCapabilityAuthorization, error) {
 	auth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || auth.User == nil {
-		return moduleapi.ErrUnauthenticated
+		return placementCapabilityAuthorization{}, moduleapi.ErrUnauthenticated
 	}
-	allowed, err := s.buildAssignments.CanUseBuildTarget(ctx, auth.User.ID, runtimeTargetID)
+	return s.authorizeBuildPlacementForPlatforms(ctx, auth.User.ID, runtimeTargetID, driverRef, []string{platform})
+}
+
+func (s *Service) authorizeBuildPlacementForPlatforms(ctx context.Context, actorID uint64, runtimeTargetID int64, driverRef string, platforms []string) (placementCapabilityAuthorization, error) {
+	allowed, err := s.buildAssignments.CanUseBuildTarget(ctx, actorID, runtimeTargetID)
 	if err != nil {
-		return fmt.Errorf("authorize build target: %w", err)
+		return placementCapabilityAuthorization{}, fmt.Errorf("authorize build target: %w", err)
 	}
 	if !allowed {
-		return errors.New("build target is not assigned to actor")
+		return placementCapabilityAuthorization{}, errors.New("build target is not assigned to actor")
 	}
 	target, err := s.buildTargets.ReadBuildTarget(ctx, runtimeTargetID)
 	if err != nil {
-		return fmt.Errorf("read build target: %w", err)
+		return placementCapabilityAuthorization{}, fmt.Errorf("read build target: %w", err)
 	}
-	if !target.Available || !containsBuildRef(target.SupportedDrivers, driverRef) || !slices.Contains(target.WorkspaceLocalities, "build-snapshot") || !hasSnapshotDeliveryMode(target.SnapshotDeliveryModes) || !containsString(target.SupportedPlatforms, platform) {
-		return errors.New("build target is incompatible with execution plan")
+	if !target.Available || !containsBuildRef(target.SupportedDrivers, driverRef) || !slices.Contains(target.WorkspaceLocalities, "build-snapshot") || !hasSnapshotDeliveryMode(target.SnapshotDeliveryModes) || !containsAll(target.SupportedPlatforms, platforms) {
+		return placementCapabilityAuthorization{}, errors.New("build target is incompatible with execution plan")
 	}
-	return nil
+	requirement := buildCapabilityRequirement(driverRef, platforms...)
+	capability := moduleapi.BuildExecutionCapability{ProviderCapabilityProfile: target.ProviderCapabilityProfile, ProviderCapabilityVersion: target.ProviderCapabilityVersion, SupportedDrivers: append([]string(nil), target.SupportedDrivers...), SupportedPlatforms: append([]string(nil), target.SupportedPlatforms...), SnapshotDeliveryModes: append([]string(nil), target.SnapshotDeliveryModes...), Features: append([]string(nil), target.BuildFeatures...)}
+	negotiation, err := (staticCapabilityMatcher{}).MatchBuildCapability(requirement, capability)
+	if err != nil {
+		return placementCapabilityAuthorization{}, fmt.Errorf("match build capability: %w", err)
+	}
+	return placementCapabilityAuthorization{requirement: requirement, requirementFingerprint: fingerprintBuildCapabilityRequirement(requirement), capabilityProfile: capability.ProviderCapabilityProfile, capabilityVersion: capability.ProviderCapabilityVersion, negotiation: negotiation}, nil
+}
+
+//nolint:cyclop // Frozen evidence must reject every incomplete capability fact at one persistence boundary.
+func freezePlacementNegotiation(raw json.RawMessage, authorization placementCapabilityAuthorization) (json.RawMessage, error) {
+	if len(raw) == 0 || authorization.requirementFingerprint == "" || authorization.capabilityProfile == "" || authorization.capabilityVersion == "" || authorization.negotiation.ProviderCapabilityProfile != authorization.capabilityProfile || authorization.negotiation.ProviderCapabilityVersion != authorization.capabilityVersion {
+		return nil, errors.New("placement evidence is missing")
+	}
+	var evidence map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &evidence); err != nil {
+		return nil, errors.New("placement evidence is invalid")
+	}
+	encodedNegotiation, err := json.Marshal(authorization.negotiation)
+	if err != nil {
+		return nil, fmt.Errorf("marshal capability negotiation: %w", err)
+	}
+	encodedFingerprint, err := json.Marshal(authorization.requirementFingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("marshal capability requirement fingerprint: %w", err)
+	}
+	encodedProfile, err := json.Marshal(authorization.capabilityProfile)
+	if err != nil {
+		return nil, fmt.Errorf("marshal capability profile: %w", err)
+	}
+	encodedVersion, err := json.Marshal(authorization.capabilityVersion)
+	if err != nil {
+		return nil, fmt.Errorf("marshal capability version: %w", err)
+	}
+	evidence["capability_negotiation"] = encodedNegotiation
+	evidence["capability_requirement_fingerprint"] = encodedFingerprint
+	evidence["capability_profile"] = encodedProfile
+	evidence["capability_version"] = encodedVersion
+	frozen, err := json.Marshal(evidence)
+	if err != nil {
+		return nil, fmt.Errorf("freeze placement negotiation: %w", err)
+	}
+	return frozen, nil
+}
+
+func fingerprintBuildCapabilityRequirement(requirement moduleapi.BuildCapabilityRequirement) string {
+	payload, _ := json.Marshal(struct {
+		DriverRef             string                                        `json:"driver_ref"`
+		TemplateRef           string                                        `json:"template_ref"`
+		DestinationKind       string                                        `json:"destination_kind"`
+		CachePolicy           string                                        `json:"cache_policy"`
+		SecurityPolicy        string                                        `json:"security_policy"`
+		Platforms             []string                                      `json:"platforms"`
+		SnapshotDeliveryModes []string                                      `json:"snapshot_delivery_modes"`
+		RequiredFeatures      []string                                      `json:"required_features"`
+		FeatureRequirements   []moduleapi.BuildCapabilityFeatureRequirement `json:"feature_requirements"`
+	}{DriverRef: strings.TrimSpace(requirement.DriverRef), TemplateRef: strings.TrimSpace(requirement.TemplateRef), DestinationKind: strings.TrimSpace(requirement.DestinationKind), CachePolicy: strings.TrimSpace(requirement.CachePolicy), SecurityPolicy: strings.TrimSpace(requirement.SecurityPolicy), Platforms: canonicalCapabilityValues(requirement.Platforms), SnapshotDeliveryModes: canonicalCapabilityValues(requirement.SnapshotDeliveryModes), RequiredFeatures: canonicalCapabilityValues(requirement.RequiredFeatures), FeatureRequirements: canonicalFeatureRequirements(requirement.FeatureRequirements)})
+	sum := sha256.Sum256(payload)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func canonicalFeatureRequirements(values []moduleapi.BuildCapabilityFeatureRequirement) []moduleapi.BuildCapabilityFeatureRequirement {
+	canonical := append([]moduleapi.BuildCapabilityFeatureRequirement(nil), values...)
+	for index := range canonical {
+		canonical[index].Feature = strings.TrimSpace(canonical[index].Feature)
+		canonical[index].Mode = strings.TrimSpace(canonical[index].Mode)
+	}
+	sort.Slice(canonical, func(i, j int) bool {
+		return canonical[i].Feature+":"+canonical[i].Mode < canonical[j].Feature+":"+canonical[j].Mode
+	})
+	return canonical
+}
+
+func buildCapabilityRequirement(driverRef string, platforms ...string) moduleapi.BuildCapabilityRequirement {
+	return buildCapabilityRequirementForResolvedPolicy(driverRef, "disabled", "default", platforms...)
+}
+
+func buildCapabilityRequirementForResolvedPolicy(driverRef, cachePolicy, securityPolicy string, platforms ...string) moduleapi.BuildCapabilityRequirement {
+	return moduleapi.BuildCapabilityRequirement{DriverRef: strings.TrimSpace(driverRef), TemplateRef: v2DockerfileTemplate, DestinationKind: v2OCIDestination, CachePolicy: strings.TrimSpace(cachePolicy), SecurityPolicy: strings.TrimSpace(securityPolicy), Platforms: canonicalCapabilityValues(platforms), SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal, moduleapi.SnapshotDeliveryModeProviderTransfer}, FeatureRequirements: []moduleapi.BuildCapabilityFeatureRequirement{{Feature: "registry-login", Mode: moduleapi.BuildCapabilityFeatureRequired}, {Feature: "provenance", Mode: moduleapi.BuildCapabilityFeaturePreferred}, {Feature: "sbom", Mode: moduleapi.BuildCapabilityFeatureOptional}}}
+}
+
+func canonicalCapabilityValues(values []string) []string {
+	unique := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			unique[value] = struct{}{}
+		}
+	}
+	canonical := make([]string, 0, len(unique))
+	for value := range unique {
+		canonical = append(canonical, value)
+	}
+	sort.Strings(canonical)
+	return canonical
 }
 
 func hasSnapshotDeliveryMode(modes []string) bool {
@@ -642,6 +781,17 @@ func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanR
 	request.Destination.ConnectionRef = strings.TrimSpace(request.Destination.ConnectionRef)
 	request.Destination.RepositoryRef = strings.TrimSpace(request.Destination.RepositoryRef)
 	request.Destination.Reference = strings.TrimSpace(request.Destination.Reference)
+	request.CachePolicy = strings.TrimSpace(request.CachePolicy)
+	request.SecurityPolicy = strings.TrimSpace(request.SecurityPolicy)
+	if request.CachePolicy == "" {
+		request.CachePolicy = "disabled"
+	}
+	if request.SecurityPolicy == "" {
+		request.SecurityPolicy = "default"
+	}
+	if request.CachePolicy != "disabled" || request.SecurityPolicy != "default" {
+		return ExecutionPlanRequest{}, errors.New("execution plan policy is unsupported")
+	}
 	if request.WorkspaceID == "" || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
 		return ExecutionPlanRequest{}, errors.New("invalid execution plan request")
 	}
@@ -668,15 +818,17 @@ func freezeExecutionPlan(snapshot moduleapi.WorkspaceSnapshot, request Execution
 		Template          string                       `json:"template_ref"`
 		Driver            string                       `json:"driver"`
 		Platforms         []string                     `json:"platforms"`
+		CachePolicy       string                       `json:"cache_policy"`
+		SecurityPolicy    string                       `json:"security_policy"`
 		Destination       moduleapi.BuildDestination   `json:"destination"`
-	}{snapshot.ContentDigest, request.BuilderPoolID, builderInstanceID, request.RuntimeTargetID, append([]moduleapi.BuilderPlacement(nil), request.BuilderPlacements...), request.TemplateRef, request.Driver, append([]string(nil), request.Platforms...), request.Destination}
+	}{SnapshotDigest: snapshot.ContentDigest, BuilderPoolID: request.BuilderPoolID, BuilderInstanceID: builderInstanceID, RuntimeTarget: request.RuntimeTargetID, BuilderPlacements: append([]moduleapi.BuilderPlacement(nil), request.BuilderPlacements...), Template: request.TemplateRef, Driver: request.Driver, CachePolicy: request.CachePolicy, SecurityPolicy: request.SecurityPolicy, Platforms: append([]string(nil), request.Platforms...), Destination: request.Destination}
 	payload, err := json.Marshal(canonical)
 	if err != nil {
 		return moduleapi.BuildExecutionPlan{}, err
 	}
 	digest := sha256.Sum256(payload)
 	digestText := hex.EncodeToString(digest[:])
-	return moduleapi.BuildExecutionPlan{ID: "plan_" + digestText[:26], Digest: "sha256:" + digestText, Workspace: snapshot, BuilderPoolID: request.BuilderPoolID, BuilderInstanceID: builderInstanceID, RuntimeTargetID: request.RuntimeTargetID, BuilderPlacements: append([]moduleapi.BuilderPlacement(nil), request.BuilderPlacements...), Driver: request.Driver, TemplateRef: request.TemplateRef, Platforms: append([]string(nil), request.Platforms...), Destination: request.Destination, CreatedAt: time.Now().UTC()}, nil
+	return moduleapi.BuildExecutionPlan{ID: "plan_" + digestText[:26], Digest: "sha256:" + digestText, Workspace: snapshot, BuilderPoolID: request.BuilderPoolID, BuilderInstanceID: builderInstanceID, RuntimeTargetID: request.RuntimeTargetID, BuilderPlacements: append([]moduleapi.BuilderPlacement(nil), request.BuilderPlacements...), Driver: request.Driver, TemplateRef: request.TemplateRef, CachePolicy: request.CachePolicy, SecurityPolicy: request.SecurityPolicy, Platforms: append([]string(nil), request.Platforms...), Destination: request.Destination, CreatedAt: time.Now().UTC()}, nil
 }
 
 func containsAll(supported, requested []string) bool {

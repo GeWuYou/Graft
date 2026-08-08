@@ -112,6 +112,13 @@ not Placement input.
 Unknown, stale or unverifiable dynamic telemetry MUST be represented as unsupported and deny dynamic Placement. Static
 manual selection can proceed only when capability and execution conformance remain valid.
 
+For Phase 4 Docker admission, the provider MUST receive reports only from a provisioned Builder Agent bound to the
+Runtime Target, Provider, Builder scope and capability profile/version. Reports require a monotonic sequence, bounded
+clock skew, replay rejection and lifecycle state; running, queued and slot facts originate in the Agent's controlled
+execution ledger or Driver controller. A generic signed ingress is insufficient. Scope, profile/version, provenance,
+integrity and unsupported dimensions MUST validate together before dynamic Placement; otherwise the Provider stays
+manual/static only and historical dynamic policy data remains readable but non-executable.
+
 ### Credential Adapter
 
 `CredentialAdapter` bridges the existing Credential Provider to execution without exposing secret plaintext:
@@ -233,6 +240,10 @@ Credential, Snapshot, fencing, digest, isolation or cleanup violations are fail-
 fallback to a local target, default Docker credential store, alternate Builder, stale telemetry or unapproved delivery
 mode is permitted. Provider-local degradation does not update `PlatformAvailabilityStore` or trigger a global service
 unavailable page.
+
+`credential_cleanup_unverified` is an `Internal` failure with a `Needs Attention` disposition. Providers return only its
+stable code and redacted cleanup evidence; Task Runtime maps the constrained outcome, does not auto-retry it, and does
+not reuse its credential session or Reservation fence.
 
 ## Adoption Gates
 

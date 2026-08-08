@@ -70,16 +70,11 @@ closeout:
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
-- Phase 4a telemetry authority (2026-08-08): Runtime Target registers a Builder Agent/control-plane ingress and a
-  durable telemetry provider beneath the narrow `RuntimeTargetBuilderTelemetryReader` facade. The private ingress
-  provisions target-bound Agent public keys, verifies each signed report and derives its integrity digest before
-  appending the observation ledger. The provider records Builder scope, running/queued Builds, allocatable slots,
-  health, capability profile/version, provenance, observation window and explicit unsupported dimensions without
-  endpoint or credential fields. Missing, expired, malformed, unauthenticated or required-unsupported observations
-  fail closed during admission. Docker connection facts, Docker/host metrics, UI/Monitor projections and Task JSON
-  remain prohibited inputs. Dynamic `least_load`, `capacity` and `affinity` policies remain blocked until the separate
-  Reservation recovery and Task Runtime distributed-leg gates; retries continue to use the same frozen Placement and
-  Reservation fence.
+- Phase 4 recovery (2026-08-08): the historical signed telemetry ingress is not a proven Docker Builder Agent protocol
+  and must not admit dynamic policy. The remaining gates are: Task Runtime mapping of credential cleanup uncertainty to
+  `Internal` / `Needs Attention`; mandatory matcher invocation and frozen negotiation evidence for every Placement;
+  slot-aware Reservation rather than one live lease per Instance; and provisioned Docker Agent reports from a controlled
+  execution ledger or Driver controller. Dynamic rows stay readable but non-executable until all gates pass.
 
 ## Historical Implementation Evidence
 
@@ -92,6 +87,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
 - [x] Authority RFC: credential execution, capability matching, reservation, telemetry, placement, evidence, event and
   failure authorities are defined; the roadmap and recovery entry align to four release phases.
+- [x] Runtime Target Agent Trust Model ADR and protocol RFC: Vault-backed issuance, exact URI SAN identity,
+  vault-managed enrollment/private-key delivery, mTLS snapshot acknowledgement, OCI packaging and fail-closed
+  revocation propagation are accepted before PR1 contracts.
 - [x] Provider SDK/SPI RFC: compile-time lifecycle, capability, telemetry, credential, workspace, execution and evidence
   adapter seams plus MUST/SHOULD/MAY conformance and compatibility rules are defined; concrete bindings remain future.
 - [x] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.
@@ -218,17 +216,21 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
-    "phase-4a-telemetry-authority",
-    "phase-4b-task-runtime-distributed-coordination",
-    "phase-4c-reservation-recovery-and-dynamic-placement",
-    "phase-4d-contract-and-web-projection",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
-    "phase-1-secure-credential-execution-and-manual-reservation"
+    "phase-1-secure-credential-execution-and-manual-reservation",
+    "phase-4-cleanup-failure-taxonomy",
+    "phase-4-mandatory-capability-matching",
+    "phase-4-slot-aware-reservation",
+    "phase-4-capability-intent-and-frozen-negotiation",
+    "phase-4-resolved-policy-freezing"
   ],
-  "pending_batches": [],
-  "current_batch": null,
-  "next_batch": null,
-  "closeout_status": "archive-ready"
+  "pending_batches": [
+    "phase-4-docker-builder-agent-admission",
+    "phase-4-provider-admission-and-dynamic-retry"
+  ],
+  "current_batch": "phase-4-docker-builder-agent-admission",
+  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
+  "closeout_status": "active-incomplete"
 }
 ```

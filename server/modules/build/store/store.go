@@ -354,26 +354,23 @@ func (r *SQLRepository) MaterializeExecutionPlan(ctx context.Context, tx *sql.Tx
 	if err != nil {
 		return "", err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO build_execution_plans (plan_id, plan_digest, workspace_snapshot_id, task_id, builder_pool_id, builder_instance_id, runtime_target_id, driver, template_ref, platforms_json, builder_placements_json, destination_json, created_by)
-VALUES ($1,$2,$3,$4,NULLIF($5, ''),NULLIF($6, ''),$7,$8,$9,$10,$11,$12,$13)
-ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.Digest, snapshotPK, *submission.TaskID, plan.BuilderPoolID, plan.BuilderInstanceID, plan.RuntimeTargetID, plan.Driver, plan.TemplateRef, encodedPlan.platforms, encodedPlan.placements, encodedPlan.destination, nullableUint64(requestedBy)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO build_execution_plans (plan_id, plan_digest, workspace_snapshot_id, task_id, builder_pool_id, builder_instance_id, runtime_target_id, driver, template_ref, cache_policy, security_policy, platforms_json, builder_placements_json, destination_json, created_by)
+VALUES ($1,$2,$3,$4,NULLIF($5, ''),NULLIF($6, ''),$7,$8,$9,$10,$11,$12,$13,$14,$15)
+ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.Digest, snapshotPK, *submission.TaskID, plan.BuilderPoolID, plan.BuilderInstanceID, plan.RuntimeTargetID, plan.Driver, plan.TemplateRef, plan.CachePolicy, plan.SecurityPolicy, encodedPlan.platforms, encodedPlan.placements, encodedPlan.destination, nullableUint64(requestedBy)); err != nil {
 		return "", fmt.Errorf("materialize execution plan: %w", err)
-	}
-	reservationRepository, ok := any(r).(moduleapi.BuilderReservationRepository)
-	if !ok {
-		return "", errors.New("builder reservation persistence is unavailable")
 	}
 	placements := plan.BuilderPlacements
 	if len(placements) == 0 {
-		if plan.BuilderInstanceID == "" {
-			return "", errors.New("execution plan builder instance is missing")
-		}
-		placements = []moduleapi.BuilderPlacement{{Platform: "single", BuilderInstanceID: plan.BuilderInstanceID}}
+		return "", errors.New("execution plan has no frozen builder placements")
 	}
 	now := time.Now().UTC()
 	for _, placement := range placements {
 		legID := placement.Platform
-		if _, err := reservationRepository.ReserveBuilder(ctx, tx, moduleapi.BuilderReservation{
+		slotBudget, observedAt, slotBudgetErr := placementReservationCapacity(placement)
+		if slotBudgetErr != nil {
+			return "", slotBudgetErr
+		}
+		if _, err := r.reserveBuilderCapacity(ctx, tx, moduleapi.BuilderReservation{
 			ID:             fmt.Sprintf("reservation_%s_%s", plan.ID, legID),
 			InstanceID:     placement.BuilderInstanceID,
 			PlanID:         plan.ID,
@@ -385,11 +382,26 @@ ON CONFLICT (plan_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`, plan.ID, plan.D
 			LeaseExpiresAt: now.Add(BuilderReservationLeaseTTL),
 			CreatedAt:      now,
 			UpdatedAt:      now,
-		}); err != nil {
+		}, slotBudget, observedAt); err != nil {
 			return "", err
 		}
 	}
 	return plan.ID, nil
+}
+
+// placementReservationSlotBudget 读取 Build Placement Policy 已冻结的 slot 预算；不得以 Runtime Target 默认值替代。
+func placementReservationCapacity(placement moduleapi.BuilderPlacement) (int, time.Time, error) {
+	var evidence struct {
+		ReservationSlotBudget int       `json:"reservation_slot_budget"`
+		ReservationObservedAt time.Time `json:"reservation_observed_at"`
+	}
+	if len(placement.SchedulingEvidence) == 0 || json.Unmarshal(placement.SchedulingEvidence, &evidence) != nil || evidence.ReservationSlotBudget < 1 {
+		return 0, time.Time{}, errors.New("builder placement has no frozen reservation slot budget")
+	}
+	if isDynamicSchedulingPolicy(placement.SchedulingPolicy) && evidence.ReservationObservedAt.IsZero() {
+		return 0, time.Time{}, errors.New("dynamic builder placement has no frozen telemetry observation time")
+	}
+	return evidence.ReservationSlotBudget, evidence.ReservationObservedAt.UTC(), nil
 }
 
 // BuilderReservationFence 生成与冻结计划绑定的稳定 fencing token。
@@ -402,17 +414,38 @@ func BuilderReservationFence(planID string, taskID uint64, legID string, attempt
 //
 //nolint:cyclop,gocyclo // 唯一性、per-leg fence replay 与数据库错误必须在容量 owner 边界集中校验。
 func (r *SQLRepository) ReserveBuilder(ctx context.Context, tx *sql.Tx, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return r.reserveBuilderCapacity(ctx, tx, reservation, 1, time.Time{})
+}
+
+// reserveBuilderCapacity 对冻结的 Builder slot 预算原子分配一个 Build capacity unit。
+// 动态 Placement 仅统计遥测观察之后创建的 live lease，避免重复扣减 provider 已计入的运行容量。
+//
+//nolint:cyclop,gocyclo // 容量裁决必须在同一事务中保持锁、过期回收、预算核对和 fencing 写入的顺序。
+func (r *SQLRepository) reserveBuilderCapacity(ctx context.Context, tx *sql.Tx, reservation moduleapi.BuilderReservation, slotBudget int, observedAt time.Time) (moduleapi.BuilderReservation, error) {
 	if r == nil || tx == nil || strings.TrimSpace(reservation.ID) == "" || strings.TrimSpace(reservation.InstanceID) == "" || strings.TrimSpace(reservation.PlanID) == "" || reservation.TaskID == 0 || strings.TrimSpace(reservation.LegID) == "" || strings.TrimSpace(reservation.FenceToken) == "" || reservation.LeaseExpiresAt.IsZero() {
 		return moduleapi.BuilderReservation{}, errors.New("invalid builder reservation")
+	}
+	if slotBudget < 1 {
+		return moduleapi.BuilderReservation{}, errors.New("builder reservation slot budget is invalid")
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, reservation.InstanceID); err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("lock builder capacity: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'expired', updated_at = NOW() WHERE builder_instance_id = $1 AND state IN ('reserved','accepted') AND lease_expires_at <= NOW()`, reservation.InstanceID); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("expire builder reservation: %w", err)
 	}
+	var usedUnits int
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(capacity_units), 0) FROM build_builder_reservations WHERE builder_instance_id = $1 AND state IN ('reserved','accepted','running') AND ($2::timestamptz IS NULL OR created_at > $2)`, reservation.InstanceID, nullableObservationTime(observedAt)).Scan(&usedUnits); err != nil {
+		return moduleapi.BuilderReservation{}, fmt.Errorf("read builder reserved capacity: %w", err)
+	}
+	if usedUnits+1 > slotBudget {
+		return moduleapi.BuilderReservation{}, ErrConflict
+	}
 	var stored moduleapi.BuilderReservation
-	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_builder_reservations (reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, capacity_units, slot_budget)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10)
 ON CONFLICT (plan_id, task_id, attempt, leg_id) DO UPDATE SET reservation_id = build_builder_reservations.reservation_id
-RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.LegID, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
+RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id, fence_token, state, lease_expires_at, created_at, updated_at`, reservation.ID, reservation.InstanceID, reservation.PlanID, reservation.TaskID, reservation.Attempt, reservation.LegID, reservation.FenceToken, reservation.State, reservation.LeaseExpiresAt, slotBudget).Scan(&stored.ID, &stored.InstanceID, &stored.PlanID, &stored.TaskID, &stored.Attempt, &stored.LegID, &stored.FenceToken, &stored.State, &stored.LeaseExpiresAt, &stored.CreatedAt, &stored.UpdatedAt)
 	if err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("reserve builder capacity: %w", err)
 	}
@@ -424,6 +457,16 @@ RETURNING reservation_id, builder_instance_id, plan_id, task_id, attempt, leg_id
 
 // ReserveBuilderAttempt 在旧尝试已经进入终态后取得新的容量 lease 与 fence。
 func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
+	return r.ReserveBuilderAttemptWithCapacity(ctx, reservation, 1)
+}
+
+// ReserveBuilderAttemptWithCapacity 使用原始 Placement 冻结的 slot 预算取得新的 attempt-scoped lease。
+func (r *SQLRepository) ReserveBuilderAttemptWithCapacity(ctx context.Context, reservation moduleapi.BuilderReservation, slotBudget int) (moduleapi.BuilderReservation, error) {
+	return r.ReserveBuilderAttemptWithCapacityAfterObservation(ctx, reservation, slotBudget, time.Time{})
+}
+
+// ReserveBuilderAttemptWithCapacityAfterObservation 使用冻结遥测观察之后的 live lease 取得 retry capacity unit。
+func (r *SQLRepository) ReserveBuilderAttemptWithCapacityAfterObservation(ctx context.Context, reservation moduleapi.BuilderReservation, slotBudget int, observedAt time.Time) (moduleapi.BuilderReservation, error) {
 	if r == nil || r.db == nil || reservation.Attempt < 2 {
 		return moduleapi.BuilderReservation{}, errors.New("invalid builder retry reservation")
 	}
@@ -435,7 +478,7 @@ func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation m
 	if _, err := tx.ExecContext(ctx, `UPDATE build_builder_reservations SET state = 'abandoned', updated_at = NOW() WHERE task_id = $1 AND leg_id = $2 AND attempt < $3 AND state IN ('accepted','running')`, reservation.TaskID, reservation.LegID, reservation.Attempt); err != nil {
 		return moduleapi.BuilderReservation{}, fmt.Errorf("abandon prior builder reservation: %w", err)
 	}
-	stored, err := r.ReserveBuilder(ctx, tx, reservation)
+	stored, err := r.reserveBuilderCapacity(ctx, tx, reservation, slotBudget, observedAt)
 	if err != nil {
 		return moduleapi.BuilderReservation{}, err
 	}
@@ -443,6 +486,17 @@ func (r *SQLRepository) ReserveBuilderAttempt(ctx context.Context, reservation m
 		return moduleapi.BuilderReservation{}, fmt.Errorf("commit builder retry reservation: %w", err)
 	}
 	return stored, nil
+}
+
+func nullableObservationTime(observedAt time.Time) any {
+	if observedAt.IsZero() {
+		return nil
+	}
+	return observedAt.UTC()
+}
+
+func isDynamicSchedulingPolicy(policy string) bool {
+	return policy == "least_load" || policy == "capacity" || policy == "affinity"
 }
 
 // MarkBuilderReservationRunning 只允许 accepted lease 进入执行中，旧 fence 会被拒绝。
@@ -525,7 +579,7 @@ func marshalExecutionPlanFields(plan moduleapi.BuildExecutionPlan) (executionPla
 
 //nolint:cyclop,gocyclo // 显式校验必须枚举每一个不可变计划边界。
 func validExecutionPlan(plan moduleapi.BuildExecutionPlan) bool {
-	if plan.ID == "" || plan.Digest == "" || plan.Workspace.ID == "" || plan.Workspace.ContentDigest == "" || plan.Workspace.MaterializedRoot == "" || plan.RuntimeTargetID < 1 || plan.Driver == "" || plan.TemplateRef == "" || len(plan.Platforms) == 0 || plan.Destination.Kind == "" || plan.Destination.ConnectionRef == "" || plan.Destination.RepositoryRef == "" || plan.Destination.Reference == "" {
+	if plan.ID == "" || plan.Digest == "" || plan.Workspace.ID == "" || plan.Workspace.ContentDigest == "" || plan.Workspace.MaterializedRoot == "" || plan.RuntimeTargetID < 1 || plan.Driver == "" || plan.TemplateRef == "" || plan.CachePolicy == "" || plan.SecurityPolicy == "" || len(plan.Platforms) == 0 || plan.Destination.Kind == "" || plan.Destination.ConnectionRef == "" || plan.Destination.RepositoryRef == "" || plan.Destination.Reference == "" {
 		return false
 	}
 	if len(plan.BuilderPlacements) > 0 {
@@ -552,11 +606,11 @@ func (r *SQLRepository) GetExecutionPlanByTaskID(ctx context.Context, taskID uin
 	if r == nil || r.db == nil || taskID == 0 {
 		return moduleapi.BuildExecutionPlan{}, ErrNotFound
 	}
-	const query = `SELECT p.plan_id, p.plan_digest, s.snapshot_id, s.source_kind, s.source_reference, s.content_digest, s.materialization_ref, s.created_at, COALESCE(p.builder_pool_id, ''), COALESCE(p.builder_instance_id, ''), p.runtime_target_id, p.driver, p.template_ref, p.platforms_json, p.builder_placements_json, p.destination_json, p.created_at
+	const query = `SELECT p.plan_id, p.plan_digest, s.snapshot_id, s.source_kind, s.source_reference, s.content_digest, s.materialization_ref, s.created_at, COALESCE(p.builder_pool_id, ''), COALESCE(p.builder_instance_id, ''), p.runtime_target_id, p.driver, p.template_ref, p.cache_policy, p.security_policy, p.platforms_json, p.builder_placements_json, p.destination_json, p.created_at
 FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE p.task_id = $1`
 	var plan moduleapi.BuildExecutionPlan
 	var platformsJSON, placementsJSON, destinationJSON []byte
-	if err := r.db.QueryRowContext(ctx, query, taskID).Scan(&plan.ID, &plan.Digest, &plan.Workspace.ID, &plan.Workspace.SourceKind, &plan.Workspace.SourceReference, &plan.Workspace.ContentDigest, &plan.Workspace.MaterializedRoot, &plan.Workspace.CreatedAt, &plan.BuilderPoolID, &plan.BuilderInstanceID, &plan.RuntimeTargetID, &plan.Driver, &plan.TemplateRef, &platformsJSON, &placementsJSON, &destinationJSON, &plan.CreatedAt); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, taskID).Scan(&plan.ID, &plan.Digest, &plan.Workspace.ID, &plan.Workspace.SourceKind, &plan.Workspace.SourceReference, &plan.Workspace.ContentDigest, &plan.Workspace.MaterializedRoot, &plan.Workspace.CreatedAt, &plan.BuilderPoolID, &plan.BuilderInstanceID, &plan.RuntimeTargetID, &plan.Driver, &plan.TemplateRef, &plan.CachePolicy, &plan.SecurityPolicy, &platformsJSON, &placementsJSON, &destinationJSON, &plan.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return moduleapi.BuildExecutionPlan{}, ErrNotFound
 		}

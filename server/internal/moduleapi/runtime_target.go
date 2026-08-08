@@ -64,14 +64,17 @@ type RuntimeTargetDeploymentAssignmentReader interface {
 // BuildRuntimeTargetSummary 是 Build domain 可消费的运行目标构建能力投影。
 // 它只公开调度所需的能力事实，不公开连接端点或凭据。
 type BuildRuntimeTargetSummary struct {
-	ID                    int64
-	DisplayName           string
-	Provider              string
-	Available             bool
-	SupportedDrivers      []string
-	SupportedPlatforms    []string
-	WorkspaceLocalities   []string
-	SnapshotDeliveryModes []string
+	ID                        int64
+	DisplayName               string
+	Provider                  string
+	Available                 bool
+	ProviderCapabilityProfile string
+	ProviderCapabilityVersion string
+	SupportedDrivers          []string
+	SupportedPlatforms        []string
+	WorkspaceLocalities       []string
+	SnapshotDeliveryModes     []string
+	BuildFeatures             []string
 }
 
 const (
@@ -147,7 +150,11 @@ func (s BuilderTelemetrySnapshot) DynamicPlacementConformantAt(now time.Time) bo
 	}
 	for _, dimension := range s.UnsupportedDimensions {
 		switch dimension {
+		case "cache_state":
+			// 当前 OCI 准入契约将缓存遥测列为可选维度。
 		case "running_builds", "queue", "allocatable_slots", "health", "capability_profile", "capability_version", "provenance", "integrity":
+			return false
+		default:
 			return false
 		}
 	}
@@ -173,6 +180,7 @@ type BuilderTelemetryProvider interface {
 type BuilderTelemetryReport struct {
 	AgentID               string
 	TargetID              int64
+	Sequence              int64
 	BuilderScope          string
 	ProviderID            string
 	CapabilityProfile     string
@@ -199,10 +207,14 @@ type RuntimeTargetBuilderTelemetryControlPlane interface {
 // BuilderTelemetryAgentRegistration 是 Runtime Target 控制平面为已绑定 Agent 保存的验证公钥。
 // 它只能由 provider/控制平面装配调用，不能由 Build、UI 或普通 Task 元数据建立。
 type BuilderTelemetryAgentRegistration struct {
-	TargetID  int64
-	AgentID   string
-	PublicKey []byte
-	Enabled   bool
+	TargetID          int64
+	AgentID           string
+	ProviderID        string
+	BuilderScope      string
+	CapabilityProfile string
+	CapabilityVersion string
+	PublicKey         []byte
+	Enabled           bool
 }
 
 // RuntimeTargetProviderConnection 是 provider 私有执行边界使用的连接事实；不得进入 HTTP、Build Plan 或 Task metadata。

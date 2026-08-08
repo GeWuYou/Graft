@@ -46,6 +46,15 @@ func (r placementTargetReader) ReadBuildTarget(_ context.Context, targetID int64
 	if !ok {
 		return moduleapi.BuildRuntimeTargetSummary{}, errors.New("target not found")
 	}
+	if target.ProviderCapabilityVersion == "" {
+		target.ProviderCapabilityVersion = "docker/v1"
+	}
+	if target.ProviderCapabilityProfile == "" {
+		target.ProviderCapabilityProfile = "buildkit"
+	}
+	if target.BuildFeatures == nil {
+		target.BuildFeatures = []string{"registry-login"}
+	}
 	return target, nil
 }
 
@@ -182,7 +191,7 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	}
 	service.ConfigureV2Submission(
 		v2SnapshotResolver{snapshot: moduleapi.WorkspaceSnapshot{ID: "application:app:snapshot", SourceKind: "application_workspace", SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ContentDigest: "sha256:source", MaterializedRoot: source, CreatedAt: time.Now().UTC()}},
-		v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}},
+		v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, ProviderCapabilityProfile: "oci-build", ProviderCapabilityVersion: "docker/v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}},
 		v2TargetAssignments{allowed: true},
 		v2RegistryResolver{},
 	)
@@ -191,16 +200,38 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.TaskID != 42 || repository.v2Plan.ID == "" || !strings.HasPrefix(repository.v2Plan.ID, "plan_") {
-		t.Fatalf("submission did not materialize a frozen plan: receipt=%#v plan=%#v", receipt, repository.v2Plan)
-	}
+	assertFrozenV2Submission(t, receipt, repository.v2Plan)
 	t.Cleanup(func() { _ = os.RemoveAll(repository.v2Plan.Workspace.MaterializedRoot) })
 	var input moduleapi.BuildPlanTaskInput
 	if err := json.Unmarshal(tasks.input.Input, &input); err != nil {
 		t.Fatal(err)
 	}
-	if input.BuildID != repository.v2Plan.ID || input.ExecutionPlanID != repository.v2Plan.ID || strings.Contains(string(tasks.input.Input), "/workspace/app") || strings.Contains(string(tasks.input.Input), "team/app") {
-		t.Fatalf("task metadata leaked materialization or destination: %s", tasks.input.Input)
+	assertFrozenV2TaskInput(t, input, repository.v2Plan.ID, tasks.input.Input)
+	placement, found := repository.v2Plan.PlacementForPlatform("linux/amd64")
+	assertFrozenV2Placement(t, found, placement.SchedulingEvidence)
+}
+
+func assertFrozenV2Submission(t *testing.T, receipt moduleapi.TaskReceipt, plan moduleapi.BuildExecutionPlan) {
+	t.Helper()
+	if receipt.TaskID != 42 || plan.ID == "" || !strings.HasPrefix(plan.ID, "plan_") {
+		t.Fatalf("submission did not materialize a frozen plan: receipt=%#v plan=%#v", receipt, plan)
+	}
+	if plan.CachePolicy != "disabled" || plan.SecurityPolicy != "default" {
+		t.Fatalf("resolved policies were not frozen: %#v", plan)
+	}
+}
+
+func assertFrozenV2TaskInput(t *testing.T, input moduleapi.BuildPlanTaskInput, planID string, raw []byte) {
+	t.Helper()
+	if input.BuildID != planID || input.ExecutionPlanID != planID || strings.Contains(string(raw), "/workspace/app") || strings.Contains(string(raw), "team/app") {
+		t.Fatalf("task metadata leaked materialization or destination: %s", raw)
+	}
+}
+
+func assertFrozenV2Placement(t *testing.T, found bool, evidence json.RawMessage) {
+	t.Helper()
+	if !found || !strings.Contains(string(evidence), `"capability_negotiation"`) || !strings.Contains(string(evidence), `"ProviderCapabilityVersion":"docker/v1"`) {
+		t.Fatalf("capability negotiation was not frozen: %#v", evidence)
 	}
 }
 
@@ -309,6 +340,7 @@ func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *te
 	}
 }
 
+//nolint:cyclop,gocyclo // This integration seam keeps candidate admission, telemetry and frozen evidence in one scenario.
 func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamicEvidence(t *testing.T) {
 	now := time.Now().UTC()
 	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-capacity", SchedulingPolicy: "capacity"}, members: []moduleapi.BuilderInstance{
@@ -322,9 +354,9 @@ func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamic
 	}
 	service.builderResources = resources
 	service.buildTargets = placementTargetReader{
-		4: {ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
-		5: {ID: 5, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
-		6: {ID: 6, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+		4: {ID: 4, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+		5: {ID: 5, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v2", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
+		6: {ID: 6, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}},
 	}
 	service.buildAssignments = placementAssignments{4: true, 5: true, 6: true}
 	service.ConfigureBuilderTelemetry(builderTelemetryReaderStub{admitted: map[int64]bool{4: true, 5: true, 6: false}, snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{
@@ -344,7 +376,7 @@ func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamic
 	if err := json.Unmarshal(placements[0].SchedulingEvidence, &evidence); err != nil {
 		t.Fatal(err)
 	}
-	if evidence.PolicyID != "build.pool.capacity" || evidence.PolicyVersion != "v1" || evidence.SelectedInstanceID != "builder-large" || evidence.Telemetry.SourceRef != "report:large" || evidence.Telemetry.CapabilityVersion != "v2" || evidence.Telemetry.Integrity != "sha256:large" || evidence.CandidateFingerprint == "" {
+	if evidence.PolicyID != "build.pool.capacity" || evidence.PolicyVersion != "v1" || evidence.SelectedInstanceID != "builder-large" || evidence.Telemetry.SourceRef != "report:large" || evidence.Telemetry.CapabilityVersion != "v2" || evidence.Telemetry.Integrity != "sha256:large" || evidence.CandidateFingerprint == "" || evidence.ReservationSlotBudget != 4 || evidence.ReservationObservedAt.IsZero() || evidence.CapabilityRequirementFingerprint == "" || evidence.CapabilityProfile != "buildkit" || evidence.CapabilityVersion != "v2" || evidence.CapabilityNegotiation.SnapshotDeliveryMode == "" {
 		t.Fatalf("frozen dynamic evidence = %#v", evidence)
 	}
 }
@@ -428,6 +460,36 @@ func TestNormalizeExecutionPlanRequestRequiresExactlyOneBuilderSelector(t *testi
 	base.RuntimeTargetID, base.BuilderPoolID = 4, "pool:default"
 	if _, err := normalizeExecutionPlanRequest(base); err == nil {
 		t.Fatal("expected ambiguous builder selectors to be rejected")
+	}
+}
+
+func TestNormalizeExecutionPlanRequestFreezesOnlySupportedResolvedPolicies(t *testing.T) {
+	base := ExecutionPlanRequest{WorkspaceID: "workspace_app", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}
+	normalized, err := normalizeExecutionPlanRequest(base)
+	if err != nil || normalized.CachePolicy != "disabled" || normalized.SecurityPolicy != "default" {
+		t.Fatalf("default resolved policies = %#v, err=%v", normalized, err)
+	}
+	base.CachePolicy = "registry-import"
+	if _, err := normalizeExecutionPlanRequest(base); err == nil {
+		t.Fatal("expected unsupported cache policy to be rejected")
+	}
+}
+
+func TestFreezeExecutionPlanDigestIncludesResolvedPolicies(t *testing.T) {
+	base := ExecutionPlanRequest{WorkspaceID: "workspace_app", RuntimeTargetID: 4, BuilderPlacements: []moduleapi.BuilderPlacement{{Platform: "linux/amd64", BuilderInstanceID: "runtime-target:4", RuntimeTargetID: 4, SchedulingPolicy: "manual"}}, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, CachePolicy: "disabled", SecurityPolicy: "default", Platforms: []string{"linux/amd64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}
+	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot_1", ContentDigest: "sha256:source", MaterializedRoot: "/managed/snapshot"}
+	first, err := freezeExecutionPlan(snapshot, base, "runtime-target:4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := base
+	changed.SecurityPolicy = "provenance-required"
+	second, err := freezeExecutionPlan(snapshot, changed, "runtime-target:4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Digest == second.Digest {
+		t.Fatal("expected resolved security policy to change plan digest")
 	}
 }
 

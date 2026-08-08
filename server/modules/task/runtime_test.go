@@ -242,6 +242,44 @@ func TestRuntimeRetryableStageReturnsToPendingForNextAttempt(t *testing.T) {
 	}
 }
 
+func TestRuntimeStructuredNeedsAttentionFailureSkipsAutomaticRetry(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	executor := &recordingExecutor{errors: []error{&moduleapi.ExecutionFailure{
+		Code:        "credential_cleanup_unverified",
+		Class:       moduleapi.ExecutionFailureClassInternal,
+		Disposition: moduleapi.RecoveryDispositionNeedsAttention,
+		Cause:       errors.New("credential cleanup could not be verified"),
+	}}}
+	if err := runtime.RegisterStageExecutor(executor); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	receipt, err := runtime.Submit(context.Background(), testSubmitInput(1, 2))
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("run structured failure: %v", err)
+	}
+	task := mustTask(t, repository, receipt.TaskID)
+	if task.Status != moduleapi.TaskStatusNeedsAttention || task.FailureCode == nil || *task.FailureCode != "credential_cleanup_unverified" {
+		t.Fatalf("task after cleanup failure = %#v", task)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil {
+		t.Fatalf("list stages: %v", err)
+	}
+	if len(stages) != 1 || stages[0].Status != moduleapi.StageStatusUnknown || stages[0].Attempt != 1 {
+		t.Fatalf("stage after cleanup failure = %#v", stages)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("run after needs attention: %v", err)
+	}
+	if calls := executor.calls(); calls != 1 {
+		t.Fatalf("executor calls = %d, want 1", calls)
+	}
+}
+
 func TestRepositoryRecoversRunningStageAsUnknownAndTaskNeedsAttention(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)

@@ -555,13 +555,77 @@
 - Controller accepted `95a25b57` and follow-up repair `cfec66f2` after focused Build/Task/Runtime Target tests and
   `graft validate backend`. Phase 4d OpenAPI and web projection is now the sole pending batch.
 
-## 2026-08-08 phase-4d-contract-and-web-projection
+## 2026-08-08 phase-4d-contract-and-web-projection (historical, superseded)
 
 - The canonical Builder Pool OpenAPI enum now exposes exactly `least_load`, `capacity` and `affinity` in addition to
   the static policies. Generated web schema and localized Build selector labels follow that contract; no browser
   telemetry, policy evaluation, target selection or `region` path was introduced.
-- Controller accepted `6bc99b07` after OpenAPI freshness and the Build selector page test. The Phase 4 acceptance
-  conditions are met; the topic is archive-ready.
+- Controller accepted `6bc99b07` after OpenAPI freshness and the Build selector page test. This historical acceptance
+  claim was superseded by the later Phase 4 recovery entries; the topic remains active-incomplete.
+
+## 2026-08-08 Phase 4 Closeout Recovery
+
+- The prior Phase 4 closeout is superseded: it treated a generic signed ingress, production Placement matching and a
+  per-Instance exclusive Reservation as sufficient dynamic evidence. They are not.
+- Phase 4 is active and incomplete until Task Runtime maps `credential_cleanup_unverified` to `Internal` / `Needs
+  Attention`; every Placement freezes a real `CapabilityMatcher` negotiation; Reservation claims explicit capacity units;
+  and a provisioned Docker Builder Agent proves target-bound telemetry from its controlled execution ledger or Driver
+  controller.
+- Dynamic policy is disabled pending Provider admission. Historical dynamic Pool rows remain readable but cannot execute;
+  BuildKit, Kaniko and Kubernetes are future extensions until each passes equivalent conformance. Dynamic retries keep
+  the frozen target and must never reselect from a Pool. Local Builder/Registry failure remains outside global platform
+  availability.
+
+## 2026-08-08 Phase 4 Docker Driver-Controller Ledger Integration
+
+- Runtime Target now updates the unique enabled Docker Agent's durable execution ledger immediately around the actual
+  Docker CLI build boundary. The provider owns only queue/running completion facts; it does not select targets, retry,
+  settle Task state or create a second runtime.
+- The target-only frozen Placement contract is made explicit with one enabled Agent scope per Runtime Target. A focused
+  provider conformance test observes `running=1` during the Docker command and `running=0` after completion, without
+  Docker stats, host metrics, Task JSON or UI input.
+- This is not an out-of-process Agent deployment protocol. Transport, private-key bootstrap and operator lifecycle lack
+  a canonical authority and remain a release blocker; Phase 4 stays active-incomplete.
+
+## 2026-08-08 Phase 4 Capability Contract And Key-Rotation Alignment
+
+- The current bounded OCI path freezes `TemplateRef=oci-dockerfile/default@v1`, `DestinationKind=oci_registry`,
+  `CachePolicy=disabled` and `SecurityPolicy=default`; feature modes are `registry-login` (required), `provenance`
+  (preferred) and `sbom` (optional). These are interim Build-owned defaults until a broader typed caller intent has
+  matching OpenAPI, provider conformance and execution support.
+- Runtime Target telemetry key rotation requires an explicit `enabled=false` transition before a public-key change;
+  same-key upsert preserves the accepted sequence, while a changed key resets it only after disable.
+
+## 2026-08-08 Phase 4 Resolved Policy Freezing
+
+- The bounded OCI `disabled/default` cache and security policies are now immutable Execution Plan facts. They are
+  included in the plan digest, persisted with the plan, restored for execution, and used to reconstruct dynamic retry
+  capability requirements; policy drift fails closed against frozen placement evidence.
+- The current route intentionally exposes no caller-selectable policy modes because no additional cache or security
+  capability has provider conformance. Extending the policy vocabulary requires the typed Build-owned request and
+  OpenAPI contract, persistence, matcher semantics and provider proof in the same slice.
+
+## 2026-08-08 Phase 4 Admission Audit Repair
+
+- Docker execution now freezes the Agent identity selected at build start and settles that exact durable ledger row;
+  disable or rotation cannot redirect completion accounting to a newly active Agent.
+- Dynamic telemetry rejects unknown `unsupported_dimensions`; only the explicitly optional `cache_state` dimension is
+  accepted for the current bounded OCI contract.
+- Focused server tests, backend validation, OpenAPI, web checks, migration guards and diff checks pass. Deployable
+  enrollment/bootstrap, mutually authenticated transport, service packaging, restart reconciliation and operator audit
+  remain the separate Docker Agent admission release blocker.
+
+## 2026-08-08 runtime-target-agent-trust-model ADR
+
+- Accepted ADR-023 as the Runtime Target Agent identity and lifecycle authority before PR1 contracts. Vault PKI is the
+  reference managed backend; Agent identity is an exact target-bound URI SAN; vault-managed deployment delivery
+  materializes enrollment and private-key material directly for the Agent; reports use TLS 1.3 mTLS plus one-time
+  controller snapshots; the canonical package is a signed OCI image; revocation is checked per report, propagated over
+  the control channel, and fail-closed with a 60-second maximum cache and 24-hour certificate lifetime.
+- Updated the credential/telemetry authority RFC to point to ADR-023 for the concrete protocol. Registry file-backed
+  credentials remain a separate `CredentialProvider` concern.
+- Added the Credential Vault And Runtime Target Agent Protocol RFC. It fixes the PR1 experimental wire/module contract
+  scope and rejects server push, streaming, legacy dual admission and Runtime Target secret custody.
 
 ## Loop Batch State
 
@@ -582,17 +646,21 @@
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
-    "phase-4a-telemetry-authority",
-    "phase-4b-task-runtime-distributed-coordination",
-    "phase-4c-reservation-recovery-and-dynamic-placement",
-    "phase-4d-contract-and-web-projection",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
-    "phase-1-secure-credential-execution-and-manual-reservation"
+    "phase-1-secure-credential-execution-and-manual-reservation",
+    "phase-4-cleanup-failure-taxonomy",
+    "phase-4-mandatory-capability-matching",
+    "phase-4-slot-aware-reservation",
+    "phase-4-capability-intent-and-frozen-negotiation",
+    "phase-4-resolved-policy-freezing"
   ],
-  "pending_batches": [],
-  "current_batch": null,
-  "next_batch": null,
-  "closeout_status": "archive-ready"
+  "pending_batches": [
+    "phase-4-docker-builder-agent-admission",
+    "phase-4-provider-admission-and-dynamic-retry"
+  ],
+  "current_batch": "phase-4-docker-builder-agent-admission",
+  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
+  "closeout_status": "active-incomplete"
 }
 ```

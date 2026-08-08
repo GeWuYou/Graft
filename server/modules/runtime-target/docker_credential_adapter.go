@@ -18,6 +18,9 @@ const dockerCredentialConfigFileMode os.FileMode = 0o600
 
 const dockerCredentialConfigDirMode os.FileMode = 0o700
 
+// #nosec G101 -- 这是公开的失败分类标识，不是凭据或认证材料。
+const credentialCleanupUnverifiedCode = "credential_cleanup_unverified"
+
 // dockerCredentialExecutionAdapter 将 Registry 的短期凭据会话限制在单次 Docker
 // 操作的临时 DOCKER_CONFIG 中，并在所有终态撤销会话。
 type dockerCredentialExecutionAdapter struct {
@@ -47,11 +50,8 @@ func (a dockerCredentialExecutionAdapter) PublishImage(ctx context.Context, targ
 	defer func() {
 		revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session)
 		cleanupErr := cleanup()
-		if revokeErr != nil {
-			err = errors.Join(err, fmt.Errorf("revoke registry credential: %w", revokeErr))
-		}
-		if cleanupErr != nil {
-			err = errors.Join(err, fmt.Errorf("cleanup isolated Docker credential context: %w", cleanupErr))
+		if revokeErr != nil || cleanupErr != nil {
+			err = credentialCleanupFailure(err)
 		}
 	}()
 	if err := a.provider.Inject(ctx, session, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
@@ -76,11 +76,8 @@ func (a dockerCredentialExecutionAdapter) PublishManifest(ctx context.Context, t
 	defer func() {
 		revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session)
 		cleanupErr := cleanup()
-		if revokeErr != nil {
-			err = errors.Join(err, fmt.Errorf("revoke registry credential: %w", revokeErr))
-		}
-		if cleanupErr != nil {
-			err = errors.Join(err, fmt.Errorf("cleanup isolated Docker credential context: %w", cleanupErr))
+		if revokeErr != nil || cleanupErr != nil {
+			err = credentialCleanupFailure(err)
 		}
 	}()
 	if err := a.provider.Inject(ctx, session, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef}); err != nil {
@@ -112,13 +109,17 @@ func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, t
 		return moduleapi.OCIArtifactCopyResult{}, err
 	}
 	defer func() {
+		cleanupFailed := false
 		for _, session := range []moduleapi.EphemeralCredentialSession{destinationSession, sourceSession} {
 			if revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session); revokeErr != nil {
-				err = errors.Join(err, fmt.Errorf("revoke registry credential: %w", revokeErr))
+				cleanupFailed = true
 			}
 		}
 		if cleanupErr := cleanup(); cleanupErr != nil {
-			err = errors.Join(err, fmt.Errorf("cleanup isolated Docker credential context: %w", cleanupErr))
+			cleanupFailed = true
+		}
+		if cleanupFailed {
+			err = credentialCleanupFailure(err)
 		}
 	}()
 	if err := a.provider.Inject(ctx, sourceSession, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: binding.SourceEndpoint, RepositoryRef: input.Source.RepositoryRef}); err != nil {
@@ -128,6 +129,17 @@ func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, t
 		return moduleapi.OCIArtifactCopyResult{}, fmt.Errorf("inject destination registry credential: %w", err)
 	}
 	return a.client.CopyOCIArtifactOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, configDir), targetID, input, binding, sink)
+}
+
+// credentialCleanupFailure 不泄漏本地临时目录、会话或底层凭据细节；Task Runtime
+// 据此禁止自动重试和凭据/Reservation 复用，等待人工核对。
+func credentialCleanupFailure(_ error) error {
+	return &moduleapi.ExecutionFailure{
+		Code:        credentialCleanupUnverifiedCode,
+		Class:       moduleapi.ExecutionFailureClassInternal,
+		Disposition: moduleapi.RecoveryDispositionNeedsAttention,
+		Cause:       errors.New("credential cleanup could not be verified"),
+	}
 }
 
 func isolatedDockerConfig(session moduleapi.EphemeralCredentialSession) (string, func() error, error) {

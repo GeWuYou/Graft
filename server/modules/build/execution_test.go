@@ -306,6 +306,14 @@ func (s *builderReservationRepositoryStub) ReserveBuilderAttempt(_ context.Conte
 	return reservation, nil
 }
 
+func (s *builderReservationRepositoryStub) ReserveBuilderAttemptWithCapacity(_ context.Context, reservation moduleapi.BuilderReservation, slotBudget int) (moduleapi.BuilderReservation, error) {
+	if slotBudget < 1 {
+		return moduleapi.BuilderReservation{}, errors.New("invalid slot budget")
+	}
+	s.retryReservation = reservation
+	return reservation, nil
+}
+
 func (s *builderReservationRepositoryStub) MarkBuilderReservationRunning(_ context.Context, _ uint64, legID, fence string) error {
 	s.markedLeg, s.markedFence = legID, fence
 	return nil
@@ -328,7 +336,7 @@ func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
 		t.Fatal("single-platform placement was not found")
 	}
 	repository := &builderReservationRepositoryStub{}
-	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1})
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: plan.ID, taskID: 42, instanceID: placement.BuilderInstanceID, legID: placement.Platform, attempt: 1, slotBudget: 1})
 	if err != nil {
 		t.Fatalf("begin builder reservation: %v", err)
 	}
@@ -345,7 +353,7 @@ func TestBeginBuilderReservationUsesSinglePlatformPlacementLeg(t *testing.T) {
 
 func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *testing.T) {
 	repository := &builderReservationRepositoryStub{renewErr: errors.New("renew failed")}
-	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1})
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_1", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 1, slotBudget: 1})
 	if cleanup != nil || err == nil || !strings.Contains(err.Error(), "renew builder reservation") {
 		t.Fatalf("begin builder reservation = cleanup:%v err:%v", cleanup != nil, err)
 	}
@@ -356,7 +364,7 @@ func TestBeginBuilderReservationAbandonsRunningReservationWhenRenewalFails(t *te
 
 func TestBeginBuilderReservationRetryPreservesFrozenBuilderIdentityAndUsesNewFence(t *testing.T) {
 	repository := &builderReservationRepositoryStub{}
-	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_frozen", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 2})
+	cleanup, err := beginBuilderReservation(context.Background(), repository, builderReservationStart{planID: "plan_frozen", taskID: 42, instanceID: "builder-amd64", legID: "linux/amd64", attempt: 2, slotBudget: 1})
 	if err != nil {
 		t.Fatalf("begin retry reservation: %v", err)
 	}
@@ -373,14 +381,35 @@ func TestBeginBuilderReservationRetryPreservesFrozenBuilderIdentityAndUsesNewFen
 
 func TestReconfirmFrozenDynamicPlacementDoesNotReselectTarget(t *testing.T) {
 	now := time.Now().UTC()
+	plan := moduleapi.BuildExecutionPlan{CachePolicy: "disabled", SecurityPolicy: "default"}
+	requirement := buildCapabilityRequirement("docker-engine@v1", "linux/amd64")
+	negotiation, err := (staticCapabilityMatcher{}).MatchBuildCapability(requirement, moduleapi.BuildExecutionCapability{ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, Features: []string{"registry-login"}})
+	if err != nil {
+		t.Fatalf("match frozen capability: %v", err)
+	}
+	evidence, err := freezePlacementNegotiation(json.RawMessage(`{"policy_id":"build.pool.least_load"}`), placementCapabilityAuthorization{requirement: requirement, requirementFingerprint: fingerprintBuildCapabilityRequirement(requirement), capabilityProfile: "buildkit", capabilityVersion: "v1", negotiation: negotiation})
+	if err != nil {
+		t.Fatalf("marshal frozen placement evidence: %v", err)
+	}
 	executor := v2ExecutionPlanExecutor{builderTelemetry: builderTelemetryReaderStub{
 		admitted:  map[int64]bool{4: true},
 		snapshots: map[int64]moduleapi.BuilderTelemetrySnapshot{4: {TargetID: 4, BuilderScope: "builder:frozen", ProviderID: "agent", CapabilityProfile: "buildkit", CapabilityVersion: "v1", Available: true, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), SourceRef: "report:retry", Provenance: "agent", Integrity: "sha256:retry"}},
-	}}
-	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), moduleapi.BuilderPlacement{RuntimeTargetID: 4, SchedulingPolicy: "least_load"}); err != nil {
+	}, targets: placementTargetReader{4: {ID: 4, Available: true, ProviderCapabilityProfile: "buildkit", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}}}
+	placement := moduleapi.BuilderPlacement{Platform: "linux/amd64", RuntimeTargetID: 4, SchedulingPolicy: "least_load", SchedulingEvidence: evidence}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err != nil {
 		t.Fatalf("reconfirm frozen placement: %v", err)
 	}
-	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), moduleapi.BuilderPlacement{RuntimeTargetID: 5, SchedulingPolicy: "least_load"}); err == nil {
+	policyDrift := plan
+	policyDrift.SecurityPolicy = "provenance-required"
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), policyDrift, placement); err == nil {
+		t.Fatal("expected frozen resolved policy drift to fail closed")
+	}
+	executor.targets = placementTargetReader{4: {ID: 4, Available: true, ProviderCapabilityProfile: "buildkit-next", ProviderCapabilityVersion: "v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}}
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err == nil {
+		t.Fatal("expected frozen capability profile drift to fail closed")
+	}
+	placement.RuntimeTargetID = 5
+	if err := executor.reconfirmFrozenDynamicPlacement(context.Background(), plan, placement); err == nil {
 		t.Fatal("expected the frozen target to fail closed rather than be reselected")
 	}
 }

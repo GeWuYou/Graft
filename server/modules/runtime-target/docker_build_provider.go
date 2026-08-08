@@ -115,12 +115,21 @@ func (p dockerTargetProvider) DeliverWorkspaceSnapshot(ctx context.Context, requ
 
 // BuildImageOnTarget 使用 Runtime Target 私有连接在选定 Docker 目标上执行受控构建。
 //
-//nolint:cyclop // Provider boundary keeps target validation, command construction and immutable result inspection together.
-func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID int64, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+//nolint:cyclop,gocyclo // Provider boundary keeps target validation, command construction and immutable result inspection together.
+func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID int64, input moduleapi.DockerImageBuildInput, sink moduleapi.DockerImageBuildLogSink) (result moduleapi.DockerImageBuildResult, err error) {
 	connection, err := p.connection(ctx, targetID)
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
 	}
+	agentID, err := p.trackDockerBuilderExecution(ctx, targetID)
+	if err != nil {
+		return moduleapi.DockerImageBuildResult{}, err
+	}
+	defer func() {
+		if finishErr := p.finishDockerBuilderExecution(context.WithoutCancel(ctx), targetID, agentID); finishErr != nil && err == nil {
+			err = fmt.Errorf("finish Docker builder execution: %w", finishErr)
+		}
+	}()
 	paths, err := normalizeProviderBuildInput(input)
 	if err != nil {
 		return moduleapi.DockerImageBuildResult{}, err
@@ -172,6 +181,31 @@ func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID i
 		return moduleapi.DockerImageBuildResult{}, fmt.Errorf("decode Docker image inspection: %w", err)
 	}
 	return moduleapi.DockerImageBuildResult{ImageID: imageID, Digest: providerImageDigest(image.RepoDigests, input.ImageRepository), Repository: input.ImageRepository, Tag: input.ImageTag, SizeBytes: image.Size, OS: image.Os, Architecture: image.Architecture, Variant: image.Variant}, nil
+}
+
+func (p dockerTargetProvider) trackDockerBuilderExecution(ctx context.Context, targetID int64) (string, error) {
+	agent, err := p.repository.GetActiveDockerBuilderTelemetryAgent(ctx, targetID)
+	if errors.Is(err, store.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("resolve Docker builder agent: %w", err)
+	}
+	if err := p.repository.QueueBuilderAgentBuild(ctx, targetID, agent.AgentID); err != nil {
+		return "", fmt.Errorf("queue Docker builder execution: %w", err)
+	}
+	if err := p.repository.StartBuilderAgentBuild(ctx, targetID, agent.AgentID); err != nil {
+		_ = p.repository.CancelQueuedBuilderAgentBuild(context.WithoutCancel(ctx), targetID, agent.AgentID)
+		return "", fmt.Errorf("start Docker builder execution: %w", err)
+	}
+	return agent.AgentID, nil
+}
+
+func (p dockerTargetProvider) finishDockerBuilderExecution(ctx context.Context, targetID int64, agentID string) error {
+	if strings.TrimSpace(agentID) == "" {
+		return nil
+	}
+	return p.repository.FinishBuilderAgentBuild(ctx, targetID, agentID)
 }
 
 // PublishImageOnTarget 在选定 Docker 目标上发布已构建镜像，并返回目标产生的摘要事实。

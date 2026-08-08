@@ -12,9 +12,10 @@ import (
 )
 
 type recordingCredentialProvider struct {
-	session  moduleapi.EphemeralCredentialSession
-	injected moduleapi.CredentialInjectionTarget
-	revoked  int
+	session   moduleapi.EphemeralCredentialSession
+	injected  moduleapi.CredentialInjectionTarget
+	revoked   int
+	revokeErr error
 }
 
 func (p *recordingCredentialProvider) Prepare(context.Context, moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
@@ -28,7 +29,7 @@ func (p *recordingCredentialProvider) Inject(_ context.Context, _ moduleapi.Ephe
 
 func (p *recordingCredentialProvider) Revoke(context.Context, moduleapi.EphemeralCredentialSession) error {
 	p.revoked++
-	return nil
+	return p.revokeErr
 }
 
 type failingCredentialPublicationClient struct{}
@@ -61,6 +62,25 @@ func TestCredentialAdapterRevokesAndCleansAfterProviderFailure(t *testing.T) {
 	}
 	if _, statErr := os.Stat(provider.injected.ConfigDir); !os.IsNotExist(statErr) {
 		t.Fatalf("isolated credential directory still exists: stat error = %v", statErr)
+	}
+}
+
+func TestCredentialAdapterReturnsNeedsAttentionWhenCredentialCleanupCannotBeVerified(t *testing.T) {
+	provider := &recordingCredentialProvider{
+		session:   moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)},
+		revokeErr: errors.New("session:session-1 revoke failed"),
+	}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: "credential:one", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil) //nolint:gosec // test-only opaque credential reference
+	var failure *moduleapi.ExecutionFailure
+	if !errors.As(err, &failure) {
+		t.Fatalf("PublishImage() error = %v, want structured failure", err)
+	}
+	if failure.Code != credentialCleanupUnverifiedCode || failure.Class != moduleapi.ExecutionFailureClassInternal || failure.Disposition != moduleapi.RecoveryDispositionNeedsAttention {
+		t.Fatalf("cleanup failure = %#v", failure)
+	}
+	if strings.Contains(err.Error(), "session-1") || strings.Contains(err.Error(), provider.injected.ConfigDir) {
+		t.Fatalf("cleanup failure leaked evidence: %v", err)
 	}
 }
 

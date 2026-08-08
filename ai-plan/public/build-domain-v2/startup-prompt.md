@@ -60,11 +60,16 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Phase 4a telemetry authority, Phase 4b Task Runtime coordination, and Phase 4c dynamic Placement are complete.
-   Dynamic retry re-confirms only its frozen Runtime Target before creating a new Build Reservation fence.
-2. Begin Phase 4d: project the executable dynamic policy contract through OpenAPI and the Build web selector.
-3. Do not promote telemetry, historical Pool/Docker adapter work, or a persisted observation into dynamic-policy
-   acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
+1. Restore Phase 4 to incomplete: generic signed telemetry ingress and the existing per-Instance exclusive Reservation
+   are insufficient for dynamic admission. Dynamic Pool rows remain readable but non-executable.
+2. Add constrained Task Runtime executor outcomes for the RFC failure taxonomy, beginning with
+   `credential_cleanup_unverified` as `Internal` / `Needs Attention`, no automatic retry and no credential or
+   Reservation reuse.
+3. Make `CapabilityMatcher` mandatory before every Placement and freeze requirement, profile/version, negotiation,
+   policy/version, candidate, telemetry and Reservation-fence evidence.
+4. Implement slot-aware Reservation and a provisioned Docker Builder Agent protocol, then admit dynamic policies only
+   after telemetry, provider, retry and capacity conformance is proven. A dynamic retry validates only its frozen target
+   and never reselects a Builder.
 
 Validation expectations:
 

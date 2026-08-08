@@ -56,14 +56,35 @@ type BuilderInstance struct {
 // 它不携带 Runtime Target 连接、凭据或动态遥测事实。
 type BuildCapabilityRequirement struct {
 	DriverRef             string
+	TemplateRef           string
+	DestinationKind       string
+	CachePolicy           string
+	SecurityPolicy        string
 	Platforms             []string
 	SnapshotDeliveryModes []string
 	RequiredFeatures      []string
+	FeatureRequirements   []BuildCapabilityFeatureRequirement
 }
+
+// BuildCapabilityFeatureRequirement 保留单项 Provider feature 的冻结请求意图，供执行重试复放协商结论。
+type BuildCapabilityFeatureRequirement struct {
+	Feature string
+	Mode    string
+}
+
+const (
+	// BuildCapabilityFeatureRequired requires the provider capability.
+	BuildCapabilityFeatureRequired = "required"
+	// BuildCapabilityFeaturePreferred records a preferred provider capability.
+	BuildCapabilityFeaturePreferred = "preferred"
+	// BuildCapabilityFeatureOptional permits omission of the provider capability.
+	BuildCapabilityFeatureOptional = "optional"
+)
 
 // BuildExecutionCapability 是 Runtime provider 对单个 Builder 的版本化静态能力事实。
 // ProviderCapabilityVersion 才是能力语义版本；DriverVersion 仅用于诊断。
 type BuildExecutionCapability struct {
+	ProviderCapabilityProfile string
 	ProviderCapabilityVersion string
 	SupportedDrivers          []string
 	SupportedPlatforms        []string
@@ -73,11 +94,14 @@ type BuildExecutionCapability struct {
 
 // NegotiatedCapability 是 CapabilityMatcher 对一次静态匹配的可重放结果。
 type NegotiatedCapability struct {
+	ProviderCapabilityProfile string
 	ProviderCapabilityVersion string
 	DriverRef                 string
 	SnapshotDeliveryMode      string
 	SatisfiedFeatures         []string
 	UnsatisfiedFeatures       []string
+	PreferredMissReasons      map[string]string
+	OptionalOmissionReasons   map[string]string
 }
 
 // CapabilityMatcher 是 Build-owned 的纯能力协商边界；实现不得读取遥测或重新选择 Target。
@@ -341,6 +365,8 @@ type BuildExecutionPlan struct {
 	BuilderPlacements []BuilderPlacement
 	Driver            string
 	TemplateRef       string
+	CachePolicy       string
+	SecurityPolicy    string
 	Platforms         []string
 	Destination       BuildDestination
 	CreatedAt         time.Time

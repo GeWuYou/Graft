@@ -64,4 +64,8 @@ func TestBuilderTelemetrySnapshotDynamicPlacementConformanceRejectsUnsupportedRe
 	if snapshot.DynamicPlacementConformantAt(now) {
 		t.Fatal("expected an unsupported required dimension to fail closed")
 	}
+	snapshot.UnsupportedDimensions = []string{"future_dimension"}
+	if snapshot.DynamicPlacementConformantAt(now) {
+		t.Fatal("expected an unknown unsupported dimension to fail closed")
+	}
 }

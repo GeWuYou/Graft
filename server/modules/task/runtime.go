@@ -1031,7 +1031,29 @@ func (r *Runtime) finishClaim(ctx context.Context, claim taskstore.StageClaim, e
 	if executeErr == nil {
 		return r.completeClaim(ctx, claim)
 	}
+	var failure *moduleapi.ExecutionFailure
+	if errors.As(executeErr, &failure) {
+		return r.settleExecutionFailure(ctx, claim, failure)
+	}
 	return r.failClaim(ctx, claim, errorCodeExecutor, executeErr.Error())
+}
+
+// settleExecutionFailure 将消费模块返回的受限结果映射到 Runtime 自有状态机，
+// 不读取 Provider、凭据或 Reservation 的内部事实。
+func (r *Runtime) settleExecutionFailure(ctx context.Context, claim taskstore.StageClaim, failure *moduleapi.ExecutionFailure) error {
+	if failure == nil || failure.Code == "" {
+		return r.failClaim(ctx, claim, errorCodeExecutor, "stage execution failed")
+	}
+	switch failure.Disposition {
+	case moduleapi.RecoveryDispositionRetry:
+		return r.failClaim(ctx, claim, failure.Code, failure.Error())
+	case moduleapi.RecoveryDispositionFailed:
+		return r.failClaimFinal(ctx, claim, failure.Code, failure.Error())
+	case moduleapi.RecoveryDispositionNeedsAttention:
+		return r.needsAttentionClaim(ctx, claim, failure.Code, failure.Error())
+	default:
+		return r.failClaim(ctx, claim, errorCodeExecutor, "stage execution failure disposition is invalid")
+	}
 }
 
 func (r *Runtime) completeClaim(ctx context.Context, claim taskstore.StageClaim) error {
@@ -1073,6 +1095,14 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 		r.signalWake()
 		return nil
 	}
+	return r.failClaimFinalAt(ctx, claim, code, message, now)
+}
+
+func (r *Runtime) failClaimFinal(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
+	return r.failClaimFinalAt(ctx, claim, code, message, time.Now().UTC())
+}
+
+func (r *Runtime) failClaimFinalAt(ctx context.Context, claim taskstore.StageClaim, code string, message string, now time.Time) error {
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusFailed, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
@@ -1087,6 +1117,21 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 		return nil
 	}
 	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
+}
+
+func (r *Runtime) needsAttentionClaim(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
+	now := time.Now().UTC()
+	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusUnknown, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
+		return err
+	}
+	if claim.Stage.CoordinationGroup != "" {
+		r.cancelOtherTrackedStages(ctx, claim.Task.ID, claim.Stage.ID)
+	}
+	current, err := r.repository.Get(ctx, claim.Task.ID)
+	if err != nil || current.Status != moduleapi.TaskStatusRunning {
+		return err
+	}
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusNeedsAttention, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(current.StartedAt, now)})
 }
 
 func (r *Runtime) cancelOtherTrackedStages(ctx context.Context, taskID uint64, failedStageID uint64) {

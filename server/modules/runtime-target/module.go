@@ -464,14 +464,17 @@ func buildTargetSummary(target store.Target) (moduleapi.BuildRuntimeTargetSummar
 			localities = []string{"build-snapshot"}
 		}
 		return moduleapi.BuildRuntimeTargetSummary{
-			ID:                    int64(target.ID),
-			DisplayName:           target.DisplayName,
-			Provider:              target.Provider,
-			Available:             true,
-			SupportedDrivers:      []string{"docker-engine"},
-			SupportedPlatforms:    []string{"linux/amd64"},
-			WorkspaceLocalities:   localities,
-			SnapshotDeliveryModes: []string{delivery},
+			ID:                        int64(target.ID),
+			DisplayName:               target.DisplayName,
+			Provider:                  target.Provider,
+			Available:                 true,
+			ProviderCapabilityProfile: "oci-build",
+			ProviderCapabilityVersion: "docker/v1",
+			SupportedDrivers:          []string{"docker-engine"},
+			SupportedPlatforms:        []string{"linux/amd64"},
+			WorkspaceLocalities:       localities,
+			SnapshotDeliveryModes:     []string{delivery},
+			BuildFeatures:             []string{"registry-login"},
 		}, true
 	default:
 		return moduleapi.BuildRuntimeTargetSummary{}, false

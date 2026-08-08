@@ -18,10 +18,10 @@ func TestControlPlaneBuilderTelemetryProviderReturnsLatestDurableBuilderAgentObs
 	repository := store.NewSQLRepository(db)
 	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
 	ingress, privateKey := provisionBuilderTelemetryAgent(t, repository)
-	if err := ingress.SubmitBuilderTelemetry(context.Background(), signedBuilderTelemetryReport(t, privateKey, now.Add(-time.Minute), now.Add(time.Minute))); err != nil {
+	if err := ingress.SubmitBuilderTelemetry(context.Background(), signedBuilderTelemetryReport(t, privateKey, 1, now.Add(-time.Minute), now.Add(time.Minute))); err != nil {
 		t.Fatalf("submit builder telemetry: %v", err)
 	}
-	newer := signedBuilderTelemetryReport(t, privateKey, now, now.Add(2*time.Minute))
+	newer := signedBuilderTelemetryReport(t, privateKey, 2, now, now.Add(2*time.Minute))
 	newer.Running = 2
 	newer.AllocatableSlots = 1
 	newer = signBuilderTelemetryReport(t, privateKey, newer)
@@ -51,14 +51,14 @@ func TestControlPlaneBuilderTelemetryProviderFailsClosedForMissingExpiredAndUnsu
 	if admitted, err := provider.ConformBuilderTelemetry(context.Background(), []int64{7}); err != nil || admitted {
 		t.Fatalf("missing observation admission = (%t, %v), want (false, nil)", admitted, err)
 	}
-	expired := signedBuilderTelemetryReport(t, privateKey, now.Add(-2*time.Minute), now.Add(-time.Minute))
+	expired := signedBuilderTelemetryReport(t, privateKey, 1, now.Add(-2*time.Minute), now.Add(-time.Minute))
 	if err := ingress.SubmitBuilderTelemetry(context.Background(), expired); err != nil {
 		t.Fatalf("submit expired telemetry: %v", err)
 	}
 	if admitted, err := provider.ConformBuilderTelemetry(context.Background(), []int64{7}); err != nil || admitted {
 		t.Fatalf("expired observation admission = (%t, %v), want (false, nil)", admitted, err)
 	}
-	unsupported := signedBuilderTelemetryReport(t, privateKey, now, now.Add(time.Minute))
+	unsupported := signedBuilderTelemetryReport(t, privateKey, 2, now, now.Add(time.Minute))
 	unsupported.UnsupportedDimensions = []string{"queue"}
 	unsupported = signBuilderTelemetryReport(t, privateKey, unsupported)
 	if err := ingress.SubmitBuilderTelemetry(context.Background(), unsupported); err != nil {
@@ -77,8 +77,8 @@ func TestControlPlaneBuilderTelemetryIngressRejectsUnregisteredAndInvalidAgentRe
 	if err != nil {
 		t.Fatalf("generate agent key: %v", err)
 	}
-	ingress := controlPlaneBuilderTelemetryIngress{repository: repository}
-	report := signedBuilderTelemetryReport(t, privateKey, now, now.Add(time.Minute))
+	ingress := controlPlaneBuilderTelemetryIngress{repository: repository, now: func() time.Time { return now }}
+	report := signedBuilderTelemetryReport(t, privateKey, 1, now, now.Add(time.Minute))
 	if err := ingress.SubmitBuilderTelemetry(context.Background(), report); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("unregistered report error = %v, want %v", err, store.ErrNotFound)
 	}
@@ -89,27 +89,87 @@ func TestControlPlaneBuilderTelemetryIngressRejectsUnregisteredAndInvalidAgentRe
 	}
 }
 
+func TestControlPlaneBuilderTelemetryIngressRejectsReplayBindingMismatchAndClockSkew(t *testing.T) {
+	db := openBuilderTelemetryTestDB(t)
+	repository := store.NewSQLRepository(db)
+	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
+	ingress, privateKey := provisionBuilderTelemetryAgent(t, repository)
+	report := signedBuilderTelemetryReport(t, privateKey, 1, now, now.Add(time.Minute))
+	if err := ingress.SubmitBuilderTelemetry(context.Background(), report); err != nil {
+		t.Fatalf("submit initial telemetry: %v", err)
+	}
+	registered, err := repository.GetBuilderTelemetryAgent(context.Background(), 7, "agent:7")
+	if err != nil {
+		t.Fatalf("read registered agent: %v", err)
+	}
+	if err := repository.UpsertBuilderTelemetryAgent(context.Background(), registered); err != nil {
+		t.Fatalf("re-provision unchanged agent: %v", err)
+	}
+	if err := ingress.SubmitBuilderTelemetry(context.Background(), report); !errors.Is(err, store.ErrTelemetryRejected) {
+		t.Fatalf("replayed telemetry error = %v, want %v", err, store.ErrTelemetryRejected)
+	}
+	mismatched := signedBuilderTelemetryReport(t, privateKey, 2, now, now.Add(time.Minute))
+	mismatched.BuilderScope = "builder-agent:other"
+	mismatched = signBuilderTelemetryReport(t, privateKey, mismatched)
+	if err := ingress.SubmitBuilderTelemetry(context.Background(), mismatched); !errors.Is(err, store.ErrTelemetryRejected) {
+		t.Fatalf("scope mismatch error = %v, want %v", err, store.ErrTelemetryRejected)
+	}
+	future := report
+	future.Sequence = 2
+	future.ObservedAt = now.Add(3 * time.Minute)
+	future.ExpiresAt = now.Add(4 * time.Minute)
+	if err := ingress.SubmitBuilderTelemetry(context.Background(), future); err == nil {
+		t.Fatal("future telemetry unexpectedly entered ledger")
+	}
+}
+
+func TestControlPlaneBuilderTelemetryKeyRotationRequiresDisabledBinding(t *testing.T) {
+	db := openBuilderTelemetryTestDB(t)
+	repository := store.NewSQLRepository(db)
+	oldPublic, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate old key: %v", err)
+	}
+	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: oldPublic, Enabled: true}
+	if err := (controlPlaneBuilderTelemetryIngress{repository: repository}).ProvisionBuilderTelemetryAgent(context.Background(), registration); err != nil {
+		t.Fatalf("provision old key: %v", err)
+	}
+	newPublic, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate new key: %v", err)
+	}
+	registration.Enabled = false
+	if err := (controlPlaneBuilderTelemetryIngress{repository: repository}).ProvisionBuilderTelemetryAgent(context.Background(), registration); err != nil {
+		t.Fatalf("disable old binding: %v", err)
+	}
+	registration.PublicKey = newPublic
+	registration.Enabled = true
+	if err := (controlPlaneBuilderTelemetryIngress{repository: repository}).ProvisionBuilderTelemetryAgent(context.Background(), registration); err != nil {
+		t.Fatalf("activate rotated binding: %v", err)
+	}
+}
+
 func provisionBuilderTelemetryAgent(t *testing.T, repository *store.SQLRepository) (controlPlaneBuilderTelemetryIngress, ed25519.PrivateKey) {
 	t.Helper()
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("generate agent key: %v", err)
 	}
-	ingress := controlPlaneBuilderTelemetryIngress{repository: repository}
-	if err := ingress.ProvisionBuilderTelemetryAgent(context.Background(), moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", PublicKey: publicKey, Enabled: true}); err != nil {
+	ingress := controlPlaneBuilderTelemetryIngress{repository: repository, now: func() time.Time { return time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC) }}
+	if err := ingress.ProvisionBuilderTelemetryAgent(context.Background(), moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}); err != nil {
 		t.Fatalf("provision telemetry agent: %v", err)
 	}
 	return ingress, privateKey
 }
 
-func signedBuilderTelemetryReport(t *testing.T, privateKey ed25519.PrivateKey, observedAt, expiresAt time.Time) moduleapi.BuilderTelemetryReport {
+func signedBuilderTelemetryReport(t *testing.T, privateKey ed25519.PrivateKey, sequence int64, observedAt, expiresAt time.Time) moduleapi.BuilderTelemetryReport {
 	t.Helper()
-	return signBuilderTelemetryReport(t, privateKey, moduleapi.BuilderTelemetryReport{AgentID: "agent:7", TargetID: 7, BuilderScope: "builder-agent:7", ProviderID: "builder-agent", CapabilityProfile: "oci-build", CapabilityVersion: "v1", Available: true, Running: 1, Queued: 0, AllocatableSlots: 2, ObservedAt: observedAt, ExpiresAt: expiresAt, SourceRef: "control-plane:observation-7", Provenance: "builder-agent-control-plane", UnsupportedDimensions: []string{"cache_state"}})
+	return signBuilderTelemetryReport(t, privateKey, moduleapi.BuilderTelemetryReport{AgentID: "agent:7", TargetID: 7, Sequence: sequence, BuilderScope: "builder-agent:7", ProviderID: "docker", CapabilityProfile: "oci-build", CapabilityVersion: "v1", Available: true, Running: 1, Queued: 0, AllocatableSlots: 2, ObservedAt: observedAt, ExpiresAt: expiresAt, SourceRef: "control-plane:observation-7", Provenance: "docker-builder-agent-ledger", UnsupportedDimensions: []string{"cache_state"}})
 }
 
 func signBuilderTelemetryReport(t *testing.T, privateKey ed25519.PrivateKey, report moduleapi.BuilderTelemetryReport) moduleapi.BuilderTelemetryReport {
 	t.Helper()
-	payload, err := canonicalBuilderTelemetryReport(report)
+	payload, err := canonicalBuilderTelemetryReport(report, time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("canonical telemetry report: %v", err)
 	}
@@ -122,8 +182,11 @@ func openBuilderTelemetryTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_telemetry_observations (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, builder_scope TEXT NOT NULL, provider_id TEXT NOT NULL, capability_profile TEXT NOT NULL, capability_version TEXT NOT NULL, available BOOLEAN NOT NULL, running_builds INTEGER NOT NULL, queued_builds INTEGER NOT NULL, allocatable_slots INTEGER NOT NULL, observed_at DATETIME NOT NULL, expires_at DATETIME NOT NULL, source_ref TEXT NOT NULL, provenance TEXT NOT NULL, integrity TEXT NOT NULL, unsupported_dimensions_json BLOB NOT NULL)`); err != nil {
 		t.Fatalf("create builder telemetry observations: %v", err)
 	}
-	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_telemetry_agents (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, public_key BLOB NOT NULL, enabled BOOLEAN NOT NULL, UNIQUE(runtime_target_id, agent_id))`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_telemetry_agents (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, provider_id TEXT NOT NULL, builder_scope TEXT NOT NULL, capability_profile TEXT NOT NULL, capability_version TEXT NOT NULL, public_key BLOB NOT NULL, last_sequence INTEGER NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL, updated_at DATETIME, UNIQUE(runtime_target_id, agent_id))`); err != nil {
 		t.Fatalf("create builder telemetry agents: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_builder_execution_ledgers (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, slot_budget INTEGER NOT NULL, queued_builds INTEGER NOT NULL DEFAULT 0, running_builds INTEGER NOT NULL DEFAULT 0, telemetry_sequence INTEGER NOT NULL DEFAULT 0, created_at DATETIME, updated_at DATETIME, UNIQUE(runtime_target_id, agent_id))`); err != nil {
+		t.Fatalf("create builder execution ledgers: %v", err)
 	}
 	return db
 }
