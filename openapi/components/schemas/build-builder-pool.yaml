@@ -5,6 +5,6 @@ properties:
   display_name: { type: string }
   scheduling_policy:
     type: string
-    enum: [manual, round_robin, random]
-    description: Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+    enum: [manual, round_robin, random, least_load, capacity, affinity]
+    description: Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed.
 additionalProperties: false

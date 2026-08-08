@@ -113,7 +113,10 @@
         "builderPoolPolicy": {
           "manual": "手动",
           "roundRobin": "轮询",
-          "random": "随机"
+          "random": "随机",
+          "leastLoad": "最低负载",
+          "capacity": "容量优先",
+          "affinity": "亲和"
         },
         "selectorsUnavailable": "Build 选择器暂不可用，请先配置 Build 读取 API。",
         "selectorsLoadFailed": "无法加载 Build 选择器。",

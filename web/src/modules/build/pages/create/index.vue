@@ -136,6 +136,12 @@ function builderPoolPolicyLabel(policy: BuildBuilderPool['scheduling_policy']) {
       return t('build.jobs.create.builderPoolPolicy.roundRobin');
     case 'random':
       return t('build.jobs.create.builderPoolPolicy.random');
+    case 'least_load':
+      return t('build.jobs.create.builderPoolPolicy.leastLoad');
+    case 'capacity':
+      return t('build.jobs.create.builderPoolPolicy.capacity');
+    case 'affinity':
+      return t('build.jobs.create.builderPoolPolicy.affinity');
   }
 }
 

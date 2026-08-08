@@ -118,7 +118,10 @@
         "builderPoolPolicy": {
           "manual": "Manual",
           "roundRobin": "Round Robin",
-          "random": "Random"
+          "random": "Random",
+          "leastLoad": "Least Load",
+          "capacity": "Capacity",
+          "affinity": "Affinity"
         },
         "selectorsUnavailable": "Build selectors are unavailable until the Build read API is configured.",
         "selectorsLoadFailed": "Unable to load Build selectors.",
