@@ -1,0 +1,5 @@
+type: object
+additionalProperties: false
+required: [reason]
+properties:
+  reason: {type: string, minLength: 1, maxLength: 512, description: Operator-supplied rotation reason retained in the redacted audit record.}

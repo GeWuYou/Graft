@@ -466,6 +466,18 @@ paths:
     $ref: ./paths/runtime-targets.assignments.yaml
   /api/runtime-targets/{id}/assignments/{userId}/delete:
     $ref: ./paths/runtime-targets.assignment-delete.yaml
+  /api/runtime-targets/{id}/agent-enrollments:
+    $ref: ./paths/runtime-targets.agent-enrollments.yaml
+  /api/runtime-targets/{id}/agents/{agentId}:
+    $ref: ./paths/runtime-targets.agent-binding.yaml
+  /api/runtime-targets/{id}/agents/{agentId}/rotations:
+    $ref: ./paths/runtime-targets.agent-rotations.yaml
+  /api/runtime-targets/{id}/agents/{agentId}/revocations:
+    $ref: ./paths/runtime-targets.agent-revocations.yaml
+  /agent/v1/ledger-snapshot:
+    $ref: ./paths/agent-ledger-snapshot.yaml
+  /agent/v1/telemetry-reports:
+    $ref: ./paths/agent-telemetry-reports.yaml
   /api/ops/applications/import/validate:
     $ref: ./paths/ops-applications.import-validate.yaml
   /api/ops/applications/import/runtime-candidates:
@@ -1466,6 +1478,34 @@ components:
       $ref: ./components/schemas/enveloped-runtime-target-user-assignment.yaml
     EnvelopedRuntimeTargetUserAssignmentListResponse:
       $ref: ./components/schemas/enveloped-runtime-target-user-assignment-list-response.yaml
+    RuntimeTargetAgentEnrollmentRequest:
+      $ref: ./components/schemas/runtime-target-agent-enrollment-request.yaml
+    RuntimeTargetAgentEnrollment:
+      $ref: ./components/schemas/runtime-target-agent-enrollment.yaml
+    RuntimeTargetAgentBinding:
+      $ref: ./components/schemas/runtime-target-agent-binding.yaml
+    RuntimeTargetAgentRotationRequest:
+      $ref: ./components/schemas/runtime-target-agent-rotation-request.yaml
+    RuntimeTargetAgentRevocationRequest:
+      $ref: ./components/schemas/runtime-target-agent-revocation-request.yaml
+    EnvelopedRuntimeTargetAgentEnrollment:
+      $ref: ./components/schemas/enveloped-runtime-target-agent-enrollment.yaml
+    EnvelopedRuntimeTargetAgentBinding:
+      $ref: ./components/schemas/enveloped-runtime-target-agent-binding.yaml
+    AgentLedgerSnapshot:
+      $ref: ./components/schemas/agent-ledger-snapshot.yaml
+    AgentTelemetryReportRequest:
+      $ref: ./components/schemas/agent-telemetry-report-request.yaml
+    AgentTelemetryReportReceipt:
+      $ref: ./components/schemas/agent-telemetry-report-receipt.yaml
+    EnvelopedAgentLedgerSnapshot:
+      $ref: ./components/schemas/enveloped-agent-ledger-snapshot.yaml
+    EnvelopedAgentTelemetryReportReceipt:
+      $ref: ./components/schemas/enveloped-agent-telemetry-report-receipt.yaml
+    AgentConflictErrorResponse:
+      $ref: ./components/schemas/agent-conflict-error-response.yaml
+    AgentUnavailableErrorResponse:
+      $ref: ./components/schemas/agent-unavailable-error-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml
@@ -1473,6 +1513,8 @@ components:
       $ref: ./components/security/refresh-cookie.yaml
     personalAccessTokenAuth:
       $ref: ./components/security/personal-access-token-auth.yaml
+    mutualTLS:
+      $ref: ./components/security/mutual-tls.yaml
   parameters:
     locale-header:
       $ref: ./components/parameters/locale-header.yaml

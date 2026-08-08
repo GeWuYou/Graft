@@ -1,0 +1,27 @@
+get:
+  tags: [runtime-target]
+  summary: Pull an issued Agent ledger snapshot
+  operationId: getAgentLedgerSnapshot
+  description: Experimental Agent-only pull endpoint. The listener derives target, Agent, and active generation from the verified certificate URI SAN; none are supplied by the request.
+  security: [{mutualTLS: []}]
+  responses:
+    '200':
+      description: Certificate-bound, one-time Driver-controller ledger snapshot.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-agent-ledger-snapshot.yaml}
+    '403':
+      description: The certificate identity is not an active Agent generation.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/error-response.yaml
+              - type: object
+                properties:
+                  code: {type: string, enum: [agent_identity_not_active]}
+    '503':
+      description: The Runtime Target control-plane store is unavailable; the listener fails closed.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/agent-unavailable-error-response.yaml}

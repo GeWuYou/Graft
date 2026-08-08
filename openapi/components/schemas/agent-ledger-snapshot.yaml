@@ -1,0 +1,13 @@
+type: object
+additionalProperties: false
+required: [generation, sequence, snapshotId, digest, observedAt, expiresAt, runningBuilds, queuedBuilds, allocatableSlots]
+properties:
+  generation: {type: integer, format: int64, minimum: 1}
+  sequence: {type: integer, format: int64, minimum: 0, description: Monotonically increasing controller-issued sequence for this active generation.}
+  snapshotId: {type: string, format: uuid, description: One-time controller-issued snapshot identifier.}
+  digest: {type: string, pattern: '^sha256:[a-f0-9]{64}$', description: Digest of the canonical immutable snapshot payload.}
+  observedAt: {type: string, format: date-time}
+  expiresAt: {type: string, format: date-time}
+  runningBuilds: {type: integer, minimum: 0}
+  queuedBuilds: {type: integer, minimum: 0}
+  allocatableSlots: {type: integer, minimum: 0}

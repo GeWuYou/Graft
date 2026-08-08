@@ -1,0 +1,5 @@
+allOf:
+  - $ref: ./error-response.yaml
+  - type: object
+    properties:
+      code: {type: string, enum: [agent_generation_mismatch, agent_snapshot_replayed, agent_snapshot_expired]}

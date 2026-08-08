@@ -1,0 +1,35 @@
+post:
+  tags: [runtime-target]
+  summary: Create an experimental Runtime Target Agent enrollment
+  operationId: postRuntimeTargetAgentEnrollment
+  description: Creates a pending, non-secret Agent enrollment bound to one Runtime Target, provider, Builder scope, and capability profile. Private keys, certificates, bootstrap secrets, and endpoint credentials are never returned.
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/runtime-target-agent-enrollment-request.yaml}
+  responses:
+    '201':
+      description: Pending Agent enrollment created.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-runtime-target-agent-enrollment.yaml}
+    '400': {$ref: ../components/responses/bad-request.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '409':
+      description: The target already has a conflicting active or pending Agent binding.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/error-response.yaml}
+    '503':
+      description: The credential-vault trust backend is unavailable.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/agent-unavailable-error-response.yaml}

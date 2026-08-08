@@ -1,0 +1,5 @@
+allOf:
+  - $ref: ./error-response.yaml
+  - type: object
+    properties:
+      code: {type: string, enum: [agent_controller_unavailable, credential_vault_unavailable]}

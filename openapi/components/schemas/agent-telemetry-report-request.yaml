@@ -1,0 +1,11 @@
+type: object
+additionalProperties: false
+required: [generation, snapshotId, digest, observedAt]
+properties:
+  generation: {type: integer, format: int64, minimum: 1}
+  snapshotId: {type: string, format: uuid}
+  digest: {type: string, pattern: '^sha256:[a-f0-9]{64}$'}
+  observedAt: {type: string, format: date-time, description: "Agent observation time, validated against the bounded control-plane clock skew."}
+  implementationVersion: {type: string, maxLength: 128, description: Optional bounded Agent implementation diagnostic.}
+  livenessStatus: {type: string, enum: [ready, degraded], description: Optional bounded liveness diagnostic; it cannot alter ledger values.}
+  diagnosticCode: {type: string, maxLength: 128, pattern: '^[a-z0-9][a-z0-9_.-]{0,127}$', description: Optional bounded non-secret implementation diagnostic code.}

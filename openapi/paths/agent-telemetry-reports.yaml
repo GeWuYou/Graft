@@ -1,0 +1,47 @@
+post:
+  tags: [runtime-target]
+  summary: Submit an issued Agent telemetry acknowledgement
+  operationId: postAgentTelemetryReport
+  description: Experimental Agent-only acknowledgement of one issued ledger snapshot. The certificate identity is authoritative; the report cannot alter controller-issued ledger values.
+  security: [{mutualTLS: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/agent-telemetry-report-request.yaml}
+  responses:
+    '201':
+      description: Snapshot acknowledgement accepted as an observation.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-agent-telemetry-report-receipt.yaml}
+    '400':
+      description: The report has invalid or unsupported fields, clock skew, or diagnostics.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/error-response.yaml
+              - type: object
+                properties:
+                  code: {type: string, enum: [agent_report_invalid]}
+    '403':
+      description: The certificate identity is not an active Agent generation.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../components/schemas/error-response.yaml
+              - type: object
+                properties:
+                  code: {type: string, enum: [agent_identity_not_active]}
+    '409':
+      description: The generation, digest, expiry, or one-time snapshot issuance does not admit the report.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/agent-conflict-error-response.yaml}
+    '503':
+      description: The Runtime Target control-plane store or credential-vault trust backend is unavailable; the listener fails closed.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/agent-unavailable-error-response.yaml}

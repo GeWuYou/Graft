@@ -3747,6 +3747,126 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-targets/{id}/agent-enrollments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create an experimental Runtime Target Agent enrollment
+     * @description Creates a pending, non-secret Agent enrollment bound to one Runtime Target, provider, Builder scope, and capability profile. Private keys, certificates, bootstrap secrets, and endpoint credentials are never returned.
+     */
+    post: operations['postRuntimeTargetAgentEnrollment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/agents/{agentId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read an experimental Runtime Target Agent binding
+     * @description Returns redacted status and diagnostics for one Runtime Target Agent binding. It never exposes private key, certificate PEM, bootstrap secret, or endpoint credential material.
+     */
+    get: operations['getRuntimeTargetAgentBinding'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/agents/{agentId}/rotations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rotate an experimental Runtime Target Agent generation
+     * @description Revokes the current generation before creating a pending replacement generation. Rotation is not a dual-acceptance path.
+     */
+    post: operations['postRuntimeTargetAgentRotation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/agents/{agentId}/revocations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke an experimental Runtime Target Agent generation
+     * @description Immediately revokes the current Agent generation and appends a redacted audit fact. The operation is idempotent.
+     */
+    post: operations['postRuntimeTargetAgentRevocation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/agent/v1/ledger-snapshot': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pull an issued Agent ledger snapshot
+     * @description Experimental Agent-only pull endpoint. The listener derives target, Agent, and active generation from the verified certificate URI SAN; none are supplied by the request.
+     */
+    get: operations['getAgentLedgerSnapshot'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/agent/v1/telemetry-reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit an issued Agent telemetry acknowledgement
+     * @description Experimental Agent-only acknowledgement of one issued ledger snapshot. The certificate identity is authoritative; the report cannot alter controller-issued ledger values.
+     */
+    post: operations['postAgentTelemetryReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/import/validate': {
     parameters: {
       query?: never;
@@ -5055,6 +5175,20 @@ export interface components {
     RuntimeTargetUserAssignmentListResponse: components['schemas']['runtime-target-user-assignment-list-response'];
     EnvelopedRuntimeTargetUserAssignment: components['schemas']['enveloped-runtime-target-user-assignment'];
     EnvelopedRuntimeTargetUserAssignmentListResponse: components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
+    RuntimeTargetAgentEnrollmentRequest: components['schemas']['runtime-target-agent-enrollment-request'];
+    RuntimeTargetAgentEnrollment: components['schemas']['runtime-target-agent-enrollment'];
+    RuntimeTargetAgentBinding: components['schemas']['runtime-target-agent-binding'];
+    RuntimeTargetAgentRotationRequest: components['schemas']['runtime-target-agent-rotation-request'];
+    RuntimeTargetAgentRevocationRequest: components['schemas']['runtime-target-agent-revocation-request'];
+    EnvelopedRuntimeTargetAgentEnrollment: components['schemas']['enveloped-runtime-target-agent-enrollment'];
+    EnvelopedRuntimeTargetAgentBinding: components['schemas']['enveloped-runtime-target-agent-binding'];
+    AgentLedgerSnapshot: components['schemas']['agent-ledger-snapshot'];
+    AgentTelemetryReportRequest: components['schemas']['agent-telemetry-report-request'];
+    AgentTelemetryReportReceipt: components['schemas']['agent-telemetry-report-receipt'];
+    EnvelopedAgentLedgerSnapshot: components['schemas']['enveloped-agent-ledger-snapshot'];
+    EnvelopedAgentTelemetryReportReceipt: components['schemas']['enveloped-agent-telemetry-report-receipt'];
+    AgentConflictErrorResponse: components['schemas']['agent-conflict-error-response'];
+    AgentUnavailableErrorResponse: components['schemas']['agent-unavailable-error-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -9803,6 +9937,139 @@ export interface components {
     };
     'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment'];
+    };
+    'runtime-target-agent-enrollment-request': {
+      /** @description Canonical Docker provider identifier bound to the Agent. */
+      providerId: string;
+      /** @description Canonical Builder scope identifier bound to the Agent. */
+      builderScopeId: string;
+      /** @description Canonical capability profile identifier selected by the operator. */
+      capabilityProfile: string;
+      /** @description Optional OCI image digest recorded for deployment provenance. */
+      agentImageDigest?: string;
+      /** @description Optional Agent implementation version recorded for diagnostics. */
+      agentImplementationVersion?: string;
+    };
+    'runtime-target-agent-enrollment': {
+      /** @description Stable lowercase Agent identity identifier. */
+      agentId: string;
+      /**
+       * Format: int64
+       * @description Monotonically increasing certificate enrollment generation.
+       */
+      generation: number;
+      /** @description Opaque non-secret Vault enrollment reference. */
+      enrollmentRef: string;
+      /**
+       * Format: date-time
+       * @description Enrollment reference expiry.
+       */
+      expiresAt: string;
+      /** @description Non-secret trust bundle version for managed deployment delivery. */
+      trustBundleVersion: string;
+      /**
+       * @description The enrollment is not active until its certificate-bound generation is activated.
+       * @enum {string}
+       */
+      status: 'pending';
+    };
+    'enveloped-runtime-target-agent-enrollment': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-agent-enrollment'];
+    };
+    'agent-unavailable-error-response': components['schemas']['error-response'] & {
+      /** @enum {string} */
+      code?: 'agent_controller_unavailable' | 'credential_vault_unavailable';
+    };
+    'runtime-target-agent-binding': {
+      agentId: string;
+      /** Format: int64 */
+      generation: number;
+      /** @enum {string} */
+      status: 'pending' | 'active' | 'revoked' | 'retired';
+      providerId: string;
+      builderScopeId: string;
+      capabilityProfile: string;
+      /** @description Public certificate fingerprint; never a certificate or private key. */
+      certificateFingerprint: string;
+      certificateSerial: string;
+      trustBundleVersion: string;
+      /** Format: date-time */
+      expiresAt: string;
+      /** Format: date-time */
+      revokedAt?: string | null;
+      /** @description Redacted audit correlation identifier for the latest binding transition. */
+      auditCorrelationId?: string;
+    };
+    'enveloped-runtime-target-agent-binding': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-agent-binding'];
+    };
+    'runtime-target-agent-rotation-request': {
+      /** @description Operator-supplied rotation reason retained in the redacted audit record. */
+      reason: string;
+    };
+    'runtime-target-agent-revocation-request': {
+      /** @description Operator-supplied revocation reason retained in the redacted audit record. */
+      reason: string;
+    };
+    'agent-ledger-snapshot': {
+      /** Format: int64 */
+      generation: number;
+      /**
+       * Format: int64
+       * @description Monotonically increasing controller-issued sequence for this active generation.
+       */
+      sequence: number;
+      /**
+       * Format: uuid
+       * @description One-time controller-issued snapshot identifier.
+       */
+      snapshotId: string;
+      /** @description Digest of the canonical immutable snapshot payload. */
+      digest: string;
+      /** Format: date-time */
+      observedAt: string;
+      /** Format: date-time */
+      expiresAt: string;
+      runningBuilds: number;
+      queuedBuilds: number;
+      allocatableSlots: number;
+    };
+    'enveloped-agent-ledger-snapshot': components['schemas']['api-envelope'] & {
+      data: components['schemas']['agent-ledger-snapshot'];
+    };
+    'agent-telemetry-report-request': {
+      /** Format: int64 */
+      generation: number;
+      /** Format: uuid */
+      snapshotId: string;
+      digest: string;
+      /**
+       * Format: date-time
+       * @description Agent observation time, validated against the bounded control-plane clock skew.
+       */
+      observedAt: string;
+      /** @description Optional bounded Agent implementation diagnostic. */
+      implementationVersion?: string;
+      /**
+       * @description Optional bounded liveness diagnostic; it cannot alter ledger values.
+       * @enum {string}
+       */
+      livenessStatus?: 'ready' | 'degraded';
+      /** @description Optional bounded non-secret implementation diagnostic code. */
+      diagnosticCode?: string;
+    };
+    'agent-telemetry-report-receipt': {
+      /** Format: uuid */
+      observationId: string;
+      /** Format: date-time */
+      acceptedAt: string;
+    };
+    'enveloped-agent-telemetry-report-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['agent-telemetry-report-receipt'];
+    };
+    'agent-conflict-error-response': components['schemas']['error-response'] & {
+      /** @enum {string} */
+      code?: 'agent_generation_mismatch' | 'agent_snapshot_replayed' | 'agent_snapshot_expired';
     };
     'application-import-validate-request': {
       workspace_path: string;
@@ -22303,6 +22570,322 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetAgentEnrollment: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-agent-enrollment-request'];
+      };
+    };
+    responses: {
+      /** @description Pending Agent enrollment created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-agent-enrollment'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description The target already has a conflicting active or pending Agent binding. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description The credential-vault trust backend is unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
+    };
+  };
+  getRuntimeTargetAgentBinding: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+        agentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Redacted Agent binding. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-agent-binding'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description The Runtime Target control-plane store or credential-vault trust backend is unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
+    };
+  };
+  postRuntimeTargetAgentRotation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+        agentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-agent-rotation-request'];
+      };
+    };
+    responses: {
+      /** @description Pending replacement enrollment created after the prior generation was disabled. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-agent-enrollment'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description The Agent binding cannot be rotated in its current lifecycle state. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description The credential-vault trust backend is unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
+    };
+  };
+  postRuntimeTargetAgentRevocation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+        agentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-agent-revocation-request'];
+      };
+    };
+    responses: {
+      /** @description The Agent generation is revoked or was already revoked. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-agent-binding'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      /** @description The Runtime Target control-plane store or credential-vault trust backend is unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
+    };
+  };
+  getAgentLedgerSnapshot: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Certificate-bound, one-time Driver-controller ledger snapshot. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-agent-ledger-snapshot'];
+        };
+      };
+      /** @description The certificate identity is not an active Agent generation. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'] & {
+            /** @enum {string} */
+            code?: 'agent_identity_not_active';
+          };
+        };
+      };
+      /** @description The Runtime Target control-plane store is unavailable; the listener fails closed. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
+    };
+  };
+  postAgentTelemetryReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['agent-telemetry-report-request'];
+      };
+    };
+    responses: {
+      /** @description Snapshot acknowledgement accepted as an observation. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-agent-telemetry-report-receipt'];
+        };
+      };
+      /** @description The report has invalid or unsupported fields, clock skew, or diagnostics. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'] & {
+            /** @enum {string} */
+            code?: 'agent_report_invalid';
+          };
+        };
+      };
+      /** @description The certificate identity is not an active Agent generation. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'] & {
+            /** @enum {string} */
+            code?: 'agent_identity_not_active';
+          };
+        };
+      };
+      /** @description The generation, digest, expiry, or one-time snapshot issuance does not admit the report. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-conflict-error-response'];
+        };
+      };
+      /** @description The Runtime Target control-plane store or credential-vault trust backend is unavailable; the listener fails closed. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['agent-unavailable-error-response'];
+        };
+      };
     };
   };
   postApplicationImportValidate: {

@@ -19109,6 +19109,492 @@
         }
       }
     },
+    "/api/runtime-targets/{id}/agent-enrollments": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Create an experimental Runtime Target Agent enrollment",
+        "operationId": "postRuntimeTargetAgentEnrollment",
+        "description": "Creates a pending, non-secret Agent enrollment bound to one Runtime Target, provider, Builder scope, and capability profile. Private keys, certificates, bootstrap secrets, and endpoint credentials are never returned.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-agent-enrollment-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending Agent enrollment created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-agent-enrollment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "409": {
+            "description": "The target already has a conflicting active or pending Agent binding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The credential-vault trust backend is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/agents/{agentId}": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Read an experimental Runtime Target Agent binding",
+        "operationId": "getRuntimeTargetAgentBinding",
+        "description": "Returns redacted status and diagnostics for one Runtime Target Agent binding. It never exposes private key, certificate PEM, bootstrap secret, or endpoint credential material.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redacted Agent binding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-agent-binding"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "503": {
+            "description": "The Runtime Target control-plane store or credential-vault trust backend is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/agents/{agentId}/rotations": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Rotate an experimental Runtime Target Agent generation",
+        "operationId": "postRuntimeTargetAgentRotation",
+        "description": "Revokes the current generation before creating a pending replacement generation. Rotation is not a dual-acceptance path.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-agent-rotation-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending replacement enrollment created after the prior generation was disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-agent-enrollment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "409": {
+            "description": "The Agent binding cannot be rotated in its current lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The credential-vault trust backend is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/agents/{agentId}/revocations": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Revoke an experimental Runtime Target Agent generation",
+        "operationId": "postRuntimeTargetAgentRevocation",
+        "description": "Immediately revokes the current Agent generation and appends a redacted audit fact. The operation is idempotent.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-agent-revocation-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The Agent generation is revoked or was already revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-agent-binding"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "503": {
+            "description": "The Runtime Target control-plane store or credential-vault trust backend is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/v1/ledger-snapshot": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Pull an issued Agent ledger snapshot",
+        "operationId": "getAgentLedgerSnapshot",
+        "description": "Experimental Agent-only pull endpoint. The listener derives target, Agent, and active generation from the verified certificate URI SAN; none are supplied by the request.",
+        "security": [
+          {
+            "mutualTLS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Certificate-bound, one-time Driver-controller ledger snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-agent-ledger-snapshot"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The certificate identity is not an active Agent generation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/error-response"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "agent_identity_not_active"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Runtime Target control-plane store is unavailable; the listener fails closed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/v1/telemetry-reports": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Submit an issued Agent telemetry acknowledgement",
+        "operationId": "postAgentTelemetryReport",
+        "description": "Experimental Agent-only acknowledgement of one issued ledger snapshot. The certificate identity is authoritative; the report cannot alter controller-issued ledger values.",
+        "security": [
+          {
+            "mutualTLS": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/agent-telemetry-report-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Snapshot acknowledgement accepted as an observation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-agent-telemetry-report-receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The report has invalid or unsupported fields, clock skew, or diagnostics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/error-response"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "agent_report_invalid"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The certificate identity is not an active Agent generation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/error-response"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "agent_identity_not_active"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The generation, digest, expiry, or one-time snapshot issuance does not admit the report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-conflict-error-response"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Runtime Target control-plane store or credential-vault trust backend is unavailable; the listener fails closed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/agent-unavailable-error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ops/applications/import/validate": {
       "post": {
         "tags": [
@@ -24237,6 +24723,48 @@
       },
       "EnvelopedRuntimeTargetUserAssignmentListResponse": {
         "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
+      },
+      "RuntimeTargetAgentEnrollmentRequest": {
+        "$ref": "#/components/schemas/runtime-target-agent-enrollment-request"
+      },
+      "RuntimeTargetAgentEnrollment": {
+        "$ref": "#/components/schemas/runtime-target-agent-enrollment"
+      },
+      "RuntimeTargetAgentBinding": {
+        "$ref": "#/components/schemas/runtime-target-agent-binding"
+      },
+      "RuntimeTargetAgentRotationRequest": {
+        "$ref": "#/components/schemas/runtime-target-agent-rotation-request"
+      },
+      "RuntimeTargetAgentRevocationRequest": {
+        "$ref": "#/components/schemas/runtime-target-agent-revocation-request"
+      },
+      "EnvelopedRuntimeTargetAgentEnrollment": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-agent-enrollment"
+      },
+      "EnvelopedRuntimeTargetAgentBinding": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-agent-binding"
+      },
+      "AgentLedgerSnapshot": {
+        "$ref": "#/components/schemas/agent-ledger-snapshot"
+      },
+      "AgentTelemetryReportRequest": {
+        "$ref": "#/components/schemas/agent-telemetry-report-request"
+      },
+      "AgentTelemetryReportReceipt": {
+        "$ref": "#/components/schemas/agent-telemetry-report-receipt"
+      },
+      "EnvelopedAgentLedgerSnapshot": {
+        "$ref": "#/components/schemas/enveloped-agent-ledger-snapshot"
+      },
+      "EnvelopedAgentTelemetryReportReceipt": {
+        "$ref": "#/components/schemas/enveloped-agent-telemetry-report-receipt"
+      },
+      "AgentConflictErrorResponse": {
+        "$ref": "#/components/schemas/agent-conflict-error-response"
+      },
+      "AgentUnavailableErrorResponse": {
+        "$ref": "#/components/schemas/agent-unavailable-error-response"
       },
       "health-response": {
         "type": "object",
@@ -37142,9 +37670,12 @@
             "enum": [
               "manual",
               "round_robin",
-              "random"
+              "random",
+              "least_load",
+              "capacity",
+              "affinity"
             ],
-            "description": "Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed."
+            "description": "Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed."
           }
         },
         "additionalProperties": false
@@ -39303,6 +39834,440 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/runtime-target-user-assignment"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-agent-enrollment-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "providerId",
+          "builderScopeId",
+          "capabilityProfile"
+        ],
+        "properties": {
+          "providerId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Canonical Docker provider identifier bound to the Agent."
+          },
+          "builderScopeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Canonical Builder scope identifier bound to the Agent."
+          },
+          "capabilityProfile": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Canonical capability profile identifier selected by the operator."
+          },
+          "agentImageDigest": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "description": "Optional OCI image digest recorded for deployment provenance."
+          },
+          "agentImplementationVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional Agent implementation version recorded for diagnostics."
+          }
+        }
+      },
+      "runtime-target-agent-enrollment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agentId",
+          "generation",
+          "enrollmentRef",
+          "expiresAt",
+          "trustBundleVersion",
+          "status"
+        ],
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,127}$",
+            "description": "Stable lowercase Agent identity identifier."
+          },
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Monotonically increasing certificate enrollment generation."
+          },
+          "enrollmentRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Opaque non-secret Vault enrollment reference."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Enrollment reference expiry."
+          },
+          "trustBundleVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Non-secret trust bundle version for managed deployment delivery."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ],
+            "description": "The enrollment is not active until its certificate-bound generation is activated."
+          }
+        }
+      },
+      "enveloped-runtime-target-agent-enrollment": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-agent-enrollment"
+              }
+            }
+          }
+        ]
+      },
+      "agent-unavailable-error-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/error-response"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "agent_controller_unavailable",
+                  "credential_vault_unavailable"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-agent-binding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agentId",
+          "generation",
+          "status",
+          "providerId",
+          "builderScopeId",
+          "capabilityProfile",
+          "certificateFingerprint",
+          "certificateSerial",
+          "trustBundleVersion",
+          "expiresAt"
+        ],
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,127}$"
+          },
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "revoked",
+              "retired"
+            ]
+          },
+          "providerId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "builderScopeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "capabilityProfile": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "certificateFingerprint": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "description": "Public certificate fingerprint; never a certificate or private key."
+          },
+          "certificateSerial": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "trustBundleVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "auditCorrelationId": {
+            "type": "string",
+            "description": "Redacted audit correlation identifier for the latest binding transition."
+          }
+        }
+      },
+      "enveloped-runtime-target-agent-binding": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-agent-binding"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-agent-rotation-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Operator-supplied rotation reason retained in the redacted audit record."
+          }
+        }
+      },
+      "runtime-target-agent-revocation-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Operator-supplied revocation reason retained in the redacted audit record."
+          }
+        }
+      },
+      "agent-ledger-snapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "generation",
+          "sequence",
+          "snapshotId",
+          "digest",
+          "observedAt",
+          "expiresAt",
+          "runningBuilds",
+          "queuedBuilds",
+          "allocatableSlots"
+        ],
+        "properties": {
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Monotonically increasing controller-issued sequence for this active generation."
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "One-time controller-issued snapshot identifier."
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "description": "Digest of the canonical immutable snapshot payload."
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "runningBuilds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "queuedBuilds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "allocatableSlots": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-agent-ledger-snapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/agent-ledger-snapshot"
+              }
+            }
+          }
+        ]
+      },
+      "agent-telemetry-report-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "generation",
+          "snapshotId",
+          "digest",
+          "observedAt"
+        ],
+        "properties": {
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Agent observation time, validated against the bounded control-plane clock skew."
+          },
+          "implementationVersion": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Optional bounded Agent implementation diagnostic."
+          },
+          "livenessStatus": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded"
+            ],
+            "description": "Optional bounded liveness diagnostic; it cannot alter ledger values."
+          },
+          "diagnosticCode": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$",
+            "description": "Optional bounded non-secret implementation diagnostic code."
+          }
+        }
+      },
+      "agent-telemetry-report-receipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "observationId",
+          "acceptedAt"
+        ],
+        "properties": {
+          "observationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "enveloped-agent-telemetry-report-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/agent-telemetry-report-receipt"
+              }
+            }
+          }
+        ]
+      },
+      "agent-conflict-error-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/error-response"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "agent_generation_mismatch",
+                  "agent_snapshot_replayed",
+                  "agent_snapshot_expired"
+                ]
               }
             }
           }
@@ -43588,6 +44553,10 @@
         "scheme": "bearer",
         "bearerFormat": "Graft personal API token",
         "description": "Personal API Token issued by the authenticated user for the product MCP transport. The token can only narrow existing server-side RBAC permissions."
+      },
+      "mutualTLS": {
+        "type": "mutualTLS",
+        "description": "Experimental Runtime Target Agent transport. The dedicated Agent listener accepts only TLS 1.3 mutual TLS with an active, certificate-bound Agent identity; bearer tokens and cookies are not accepted."
       }
     },
     "parameters": {
