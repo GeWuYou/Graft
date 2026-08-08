@@ -60,11 +60,14 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Phase 1, Phase 2 and Phase 3 release gates are complete. Phase 4a has registered a durable Builder
-   Agent/control-plane ingress and telemetry provider; signed reports are verified against target-bound Agent public
-   keys before persistence. Reservation recovery and Task Runtime distributed-leg gaps still block Phase 4 acceptance.
-2. Do not promote the telemetry provider alone, historical Pool/Docker adapter work, or a persisted observation into
-   dynamic-policy acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
+1. Phase 4a telemetry authority is complete: Runtime Target owns the signed Builder Agent/control-plane ingress and
+   restart-safe telemetry facade. Begin Phase 4b with Task Runtime-owned coordinated legs, cancellation, retries,
+   recovery and aggregate terminal settlement. Build remains Artifact and Publication owner.
+2. Phase 4c may begin only after Phase 4b acceptance, and must freeze fresh, conformant telemetry, capability profile,
+   Placement Evidence and Reservation fence without retry-time reselection. Phase 4d may project OpenAPI and web only
+   after a dynamic policy is genuinely executable.
+3. Do not promote telemetry alone, historical Pool/Docker adapter work, or a persisted observation into dynamic-policy
+   acceptance evidence. Preserve immutable Plan/Placement authority throughout each bounded phase.
 
 Validation expectations:
 

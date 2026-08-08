@@ -519,6 +519,13 @@
 - This establishes only Phase 4a authority. It does not enable `least_load`, `capacity` or `affinity`, change OpenAPI
   or web, add a scheduler/queue/health registry, implement a Task Runtime, Reservation recovery or target reselection.
 
+## 2026-08-08 phase-4a-controller-settlement
+
+- Controller accepted `ba114b35` and the ingress repair `44cd1297` after verifying the Runtime Target control-plane
+  boundary, durable observations, signature admission and Build-visible facade isolation.
+- Phase 4a remains a telemetry authority gate only. The loop advances to Phase 4b Task Runtime distributed coordination;
+  Phase 4c Reservation recovery/dynamic placement and Phase 4d OpenAPI/web projection remain pending in order.
+
 ## Loop Batch State
 
 ```json
@@ -538,15 +545,18 @@
     "phase-9c-provider-conformance-evidence",
     "phase-9c-provider-driver-contract",
     "phase-8a-builder-telemetry-contract",
+    "phase-4a-telemetry-authority",
     "credential-and-telemetry-authority-rfc",
     "provider-sdk-spi-rfc",
     "phase-1-secure-credential-execution-and-manual-reservation"
   ],
   "pending_batches": [
-    "phase-4-dynamic-placement-and-distributed-build"
+    "phase-4b-task-runtime-distributed-coordination",
+    "phase-4c-reservation-recovery-and-dynamic-placement",
+    "phase-4d-contract-and-web-projection"
   ],
   "current_batch": null,
-  "next_batch": "phase-4-dynamic-placement-and-distributed-build",
-  "closeout_status": "phase-3-static-pool-placement-complete"
+  "next_batch": "phase-4b-task-runtime-distributed-coordination",
+  "closeout_status": "phase-4a-telemetry-authority-complete"
 }
 ```
