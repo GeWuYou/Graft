@@ -23,6 +23,7 @@ import (
 	runtimetargetcontract "graft/server/modules/runtime-target/contract"
 )
 
+//nolint:gocognit,gocyclo,cyclop // 单个场景固定验证 AppRole、PKI 签发和秘密不落盘这条不可拆分的安全边界。
 func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testing.T) {
 	certificatePEM, certificateSerial, csrDER := newVaultConformanceCertificate(t)
 	roleIDPath := filepath.Join(t.TempDir(), "role-id")
