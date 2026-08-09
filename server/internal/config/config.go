@@ -173,6 +173,7 @@ type HTTPXConfig struct {
 	AccessLogPersistTimeoutMS int64
 	WebSocketAllowedOrigins   []string
 	AgentTLS                  AgentTLSConfig
+	AgentBootstrapTLS         AgentBootstrapTLSConfig
 }
 
 // AgentTLSConfig 描述专用 Agent mTLS 监听器的部署期证书材料位置。
@@ -183,6 +184,15 @@ type AgentTLSConfig struct {
 	CertificateFile string
 	KeyFile         string
 	ClientCAFile    string
+}
+
+// AgentBootstrapTLSConfig 描述首次 Agent 证书签发的专用 server-authenticated TLS listener。
+// 它不接受客户端证书，因新 Agent 尚未拥有 Vault 签发的身份材料。
+type AgentBootstrapTLSConfig struct {
+	Enabled         bool
+	Addr            string
+	CertificateFile string
+	KeyFile         string
 }
 
 // CredentialVaultConfig 描述 Credential Vault 的非秘密接入信息。
@@ -492,6 +502,9 @@ func validateHTTPXConfig(c *Config) error {
 	if err := validateAgentTLSConfig(&c.HTTPX.AgentTLS); err != nil {
 		return err
 	}
+	if err := validateAgentBootstrapTLSConfig(&c.HTTPX.AgentBootstrapTLS); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -513,6 +526,28 @@ func validateAgentTLSConfig(agentTLS *AgentTLSConfig) error {
 	} {
 		if strings.TrimSpace(*field.value) == "" || !filepath.IsAbs(*field.value) {
 			return fmt.Errorf("%s must be an absolute path when GRAFT_HTTPX_AGENT_TLS_ENABLED is true", field.name)
+		}
+		*field.value = filepath.Clean(*field.value)
+	}
+	return nil
+}
+
+func validateAgentBootstrapTLSConfig(bootstrapTLS *AgentBootstrapTLSConfig) error {
+	if bootstrapTLS == nil || !bootstrapTLS.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(bootstrapTLS.Addr) == "" {
+		return errors.New("GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ADDR is required when GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED is true")
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_CERTIFICATE_FILE", value: &bootstrapTLS.CertificateFile},
+		{name: "GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_KEY_FILE", value: &bootstrapTLS.KeyFile},
+	} {
+		if strings.TrimSpace(*field.value) == "" || !filepath.IsAbs(*field.value) {
+			return fmt.Errorf("%s must be an absolute path when GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED is true", field.name)
 		}
 		*field.value = filepath.Clean(*field.value)
 	}

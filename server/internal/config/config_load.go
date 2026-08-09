@@ -28,6 +28,12 @@ func readConfig(reader *viper.Viper) *Config {
 				KeyFile:         reader.GetString("httpx.agent_tls.key_file"),
 				ClientCAFile:    reader.GetString("httpx.agent_tls.client_ca_file"),
 			},
+			AgentBootstrapTLS: AgentBootstrapTLSConfig{
+				Enabled:         reader.GetBool("httpx.agent_bootstrap_tls.enabled"),
+				Addr:            reader.GetString("httpx.agent_bootstrap_tls.addr"),
+				CertificateFile: reader.GetString("httpx.agent_bootstrap_tls.certificate_file"),
+				KeyFile:         reader.GetString("httpx.agent_bootstrap_tls.key_file"),
+			},
 		},
 		CredentialVault: CredentialVaultConfig{
 			Enabled:        reader.GetBool("credential_vault.enabled"),

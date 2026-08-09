@@ -126,6 +126,21 @@ func TestValidateAgentTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
 	}
 }
 
+func TestValidateAgentBootstrapTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
+	cfg := &Config{HTTPX: HTTPXConfig{AgentBootstrapTLS: AgentBootstrapTLSConfig{Enabled: true, Addr: ":9444"}}}
+	if err := validateHTTPXConfig(cfg); err == nil {
+		t.Fatal("enabled Agent bootstrap TLS must require certificate paths")
+	}
+	cfg.HTTPX.AgentBootstrapTLS = AgentBootstrapTLSConfig{Enabled: true, Addr: ":9444", CertificateFile: "/run/graft/bootstrap.crt", KeyFile: "/run/graft/bootstrap.key"}
+	if err := validateAgentBootstrapTLSConfig(&cfg.HTTPX.AgentBootstrapTLS); err != nil {
+		t.Fatalf("validate complete Agent bootstrap TLS config: %v", err)
+	}
+	cfg.HTTPX.AgentBootstrapTLS.KeyFile = "relative-bootstrap.key"
+	if err := validateAgentBootstrapTLSConfig(&cfg.HTTPX.AgentBootstrapTLS); err == nil {
+		t.Fatal("enabled Agent bootstrap TLS must reject relative key paths")
+	}
+}
+
 func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *testing.T) {
 	cfg := &Config{CredentialVault: CredentialVaultConfig{Enabled: true, Backend: "vault-pki"}}
 	if err := validateCredentialVaultConfig(cfg); err == nil {
@@ -996,7 +1011,7 @@ func TestValidateBackupConfigDefaultsAndNormalizesAbsoluteRoot(t *testing.T) {
 func TestValidateFileSecretConfigurationsRequireAbsolutePath(t *testing.T) {
 	t.Parallel()
 	for _, testCase := range []struct {
-		name     string
+		name      string
 		configure func(*Config, string)
 		read      func(*Config) string
 		validate  func(*Config) error

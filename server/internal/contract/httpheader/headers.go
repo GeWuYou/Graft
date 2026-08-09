@@ -16,6 +16,9 @@ const (
 	// Authorization 携带调用方的认证方案和令牌。
 	Authorization Name = "Authorization"
 
+	// Cookie 携带浏览器会话 cookie；专用 Agent listener 不接受它作为认证替代。
+	Cookie Name = "Cookie"
+
 	// ETag 携带资源当前表示的 Strong ETag。
 	ETag Name = "ETag"
 
