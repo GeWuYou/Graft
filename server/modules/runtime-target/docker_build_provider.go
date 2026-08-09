@@ -190,7 +190,7 @@ func (p dockerTargetProvider) BuildImageOnTarget(ctx context.Context, targetID i
 
 func (p dockerTargetProvider) trackDockerBuilderExecution(ctx context.Context, targetID int64) (string, error) {
 	agent, err := p.repository.GetActiveDockerBuilderTelemetryAgent(ctx, targetID)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrLegacyAgentTrustDisabled) {
 		return "", nil
 	}
 	if err != nil {

@@ -24,6 +24,9 @@ var ErrUnavailable = errors.New("runtime target unavailable")
 // ErrTelemetryRejected 表示报告无法通过已绑定 Agent 的原子重放与身份校验。
 var ErrTelemetryRejected = errors.New("builder telemetry report rejected")
 
+// ErrLegacyAgentTrustDisabled 表示 Ed25519 遥测绑定已退役，不能再驱动 Agent 信任或动态准入。
+var ErrLegacyAgentTrustDisabled = errors.New("legacy builder telemetry trust is disabled")
+
 // ErrBuilderLedgerRejected 表示构建代理执行账本拒绝了不合法或超出容量的状态转换。
 var ErrBuilderLedgerRejected = errors.New("builder agent execution ledger rejected")
 
@@ -489,8 +492,9 @@ func (r *SQLRepository) UpsertBuilderTelemetryAgent(ctx context.Context, agent B
 	return nil
 }
 
-// GetBuilderTelemetryAgent 读取指定运行目标上仍获准提交遥测的 Builder Agent 公钥。
-func (r *SQLRepository) GetBuilderTelemetryAgent(ctx context.Context, targetID int64, agentID string) (BuilderTelemetryAgent, error) {
+// ReadLegacyBuilderTelemetryAgent 只读返回已退役的 Ed25519 遥测绑定，供审计诊断使用。
+// 返回值永远不得用于 Agent 信任、遥测准入或动态放置。
+func (r *SQLRepository) ReadLegacyBuilderTelemetryAgent(ctx context.Context, targetID int64, agentID string) (BuilderTelemetryAgent, error) {
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
 		return BuilderTelemetryAgent{}, ErrNotFound
 	}
@@ -500,54 +504,26 @@ func (r *SQLRepository) GetBuilderTelemetryAgent(ctx context.Context, targetID i
 		return BuilderTelemetryAgent{}, ErrNotFound
 	}
 	if err != nil {
-		return BuilderTelemetryAgent{}, fmt.Errorf("get builder telemetry agent: %w", err)
-	}
-	if !agent.Enabled || !validBuilderTelemetryAgent(agent) {
-		return BuilderTelemetryAgent{}, ErrUnavailable
+		return BuilderTelemetryAgent{}, fmt.Errorf("read legacy builder telemetry agent: %w", err)
 	}
 	return agent, nil
+}
+
+// GetBuilderTelemetryAgent 拒绝将历史 Ed25519 绑定作为受信任 Agent 身份读取。
+func (r *SQLRepository) GetBuilderTelemetryAgent(_ context.Context, _ int64, _ string) (BuilderTelemetryAgent, error) {
+	return BuilderTelemetryAgent{}, ErrLegacyAgentTrustDisabled
 }
 
 // GetActiveDockerBuilderTelemetryAgent 返回目标唯一启用的 Docker Agent 绑定。
 // Build 的动态 Placement 目前只携带 Runtime Target 标识，因此一个目标不能同时暴露多个可执行 Builder scope。
-func (r *SQLRepository) GetActiveDockerBuilderTelemetryAgent(ctx context.Context, targetID int64) (BuilderTelemetryAgent, error) {
-	if r == nil || r.db == nil || targetID < 1 {
-		return BuilderTelemetryAgent{}, ErrNotFound
-	}
-	var agent BuilderTelemetryAgent
-	err := r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, last_sequence, enabled FROM runtime_target_builder_telemetry_agents WHERE runtime_target_id = $1 AND provider_id = 'docker' AND enabled = true`, targetID).Scan(&agent.TargetID, &agent.AgentID, &agent.ProviderID, &agent.BuilderScope, &agent.CapabilityProfile, &agent.CapabilityVersion, &agent.PublicKey, &agent.LastSequence, &agent.Enabled)
-	if errors.Is(err, sql.ErrNoRows) {
-		return BuilderTelemetryAgent{}, ErrNotFound
-	}
-	if err != nil {
-		return BuilderTelemetryAgent{}, fmt.Errorf("get active Docker builder telemetry agent: %w", err)
-	}
-	if !validBuilderTelemetryAgent(agent) {
-		return BuilderTelemetryAgent{}, ErrUnavailable
-	}
-	return agent, nil
+func (r *SQLRepository) GetActiveDockerBuilderTelemetryAgent(_ context.Context, _ int64) (BuilderTelemetryAgent, error) {
+	return BuilderTelemetryAgent{}, ErrLegacyAgentTrustDisabled
 }
 
 // RecordBoundBuilderTelemetryObservation 将已经验签的报告与单调序列原子写入。
 // 先更新绑定行可防止同一 Agent 的并发或重放报告超过最后已接受的序列。
-func (r *SQLRepository) RecordBoundBuilderTelemetryObservation(ctx context.Context, agent BuilderTelemetryAgent, sequence int64, observation BuilderTelemetryObservation) error {
-	if r == nil || r.db == nil || sequence < 1 || !validBuilderTelemetryAgent(agent) || !validBuilderTelemetryObservation(observation) {
-		return ErrTelemetryRejected
-	}
-	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
-		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_builder_telemetry_agents SET last_sequence = $1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $2 AND agent_id = $3 AND provider_id = $4 AND builder_scope = $5 AND capability_profile = $6 AND capability_version = $7 AND public_key = $8 AND enabled = true AND last_sequence < $1`, sequence, agent.TargetID, agent.AgentID, agent.ProviderID, agent.BuilderScope, agent.CapabilityProfile, agent.CapabilityVersion, agent.PublicKey)
-		if err != nil {
-			return fmt.Errorf("advance builder telemetry sequence: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("read builder telemetry sequence result: %w", err)
-		}
-		if affected != 1 {
-			return ErrTelemetryRejected
-		}
-		return r.RecordBuilderTelemetryObservation(txCtx, observation)
-	})
+func (r *SQLRepository) RecordBoundBuilderTelemetryObservation(_ context.Context, _ BuilderTelemetryAgent, _ int64, _ BuilderTelemetryObservation) error {
+	return ErrLegacyAgentTrustDisabled
 }
 
 // ListLatestBuilderTelemetry 返回每个目标最新的一条控制平面 Builder 观测。

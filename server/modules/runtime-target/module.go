@@ -112,7 +112,7 @@ func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationS
 	return registrationServices{auth: auth, authorizer: authorizer, users: users, savedViews: savedViews}, nil
 }
 
-//nolint:cyclop,gocyclo // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
+//nolint:cyclop,gocyclo,gocognit // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
 func (m *Module) registerReaders(ctx *module.Context) error {
 	reader := func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), reader); err != nil {
@@ -138,7 +138,17 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil), func(_ containerdi.Resolver) (any, error) {
-		return controlPlaneBuilderTelemetryIngress{repository: m.repository}, nil
+		return controlPlaneBuilderTelemetryIngress{}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetAgentBindingReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return runtimeTargetAgentBindingReader{repository: m.repository}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentEnrollmentAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
+		return newRuntimeTargetAgentEnrollmentAuthority(m.repository), nil
 	}); err != nil {
 		return err
 	}

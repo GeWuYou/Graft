@@ -14,7 +14,7 @@
     <div v-if="$slots.cards && (showCards || preserveInactive)" v-show="showCards" class="responsive-table__cards">
       <slot name="cards" :variant="variant" />
     </div>
-    <div v-if="!showCards || preserveInactive" v-show="!showCards" class="responsive-table__scroll graft-scrollbar">
+    <div v-if="!showCards || preserveInactive" v-show="!showCards" class="responsive-table__scroll">
       <slot :variant="variant" />
     </div>
   </section>

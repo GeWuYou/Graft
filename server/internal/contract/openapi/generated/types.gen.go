@@ -1870,6 +1870,9 @@ func (e BuildArtifactPromotionCreateRequestDestinationKind) Valid() bool {
 
 // Defines values for BuildBuilderPoolSchedulingPolicy.
 const (
+	BuildBuilderPoolSchedulingPolicyAffinity   BuildBuilderPoolSchedulingPolicy = "affinity"
+	BuildBuilderPoolSchedulingPolicyCapacity   BuildBuilderPoolSchedulingPolicy = "capacity"
+	BuildBuilderPoolSchedulingPolicyLeastLoad  BuildBuilderPoolSchedulingPolicy = "least_load"
 	BuildBuilderPoolSchedulingPolicyManual     BuildBuilderPoolSchedulingPolicy = "manual"
 	BuildBuilderPoolSchedulingPolicyRandom     BuildBuilderPoolSchedulingPolicy = "random"
 	BuildBuilderPoolSchedulingPolicyRoundRobin BuildBuilderPoolSchedulingPolicy = "round_robin"
@@ -1878,6 +1881,12 @@ const (
 // Valid indicates whether the value is a known member of the BuildBuilderPoolSchedulingPolicy enum.
 func (e BuildBuilderPoolSchedulingPolicy) Valid() bool {
 	switch e {
+	case BuildBuilderPoolSchedulingPolicyAffinity:
+		return true
+	case BuildBuilderPoolSchedulingPolicyCapacity:
+		return true
+	case BuildBuilderPoolSchedulingPolicyLeastLoad:
+		return true
 	case BuildBuilderPoolSchedulingPolicyManual:
 		return true
 	case BuildBuilderPoolSchedulingPolicyRandom:
@@ -8365,11 +8374,11 @@ type BuildBuilderPool struct {
 	DisplayName string `json:"display_name"`
 	PoolId      string `json:"pool_id"`
 
-	// SchedulingPolicy Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+	// SchedulingPolicy Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed.
 	SchedulingPolicy BuildBuilderPoolSchedulingPolicy `json:"scheduling_policy"`
 }
 
-// BuildBuilderPoolSchedulingPolicy Static Builder Pool placement policy. `manual` requires an explicit eligible Builder, `round_robin` uses the persisted Pool cursor, and `random` is selected from a server-owned deterministic seed. Static labels remain server-side eligibility evidence; telemetry, capacity, affinity, region, and least-load policies are not exposed.
+// BuildBuilderPoolSchedulingPolicy Builder Pool placement policy. Dynamic `least_load`, `capacity`, and `affinity` are admitted only by the server from fresh provider-conformant Builder telemetry; the frozen placement remains the retry authority. `region` is not exposed.
 type BuildBuilderPoolSchedulingPolicy string
 
 // BuildBuilderPoolList defines model for build-builder-pool-list.

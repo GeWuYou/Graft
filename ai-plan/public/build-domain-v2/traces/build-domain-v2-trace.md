@@ -627,6 +627,23 @@
 - Added the Credential Vault And Runtime Target Agent Protocol RFC. It fixes the PR1 experimental wire/module contract
   scope and rejects server push, streaming, legacy dual admission and Runtime Target secret custody.
 
+## 2026-08-09 runtime-target-agent-delivery-grant-binding ADR
+
+- Accepted ADR-024 to close the bootstrap-delivery authority gap in ADR-023. Runtime Target owns provider-neutral
+  Agent enrollment, identity and lifecycle, including the one-to-one delivery grant, peppered token verifier and final
+  membership activation. Docker is the sole MVP delivery implementation; credential-vault remains the provider-neutral
+  CSR-based Vault PKI issuer only.
+- Automation reuses the existing deployment trust boundary for handoff and receipt submission. Runtime Target consumes
+  only the already verified automation identity; it does not add an automation PKI, trust bundle, listener or signing
+  scheme. The boundary releases the grant and plaintext token once, creates the bound Docker secret, and returns
+  redacted delivery evidence without exposing the token in an Operator API or persistent Graft record. That receipt is
+  evidence only and never activates or binds an Agent. The Agent supplies token plus CSR only to Graft's
+  server-authenticated bootstrap listener.
+- The RFC and roadmap now defer all Operator and Agent OpenAPI publication until delivery receipt verification,
+  bootstrap authorization, issuance, durable activation, mTLS reconnect, revocation and Docker ledger conformance pass
+  as one slice. Docker is the only MVP runtime and delivery mechanism; no unsupported-provider implementation, menu,
+  API or placeholder is authorized.
+
 ## 2026-08-08 startup authority alignment
 
 - Added ADR-023 and the Credential Vault And Runtime Target Agent Protocol RFC to the reusable startup prompt and the

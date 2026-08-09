@@ -137,6 +137,7 @@ type Config struct {
 	App                 AppConfig
 	HTTP                HTTPConfig
 	HTTPX               HTTPXConfig
+	CredentialVault     CredentialVaultConfig
 	Audit               AuditConfig
 	Docs                DocsConfig
 	Modules             ModulesConfig
@@ -170,6 +171,31 @@ type HTTPXConfig struct {
 	AccessLogSlowThresholdMS  int64
 	AccessLogPersistTimeoutMS int64
 	WebSocketAllowedOrigins   []string
+	AgentTLS                  AgentTLSConfig
+}
+
+// AgentTLSConfig 描述专用 Agent mTLS 监听器的部署期证书材料位置。
+// 私钥和 CA 内容由部署层挂载，运行时只消费绝对文件路径。
+type AgentTLSConfig struct {
+	Enabled         bool
+	Addr            string
+	CertificateFile string
+	KeyFile         string
+	ClientCAFile    string
+}
+
+// CredentialVaultConfig 描述 Credential Vault 的非秘密接入信息。
+// 认证材料必须由部署机器身份提供，禁止通过此配置传递 token、私钥或 PEM。
+type CredentialVaultConfig struct {
+	Enabled        bool
+	Backend        string
+	Address        string
+	Namespace      string
+	AuthMount      string
+	AuthRole       string
+	PKIMount       string
+	PKIRole        string
+	TrustBundleRef string
 }
 
 // AuditConfig 预留 core 提供的审计启动配置边界。
@@ -355,6 +381,7 @@ func (c *Config) Validate() error {
 		validateAppConfig,
 		validateHTTPConfig,
 		validateHTTPXConfig,
+		validateCredentialVaultConfig,
 		validateAuditConfig,
 		validateLogConfig,
 		validateRuntimeConfig,
@@ -442,7 +469,61 @@ func validateHTTPXConfig(c *Config) error {
 	if err := validateWebSocketAllowedOrigins(c.HTTPX.WebSocketAllowedOrigins); err != nil {
 		return err
 	}
+	if err := validateAgentTLSConfig(&c.HTTPX.AgentTLS); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func validateAgentTLSConfig(agentTLS *AgentTLSConfig) error {
+	if agentTLS == nil || !agentTLS.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(agentTLS.Addr) == "" {
+		return errors.New("GRAFT_HTTPX_AGENT_TLS_ADDR is required when GRAFT_HTTPX_AGENT_TLS_ENABLED is true")
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_HTTPX_AGENT_TLS_CERTIFICATE_FILE", value: &agentTLS.CertificateFile},
+		{name: "GRAFT_HTTPX_AGENT_TLS_KEY_FILE", value: &agentTLS.KeyFile},
+		{name: "GRAFT_HTTPX_AGENT_TLS_CLIENT_CA_FILE", value: &agentTLS.ClientCAFile},
+	} {
+		if strings.TrimSpace(*field.value) == "" || !filepath.IsAbs(*field.value) {
+			return fmt.Errorf("%s must be an absolute path when GRAFT_HTTPX_AGENT_TLS_ENABLED is true", field.name)
+		}
+		*field.value = filepath.Clean(*field.value)
+	}
+	return nil
+}
+
+func validateCredentialVaultConfig(c *Config) error {
+	if c == nil || !c.CredentialVault.Enabled {
+		return nil
+	}
+	vault := &c.CredentialVault
+	if strings.TrimSpace(vault.Backend) != "vault-pki" {
+		return errors.New("GRAFT_CREDENTIAL_VAULT_BACKEND must be vault-pki when GRAFT_CREDENTIAL_VAULT_ENABLED is true")
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_CREDENTIAL_VAULT_ADDRESS", value: &vault.Address},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT", value: &vault.AuthMount},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE", value: &vault.AuthRole},
+		{name: "GRAFT_CREDENTIAL_VAULT_PKI_MOUNT", value: &vault.PKIMount},
+		{name: "GRAFT_CREDENTIAL_VAULT_PKI_ROLE", value: &vault.PKIRole},
+		{name: "GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF", value: &vault.TrustBundleRef},
+	} {
+		*field.value = strings.TrimSpace(*field.value)
+		if *field.value == "" {
+			return fmt.Errorf("%s is required when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
+		}
+	}
+	vault.Namespace = strings.TrimSpace(vault.Namespace)
 	return nil
 }
 

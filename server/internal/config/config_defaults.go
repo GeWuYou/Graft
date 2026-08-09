@@ -7,6 +7,8 @@ import (
 )
 
 // setDefaults 为应用及其依赖服务注册默认配置值。
+//
+//nolint:funlen // 默认值集中定义，避免分散的配置真相。
 func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
@@ -15,6 +17,20 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
 	reader.SetDefault("access_log.persist_timeout_ms", defaultAccessLogPersistTimeout/time.Millisecond)
 	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
+	reader.SetDefault("httpx.agent_tls.enabled", false)
+	reader.SetDefault("httpx.agent_tls.addr", "")
+	reader.SetDefault("httpx.agent_tls.certificate_file", "")
+	reader.SetDefault("httpx.agent_tls.key_file", "")
+	reader.SetDefault("httpx.agent_tls.client_ca_file", "")
+	reader.SetDefault("credential_vault.enabled", false)
+	reader.SetDefault("credential_vault.backend", "")
+	reader.SetDefault("credential_vault.address", "")
+	reader.SetDefault("credential_vault.namespace", "")
+	reader.SetDefault("credential_vault.auth_mount", "")
+	reader.SetDefault("credential_vault.auth_role", "")
+	reader.SetDefault("credential_vault.pki_mount", "")
+	reader.SetDefault("credential_vault.pki_role", "")
+	reader.SetDefault("credential_vault.trust_bundle_ref", "")
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
 	reader.SetDefault("database.url", defaultDatabaseURL)
