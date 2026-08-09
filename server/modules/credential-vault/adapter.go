@@ -145,7 +145,7 @@ func NewVaultPKIClient(configuration config.CredentialVaultConfig, store Issuanc
 //
 //nolint:cyclop // 签发流程必须在同一边界内完成 durable 状态恢复、Vault 调用和非秘密结果校验。
 func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCertificateIssuanceRequest) (moduleapi.IssuedAgentCertificate, error) {
-	if v == nil || strings.TrimSpace(request.IssuanceKey) == "" || len(request.CSRDER) == 0 {
+	if v == nil || strings.TrimSpace(request.IssuanceKey) == "" || strings.TrimSpace(request.SPIFFEURI) == "" || len(request.CSRDER) == 0 {
 		return moduleapi.IssuedAgentCertificate{}, errors.New("invalid certificate issuance request")
 	}
 	csr, err := x509.ParseCertificateRequest(request.CSRDER)
@@ -163,7 +163,7 @@ func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCe
 	}
 	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
 	var response vaultIssueResponse
-	if err := v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/issue/"+pathEscape(v.config.PKIRole), map[string]any{"csr": string(csrPEM), "format": "pem_bundle"}, &response); err != nil {
+	if err := v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/issue/"+pathEscape(v.config.PKIRole), map[string]any{"csr": string(csrPEM), "uri_sans": strings.TrimSpace(request.SPIFFEURI), "format": "pem_bundle"}, &response); err != nil {
 		return moduleapi.IssuedAgentCertificate{}, err
 	}
 	serial := strings.TrimSpace(response.Data.SerialNumber)

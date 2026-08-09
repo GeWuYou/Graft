@@ -72,7 +72,7 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	issued, err := client.IssueCSR(context.Background(), moduleapi.AgentCertificateIssuanceRequest{IssuanceKey: "issue-1", CSRDER: csrDER})
+	issued, err := client.IssueCSR(context.Background(), moduleapi.AgentCertificateIssuanceRequest{IssuanceKey: "issue-1", SPIFFEURI: "spiffe://graft/runtime-target/7/builder-agent/agent-7/generation/1", CSRDER: csrDER})
 	if err != nil {
 		t.Fatalf("issue certificate: %v", err)
 	}
@@ -84,6 +84,9 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	}
 	if !strings.HasPrefix(issueBody["csr"], "-----BEGIN CERTIFICATE REQUEST-----") {
 		t.Fatalf("issue CSR is not PEM encoded: %q", issueBody["csr"])
+	}
+	if issueBody["uri_sans"] != "spiffe://graft/runtime-target/7/builder-agent/agent-7/generation/1" {
+		t.Fatalf("issue URI SAN = %q", issueBody["uri_sans"])
 	}
 	if store.state != (IssuanceState{IssuanceKey: "issue-1", Serial: certificateSerial}) {
 		t.Fatalf("persisted state = %#v", store.state)
