@@ -148,7 +148,9 @@ type AgentIdentity struct {
 	Generation int64
 }
 
-// RuntimeTargetLedgerSnapshot 是一次性的 canonical ledger 快照；Agent 不能修改其中的值。
+// RuntimeTargetLedgerSnapshot 是仅供内部 ledger 与 agent-ledger-snapshot 映射使用的 canonical DTO。
+// CapabilityVersion、AffinityKey、Available、IssuedAt、BuilderScope、ProviderID 属于内部字段，
+// 不等同于 OpenAPI agent-telemetry-report-request；对外快照仍受 additionalProperties: false 约束。
 type RuntimeTargetLedgerSnapshot struct {
 	IdentityID        string
 	TargetID          int64
@@ -171,7 +173,8 @@ type RuntimeTargetLedgerSnapshot struct {
 	IssuedAt          time.Time
 }
 
-// RuntimeTargetTelemetryReport 回执已签发快照，并仅包含受限 Agent 诊断信息。
+// RuntimeTargetTelemetryReport 是内部 canonical 回执 DTO，不是 agent-telemetry-report-request 的逐字段镜像。
+// ExpiresAt、Available、Diagnostic 仅服务于回执校验与受限诊断，不作为该 OpenAPI 请求字段的额外扩展。
 type RuntimeTargetTelemetryReport struct {
 	IdentityID            string
 	TargetID              int64
