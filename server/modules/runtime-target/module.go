@@ -154,7 +154,7 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentEnrollmentAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
-		return newRuntimeTargetAgentEnrollmentAuthority(m.repository), nil
+		return newRuntimeTargetAgentEnrollmentAuthority(m.repository, m.events), nil
 	}); err != nil {
 		return err
 	}

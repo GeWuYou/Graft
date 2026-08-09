@@ -127,30 +127,39 @@ func (r *SQLRepository) RevokeAgentTrustGeneration(ctx context.Context, targetID
 		return ErrAgentTrustNotActive
 	}
 	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
-		identity, err := r.findAgentTrustIdentity(txCtx, targetID, agentID)
-		if err != nil {
-			return err
-		}
-		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation)
-		if err != nil {
-			return fmt.Errorf("revoke runtime target agent trust generation: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("read revoked runtime target agent trust generation: %w", err)
-		}
-		if affected == 0 {
-			var exists int
-			err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT 1 FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&exists)
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrAgentTrustNotFound
-			}
-			if err != nil {
-				return fmt.Errorf("read runtime target agent trust generation: %w", err)
-			}
-		}
-		return nil
+		_, _, err := r.RevokeAgentTrustGenerationTx(txCtx, nil, targetID, agentID, generation, reason, actorID, now)
+		return err
 	})
+}
+
+// RevokeAgentTrustGenerationTx 在调用方事务中撤销世代，并返回证书序列号与是否发生状态变化。
+// 调用方可据此把撤销事实与本地状态放入同一 durable event 事务。
+func (r *SQLRepository) RevokeAgentTrustGenerationTx(ctx context.Context, tx *sql.Tx, targetID int64, agentID string, generation int64, reason string, actorID int64, now time.Time) (string, bool, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || generation < 1 || now.IsZero() {
+		return "", false, ErrAgentTrustNotActive
+	}
+	if tx != nil {
+		ctx = context.WithValue(ctx, transactionContextKey{}, tx)
+	}
+	identity, err := r.findAgentTrustIdentity(ctx, targetID, agentID)
+	if err != nil {
+		return "", false, err
+	}
+	var serial, status string
+	err = r.executor(ctx).QueryRowContext(ctx, `SELECT certificate_serial, status FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&serial, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, ErrAgentTrustNotFound
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read runtime target agent trust generation: %w", err)
+	}
+	if status == "revoked" {
+		return serial, false, nil
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation); err != nil {
+		return "", false, fmt.Errorf("revoke runtime target agent trust generation: %w", err)
+	}
+	return serial, true, nil
 }
 
 // RevokeAllAgentTrustGenerations 用于目标重置或重新绑定，确保任何旧世代不能恢复活动状态。

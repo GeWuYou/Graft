@@ -3,6 +3,7 @@ package runtimetarget
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	containerdi "graft/server/internal/container"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	contract "graft/server/modules/runtime-target/contract"
 	store "graft/server/modules/runtime-target/store"
 )
 
@@ -50,6 +52,33 @@ func TestAgentEnrollmentAuthorityRegistersAndPersistsLifecycle(t *testing.T) {
 	assertPendingAgentEnrollment(t, second, 2, "enrollment-2", "bundle-2")
 	activateAgentEnrollment(t, authority, second, "serial-2", "sha256:second")
 	assertAgentEnrollmentRevocationIsIdempotent(t, authority, repository, second)
+}
+
+func TestAgentEnrollmentRevocationPublishesDurableCertificateFactOnce(t *testing.T) {
+	db := openAgentEnrollmentAuthorityTestDB(t)
+	repository := store.NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	publisher := &runtimeTargetRecordingPublisher{}
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, events: publisher, now: func() time.Time { return now }}
+	enrollment := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
+	activateAgentEnrollment(t, authority, enrollment, "serial-1", "sha256:first")
+	revocation := moduleapi.AgentEnrollmentRevocation{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, Generation: enrollment.Generation, Reason: "operator_revoke"}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err != nil {
+		t.Fatalf("revoke generation: %v", err)
+	}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err != nil {
+		t.Fatalf("repeat revoke generation: %v", err)
+	}
+	if len(publisher.published) != 1 {
+		t.Fatalf("published events = %d, want 1", len(publisher.published))
+	}
+	var payload contract.AgentCertificateRevocationEvent
+	if err := json.Unmarshal(publisher.published[0].Payload, &payload); err != nil {
+		t.Fatalf("decode revocation event: %v", err)
+	}
+	if publisher.published[0].Type != contract.AgentCertificateRevocationEventType || payload.CertificateSerial != "serial-1" || payload.IdentityID != enrollment.IdentityID {
+		t.Fatalf("revocation event = %#v, payload = %#v", publisher.published[0], payload)
+	}
 }
 
 func assertAgentEnrollmentAuthorityRegistered(t *testing.T, repository *store.SQLRepository) {

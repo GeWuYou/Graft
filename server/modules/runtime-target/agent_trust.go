@@ -2,6 +2,10 @@ package runtimetarget
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
 	contract "graft/server/modules/runtime-target/contract"
 	store "graft/server/modules/runtime-target/store"
@@ -94,11 +99,16 @@ type runtimeTargetAgentBindingReader struct {
 // Vault 和交付边界只能提供非秘密证据，不能藉由这些证据建立或激活 Runtime Target 绑定。
 type runtimeTargetAgentEnrollmentAuthority struct {
 	repository *store.SQLRepository
+	events     event.TransactionalPublisher
 	now        func() time.Time
 }
 
-func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository) moduleapi.AgentEnrollmentAuthority {
-	return runtimeTargetAgentEnrollmentAuthority{repository: repository, now: time.Now}
+func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository, publishers ...event.TransactionalPublisher) moduleapi.AgentEnrollmentAuthority {
+	var publisher event.TransactionalPublisher
+	if len(publishers) > 0 {
+		publisher = publishers[0]
+	}
+	return runtimeTargetAgentEnrollmentAuthority{repository: repository, events: publisher, now: time.Now}
 }
 
 func (a runtimeTargetAgentEnrollmentAuthority) CreateEnrollment(ctx context.Context, request moduleapi.AgentEnrollmentRequest) (moduleapi.AgentEnrollment, error) {
@@ -162,7 +172,20 @@ func (a runtimeTargetAgentEnrollmentAuthority) RevokeGeneration(ctx context.Cont
 	if current.Identity.IdentityID != strings.TrimSpace(revocation.IdentityID) {
 		return errors.New("runtime target agent enrollment revocation does not match the identity")
 	}
-	return a.repository.RevokeAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID, revocation.Generation, strings.TrimSpace(revocation.Reason), 0, a.currentTime())
+	now := a.currentTime()
+	return a.repository.RunInTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		serial, changed, err := a.repository.RevokeAgentTrustGenerationTx(txCtx, tx, revocation.TargetID, revocation.AgentID, revocation.Generation, strings.TrimSpace(revocation.Reason), 0, now)
+		if err != nil || !changed || a.events == nil {
+			return err
+		}
+		payload, err := json.Marshal(contract.AgentCertificateRevocationEvent{IdentityID: strings.TrimSpace(revocation.IdentityID), TargetID: revocation.TargetID, AgentID: strings.TrimSpace(revocation.AgentID), Generation: revocation.Generation, CertificateSerial: strings.TrimSpace(serial), Reason: strings.TrimSpace(revocation.Reason)})
+		if err != nil {
+			return fmt.Errorf("encode agent certificate revocation event: %w", err)
+		}
+		id := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s:%d", strings.TrimSpace(revocation.IdentityID), revocation.TargetID, strings.TrimSpace(revocation.AgentID), revocation.Generation)))
+		_, err = a.events.PublishTx(txCtx, tx, event.Event{ID: hex.EncodeToString(id[:]), Type: contract.AgentCertificateRevocationEventType, Version: 1, Source: contract.ModuleID, Payload: payload, IdempotencyKey: hex.EncodeToString(id[:])}, event.PublishOptions{Delivery: event.DeliveryDurable})
+		return err
+	})
 }
 
 func (a runtimeTargetAgentEnrollmentAuthority) createPendingGeneration(ctx context.Context, identity store.AgentTrustIdentity, generation int64, enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt time.Time) (store.AgentTrustGeneration, error) {
