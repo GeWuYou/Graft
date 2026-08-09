@@ -93,6 +93,28 @@ func TestBuildTargetReaderOnlyReturnsAssignedHealthyBuildTargets(t *testing.T) {
 	assertBuildTargetSummaryDoesNotExposeConnection(t)
 }
 
+func TestBuildTargetReaderRejectsAssignedHealthyUnsupportedProvider(t *testing.T) {
+	db := openBuildTargetTestDB(t)
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, system_managed, deleted_at) VALUES (4, 'podman', 'unix:///run/podman/podman.sock', 'Unsupported provider', 'redacted', 'unix_socket', '["image_build"]', true, '', false, 0)`); err != nil {
+		t.Fatalf("seed unsupported build provider: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES (4, 9, 0, 0, 0, 0)`); err != nil {
+		t.Fatalf("assign unsupported build provider: %v", err)
+	}
+
+	reader := runtimeTargetReader{repository: store.NewSQLRepository(db)}
+	targets, err := reader.ListAssignedBuildTargets(context.Background(), 9)
+	if err != nil {
+		t.Fatalf("list assigned build targets: %v", err)
+	}
+	if len(targets) != 0 {
+		t.Fatalf("unsupported provider entered build target list: %#v", targets)
+	}
+	if _, err := reader.ReadBuildTarget(context.Background(), 4); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("unsupported provider build target error = %v, want %v", err, store.ErrNotFound)
+	}
+}
+
 func TestCanUseBuildTargetRechecksAssignmentAndCurrentEligibility(t *testing.T) {
 	db := openBuildTargetTestDB(t)
 	seedBuildTarget(t, db, 1, "Assigned builder", `["image_build"]`, true)

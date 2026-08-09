@@ -18,7 +18,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"graft/server/internal/apperror"
 	"graft/server/internal/config"
+	"graft/server/internal/contract/errorcode"
+	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/moduleapi"
 )
 
@@ -45,17 +49,37 @@ func AgentMTLSIdentityFromContext(ctx context.Context) (AgentMTLSIdentity, bool)
 
 // RequireAgentMTLSIdentity 从 TLS 已验证链提取精确 URI SAN 身份。
 // 身份绝不接受 HTTP header、bearer token 或请求 payload 的替代值。
-func RequireAgentMTLSIdentity() gin.HandlerFunc {
+func RequireAgentMTLSIdentity(runtimeLoggers ...*zap.Logger) gin.HandlerFunc {
+	runtimeLogger := zap.NewNop()
+	if len(runtimeLoggers) > 0 && runtimeLoggers[0] != nil {
+		runtimeLogger = runtimeLoggers[0]
+	}
 	return func(ctx *gin.Context) {
 		identity, err := agentMTLSIdentityFromRequest(ctx.Request)
 		if err != nil {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			abortAgentMTLSIdentity(ctx, runtimeLogger)
 			return
 		}
 		ctx.Set(agentIdentityContextKey, identity)
 		ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), agentIdentityContextValue{}, identity))
 		ctx.Next()
 	}
+}
+
+func abortAgentMTLSIdentity(ctx *gin.Context, runtimeLogger *zap.Logger) {
+	logsafe.Warn(runtimeLogger, "agent mTLS identity rejected",
+		zap.String("request_id", EnsureRequestID(ctx)),
+		zap.String("trace_id", EnsureTraceID(ctx)),
+		zap.String("method", currentRequestMethod(ctx)),
+		zap.String("route", currentRequestRoute(ctx)),
+		zap.String("path", currentRequestPath(ctx)),
+		zap.String("reason", "unverified_or_invalid_client_certificate"),
+	)
+	AbortAppError(ctx, nil, runtimeLogger, apperror.New(apperror.Descriptor{
+		Kind:       apperror.KindUnauthenticated,
+		Code:       errorcode.AuthTokenInvalid,
+		MessageKey: messagecontract.AuthTokenInvalid,
+	}))
 }
 
 // AgentMTLSIdentityFromGinContext 返回当前 Agent handler 可消费的证书身份。
@@ -72,7 +96,7 @@ func AgentMTLSIdentityFromGinContext(ctx *gin.Context) (AgentMTLSIdentity, bool)
 }
 
 func agentMTLSIdentityFromRequest(request *http.Request) (AgentMTLSIdentity, error) {
-	if request == nil || request.TLS == nil || len(request.TLS.VerifiedChains) != 1 || len(request.TLS.VerifiedChains[0]) == 0 {
+	if request == nil || request.TLS == nil || len(request.TLS.VerifiedChains) == 0 || len(request.TLS.VerifiedChains[0]) == 0 {
 		return AgentMTLSIdentity{}, errors.New("verified client certificate is required")
 	}
 	certificate := request.TLS.VerifiedChains[0][0]
@@ -162,7 +186,7 @@ func NewAgentServer(cfg config.AgentTLSConfig, logger *zap.Logger) (*AgentServer
 		return nil, err
 	}
 	engine := gin.New()
-	engine.Use(RequestIDMiddleware(), newRecoveryMiddleware(logger, nil), RequireAgentMTLSIdentity())
+	engine.Use(RequestIDMiddleware(), newRecoveryMiddleware(logger, nil), RequireAgentMTLSIdentity(logger))
 	return &AgentServer{engine: engine, tlsConfig: tlsConfig}, nil
 }
 

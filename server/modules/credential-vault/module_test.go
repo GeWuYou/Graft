@@ -18,29 +18,29 @@ func TestNewModuleSpecUsesCredentialVaultModuleID(t *testing.T) {
 	}
 }
 
-func TestModuleDoesNotRegisterMachineIdentityAuthorityWhenDisabled(t *testing.T) {
+func TestModuleDoesNotRegisterAgentCertificateIssuerWhenDisabled(t *testing.T) {
 	services := container.New()
 	if err := NewModule(config.CredentialVaultConfig{}, nil).Register(&module.Context{Services: services}); err != nil {
 		t.Fatalf("register disabled credential vault module: %v", err)
 	}
-	_, err := services.Resolve((*moduleapi.MachineIdentityAuthority)(nil))
+	_, err := services.Resolve((*moduleapi.AgentCertificateIssuer)(nil))
 	if !errors.Is(err, container.ErrServiceNotRegistered) {
 		t.Fatalf("resolve disabled authority error = %v, want service not registered", err)
 	}
 }
 
-func TestModuleRegistersUnavailableAuthorityWhenEnabledWithoutAdapter(t *testing.T) {
+func TestModuleRegistersUnavailableIssuerWhenEnabledWithoutAdapter(t *testing.T) {
 	services := container.New()
 	if err := NewModule(config.CredentialVaultConfig{Enabled: true}, nil).Register(&module.Context{Services: services}); err != nil {
 		t.Fatalf("register enabled credential vault module: %v", err)
 	}
-	authority, err := module.ResolveService[moduleapi.MachineIdentityAuthority](services, (*moduleapi.MachineIdentityAuthority)(nil))
+	issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](services, (*moduleapi.AgentCertificateIssuer)(nil))
 	if err != nil {
-		t.Fatalf("resolve authority: %v", err)
+		t.Fatalf("resolve issuer: %v", err)
 	}
-	_, err = authority.CreateEnrollment(context.Background(), moduleapi.MachineEnrollmentRequest{})
-	if !errors.Is(err, ErrMachineIdentityAuthorityUnavailable) {
-		t.Fatalf("create enrollment error = %v, want unavailable", err)
+	_, err = issuer.IssueCSR(context.Background(), moduleapi.AgentCertificateIssuanceRequest{})
+	if !errors.Is(err, ErrAgentCertificateIssuerUnavailable) {
+		t.Fatalf("issue CSR error = %v, want unavailable", err)
 	}
 }
 
@@ -50,37 +50,27 @@ func TestModuleRegistersProvidedVaultPKIAdapter(t *testing.T) {
 	if err := NewModule(config.CredentialVaultConfig{Enabled: true}, adapter).Register(&module.Context{Services: services}); err != nil {
 		t.Fatalf("register credential vault module: %v", err)
 	}
-	authority, err := module.ResolveService[moduleapi.MachineIdentityAuthority](services, (*moduleapi.MachineIdentityAuthority)(nil))
+	issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](services, (*moduleapi.AgentCertificateIssuer)(nil))
 	if err != nil {
-		t.Fatalf("resolve authority: %v", err)
+		t.Fatalf("resolve issuer: %v", err)
 	}
-	enrollment, err := authority.CreateEnrollment(context.Background(), moduleapi.MachineEnrollmentRequest{})
+	certificate, err := issuer.IssueCSR(context.Background(), moduleapi.AgentCertificateIssuanceRequest{})
 	if err != nil {
-		t.Fatalf("create enrollment: %v", err)
+		t.Fatalf("issue CSR: %v", err)
 	}
-	if enrollment.IdentityID != "vault-identity" {
-		t.Fatalf("identity id = %q", enrollment.IdentityID)
+	if certificate.CertificateSerial != "vault-certificate" {
+		t.Fatalf("certificate serial = %q", certificate.CertificateSerial)
 	}
 }
 
 type testVaultPKIAdapter struct{}
 
-func (testVaultPKIAdapter) CreateEnrollment(context.Context, moduleapi.MachineEnrollmentRequest) (moduleapi.MachineEnrollment, error) {
-	return moduleapi.MachineEnrollment{IdentityID: "vault-identity"}, nil
-}
-
-func (testVaultPKIAdapter) ActivateGeneration(context.Context, moduleapi.MachineIdentityActivation) error {
-	return nil
-}
-
-func (testVaultPKIAdapter) RotateGeneration(context.Context, moduleapi.MachineIdentityRotationRequest) (moduleapi.MachineEnrollment, error) {
-	return moduleapi.MachineEnrollment{}, nil
-}
-
-func (testVaultPKIAdapter) RevokeGeneration(context.Context, moduleapi.MachineIdentityRevocation) error {
-	return nil
+func (testVaultPKIAdapter) IssueCSR(context.Context, moduleapi.AgentCertificateIssuanceRequest) (moduleapi.IssuedAgentCertificate, error) {
+	return moduleapi.IssuedAgentCertificate{CertificateSerial: "vault-certificate"}, nil
 }
 
 func (testVaultPKIAdapter) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
 	return moduleapi.TrustBundleReference{}, nil
 }
+
+func (testVaultPKIAdapter) RevokeCertificate(context.Context, moduleapi.AgentCertificateRevocation) error { return nil }

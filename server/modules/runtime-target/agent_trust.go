@@ -3,6 +3,7 @@ package runtimetarget
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +21,8 @@ const (
 	AgentTrustAuditActionRotation = "runtime_target.agent_trust_rotation"
 	// AgentTrustAuditActionRevocation 记录操作者撤销或重置 Agent 信任世代的事实。
 	AgentTrustAuditActionRevocation = "runtime_target.agent_revocation"
+	// runtimeTargetAgentEnrollmentProviderID 是当前唯一已实现交付路径的稳定提供方标识。
+	runtimeTargetAgentEnrollmentProviderID = "docker"
 )
 
 // AgentTrustOperatorAuthorizer 是 Runtime Target Agent 危险操作的服务层授权钩子。
@@ -77,6 +80,162 @@ func NewAgentTrustAuditEvent(action string, operator *moduleapi.CurrentUser, bin
 
 type runtimeTargetAgentBindingReader struct {
 	repository *store.SQLRepository
+}
+
+// runtimeTargetAgentEnrollmentAuthority 保持 Agent 业务归属与证书签发事实分离。
+// Vault 和交付边界只能提供非秘密证据，不能藉由这些证据建立或激活 Runtime Target 绑定。
+type runtimeTargetAgentEnrollmentAuthority struct {
+	repository *store.SQLRepository
+	now        func() time.Time
+}
+
+func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository) moduleapi.AgentEnrollmentAuthority {
+	return runtimeTargetAgentEnrollmentAuthority{repository: repository, now: time.Now}
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) CreateEnrollment(ctx context.Context, request moduleapi.AgentEnrollmentRequest) (moduleapi.AgentEnrollment, error) {
+	if a.repository == nil || !validAgentEnrollmentRequest(request, a.currentTime()) {
+		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment request is invalid")
+	}
+	identity := agentTrustIdentityFromEnrollmentRequest(request)
+	if _, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, identity.TargetID, identity.AgentID); err == nil {
+		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment already exists")
+	} else if !errors.Is(err, store.ErrAgentTrustNotFound) {
+		return moduleapi.AgentEnrollment{}, err
+	}
+	created, err := a.createPendingGeneration(ctx, identity, 1, request.EnrollmentRef, request.TrustBundle, request.ExpiresAt)
+	if err != nil {
+		return moduleapi.AgentEnrollment{}, err
+	}
+	return agentEnrollmentFromGeneration(created), nil
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) ActivateGeneration(ctx context.Context, activation moduleapi.AgentEnrollmentActivation) error {
+	if a.repository == nil || !validAgentEnrollmentActivation(activation) {
+		return errors.New("runtime target agent enrollment activation is invalid")
+	}
+	current, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, activation.TargetID, activation.AgentID)
+	if err != nil {
+		return err
+	}
+	if current.Identity.IdentityID != strings.TrimSpace(activation.IdentityID) || current.Generation != activation.Generation || current.Status != string(moduleapi.RuntimeTargetAgentStatusPending) {
+		return errors.New("runtime target agent enrollment activation does not match a pending generation")
+	}
+	return a.repository.ActivateAgentTrustGeneration(ctx, activation.TargetID, activation.AgentID, activation.Generation, strings.TrimSpace(activation.CertificateIssuer), strings.TrimSpace(activation.CertificateSerial), strings.TrimSpace(activation.PublicKeyFingerprint), 0, a.currentTime())
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) RotateGeneration(ctx context.Context, request moduleapi.AgentEnrollmentRotationRequest) (moduleapi.AgentEnrollment, error) {
+	if a.repository == nil || !validAgentEnrollmentRotationRequest(request, a.currentTime()) {
+		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment rotation request is invalid")
+	}
+	current, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, request.TargetID, request.AgentID)
+	if err != nil {
+		return moduleapi.AgentEnrollment{}, err
+	}
+	if current.Identity.IdentityID != strings.TrimSpace(request.IdentityID) || current.Status != string(moduleapi.RuntimeTargetAgentStatusActive) || !sameEnrollmentScope(current.Identity, request) {
+		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment rotation does not match the active identity")
+	}
+	created, err := a.createPendingGeneration(ctx, current.Identity, current.Generation+1, request.EnrollmentRef, request.TrustBundle, request.ExpiresAt)
+	if err != nil {
+		return moduleapi.AgentEnrollment{}, err
+	}
+	return agentEnrollmentFromGeneration(created), nil
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) RevokeGeneration(ctx context.Context, revocation moduleapi.AgentEnrollmentRevocation) error {
+	if a.repository == nil || !validAgentEnrollmentRevocation(revocation) {
+		return errors.New("runtime target agent enrollment revocation is invalid")
+	}
+	current, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID)
+	if err != nil {
+		return err
+	}
+	if current.Identity.IdentityID != strings.TrimSpace(revocation.IdentityID) {
+		return errors.New("runtime target agent enrollment revocation does not match the identity")
+	}
+	return a.repository.RevokeAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID, revocation.Generation, strings.TrimSpace(revocation.Reason), 0, a.currentTime())
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) createPendingGeneration(ctx context.Context, identity store.AgentTrustIdentity, generation int64, enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt time.Time) (store.AgentTrustGeneration, error) {
+	return a.repository.CreatePendingAgentTrustGeneration(ctx, identity, store.AgentTrustGeneration{
+		Generation:         generation,
+		EnrollmentRef:      strings.TrimSpace(enrollmentRef),
+		TrustBundleRef:     strings.TrimSpace(trustBundle.Reference),
+		TrustBundleVersion: strings.TrimSpace(trustBundle.Version),
+		ExpiresAt:          expiresAt.UTC(),
+	})
+}
+
+func (a runtimeTargetAgentEnrollmentAuthority) currentTime() time.Time {
+	if a.now == nil {
+		return time.Now().UTC()
+	}
+	return a.now().UTC()
+}
+
+func agentTrustIdentityFromEnrollmentRequest(request moduleapi.AgentEnrollmentRequest) store.AgentTrustIdentity {
+	return store.AgentTrustIdentity{
+		IdentityID:        stableAgentIdentityID(request.TargetID, request.AgentID),
+		TargetID:          request.TargetID,
+		AgentID:           strings.TrimSpace(request.AgentID),
+		ProviderID:        strings.TrimSpace(request.ProviderID),
+		BuilderScope:      strings.TrimSpace(request.BuilderScope),
+		CapabilityProfile: strings.TrimSpace(request.CapabilityProfile),
+		CapabilityVersion: strings.TrimSpace(request.CapabilityVersion),
+		ImageDigest:       strings.TrimSpace(request.ImageDigest),
+		AgentVersion:      strings.TrimSpace(request.AgentVersion),
+	}
+}
+
+func stableAgentIdentityID(targetID int64, agentID string) string {
+	return fmt.Sprintf("runtime-target:%d:agent:%s", targetID, strings.TrimSpace(agentID))
+}
+
+func agentEnrollmentFromGeneration(generation store.AgentTrustGeneration) moduleapi.AgentEnrollment {
+	return moduleapi.AgentEnrollment{
+		IdentityID:           generation.Identity.IdentityID,
+		TargetID:             generation.Identity.TargetID,
+		AgentID:              generation.Identity.AgentID,
+		ProviderID:           generation.Identity.ProviderID,
+		BuilderScope:         generation.Identity.BuilderScope,
+		CapabilityProfile:    generation.Identity.CapabilityProfile,
+		CapabilityVersion:    generation.Identity.CapabilityVersion,
+		Generation:           generation.Generation,
+		EnrollmentRef:        generation.EnrollmentRef,
+		ExpiresAt:            generation.ExpiresAt,
+		TrustBundleVersion:   generation.TrustBundleVersion,
+		CertificateSerial:    generation.CertificateSerial,
+		PublicKeyFingerprint: generation.PublicKeyFingerprint,
+		Status:               moduleapi.RuntimeTargetAgentStatus(generation.Status),
+	}
+}
+
+func validAgentEnrollmentRequest(request moduleapi.AgentEnrollmentRequest, now time.Time) bool {
+	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now)
+}
+
+func validAgentEnrollmentActivation(activation moduleapi.AgentEnrollmentActivation) bool {
+	return strings.TrimSpace(activation.IdentityID) != "" && activation.TargetID > 0 && strings.TrimSpace(activation.AgentID) != "" && activation.Generation > 0 && strings.TrimSpace(activation.CertificateIssuer) != "" && strings.TrimSpace(activation.CertificateSerial) != "" && strings.TrimSpace(activation.PublicKeyFingerprint) != ""
+}
+
+func validAgentEnrollmentRotationRequest(request moduleapi.AgentEnrollmentRotationRequest, now time.Time) bool {
+	return strings.TrimSpace(request.IdentityID) != "" && validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && strings.TrimSpace(request.Reason) != ""
+}
+
+func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope, capabilityProfile, capabilityVersion string) bool {
+	return targetID > 0 && strings.TrimSpace(agentID) != "" && strings.TrimSpace(providerID) == runtimeTargetAgentEnrollmentProviderID && strings.TrimSpace(builderScope) != "" && strings.TrimSpace(capabilityProfile) != "" && strings.TrimSpace(capabilityVersion) != ""
+}
+
+func validAgentEnrollmentAttestation(enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt, now time.Time) bool {
+	return strings.TrimSpace(enrollmentRef) != "" && strings.TrimSpace(trustBundle.Reference) != "" && strings.TrimSpace(trustBundle.Version) != "" && expiresAt.After(now)
+}
+
+func validAgentEnrollmentRevocation(revocation moduleapi.AgentEnrollmentRevocation) bool {
+	return strings.TrimSpace(revocation.IdentityID) != "" && revocation.TargetID > 0 && strings.TrimSpace(revocation.AgentID) != "" && revocation.Generation > 0 && strings.TrimSpace(revocation.Reason) != ""
+}
+
+func sameEnrollmentScope(identity store.AgentTrustIdentity, request moduleapi.AgentEnrollmentRotationRequest) bool {
+	return identity.TargetID == request.TargetID && identity.AgentID == strings.TrimSpace(request.AgentID) && identity.ProviderID == strings.TrimSpace(request.ProviderID) && identity.BuilderScope == strings.TrimSpace(request.BuilderScope) && identity.CapabilityProfile == strings.TrimSpace(request.CapabilityProfile) && identity.CapabilityVersion == strings.TrimSpace(request.CapabilityVersion)
 }
 
 func (r runtimeTargetAgentBindingReader) ReadAgentBinding(ctx context.Context, targetID int64, agentID string) (moduleapi.RuntimeTargetAgentBinding, error) {

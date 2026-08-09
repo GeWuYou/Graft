@@ -16,14 +16,14 @@ type Module struct {
 }
 
 // NewModule 构造 Credential Vault 生命周期 owner。
-// nil adapter 是有意的：启用配置时只暴露 unavailable authority；关闭配置时完全不暴露
-// MachineIdentityAuthority capability。
+// nil adapter 是有意的：启用配置时只暴露 unavailable issuer；关闭配置时完全不暴露
+// AgentCertificateIssuer capability。
 func NewModule(configuration config.CredentialVaultConfig, adapter VaultPKIAdapter) *Module {
 	return &Module{configuration: configuration, adapter: adapter}
 }
 
-// Register 仅在 Vault 集成启用时注册 canonical machine-identity capability。
-// 在生产 adapter 接线前，已注册 provider 必须以 ErrMachineIdentityAuthorityUnavailable fail-closed。
+// Register 仅在 Vault 集成启用时注册 AgentCertificateIssuer。
+// Runtime Target 的登记与激活不在本模块注册范围内；生产 adapter 接线前必须 fail-closed。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || ctx == nil || ctx.Services == nil {
 		return errors.New("credential vault module context services are unavailable")
@@ -31,9 +31,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if !m.configuration.Enabled {
 		return nil
 	}
-	authority := m.authority()
-	return ctx.Services.RegisterSingleton((*moduleapi.MachineIdentityAuthority)(nil), func(containerdi.Resolver) (any, error) {
-		return authority, nil
+	issuer := m.issuer()
+	return ctx.Services.RegisterSingleton((*moduleapi.AgentCertificateIssuer)(nil), func(containerdi.Resolver) (any, error) {
+		return issuer, nil
 	})
 }
 
@@ -43,11 +43,11 @@ func (*Module) Boot(*module.Context) error { return nil }
 // Shutdown 在当前 foundational implementation 中不拥有 live external client。
 func (*Module) Shutdown(*module.Context) error { return nil }
 
-func (m *Module) authority() moduleapi.MachineIdentityAuthority {
+func (m *Module) issuer() moduleapi.AgentCertificateIssuer {
 	if m.adapter != nil {
 		return m.adapter
 	}
-	return unavailableMachineIdentityAuthority{}
+	return unavailableAgentCertificateIssuer{}
 }
 
 var _ module.Module = (*Module)(nil)

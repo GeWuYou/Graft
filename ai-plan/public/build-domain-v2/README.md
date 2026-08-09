@@ -8,6 +8,7 @@ execution, secure Registry credential execution and evidence-backed Builder plac
 Provider integration follows [Build Domain v2 Provider SDK And SPI RFC](../../design/architecture/build-domain-v2-provider-sdk-spi.md).
 Deployable Agent trust and wire semantics follow
 [ADR-023](../../design/decisions/ADR-023-runtime-target-agent-trust-model.md) and the
+[ADR-024](../../design/decisions/ADR-024-runtime-target-agent-delivery-grant-binding.md) and the
 [Credential Vault And Runtime Target Agent Protocol RFC](../../design/architecture/credential-vault-and-runtime-target-agent-protocol.md).
 
 ## Recovery Receipt

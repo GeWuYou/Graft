@@ -3,15 +3,22 @@ package httpx
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
+	"graft/server/internal/contract/errorcode"
+	messagecontract "graft/server/internal/contract/message"
 )
 
 func TestNewAgentServerIsAbsentWhenDisabled(t *testing.T) {
@@ -44,7 +51,8 @@ func TestRequireAgentMTLSIdentityExtractsVerifiedURISAN(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodGet, "/agent", nil)
 	request.Header.Set("X-Agent-Identity", "spiffe://graft/runtime-target/999/builder-agent/forged/generation/9")
-	request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7/generation/3")}}}
+	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7/generation/3")
+	request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{certificate}, {certificate}}}
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, request)
 	if response.Code != http.StatusNoContent {
@@ -54,6 +62,7 @@ func TestRequireAgentMTLSIdentityExtractsVerifiedURISAN(t *testing.T) {
 
 func TestRequireAgentMTLSIdentityRejectsUnverifiedOrNoncanonicalIdentity(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.WarnLevel)
 	for _, testCase := range []struct {
 		name        string
 		certificate *x509.Certificate
@@ -64,19 +73,54 @@ func TestRequireAgentMTLSIdentityRejectsUnverifiedOrNoncanonicalIdentity(t *test
 		{name: "wrong-authority", certificate: testAgentCertificate(t, "spiffe://other/runtime-target/7/builder-agent/builder-7/generation/3"), verified: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			engine := gin.New()
-			engine.Use(RequireAgentMTLSIdentity())
-			engine.GET("/agent", func(ctx *gin.Context) { ctx.Status(http.StatusNoContent) })
-			request := httptest.NewRequest(http.MethodGet, "/agent", nil)
-			if testCase.verified {
-				request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{testCase.certificate}}}
-			}
-			response := httptest.NewRecorder()
-			engine.ServeHTTP(response, request)
-			if response.Code != http.StatusUnauthorized {
-				t.Fatalf("expected rejected request, got %d", response.Code)
-			}
+			assertAgentMTLSIdentityRejected(t, zap.New(core), testCase.certificate, testCase.verified)
 		})
+	}
+	if len(observed.All()) != 3 {
+		t.Fatalf("expected one denial log per rejected request, got %d", len(observed.All()))
+	}
+	for _, entry := range observed.All() {
+		if entry.Message != "agent mTLS identity rejected" {
+			t.Fatalf("unexpected denial log message %q", entry.Message)
+		}
+		fields := entry.ContextMap()
+		if fields["reason"] != "unverified_or_invalid_client_certificate" {
+			t.Fatalf("unexpected denial reason %#v", fields)
+		}
+		if _, present := fields["certificate"]; present {
+			t.Fatalf("certificate material must not appear in denial log %#v", fields)
+		}
+	}
+}
+
+func assertAgentMTLSIdentityRejected(t *testing.T, logger *zap.Logger, certificate *x509.Certificate, verified bool) {
+	t.Helper()
+	engine := gin.New()
+	engine.Use(RequireAgentMTLSIdentity(logger))
+	engine.GET("/agent", func(ctx *gin.Context) { ctx.Status(http.StatusNoContent) })
+	request := httptest.NewRequest(http.MethodGet, "/agent", nil)
+	if verified {
+		request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{certificate}}}
+	}
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	assertAgentMTLSRejectionResponse(t, response)
+}
+
+func assertAgentMTLSRejectionResponse(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected rejected request, got %d", response.Code)
+	}
+	var payload ErrorResponse
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode rejection envelope: %v", err)
+	}
+	if payload.Code != errorcode.AuthTokenInvalid.String() || payload.MessageKey != messagecontract.AuthTokenInvalid.String() {
+		t.Fatalf("expected uniform unauthenticated envelope, got %#v", payload)
+	}
+	if strings.Contains(response.Body.String(), "spiffe://") || strings.Contains(response.Body.String(), "test-public-key") {
+		t.Fatalf("certificate identity leaked in response: %s", response.Body.String())
 	}
 }
 

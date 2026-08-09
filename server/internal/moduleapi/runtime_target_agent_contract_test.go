@@ -4,17 +4,21 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
 
 func TestRuntimeTargetAgentContractsKeepSecretMaterialOutsideModuleAPI(t *testing.T) {
 	for _, contract := range []any{
-		moduleapi.MachineEnrollmentRequest{},
-		moduleapi.MachineEnrollment{},
-		moduleapi.MachineIdentityActivation{},
-		moduleapi.MachineIdentityRotationRequest{},
-		moduleapi.MachineIdentityRevocation{},
+		moduleapi.AgentEnrollmentRequest{},
+		moduleapi.AgentEnrollment{},
+		moduleapi.AgentEnrollmentActivation{},
+		moduleapi.AgentEnrollmentRotationRequest{},
+		moduleapi.AgentEnrollmentRevocation{},
+		moduleapi.AgentCertificateIssuanceRequest{},
+		moduleapi.IssuedAgentCertificate{},
+		moduleapi.AgentCertificateRevocation{},
 		moduleapi.TrustBundleRequest{},
 		moduleapi.TrustBundleReference{},
 		moduleapi.AgentIdentity{},
@@ -35,10 +39,36 @@ func TestRuntimeTargetAgentContractsKeepSecretMaterialOutsideModuleAPI(t *testin
 	}
 }
 
+func TestAgentEnrollmentContractsCarryNonSecretPKIAttestationMetadata(t *testing.T) {
+	requestType := reflect.TypeOf(moduleapi.AgentEnrollmentRequest{})
+	rotationType := reflect.TypeOf(moduleapi.AgentEnrollmentRotationRequest{})
+	activationType := reflect.TypeOf(moduleapi.AgentEnrollmentActivation{})
+	trustBundleType := reflect.TypeOf(moduleapi.TrustBundleReference{})
+
+	for _, contract := range []reflect.Type{requestType, rotationType} {
+		field, found := contract.FieldByName("EnrollmentRef")
+		if !found || field.Type.Kind() != reflect.String {
+			t.Errorf("%s EnrollmentRef = %v, want string", contract.Name(), field.Type)
+		}
+		field, found = contract.FieldByName("TrustBundle")
+		if !found || field.Type != trustBundleType {
+			t.Errorf("%s TrustBundle = %v, want TrustBundleReference", contract.Name(), field.Type)
+		}
+		field, found = contract.FieldByName("ExpiresAt")
+		if !found || field.Type != reflect.TypeOf(time.Time{}) {
+			t.Errorf("%s ExpiresAt = %v, want time.Time", contract.Name(), field.Type)
+		}
+	}
+	field, found := activationType.FieldByName("CertificateIssuer")
+	if !found || field.Type.Kind() != reflect.String {
+		t.Errorf("AgentEnrollmentActivation CertificateIssuer = %v, want string", field.Type)
+	}
+}
+
 func TestRuntimeTargetAgentStatusContractsUseNamedLifecycleType(t *testing.T) {
 	statusType := reflect.TypeOf(moduleapi.RuntimeTargetAgentStatus(""))
 	for _, contract := range []any{
-		moduleapi.MachineEnrollment{},
+		moduleapi.AgentEnrollment{},
 		moduleapi.RuntimeTargetAgentBinding{},
 	} {
 		field, found := reflect.TypeOf(contract).FieldByName("Status")

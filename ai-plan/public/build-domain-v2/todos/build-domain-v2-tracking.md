@@ -19,6 +19,7 @@ Runtime Target build capability, artifact delivery, and the approved staged evol
 - `ai-plan/design/architecture/build-domain-v2-credential-and-telemetry-authority.md`
 - `ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md`
 - `ai-plan/design/decisions/ADR-023-runtime-target-agent-trust-model.md`
+- `ai-plan/design/decisions/ADR-024-runtime-target-agent-delivery-grant-binding.md`
 - `ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md`
 - `ai-plan/roadmap/build-domain-v2.md`
 
@@ -77,6 +78,13 @@ closeout:
   `Internal` / `Needs Attention`; mandatory matcher invocation and frozen negotiation evidence for every Placement;
   slot-aware Reservation rather than one live lease per Instance; and provisioned Docker Agent reports from a controlled
   execution ledger or Driver controller. Dynamic rows stay readable but non-executable until all gates pass.
+- Delivery-grant recovery (2026-08-09): Agent enrollment, identity, generation and certificate lifecycle are Runtime
+  Target platform concepts. The only active provider is Docker: ADR-024 requires its pending grant, peppered token
+  verifier, existing deployment-trust handoff and receipt, server-authenticated bootstrap and exact CSR/certificate
+  binding before activation. `credential-vault` is the provider-neutral PKI issuer only; it neither delivers Docker
+  secrets nor owns Runtime Target membership. No independent automation PKI, unsupported provider implementation,
+  menu, API or placeholder is authorized. Operator and Agent operations remain unpublished until the end-to-end
+  conformance gate passes.
 
 ## Historical Implementation Evidence
 
@@ -89,9 +97,10 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Settle authority/bootstrap design, roadmap and topic recovery materials.
 - [x] Authority RFC: credential execution, capability matching, reservation, telemetry, placement, evidence, event and
   failure authorities are defined; the roadmap and recovery entry align to four release phases.
-- [x] Runtime Target Agent Trust Model ADR and protocol RFC: Vault-backed issuance, exact URI SAN identity,
-  vault-managed enrollment/private-key delivery, mTLS snapshot acknowledgement, OCI packaging and fail-closed
-  revocation propagation are accepted before PR1 contracts.
+- [x] Runtime Target Agent Trust Model and Delivery Grant Binding ADRs plus protocol RFC: Vault-backed issuance,
+  exact URI SAN identity, provider-neutral Agent enrollment and lifecycle, Docker-only automation delivery receipt,
+  peppered one-time bootstrap, mTLS snapshot acknowledgement, OCI packaging and fail-closed revocation propagation are
+  accepted before any published contract.
 - [x] Provider SDK/SPI RFC: compile-time lifecycle, capability, telemetry, credential, workspace, execution and evidence
   adapter seams plus MUST/SHOULD/MAY conformance and compatibility rules are defined; concrete bindings remain future.
 - [x] Phase 1: Runtime build capability, Application Snapshot adapter, single Builder and OCI Registry publication.

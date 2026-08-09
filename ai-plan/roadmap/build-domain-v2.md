@@ -89,9 +89,14 @@ host value, Task JSON or unproven provider observation changes selection.
   dimensions. Running, queued and slots must come from the Agent's controlled execution ledger or Driver controller,
   never Docker Engine metrics, host metrics, Task JSON, UI data or whole-cluster capacity.
 - The Docker provider's real CLI build boundary updates the durable Driver-controller ledger before and after execution;
-  the current target-only Placement contract permits one enabled Agent scope per target. The out-of-process Agent
-  transport, vault-managed enrollment/private-key delivery and operator lifecycle are now governed by ADR-023 and the
-  Credential Vault And Runtime Target Agent Protocol RFC; PR1 contracts precede runtime activation.
+  the current target-only Placement contract permits one enabled Agent scope per target. ADR-023 and ADR-024 govern
+  the out-of-process Agent protocol: Runtime Target creates a provider-neutral pending Agent enrollment and peppered
+  token verifier, and the active Docker deployment automation creates the bound Docker secret and returns a verified
+  delivery receipt. The Agent presents the token plus CSR to Graft's bootstrap listener, and Vault PKI issues only
+  after Graft authorizes the exact target/Agent Identity/generation binding. The receipt is delivery evidence only and
+  cannot bind or activate the Agent. Docker is the only MVP provider; no unsupported-provider implementation, menu,
+  API or placeholder is in scope. Operator and Agent APIs remain unpublished until verified delivery, bootstrap,
+  issuance, durable activation, mTLS reconnect, revocation and ledger conformance pass together.
 - Require `CapabilityMatcher` before every manual, static, dynamic and distributed-leg Placement. Freeze requirement,
   candidate, profile/version, complete negotiation, policy/version, telemetry observation and Reservation-fence evidence.
 - Make Reservation slot-aware: each Build leg claims one explicit capacity unit; atomically compare live reservations
@@ -106,13 +111,14 @@ host value, Task JSON or unproven provider observation changes selection.
   until recovery proves a terminal result. Cleanup is `Internal`, never auto-retried, and its reservation/credential
   session cannot be reused.
 
-**Release gate:** Docker Agent conformance proves telemetry is sourced from its controlled execution ledger or Driver
-controller; stale, duplicate, signature-invalid, scope-invalid, version-mismatched or unsupported reports fail closed.
-Dynamic decisions replay from frozen capability/profile, telemetry observation, policy/version inputs, negotiation
-result and Reservation fence; fresh telemetry is only an input to a new decision. Provider conformance and recovery
-cover cancellation, timeout, restart and cleanup; and distributed execution does not create a second Build queue, Task
-state machine or event store. BuildKit, Kaniko and Kubernetes remain future extensions until each passes equivalent
-conformance.
+**Release gate:** Docker Agent conformance proves that a verified automation delivery receipt, one-time bootstrap,
+Vault-issued exact SPIFFE identity, durable active generation, mTLS reconnect, revocation and its controlled execution
+ledger all fail closed on mismatch or replay. Stale, duplicate, scope-invalid, version-mismatched or unsupported reports
+fail closed. Dynamic decisions replay from frozen capability/profile, telemetry observation, policy/version inputs,
+negotiation result and Reservation fence; fresh telemetry is only an input to a new decision. Provider conformance and
+recovery cover cancellation, timeout, restart and cleanup; and distributed execution does not create a second Build
+queue, Task state machine or event store. BuildKit, Kaniko and Kubernetes remain future extensions until each passes
+equivalent conformance.
 
 ## Cross-Phase Constraints
 

@@ -492,7 +492,7 @@ func (r *SQLRepository) UpsertBuilderTelemetryAgent(ctx context.Context, agent B
 	return nil
 }
 
-// ReadLegacyBuilderTelemetryAgent 读取历史 Ed25519 遥测绑定，供审计和迁移诊断使用。
+// ReadLegacyBuilderTelemetryAgent 只读返回已退役的 Ed25519 遥测绑定，供审计诊断使用。
 // 返回值永远不得用于 Agent 信任、遥测准入或动态放置。
 func (r *SQLRepository) ReadLegacyBuilderTelemetryAgent(ctx context.Context, targetID int64, agentID string) (BuilderTelemetryAgent, error) {
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {

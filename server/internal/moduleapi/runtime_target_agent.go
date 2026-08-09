@@ -5,22 +5,21 @@ import (
 	"time"
 )
 
-// MachineIdentityAuthority 负责 Agent 信任的签发与生命周期；秘密材料留在外部 Vault。
-type MachineIdentityAuthority interface {
+// AgentEnrollmentAuthority 由 Runtime Target 实现，负责 Agent 与目标的业务绑定及世代生命周期。
+// 该接口不签发证书，也不接触私钥、投递令牌或其他秘密材料；这些职责分别属于 Credential Vault 和部署交付边界。
+type AgentEnrollmentAuthority interface {
 	// CreateEnrollment 创建待激活的身份世代；返回结果不得包含任何秘密材料。
-	CreateEnrollment(ctx context.Context, request MachineEnrollmentRequest) (MachineEnrollment, error)
+	CreateEnrollment(ctx context.Context, request AgentEnrollmentRequest) (AgentEnrollment, error)
 	// ActivateGeneration 激活已完成外部材料投递且与证书绑定的身份世代。
-	ActivateGeneration(ctx context.Context, activation MachineIdentityActivation) error
+	ActivateGeneration(ctx context.Context, activation AgentEnrollmentActivation) error
 	// RotateGeneration 在旧世代停用后创建新世代，并返回新的待激活登记结果。
-	RotateGeneration(ctx context.Context, request MachineIdentityRotationRequest) (MachineEnrollment, error)
+	RotateGeneration(ctx context.Context, request AgentEnrollmentRotationRequest) (AgentEnrollment, error)
 	// RevokeGeneration 撤销指定身份世代；重复调用必须保持幂等。
-	RevokeGeneration(ctx context.Context, revocation MachineIdentityRevocation) error
-	// ReadTrustBundle 返回不透明信任束引用，不得将 PEM 或密钥材料带入模块 API。
-	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
+	RevokeGeneration(ctx context.Context, revocation AgentEnrollmentRevocation) error
 }
 
-// MachineEnrollmentRequest 描述不携带秘密的 Agent 绑定请求。
-type MachineEnrollmentRequest struct {
+// AgentEnrollmentRequest 描述不携带秘密的 Agent 绑定请求。
+type AgentEnrollmentRequest struct {
 	TargetID          int64
 	AgentID           string
 	ProviderID        string
@@ -29,10 +28,13 @@ type MachineEnrollmentRequest struct {
 	CapabilityVersion string
 	ImageDigest       string
 	AgentVersion      string
+	EnrollmentRef     string
+	TrustBundle       TrustBundleReference
+	ExpiresAt         time.Time
 }
 
-// MachineEnrollment 仅包含已签发身份世代的非秘密信息。
-type MachineEnrollment struct {
+// AgentEnrollment 仅包含已登记身份世代的非秘密信息。
+type AgentEnrollment struct {
 	IdentityID           string
 	TargetID             int64
 	AgentID              string
@@ -63,18 +65,19 @@ const (
 	RuntimeTargetAgentStatusRetired RuntimeTargetAgentStatus = "retired"
 )
 
-// MachineIdentityActivation 确认外部投递材料后的指定身份世代激活。
-type MachineIdentityActivation struct {
+// AgentEnrollmentActivation 确认外部投递材料与证书绑定后的指定身份世代激活。
+type AgentEnrollmentActivation struct {
 	IdentityID           string
 	TargetID             int64
 	AgentID              string
 	Generation           int64
+	CertificateIssuer    string
 	CertificateSerial    string
 	PublicKeyFingerprint string
 }
 
-// MachineIdentityRotationRequest 请求在旧世代停用后创建新世代。
-type MachineIdentityRotationRequest struct {
+// AgentEnrollmentRotationRequest 请求在旧世代停用后创建新世代。
+type AgentEnrollmentRotationRequest struct {
 	IdentityID        string
 	TargetID          int64
 	AgentID           string
@@ -82,16 +85,64 @@ type MachineIdentityRotationRequest struct {
 	BuilderScope      string
 	CapabilityProfile string
 	CapabilityVersion string
+	EnrollmentRef     string
+	TrustBundle       TrustBundleReference
+	ExpiresAt         time.Time
 	Reason            string
 }
 
-// MachineIdentityRevocation 撤销一个身份世代；重复撤销必须幂等。
-type MachineIdentityRevocation struct {
+// AgentEnrollmentRevocation 撤销一个身份世代；重复撤销必须幂等。
+type AgentEnrollmentRevocation struct {
 	IdentityID string
 	TargetID   int64
 	AgentID    string
 	Generation int64
 	Reason     string
+}
+
+// AgentCertificateIssuer 由 Credential Vault 实现，只负责经 Runtime Target 授权后的 PKI 操作。
+// 调用方必须先完成登记、投递与 CSR 绑定校验；Vault 不得借由证书签发建立或激活业务归属。
+type AgentCertificateIssuer interface {
+	// IssueCSR 为已验证的 CSR 签发证书；相同 IssuanceKey 必须支持外部副作用的查询或幂等协调。
+	IssueCSR(ctx context.Context, request AgentCertificateIssuanceRequest) (IssuedAgentCertificate, error)
+	// ReadTrustBundle 返回不透明信任束引用，不得将 PEM 或私钥材料带入模块 API。
+	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
+	// RevokeCertificate 撤销已签发证书；重复调用必须保持幂等。
+	RevokeCertificate(ctx context.Context, revocation AgentCertificateRevocation) error
+}
+
+// AgentCertificateIssuanceRequest 描述已获授权的 CSR 签发请求。
+// CSRDER 是公开密钥证明而非私钥；IssuanceKey 用于协调 Vault 外部副作用的重试与恢复。
+type AgentCertificateIssuanceRequest struct {
+	IdentityID   string
+	TargetID     int64
+	AgentID      string
+	Generation   int64
+	IssuanceKey  string
+	SPIFFEURI    string
+	CSRDER       []byte
+}
+
+// IssuedAgentCertificate 是 Vault 返回的非私钥签发结果。
+// CertificateChainDER 只能通过受控 bootstrap TLS 返回给对应 Agent，不得持久化为模块业务状态。
+type IssuedAgentCertificate struct {
+	IssuanceKey          string
+	CertificateSerial    string
+	CertificateChainDER  [][]byte
+	PublicKeyFingerprint string
+	ExpiresAt            time.Time
+	TrustBundle          TrustBundleReference
+}
+
+// AgentCertificateRevocation 描述一个已签发 Agent 证书的幂等撤销请求。
+type AgentCertificateRevocation struct {
+	IdentityID        string
+	TargetID          int64
+	AgentID           string
+	Generation        int64
+	CertificateSerial string
+	Reason            string
+	IdempotencyKey    string
 }
 
 // TrustBundleRequest 选择 Agent 作用域对应的信任束。

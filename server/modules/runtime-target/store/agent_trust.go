@@ -47,7 +47,9 @@ type AgentTrustGeneration struct {
 	RevokedReason        string
 }
 
-// CreatePendingAgentTrustGeneration 持久化由外部身份 authority 创建的非秘密待激活世代。
+const agentTrustGenerationSelectColumns = `i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason`
+
+// CreatePendingAgentTrustGeneration 持久化由 Runtime Target 登记 authority 创建的非秘密待激活世代。
 // 它不签发证书、不保存引导材料，也不会把待激活世代暴露为可信身份。
 //
 //nolint:cyclop // 世代创建在同一事务边界验证并分配连续编号。
@@ -85,7 +87,7 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 	return result, err
 }
 
-// ActivateAgentTrustGeneration 原子停用先前活动世代并激活已被外部 authority 绑定证书元数据的新世代。
+// ActivateAgentTrustGeneration 原子停用先前活动世代并激活已由 Runtime Target 核验过证书元数据的新世代。
 //
 //nolint:cyclop,gocyclo,revive // 激活必须在同一事务内处理 retire 与 pending-to-active 转换。
 func (r *SQLRepository) ActivateAgentTrustGeneration(ctx context.Context, targetID int64, agentID string, generation int64, certificateIssuer, certificateSerial, fingerprint string, actorID int64, now time.Time) error {
@@ -176,7 +178,7 @@ func (r *SQLRepository) ReadActiveAgentTrustGeneration(ctx context.Context, targ
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || generation < 1 || now.IsZero() {
 		return AgentTrustGeneration{}, ErrAgentTrustNotActive
 	}
-	row := r.executor(ctx).QueryRowContext(ctx, `SELECT i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND g.generation = $3 AND i.deleted_at = 0 AND g.deleted_at = 0 AND g.status = 'active' AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.expires_at > $4`, targetID, agentID, generation, now.UTC())
+	row := r.executor(ctx).QueryRowContext(ctx, `SELECT `+agentTrustGenerationSelectColumns+` FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND g.generation = $3 AND i.deleted_at = 0 AND g.deleted_at = 0 AND g.status = 'active' AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.expires_at > $4`, targetID, agentID, generation, now.UTC())
 	return scanAgentTrustGeneration(row)
 }
 
@@ -185,7 +187,7 @@ func (r *SQLRepository) ReadCurrentAgentTrustGeneration(ctx context.Context, tar
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
 		return AgentTrustGeneration{}, ErrAgentTrustNotFound
 	}
-	row := r.executor(ctx).QueryRowContext(ctx, `SELECT i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND i.deleted_at = 0 AND g.deleted_at = 0 ORDER BY g.generation DESC LIMIT 1`, targetID, agentID)
+	row := r.executor(ctx).QueryRowContext(ctx, `SELECT `+agentTrustGenerationSelectColumns+` FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND i.deleted_at = 0 AND g.deleted_at = 0 ORDER BY g.generation DESC LIMIT 1`, targetID, agentID)
 	return scanAgentTrustGeneration(row)
 }
 
