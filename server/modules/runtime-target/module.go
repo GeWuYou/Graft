@@ -51,7 +51,7 @@ type Module struct {
 	users           moduleapi.UserIdentityProvider
 }
 
-// NewModule 构造 runtime-target 模块实例。
+// NewModule 构造 runtime-target 模块实例。省略 pepper 时，Agent Bootstrap authority 保持未配置并拒绝引导请求。
 func NewModule(repository *store.SQLRepository, pepper ...*config.EnrollmentPepperProvider) *Module {
 	var enrollmentPepper *config.EnrollmentPepperProvider
 	if len(pepper) > 0 {
