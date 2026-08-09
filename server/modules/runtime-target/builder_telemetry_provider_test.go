@@ -13,13 +13,11 @@ import (
 )
 
 func TestLegacyBuilderTelemetryIngressIsDisabled(t *testing.T) {
-	db := openBuilderTelemetryTestDB(t)
-	repository := store.NewSQLRepository(db)
 	publicKey, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("generate legacy key: %v", err)
 	}
-	ingress := controlPlaneBuilderTelemetryIngress{repository: repository}
+	ingress := controlPlaneBuilderTelemetryIngress{}
 	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}
 	if err := ingress.ProvisionBuilderTelemetryAgent(context.Background(), registration); !errors.Is(err, store.ErrLegacyAgentTrustDisabled) {
 		t.Fatalf("legacy registration error = %v, want %v", err, store.ErrLegacyAgentTrustDisabled)

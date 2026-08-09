@@ -120,6 +120,10 @@ func TestValidateAgentTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
 	if err := validateAgentTLSConfig(&cfg.HTTPX.AgentTLS); err != nil {
 		t.Fatalf("validate complete Agent TLS config: %v", err)
 	}
+	cfg.HTTPX.AgentTLS.CertificateFile = "relative-agent.crt"
+	if err := validateAgentTLSConfig(&cfg.HTTPX.AgentTLS); err == nil {
+		t.Fatal("enabled Agent TLS must reject relative certificate paths")
+	}
 }
 
 func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *testing.T) {

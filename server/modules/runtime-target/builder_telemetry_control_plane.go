@@ -13,16 +13,13 @@ import (
 
 // controlPlaneBuilderTelemetryIngress 是 Runtime Target 对已绑定 Builder Agent 的签名报告入口。
 // 它在写入账本前校验目标绑定、公钥签名和遥测窗口，不从 Docker、主机或 Task 投影补齐事实。
-type controlPlaneBuilderTelemetryIngress struct {
-	repository *store.SQLRepository
-}
+type controlPlaneBuilderTelemetryIngress struct{}
 
-func (p controlPlaneBuilderTelemetryIngress) ProvisionBuilderTelemetryAgent(_ context.Context, _ moduleapi.BuilderTelemetryAgentRegistration) error {
+func (controlPlaneBuilderTelemetryIngress) ProvisionBuilderTelemetryAgent(_ context.Context, _ moduleapi.BuilderTelemetryAgentRegistration) error {
 	return store.ErrLegacyAgentTrustDisabled
 }
 
-//nolint:cyclop // 报告准入必须在签名、身份、窗口和序列 fence 的同一边界内完成。
-func (p controlPlaneBuilderTelemetryIngress) SubmitBuilderTelemetry(_ context.Context, _ moduleapi.BuilderTelemetryReport) error {
+func (controlPlaneBuilderTelemetryIngress) SubmitBuilderTelemetry(_ context.Context, _ moduleapi.BuilderTelemetryReport) error {
 	return store.ErrLegacyAgentTrustDisabled
 }
 

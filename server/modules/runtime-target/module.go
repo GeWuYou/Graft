@@ -138,7 +138,7 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetBuilderTelemetryControlPlane)(nil), func(_ containerdi.Resolver) (any, error) {
-		return controlPlaneBuilderTelemetryIngress{repository: m.repository}, nil
+		return controlPlaneBuilderTelemetryIngress{}, nil
 	}); err != nil {
 		return err
 	}

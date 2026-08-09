@@ -99,14 +99,11 @@ func (r *SQLRepository) ActivateAgentTrustGeneration(ctx context.Context, target
 		if err != nil {
 			return err
 		}
-		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'retired', retired_at = $1, updated_at = $1, updated_by = $2 WHERE identity_id = $3 AND status = 'active' AND deleted_at = 0`, now.UTC(), actorID, identity.ID)
+		_, err = r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'retired', retired_at = $1, updated_at = $1, updated_by = $2 WHERE identity_id = $3 AND status = 'active' AND deleted_at = 0`, now.UTC(), actorID, identity.ID)
 		if err != nil {
 			return fmt.Errorf("retire active runtime target agent trust generation: %w", err)
 		}
-		if _, err := result.RowsAffected(); err != nil {
-			return fmt.Errorf("read retired runtime target agent trust generations: %w", err)
-		}
-		result, err = r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'active', certificate_issuer = $1, certificate_serial = $2, public_key_fingerprint = $3, activated_at = $4, updated_at = $4, updated_by = $5 WHERE identity_id = $6 AND generation = $7 AND status = 'pending' AND deleted_at = 0 AND expires_at > $4`, strings.TrimSpace(certificateIssuer), strings.TrimSpace(certificateSerial), strings.TrimSpace(fingerprint), now.UTC(), actorID, identity.ID, generation)
+		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'active', certificate_issuer = $1, certificate_serial = $2, public_key_fingerprint = $3, activated_at = $4, updated_at = $4, updated_by = $5 WHERE identity_id = $6 AND generation = $7 AND status = 'pending' AND deleted_at = 0 AND expires_at > $4`, strings.TrimSpace(certificateIssuer), strings.TrimSpace(certificateSerial), strings.TrimSpace(fingerprint), now.UTC(), actorID, identity.ID, generation)
 		if err != nil {
 			return fmt.Errorf("activate runtime target agent trust generation: %w", err)
 		}
@@ -142,8 +139,8 @@ func (r *SQLRepository) RevokeAgentTrustGeneration(ctx context.Context, targetID
 			return fmt.Errorf("read revoked runtime target agent trust generation: %w", err)
 		}
 		if affected == 0 {
-			var status string
-			err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT status FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&status)
+			var exists int
+			err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT 1 FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&exists)
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrAgentTrustNotFound
 			}

@@ -68,15 +68,13 @@ func TestDockerBuilderAgentTelemetryReflectsControlledLedgerState(t *testing.T) 
 }
 
 func TestDockerBuilderAgentCannotPublishThroughLegacyRuntimeTargetIngress(t *testing.T) {
-	db := openBuilderTelemetryTestDB(t)
-	repository := store.NewSQLRepository(db)
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("generate agent key: %v", err)
 	}
 	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
 	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}
-	ingress := controlPlaneBuilderTelemetryIngress{repository: repository}
+	ingress := controlPlaneBuilderTelemetryIngress{}
 	agent, err := NewDockerBuilderAgent(registration, privateKey, 2)
 	if err != nil {
 		t.Fatalf("new Docker builder agent: %v", err)

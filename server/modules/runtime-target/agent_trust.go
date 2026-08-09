@@ -252,7 +252,7 @@ func (r runtimeTargetAgentBindingReader) ReadAgentBinding(ctx context.Context, t
 	}
 	generation, err := r.repository.ReadCurrentAgentTrustGeneration(ctx, targetID, agentID)
 	if err != nil {
-		return moduleapi.RuntimeTargetAgentBinding{}, err
+		return moduleapi.RuntimeTargetAgentBinding{}, fmt.Errorf("read runtime target agent binding for target %d agent %q: %w", targetID, agentID, err)
 	}
 	return moduleapi.RuntimeTargetAgentBinding{
 		IdentityID:           generation.Identity.IdentityID,
