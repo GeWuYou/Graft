@@ -32,9 +32,15 @@ func (m *Module) Register(ctx *module.Context) error {
 		return nil
 	}
 	issuer := m.issuer()
-	return ctx.Services.RegisterSingleton((*moduleapi.AgentCertificateIssuer)(nil), func(containerdi.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentCertificateIssuer)(nil), func(containerdi.Resolver) (any, error) {
 		return issuer, nil
-	})
+	}); err != nil {
+		return err
+	}
+	if ctx.EventRegistry != nil {
+		return ctx.EventRegistry.Register(agentCertificateRevocationHandler{issuer: issuer})
+	}
+	return nil
 }
 
 // Boot 不启动 Vault client，因为当前 foundation 不包含生产 Vault 集成。

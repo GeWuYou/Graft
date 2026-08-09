@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -67,6 +68,59 @@ type IssuanceState struct {
 type IssuanceStateStore interface {
 	Load(ctx context.Context, issuanceKey string) (IssuanceState, error)
 	Save(ctx context.Context, state IssuanceState) error
+}
+
+// SQLIssuanceStateStore 将 Vault 签发恢复所需的非秘密序列号保存到 Credential Vault 自有表。
+type SQLIssuanceStateStore struct {
+	db *sql.DB
+}
+
+// NewSQLIssuanceStateStore 创建使用运行时共享连接池的签发状态仓储。
+func NewSQLIssuanceStateStore(db *sql.DB) (*SQLIssuanceStateStore, error) {
+	if db == nil {
+		return nil, errors.New("credential vault issuance state database is required")
+	}
+	return &SQLIssuanceStateStore{db: db}, nil
+}
+
+// Load 读取稳定签发键对应的序列号；不存在时返回统一的恢复哨兵错误。
+func (s *SQLIssuanceStateStore) Load(ctx context.Context, issuanceKey string) (IssuanceState, error) {
+	if s == nil || s.db == nil || strings.TrimSpace(issuanceKey) == "" {
+		return IssuanceState{}, moduleapi.ErrAgentCertificateIssuanceNotFound
+	}
+	var state IssuanceState
+	err := s.db.QueryRowContext(ctx, `SELECT issuance_key, certificate_serial
+FROM credential_vault_issuance_states
+WHERE issuance_key = $1 AND deleted_at = 0`, strings.TrimSpace(issuanceKey)).Scan(&state.IssuanceKey, &state.Serial)
+	if errors.Is(err, sql.ErrNoRows) {
+		return IssuanceState{}, moduleapi.ErrAgentCertificateIssuanceNotFound
+	}
+	if err != nil {
+		return IssuanceState{}, fmt.Errorf("load credential vault issuance state: %w", err)
+	}
+	return state, nil
+}
+
+// Save 持久化签发序列号，并拒绝同一签发键绑定到不同序列号。
+func (s *SQLIssuanceStateStore) Save(ctx context.Context, state IssuanceState) error {
+	if s == nil || s.db == nil || strings.TrimSpace(state.IssuanceKey) == "" || strings.TrimSpace(state.Serial) == "" {
+		return errors.New("credential vault issuance state is invalid")
+	}
+	key, serial := strings.TrimSpace(state.IssuanceKey), strings.TrimSpace(state.Serial)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO credential_vault_issuance_states (issuance_key, certificate_serial)
+VALUES ($1, $2) ON CONFLICT (issuance_key) DO NOTHING`, key, serial)
+	if err != nil {
+		return fmt.Errorf("save credential vault issuance state: %w", err)
+	}
+	var recorded string
+	if err := s.db.QueryRowContext(ctx, `SELECT certificate_serial FROM credential_vault_issuance_states
+WHERE issuance_key = $1 AND deleted_at = 0`, key).Scan(&recorded); err != nil {
+		return fmt.Errorf("verify credential vault issuance state: %w", err)
+	}
+	if recorded != serial {
+		return errors.New("credential vault issuance key is already bound to another serial")
+	}
+	return nil
 }
 
 // VaultPKIClient 使用 Vault AppRole 与 PKI HTTP API；秘密仅在请求生命周期内驻留内存。
