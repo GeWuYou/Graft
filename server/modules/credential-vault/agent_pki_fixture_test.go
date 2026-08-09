@@ -69,19 +69,19 @@ func (f *ephemeralAgentPKIFixture) IssueCSR(_ context.Context, request moduleapi
 		}
 		return cloneFixtureIssuedCertificate(existing.result), nil
 	}
-	csr, uri, fingerprint, err := validateFixtureCSRRequest(request)
+	validated, err := validateFixtureCSRRequest(request)
 	if err != nil {
 		return moduleapi.IssuedAgentCertificate{}, errAgentPKIFixtureRejected
 	}
 	f.serialID++
 	now := f.now().UTC()
 	expiresAt := now.Add(time.Hour)
-	template := &x509.Certificate{SerialNumber: big.NewInt(f.serialID), Subject: pkix.Name{CommonName: "graft-agent"}, NotBefore: now.Add(-time.Minute), NotAfter: expiresAt, URIs: []*url.URL{uri}, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
-	der, err := x509.CreateCertificate(rand.Reader, template, f.ca, csr.PublicKey, f.caKey)
+	template := &x509.Certificate{SerialNumber: big.NewInt(f.serialID), Subject: pkix.Name{CommonName: "graft-agent"}, NotBefore: now.Add(-time.Minute), NotAfter: expiresAt, URIs: []*url.URL{validated.uri}, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
+	der, err := x509.CreateCertificate(rand.Reader, template, f.ca, validated.csr.PublicKey, f.caKey)
 	if err != nil {
 		return moduleapi.IssuedAgentCertificate{}, errAgentPKIFixtureRejected
 	}
-	result := moduleapi.IssuedAgentCertificate{IssuanceKey: request.IssuanceKey, CertificateSerial: template.SerialNumber.String(), CertificateChainDER: [][]byte{der, append([]byte(nil), f.caDER...)}, PublicKeyFingerprint: "sha256:" + fingerprint, ExpiresAt: expiresAt, TrustBundle: moduleapi.TrustBundleReference{Reference: "fixture://graft-agent-ca", Version: "fixture-v1", ExpiresAt: f.ca.NotAfter}}
+	result := moduleapi.IssuedAgentCertificate{IssuanceKey: request.IssuanceKey, CertificateSerial: template.SerialNumber.String(), CertificateChainDER: [][]byte{der, append([]byte(nil), f.caDER...)}, PublicKeyFingerprint: "sha256:" + validated.fingerprint, ExpiresAt: expiresAt, TrustBundle: moduleapi.TrustBundleReference{Reference: "fixture://graft-agent-ca", Version: "fixture-v1", ExpiresAt: f.ca.NotAfter}}
 	f.issued[request.IssuanceKey] = fixtureIssuedCertificate{request: cloneFixtureIssuanceRequest(request), result: cloneFixtureIssuedCertificate(result)}
 	return result, nil
 }
@@ -106,20 +106,26 @@ func (f *ephemeralAgentPKIFixture) RevokeCertificate(_ context.Context, revocati
 	return nil
 }
 
-func validateFixtureCSRRequest(request moduleapi.AgentCertificateIssuanceRequest) (*x509.CertificateRequest, *url.URL, string, error) {
+type validatedFixtureCSRRequest struct {
+	csr         *x509.CertificateRequest
+	uri         *url.URL
+	fingerprint string
+}
+
+func validateFixtureCSRRequest(request moduleapi.AgentCertificateIssuanceRequest) (validatedFixtureCSRRequest, error) {
 	if request.IssuanceKey == "" || request.TargetID < 1 || request.AgentID == "" || request.Generation < 1 || len(request.CSRDER) == 0 {
-		return nil, nil, "", errAgentPKIFixtureRejected
+		return validatedFixtureCSRRequest{}, errAgentPKIFixtureRejected
 	}
 	csr, err := x509.ParseCertificateRequest(request.CSRDER)
 	if err != nil || csr.CheckSignature() != nil {
-		return nil, nil, "", errAgentPKIFixtureRejected
+		return validatedFixtureCSRRequest{}, errAgentPKIFixtureRejected
 	}
 	uri, err := url.Parse(request.SPIFFEURI)
 	if err != nil || uri.Scheme != "spiffe" || uri.Host != "graft" {
-		return nil, nil, "", errAgentPKIFixtureRejected
+		return validatedFixtureCSRRequest{}, errAgentPKIFixtureRejected
 	}
 	fingerprint := sha256.Sum256(csr.RawSubjectPublicKeyInfo)
-	return csr, uri, hex.EncodeToString(fingerprint[:]), nil
+	return validatedFixtureCSRRequest{csr: csr, uri: uri, fingerprint: hex.EncodeToString(fingerprint[:])}, nil
 }
 
 func sameFixtureIssuanceRequest(left, right moduleapi.AgentCertificateIssuanceRequest) bool {
