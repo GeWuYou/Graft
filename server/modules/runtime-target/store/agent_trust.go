@@ -31,6 +31,7 @@ type AgentTrustIdentity struct {
 
 // AgentTrustGeneration 是与稳定 Agent 绑定关联的一次不可复用信任世代。
 type AgentTrustGeneration struct {
+	ID                   int64
 	Identity             AgentTrustIdentity
 	Generation           int64
 	EnrollmentRef        string
@@ -47,7 +48,7 @@ type AgentTrustGeneration struct {
 	RevokedReason        string
 }
 
-const agentTrustGenerationSelectColumns = `i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason`
+const agentTrustGenerationSelectColumns = `i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.id, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason`
 
 // CreatePendingAgentTrustGeneration 持久化由 Runtime Target 登记 authority 创建的非秘密待激活世代。
 // 它不签发证书、不保存引导材料，也不会把待激活世代暴露为可信身份。
@@ -194,7 +195,7 @@ type agentTrustGenerationScanner interface {
 
 func scanAgentTrustGeneration(row agentTrustGenerationScanner) (AgentTrustGeneration, error) {
 	var generation AgentTrustGeneration
-	err := row.Scan(&generation.Identity.ID, &generation.Identity.IdentityID, &generation.Identity.TargetID, &generation.Identity.AgentID, &generation.Identity.ProviderID, &generation.Identity.BuilderScope, &generation.Identity.CapabilityProfile, &generation.Identity.CapabilityVersion, &generation.Identity.ImageDigest, &generation.Identity.AgentVersion, &generation.Generation, &generation.EnrollmentRef, &generation.TrustBundleRef, &generation.TrustBundleVersion, &generation.CertificateIssuer, &generation.CertificateSerial, &generation.PublicKeyFingerprint, &generation.ExpiresAt, &generation.Status, &generation.ActivatedAt, &generation.RetiredAt, &generation.RevokedAt, &generation.RevokedReason)
+	err := row.Scan(&generation.Identity.ID, &generation.Identity.IdentityID, &generation.Identity.TargetID, &generation.Identity.AgentID, &generation.Identity.ProviderID, &generation.Identity.BuilderScope, &generation.Identity.CapabilityProfile, &generation.Identity.CapabilityVersion, &generation.Identity.ImageDigest, &generation.Identity.AgentVersion, &generation.ID, &generation.Generation, &generation.EnrollmentRef, &generation.TrustBundleRef, &generation.TrustBundleVersion, &generation.CertificateIssuer, &generation.CertificateSerial, &generation.PublicKeyFingerprint, &generation.ExpiresAt, &generation.Status, &generation.ActivatedAt, &generation.RetiredAt, &generation.RevokedAt, &generation.RevokedReason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AgentTrustGeneration{}, ErrAgentTrustNotFound
 	}

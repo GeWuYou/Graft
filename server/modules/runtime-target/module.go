@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"graft/server/internal/config"
 	containerdi "graft/server/internal/container"
 
 	messagecontract "graft/server/internal/contract/message"
@@ -149,6 +150,19 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentEnrollmentAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
 		return newRuntimeTargetAgentEnrollmentAuthority(m.repository), nil
+	}); err != nil {
+		return err
+	}
+	enrollmentSecurity := config.EnrollmentSecurityConfig{}
+	if ctx.Config != nil {
+		enrollmentSecurity = ctx.Config.EnrollmentSecurity
+	}
+	pepper, err := config.NewEnrollmentPepperProvider(enrollmentSecurity)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentDeliveryAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
+		return newRuntimeTargetAgentDeliveryAuthority(m.repository, pepper), nil
 	}); err != nil {
 		return err
 	}
