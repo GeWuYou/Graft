@@ -243,7 +243,7 @@ func agentEnrollmentFromGeneration(generation store.AgentTrustGeneration) module
 }
 
 func validAgentEnrollmentRequest(request moduleapi.AgentEnrollmentRequest, now time.Time) bool {
-	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now)
+	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && validAgentPackageAttestation(request.ImageDigest, request.AgentVersion)
 }
 
 func validAgentEnrollmentActivation(activation moduleapi.AgentEnrollmentActivation) bool {
@@ -260,6 +260,20 @@ func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope
 
 func validAgentEnrollmentAttestation(enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt, now time.Time) bool {
 	return strings.TrimSpace(enrollmentRef) != "" && strings.TrimSpace(trustBundle.Reference) != "" && strings.TrimSpace(trustBundle.Version) != "" && trustBundle.ExpiresAt.After(now) && expiresAt.After(now)
+}
+
+// validAgentPackageAttestation 将 Docker Agent 绑定到可审计的不可变 OCI image，而不是可变标签或空版本。
+func validAgentPackageAttestation(imageDigest, agentVersion string) bool {
+	digest := strings.TrimSpace(imageDigest)
+	if !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+64 || strings.TrimSpace(agentVersion) == "" {
+		return false
+	}
+	for _, value := range digest[len("sha256:"):] {
+		if (value < '0' || value > '9') && (value < 'a' || value > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func validAgentEnrollmentRevocation(revocation moduleapi.AgentEnrollmentRevocation) bool {

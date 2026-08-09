@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,6 +178,16 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 	if _, err := authority.CreateEnrollment(context.Background(), unsupportedProvider); err == nil {
 		t.Fatal("create enrollment for unsupported provider succeeded")
 	}
+	invalidDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	invalidDigest.ImageDigest = "graft-builder-agent:latest"
+	if _, err := authority.CreateEnrollment(context.Background(), invalidDigest); err == nil {
+		t.Fatal("create enrollment with mutable image reference succeeded")
+	}
+	missingVersion := testAgentEnrollmentRequest(now.Add(time.Hour))
+	missingVersion.AgentVersion = ""
+	if _, err := authority.CreateEnrollment(context.Background(), missingVersion); err == nil {
+		t.Fatal("create enrollment without agent version succeeded")
+	}
 	if err := authority.RevokeGeneration(context.Background(), moduleapi.AgentEnrollmentRevocation{IdentityID: "runtime-target:7:agent:agent-7", TargetID: 7, AgentID: "agent-7", Generation: 1}); err == nil {
 		t.Fatal("revoke enrollment without reason succeeded")
 	} else if errors.Is(err, store.ErrAgentTrustNotFound) {
@@ -185,7 +196,7 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 }
 
 func testAgentEnrollmentRequest(expiresAt time.Time) moduleapi.AgentEnrollmentRequest {
-	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "builder-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", ImageDigest: "sha256:image", AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
+	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "builder-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", ImageDigest: "sha256:" + strings.Repeat("a", 64), AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
 }
 
 func openAgentEnrollmentAuthorityTestDB(t *testing.T) *sql.DB {
