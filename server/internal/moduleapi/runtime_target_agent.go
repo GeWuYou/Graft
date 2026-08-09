@@ -12,7 +12,7 @@ type AgentEnrollmentAuthority interface {
 	CreateEnrollment(ctx context.Context, request AgentEnrollmentRequest) (AgentEnrollment, error)
 	// ActivateGeneration 激活已完成外部材料投递且与证书绑定的身份世代。
 	ActivateGeneration(ctx context.Context, activation AgentEnrollmentActivation) error
-	// RotateGeneration 在旧世代停用后创建新世代，并返回新的待激活登记结果。
+	// RotateGeneration 原子停用当前活动旧世代并创建新待激活世代；无需等待旧证书到期。
 	RotateGeneration(ctx context.Context, request AgentEnrollmentRotationRequest) (AgentEnrollment, error)
 	// RevokeGeneration 撤销指定身份世代；重复调用必须保持幂等。
 	RevokeGeneration(ctx context.Context, revocation AgentEnrollmentRevocation) error
@@ -76,7 +76,7 @@ type AgentEnrollmentActivation struct {
 	PublicKeyFingerprint string
 }
 
-// AgentEnrollmentRotationRequest 请求在旧世代停用后创建新世代。
+// AgentEnrollmentRotationRequest 请求原子停用当前活动旧世代并创建新待激活世代。
 type AgentEnrollmentRotationRequest struct {
 	IdentityID        string
 	TargetID          int64

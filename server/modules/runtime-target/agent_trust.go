@@ -106,6 +106,7 @@ func (a runtimeTargetAgentEnrollmentAuthority) CreateEnrollment(ctx context.Cont
 		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment request is invalid")
 	}
 	identity := agentTrustIdentityFromEnrollmentRequest(request)
+	// 此预检只提供稳定的重复登记反馈；持久化事务仍是并发创建时身份与世代的最终约束。
 	if _, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, identity.TargetID, identity.AgentID); err == nil {
 		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment already exists")
 	} else if !errors.Is(err, store.ErrAgentTrustNotFound) {
@@ -235,7 +236,7 @@ func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope
 }
 
 func validAgentEnrollmentAttestation(enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt, now time.Time) bool {
-	return strings.TrimSpace(enrollmentRef) != "" && strings.TrimSpace(trustBundle.Reference) != "" && strings.TrimSpace(trustBundle.Version) != "" && expiresAt.After(now)
+	return strings.TrimSpace(enrollmentRef) != "" && strings.TrimSpace(trustBundle.Reference) != "" && strings.TrimSpace(trustBundle.Version) != "" && trustBundle.ExpiresAt.After(now) && expiresAt.After(now)
 }
 
 func validAgentEnrollmentRevocation(revocation moduleapi.AgentEnrollmentRevocation) bool {

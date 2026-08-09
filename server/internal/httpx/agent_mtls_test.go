@@ -112,15 +112,16 @@ func assertAgentMTLSRejectionResponse(t *testing.T, response *httptest.ResponseR
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("expected rejected request, got %d", response.Code)
 	}
+	body := response.Body.String()
 	var payload ErrorResponse
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		t.Fatalf("decode rejection envelope: %v", err)
 	}
 	if payload.Code != errorcode.AuthTokenInvalid.String() || payload.MessageKey != messagecontract.AuthTokenInvalid.String() {
 		t.Fatalf("expected uniform unauthenticated envelope, got %#v", payload)
 	}
-	if strings.Contains(response.Body.String(), "spiffe://") || strings.Contains(response.Body.String(), "test-public-key") {
-		t.Fatalf("certificate identity leaked in response: %s", response.Body.String())
+	if strings.Contains(body, "spiffe://") || strings.Contains(body, "test-public-key") {
+		t.Fatalf("certificate identity leaked in response: %s", body)
 	}
 }
 

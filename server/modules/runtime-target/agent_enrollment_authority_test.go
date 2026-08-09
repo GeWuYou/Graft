@@ -93,7 +93,7 @@ func activateAgentEnrollment(t *testing.T, authority moduleapi.AgentEnrollmentAu
 
 func assertUnsupportedAgentEnrollmentRotation(t *testing.T, authority moduleapi.AgentEnrollmentAuthority, enrollment moduleapi.AgentEnrollment, now time.Time) {
 	t.Helper()
-	_, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: "podman", BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, EnrollmentRef: "unsupported-enrollment", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:unsupported", Version: "bundle-unsupported"}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
+	_, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: "podman", BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, EnrollmentRef: "unsupported-enrollment", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:unsupported", Version: "bundle-unsupported", ExpiresAt: now.Add(2 * time.Hour)}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
 	if err == nil {
 		t.Fatal("rotate enrollment for unsupported provider succeeded")
 	}
@@ -137,6 +137,11 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 	}
 	if _, err := authority.CreateEnrollment(context.Background(), testAgentEnrollmentRequest(now)); err == nil {
 		t.Fatal("create enrollment with expired metadata succeeded")
+	}
+	expiredTrustBundle := testAgentEnrollmentRequest(now.Add(time.Hour))
+	expiredTrustBundle.TrustBundle.ExpiresAt = now
+	if _, err := authority.CreateEnrollment(context.Background(), expiredTrustBundle); err == nil {
+		t.Fatal("create enrollment with expired trust bundle succeeded")
 	}
 	unsupportedProvider := testAgentEnrollmentRequest(now.Add(time.Hour))
 	unsupportedProvider.ProviderID = "podman"

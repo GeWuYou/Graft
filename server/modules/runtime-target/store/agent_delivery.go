@@ -17,20 +17,20 @@ const sha256HexLength = 64
 
 // AgentDeliveryGrant 是 Runtime Target 保存的非秘密引导材料投递授权事实。
 type AgentDeliveryGrant struct {
-	ID                   int64
-	GenerationID         int64
-	GrantID              string
-	TokenVerifier        string
-	ExpectedAutomationID string
+	ID                    int64
+	GenerationID          int64
+	GrantID               string
+	TokenVerifier         string
+	ExpectedAutomationID  string
 	DockerInstallationRef string
-	ExpiresAt            time.Time
-	Status               string
-	HandoffID            string
-	HandedOffAt          *time.Time
-	DeliveredAt          *time.Time
-	ConsumedAt           *time.Time
-	RevokedAt            *time.Time
-	RevokedReason        string
+	ExpiresAt             time.Time
+	Status                string
+	HandoffID             string
+	HandedOffAt           *time.Time
+	DeliveredAt           *time.Time
+	ConsumedAt            *time.Time
+	RevokedAt             *time.Time
+	RevokedReason         string
 }
 
 // AgentDeliveryReceipt 是既有部署信任边界验证后的 Docker 投递证据。
@@ -51,8 +51,8 @@ type AgentDeliveryReceipt struct {
 }
 
 // CreatePendingAgentDeliveryGrant 创建一个与单一待激活世代绑定的投递授权。
-func (r *SQLRepository) CreatePendingAgentDeliveryGrant(ctx context.Context, grant AgentDeliveryGrant) (AgentDeliveryGrant, error) {
-	if r == nil || r.db == nil || !validPendingAgentDeliveryGrant(grant) {
+func (r *SQLRepository) CreatePendingAgentDeliveryGrant(ctx context.Context, grant AgentDeliveryGrant, now time.Time) (AgentDeliveryGrant, error) {
+	if r == nil || r.db == nil || now.IsZero() || !validPendingAgentDeliveryGrant(grant, now) {
 		return AgentDeliveryGrant{}, ErrAgentDeliveryRejected
 	}
 	var created AgentDeliveryGrant
@@ -163,8 +163,8 @@ func scanAgentDeliveryReceipt(row agentDeliveryScanner, receipt *AgentDeliveryRe
 	return err
 }
 
-func validPendingAgentDeliveryGrant(grant AgentDeliveryGrant) bool {
-	return grant.GenerationID > 0 && strings.TrimSpace(grant.GrantID) != "" && validSHA256Hex(grant.TokenVerifier) && strings.TrimSpace(grant.ExpectedAutomationID) != "" && strings.TrimSpace(grant.DockerInstallationRef) != "" && grant.ExpiresAt.After(time.Now().UTC())
+func validPendingAgentDeliveryGrant(grant AgentDeliveryGrant, now time.Time) bool {
+	return grant.GenerationID > 0 && strings.TrimSpace(grant.GrantID) != "" && validSHA256Hex(grant.TokenVerifier) && strings.TrimSpace(grant.ExpectedAutomationID) != "" && strings.TrimSpace(grant.DockerInstallationRef) != "" && grant.ExpiresAt.After(now.UTC())
 }
 
 func validAgentDeliveryReceipt(receipt AgentDeliveryReceipt, now time.Time) bool {
