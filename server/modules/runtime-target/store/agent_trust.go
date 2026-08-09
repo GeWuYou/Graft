@@ -31,6 +31,7 @@ type AgentTrustIdentity struct {
 
 // AgentTrustGeneration 是与稳定 Agent 绑定关联的一次不可复用信任世代。
 type AgentTrustGeneration struct {
+	ID                   int64
 	Identity             AgentTrustIdentity
 	Generation           int64
 	EnrollmentRef        string
@@ -47,7 +48,7 @@ type AgentTrustGeneration struct {
 	RevokedReason        string
 }
 
-const agentTrustGenerationSelectColumns = `i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason`
+const agentTrustGenerationSelectColumns = `i.id, i.identity_id, i.runtime_target_id, i.agent_id, i.provider_id, i.builder_scope, i.capability_profile, i.capability_version, i.image_digest, i.agent_version, g.id, g.generation, g.enrollment_ref, g.trust_bundle_ref, g.trust_bundle_version, g.certificate_issuer, g.certificate_serial, g.public_key_fingerprint, g.expires_at, g.status, g.activated_at, g.retired_at, g.revoked_at, g.revoked_reason`
 
 // CreatePendingAgentTrustGeneration 持久化由 Runtime Target 登记 authority 创建的非秘密待激活世代。
 // 它不签发证书、不保存引导材料，也不会把待激活世代暴露为可信身份。
@@ -126,30 +127,46 @@ func (r *SQLRepository) RevokeAgentTrustGeneration(ctx context.Context, targetID
 		return ErrAgentTrustNotActive
 	}
 	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
-		identity, err := r.findAgentTrustIdentity(txCtx, targetID, agentID)
-		if err != nil {
-			return err
-		}
-		result, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation)
-		if err != nil {
-			return fmt.Errorf("revoke runtime target agent trust generation: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("read revoked runtime target agent trust generation: %w", err)
-		}
-		if affected == 0 {
-			var exists int
-			err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT 1 FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&exists)
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrAgentTrustNotFound
-			}
-			if err != nil {
-				return fmt.Errorf("read runtime target agent trust generation: %w", err)
-			}
-		}
-		return nil
+		_, _, err := r.RevokeAgentTrustGenerationTx(txCtx, nil, targetID, agentID, generation, reason, actorID, now)
+		return err
 	})
+}
+
+// RevokeAgentTrustGenerationTx 在调用方事务中撤销世代，并返回证书序列号与是否发生状态变化。
+// 调用方可据此把撤销事实与本地状态放入同一 durable event 事务。
+//
+//nolint:revive,cyclop // 事务 helper 需要显式携带完整审计与世代边界，避免引入宽泛请求对象。
+func (r *SQLRepository) RevokeAgentTrustGenerationTx(ctx context.Context, tx *sql.Tx, targetID int64, agentID string, generation int64, reason string, actorID int64, now time.Time) (string, bool, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || generation < 1 || now.IsZero() {
+		return "", false, ErrAgentTrustNotActive
+	}
+	if tx != nil {
+		ctx = context.WithValue(ctx, transactionContextKey{}, tx)
+	}
+	identity, err := r.findAgentTrustIdentity(ctx, targetID, agentID)
+	if err != nil {
+		return "", false, err
+	}
+	var serial, status string
+	err = r.executor(ctx).QueryRowContext(ctx, `SELECT certificate_serial, status FROM runtime_target_agent_generations WHERE identity_id = $1 AND generation = $2 AND deleted_at = 0`, identity.ID, generation).Scan(&serial, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, ErrAgentTrustNotFound
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read runtime target agent trust generation: %w", err)
+	}
+	if status == "revoked" {
+		return serial, false, nil
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation)
+	if err != nil {
+		return "", false, fmt.Errorf("revoke runtime target agent trust generation: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return "", false, fmt.Errorf("read runtime target agent trust revocation result: %w", err)
+	}
+	return serial, affected == 1, nil
 }
 
 // RevokeAllAgentTrustGenerations 用于目标重置或重新绑定，确保任何旧世代不能恢复活动状态。
@@ -179,6 +196,26 @@ func (r *SQLRepository) ReadActiveAgentTrustGeneration(ctx context.Context, targ
 	return scanAgentTrustGeneration(row)
 }
 
+// ReadActiveAgentTrustGenerationForLedgerMutation 在同一事务中固定活动世代，避免撤销与账本写入交错。
+func (r *SQLRepository) ReadActiveAgentTrustGenerationForLedgerMutation(ctx context.Context, targetID int64, agentID string, generation int64, now time.Time) (AgentTrustGeneration, error) {
+	active, err := r.ReadActiveAgentTrustGeneration(ctx, targetID, agentID, generation, now)
+	if err != nil {
+		return AgentTrustGeneration{}, err
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = status WHERE id = $1 AND status = 'active' AND revoked_at IS NULL AND retired_at IS NULL AND expires_at > $2 AND deleted_at = 0`, active.ID, now.UTC())
+	if err != nil {
+		return AgentTrustGeneration{}, fmt.Errorf("lock active runtime target agent trust generation: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return AgentTrustGeneration{}, fmt.Errorf("read active runtime target agent trust lock result: %w", err)
+	}
+	if affected != 1 {
+		return AgentTrustGeneration{}, ErrAgentTrustNotActive
+	}
+	return active, nil
+}
+
 // ReadCurrentAgentTrustGeneration 返回最新世代的可读状态投影，不把它视为活动信任判断。
 func (r *SQLRepository) ReadCurrentAgentTrustGeneration(ctx context.Context, targetID int64, agentID string) (AgentTrustGeneration, error) {
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" {
@@ -194,7 +231,7 @@ type agentTrustGenerationScanner interface {
 
 func scanAgentTrustGeneration(row agentTrustGenerationScanner) (AgentTrustGeneration, error) {
 	var generation AgentTrustGeneration
-	err := row.Scan(&generation.Identity.ID, &generation.Identity.IdentityID, &generation.Identity.TargetID, &generation.Identity.AgentID, &generation.Identity.ProviderID, &generation.Identity.BuilderScope, &generation.Identity.CapabilityProfile, &generation.Identity.CapabilityVersion, &generation.Identity.ImageDigest, &generation.Identity.AgentVersion, &generation.Generation, &generation.EnrollmentRef, &generation.TrustBundleRef, &generation.TrustBundleVersion, &generation.CertificateIssuer, &generation.CertificateSerial, &generation.PublicKeyFingerprint, &generation.ExpiresAt, &generation.Status, &generation.ActivatedAt, &generation.RetiredAt, &generation.RevokedAt, &generation.RevokedReason)
+	err := row.Scan(&generation.Identity.ID, &generation.Identity.IdentityID, &generation.Identity.TargetID, &generation.Identity.AgentID, &generation.Identity.ProviderID, &generation.Identity.BuilderScope, &generation.Identity.CapabilityProfile, &generation.Identity.CapabilityVersion, &generation.Identity.ImageDigest, &generation.Identity.AgentVersion, &generation.ID, &generation.Generation, &generation.EnrollmentRef, &generation.TrustBundleRef, &generation.TrustBundleVersion, &generation.CertificateIssuer, &generation.CertificateSerial, &generation.PublicKeyFingerprint, &generation.ExpiresAt, &generation.Status, &generation.ActivatedAt, &generation.RetiredAt, &generation.RevokedAt, &generation.RevokedReason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AgentTrustGeneration{}, ErrAgentTrustNotFound
 	}

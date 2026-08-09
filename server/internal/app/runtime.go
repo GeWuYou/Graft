@@ -30,6 +30,7 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleregistry"
 	moduleruntimelocales "graft/server/internal/moduleruntime/locales"
 	"graft/server/internal/permission"
@@ -88,6 +89,7 @@ type Runtime struct {
 	cacheManager              *cachex.Manager
 	server                    *httpx.Server
 	agentServer               *httpx.AgentServer
+	agentBootstrapServer      *httpx.AgentBootstrapServer
 	openapiDocs               *openAPIDocsAssets
 	mcpDocs                   []byte
 	eventBus                  eventbus.Bus
@@ -271,6 +273,13 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		_ = logger.Close(runtimeLogger)
 		return nil, fmt.Errorf("create agent mTLS server: %w", err)
 	}
+	agentBootstrapServer, err := httpx.NewAgentBootstrapServer(cfg.HTTPX.AgentBootstrapTLS, runtimeLogger)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create agent bootstrap TLS server: %w", err)
+	}
 
 	cacheManager, err := newRuntimeCacheManager(cfg, redisClient)
 	if err != nil {
@@ -305,6 +314,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 			I18n:          localizer,
 		}, accessLogRepo),
 		agentServer:          agentServer,
+		agentBootstrapServer: agentBootstrapServer,
 		eventBus:             eventbus.New(runtimeLogger),
 		eventDispatcher:      eventDispatcher,
 		realtimeHub:          realtime.NewHub(),
@@ -554,6 +564,7 @@ func (r *Runtime) assertOwnerLocaleResourcesRegistered(
 	return nil
 }
 
+//nolint:cyclop // 主 HTTP、bootstrap TLS 与 mTLS listener 必须在同一关闭边界内编排。
 func (r *Runtime) runServerAndShutdown(
 	runCtx context.Context,
 	moduleCtx *module.Context,
@@ -561,6 +572,10 @@ func (r *Runtime) runServerAndShutdown(
 ) error {
 	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
 		return err
+	}
+	bootstrapErrCh, agentErrCh, err := r.startAgentListeners()
+	if err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 	errCh, err := r.server.Start(r.config.HTTP.Addr)
 	if err != nil {
@@ -573,9 +588,51 @@ func (r *Runtime) runServerAndShutdown(
 			return r.shutdownRuntime(moduleCtx, booted)
 		}
 		return r.cleanupAfterFailure(moduleCtx, booted, serveErr)
+	case serveErr, ok := <-bootstrapErrCh:
+		if !ok {
+			return r.shutdownRuntime(moduleCtx, booted)
+		}
+		return r.cleanupAfterFailure(moduleCtx, booted, serveErr)
+	case serveErr, ok := <-agentErrCh:
+		if !ok {
+			return r.shutdownRuntime(moduleCtx, booted)
+		}
+		return r.cleanupAfterFailure(moduleCtx, booted, serveErr)
 	case <-runCtx.Done():
 		return joinShutdownServeError(r.shutdownRuntime(moduleCtx, booted), errCh)
 	}
+}
+
+func (r *Runtime) startAgentListeners() (<-chan error, <-chan error, error) {
+	var bootstrapErrCh <-chan error
+	var agentErrCh <-chan error
+	if r.agentBootstrapServer != nil {
+		authority, err := module.ResolveService[moduleapi.AgentBootstrapAuthority](r.services, (*moduleapi.AgentBootstrapAuthority)(nil))
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve agent bootstrap authority: %w", err)
+		}
+		if err := r.agentBootstrapServer.Configure(authority); err != nil {
+			return nil, nil, fmt.Errorf("configure agent bootstrap listener: %w", err)
+		}
+		bootstrapErrCh, err = r.agentBootstrapServer.Start(r.config.HTTPX.AgentBootstrapTLS.Addr)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	if r.agentServer != nil {
+		reader, err := module.ResolveService[moduleapi.RuntimeTargetAgentLedgerReader](r.services, (*moduleapi.RuntimeTargetAgentLedgerReader)(nil))
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve agent ledger reader: %w", err)
+		}
+		if err := r.agentServer.ConfigureLedgerRoutes(reader); err != nil {
+			return nil, nil, fmt.Errorf("configure agent ledger listener: %w", err)
+		}
+		agentErrCh, err = r.agentServer.Start(r.config.HTTPX.AgentTLS.Addr)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return bootstrapErrCh, agentErrCh, nil
 }
 
 func joinShutdownServeError(shutdownErr error, errCh <-chan error) error {

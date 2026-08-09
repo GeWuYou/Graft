@@ -3,8 +3,10 @@ package runtimetarget
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	containerdi "graft/server/internal/container"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	contract "graft/server/modules/runtime-target/contract"
 	store "graft/server/modules/runtime-target/store"
 )
 
@@ -41,7 +44,7 @@ func TestAgentEnrollmentAuthorityRegistersAndPersistsLifecycle(t *testing.T) {
 	assertAgentEnrollmentAuthorityRegistered(t, repository)
 
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
-	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, now: func() time.Time { return now }}
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, events: &runtimeTargetRecordingPublisher{}, now: func() time.Time { return now }}
 	first := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
 	assertPendingAgentEnrollment(t, first, 1, "enrollment-1", "bundle-1")
 	activateAgentEnrollment(t, authority, first, "serial-1", "sha256:first")
@@ -50,6 +53,50 @@ func TestAgentEnrollmentAuthorityRegistersAndPersistsLifecycle(t *testing.T) {
 	assertPendingAgentEnrollment(t, second, 2, "enrollment-2", "bundle-2")
 	activateAgentEnrollment(t, authority, second, "serial-2", "sha256:second")
 	assertAgentEnrollmentRevocationIsIdempotent(t, authority, repository, second)
+}
+
+func TestAgentEnrollmentRevocationPublishesDurableCertificateFactOnce(t *testing.T) {
+	db := openAgentEnrollmentAuthorityTestDB(t)
+	repository := store.NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	publisher := &runtimeTargetRecordingPublisher{}
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, events: publisher, now: func() time.Time { return now }}
+	enrollment := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
+	activateAgentEnrollment(t, authority, enrollment, "serial-1", "sha256:first")
+	revocation := moduleapi.AgentEnrollmentRevocation{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, Generation: enrollment.Generation, Reason: "operator_revoke"}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err != nil {
+		t.Fatalf("revoke generation: %v", err)
+	}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err != nil {
+		t.Fatalf("repeat revoke generation: %v", err)
+	}
+	if len(publisher.published) != 1 {
+		t.Fatalf("published events = %d, want 1", len(publisher.published))
+	}
+	var payload contract.AgentCertificateRevocationEvent
+	if err := json.Unmarshal(publisher.published[0].Payload, &payload); err != nil {
+		t.Fatalf("decode revocation event: %v", err)
+	}
+	if publisher.published[0].Type != contract.AgentCertificateRevocationEventType || payload.CertificateSerial != "serial-1" || payload.IdentityID != enrollment.IdentityID {
+		t.Fatalf("revocation event = %#v, payload = %#v", publisher.published[0], payload)
+	}
+}
+
+func TestAgentEnrollmentRevocationRejectsUnavailablePublisherWithoutChangingTrust(t *testing.T) {
+	db := openAgentEnrollmentAuthorityTestDB(t)
+	repository := store.NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, now: func() time.Time { return now }}
+	enrollment := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
+	activateAgentEnrollment(t, authority, enrollment, "serial-1", "sha256:first")
+	revocation := moduleapi.AgentEnrollmentRevocation{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, Generation: enrollment.Generation, Reason: "operator_revoke"}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err == nil {
+		t.Fatal("revocation without a publisher unexpectedly succeeded")
+	}
+	current, err := repository.ReadCurrentAgentTrustGeneration(context.Background(), enrollment.TargetID, enrollment.AgentID)
+	if err != nil || current.Status != "active" {
+		t.Fatalf("trust state after rejected revocation = %#v, err=%v", current, err)
+	}
 }
 
 func assertAgentEnrollmentAuthorityRegistered(t *testing.T, repository *store.SQLRepository) {
@@ -148,6 +195,26 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 	if _, err := authority.CreateEnrollment(context.Background(), unsupportedProvider); err == nil {
 		t.Fatal("create enrollment for unsupported provider succeeded")
 	}
+	invalidDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	invalidDigest.ImageDigest = "graft-builder-agent:latest"
+	if _, err := authority.CreateEnrollment(context.Background(), invalidDigest); err == nil {
+		t.Fatal("create enrollment with mutable image reference succeeded")
+	}
+	missingVersion := testAgentEnrollmentRequest(now.Add(time.Hour))
+	missingVersion.AgentVersion = ""
+	if _, err := authority.CreateEnrollment(context.Background(), missingVersion); err == nil {
+		t.Fatal("create enrollment without agent version succeeded")
+	}
+	nonHexDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	nonHexDigest.ImageDigest = "sha256:" + strings.Repeat("g", 64)
+	if _, err := authority.CreateEnrollment(context.Background(), nonHexDigest); err == nil {
+		t.Fatal("create enrollment with non-hex digest succeeded")
+	}
+	uppercaseDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	uppercaseDigest.ImageDigest = "sha256:" + strings.Repeat("A", 64)
+	if _, err := authority.CreateEnrollment(context.Background(), uppercaseDigest); err == nil {
+		t.Fatal("create enrollment with uppercase digest succeeded")
+	}
 	if err := authority.RevokeGeneration(context.Background(), moduleapi.AgentEnrollmentRevocation{IdentityID: "runtime-target:7:agent:agent-7", TargetID: 7, AgentID: "agent-7", Generation: 1}); err == nil {
 		t.Fatal("revoke enrollment without reason succeeded")
 	} else if errors.Is(err, store.ErrAgentTrustNotFound) {
@@ -156,7 +223,7 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 }
 
 func testAgentEnrollmentRequest(expiresAt time.Time) moduleapi.AgentEnrollmentRequest {
-	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "builder-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", ImageDigest: "sha256:image", AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
+	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "builder-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", ImageDigest: "sha256:" + strings.Repeat("a", 64), AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
 }
 
 func openAgentEnrollmentAuthorityTestDB(t *testing.T) *sql.DB {

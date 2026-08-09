@@ -2,8 +2,17 @@ package moduleapi
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrAgentCertificateIssuanceNotFound 表示 Vault 中尚不存在指定稳定签发键的结果。
+// 调用方仅可在已经持久化的同一授权上下文中据此发起首次签发。
+var ErrAgentCertificateIssuanceNotFound = errors.New("agent certificate issuance not found")
+
+// ErrAgentBootstrapRejected 表示 bootstrap 授权材料未通过校验。
+// 它不包含 token、CSR、投递或 Vault 状态，HTTP 边界可将其安全映射为统一的未认证响应。
+var ErrAgentBootstrapRejected = errors.New("agent bootstrap rejected")
 
 // AgentEnrollmentAuthority 由 Runtime Target 实现，负责 Agent 与目标的业务绑定及世代生命周期。
 // 该接口不签发证书，也不接触私钥、投递令牌或其他秘密材料；这些职责分别属于 Credential Vault 和部署交付边界。
@@ -105,22 +114,45 @@ type AgentEnrollmentRevocation struct {
 type AgentCertificateIssuer interface {
 	// IssueCSR 为已验证的 CSR 签发证书；相同 IssuanceKey 必须支持外部副作用的查询或幂等协调。
 	IssueCSR(ctx context.Context, request AgentCertificateIssuanceRequest) (IssuedAgentCertificate, error)
+	// ReconcileCSR 按稳定的签发键读取先前签发结果，供重启或超时后的同一授权恢复使用。
+	// 它不得把不存在的记录解释为允许创建新证书，调用方必须显式回到 IssueCSR。
+	ReconcileCSR(ctx context.Context, issuanceKey string) (IssuedAgentCertificate, error)
 	// ReadTrustBundle 返回不透明信任束引用，不得将 PEM 或私钥材料带入模块 API。
 	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
 	// RevokeCertificate 撤销已签发证书；重复调用必须保持幂等。
 	RevokeCertificate(ctx context.Context, revocation AgentCertificateRevocation) error
 }
 
+// AgentBootstrapAuthority 由 Runtime Target 实现，协调 token、CSR 和 Vault 签发。
+// 它只供 server-authenticated bootstrap TLS listener 使用，不能作为 Operator HTTP 服务注册。
+type AgentBootstrapAuthority interface {
+	BootstrapAgent(context.Context, AgentBootstrapRequest) (AgentBootstrapResult, error)
+}
+
+// AgentBootstrapRequest 是专用 TLS listener 已接收的一次性 token 与 CSR。
+// BootstrapToken 绝不允许写入日志、持久化或 Operator HTTP 请求/响应。
+type AgentBootstrapRequest struct {
+	BootstrapToken string
+	CSRDER         []byte
+}
+
+// AgentBootstrapResult 是专用 TLS listener 可返回的非私钥签发材料。
+type AgentBootstrapResult struct {
+	CertificateChainDER [][]byte
+	TrustBundle         TrustBundleReference
+	ExpiresAt           time.Time
+}
+
 // AgentCertificateIssuanceRequest 描述已获授权的 CSR 签发请求。
 // CSRDER 是公开密钥证明而非私钥；IssuanceKey 用于协调 Vault 外部副作用的重试与恢复。
 type AgentCertificateIssuanceRequest struct {
-	IdentityID   string
-	TargetID     int64
-	AgentID      string
-	Generation   int64
-	IssuanceKey  string
-	SPIFFEURI    string
-	CSRDER       []byte
+	IdentityID  string
+	TargetID    int64
+	AgentID     string
+	Generation  int64
+	IssuanceKey string
+	SPIFFEURI   string
+	CSRDER      []byte
 }
 
 // IssuedAgentCertificate 是 Vault 返回的非私钥签发结果。
@@ -191,12 +223,15 @@ type RuntimeTargetAgentLedgerReader interface {
 	SubmitTelemetryReport(ctx context.Context, report RuntimeTargetTelemetryReport) error
 }
 
-// AgentIdentity 表示从已验证 mTLS URI SAN 提取的身份。
+// AgentIdentity 表示从已验证 mTLS URI SAN 及客户端证书提取的身份。
+// CertificateSerial 与 PublicKeyFingerprint 只能由 TLS listener 填入，业务服务不得信任请求体中的同名字段。
 type AgentIdentity struct {
-	IdentityID string
-	TargetID   int64
-	AgentID    string
-	Generation int64
+	IdentityID           string
+	TargetID             int64
+	AgentID              string
+	Generation           int64
+	CertificateSerial    string
+	PublicKeyFingerprint string
 }
 
 // RuntimeTargetLedgerSnapshot 是仅供内部 ledger 与 agent-ledger-snapshot 映射使用的 canonical DTO。
@@ -231,6 +266,8 @@ type RuntimeTargetTelemetryReport struct {
 	TargetID              int64
 	AgentID               string
 	Generation            int64
+	CertificateSerial     string
+	PublicKeyFingerprint  string
 	SnapshotID            string
 	SnapshotDigest        string
 	ObservedAt            time.Time

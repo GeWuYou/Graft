@@ -1,4 +1,5 @@
 (^|.*/)server/modules/update/rollout_diagnostics_test\.go$
 (^|.*/)server/modules/update/testdata/rollout-diagnostics/sensitive-inputs\.txt$
 (^|.*/)server/modules/network/policy_test\.go$
+(^|.*/)server/internal/config/config_test\.go$
 (^|.*/)?\.agents/skills/graft-web-browser-agent/scripts/test_browser_agent\.py$

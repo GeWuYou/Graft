@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,8 +35,6 @@ type agentIdentityContextValue struct{}
 // 证书内容不会进入请求上下文，后续存储只可使用序列号和公钥指纹。
 type AgentMTLSIdentity struct {
 	moduleapi.AgentIdentity
-	CertificateSerial    string
-	PublicKeyFingerprint string
 }
 
 // AgentMTLSIdentityFromContext 返回 mTLS 中间件写入的可信 Agent 身份。
@@ -170,10 +169,12 @@ func isCanonicalAgentID(value string) bool {
 
 // AgentServer 是专用于 Agent mTLS 路由的独立监听器，不复用用户 HTTP listener。
 type AgentServer struct {
-	engine    *gin.Engine
-	tlsConfig *tls.Config
-	mu        sync.Mutex
-	server    *http.Server
+	engine                 *gin.Engine
+	tlsConfig              *tls.Config
+	logger                 *zap.Logger
+	mu                     sync.Mutex
+	server                 *http.Server
+	ledgerRoutesConfigured bool
 }
 
 // NewAgentServer 从部署挂载的证书文件构造 Agent 专用 TLS 监听器。
@@ -187,7 +188,7 @@ func NewAgentServer(cfg config.AgentTLSConfig, logger *zap.Logger) (*AgentServer
 	}
 	engine := gin.New()
 	engine.Use(RequestIDMiddleware(), newRecoveryMiddleware(logger, nil), RequireAgentMTLSIdentity(logger))
-	return &AgentServer{engine: engine, tlsConfig: tlsConfig}, nil
+	return &AgentServer{engine: engine, tlsConfig: tlsConfig, logger: logger}, nil
 }
 
 // Engine 返回 Agent 专用路由树；只有 Vault-backed handler 可在此注册路由。
@@ -203,19 +204,29 @@ func (s *AgentServer) Start(addr string) (<-chan error, error) {
 	if s == nil || s.engine == nil || s.tlsConfig == nil {
 		return nil, errors.New("agent mTLS server is unavailable")
 	}
-	listener, err := tls.Listen("tcp", addr, s.tlsConfig)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen agent mTLS: %w", err)
 	}
+	return s.StartListener(listener)
+}
+
+// StartListener 在已绑定的原始 listener 上启动 Agent 专用 mTLS 服务。
+// 调用方不能自行绕过 TLS；该方法始终使用 AgentServer 创建时固定的 TLS 配置。
+func (s *AgentServer) StartListener(listener net.Listener) (<-chan error, error) {
+	if s == nil || s.engine == nil || s.tlsConfig == nil || listener == nil {
+		return nil, errors.New("agent mTLS server is unavailable")
+	}
+	tlsListener := tls.NewListener(listener, s.tlsConfig)
 	server := &http.Server{Handler: s.engine, ReadHeaderTimeout: defaultServerReadHeaderTimeout, ReadTimeout: defaultServerReadTimeout, WriteTimeout: defaultServerWriteTimeout, IdleTimeout: defaultServerIdleTimeout}
 	if err := s.bindRunningServer(server); err != nil {
-		_ = listener.Close()
+		_ = tlsListener.Close()
 		return nil, err
 	}
 	errCh := make(chan error, 1)
 	go func() {
 		defer s.clearRunningServer(server)
-		err := server.Serve(listener)
+		err := server.Serve(tlsListener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("serve agent mTLS: %w", err)
 		}

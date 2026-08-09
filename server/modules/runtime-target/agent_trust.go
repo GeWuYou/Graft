@@ -2,6 +2,10 @@ package runtimetarget
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
 	contract "graft/server/modules/runtime-target/contract"
 	store "graft/server/modules/runtime-target/store"
@@ -94,11 +99,12 @@ type runtimeTargetAgentBindingReader struct {
 // Vault 和交付边界只能提供非秘密证据，不能藉由这些证据建立或激活 Runtime Target 绑定。
 type runtimeTargetAgentEnrollmentAuthority struct {
 	repository *store.SQLRepository
+	events     event.TransactionalPublisher
 	now        func() time.Time
 }
 
-func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository) moduleapi.AgentEnrollmentAuthority {
-	return runtimeTargetAgentEnrollmentAuthority{repository: repository, now: time.Now}
+func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository, publisher event.TransactionalPublisher) moduleapi.AgentEnrollmentAuthority {
+	return runtimeTargetAgentEnrollmentAuthority{repository: repository, events: publisher, now: time.Now}
 }
 
 func (a runtimeTargetAgentEnrollmentAuthority) CreateEnrollment(ctx context.Context, request moduleapi.AgentEnrollmentRequest) (moduleapi.AgentEnrollment, error) {
@@ -155,6 +161,9 @@ func (a runtimeTargetAgentEnrollmentAuthority) RevokeGeneration(ctx context.Cont
 	if a.repository == nil || !validAgentEnrollmentRevocation(revocation) {
 		return errors.New("runtime target agent enrollment revocation is invalid")
 	}
+	if a.events == nil {
+		return errors.New("runtime target agent certificate revocation publisher is unavailable")
+	}
 	current, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID)
 	if err != nil {
 		return err
@@ -162,7 +171,20 @@ func (a runtimeTargetAgentEnrollmentAuthority) RevokeGeneration(ctx context.Cont
 	if current.Identity.IdentityID != strings.TrimSpace(revocation.IdentityID) {
 		return errors.New("runtime target agent enrollment revocation does not match the identity")
 	}
-	return a.repository.RevokeAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID, revocation.Generation, strings.TrimSpace(revocation.Reason), 0, a.currentTime())
+	now := a.currentTime()
+	return a.repository.RunInTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		serial, changed, err := a.repository.RevokeAgentTrustGenerationTx(txCtx, tx, revocation.TargetID, revocation.AgentID, revocation.Generation, strings.TrimSpace(revocation.Reason), 0, now)
+		if err != nil || !changed || a.events == nil {
+			return err
+		}
+		payload, err := json.Marshal(contract.AgentCertificateRevocationEvent{IdentityID: strings.TrimSpace(revocation.IdentityID), TargetID: revocation.TargetID, AgentID: strings.TrimSpace(revocation.AgentID), Generation: revocation.Generation, CertificateSerial: strings.TrimSpace(serial), Reason: strings.TrimSpace(revocation.Reason)})
+		if err != nil {
+			return fmt.Errorf("encode agent certificate revocation event: %w", err)
+		}
+		id := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s:%d", strings.TrimSpace(revocation.IdentityID), revocation.TargetID, strings.TrimSpace(revocation.AgentID), revocation.Generation)))
+		_, err = a.events.PublishTx(txCtx, tx, event.Event{ID: hex.EncodeToString(id[:]), Type: contract.AgentCertificateRevocationEventType, Version: 1, Source: contract.ModuleID, Payload: payload, IdempotencyKey: hex.EncodeToString(id[:])}, event.PublishOptions{Delivery: event.DeliveryDurable})
+		return err
+	})
 }
 
 func (a runtimeTargetAgentEnrollmentAuthority) createPendingGeneration(ctx context.Context, identity store.AgentTrustIdentity, generation int64, enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt time.Time) (store.AgentTrustGeneration, error) {
@@ -220,7 +242,7 @@ func agentEnrollmentFromGeneration(generation store.AgentTrustGeneration) module
 }
 
 func validAgentEnrollmentRequest(request moduleapi.AgentEnrollmentRequest, now time.Time) bool {
-	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now)
+	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && validAgentPackageAttestation(request.ImageDigest, request.AgentVersion)
 }
 
 func validAgentEnrollmentActivation(activation moduleapi.AgentEnrollmentActivation) bool {
@@ -232,11 +254,37 @@ func validAgentEnrollmentRotationRequest(request moduleapi.AgentEnrollmentRotati
 }
 
 func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope, capabilityProfile, capabilityVersion string) bool {
-	return targetID > 0 && strings.TrimSpace(agentID) != "" && strings.TrimSpace(providerID) == runtimeTargetAgentEnrollmentProviderID && strings.TrimSpace(builderScope) != "" && strings.TrimSpace(capabilityProfile) != "" && strings.TrimSpace(capabilityVersion) != ""
+	return targetID > 0 && validAgentSPIFFEPathSegment(agentID) && strings.TrimSpace(providerID) == runtimeTargetAgentEnrollmentProviderID && strings.TrimSpace(builderScope) != "" && strings.TrimSpace(capabilityProfile) != "" && strings.TrimSpace(capabilityVersion) != ""
+}
+
+func validAgentSPIFFEPathSegment(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for _, character := range value {
+		if !validAgentSPIFFEPathCharacter(character) {
+			return false
+		}
+	}
+	return true
+}
+
+func validAgentSPIFFEPathCharacter(character rune) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '.' || character == '-' || character == '_'
 }
 
 func validAgentEnrollmentAttestation(enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt, now time.Time) bool {
 	return strings.TrimSpace(enrollmentRef) != "" && strings.TrimSpace(trustBundle.Reference) != "" && strings.TrimSpace(trustBundle.Version) != "" && trustBundle.ExpiresAt.After(now) && expiresAt.After(now)
+}
+
+// validAgentPackageAttestation 将 Docker Agent 绑定到可审计的不可变 OCI image，而不是可变标签或空版本。
+func validAgentPackageAttestation(imageDigest, agentVersion string) bool {
+	digest := strings.TrimSpace(imageDigest)
+	if !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+64 || strings.TrimSpace(agentVersion) == "" {
+		return false
+	}
+	return validLowerSHA256Hex(digest[len("sha256:"):])
 }
 
 func validAgentEnrollmentRevocation(revocation moduleapi.AgentEnrollmentRevocation) bool {

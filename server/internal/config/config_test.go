@@ -126,16 +126,40 @@ func TestValidateAgentTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
 	}
 }
 
+func TestValidateAgentBootstrapTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
+	cfg := &Config{HTTPX: HTTPXConfig{AgentBootstrapTLS: AgentBootstrapTLSConfig{Enabled: true, Addr: ":9444"}}}
+	if err := validateHTTPXConfig(cfg); err == nil {
+		t.Fatal("enabled Agent bootstrap TLS must require certificate paths")
+	}
+	cfg.HTTPX.AgentBootstrapTLS = AgentBootstrapTLSConfig{Enabled: true, Addr: ":9444", CertificateFile: "/run/graft/bootstrap.crt", KeyFile: "/run/graft/bootstrap.key"}
+	if err := validateAgentBootstrapTLSConfig(&cfg.HTTPX.AgentBootstrapTLS); err != nil {
+		t.Fatalf("validate complete Agent bootstrap TLS config: %v", err)
+	}
+	cfg.HTTPX.AgentBootstrapTLS.KeyFile = "relative-bootstrap.key"
+	if err := validateAgentBootstrapTLSConfig(&cfg.HTTPX.AgentBootstrapTLS); err == nil {
+		t.Fatal("enabled Agent bootstrap TLS must reject relative key paths")
+	}
+}
+
 func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *testing.T) {
 	cfg := &Config{CredentialVault: CredentialVaultConfig{Enabled: true, Backend: "vault-pki"}}
 	if err := validateCredentialVaultConfig(cfg); err == nil {
 		t.Fatal("enabled credential vault must require its non-secret descriptor")
 	}
 	cfg.CredentialVault = CredentialVaultConfig{
-		Enabled: true, Backend: "vault-pki", Address: "https://vault.example.test", AuthMount: "kubernetes", AuthRole: "graft-control-plane", PKIMount: "pki-agent", PKIRole: "graft-agent", TrustBundleRef: "pki-agent/ca/pem",
+		Enabled: true, Backend: "vault-pki", Address: "https://vault.example.test", AuthMount: "approle", AuthRole: "graft-control-plane", AuthRoleIDFile: filepath.Join(string(filepath.Separator), "run", "secrets", "vault_role_id"), AuthSecretIDFile: filepath.Join(string(filepath.Separator), "run", "secrets", "vault_secret_id"), PKIMount: "pki-agent", PKIRole: "graft-agent", TrustBundleRef: "pki-agent/ca/pem",
 	}
 	if err := validateCredentialVaultConfig(cfg); err != nil {
 		t.Fatalf("validate credential vault descriptor: %v", err)
+	}
+	userinfoAddress := "https://operator:" + "secret@vault.example.test"
+	for _, address := range []string{"http://vault.example.test", "https://", userinfoAddress, "https://vault.example.test?token=forbidden", "https://vault.example.test#fragment"} {
+		t.Run(address, func(t *testing.T) {
+			cfg.CredentialVault.Address = address
+			if err := validateCredentialVaultConfig(cfg); err == nil {
+				t.Fatalf("credential vault address %q must be rejected", address)
+			}
+		})
 	}
 }
 
@@ -993,20 +1017,31 @@ func TestValidateBackupConfigDefaultsAndNormalizesAbsoluteRoot(t *testing.T) {
 	}
 }
 
-func TestValidateRegistryCredentialSourceConfigAllowsUnsetAndRequiresAbsolutePath(t *testing.T) {
+func TestValidateFileSecretConfigurationsRequireAbsolutePath(t *testing.T) {
 	t.Parallel()
-	if err := validateRegistryCredentialSourceConfig(&Config{}); err != nil {
-		t.Fatalf("validate unset credential source: %v", err)
-	}
-	cfg := &Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "  /run/secrets/registry.json/../registry.json  "}}
-	if err := validateRegistryCredentialSourceConfig(cfg); err != nil {
-		t.Fatalf("validate credential source: %v", err)
-	}
-	if cfg.RegistryCredentials.File != "/run/secrets/registry.json" {
-		t.Fatalf("credential source = %q", cfg.RegistryCredentials.File)
-	}
-	if err := validateRegistryCredentialSourceConfig(&Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "registry.json"}}); err == nil {
-		t.Fatal("relative credential source unexpectedly accepted")
+	for _, testCase := range []struct {
+		name      string
+		configure func(*Config, string)
+		read      func(*Config) string
+		validate  func(*Config) error
+	}{
+		{name: "registry credentials", configure: func(cfg *Config, file string) { cfg.RegistryCredentials.File = file }, read: func(cfg *Config) string { return cfg.RegistryCredentials.File }, validate: validateRegistryCredentialSourceConfig},
+		{name: "enrollment pepper", configure: func(cfg *Config, file string) { cfg.EnrollmentSecurity.PepperFile = file }, read: func(cfg *Config) string { return cfg.EnrollmentSecurity.PepperFile }, validate: validateEnrollmentSecurityConfig},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := &Config{}
+			if err := testCase.validate(cfg); err != nil {
+				t.Fatalf("validate unset file: %v", err)
+			}
+			testCase.configure(cfg, "  /run/secrets/value/../value  ")
+			if err := testCase.validate(cfg); err != nil || testCase.read(cfg) != "/run/secrets/value" {
+				t.Fatalf("normalize file = %q, err=%v", testCase.read(cfg), err)
+			}
+			testCase.configure(cfg, "relative")
+			if err := testCase.validate(cfg); err == nil {
+				t.Fatal("relative file unexpectedly accepted")
+			}
+		})
 	}
 }
 

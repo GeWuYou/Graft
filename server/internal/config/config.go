@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,7 @@ type Config struct {
 	MCP                 MCPConfig
 	Container           ContainerConfig
 	RegistryCredentials RegistryCredentialSourceConfig
+	EnrollmentSecurity  EnrollmentSecurityConfig
 	Backup              BackupConfig
 	Project             ProjectConfig
 }
@@ -172,6 +174,7 @@ type HTTPXConfig struct {
 	AccessLogPersistTimeoutMS int64
 	WebSocketAllowedOrigins   []string
 	AgentTLS                  AgentTLSConfig
+	AgentBootstrapTLS         AgentBootstrapTLSConfig
 }
 
 // AgentTLSConfig 描述专用 Agent mTLS 监听器的部署期证书材料位置。
@@ -184,18 +187,29 @@ type AgentTLSConfig struct {
 	ClientCAFile    string
 }
 
+// AgentBootstrapTLSConfig 描述首次 Agent 证书签发的专用 server-authenticated TLS listener。
+// 它不接受客户端证书，因新 Agent 尚未拥有 Vault 签发的身份材料。
+type AgentBootstrapTLSConfig struct {
+	Enabled         bool
+	Addr            string
+	CertificateFile string
+	KeyFile         string
+}
+
 // CredentialVaultConfig 描述 Credential Vault 的非秘密接入信息。
 // 认证材料必须由部署机器身份提供，禁止通过此配置传递 token、私钥或 PEM。
 type CredentialVaultConfig struct {
-	Enabled        bool
-	Backend        string
-	Address        string
-	Namespace      string
-	AuthMount      string
-	AuthRole       string
-	PKIMount       string
-	PKIRole        string
-	TrustBundleRef string
+	Enabled          bool
+	Backend          string
+	Address          string
+	Namespace        string
+	AuthMount        string
+	AuthRole         string
+	AuthRoleIDFile   string
+	AuthSecretIDFile string
+	PKIMount         string
+	PKIRole          string
+	TrustBundleRef   string
 }
 
 // AuditConfig 预留 core 提供的审计启动配置边界。
@@ -301,6 +315,12 @@ type RegistryCredentialSourceConfig struct {
 	File string
 }
 
+// EnrollmentSecurityConfig 描述安装级 Agent enrollment 秘密文件的位置。
+// Pepper 内容只能由受控的 security provider 读取，不能作为模块配置或持久化事实。
+type EnrollmentSecurityConfig struct {
+	PepperFile string
+}
+
 // BackupConfig 描述 Backup 模块可写入的受控工件根目录。
 //
 // 该目录由部署层挂载和权限控制，不能由 HTTP 请求或 System Config 覆盖。
@@ -393,6 +413,7 @@ func (c *Config) Validate() error {
 		validateMCPConfig,
 		validateContainerConfig,
 		validateRegistryCredentialSourceConfig,
+		validateEnrollmentSecurityConfig,
 		validateBackupConfig,
 	}
 	for _, validate := range validators {
@@ -412,6 +433,18 @@ func validateRegistryCredentialSourceConfig(c *Config) error {
 		return errors.New("GRAFT_REGISTRY_CREDENTIALS_FILE must be an absolute path")
 	}
 	c.RegistryCredentials.File = filepath.Clean(file)
+	return nil
+}
+
+func validateEnrollmentSecurityConfig(c *Config) error {
+	file := strings.TrimSpace(c.EnrollmentSecurity.PepperFile)
+	if file == "" {
+		return nil
+	}
+	if !filepath.IsAbs(file) {
+		return errors.New("GRAFT_ENROLLMENT_PEPPER_FILE must be an absolute path")
+	}
+	c.EnrollmentSecurity.PepperFile = filepath.Clean(file)
 	return nil
 }
 
@@ -472,6 +505,9 @@ func validateHTTPXConfig(c *Config) error {
 	if err := validateAgentTLSConfig(&c.HTTPX.AgentTLS); err != nil {
 		return err
 	}
+	if err := validateAgentBootstrapTLSConfig(&c.HTTPX.AgentBootstrapTLS); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -499,6 +535,28 @@ func validateAgentTLSConfig(agentTLS *AgentTLSConfig) error {
 	return nil
 }
 
+func validateAgentBootstrapTLSConfig(bootstrapTLS *AgentBootstrapTLSConfig) error {
+	if bootstrapTLS == nil || !bootstrapTLS.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(bootstrapTLS.Addr) == "" {
+		return errors.New("GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ADDR is required when GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED is true")
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_CERTIFICATE_FILE", value: &bootstrapTLS.CertificateFile},
+		{name: "GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_KEY_FILE", value: &bootstrapTLS.KeyFile},
+	} {
+		if strings.TrimSpace(*field.value) == "" || !filepath.IsAbs(*field.value) {
+			return fmt.Errorf("%s must be an absolute path when GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED is true", field.name)
+		}
+		*field.value = filepath.Clean(*field.value)
+	}
+	return nil
+}
+
 func validateCredentialVaultConfig(c *Config) error {
 	if c == nil || !c.CredentialVault.Enabled {
 		return nil
@@ -514,6 +572,8 @@ func validateCredentialVaultConfig(c *Config) error {
 		{name: "GRAFT_CREDENTIAL_VAULT_ADDRESS", value: &vault.Address},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT", value: &vault.AuthMount},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE", value: &vault.AuthRole},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", value: &vault.AuthSecretIDFile},
 		{name: "GRAFT_CREDENTIAL_VAULT_PKI_MOUNT", value: &vault.PKIMount},
 		{name: "GRAFT_CREDENTIAL_VAULT_PKI_ROLE", value: &vault.PKIRole},
 		{name: "GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF", value: &vault.TrustBundleRef},
@@ -523,7 +583,31 @@ func validateCredentialVaultConfig(c *Config) error {
 			return fmt.Errorf("%s is required when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
 		}
 	}
+	if err := validateCredentialVaultAddress(vault.Address); err != nil {
+		return err
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", value: &vault.AuthSecretIDFile},
+	} {
+		*field.value = strings.TrimSpace(*field.value)
+		if *field.value == "" || !filepath.IsAbs(*field.value) {
+			return fmt.Errorf("%s must be an absolute secret file path when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
+		}
+		*field.value = filepath.Clean(*field.value)
+	}
 	vault.Namespace = strings.TrimSpace(vault.Namespace)
+	return nil
+}
+
+func validateCredentialVaultAddress(value string) error {
+	address, err := url.Parse(value)
+	if err != nil || address.Scheme != "https" || address.Host == "" || address.User != nil || address.RawQuery != "" || address.Fragment != "" {
+		return errors.New("GRAFT_CREDENTIAL_VAULT_ADDRESS must be an HTTPS endpoint without credentials, query, or fragment when GRAFT_CREDENTIAL_VAULT_ENABLED is true")
+	}
 	return nil
 }
 

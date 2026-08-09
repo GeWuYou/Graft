@@ -432,6 +432,7 @@ func (r *Runtime) closeCoreResources() error {
 	return closeErr
 }
 
+//nolint:cyclop // 每项核心资源都必须独立尽力关闭，不能因前一项失败跳过后续回收。
 func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeModule) error {
 	var shutdownErr error
 	if r.mcpRuntime != nil {
@@ -439,6 +440,20 @@ func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeMo
 			shutdownErr = errors.Join(shutdownErr, err)
 		}
 		r.mcpRuntime = nil
+	}
+	if r.agentBootstrapServer != nil {
+		bootstrapShutdownCtx, cancelBootstrap := withModuleShutdownContext(ctx)
+		if err := r.agentBootstrapServer.Shutdown(bootstrapShutdownCtx.LifecycleContext); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown agent bootstrap server: %w", err))
+		}
+		cancelBootstrap()
+	}
+	if r.agentServer != nil {
+		agentShutdownCtx, cancelAgent := withModuleShutdownContext(ctx)
+		if err := r.agentServer.Shutdown(agentShutdownCtx.LifecycleContext); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown agent mTLS server: %w", err))
+		}
+		cancelAgent()
 	}
 	if r.server != nil {
 		httpShutdownCtx, cancelHTTP := withModuleShutdownContext(ctx)

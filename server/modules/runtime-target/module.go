@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"graft/server/internal/config"
 	containerdi "graft/server/internal/container"
 
 	messagecontract "graft/server/internal/contract/message"
@@ -36,6 +38,7 @@ const runtimeTargetListKeywordMaxLength = 128
 // Module 暴露 runtime-target API 路由，并提供有界的 Docker Target 发现与 provider 能力。
 type Module struct {
 	repository      *store.SQLRepository
+	pepper          *config.EnrollmentPepperProvider
 	summaries       *summaryCache
 	authorizer      moduleapi.Authorizer
 	realtimeTickets realtimeauth.Service
@@ -48,9 +51,13 @@ type Module struct {
 	users           moduleapi.UserIdentityProvider
 }
 
-// NewModule 构造 runtime-target 模块实例。
-func NewModule(repository *store.SQLRepository) *Module {
-	return &Module{repository: repository, summaries: newSummaryCache()}
+// NewModule 构造 runtime-target 模块实例。省略 pepper 时，Agent Bootstrap authority 保持未配置并拒绝引导请求。
+func NewModule(repository *store.SQLRepository, pepper ...*config.EnrollmentPepperProvider) *Module {
+	var enrollmentPepper *config.EnrollmentPepperProvider
+	if len(pepper) > 0 {
+		enrollmentPepper = pepper[0]
+	}
+	return &Module{repository: repository, pepper: enrollmentPepper, summaries: newSummaryCache()}
 }
 
 // Register 声明 runtime-target 权限、菜单元数据和 API 路由。
@@ -147,8 +154,27 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	}); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetAgentLedgerReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return newRuntimeTargetAgentLedgerAuthority(m.repository), nil
+	}); err != nil {
+		return err
+	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentEnrollmentAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
-		return newRuntimeTargetAgentEnrollmentAuthority(m.repository), nil
+		return newRuntimeTargetAgentEnrollmentAuthority(m.repository, m.events), nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentDeliveryAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
+		return newRuntimeTargetAgentDeliveryAuthority(m.repository, m.pepper), nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentBootstrapAuthority)(nil), func(resolver containerdi.Resolver) (any, error) {
+		issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](resolver, (*moduleapi.AgentCertificateIssuer)(nil))
+		if err != nil {
+			return nil, fmt.Errorf("resolve agent certificate issuer: %w", err)
+		}
+		return newRuntimeTargetAgentBootstrapAuthority(m.repository, m.pepper, issuer), nil
 	}); err != nil {
 		return err
 	}
