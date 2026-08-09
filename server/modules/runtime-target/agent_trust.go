@@ -103,11 +103,7 @@ type runtimeTargetAgentEnrollmentAuthority struct {
 	now        func() time.Time
 }
 
-func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository, publishers ...event.TransactionalPublisher) moduleapi.AgentEnrollmentAuthority {
-	var publisher event.TransactionalPublisher
-	if len(publishers) > 0 {
-		publisher = publishers[0]
-	}
+func newRuntimeTargetAgentEnrollmentAuthority(repository *store.SQLRepository, publisher event.TransactionalPublisher) moduleapi.AgentEnrollmentAuthority {
 	return runtimeTargetAgentEnrollmentAuthority{repository: repository, events: publisher, now: time.Now}
 }
 
@@ -288,12 +284,7 @@ func validAgentPackageAttestation(imageDigest, agentVersion string) bool {
 	if !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+64 || strings.TrimSpace(agentVersion) == "" {
 		return false
 	}
-	for _, value := range digest[len("sha256:"):] {
-		if (value < '0' || value > '9') && (value < 'a' || value > 'f') {
-			return false
-		}
-	}
-	return true
+	return validLowerSHA256Hex(digest[len("sha256:"):])
 }
 
 func validAgentEnrollmentRevocation(revocation moduleapi.AgentEnrollmentRevocation) bool {

@@ -127,21 +127,33 @@ func (r *SQLRepository) CompleteAgentCertificateIssuance(ctx context.Context, is
 		if err != nil {
 			return fmt.Errorf("activate agent generation after certificate issuance: %w", err)
 		}
-		if affected, err := generationResult.RowsAffected(); err != nil || affected != 1 {
+		affected, err := generationResult.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read agent generation activation result: %w", err)
+		}
+		if affected != 1 {
 			return ErrAgentDeliveryRejected
 		}
 		grantResult, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_delivery_grants SET status = 'consumed', consumed_at = $1, updated_at = $1 WHERE id = $2 AND status = 'delivered' AND deleted_at = 0`, now.UTC(), authorization.Grant.ID)
 		if err != nil {
 			return fmt.Errorf("consume agent delivery grant: %w", err)
 		}
-		if affected, err := grantResult.RowsAffected(); err != nil || affected != 1 {
+		affected, err = grantResult.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read agent delivery grant consumption result: %w", err)
+		}
+		if affected != 1 {
 			return ErrAgentDeliveryRejected
 		}
 		completionResult, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_certificate_issuances SET status = 'completed', completed_at = $1, updated_at = $1 WHERE id = $2 AND status = 'issued' AND deleted_at = 0`, now.UTC(), authorization.Issuance.ID)
 		if err != nil {
 			return fmt.Errorf("complete agent certificate issuance: %w", err)
 		}
-		if affected, err := completionResult.RowsAffected(); err != nil || affected != 1 {
+		affected, err = completionResult.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read agent certificate issuance completion result: %w", err)
+		}
+		if affected != 1 {
 			return ErrAgentDeliveryRejected
 		}
 		authorization.Grant.Status = "consumed"
@@ -179,7 +191,10 @@ func (r *SQLRepository) readAgentCertificateIssuanceByKey(ctx context.Context, i
 	if errors.Is(err, sql.ErrNoRows) {
 		return AgentCertificateIssuance{}, ErrAgentDeliveryRejected
 	}
-	return issuance, err
+	if err != nil {
+		return AgentCertificateIssuance{}, fmt.Errorf("read agent certificate issuance: %w", err)
+	}
+	return issuance, nil
 }
 
 func validIssuedAgentCertificate(issuance AgentCertificateIssuance, now time.Time) bool {
