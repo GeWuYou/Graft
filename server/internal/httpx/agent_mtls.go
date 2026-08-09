@@ -170,6 +170,7 @@ func isCanonicalAgentID(value string) bool {
 type AgentServer struct {
 	engine    *gin.Engine
 	tlsConfig *tls.Config
+	logger    *zap.Logger
 	mu        sync.Mutex
 	server    *http.Server
 }
@@ -185,7 +186,7 @@ func NewAgentServer(cfg config.AgentTLSConfig, logger *zap.Logger) (*AgentServer
 	}
 	engine := gin.New()
 	engine.Use(RequestIDMiddleware(), newRecoveryMiddleware(logger, nil), RequireAgentMTLSIdentity(logger))
-	return &AgentServer{engine: engine, tlsConfig: tlsConfig}, nil
+	return &AgentServer{engine: engine, tlsConfig: tlsConfig, logger: logger}, nil
 }
 
 // Engine 返回 Agent 专用路由树；只有 Vault-backed handler 可在此注册路由。

@@ -103,14 +103,14 @@ func (r *SQLRepository) RecordAgentTelemetryReceipt(ctx context.Context, identit
 }
 
 func validAgentLedgerIdentity(identity AgentLedgerIdentity) bool {
-	return strings.TrimSpace(identity.IdentityID) != "" && identity.TargetID > 0 && strings.TrimSpace(identity.AgentID) != "" && identity.Generation > 0 && strings.TrimSpace(identity.CertificateSerial) != "" && strings.TrimSpace(identity.PublicKeyFingerprint) != ""
+	return identity.TargetID > 0 && strings.TrimSpace(identity.AgentID) != "" && identity.Generation > 0 && strings.TrimSpace(identity.CertificateSerial) != "" && strings.TrimSpace(identity.PublicKeyFingerprint) != ""
 }
 func validAgentLedgerSnapshotID(value string) bool { return validSHA256Hex(value) }
 func validAgentTelemetryReceipt(receipt AgentTelemetryReceiptInput, now time.Time) bool {
 	return validAgentLedgerSnapshotID(receipt.SnapshotID) && validSHA256Hex(receipt.SnapshotDigest) && !receipt.ObservedAt.IsZero() && receipt.ExpiresAt.After(receipt.ObservedAt) && receipt.ExpiresAt.After(now) && !receipt.ExpiresAt.After(now.Add(agentLedgerReceiptMaxLifetime)) && len(strings.TrimSpace(receipt.ImplementationVersion)) <= agentLedgerImplementationVersionMaxLength && len(strings.TrimSpace(receipt.Diagnostic)) <= agentLedgerDiagnosticMaxLength
 }
 func sameAgentLedgerGeneration(identity AgentLedgerIdentity, generation AgentTrustGeneration) bool {
-	return identity.IdentityID == generation.Identity.IdentityID && identity.CertificateSerial == generation.CertificateSerial && identity.PublicKeyFingerprint == generation.PublicKeyFingerprint
+	return (identity.IdentityID == "" || identity.IdentityID == generation.Identity.IdentityID) && identity.CertificateSerial == generation.CertificateSerial && identity.PublicKeyFingerprint == generation.PublicKeyFingerprint
 }
 func agentLedgerSnapshotDigest(snapshot AgentLedgerSnapshot) string {
 	return sha256Hex(struct {

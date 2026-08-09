@@ -620,7 +620,13 @@ func (r *Runtime) startAgentListeners() (<-chan error, <-chan error, error) {
 		}
 	}
 	if r.agentServer != nil {
-		var err error
+		reader, err := module.ResolveService[moduleapi.RuntimeTargetAgentLedgerReader](r.services, (*moduleapi.RuntimeTargetAgentLedgerReader)(nil))
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve agent ledger reader: %w", err)
+		}
+		if err := r.agentServer.ConfigureLedgerRoutes(reader); err != nil {
+			return nil, nil, fmt.Errorf("configure agent ledger listener: %w", err)
+		}
 		agentErrCh, err = r.agentServer.Start(r.config.HTTPX.AgentTLS.Addr)
 		if err != nil {
 			return nil, nil, err
