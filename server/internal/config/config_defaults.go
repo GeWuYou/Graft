@@ -32,6 +32,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("credential_vault.namespace", "")
 	reader.SetDefault("credential_vault.auth_mount", "")
 	reader.SetDefault("credential_vault.auth_role", "")
+	reader.SetDefault("credential_vault.auth_role_id_file", "")
+	reader.SetDefault("credential_vault.auth_secret_id_file", "")
 	reader.SetDefault("credential_vault.pki_mount", "")
 	reader.SetDefault("credential_vault.pki_role", "")
 	reader.SetDefault("credential_vault.trust_bundle_ref", "")

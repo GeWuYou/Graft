@@ -147,7 +147,7 @@ func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *t
 		t.Fatal("enabled credential vault must require its non-secret descriptor")
 	}
 	cfg.CredentialVault = CredentialVaultConfig{
-		Enabled: true, Backend: "vault-pki", Address: "https://vault.example.test", AuthMount: "kubernetes", AuthRole: "graft-control-plane", PKIMount: "pki-agent", PKIRole: "graft-agent", TrustBundleRef: "pki-agent/ca/pem",
+		Enabled: true, Backend: "vault-pki", Address: "https://vault.example.test", AuthMount: "approle", AuthRole: "graft-control-plane", AuthRoleIDFile: filepath.Join(string(filepath.Separator), "run", "secrets", "vault_role_id"), AuthSecretIDFile: filepath.Join(string(filepath.Separator), "run", "secrets", "vault_secret_id"), PKIMount: "pki-agent", PKIRole: "graft-agent", TrustBundleRef: "pki-agent/ca/pem",
 	}
 	if err := validateCredentialVaultConfig(cfg); err != nil {
 		t.Fatalf("validate credential vault descriptor: %v", err)

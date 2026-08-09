@@ -198,15 +198,17 @@ type AgentBootstrapTLSConfig struct {
 // CredentialVaultConfig 描述 Credential Vault 的非秘密接入信息。
 // 认证材料必须由部署机器身份提供，禁止通过此配置传递 token、私钥或 PEM。
 type CredentialVaultConfig struct {
-	Enabled        bool
-	Backend        string
-	Address        string
-	Namespace      string
-	AuthMount      string
-	AuthRole       string
-	PKIMount       string
-	PKIRole        string
-	TrustBundleRef string
+	Enabled          bool
+	Backend          string
+	Address          string
+	Namespace        string
+	AuthMount        string
+	AuthRole         string
+	AuthRoleIDFile   string
+	AuthSecretIDFile string
+	PKIMount         string
+	PKIRole          string
+	TrustBundleRef   string
 }
 
 // AuditConfig 预留 core 提供的审计启动配置边界。
@@ -569,6 +571,8 @@ func validateCredentialVaultConfig(c *Config) error {
 		{name: "GRAFT_CREDENTIAL_VAULT_ADDRESS", value: &vault.Address},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT", value: &vault.AuthMount},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE", value: &vault.AuthRole},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", value: &vault.AuthSecretIDFile},
 		{name: "GRAFT_CREDENTIAL_VAULT_PKI_MOUNT", value: &vault.PKIMount},
 		{name: "GRAFT_CREDENTIAL_VAULT_PKI_ROLE", value: &vault.PKIRole},
 		{name: "GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF", value: &vault.TrustBundleRef},
@@ -577,6 +581,19 @@ func validateCredentialVaultConfig(c *Config) error {
 		if *field.value == "" {
 			return fmt.Errorf("%s is required when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
 		}
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
+		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", value: &vault.AuthSecretIDFile},
+	} {
+		*field.value = strings.TrimSpace(*field.value)
+		if *field.value == "" || !filepath.IsAbs(*field.value) {
+			return fmt.Errorf("%s must be an absolute secret file path when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
+		}
+		*field.value = filepath.Clean(*field.value)
 	}
 	vault.Namespace = strings.TrimSpace(vault.Namespace)
 	return nil
