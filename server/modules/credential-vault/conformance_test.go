@@ -8,12 +8,15 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -174,6 +177,243 @@ func TestAgentCertificateRevocationHandlerConformance(t *testing.T) {
 	}
 }
 
+func TestAgentCertificateRevocationUsesDurableOutboxRetryAndTerminalFailure(t *testing.T) {
+	payload, err := json.Marshal(runtimetargetcontract.AgentCertificateRevocationEvent{
+		IdentityID: "identity-1", TargetID: 7, AgentID: "agent-1", Generation: 3,
+		CertificateSerial: "serial-1", Reason: "generation revoked",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("eventual Vault reconciliation", func(t *testing.T) {
+		store := newConformanceOutboxStore()
+		issuer := &durableRevocationIssuer{}
+		issuer.failFor.Store(1)
+		dispatcher, err := event.NewDurableDispatcher(nil, event.Options{
+			WorkerCount: 1, OutboxPoll: time.Millisecond, RetryDelay: time.Millisecond, MaxAttempts: 3,
+		}, store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := dispatcher.Register(agentCertificateRevocationHandler{issuer: issuer}); err != nil {
+			t.Fatal(err)
+		}
+		if err := dispatcher.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		defer shutdownConformanceDispatcher(t, dispatcher)
+
+		receipt, err := dispatcher.Publish(context.Background(), event.Event{
+			ID: "revocation-event-retry", Type: runtimetargetcontract.AgentCertificateRevocationEventType,
+			Version: 1, Source: runtimetargetcontract.ModuleID, Payload: payload,
+			IdempotencyKey: "revocation-idempotency-1",
+		}, event.PublishOptions{Delivery: event.DeliveryDurable})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if receipt.Delivery != event.DeliveryDurable {
+			t.Fatalf("delivery mode = %q, want durable", receipt.Delivery)
+		}
+
+		waitForConformanceDelivery(t, store, "revocation-event-retry", agentCertificateRevocationHandlerID, conformanceDeliveryDelivered)
+		if got := issuer.calls.Load(); got != 2 {
+			t.Fatalf("Vault revoke calls = %d, want transient failure plus retry", got)
+		}
+		issuer.mu.Lock()
+		defer issuer.mu.Unlock()
+		if issuer.revocation.IdempotencyKey != "revocation-idempotency-1" || issuer.revocation.CertificateSerial != "serial-1" {
+			t.Fatalf("revocation binding = %#v", issuer.revocation)
+		}
+	})
+
+	t.Run("terminal Vault failure", func(t *testing.T) {
+		store := newConformanceOutboxStore()
+		issuer := &durableRevocationIssuer{}
+		issuer.failFor.Store(100)
+		dispatcher, err := event.NewDurableDispatcher(nil, event.Options{
+			WorkerCount: 1, OutboxPoll: time.Millisecond, RetryDelay: time.Millisecond, MaxAttempts: 2,
+		}, store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := dispatcher.Register(agentCertificateRevocationHandler{issuer: issuer}); err != nil {
+			t.Fatal(err)
+		}
+		if err := dispatcher.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		defer shutdownConformanceDispatcher(t, dispatcher)
+
+		if _, err := dispatcher.Publish(context.Background(), event.Event{
+			ID: "revocation-event-terminal", Type: runtimetargetcontract.AgentCertificateRevocationEventType,
+			Version: 1, Source: runtimetargetcontract.ModuleID, Payload: payload,
+			IdempotencyKey: "revocation-idempotency-terminal",
+		}, event.PublishOptions{Delivery: event.DeliveryDurable}); err != nil {
+			t.Fatal(err)
+		}
+		waitForConformanceDelivery(t, store, "revocation-event-terminal", agentCertificateRevocationHandlerID, conformanceDeliveryFailed)
+		if got := issuer.calls.Load(); got != 2 {
+			t.Fatalf("Vault revoke calls = %d, want max attempts 2", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+		if got := issuer.calls.Load(); got != 2 {
+			t.Fatalf("terminal delivery was retried after failure, calls = %d", got)
+		}
+	})
+}
+
+const (
+	conformanceDeliveryPending    = "pending"
+	conformanceDeliveryProcessing = "processing"
+	conformanceDeliveryDelivered  = "delivered"
+	conformanceDeliveryFailed     = "failed"
+)
+
+type conformanceOutboxStore struct {
+	mu         sync.Mutex
+	deliveries map[string]*conformanceOutboxDelivery
+}
+
+type conformanceOutboxDelivery struct {
+	delivery    event.ClaimedDelivery
+	status      string
+	availableAt time.Time
+	leaseUntil  time.Time
+}
+
+func newConformanceOutboxStore() *conformanceOutboxStore {
+	return &conformanceOutboxStore{deliveries: make(map[string]*conformanceOutboxDelivery)}
+}
+
+func (s *conformanceOutboxStore) Append(_ context.Context, incoming event.Event, consumers []string) (event.Receipt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, consumer := range consumers {
+		key := incoming.ID + "\x00" + consumer
+		if _, exists := s.deliveries[key]; !exists {
+			s.deliveries[key] = &conformanceOutboxDelivery{delivery: event.ClaimedDelivery{Event: incoming, ConsumerID: consumer}, status: conformanceDeliveryPending, availableAt: incoming.CreatedAt}
+		}
+	}
+	return event.Receipt{EventID: incoming.ID, Delivery: event.DeliveryDurable}, nil
+}
+
+func (s *conformanceOutboxStore) Claim(_ context.Context, _ string, now time.Time, lease time.Duration, limit int) ([]event.ClaimedDelivery, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	claimed := make([]event.ClaimedDelivery, 0, limit)
+	for _, item := range s.deliveries {
+		if len(claimed) >= limit || (item.status != conformanceDeliveryPending && !(item.status == conformanceDeliveryProcessing && !item.leaseUntil.After(now))) || item.availableAt.After(now) {
+			continue
+		}
+		item.status = conformanceDeliveryProcessing
+		item.delivery.Attempt++
+		item.leaseUntil = now.Add(lease)
+		claimed = append(claimed, item.delivery)
+	}
+	return claimed, nil
+}
+
+func (s *conformanceOutboxStore) Renew(context.Context, event.ClaimedDelivery, time.Time, time.Duration) error {
+	return nil
+}
+
+func (s *conformanceOutboxStore) Complete(_ context.Context, delivery event.ClaimedDelivery) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item := s.deliveries[delivery.Event.ID+"\x00"+delivery.ConsumerID]
+	if item == nil {
+		return errors.New("delivery not found")
+	}
+	item.status, item.leaseUntil = conformanceDeliveryDelivered, time.Time{}
+	return nil
+}
+
+func (s *conformanceOutboxStore) Retry(_ context.Context, delivery event.ClaimedDelivery, availableAt time.Time, _ error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item := s.deliveries[delivery.Event.ID+"\x00"+delivery.ConsumerID]
+	if item == nil {
+		return errors.New("delivery not found")
+	}
+	item.status, item.availableAt, item.leaseUntil = conformanceDeliveryPending, availableAt, time.Time{}
+	return nil
+}
+
+func (s *conformanceOutboxStore) Fail(_ context.Context, delivery event.ClaimedDelivery, _ error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item := s.deliveries[delivery.Event.ID+"\x00"+delivery.ConsumerID]
+	if item == nil {
+		return errors.New("delivery not found")
+	}
+	item.status, item.leaseUntil = conformanceDeliveryFailed, time.Time{}
+	return nil
+}
+
+func (s *conformanceOutboxStore) status(eventID, consumerID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if item := s.deliveries[eventID+"\x00"+consumerID]; item != nil {
+		return item.status
+	}
+	return ""
+}
+
+func waitForConformanceDelivery(t *testing.T, store *conformanceOutboxStore, eventID, consumerID, want string) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if store.status(eventID, consumerID) == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("delivery %s/%s did not reach %s", eventID, consumerID, want)
+}
+
+func shutdownConformanceDispatcher(t *testing.T, dispatcher *event.Dispatcher) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := dispatcher.Shutdown(ctx); err != nil {
+		t.Fatalf("shutdown dispatcher: %v", err)
+	}
+}
+
+type durableRevocationIssuer struct {
+	conformanceRevocationIssuer
+	failFor atomic.Int32
+	calls   atomic.Int32
+	mu      sync.Mutex
+}
+
+func (i *durableRevocationIssuer) RevokeCertificate(_ context.Context, revocation moduleapi.AgentCertificateRevocation) error {
+	i.calls.Add(1)
+	i.mu.Lock()
+	i.revocation = revocation
+	i.mu.Unlock()
+	if i.calls.Load() <= i.failFor.Load() {
+		return errors.New("vault unavailable")
+	}
+	return nil
+}
+
+func TestAgentCertificateRevocationHandlerRetriesTransientVaultFailure(t *testing.T) {
+	issuer := &conformanceRevocationIssuer{failures: 1}
+	handler := agentCertificateRevocationHandler{issuer: issuer}
+	incoming := event.Event{ID: "event-retry", Type: runtimetargetcontract.AgentCertificateRevocationEventType, Version: 1, IdempotencyKey: "stable-revocation", Payload: []byte(`{"certificate_serial":"serial-retry"}`)}
+	if err := handler.Handle(context.Background(), incoming); err == nil {
+		t.Fatal("transient Vault failure unexpectedly succeeded")
+	}
+	if err := handler.Handle(context.Background(), incoming); err != nil {
+		t.Fatalf("retry after transient Vault failure: %v", err)
+	}
+	if issuer.calls != 2 || issuer.revocation.IdempotencyKey != "stable-revocation" {
+		t.Fatalf("retry evidence = calls=%d revocation=%#v", issuer.calls, issuer.revocation)
+	}
+}
+
 type conformanceIssuanceStore struct{ state IssuanceState }
 
 func (s *conformanceIssuanceStore) Load(_ context.Context, issuanceKey string) (IssuanceState, error) {
@@ -190,6 +430,7 @@ func (s *conformanceIssuanceStore) Save(_ context.Context, state IssuanceState) 
 
 type conformanceRevocationIssuer struct {
 	calls      int
+	failures   int
 	revocation moduleapi.AgentCertificateRevocation
 }
 
@@ -207,6 +448,10 @@ func (i *conformanceRevocationIssuer) ReadTrustBundle(context.Context, moduleapi
 
 func (i *conformanceRevocationIssuer) RevokeCertificate(_ context.Context, revocation moduleapi.AgentCertificateRevocation) error {
 	i.calls++
+	if i.failures > 0 {
+		i.failures--
+		return errors.New("vault unavailable")
+	}
 	i.revocation = revocation
 	return nil
 }
