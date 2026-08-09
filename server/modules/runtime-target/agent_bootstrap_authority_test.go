@@ -11,6 +11,7 @@ import (
 	"errors"
 	"math/big"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,6 +71,34 @@ func TestValidAgentSPIFFEPathSegment(t *testing.T) {
 		if validAgentSPIFFEPathSegment(value) {
 			t.Fatalf("invalid SPIFFE path segment %q accepted", value)
 		}
+	}
+}
+
+func TestValidateIssuedBootstrapCertificateRejectsSecurityFailures(t *testing.T) {
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	csrDER := createBootstrapValidationCSR(t)
+	_, fingerprint, err := parseBootstrapCSR(csrDER)
+	if err != nil {
+		t.Fatalf("parse test CSR: %v", err)
+	}
+	authorization := store.AgentBootstrapAuthorization{Issuance: store.AgentCertificateIssuance{IssuanceKey: "issuance-1"}, Generation: store.AgentTrustGeneration{Generation: 1, Identity: store.AgentTrustIdentity{TargetID: 7, AgentID: "agent-7"}}}
+	valid := newBootstrapValidationCertificate(t, authorization, csrDER, now)
+	cases := map[string]func(*moduleapi.IssuedAgentCertificate){
+		"certificate expired":  func(issued *moduleapi.IssuedAgentCertificate) { issued.ExpiresAt = now.Add(-time.Second) },
+		"trust bundle expired": func(issued *moduleapi.IssuedAgentCertificate) { issued.TrustBundle.ExpiresAt = now.Add(-time.Second) },
+		"empty chain":          func(issued *moduleapi.IssuedAgentCertificate) { issued.CertificateChainDER = nil },
+		"leaf key mismatch": func(issued *moduleapi.IssuedAgentCertificate) {
+			issued.PublicKeyFingerprint = "sha256:" + strings.Repeat("0", 64)
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			issued := valid
+			mutate(&issued)
+			if err := validateIssuedBootstrapCertificate(issued, authorization, fingerprint, now); err == nil {
+				t.Fatal("invalid issued certificate unexpectedly accepted")
+			}
+		})
 	}
 }
 

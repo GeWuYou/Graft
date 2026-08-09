@@ -205,6 +205,16 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 	if _, err := authority.CreateEnrollment(context.Background(), missingVersion); err == nil {
 		t.Fatal("create enrollment without agent version succeeded")
 	}
+	nonHexDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	nonHexDigest.ImageDigest = "sha256:" + strings.Repeat("g", 64)
+	if _, err := authority.CreateEnrollment(context.Background(), nonHexDigest); err == nil {
+		t.Fatal("create enrollment with non-hex digest succeeded")
+	}
+	uppercaseDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
+	uppercaseDigest.ImageDigest = "sha256:" + strings.Repeat("A", 64)
+	if _, err := authority.CreateEnrollment(context.Background(), uppercaseDigest); err == nil {
+		t.Fatal("create enrollment with uppercase digest succeeded")
+	}
 	if err := authority.RevokeGeneration(context.Background(), moduleapi.AgentEnrollmentRevocation{IdentityID: "runtime-target:7:agent:agent-7", TargetID: 7, AgentID: "agent-7", Generation: 1}); err == nil {
 		t.Fatal("revoke enrollment without reason succeeded")
 	} else if errors.Is(err, store.ErrAgentTrustNotFound) {
