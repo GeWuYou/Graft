@@ -2,8 +2,21 @@ package credentialvault
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
 
+	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
 )
 
@@ -43,3 +56,230 @@ func (unavailableAgentCertificateIssuer) RevokeCertificate(context.Context, modu
 }
 
 var _ VaultPKIAdapter = unavailableAgentCertificateIssuer{}
+
+// IssuanceState 保存可重启恢复的非秘密 Vault 签发证据。实现必须将其持久化到模块拥有的 durable store。
+type IssuanceState struct {
+	IssuanceKey string
+	Serial      string
+}
+
+// IssuanceStateStore 是 Vault adapter 的窄持久化边界，不保存证书 PEM、私钥或令牌。
+type IssuanceStateStore interface {
+	Load(ctx context.Context, issuanceKey string) (IssuanceState, error)
+	Save(ctx context.Context, state IssuanceState) error
+}
+
+// VaultPKIClient 使用 Vault AppRole 与 PKI HTTP API；秘密仅在请求生命周期内驻留内存。
+type VaultPKIClient struct {
+	config config.CredentialVaultConfig
+	store  IssuanceStateStore
+	http   *http.Client
+}
+
+// NewVaultPKIClient 创建生产 Vault adapter。store 为空时拒绝启动，避免内存-only 恢复语义。
+func NewVaultPKIClient(configuration config.CredentialVaultConfig, store IssuanceStateStore) (*VaultPKIClient, error) {
+	if store == nil {
+		return nil, errors.New("vault PKI issuance state store is required")
+	}
+	if strings.TrimSpace(configuration.Address) == "" || strings.TrimSpace(configuration.AuthMount) == "" || strings.TrimSpace(configuration.AuthRole) == "" || strings.TrimSpace(configuration.AuthRoleIDFile) == "" || strings.TrimSpace(configuration.AuthSecretIDFile) == "" || strings.TrimSpace(configuration.PKIMount) == "" || strings.TrimSpace(configuration.PKIRole) == "" {
+		return nil, errors.New("vault PKI configuration is incomplete")
+	}
+	return &VaultPKIClient{config: configuration, store: store, http: http.DefaultClient}, nil
+}
+
+func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCertificateIssuanceRequest) (moduleapi.IssuedAgentCertificate, error) {
+	if v == nil || strings.TrimSpace(request.IssuanceKey) == "" || len(request.CSRDER) == 0 {
+		return moduleapi.IssuedAgentCertificate{}, errors.New("invalid certificate issuance request")
+	}
+	csr, err := x509.ParseCertificateRequest(request.CSRDER)
+	if err != nil || csr.CheckSignature() != nil {
+		return moduleapi.IssuedAgentCertificate{}, errors.New("invalid certificate signing request")
+	}
+	if state, err := v.store.Load(ctx, request.IssuanceKey); err == nil && state.Serial != "" {
+		return v.readCertificate(ctx, request.IssuanceKey, state.Serial)
+	} else if err != nil && !errors.Is(err, moduleapi.ErrAgentCertificateIssuanceNotFound) {
+		return moduleapi.IssuedAgentCertificate{}, fmt.Errorf("load issuance state: %w", err)
+	}
+	token, err := v.login(ctx)
+	if err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
+	var response vaultIssueResponse
+	if err := v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/issue/"+pathEscape(v.config.PKIRole), map[string]any{"csr": string(csrPEM), "format": "pem_bundle"}, &response); err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	serial := strings.TrimSpace(response.Data.SerialNumber)
+	if serial == "" {
+		return moduleapi.IssuedAgentCertificate{}, errors.New("vault PKI response missing serial number")
+	}
+	if err := v.store.Save(ctx, IssuanceState{IssuanceKey: request.IssuanceKey, Serial: serial}); err != nil {
+		return moduleapi.IssuedAgentCertificate{}, fmt.Errorf("save issuance state: %w", err)
+	}
+	return v.readCertificateResponse(request.IssuanceKey, response.Data)
+}
+
+func (v *VaultPKIClient) ReconcileCSR(ctx context.Context, issuanceKey string) (moduleapi.IssuedAgentCertificate, error) {
+	if v == nil || strings.TrimSpace(issuanceKey) == "" {
+		return moduleapi.IssuedAgentCertificate{}, moduleapi.ErrAgentCertificateIssuanceNotFound
+	}
+	state, err := v.store.Load(ctx, issuanceKey)
+	if err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	if state.Serial == "" {
+		return moduleapi.IssuedAgentCertificate{}, moduleapi.ErrAgentCertificateIssuanceNotFound
+	}
+	return v.readCertificate(ctx, issuanceKey, state.Serial)
+}
+
+func (v *VaultPKIClient) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
+	if v == nil || strings.TrimSpace(v.config.TrustBundleRef) == "" {
+		return moduleapi.TrustBundleReference{}, errors.New("vault trust bundle is not configured")
+	}
+	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki"}, nil
+}
+
+func (v *VaultPKIClient) RevokeCertificate(ctx context.Context, revocation moduleapi.AgentCertificateRevocation) error {
+	if v == nil || strings.TrimSpace(revocation.CertificateSerial) == "" {
+		return errors.New("certificate serial is required")
+	}
+	token, err := v.login(ctx)
+	if err != nil {
+		return err
+	}
+	return v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/revoke", map[string]any{"serial_number": revocation.CertificateSerial}, nil)
+}
+
+type vaultIssueResponse struct {
+	Data vaultCertificateData `json:"data"`
+}
+type vaultCertificateData struct {
+	Certificate  string   `json:"certificate"`
+	CAChain      []string `json:"ca_chain"`
+	SerialNumber string   `json:"serial_number"`
+	Expiration   int64    `json:"expiration"`
+	IssuingCA    string   `json:"issuing_ca"`
+}
+type vaultLoginResponse struct {
+	Auth struct {
+		ClientToken string `json:"client_token"`
+	} `json:"auth"`
+}
+
+func (v *VaultPKIClient) login(ctx context.Context) (string, error) {
+	roleID, err := os.ReadFile(v.config.AuthRoleIDFile)
+	if err != nil {
+		return "", errors.New("read vault role id file")
+	}
+	secretID, err := os.ReadFile(v.config.AuthSecretIDFile)
+	if err != nil {
+		return "", errors.New("read vault secret id file")
+	}
+	var response vaultLoginResponse
+	if err := v.call(ctx, "", http.MethodPost, "/v1/auth/"+pathEscape(v.config.AuthMount)+"/login", map[string]any{"role_id": strings.TrimSpace(string(roleID)), "secret_id": strings.TrimSpace(string(secretID))}, &response); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(response.Auth.ClientToken) == "" {
+		return "", errors.New("vault AppRole login returned no token")
+	}
+	return response.Auth.ClientToken, nil
+}
+
+func (v *VaultPKIClient) readCertificate(ctx context.Context, issuanceKey, serial string) (moduleapi.IssuedAgentCertificate, error) {
+	token, err := v.login(ctx)
+	if err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	var response vaultIssueResponse
+	if err := v.call(ctx, token, http.MethodGet, "/v1/"+pathEscape(v.config.PKIMount)+"/cert/"+url.PathEscape(serial), nil, &response); err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	return v.readCertificateResponse(issuanceKey, response.Data)
+}
+
+func (v *VaultPKIClient) readCertificateResponse(issuanceKey string, data vaultCertificateData) (moduleapi.IssuedAgentCertificate, error) {
+	leaf, err := decodeCertificate(data.Certificate)
+	if err != nil {
+		return moduleapi.IssuedAgentCertificate{}, err
+	}
+	chain := [][]byte{leaf.Raw}
+	for _, item := range data.CAChain {
+		cert, err := decodeCertificate(item)
+		if err != nil {
+			return moduleapi.IssuedAgentCertificate{}, err
+		}
+		chain = append(chain, cert.Raw)
+	}
+	if strings.TrimSpace(data.IssuingCA) != "" && len(chain) == 1 {
+		cert, err := decodeCertificate(data.IssuingCA)
+		if err == nil {
+			chain = append(chain, cert.Raw)
+		}
+	}
+	fingerprint := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
+	expires := leaf.NotAfter
+	if data.Expiration > 0 {
+		expires = time.Unix(data.Expiration, 0).UTC()
+	}
+	serial := strings.TrimSpace(data.SerialNumber)
+	if serial == "" {
+		serial = leaf.SerialNumber.String()
+	}
+	return moduleapi.IssuedAgentCertificate{IssuanceKey: issuanceKey, CertificateSerial: serial, CertificateChainDER: chain, PublicKeyFingerprint: "sha256:" + hex.EncodeToString(fingerprint[:]), ExpiresAt: expires, TrustBundle: moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki", ExpiresAt: expires}}, nil
+}
+
+func decodeCertificate(value string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(value))
+	if block == nil {
+		return nil, errors.New("vault response missing certificate PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse vault certificate: %w", err)
+	}
+	return cert, nil
+}
+func (v *VaultPKIClient) call(ctx context.Context, token, method, path string, body map[string]any, out any) error {
+	var reader io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		reader = strings.NewReader(string(encoded))
+	}
+	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(v.config.Address, "/")+path, reader)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("X-Vault-Token", token)
+	}
+	if strings.TrimSpace(v.config.Namespace) != "" {
+		req.Header.Set("X-Vault-Namespace", v.config.Namespace)
+	}
+	client := v.http
+	if client == nil {
+		client = http.DefaultClient
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("vault request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("vault request returned status %d", response.StatusCode)
+	}
+	if out == nil {
+		return nil
+	}
+	if err := json.NewDecoder(response.Body).Decode(out); err != nil {
+		return fmt.Errorf("decode vault response: %w", err)
+	}
+	return nil
+}
+func pathEscape(value string) string { return url.PathEscape(strings.Trim(value, "/")) }
+
+var _ VaultPKIAdapter = (*VaultPKIClient)(nil)
