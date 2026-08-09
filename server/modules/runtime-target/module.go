@@ -166,6 +166,15 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	}); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentBootstrapAuthority)(nil), func(resolver containerdi.Resolver) (any, error) {
+		issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](resolver, (*moduleapi.AgentCertificateIssuer)(nil))
+		if err != nil {
+			return nil, err
+		}
+		return newRuntimeTargetAgentBootstrapAuthority(m.repository, pepper, issuer), nil
+	}); err != nil {
+		return err
+	}
 	connectionReader := func(_ containerdi.Resolver) (any, error) { return m.repository, nil }
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
 		return err

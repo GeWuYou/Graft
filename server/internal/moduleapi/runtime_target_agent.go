@@ -2,8 +2,13 @@ package moduleapi
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrAgentCertificateIssuanceNotFound 表示 Vault 中尚不存在指定稳定签发键的结果。
+// 调用方仅可在已经持久化的同一授权上下文中据此发起首次签发。
+var ErrAgentCertificateIssuanceNotFound = errors.New("agent certificate issuance not found")
 
 // AgentEnrollmentAuthority 由 Runtime Target 实现，负责 Agent 与目标的业务绑定及世代生命周期。
 // 该接口不签发证书，也不接触私钥、投递令牌或其他秘密材料；这些职责分别属于 Credential Vault 和部署交付边界。
@@ -112,6 +117,26 @@ type AgentCertificateIssuer interface {
 	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
 	// RevokeCertificate 撤销已签发证书；重复调用必须保持幂等。
 	RevokeCertificate(ctx context.Context, revocation AgentCertificateRevocation) error
+}
+
+// AgentBootstrapAuthority 由 Runtime Target 实现，协调 token、CSR 和 Vault 签发。
+// 它只供 server-authenticated bootstrap TLS listener 使用，不能作为 Operator HTTP 服务注册。
+type AgentBootstrapAuthority interface {
+	BootstrapAgent(context.Context, AgentBootstrapRequest) (AgentBootstrapResult, error)
+}
+
+// AgentBootstrapRequest 是专用 TLS listener 已接收的一次性 token 与 CSR。
+// BootstrapToken 绝不允许写入日志、持久化或 Operator HTTP 请求/响应。
+type AgentBootstrapRequest struct {
+	BootstrapToken string
+	CSRDER         []byte
+}
+
+// AgentBootstrapResult 是专用 TLS listener 可返回的非私钥签发材料。
+type AgentBootstrapResult struct {
+	CertificateChainDER [][]byte
+	TrustBundle         TrustBundleReference
+	ExpiresAt           time.Time
 }
 
 // AgentCertificateIssuanceRequest 描述已获授权的 CSR 签发请求。
