@@ -26,7 +26,7 @@ func TestRuntimeTargetAgentContractsKeepSecretMaterialOutsideModuleAPI(t *testin
 		for field := range typeOfContract.NumField() {
 			name := typeOfContract.Field(field).Name
 			lowerName := strings.ToLower(name)
-			for _, fragment := range []string{"private", "secret", "credential", "certificatepem", "signature", "password", "token"} {
+			for _, fragment := range []string{"private", "secret", "credential", "certificatepem", "pem", "signature", "password", "token"} {
 				if strings.Contains(lowerName, fragment) {
 					t.Errorf("%s leaks prohibited secret or legacy trust field %q", typeOfContract.Name(), name)
 				}
