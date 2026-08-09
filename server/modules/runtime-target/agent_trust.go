@@ -70,12 +70,20 @@ func NewAgentTrustAuditEvent(action string, operator *moduleapi.CurrentUser, bin
 		ResourceType: "runtime_target_agent_generation",
 		ResourceID:   strconv.FormatInt(binding.TargetID, 10) + ":" + binding.AgentID + ":" + strconv.FormatInt(binding.Generation, 10),
 		ResourceName: binding.AgentID,
-		StatusCode:   http.StatusOK,
+		StatusCode:   agentTrustAuditStatusCode(success),
 		Success:      success,
 		Message:      strings.TrimSpace(message),
 		Metadata:     metadata,
 		CreatedAt:    time.Now().UTC(),
 	}, nil
+}
+
+// agentTrustAuditStatusCode 将 Agent 信任生命周期审计结果映射为一致的 HTTP 状态码。
+func agentTrustAuditStatusCode(success bool) int {
+	if success {
+		return http.StatusOK
+	}
+	return http.StatusUnprocessableEntity
 }
 
 type runtimeTargetAgentBindingReader struct {

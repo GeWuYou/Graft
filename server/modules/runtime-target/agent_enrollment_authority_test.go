@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -13,6 +14,26 @@ import (
 	"graft/server/internal/moduleapi"
 	store "graft/server/modules/runtime-target/store"
 )
+
+func TestNewAgentTrustAuditEventStatusMatchesSuccess(t *testing.T) {
+	binding := moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", Generation: 1}
+
+	successEvent, err := NewAgentTrustAuditEvent(AgentTrustAuditActionRegistration, nil, binding, true, "registered")
+	if err != nil {
+		t.Fatalf("create successful audit event: %v", err)
+	}
+	if successEvent.StatusCode != http.StatusOK || !successEvent.Success {
+		t.Fatalf("successful audit event = %#v", successEvent)
+	}
+
+	failureEvent, err := NewAgentTrustAuditEvent(AgentTrustAuditActionRegistration, nil, binding, false, "rejected")
+	if err != nil {
+		t.Fatalf("create failed audit event: %v", err)
+	}
+	if failureEvent.StatusCode != http.StatusUnprocessableEntity || failureEvent.Success {
+		t.Fatalf("failed audit event = %#v", failureEvent)
+	}
+}
 
 func TestAgentEnrollmentAuthorityRegistersAndPersistsLifecycle(t *testing.T) {
 	db := openAgentEnrollmentAuthorityTestDB(t)
