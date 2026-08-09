@@ -219,12 +219,15 @@ type RuntimeTargetAgentLedgerReader interface {
 	SubmitTelemetryReport(ctx context.Context, report RuntimeTargetTelemetryReport) error
 }
 
-// AgentIdentity 表示从已验证 mTLS URI SAN 提取的身份。
+// AgentIdentity 表示从已验证 mTLS URI SAN 及客户端证书提取的身份。
+// CertificateSerial 与 PublicKeyFingerprint 只能由 TLS listener 填入，业务服务不得信任请求体中的同名字段。
 type AgentIdentity struct {
-	IdentityID string
-	TargetID   int64
-	AgentID    string
-	Generation int64
+	IdentityID           string
+	TargetID             int64
+	AgentID              string
+	Generation           int64
+	CertificateSerial    string
+	PublicKeyFingerprint string
 }
 
 // RuntimeTargetLedgerSnapshot 是仅供内部 ledger 与 agent-ledger-snapshot 映射使用的 canonical DTO。
@@ -259,6 +262,8 @@ type RuntimeTargetTelemetryReport struct {
 	TargetID              int64
 	AgentID               string
 	Generation            int64
+	CertificateSerial     string
+	PublicKeyFingerprint  string
 	SnapshotID            string
 	SnapshotDigest        string
 	ObservedAt            time.Time

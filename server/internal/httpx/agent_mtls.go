@@ -34,8 +34,6 @@ type agentIdentityContextValue struct{}
 // 证书内容不会进入请求上下文，后续存储只可使用序列号和公钥指纹。
 type AgentMTLSIdentity struct {
 	moduleapi.AgentIdentity
-	CertificateSerial    string
-	PublicKeyFingerprint string
 }
 
 // AgentMTLSIdentityFromContext 返回 mTLS 中间件写入的可信 Agent 身份。
