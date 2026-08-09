@@ -46,6 +46,12 @@ func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	if _, err := repository.IssueAgentLedgerSnapshot(context.Background(), wrongCertificate, testAgentLedgerSnapshotID2(), now, now.Add(time.Minute)); !errors.Is(err, ErrAgentTrustNotActive) {
 		t.Fatalf("wrong certificate = %v, want rejection", err)
 	}
+	if err := repository.RevokeAgentTrustGeneration(context.Background(), identity.TargetID, identity.AgentID, 1, "operator_revoke", 0, now.Add(4*time.Second)); err != nil {
+		t.Fatalf("revoke active generation: %v", err)
+	}
+	if _, err := repository.IssueAgentLedgerSnapshot(context.Background(), mtlsIdentity, testAgentLedgerSnapshotID2(), now.Add(5*time.Second), now.Add(time.Minute)); !errors.Is(err, ErrAgentTrustNotActive) {
+		t.Fatalf("revoked generation = %v, want rejection", err)
+	}
 }
 
 func testAgentLedgerSnapshotID() string {
