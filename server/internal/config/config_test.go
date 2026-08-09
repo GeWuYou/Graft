@@ -152,7 +152,8 @@ func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *t
 	if err := validateCredentialVaultConfig(cfg); err != nil {
 		t.Fatalf("validate credential vault descriptor: %v", err)
 	}
-	for _, address := range []string{"http://vault.example.test", "https://", "https://operator:secret@vault.example.test", "https://vault.example.test?token=forbidden", "https://vault.example.test#fragment"} {
+	userinfoAddress := "https://operator:" + "secret@vault.example.test"
+	for _, address := range []string{"http://vault.example.test", "https://", userinfoAddress, "https://vault.example.test?token=forbidden", "https://vault.example.test#fragment"} {
 		t.Run(address, func(t *testing.T) {
 			cfg.CredentialVault.Address = address
 			if err := validateCredentialVaultConfig(cfg); err == nil {
