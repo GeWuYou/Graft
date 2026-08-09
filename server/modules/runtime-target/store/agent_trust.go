@@ -134,6 +134,8 @@ func (r *SQLRepository) RevokeAgentTrustGeneration(ctx context.Context, targetID
 
 // RevokeAgentTrustGenerationTx 在调用方事务中撤销世代，并返回证书序列号与是否发生状态变化。
 // 调用方可据此把撤销事实与本地状态放入同一 durable event 事务。
+//
+//nolint:revive,cyclop // 事务 helper 需要显式携带完整审计与世代边界，避免引入宽泛请求对象。
 func (r *SQLRepository) RevokeAgentTrustGenerationTx(ctx context.Context, tx *sql.Tx, targetID int64, agentID string, generation int64, reason string, actorID int64, now time.Time) (string, bool, error) {
 	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || generation < 1 || now.IsZero() {
 		return "", false, ErrAgentTrustNotActive

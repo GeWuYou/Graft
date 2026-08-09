@@ -141,6 +141,9 @@ func NewVaultPKIClient(configuration config.CredentialVaultConfig, store Issuanc
 	return &VaultPKIClient{config: configuration, store: store, http: http.DefaultClient}, nil
 }
 
+// IssueCSR 使用稳定签发键协调 Vault PKI 外部副作用，并只返回非秘密证书材料。
+//
+//nolint:cyclop // 签发流程必须在同一边界内完成 durable 状态恢复、Vault 调用和非秘密结果校验。
 func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCertificateIssuanceRequest) (moduleapi.IssuedAgentCertificate, error) {
 	if v == nil || strings.TrimSpace(request.IssuanceKey) == "" || len(request.CSRDER) == 0 {
 		return moduleapi.IssuedAgentCertificate{}, errors.New("invalid certificate issuance request")
@@ -173,6 +176,7 @@ func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCe
 	return v.readCertificateResponse(request.IssuanceKey, response.Data)
 }
 
+// ReconcileCSR 从 durable 状态恢复同一签发键对应的 Vault 证书结果。
 func (v *VaultPKIClient) ReconcileCSR(ctx context.Context, issuanceKey string) (moduleapi.IssuedAgentCertificate, error) {
 	if v == nil || strings.TrimSpace(issuanceKey) == "" {
 		return moduleapi.IssuedAgentCertificate{}, moduleapi.ErrAgentCertificateIssuanceNotFound
@@ -187,6 +191,7 @@ func (v *VaultPKIClient) ReconcileCSR(ctx context.Context, issuanceKey string) (
 	return v.readCertificate(ctx, issuanceKey, state.Serial)
 }
 
+// ReadTrustBundle 返回不透明信任束引用，不读取或暴露 PEM 内容。
 func (v *VaultPKIClient) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
 	if v == nil || strings.TrimSpace(v.config.TrustBundleRef) == "" {
 		return moduleapi.TrustBundleReference{}, errors.New("vault trust bundle is not configured")
@@ -194,6 +199,7 @@ func (v *VaultPKIClient) ReadTrustBundle(context.Context, moduleapi.TrustBundleR
 	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki"}, nil
 }
 
+// RevokeCertificate 向 Vault 提交幂等证书撤销请求。
 func (v *VaultPKIClient) RevokeCertificate(ctx context.Context, revocation moduleapi.AgentCertificateRevocation) error {
 	if v == nil || strings.TrimSpace(revocation.CertificateSerial) == "" {
 		return errors.New("certificate serial is required")
@@ -294,6 +300,8 @@ func decodeCertificate(value string) (*x509.Certificate, error) {
 	}
 	return cert, nil
 }
+
+//nolint:cyclop // HTTP 请求构造、响应分类和受限解码必须在同一外部系统边界内完成。
 func (v *VaultPKIClient) call(ctx context.Context, token, method, path string, body map[string]any, out any) error {
 	var reader io.Reader
 	if body != nil {
@@ -322,7 +330,7 @@ func (v *VaultPKIClient) call(ctx context.Context, token, method, path string, b
 	if err != nil {
 		return fmt.Errorf("vault request: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("vault request returned status %d", response.StatusCode)
 	}

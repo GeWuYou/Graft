@@ -90,6 +90,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
 		"internal/event/migrations",
+		"modules/credential-vault/migrations",
 		"modules/saved-view/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
