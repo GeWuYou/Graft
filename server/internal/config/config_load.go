@@ -109,6 +109,9 @@ func readConfig(reader *viper.Viper) *Config {
 		RegistryCredentials: RegistryCredentialSourceConfig{
 			File: reader.GetString("registry.credentials_file"),
 		},
+		EnrollmentSecurity: EnrollmentSecurityConfig{
+			PepperFile: reader.GetString("enrollment.pepper_file"),
+		},
 		Backup: BackupConfig{
 			ArtifactRoot: reader.GetString("backup.artifact_root"),
 		},

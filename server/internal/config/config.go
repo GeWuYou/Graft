@@ -150,6 +150,7 @@ type Config struct {
 	MCP                 MCPConfig
 	Container           ContainerConfig
 	RegistryCredentials RegistryCredentialSourceConfig
+	EnrollmentSecurity  EnrollmentSecurityConfig
 	Backup              BackupConfig
 	Project             ProjectConfig
 }
@@ -301,6 +302,12 @@ type RegistryCredentialSourceConfig struct {
 	File string
 }
 
+// EnrollmentSecurityConfig 描述安装级 Agent enrollment 秘密文件的位置。
+// Pepper 内容只能由受控的 security provider 读取，不能作为模块配置或持久化事实。
+type EnrollmentSecurityConfig struct {
+	PepperFile string
+}
+
 // BackupConfig 描述 Backup 模块可写入的受控工件根目录。
 //
 // 该目录由部署层挂载和权限控制，不能由 HTTP 请求或 System Config 覆盖。
@@ -393,6 +400,7 @@ func (c *Config) Validate() error {
 		validateMCPConfig,
 		validateContainerConfig,
 		validateRegistryCredentialSourceConfig,
+		validateEnrollmentSecurityConfig,
 		validateBackupConfig,
 	}
 	for _, validate := range validators {
@@ -412,6 +420,18 @@ func validateRegistryCredentialSourceConfig(c *Config) error {
 		return errors.New("GRAFT_REGISTRY_CREDENTIALS_FILE must be an absolute path")
 	}
 	c.RegistryCredentials.File = filepath.Clean(file)
+	return nil
+}
+
+func validateEnrollmentSecurityConfig(c *Config) error {
+	file := strings.TrimSpace(c.EnrollmentSecurity.PepperFile)
+	if file == "" {
+		return nil
+	}
+	if !filepath.IsAbs(file) {
+		return errors.New("GRAFT_ENROLLMENT_PEPPER_FILE must be an absolute path")
+	}
+	c.EnrollmentSecurity.PepperFile = filepath.Clean(file)
 	return nil
 }
 

@@ -993,20 +993,31 @@ func TestValidateBackupConfigDefaultsAndNormalizesAbsoluteRoot(t *testing.T) {
 	}
 }
 
-func TestValidateRegistryCredentialSourceConfigAllowsUnsetAndRequiresAbsolutePath(t *testing.T) {
+func TestValidateFileSecretConfigurationsRequireAbsolutePath(t *testing.T) {
 	t.Parallel()
-	if err := validateRegistryCredentialSourceConfig(&Config{}); err != nil {
-		t.Fatalf("validate unset credential source: %v", err)
-	}
-	cfg := &Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "  /run/secrets/registry.json/../registry.json  "}}
-	if err := validateRegistryCredentialSourceConfig(cfg); err != nil {
-		t.Fatalf("validate credential source: %v", err)
-	}
-	if cfg.RegistryCredentials.File != "/run/secrets/registry.json" {
-		t.Fatalf("credential source = %q", cfg.RegistryCredentials.File)
-	}
-	if err := validateRegistryCredentialSourceConfig(&Config{RegistryCredentials: RegistryCredentialSourceConfig{File: "registry.json"}}); err == nil {
-		t.Fatal("relative credential source unexpectedly accepted")
+	for _, testCase := range []struct {
+		name     string
+		configure func(*Config, string)
+		read      func(*Config) string
+		validate  func(*Config) error
+	}{
+		{name: "registry credentials", configure: func(cfg *Config, file string) { cfg.RegistryCredentials.File = file }, read: func(cfg *Config) string { return cfg.RegistryCredentials.File }, validate: validateRegistryCredentialSourceConfig},
+		{name: "enrollment pepper", configure: func(cfg *Config, file string) { cfg.EnrollmentSecurity.PepperFile = file }, read: func(cfg *Config) string { return cfg.EnrollmentSecurity.PepperFile }, validate: validateEnrollmentSecurityConfig},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := &Config{}
+			if err := testCase.validate(cfg); err != nil {
+				t.Fatalf("validate unset file: %v", err)
+			}
+			testCase.configure(cfg, "  /run/secrets/value/../value  ")
+			if err := testCase.validate(cfg); err != nil || testCase.read(cfg) != "/run/secrets/value" {
+				t.Fatalf("normalize file = %q, err=%v", testCase.read(cfg), err)
+			}
+			testCase.configure(cfg, "relative")
+			if err := testCase.validate(cfg); err == nil {
+				t.Fatal("relative file unexpectedly accepted")
+			}
+		})
 	}
 }
 
