@@ -52,13 +52,9 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 		t.Fatalf("authorize original issuance = %#v, replay=%t, err=%v", authorization, replay, err)
 	}
 	issuer := &recoveryAgentCertificateIssuer{issued: moduleapi.IssuedAgentCertificate{
-		IssuanceKey:          issuanceKey,
-		CertificateSerial:    "vault-serial-7",
-		CertificateChainDER:  [][]byte{{1, 2, 3}},
-		PublicKeyFingerprint: "sha256:" + fingerprint,
-		ExpiresAt:            now.Add(time.Hour),
-		TrustBundle:          moduleapi.TrustBundleReference{Reference: "vault:bundle-7", Version: "bundle-7", ExpiresAt: now.Add(2 * time.Hour)},
+		IssuanceKey: issuanceKey,
 	}}
+	issuer.issued = newBootstrapValidationCertificate(t, authorization, csrDER, now)
 	authority := runtimeTargetAgentBootstrapAuthority{
 		repository: repository,
 		pepper:     delivery.pepper,
@@ -85,7 +81,7 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 	if issuer.reconcileCalls != 1 || issuer.issueCalls != 0 {
 		t.Fatalf("issuer calls = reconcile=%d issue=%d", issuer.reconcileCalls, issuer.issueCalls)
 	}
-	if got := result.CertificateChainDER; len(got) != 1 || !bytes.Equal(got[0], issuer.issued.CertificateChainDER[0]) || result.TrustBundle != issuer.issued.TrustBundle || !result.ExpiresAt.Equal(issuer.issued.ExpiresAt) {
+	if got := result.CertificateChainDER; len(got) != 2 || !bytes.Equal(got[0], issuer.issued.CertificateChainDER[0]) || result.TrustBundle != issuer.issued.TrustBundle || !result.ExpiresAt.Equal(issuer.issued.ExpiresAt) {
 		t.Fatalf("bootstrap result = %#v", result)
 	}
 

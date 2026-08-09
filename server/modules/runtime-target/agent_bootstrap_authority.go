@@ -119,9 +119,22 @@ func agentSPIFFEURI(generation store.AgentTrustGeneration) string {
 	return fmt.Sprintf("spiffe://graft/runtime-target/%d/builder-agent/%s/generation/%d", generation.Identity.TargetID, generation.Identity.AgentID, generation.Generation)
 }
 
+//nolint:cyclop // 证书 DTO、DER 叶证书、CSR 公钥和精确 URI 必须在同一激活门禁内联立校验。
 func validateIssuedBootstrapCertificate(issued moduleapi.IssuedAgentCertificate, authorization store.AgentBootstrapAuthorization, csrFingerprint string, now time.Time) error {
 	if issued.IssuanceKey != authorization.Issuance.IssuanceKey || strings.TrimSpace(issued.CertificateSerial) == "" || issued.PublicKeyFingerprint != "sha256:"+csrFingerprint || !issued.ExpiresAt.After(now) || strings.TrimSpace(issued.TrustBundle.Reference) == "" || strings.TrimSpace(issued.TrustBundle.Version) == "" || !issued.TrustBundle.ExpiresAt.After(now) || len(issued.CertificateChainDER) == 0 {
 		return errors.New("issued bootstrap certificate is invalid")
+	}
+	leaf, err := x509.ParseCertificate(issued.CertificateChainDER[0])
+	if err != nil {
+		return errors.New("issued bootstrap certificate leaf is invalid")
+	}
+	leafFingerprint := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
+	if issued.PublicKeyFingerprint != "sha256:"+hex.EncodeToString(leafFingerprint[:]) {
+		return errors.New("issued bootstrap certificate public key does not match evidence")
+	}
+	expectedURI := agentSPIFFEURI(authorization.Generation)
+	if len(leaf.URIs) != 1 || leaf.URIs[0].String() != expectedURI {
+		return errors.New("issued bootstrap certificate identity does not match authorization")
 	}
 	return nil
 }

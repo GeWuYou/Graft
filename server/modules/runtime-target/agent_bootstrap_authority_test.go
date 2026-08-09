@@ -4,8 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/hex"
 	"errors"
+	"math/big"
+	"net/url"
 	"testing"
 	"time"
 
@@ -34,13 +39,68 @@ func TestParseBootstrapCSRVerifiesSignatureAndReturnsPublicKeyFingerprint(t *tes
 
 func TestValidateIssuedBootstrapCertificateBindsIssuanceAndCSR(t *testing.T) {
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
-	authorization := store.AgentBootstrapAuthorization{Issuance: store.AgentCertificateIssuance{IssuanceKey: "issuance-1"}}
-	issued := moduleapi.IssuedAgentCertificate{IssuanceKey: "issuance-1", CertificateSerial: "serial-1", PublicKeyFingerprint: "sha256:abc", ExpiresAt: now.Add(time.Hour), TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle", Version: "1", ExpiresAt: now.Add(time.Hour)}, CertificateChainDER: [][]byte{{1}}}
-	if err := validateIssuedBootstrapCertificate(issued, authorization, "abc", now); err != nil {
+	csrDER := createBootstrapValidationCSR(t)
+	_, fingerprint, err := parseBootstrapCSR(csrDER)
+	if err != nil {
+		t.Fatalf("parse test CSR: %v", err)
+	}
+	authorization := store.AgentBootstrapAuthorization{Issuance: store.AgentCertificateIssuance{IssuanceKey: "issuance-1"}, Generation: store.AgentTrustGeneration{Generation: 1, Identity: store.AgentTrustIdentity{TargetID: 7, AgentID: "agent-7"}}}
+	issued := newBootstrapValidationCertificate(t, authorization, csrDER, now)
+	if err := validateIssuedBootstrapCertificate(issued, authorization, fingerprint, now); err != nil {
 		t.Fatalf("validate issued certificate: %v", err)
 	}
 	issued.IssuanceKey = "other"
-	if err := validateIssuedBootstrapCertificate(issued, authorization, "abc", now); err == nil || errors.Is(err, moduleapi.ErrAgentCertificateIssuanceNotFound) {
+	if err := validateIssuedBootstrapCertificate(issued, authorization, fingerprint, now); err == nil || errors.Is(err, moduleapi.ErrAgentCertificateIssuanceNotFound) {
 		t.Fatalf("mismatched issuance validation error = %v", err)
 	}
+	wrongAuthorization := authorization
+	wrongAuthorization.Generation.Identity.AgentID = "other"
+	if err := validateIssuedBootstrapCertificate(issued, wrongAuthorization, fingerprint, now); err == nil {
+		t.Fatal("certificate with mismatched SPIFFE URI unexpectedly accepted")
+	}
+}
+
+func createBootstrapValidationCSR(t *testing.T) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate validation key: %v", err)
+	}
+	encoded, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{}, key)
+	if err != nil {
+		t.Fatalf("create validation CSR: %v", err)
+	}
+	return encoded
+}
+
+func newBootstrapValidationCertificate(t *testing.T, authorization store.AgentBootstrapAuthorization, csrDER []byte, now time.Time) moduleapi.IssuedAgentCertificate {
+	t.Helper()
+	csr, err := x509.ParseCertificateRequest(csrDER)
+	if err != nil {
+		t.Fatalf("parse validation CSR: %v", err)
+	}
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate validation CA key: %v", err)
+	}
+	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "test-ca"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(2 * time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create validation CA: %v", err)
+	}
+	ca, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatalf("parse validation CA: %v", err)
+	}
+	identityURI, err := url.Parse(agentSPIFFEURI(authorization.Generation))
+	if err != nil {
+		t.Fatalf("parse expected SPIFFE URI: %v", err)
+	}
+	leafTemplate := &x509.Certificate{SerialNumber: big.NewInt(7), Subject: pkix.Name{CommonName: "agent"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), URIs: []*url.URL{identityURI}, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, ca, csr.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create validation leaf: %v", err)
+	}
+	fingerprint := sha256.Sum256(csr.RawSubjectPublicKeyInfo)
+	return moduleapi.IssuedAgentCertificate{IssuanceKey: authorization.Issuance.IssuanceKey, CertificateSerial: "7", CertificateChainDER: [][]byte{leafDER, caDER}, PublicKeyFingerprint: "sha256:" + hex.EncodeToString(fingerprint[:]), ExpiresAt: now.Add(time.Hour), TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle", Version: "1", ExpiresAt: now.Add(2 * time.Hour)}}
 }
