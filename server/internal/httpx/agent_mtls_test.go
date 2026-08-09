@@ -60,6 +60,7 @@ func TestAgentServerStartListenerUsesBoundListenerLifecycle(t *testing.T) {
 	}
 }
 
+//nolint:gocyclo // TLS listener、真实客户端握手、重连与身份提取共同覆盖不可拆分的 mTLS conformance seam。
 func TestAgentServerAcceptsCASignedClientCertificateOverTLS(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	now := time.Now().UTC()
@@ -99,10 +100,21 @@ func TestAgentServerAcceptsCASignedClientCertificateOverTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET ledger snapshot over mTLS: %v", err)
 	}
-	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK || response.Header.Get("Cache-Control") != "no-store" {
+		_ = response.Body.Close()
 		t.Fatalf("mTLS snapshot response = %d %#v", response.StatusCode, response.Header)
 	}
+	_ = response.Body.Close()
+	// 第二次请求复用同一 mTLS 客户端，覆盖 Agent 重连后的证书验证与身份提取路径。
+	reconnect, err := client.Get("https://" + listener.Addr().String() + agentLedgerSnapshotPath)
+	if err != nil {
+		t.Fatalf("reconnect ledger snapshot over mTLS: %v", err)
+	}
+	if reconnect.StatusCode != http.StatusOK || reconnect.Header.Get("Cache-Control") != "no-store" {
+		_ = reconnect.Body.Close()
+		t.Fatalf("mTLS reconnect response = %d %#v", reconnect.StatusCode, reconnect.Header)
+	}
+	_ = reconnect.Body.Close()
 	if reader.issued.TargetID != 7 || reader.issued.AgentID != "builder-7" || reader.issued.Generation != 3 || reader.issued.CertificateSerial == "" || reader.issued.PublicKeyFingerprint == "" {
 		t.Fatalf("verified identity = %#v", reader.issued)
 	}

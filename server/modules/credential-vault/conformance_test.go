@@ -177,6 +177,7 @@ func TestAgentCertificateRevocationHandlerConformance(t *testing.T) {
 	}
 }
 
+//nolint:gocognit,gocyclo // 同时断言 Vault 短暂不可用的 retry 与耗尽后的 terminal 状态，避免两条 conformance 路径分离。
 func TestAgentCertificateRevocationUsesDurableOutboxRetryAndTerminalFailure(t *testing.T) {
 	payload, err := json.Marshal(runtimetargetcontract.AgentCertificateRevocationEvent{
 		IdentityID: "identity-1", TargetID: 7, AgentID: "agent-1", Generation: 3,
@@ -303,7 +304,9 @@ func (s *conformanceOutboxStore) Claim(_ context.Context, _ string, now time.Tim
 	defer s.mu.Unlock()
 	claimed := make([]event.ClaimedDelivery, 0, limit)
 	for _, item := range s.deliveries {
-		if len(claimed) >= limit || (item.status != conformanceDeliveryPending && !(item.status == conformanceDeliveryProcessing && !item.leaseUntil.After(now))) || item.availableAt.After(now) {
+		pending := item.status == conformanceDeliveryPending
+		reclaimable := item.status == conformanceDeliveryProcessing && !item.leaseUntil.After(now)
+		if len(claimed) >= limit || (!pending && !reclaimable) || item.availableAt.After(now) {
 			continue
 		}
 		item.status = conformanceDeliveryProcessing
