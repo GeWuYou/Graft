@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -202,19 +203,29 @@ func (s *AgentServer) Start(addr string) (<-chan error, error) {
 	if s == nil || s.engine == nil || s.tlsConfig == nil {
 		return nil, errors.New("agent mTLS server is unavailable")
 	}
-	listener, err := tls.Listen("tcp", addr, s.tlsConfig)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen agent mTLS: %w", err)
 	}
+	return s.StartListener(listener)
+}
+
+// StartListener 在已绑定的原始 listener 上启动 Agent 专用 mTLS 服务。
+// 调用方不能自行绕过 TLS；该方法始终使用 AgentServer 创建时固定的 TLS 配置。
+func (s *AgentServer) StartListener(listener net.Listener) (<-chan error, error) {
+	if s == nil || s.engine == nil || s.tlsConfig == nil || listener == nil {
+		return nil, errors.New("agent mTLS server is unavailable")
+	}
+	tlsListener := tls.NewListener(listener, s.tlsConfig)
 	server := &http.Server{Handler: s.engine, ReadHeaderTimeout: defaultServerReadHeaderTimeout, ReadTimeout: defaultServerReadTimeout, WriteTimeout: defaultServerWriteTimeout, IdleTimeout: defaultServerIdleTimeout}
 	if err := s.bindRunningServer(server); err != nil {
-		_ = listener.Close()
+		_ = tlsListener.Close()
 		return nil, err
 	}
 	errCh := make(chan error, 1)
 	go func() {
 		defer s.clearRunningServer(server)
-		err := server.Serve(listener)
+		err := server.Serve(tlsListener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("serve agent mTLS: %w", err)
 		}

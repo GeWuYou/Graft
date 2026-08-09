@@ -1,10 +1,12 @@
 package httpx
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,6 +30,25 @@ func TestNewAgentServerIsAbsentWhenDisabled(t *testing.T) {
 	}
 	if server != nil {
 		t.Fatal("disabled Agent TLS must not create a listener")
+	}
+}
+
+func TestAgentServerStartListenerUsesBoundListenerLifecycle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("bind listener: %v", err)
+	}
+	server := &AgentServer{engine: gin.New(), tlsConfig: &tls.Config{MinVersion: tls.VersionTLS13}}
+	errors, err := server.StartListener(listener)
+	if err != nil {
+		t.Fatalf("start bound listener: %v", err)
+	}
+	if err := server.Shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown bound listener: %v", err)
+	}
+	if err, ok := <-errors; ok || err != nil {
+		t.Fatalf("listener result = %v, open=%t", err, ok)
 	}
 }
 
