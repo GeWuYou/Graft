@@ -7,6 +7,10 @@ get:
   responses:
     '200':
       description: Certificate-bound, one-time Driver-controller ledger snapshot.
+      headers:
+        Cache-Control:
+          description: One-time Agent ledger snapshots must not be stored.
+          schema: {type: string, enum: [no-store]}
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-agent-ledger-snapshot.yaml}

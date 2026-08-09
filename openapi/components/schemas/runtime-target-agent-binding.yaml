@@ -13,4 +13,4 @@ properties:
   trustBundleVersion: {type: string, minLength: 1, maxLength: 128}
   expiresAt: {type: string, format: date-time}
   revokedAt: {type: string, format: date-time, nullable: true}
-  auditCorrelationId: {type: string, description: Redacted audit correlation identifier for the latest binding transition.}
+  auditCorrelationId: {type: string, minLength: 1, maxLength: 128, description: Redacted audit correlation identifier for the latest binding transition.}

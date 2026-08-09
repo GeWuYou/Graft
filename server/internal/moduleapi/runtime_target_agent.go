@@ -7,11 +7,16 @@ import (
 
 // MachineIdentityAuthority 负责 Agent 信任的签发与生命周期；秘密材料留在外部 Vault。
 type MachineIdentityAuthority interface {
-	CreateEnrollment(context.Context, MachineEnrollmentRequest) (MachineEnrollment, error)
-	ActivateGeneration(context.Context, MachineIdentityActivation) error
-	RotateGeneration(context.Context, MachineIdentityRotationRequest) (MachineEnrollment, error)
-	RevokeGeneration(context.Context, MachineIdentityRevocation) error
-	ReadTrustBundle(context.Context, TrustBundleRequest) (TrustBundleReference, error)
+	// CreateEnrollment 创建待激活的身份世代；返回结果不得包含任何秘密材料。
+	CreateEnrollment(ctx context.Context, request MachineEnrollmentRequest) (MachineEnrollment, error)
+	// ActivateGeneration 激活已完成外部材料投递且与证书绑定的身份世代。
+	ActivateGeneration(ctx context.Context, activation MachineIdentityActivation) error
+	// RotateGeneration 在旧世代停用后创建新世代，并返回新的待激活登记结果。
+	RotateGeneration(ctx context.Context, request MachineIdentityRotationRequest) (MachineEnrollment, error)
+	// RevokeGeneration 撤销指定身份世代；重复调用必须保持幂等。
+	RevokeGeneration(ctx context.Context, revocation MachineIdentityRevocation) error
+	// ReadTrustBundle 返回不透明信任束引用，不得将 PEM 或密钥材料带入模块 API。
+	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
 }
 
 // MachineEnrollmentRequest 描述不携带秘密的 Agent 绑定请求。
@@ -41,8 +46,22 @@ type MachineEnrollment struct {
 	TrustBundleVersion   string
 	CertificateSerial    string
 	PublicKeyFingerprint string
-	Status               string
+	Status               RuntimeTargetAgentStatus
 }
+
+// RuntimeTargetAgentStatus 表示 Runtime Target Agent 身份世代的生命周期状态。
+type RuntimeTargetAgentStatus string
+
+const (
+	// RuntimeTargetAgentStatusPending 表示登记已创建但尚未完成证书绑定激活。
+	RuntimeTargetAgentStatusPending RuntimeTargetAgentStatus = "pending"
+	// RuntimeTargetAgentStatusActive 表示当前身份世代已完成激活并可用于受控访问。
+	RuntimeTargetAgentStatusActive RuntimeTargetAgentStatus = "active"
+	// RuntimeTargetAgentStatusRevoked 表示身份世代已被撤销且不得继续使用。
+	RuntimeTargetAgentStatusRevoked RuntimeTargetAgentStatus = "revoked"
+	// RuntimeTargetAgentStatusRetired 表示身份世代已被更新世代替代且不再接受使用。
+	RuntimeTargetAgentStatusRetired RuntimeTargetAgentStatus = "retired"
+)
 
 // MachineIdentityActivation 确认外部投递材料后的指定身份世代激活。
 type MachineIdentityActivation struct {
@@ -91,7 +110,8 @@ type TrustBundleReference struct {
 
 // RuntimeTargetAgentBindingReader 仅向调用方提供 Agent 绑定状态。
 type RuntimeTargetAgentBindingReader interface {
-	ReadAgentBinding(context.Context, int64, string) (RuntimeTargetAgentBinding, error)
+	// ReadAgentBinding 读取指定 Runtime Target 与 Agent 的当前绑定快照。
+	ReadAgentBinding(ctx context.Context, targetID int64, agentID string) (RuntimeTargetAgentBinding, error)
 }
 
 // RuntimeTargetAgentBinding 描述 Agent 与单个 Runtime Target 及世代的绑定。
@@ -109,13 +129,15 @@ type RuntimeTargetAgentBinding struct {
 	TrustBundleVersion   string
 	ExpiresAt            time.Time
 	RevokedAt            *time.Time
-	Status               string
+	Status               RuntimeTargetAgentStatus
 }
 
 // RuntimeTargetAgentLedgerReader 向 Agent 提供受控的 Driver-controller ledger 快照及回执入口。
 type RuntimeTargetAgentLedgerReader interface {
-	IssueLedgerSnapshot(context.Context, AgentIdentity) (RuntimeTargetLedgerSnapshot, error)
-	SubmitTelemetryReport(context.Context, RuntimeTargetTelemetryReport) error
+	// IssueLedgerSnapshot 为已验证身份签发一次性 canonical ledger 快照。
+	IssueLedgerSnapshot(ctx context.Context, identity AgentIdentity) (RuntimeTargetLedgerSnapshot, error)
+	// SubmitTelemetryReport 接收与已签发快照绑定的受限 Agent 遥测回执。
+	SubmitTelemetryReport(ctx context.Context, report RuntimeTargetTelemetryReport) error
 }
 
 // AgentIdentity 表示从已验证 mTLS URI SAN 提取的身份。

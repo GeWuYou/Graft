@@ -19442,6 +19442,17 @@
         "responses": {
           "200": {
             "description": "Certificate-bound, one-time Driver-controller ledger snapshot.",
+            "headers": {
+              "Cache-Control": {
+                "description": "One-time Agent ledger snapshots must not be stored.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40040,6 +40051,8 @@
           },
           "auditCorrelationId": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
             "description": "Redacted audit correlation identifier for the latest binding transition."
           }
         }
@@ -40198,6 +40211,7 @@
           },
           "implementationVersion": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 128,
             "description": "Optional bounded Agent implementation diagnostic."
           },

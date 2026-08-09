@@ -22793,6 +22793,8 @@ export interface operations {
       /** @description Certificate-bound, one-time Driver-controller ledger snapshot. */
       200: {
         headers: {
+          /** @description One-time Agent ledger snapshots must not be stored. */
+          'Cache-Control'?: 'no-store';
           [name: string]: unknown;
         };
         content: {
