@@ -61,6 +61,9 @@ func (r *SQLRepository) AuthorizeAgentCertificateIssuance(ctx context.Context, t
 		if authorization.Issuance.CSRPublicKeyFingerprint != strings.TrimSpace(csrFingerprint) {
 			return ErrAgentDeliveryRejected
 		}
+		if authorization.Grant.Status != "delivered" || !authorization.Grant.ExpiresAt.After(now.UTC()) {
+			return ErrAgentDeliveryRejected
+		}
 		replay = created == 0
 		return nil
 	})
@@ -117,7 +120,7 @@ func (r *SQLRepository) CompleteAgentCertificateIssuance(ctx context.Context, is
 			replay = true
 			return nil
 		}
-		if authorization.Issuance.Status != "issued" || authorization.Grant.Status != "delivered" {
+		if authorization.Issuance.Status != "issued" || authorization.Grant.Status != "delivered" || !authorization.Grant.ExpiresAt.After(now.UTC()) {
 			return ErrAgentDeliveryRejected
 		}
 		generationResult, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_generations SET status = 'active', certificate_issuer = $1, certificate_serial = $2, public_key_fingerprint = $3, activated_at = $4, updated_at = $4 WHERE id = $5 AND status = 'pending' AND expires_at > $4 AND deleted_at = 0`, authorization.Issuance.CertificateIssuer, authorization.Issuance.CertificateSerial, authorization.Issuance.CertificatePublicKeyFingerprint, now.UTC(), authorization.Generation.ID)

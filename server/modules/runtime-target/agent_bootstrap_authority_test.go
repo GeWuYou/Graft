@@ -60,6 +60,19 @@ func TestValidateIssuedBootstrapCertificateBindsIssuanceAndCSR(t *testing.T) {
 	}
 }
 
+func TestValidAgentSPIFFEPathSegment(t *testing.T) {
+	for _, value := range []string{"agent-7", "agent_7", "agent.7", "A7"} {
+		if !validAgentSPIFFEPathSegment(value) {
+			t.Fatalf("valid SPIFFE path segment %q rejected", value)
+		}
+	}
+	for _, value := range []string{"", "agent/7", "agent 7", "agent?7", "agent#7", "agent%2F7"} {
+		if validAgentSPIFFEPathSegment(value) {
+			t.Fatalf("invalid SPIFFE path segment %q accepted", value)
+		}
+	}
+}
+
 func createBootstrapValidationCSR(t *testing.T) []byte {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

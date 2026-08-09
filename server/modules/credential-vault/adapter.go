@@ -25,6 +25,11 @@ import (
 // 调用方必须将其视为 fail-closed 的服务不可用状态，不能以本地凭据替代。
 var ErrAgentCertificateIssuerUnavailable = errors.New("agent certificate issuer is unavailable")
 
+const (
+	vaultRequestTimeout   = 10 * time.Second
+	vaultResponseMaxBytes = 1 << 20
+)
+
 // VaultPKIAdapter 是 Credential Vault 拥有的真实 Vault PKI 集成 adapter seam。
 // adapter 只能返回非秘密的 moduleapi DTO；私钥、PEM 和 enrollment secret 必须留在 Vault 或部署交付
 // 通道中，不能由本模块 materialize。
@@ -138,7 +143,7 @@ func NewVaultPKIClient(configuration config.CredentialVaultConfig, store Issuanc
 	if strings.TrimSpace(configuration.Address) == "" || strings.TrimSpace(configuration.AuthMount) == "" || strings.TrimSpace(configuration.AuthRole) == "" || strings.TrimSpace(configuration.AuthRoleIDFile) == "" || strings.TrimSpace(configuration.AuthSecretIDFile) == "" || strings.TrimSpace(configuration.PKIMount) == "" || strings.TrimSpace(configuration.PKIRole) == "" {
 		return nil, errors.New("vault PKI configuration is incomplete")
 	}
-	return &VaultPKIClient{config: configuration, store: store, http: http.DefaultClient}, nil
+	return &VaultPKIClient{config: configuration, store: store, http: &http.Client{Timeout: vaultRequestTimeout}}, nil
 }
 
 // IssueCSR 使用稳定签发键协调 Vault PKI 外部副作用，并只返回非秘密证书材料。
@@ -230,11 +235,11 @@ type vaultLoginResponse struct {
 func (v *VaultPKIClient) login(ctx context.Context) (string, error) {
 	roleID, err := os.ReadFile(v.config.AuthRoleIDFile)
 	if err != nil {
-		return "", errors.New("read vault role id file")
+		return "", fmt.Errorf("read vault role id file: %w", err)
 	}
 	secretID, err := os.ReadFile(v.config.AuthSecretIDFile)
 	if err != nil {
-		return "", errors.New("read vault secret id file")
+		return "", fmt.Errorf("read vault secret id file: %w", err)
 	}
 	var response vaultLoginResponse
 	if err := v.call(ctx, "", http.MethodPost, "/v1/auth/"+pathEscape(v.config.AuthMount)+"/login", map[string]any{"role_id": strings.TrimSpace(string(roleID)), "secret_id": strings.TrimSpace(string(secretID))}, &response); err != nil {
@@ -255,6 +260,8 @@ func (v *VaultPKIClient) readCertificate(ctx context.Context, issuanceKey, seria
 	if err := v.call(ctx, token, http.MethodGet, "/v1/"+pathEscape(v.config.PKIMount)+"/cert/"+url.PathEscape(serial), nil, &response); err != nil {
 		return moduleapi.IssuedAgentCertificate{}, err
 	}
+	// 持久化序列号是重启协调的 authority，不能被 Vault 读取响应中的字段覆盖。
+	response.Data.SerialNumber = serial
 	return v.readCertificateResponse(issuanceKey, response.Data)
 }
 
@@ -324,7 +331,7 @@ func (v *VaultPKIClient) call(ctx context.Context, token, method, path string, b
 	}
 	client := v.http
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: vaultRequestTimeout}
 	}
 	response, err := client.Do(req)
 	if err != nil {
@@ -337,8 +344,15 @@ func (v *VaultPKIClient) call(ctx context.Context, token, method, path string, b
 	if out == nil {
 		return nil
 	}
-	if err := json.NewDecoder(response.Body).Decode(out); err != nil {
+	limitedBody := &io.LimitedReader{R: response.Body, N: vaultResponseMaxBytes + 1}
+	if err := json.NewDecoder(limitedBody).Decode(out); err != nil {
+		if limitedBody.N == 0 {
+			return errors.New("vault response exceeds maximum size")
+		}
 		return fmt.Errorf("decode vault response: %w", err)
+	}
+	if limitedBody.N == 0 {
+		return errors.New("vault response exceeds maximum size")
 	}
 	return nil
 }

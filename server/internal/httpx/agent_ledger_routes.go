@@ -37,9 +37,13 @@ func (s *AgentServer) ConfigureLedgerRoutes(reader moduleapi.RuntimeTargetAgentL
 	if s.server != nil {
 		return errors.New("agent mTLS server is already running")
 	}
+	if s.ledgerRoutesConfigured {
+		return errors.New("agent mTLS ledger routes are already configured")
+	}
 	s.engine.Use(agentLedgerNoStore())
 	s.engine.GET(agentLedgerSnapshotPath, agentLedgerSnapshotHandler(reader, s.logger))
 	s.engine.POST(agentTelemetryReportsPath, agentTelemetryReportHandler(reader, s.logger))
+	s.ledgerRoutesConfigured = true
 	return nil
 }
 

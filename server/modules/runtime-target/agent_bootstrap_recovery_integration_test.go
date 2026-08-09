@@ -17,7 +17,7 @@ import (
 	store "graft/server/modules/runtime-target/store"
 )
 
-//nolint:gocyclo,cyclop // 测试在一个场景中固定验证交付、恢复、激活与单次消费的完整边界。
+//nolint:gocognit,gocyclo,cyclop // 测试在一个场景中固定验证交付、恢复、激活与单次消费的完整边界。
 func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.T) {
 	now := time.Date(2026, 8, 9, 14, 0, 0, 0, time.UTC)
 	db := openAgentEnrollmentAuthorityTestDB(t)
@@ -51,6 +51,15 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 	if err != nil || replay {
 		t.Fatalf("authorize original issuance = %#v, replay=%t, err=%v", authorization, replay, err)
 	}
+	if _, err := db.Exec(`UPDATE runtime_target_agent_delivery_grants SET expires_at = $1 WHERE id = $2`, now.Add(-time.Minute), authorization.Grant.ID); err != nil {
+		t.Fatalf("expire delivery grant: %v", err)
+	}
+	if _, _, err := repository.AuthorizeAgentCertificateIssuance(context.Background(), tokenVerifier(handoff.BootstrapToken, delivery.enrollmentPepper()), fingerprint, issuanceKey, now); !errors.Is(err, store.ErrAgentDeliveryRejected) {
+		t.Fatalf("authorize expired issuance replay = %v, want rejection", err)
+	}
+	if _, err := db.Exec(`UPDATE runtime_target_agent_delivery_grants SET expires_at = $1 WHERE id = $2`, now.Add(time.Hour), authorization.Grant.ID); err != nil {
+		t.Fatalf("restore delivery grant expiry: %v", err)
+	}
 	issuer := &recoveryAgentCertificateIssuer{issued: moduleapi.IssuedAgentCertificate{
 		IssuanceKey: issuanceKey,
 	}}
@@ -60,14 +69,14 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 		pepper:     delivery.pepper,
 		issuer:     issuer,
 		now:        func() time.Time { return now },
-		random: bytes.NewReader(append(
+		random: bytes.NewReader(append(bytes.Repeat([]byte{0xcc}, agentDeliveryTokenBytes), append(
 			bytes.Repeat([]byte{0xbb}, agentDeliveryTokenBytes),
 			bytes.Repeat([]byte{0xaa}, agentDeliveryTokenBytes)...,
-		)),
+		)...)),
 	}
 
 	changedCSR := createBootstrapRecoveryCSR(t)
-	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: changedCSR}); !errors.Is(err, errAgentBootstrapRejected) {
+	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: changedCSR}); !errors.Is(err, moduleapi.ErrAgentBootstrapRejected) {
 		t.Fatalf("bootstrap changed CSR = %v", err)
 	}
 	if issuer.reconcileCalls != 0 || issuer.issueCalls != 0 {
@@ -98,7 +107,7 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 	if generationStatus != "active" || grantStatus != "consumed" || issuanceStatus != "completed" {
 		t.Fatalf("post-bootstrap statuses: generation=%q grant=%q issuance=%q", generationStatus, grantStatus, issuanceStatus)
 	}
-	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: csrDER}); !errors.Is(err, errAgentBootstrapRejected) {
+	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: csrDER}); !errors.Is(err, moduleapi.ErrAgentBootstrapRejected) {
 		t.Fatalf("bootstrap consumed grant = %v", err)
 	}
 }

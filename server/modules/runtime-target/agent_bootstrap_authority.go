@@ -17,9 +17,6 @@ import (
 	store "graft/server/modules/runtime-target/store"
 )
 
-// errAgentBootstrapRejected 不泄露 token、grant、CSR 或 Vault 状态的具体可探测信息。
-var errAgentBootstrapRejected = errors.New("runtime target agent bootstrap rejected")
-
 // runtimeTargetAgentBootstrapAuthority 协调 Runtime Target 授权与 Credential Vault PKI 外部副作用。
 type runtimeTargetAgentBootstrapAuthority struct {
 	repository *store.SQLRepository
@@ -38,15 +35,15 @@ func newRuntimeTargetAgentBootstrapAuthority(repository *store.SQLRepository, pe
 //nolint:gocognit,cyclop // token、CSR、签发协调与激活的失败关闭分支必须位于同一服务边界。
 func (a runtimeTargetAgentBootstrapAuthority) BootstrapAgent(ctx context.Context, request moduleapi.AgentBootstrapRequest) (moduleapi.AgentBootstrapResult, error) {
 	if a.repository == nil || a.issuer == nil || len(a.enrollmentPepper()) == 0 {
-		return moduleapi.AgentBootstrapResult{}, errAgentBootstrapRejected
+		return moduleapi.AgentBootstrapResult{}, moduleapi.ErrAgentBootstrapRejected
 	}
 	csr, fingerprint, err := parseBootstrapCSR(request.CSRDER)
 	if err != nil || strings.TrimSpace(request.BootstrapToken) == "" {
-		return moduleapi.AgentBootstrapResult{}, errAgentBootstrapRejected
+		return moduleapi.AgentBootstrapResult{}, moduleapi.ErrAgentBootstrapRejected
 	}
 	issuanceKey, err := a.randomValue()
 	if err != nil {
-		return moduleapi.AgentBootstrapResult{}, errAgentBootstrapRejected
+		return moduleapi.AgentBootstrapResult{}, moduleapi.ErrAgentBootstrapRejected
 	}
 	pepper := a.enrollmentPepper()
 	authorization, _, err := a.repository.AuthorizeAgentCertificateIssuance(ctx, tokenVerifier(request.BootstrapToken, pepper), fingerprint, issuanceKey, a.currentTime())
@@ -58,7 +55,7 @@ func (a runtimeTargetAgentBootstrapAuthority) BootstrapAgent(ctx context.Context
 		return moduleapi.AgentBootstrapResult{}, normalizeAgentBootstrapError(err)
 	}
 	if err := validateIssuedBootstrapCertificate(issued, authorization, fingerprint, a.currentTime()); err != nil {
-		return moduleapi.AgentBootstrapResult{}, errAgentBootstrapRejected
+		return moduleapi.AgentBootstrapResult{}, moduleapi.ErrAgentBootstrapRejected
 	}
 	if _, _, err := a.repository.RecordIssuedAgentCertificate(ctx, issuanceFromCertificate(authorization.Issuance.IssuanceKey, issued), a.currentTime()); err != nil {
 		return moduleapi.AgentBootstrapResult{}, normalizeAgentBootstrapError(err)
@@ -153,7 +150,7 @@ func cloneCertificateChain(chain [][]byte) [][]byte {
 
 func normalizeAgentBootstrapError(err error) error {
 	if errors.Is(err, store.ErrAgentDeliveryRejected) || errors.Is(err, store.ErrAgentTrustNotFound) || errors.Is(err, moduleapi.ErrAgentCertificateIssuanceNotFound) {
-		return errAgentBootstrapRejected
+		return moduleapi.ErrAgentBootstrapRejected
 	}
 	return err
 }

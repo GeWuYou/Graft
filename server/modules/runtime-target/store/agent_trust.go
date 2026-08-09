@@ -158,10 +158,15 @@ func (r *SQLRepository) RevokeAgentTrustGenerationTx(ctx context.Context, tx *sq
 	if status == "revoked" {
 		return serial, false, nil
 	}
-	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation); err != nil {
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = 'revoked', revoked_at = COALESCE(revoked_at, $1), revoked_reason = CASE WHEN revoked_reason = '' THEN $2 ELSE revoked_reason END, updated_at = $1, updated_by = $3 WHERE identity_id = $4 AND generation = $5 AND deleted_at = 0 AND status <> 'revoked'`, now.UTC(), strings.TrimSpace(reason), actorID, identity.ID, generation)
+	if err != nil {
 		return "", false, fmt.Errorf("revoke runtime target agent trust generation: %w", err)
 	}
-	return serial, true, nil
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return "", false, fmt.Errorf("read runtime target agent trust revocation result: %w", err)
+	}
+	return serial, affected == 1, nil
 }
 
 // RevokeAllAgentTrustGenerations 用于目标重置或重新绑定，确保任何旧世代不能恢复活动状态。
@@ -189,6 +194,26 @@ func (r *SQLRepository) ReadActiveAgentTrustGeneration(ctx context.Context, targ
 	}
 	row := r.executor(ctx).QueryRowContext(ctx, `SELECT `+agentTrustGenerationSelectColumns+` FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND g.generation = $3 AND i.deleted_at = 0 AND g.deleted_at = 0 AND g.status = 'active' AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.expires_at > $4`, targetID, agentID, generation, now.UTC())
 	return scanAgentTrustGeneration(row)
+}
+
+// ReadActiveAgentTrustGenerationForLedgerMutation 在同一事务中固定活动世代，避免撤销与账本写入交错。
+func (r *SQLRepository) ReadActiveAgentTrustGenerationForLedgerMutation(ctx context.Context, targetID int64, agentID string, generation int64, now time.Time) (AgentTrustGeneration, error) {
+	active, err := r.ReadActiveAgentTrustGeneration(ctx, targetID, agentID, generation, now)
+	if err != nil {
+		return AgentTrustGeneration{}, err
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_agent_generations SET status = status WHERE id = $1 AND status = 'active' AND revoked_at IS NULL AND retired_at IS NULL AND expires_at > $2 AND deleted_at = 0`, active.ID, now.UTC())
+	if err != nil {
+		return AgentTrustGeneration{}, fmt.Errorf("lock active runtime target agent trust generation: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return AgentTrustGeneration{}, fmt.Errorf("read active runtime target agent trust lock result: %w", err)
+	}
+	if affected != 1 {
+		return AgentTrustGeneration{}, ErrAgentTrustNotActive
+	}
+	return active, nil
 }
 
 // ReadCurrentAgentTrustGeneration 返回最新世代的可读状态投影，不把它视为活动信任判断。

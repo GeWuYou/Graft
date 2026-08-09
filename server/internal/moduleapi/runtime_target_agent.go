@@ -10,6 +10,10 @@ import (
 // 调用方仅可在已经持久化的同一授权上下文中据此发起首次签发。
 var ErrAgentCertificateIssuanceNotFound = errors.New("agent certificate issuance not found")
 
+// ErrAgentBootstrapRejected 表示 bootstrap 授权材料未通过校验。
+// 它不包含 token、CSR、投递或 Vault 状态，HTTP 边界可将其安全映射为统一的未认证响应。
+var ErrAgentBootstrapRejected = errors.New("agent bootstrap rejected")
+
 // AgentEnrollmentAuthority 由 Runtime Target 实现，负责 Agent 与目标的业务绑定及世代生命周期。
 // 该接口不签发证书，也不接触私钥、投递令牌或其他秘密材料；这些职责分别属于 Credential Vault 和部署交付边界。
 type AgentEnrollmentAuthority interface {

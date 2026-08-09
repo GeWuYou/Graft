@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ const runtimeTargetListKeywordMaxLength = 128
 // Module 暴露 runtime-target API 路由，并提供有界的 Docker Target 发现与 provider 能力。
 type Module struct {
 	repository      *store.SQLRepository
+	pepper          *config.EnrollmentPepperProvider
 	summaries       *summaryCache
 	authorizer      moduleapi.Authorizer
 	realtimeTickets realtimeauth.Service
@@ -50,8 +52,12 @@ type Module struct {
 }
 
 // NewModule 构造 runtime-target 模块实例。
-func NewModule(repository *store.SQLRepository) *Module {
-	return &Module{repository: repository, summaries: newSummaryCache()}
+func NewModule(repository *store.SQLRepository, pepper ...*config.EnrollmentPepperProvider) *Module {
+	var enrollmentPepper *config.EnrollmentPepperProvider
+	if len(pepper) > 0 {
+		enrollmentPepper = pepper[0]
+	}
+	return &Module{repository: repository, pepper: enrollmentPepper, summaries: newSummaryCache()}
 }
 
 // Register 声明 runtime-target 权限、菜单元数据和 API 路由。
@@ -158,25 +164,17 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	}); err != nil {
 		return err
 	}
-	enrollmentSecurity := config.EnrollmentSecurityConfig{}
-	if ctx.Config != nil {
-		enrollmentSecurity = ctx.Config.EnrollmentSecurity
-	}
-	pepper, err := config.NewEnrollmentPepperProvider(enrollmentSecurity)
-	if err != nil {
-		return err
-	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentDeliveryAuthority)(nil), func(_ containerdi.Resolver) (any, error) {
-		return newRuntimeTargetAgentDeliveryAuthority(m.repository, pepper), nil
+		return newRuntimeTargetAgentDeliveryAuthority(m.repository, m.pepper), nil
 	}); err != nil {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentBootstrapAuthority)(nil), func(resolver containerdi.Resolver) (any, error) {
 		issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](resolver, (*moduleapi.AgentCertificateIssuer)(nil))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve agent certificate issuer: %w", err)
 		}
-		return newRuntimeTargetAgentBootstrapAuthority(m.repository, pepper, issuer), nil
+		return newRuntimeTargetAgentBootstrapAuthority(m.repository, m.pepper, issuer), nil
 	}); err != nil {
 		return err
 	}

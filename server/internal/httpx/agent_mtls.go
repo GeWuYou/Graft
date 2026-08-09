@@ -169,11 +169,12 @@ func isCanonicalAgentID(value string) bool {
 
 // AgentServer 是专用于 Agent mTLS 路由的独立监听器，不复用用户 HTTP listener。
 type AgentServer struct {
-	engine    *gin.Engine
-	tlsConfig *tls.Config
-	logger    *zap.Logger
-	mu        sync.Mutex
-	server    *http.Server
+	engine                 *gin.Engine
+	tlsConfig              *tls.Config
+	logger                 *zap.Logger
+	mu                     sync.Mutex
+	server                 *http.Server
+	ledgerRoutesConfigured bool
 }
 
 // NewAgentServer 从部署挂载的证书文件构造 Agent 专用 TLS 监听器。

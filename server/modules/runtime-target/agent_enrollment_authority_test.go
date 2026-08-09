@@ -44,7 +44,7 @@ func TestAgentEnrollmentAuthorityRegistersAndPersistsLifecycle(t *testing.T) {
 	assertAgentEnrollmentAuthorityRegistered(t, repository)
 
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
-	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, now: func() time.Time { return now }}
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, events: &runtimeTargetRecordingPublisher{}, now: func() time.Time { return now }}
 	first := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
 	assertPendingAgentEnrollment(t, first, 1, "enrollment-1", "bundle-1")
 	activateAgentEnrollment(t, authority, first, "serial-1", "sha256:first")
@@ -79,6 +79,23 @@ func TestAgentEnrollmentRevocationPublishesDurableCertificateFactOnce(t *testing
 	}
 	if publisher.published[0].Type != contract.AgentCertificateRevocationEventType || payload.CertificateSerial != "serial-1" || payload.IdentityID != enrollment.IdentityID {
 		t.Fatalf("revocation event = %#v, payload = %#v", publisher.published[0], payload)
+	}
+}
+
+func TestAgentEnrollmentRevocationRejectsUnavailablePublisherWithoutChangingTrust(t *testing.T) {
+	db := openAgentEnrollmentAuthorityTestDB(t)
+	repository := store.NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	authority := runtimeTargetAgentEnrollmentAuthority{repository: repository, now: func() time.Time { return now }}
+	enrollment := createAgentEnrollment(t, authority, testAgentEnrollmentRequest(now.Add(time.Hour)))
+	activateAgentEnrollment(t, authority, enrollment, "serial-1", "sha256:first")
+	revocation := moduleapi.AgentEnrollmentRevocation{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, Generation: enrollment.Generation, Reason: "operator_revoke"}
+	if err := authority.RevokeGeneration(context.Background(), revocation); err == nil {
+		t.Fatal("revocation without a publisher unexpectedly succeeded")
+	}
+	current, err := repository.ReadCurrentAgentTrustGeneration(context.Background(), enrollment.TargetID, enrollment.AgentID)
+	if err != nil || current.Status != "active" {
+		t.Fatalf("trust state after rejected revocation = %#v, err=%v", current, err)
 	}
 }
 

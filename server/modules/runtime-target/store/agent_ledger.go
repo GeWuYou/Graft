@@ -13,7 +13,12 @@ import (
 
 const agentLedgerReceiptMaxLifetime = 5 * time.Minute
 const agentLedgerImplementationVersionMaxLength = 255
-const agentLedgerDiagnosticMaxLength = 1024
+const agentLedgerDiagnosticCodeMaxLength = 64
+
+const (
+	agentLedgerDiagnosticCodeUnavailable = "unavailable"
+	agentLedgerDiagnosticCodeDegraded    = "degraded"
+)
 
 // AgentLedgerIdentity 是由 mTLS listener 提供并由 Runtime Target 再次核验的身份与证书证据。
 type AgentLedgerIdentity struct {
@@ -50,7 +55,7 @@ func (r *SQLRepository) IssueAgentLedgerSnapshot(ctx context.Context, identity A
 	}
 	var snapshot AgentLedgerSnapshot
 	err := r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
-		generation, err := r.ReadActiveAgentTrustGeneration(txCtx, identity.TargetID, identity.AgentID, identity.Generation, now)
+		generation, err := r.ReadActiveAgentTrustGenerationForLedgerMutation(txCtx, identity.TargetID, identity.AgentID, identity.Generation, now)
 		if err != nil || !sameAgentLedgerGeneration(identity, generation) || generation.Identity.ProviderID != "docker" {
 			return ErrAgentTrustNotActive
 		}
@@ -78,7 +83,7 @@ func (r *SQLRepository) RecordAgentTelemetryReceipt(ctx context.Context, identit
 	}
 	fingerprint := agentTelemetryReceiptDigest(receipt)
 	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
-		generation, err := r.ReadActiveAgentTrustGeneration(txCtx, identity.TargetID, identity.AgentID, identity.Generation, now)
+		generation, err := r.ReadActiveAgentTrustGenerationForLedgerMutation(txCtx, identity.TargetID, identity.AgentID, identity.Generation, now)
 		if err != nil || !sameAgentLedgerGeneration(identity, generation) || generation.Identity.ProviderID != "docker" {
 			return ErrAgentTrustNotActive
 		}
@@ -94,7 +99,7 @@ func (r *SQLRepository) RecordAgentTelemetryReceipt(ctx context.Context, identit
 			return nil
 		}
 		var existing string
-		err = r.executor(txCtx).QueryRowContext(txCtx, `SELECT receipt_fingerprint FROM runtime_target_agent_ledger_snapshots WHERE snapshot_id = $1 AND snapshot_digest = $2 AND generation_id = $3 AND consumed_at IS NOT NULL AND deleted_at = 0`, strings.TrimSpace(receipt.SnapshotID), strings.TrimSpace(receipt.SnapshotDigest), generation.ID).Scan(&existing)
+		err = r.executor(txCtx).QueryRowContext(txCtx, `SELECT receipt_fingerprint FROM runtime_target_agent_ledger_snapshots WHERE snapshot_id = $1 AND snapshot_digest = $2 AND generation_id = $3 AND consumed_at IS NOT NULL AND expires_at > $4 AND deleted_at = 0`, strings.TrimSpace(receipt.SnapshotID), strings.TrimSpace(receipt.SnapshotDigest), generation.ID, now.UTC()).Scan(&existing)
 		if err != nil || existing != fingerprint {
 			return ErrAgentTrustNotActive
 		}
@@ -107,7 +112,20 @@ func validAgentLedgerIdentity(identity AgentLedgerIdentity) bool {
 }
 func validAgentLedgerSnapshotID(value string) bool { return validSHA256Hex(value) }
 func validAgentTelemetryReceipt(receipt AgentTelemetryReceiptInput, now time.Time) bool {
-	return validAgentLedgerSnapshotID(receipt.SnapshotID) && validSHA256Hex(receipt.SnapshotDigest) && !receipt.ObservedAt.IsZero() && receipt.ExpiresAt.After(receipt.ObservedAt) && receipt.ExpiresAt.After(now) && !receipt.ExpiresAt.After(now.Add(agentLedgerReceiptMaxLifetime)) && len(strings.TrimSpace(receipt.ImplementationVersion)) <= agentLedgerImplementationVersionMaxLength && len(strings.TrimSpace(receipt.Diagnostic)) <= agentLedgerDiagnosticMaxLength
+	return validAgentLedgerSnapshotID(receipt.SnapshotID) && validSHA256Hex(receipt.SnapshotDigest) && !receipt.ObservedAt.IsZero() && receipt.ExpiresAt.After(receipt.ObservedAt) && receipt.ExpiresAt.After(now) && !receipt.ExpiresAt.After(now.Add(agentLedgerReceiptMaxLifetime)) && len(strings.TrimSpace(receipt.ImplementationVersion)) <= agentLedgerImplementationVersionMaxLength && validAgentLedgerDiagnosticCode(receipt.Diagnostic)
+}
+
+func validAgentLedgerDiagnosticCode(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) > agentLedgerDiagnosticCodeMaxLength {
+		return false
+	}
+	switch value {
+	case "", agentLedgerDiagnosticCodeUnavailable, agentLedgerDiagnosticCodeDegraded:
+		return true
+	default:
+		return false
+	}
 }
 func sameAgentLedgerGeneration(identity AgentLedgerIdentity, generation AgentTrustGeneration) bool {
 	return (identity.IdentityID == "" || identity.IdentityID == generation.Identity.IdentityID) && identity.CertificateSerial == generation.CertificateSerial && identity.PublicKeyFingerprint == generation.PublicKeyFingerprint

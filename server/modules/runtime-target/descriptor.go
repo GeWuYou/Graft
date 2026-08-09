@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"graft/server/internal/config"
 	"graft/server/internal/module"
 	store "graft/server/modules/runtime-target/store"
 )
@@ -22,7 +23,16 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			return NewModule(store.NewSQLRepository(db)), nil
+			runtimeConfig, err := module.ResolveService[*config.Config](ctx.Services, (*config.Config)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve runtime config: %w", err)
+			}
+			enrollmentSecurity := runtimeConfig.EnrollmentSecurity
+			pepper, err := config.NewEnrollmentPepperProvider(enrollmentSecurity)
+			if err != nil {
+				return nil, fmt.Errorf("build enrollment pepper provider: %w", err)
+			}
+			return NewModule(store.NewSQLRepository(db), pepper), nil
 		}),
 	}
 }

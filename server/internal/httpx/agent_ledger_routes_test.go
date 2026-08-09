@@ -65,6 +65,17 @@ func TestAgentLedgerRoutesRejectBearerAuthentication(t *testing.T) {
 	}
 }
 
+func TestAgentLedgerRoutesRejectRepeatedConfigurationBeforeRouteRegistration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := &AgentServer{engine: gin.New()}
+	if err := server.ConfigureLedgerRoutes(&recordingAgentLedgerReader{}); err != nil {
+		t.Fatalf("configure ledger routes: %v", err)
+	}
+	if err := server.ConfigureLedgerRoutes(&recordingAgentLedgerReader{}); err == nil {
+		t.Fatal("repeated ledger route configuration must return an error instead of re-registering Gin routes")
+	}
+}
+
 func agentLedgerMTLSRequest(t *testing.T, method, path, body string) *http.Request {
 	t.Helper()
 	request := httptest.NewRequest(method, path, strings.NewReader(body))

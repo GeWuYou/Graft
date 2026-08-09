@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,16 +98,45 @@ func TestAgentBootstrapCertificateHandlerRejectsUnexpectedAuthenticationAndPaylo
 	}
 }
 
+func TestAgentBootstrapCertificateHandlerMapsRejectionAndOperationalErrorsSeparately(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, testCase := range []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "rejected", err: moduleapi.ErrAgentBootstrapRejected, wantStatus: http.StatusUnauthorized},
+		{name: "operational", err: errors.New("Vault temporarily unavailable"), wantStatus: http.StatusInternalServerError},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			authority := &recordingAgentBootstrapAuthority{err: testCase.err}
+			engine := gin.New()
+			engine.POST(agentBootstrapCertificatePath, agentBootstrapCertificateHandler(authority, nil))
+			request := httptest.NewRequest(http.MethodPost, agentBootstrapCertificatePath, strings.NewReader(`{"bootstrap_token":"token","csr_der":"AQI="}`))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, request)
+			if response.Code != testCase.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", response.Code, testCase.wantStatus, response.Body.String())
+			}
+			if strings.Contains(response.Body.String(), testCase.err.Error()) {
+				t.Fatalf("bootstrap response leaked authority error: %s", response.Body.String())
+			}
+		})
+	}
+}
+
 type recordingAgentBootstrapAuthority struct {
 	request moduleapi.AgentBootstrapRequest
 	result  moduleapi.AgentBootstrapResult
+	err     error
 	calls   int
 }
 
 func (a *recordingAgentBootstrapAuthority) BootstrapAgent(_ context.Context, request moduleapi.AgentBootstrapRequest) (moduleapi.AgentBootstrapResult, error) {
 	a.calls++
 	a.request = request
-	return a.result, nil
+	return a.result, a.err
 }
 
 var _ moduleapi.AgentBootstrapAuthority = (*recordingAgentBootstrapAuthority)(nil)

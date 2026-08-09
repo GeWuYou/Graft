@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"graft/server/internal/event"
@@ -31,7 +32,7 @@ func (h agentCertificateRevocationHandler) Handle(ctx context.Context, incoming 
 	}
 	var payload runtimetargetcontract.AgentCertificateRevocationEvent
 	if err := json.Unmarshal(incoming.Payload, &payload); err != nil {
-		return err
+		return fmt.Errorf("decode agent certificate revocation event: %w", err)
 	}
 	serial := strings.TrimSpace(payload.CertificateSerial)
 	if serial == "" {

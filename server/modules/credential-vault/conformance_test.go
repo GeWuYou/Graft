@@ -39,10 +39,15 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	}
 
 	store := &conformanceIssuanceStore{}
-	var loginBody map[string]string
-	var issueBody map[string]string
-	var requestCount int
+	var (
+		requestMu    sync.Mutex
+		loginBody    map[string]string
+		issueBody    map[string]string
+		requestCount int
+	)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestMu.Lock()
+		defer requestMu.Unlock()
 		requestCount++
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
@@ -75,6 +80,9 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
+	if client.http.Timeout != vaultRequestTimeout {
+		t.Fatalf("Vault HTTP timeout = %s, want %s", client.http.Timeout, vaultRequestTimeout)
+	}
 	issued, err := client.IssueCSR(context.Background(), moduleapi.AgentCertificateIssuanceRequest{IssuanceKey: "issue-1", SPIFFEURI: "spiffe://graft/runtime-target/7/builder-agent/agent-7/generation/1", CSRDER: csrDER})
 	if err != nil {
 		t.Fatalf("issue certificate: %v", err)
@@ -82,6 +90,8 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	if issued.CertificateSerial != certificateSerial {
 		t.Fatalf("certificate serial = %q, want %q", issued.CertificateSerial, certificateSerial)
 	}
+	requestMu.Lock()
+	defer requestMu.Unlock()
 	if loginBody["role_id"] != "role-from-docker-secret" || loginBody["secret_id"] != "secret-from-docker-secret" {
 		t.Fatalf("AppRole login body = %#v", loginBody)
 	}
@@ -109,8 +119,13 @@ func TestVaultPKIClientReconcileRehydratesPersistedSerialAfterRestart(t *testing
 	certificatePEM, certificateSerial, _ := newVaultConformanceCertificate(t)
 	store := &conformanceIssuanceStore{state: IssuanceState{IssuanceKey: "issue-1", Serial: certificateSerial}}
 	roleIDPath, secretIDPath := writeConformanceSecrets(t)
-	var paths []string
+	var (
+		requestMu sync.Mutex
+		paths     []string
+	)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestMu.Lock()
+		defer requestMu.Unlock()
 		paths = append(paths, request.URL.Path)
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
@@ -120,7 +135,7 @@ func TestVaultPKIClientReconcileRehydratesPersistedSerialAfterRestart(t *testing
 			if request.Header.Get("X-Vault-Token") != "restart-token" {
 				t.Errorf("certificate read token = %q", request.Header.Get("X-Vault-Token"))
 			}
-			_, _ = writer.Write([]byte(`{"data":{"certificate":` + strconvQuote(certificatePEM) + `,"serial_number":"serial-42","expiration":4102444800}}`))
+			_, _ = writer.Write([]byte(`{"data":{"certificate":` + strconvQuote(certificatePEM) + `,"serial_number":"incorrect-vault-serial","expiration":4102444800}}`))
 		default:
 			http.NotFound(writer, request)
 		}
@@ -137,8 +152,25 @@ func TestVaultPKIClientReconcileRehydratesPersistedSerialAfterRestart(t *testing
 	if issued.CertificateSerial != certificateSerial || len(issued.CertificateChainDER) != 1 {
 		t.Fatalf("reconciled certificate = %#v", issued)
 	}
+	requestMu.Lock()
+	defer requestMu.Unlock()
 	if strings.Join(paths, ",") != "/v1/auth/approle/login,/v1/pki/cert/serial-42" {
 		t.Fatalf("restart reconciliation paths = %v", paths)
+	}
+}
+
+func TestVaultPKIClientRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"auth":{"client_token":"` + strings.Repeat("x", vaultResponseMaxBytes) + `"}}`))
+	}))
+	defer server.Close()
+
+	client := &VaultPKIClient{config: config.CredentialVaultConfig{Address: server.URL}, http: server.Client()}
+	var response vaultLoginResponse
+	err := client.call(context.Background(), "", http.MethodGet, "/", nil, &response)
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum size") {
+		t.Fatalf("oversized Vault response error = %v", err)
 	}
 }
 
@@ -218,7 +250,7 @@ func TestAgentCertificateRevocationUsesDurableOutboxRetryAndTerminalFailure(t *t
 		}
 
 		waitForConformanceDelivery(t, store, "revocation-event-retry", agentCertificateRevocationHandlerID, conformanceDeliveryDelivered)
-		if got := issuer.calls.Load(); got != 2 {
+		if got := issuer.revokeCalls.Load(); got != 2 {
 			t.Fatalf("Vault revoke calls = %d, want transient failure plus retry", got)
 		}
 		issuer.mu.Lock()
@@ -254,11 +286,11 @@ func TestAgentCertificateRevocationUsesDurableOutboxRetryAndTerminalFailure(t *t
 			t.Fatal(err)
 		}
 		waitForConformanceDelivery(t, store, "revocation-event-terminal", agentCertificateRevocationHandlerID, conformanceDeliveryFailed)
-		if got := issuer.calls.Load(); got != 2 {
+		if got := issuer.revokeCalls.Load(); got != 2 {
 			t.Fatalf("Vault revoke calls = %d, want max attempts 2", got)
 		}
 		time.Sleep(10 * time.Millisecond)
-		if got := issuer.calls.Load(); got != 2 {
+		if got := issuer.revokeCalls.Load(); got != 2 {
 			t.Fatalf("terminal delivery was retried after failure, calls = %d", got)
 		}
 	})
@@ -386,17 +418,17 @@ func shutdownConformanceDispatcher(t *testing.T, dispatcher *event.Dispatcher) {
 
 type durableRevocationIssuer struct {
 	conformanceRevocationIssuer
-	failFor atomic.Int32
-	calls   atomic.Int32
-	mu      sync.Mutex
+	failFor     atomic.Int32
+	revokeCalls atomic.Int32
+	mu          sync.Mutex
 }
 
 func (i *durableRevocationIssuer) RevokeCertificate(_ context.Context, revocation moduleapi.AgentCertificateRevocation) error {
-	i.calls.Add(1)
+	i.revokeCalls.Add(1)
 	i.mu.Lock()
 	i.revocation = revocation
 	i.mu.Unlock()
-	if i.calls.Load() <= i.failFor.Load() {
+	if i.revokeCalls.Load() <= i.failFor.Load() {
 		return errors.New("vault unavailable")
 	}
 	return nil

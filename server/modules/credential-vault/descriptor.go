@@ -19,6 +19,9 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve runtime config: %w", err)
 			}
+			if !runtimeConfig.CredentialVault.Enabled {
+				return NewModule(runtimeConfig.CredentialVault, nil), nil
+			}
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
 			if err != nil {
 				return nil, fmt.Errorf("resolve sql db: %w", err)
@@ -29,9 +32,6 @@ func NewModuleSpec() module.Spec {
 			}
 			adapter, err := NewVaultPKIClient(runtimeConfig.CredentialVault, store)
 			if err != nil {
-				if !runtimeConfig.CredentialVault.Enabled {
-					return NewModule(runtimeConfig.CredentialVault, nil), nil
-				}
 				return nil, fmt.Errorf("build vault PKI client: %w", err)
 			}
 			return NewModule(runtimeConfig.CredentialVault, adapter), nil

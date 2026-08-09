@@ -31,16 +31,16 @@ func (m *Module) Register(ctx *module.Context) error {
 	if !m.configuration.Enabled {
 		return nil
 	}
+	if ctx.EventRegistry == nil {
+		return errors.New("credential vault module event registry is unavailable")
+	}
 	issuer := m.issuer()
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentCertificateIssuer)(nil), func(containerdi.Resolver) (any, error) {
 		return issuer, nil
 	}); err != nil {
 		return err
 	}
-	if ctx.EventRegistry != nil {
-		return ctx.EventRegistry.Register(agentCertificateRevocationHandler{issuer: issuer})
-	}
-	return nil
+	return ctx.EventRegistry.Register(agentCertificateRevocationHandler{issuer: issuer})
 }
 
 // Boot 不启动 Vault client，因为当前 foundation 不包含生产 Vault 集成。

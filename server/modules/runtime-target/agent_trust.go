@@ -165,6 +165,9 @@ func (a runtimeTargetAgentEnrollmentAuthority) RevokeGeneration(ctx context.Cont
 	if a.repository == nil || !validAgentEnrollmentRevocation(revocation) {
 		return errors.New("runtime target agent enrollment revocation is invalid")
 	}
+	if a.events == nil {
+		return errors.New("runtime target agent certificate revocation publisher is unavailable")
+	}
 	current, err := a.repository.ReadCurrentAgentTrustGeneration(ctx, revocation.TargetID, revocation.AgentID)
 	if err != nil {
 		return err
@@ -255,7 +258,24 @@ func validAgentEnrollmentRotationRequest(request moduleapi.AgentEnrollmentRotati
 }
 
 func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope, capabilityProfile, capabilityVersion string) bool {
-	return targetID > 0 && strings.TrimSpace(agentID) != "" && strings.TrimSpace(providerID) == runtimeTargetAgentEnrollmentProviderID && strings.TrimSpace(builderScope) != "" && strings.TrimSpace(capabilityProfile) != "" && strings.TrimSpace(capabilityVersion) != ""
+	return targetID > 0 && validAgentSPIFFEPathSegment(agentID) && strings.TrimSpace(providerID) == runtimeTargetAgentEnrollmentProviderID && strings.TrimSpace(builderScope) != "" && strings.TrimSpace(capabilityProfile) != "" && strings.TrimSpace(capabilityVersion) != ""
+}
+
+func validAgentSPIFFEPathSegment(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for _, character := range value {
+		if !validAgentSPIFFEPathCharacter(character) {
+			return false
+		}
+	}
+	return true
+}
+
+func validAgentSPIFFEPathCharacter(character rune) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '.' || character == '-' || character == '_'
 }
 
 func validAgentEnrollmentAttestation(enrollmentRef string, trustBundle moduleapi.TrustBundleReference, expiresAt, now time.Time) bool {

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -582,6 +583,9 @@ func validateCredentialVaultConfig(c *Config) error {
 			return fmt.Errorf("%s is required when GRAFT_CREDENTIAL_VAULT_ENABLED is true", field.name)
 		}
 	}
+	if err := validateCredentialVaultAddress(vault.Address); err != nil {
+		return err
+	}
 	for _, field := range []struct {
 		name  string
 		value *string
@@ -596,6 +600,14 @@ func validateCredentialVaultConfig(c *Config) error {
 		*field.value = filepath.Clean(*field.value)
 	}
 	vault.Namespace = strings.TrimSpace(vault.Namespace)
+	return nil
+}
+
+func validateCredentialVaultAddress(value string) error {
+	address, err := url.Parse(value)
+	if err != nil || address.Scheme != "https" || address.Host == "" || address.User != nil || address.RawQuery != "" || address.Fragment != "" {
+		return errors.New("GRAFT_CREDENTIAL_VAULT_ADDRESS must be an HTTPS endpoint without credentials, query, or fragment when GRAFT_CREDENTIAL_VAULT_ENABLED is true")
+	}
 	return nil
 }
 

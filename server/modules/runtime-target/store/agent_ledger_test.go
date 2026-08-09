@@ -30,12 +30,15 @@ func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	if snapshot.Sequence != 1 || snapshot.SnapshotDigest == "" || !snapshot.Available {
 		t.Fatalf("unexpected issued snapshot %#v", snapshot)
 	}
-	receipt := AgentTelemetryReceiptInput{SnapshotID: snapshot.SnapshotID, SnapshotDigest: snapshot.SnapshotDigest, ObservedAt: now, ExpiresAt: now.Add(time.Minute), Available: true, ImplementationVersion: "v1"}
+	receipt := AgentTelemetryReceiptInput{SnapshotID: snapshot.SnapshotID, SnapshotDigest: snapshot.SnapshotDigest, ObservedAt: now, ExpiresAt: now.Add(3 * time.Minute), Available: true, ImplementationVersion: "v1"}
 	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(time.Second)); err != nil {
 		t.Fatalf("record receipt: %v", err)
 	}
 	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(2*time.Second)); err != nil {
 		t.Fatalf("retry exact receipt: %v", err)
+	}
+	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(2*time.Minute)); !errors.Is(err, ErrAgentTrustNotActive) {
+		t.Fatalf("expired snapshot retry = %v, want rejection", err)
 	}
 	receipt.Available = false
 	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(3*time.Second)); !errors.Is(err, ErrAgentTrustNotActive) {
@@ -51,6 +54,24 @@ func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	}
 	if _, err := repository.IssueAgentLedgerSnapshot(context.Background(), mtlsIdentity, testAgentLedgerSnapshotID2(), now.Add(5*time.Second), now.Add(time.Minute)); !errors.Is(err, ErrAgentTrustNotActive) {
 		t.Fatalf("revoked generation = %v, want rejection", err)
+	}
+}
+
+func TestAgentTelemetryReceiptRejectsArbitraryDiagnosticText(t *testing.T) {
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	receipt := AgentTelemetryReceiptInput{
+		SnapshotID:     testAgentLedgerSnapshotID(),
+		SnapshotDigest: testAgentLedgerSnapshotID2(),
+		ObservedAt:     now,
+		ExpiresAt:      now.Add(time.Minute),
+		Diagnostic:     "token=secret-value",
+	}
+	if validAgentTelemetryReceipt(receipt, now) {
+		t.Fatal("arbitrary diagnostic text unexpectedly accepted")
+	}
+	receipt.Diagnostic = agentLedgerDiagnosticCodeUnavailable
+	if !validAgentTelemetryReceipt(receipt, now) {
+		t.Fatal("stable diagnostic code rejected")
 	}
 }
 

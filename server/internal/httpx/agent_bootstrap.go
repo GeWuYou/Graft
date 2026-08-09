@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -184,11 +185,19 @@ func agentBootstrapCertificateHandler(authority moduleapi.AgentBootstrapAuthorit
 		}
 		result, err := authority.BootstrapAgent(ctx.Request.Context(), request)
 		if err != nil {
-			AbortAppError(ctx, nil, runtimeLogger, apperror.New(apperror.Descriptor{Kind: apperror.KindUnauthenticated, Code: errorcode.AuthTokenInvalid, MessageKey: messagecontract.AuthTokenInvalid}))
+			abortAgentBootstrapAuthorityError(ctx, runtimeLogger, err)
 			return
 		}
-		ctx.JSON(http.StatusOK, agentBootstrapCertificateResponse{CertificateChainDER: result.CertificateChainDER, TrustBundle: result.TrustBundle, ExpiresAt: result.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00")})
+		ctx.JSON(http.StatusOK, agentBootstrapCertificateResponse{CertificateChainDER: result.CertificateChainDER, TrustBundle: result.TrustBundle, ExpiresAt: result.ExpiresAt.UTC().Format(time.RFC3339)})
 	}
+}
+
+func abortAgentBootstrapAuthorityError(ctx *gin.Context, runtimeLogger *zap.Logger, err error) {
+	if errors.Is(err, moduleapi.ErrAgentBootstrapRejected) {
+		AbortAppError(ctx, nil, runtimeLogger, apperror.New(apperror.Descriptor{Kind: apperror.KindUnauthenticated, Code: errorcode.AuthTokenInvalid, MessageKey: messagecontract.AuthTokenInvalid}))
+		return
+	}
+	AbortAppError(ctx, nil, runtimeLogger, apperror.Wrap(err, apperror.Descriptor{Kind: apperror.KindInternal, Code: errorcode.CommonInternalError, MessageKey: messagecontract.CommonInternalError}))
 }
 
 func decodeAgentBootstrapCertificateRequest(request *http.Request) (moduleapi.AgentBootstrapRequest, error) {
