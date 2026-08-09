@@ -42,6 +42,9 @@ func TestModuleRegistersUnavailableIssuerWhenEnabledWithoutAdapter(t *testing.T)
 	if !errors.Is(err, ErrAgentCertificateIssuerUnavailable) {
 		t.Fatalf("issue CSR error = %v, want unavailable", err)
 	}
+	if _, err := issuer.ReconcileCSR(context.Background(), "issuance-1"); !errors.Is(err, ErrAgentCertificateIssuerUnavailable) {
+		t.Fatalf("reconcile CSR error = %v, want unavailable", err)
+	}
 }
 
 func TestModuleRegistersProvidedVaultPKIAdapter(t *testing.T) {
@@ -69,8 +72,14 @@ func (testVaultPKIAdapter) IssueCSR(context.Context, moduleapi.AgentCertificateI
 	return moduleapi.IssuedAgentCertificate{CertificateSerial: "vault-certificate"}, nil
 }
 
+func (testVaultPKIAdapter) ReconcileCSR(context.Context, string) (moduleapi.IssuedAgentCertificate, error) {
+	return moduleapi.IssuedAgentCertificate{CertificateSerial: "vault-certificate"}, nil
+}
+
 func (testVaultPKIAdapter) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
 	return moduleapi.TrustBundleReference{}, nil
 }
 
-func (testVaultPKIAdapter) RevokeCertificate(context.Context, moduleapi.AgentCertificateRevocation) error { return nil }
+func (testVaultPKIAdapter) RevokeCertificate(context.Context, moduleapi.AgentCertificateRevocation) error {
+	return nil
+}

@@ -105,6 +105,9 @@ type AgentEnrollmentRevocation struct {
 type AgentCertificateIssuer interface {
 	// IssueCSR 为已验证的 CSR 签发证书；相同 IssuanceKey 必须支持外部副作用的查询或幂等协调。
 	IssueCSR(ctx context.Context, request AgentCertificateIssuanceRequest) (IssuedAgentCertificate, error)
+	// ReconcileCSR 按稳定的签发键读取先前签发结果，供重启或超时后的同一授权恢复使用。
+	// 它不得把不存在的记录解释为允许创建新证书，调用方必须显式回到 IssueCSR。
+	ReconcileCSR(ctx context.Context, issuanceKey string) (IssuedAgentCertificate, error)
 	// ReadTrustBundle 返回不透明信任束引用，不得将 PEM 或私钥材料带入模块 API。
 	ReadTrustBundle(ctx context.Context, request TrustBundleRequest) (TrustBundleReference, error)
 	// RevokeCertificate 撤销已签发证书；重复调用必须保持幂等。
@@ -114,13 +117,13 @@ type AgentCertificateIssuer interface {
 // AgentCertificateIssuanceRequest 描述已获授权的 CSR 签发请求。
 // CSRDER 是公开密钥证明而非私钥；IssuanceKey 用于协调 Vault 外部副作用的重试与恢复。
 type AgentCertificateIssuanceRequest struct {
-	IdentityID   string
-	TargetID     int64
-	AgentID      string
-	Generation   int64
-	IssuanceKey  string
-	SPIFFEURI    string
-	CSRDER       []byte
+	IdentityID  string
+	TargetID    int64
+	AgentID     string
+	Generation  int64
+	IssuanceKey string
+	SPIFFEURI   string
+	CSRDER      []byte
 }
 
 // IssuedAgentCertificate 是 Vault 返回的非私钥签发结果。

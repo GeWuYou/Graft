@@ -27,6 +27,11 @@ func (unavailableAgentCertificateIssuer) IssueCSR(context.Context, moduleapi.Age
 	return moduleapi.IssuedAgentCertificate{}, ErrAgentCertificateIssuerUnavailable
 }
 
+// ReconcileCSR 在真实 Vault PKI adapter 注册前拒绝读取签发协调结果。
+func (unavailableAgentCertificateIssuer) ReconcileCSR(context.Context, string) (moduleapi.IssuedAgentCertificate, error) {
+	return moduleapi.IssuedAgentCertificate{}, ErrAgentCertificateIssuerUnavailable
+}
+
 // ReadTrustBundle 在真实 Vault PKI adapter 注册前拒绝信任束读取。
 func (unavailableAgentCertificateIssuer) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
 	return moduleapi.TrustBundleReference{}, ErrAgentCertificateIssuerUnavailable
