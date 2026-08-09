@@ -1,6 +1,0 @@
-allOf:
-  - $ref: ./api-envelope.yaml
-  - type: object
-    required: [data]
-    properties:
-      data: {$ref: ./runtime-target-agent-enrollment.yaml}

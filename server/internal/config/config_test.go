@@ -111,6 +111,30 @@ func TestValidateMCPConfigRequiresConfirmationTTLOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestValidateAgentTLSConfigRequiresCompleteAbsolutePaths(t *testing.T) {
+	cfg := &Config{HTTPX: HTTPXConfig{AgentTLS: AgentTLSConfig{Enabled: true, Addr: ":9443"}}}
+	if err := validateHTTPXConfig(cfg); err == nil {
+		t.Fatal("enabled Agent TLS must require certificate paths")
+	}
+	cfg.HTTPX.AgentTLS = AgentTLSConfig{Enabled: true, Addr: ":9443", CertificateFile: "/run/graft/agent.crt", KeyFile: "/run/graft/agent.key", ClientCAFile: "/run/graft/agent-ca.crt"}
+	if err := validateAgentTLSConfig(&cfg.HTTPX.AgentTLS); err != nil {
+		t.Fatalf("validate complete Agent TLS config: %v", err)
+	}
+}
+
+func TestValidateCredentialVaultConfigRejectsIncompleteOrSecretlessFallback(t *testing.T) {
+	cfg := &Config{CredentialVault: CredentialVaultConfig{Enabled: true, Backend: "vault-pki"}}
+	if err := validateCredentialVaultConfig(cfg); err == nil {
+		t.Fatal("enabled credential vault must require its non-secret descriptor")
+	}
+	cfg.CredentialVault = CredentialVaultConfig{
+		Enabled: true, Backend: "vault-pki", Address: "https://vault.example.test", AuthMount: "kubernetes", AuthRole: "graft-control-plane", PKIMount: "pki-agent", PKIRole: "graft-agent", TrustBundleRef: "pki-agent/ca/pem",
+	}
+	if err := validateCredentialVaultConfig(cfg); err != nil {
+		t.Fatalf("validate credential vault descriptor: %v", err)
+	}
+}
+
 func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)
 	t.Cleanup(restoreEnv)

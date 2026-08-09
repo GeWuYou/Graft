@@ -21,9 +21,6 @@ func (e GetHealthz200JSONResponseBodyStatus) Valid() bool {
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
-// mutualTLSContextKey is the context key for mutualTLS security scheme
-type mutualTLSContextKey string
-
 // personalAccessTokenAuthContextKey is the context key for personalAccessTokenAuth security scheme
 type personalAccessTokenAuthContextKey string
 

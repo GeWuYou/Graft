@@ -1,6 +1,0 @@
-type: object
-additionalProperties: false
-required: [observationId, acceptedAt]
-properties:
-  observationId: {type: string, format: uuid}
-  acceptedAt: {type: string, format: date-time}

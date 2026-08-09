@@ -9,102 +9,13 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
 	BearerAuthScopes              bearerAuthContextKey              = "bearerAuth.Scopes"
-	MutualTLSScopes               mutualTLSContextKey               = "mutualTLS.Scopes"
 	PersonalAccessTokenAuthScopes personalAccessTokenAuthContextKey = "personalAccessTokenAuth.Scopes"
 	RefreshCookieScopes           refreshCookieContextKey           = "refreshCookie.Scopes"
 )
-
-// Defines values for AgentConflictErrorResponseCode.
-const (
-	AgentGenerationMismatch AgentConflictErrorResponseCode = "agent_generation_mismatch"
-	AgentSnapshotExpired    AgentConflictErrorResponseCode = "agent_snapshot_expired"
-	AgentSnapshotReplayed   AgentConflictErrorResponseCode = "agent_snapshot_replayed"
-)
-
-// Valid indicates whether the value is a known member of the AgentConflictErrorResponseCode enum.
-func (e AgentConflictErrorResponseCode) Valid() bool {
-	switch e {
-	case AgentGenerationMismatch:
-		return true
-	case AgentSnapshotExpired:
-		return true
-	case AgentSnapshotReplayed:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentConflictErrorResponseSuccess.
-const (
-	AgentConflictErrorResponseSuccessFalse AgentConflictErrorResponseSuccess = false
-)
-
-// Valid indicates whether the value is a known member of the AgentConflictErrorResponseSuccess enum.
-func (e AgentConflictErrorResponseSuccess) Valid() bool {
-	switch e {
-	case AgentConflictErrorResponseSuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentTelemetryReportRequestLivenessStatus.
-const (
-	AgentTelemetryReportRequestLivenessStatusDegraded AgentTelemetryReportRequestLivenessStatus = "degraded"
-	AgentTelemetryReportRequestLivenessStatusReady    AgentTelemetryReportRequestLivenessStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the AgentTelemetryReportRequestLivenessStatus enum.
-func (e AgentTelemetryReportRequestLivenessStatus) Valid() bool {
-	switch e {
-	case AgentTelemetryReportRequestLivenessStatusDegraded:
-		return true
-	case AgentTelemetryReportRequestLivenessStatusReady:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentUnavailableErrorResponseCode.
-const (
-	AgentControllerUnavailable AgentUnavailableErrorResponseCode = "agent_controller_unavailable"
-	CredentialVaultUnavailable AgentUnavailableErrorResponseCode = "credential_vault_unavailable"
-)
-
-// Valid indicates whether the value is a known member of the AgentUnavailableErrorResponseCode enum.
-func (e AgentUnavailableErrorResponseCode) Valid() bool {
-	switch e {
-	case AgentControllerUnavailable:
-		return true
-	case CredentialVaultUnavailable:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentUnavailableErrorResponseSuccess.
-const (
-	AgentUnavailableErrorResponseSuccessFalse AgentUnavailableErrorResponseSuccess = false
-)
-
-// Valid indicates whether the value is a known member of the AgentUnavailableErrorResponseSuccess enum.
-func (e AgentUnavailableErrorResponseSuccess) Valid() bool {
-	switch e {
-	case AgentUnavailableErrorResponseSuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
 
 // Defines values for AnnouncementDeliveryMode.
 const (
@@ -4693,45 +4604,6 @@ func (e RuntimeTargetRuntimeType) Valid() bool {
 	}
 }
 
-// Defines values for RuntimeTargetAgentBindingStatus.
-const (
-	RuntimeTargetAgentBindingStatusActive  RuntimeTargetAgentBindingStatus = "active"
-	RuntimeTargetAgentBindingStatusPending RuntimeTargetAgentBindingStatus = "pending"
-	RuntimeTargetAgentBindingStatusRetired RuntimeTargetAgentBindingStatus = "retired"
-	RuntimeTargetAgentBindingStatusRevoked RuntimeTargetAgentBindingStatus = "revoked"
-)
-
-// Valid indicates whether the value is a known member of the RuntimeTargetAgentBindingStatus enum.
-func (e RuntimeTargetAgentBindingStatus) Valid() bool {
-	switch e {
-	case RuntimeTargetAgentBindingStatusActive:
-		return true
-	case RuntimeTargetAgentBindingStatusPending:
-		return true
-	case RuntimeTargetAgentBindingStatusRetired:
-		return true
-	case RuntimeTargetAgentBindingStatusRevoked:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for RuntimeTargetAgentEnrollmentStatus.
-const (
-	RuntimeTargetAgentEnrollmentStatusPending RuntimeTargetAgentEnrollmentStatus = "pending"
-)
-
-// Valid indicates whether the value is a known member of the RuntimeTargetAgentEnrollmentStatus enum.
-func (e RuntimeTargetAgentEnrollmentStatus) Valid() bool {
-	switch e {
-	case RuntimeTargetAgentEnrollmentStatusPending:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for RuntimeTargetSummaryConnectionKind.
 const (
 	RuntimeTargetSummaryConnectionKindUnixSocket RuntimeTargetSummaryConnectionKind = "unix_socket"
@@ -5472,31 +5344,31 @@ func (e SystemConfigItemType) Valid() bool {
 
 // Defines values for TaskEventType.
 const (
-	TaskEventTypeCancelRequested  TaskEventType = "cancel_requested"
-	TaskEventTypeCancelled        TaskEventType = "cancelled"
-	TaskEventTypeCreated          TaskEventType = "created"
-	TaskEventTypeRecoveryRequired TaskEventType = "recovery_required"
-	TaskEventTypeRecoveryResolved TaskEventType = "recovery_resolved"
-	TaskEventTypeRetryRequested   TaskEventType = "retry_requested"
-	TaskEventTypeRetryScheduled   TaskEventType = "retry_scheduled"
+	CancelRequested  TaskEventType = "cancel_requested"
+	Cancelled        TaskEventType = "cancelled"
+	Created          TaskEventType = "created"
+	RecoveryRequired TaskEventType = "recovery_required"
+	RecoveryResolved TaskEventType = "recovery_resolved"
+	RetryRequested   TaskEventType = "retry_requested"
+	RetryScheduled   TaskEventType = "retry_scheduled"
 )
 
 // Valid indicates whether the value is a known member of the TaskEventType enum.
 func (e TaskEventType) Valid() bool {
 	switch e {
-	case TaskEventTypeCancelRequested:
+	case CancelRequested:
 		return true
-	case TaskEventTypeCancelled:
+	case Cancelled:
 		return true
-	case TaskEventTypeCreated:
+	case Created:
 		return true
-	case TaskEventTypeRecoveryRequired:
+	case RecoveryRequired:
 		return true
-	case TaskEventTypeRecoveryResolved:
+	case RecoveryResolved:
 		return true
-	case TaskEventTypeRetryRequested:
+	case RetryRequested:
 		return true
-	case TaskEventTypeRetryScheduled:
+	case RetryScheduled:
 		return true
 	default:
 		return false
@@ -5854,96 +5726,6 @@ func (e TrendRangeQuery) Valid() bool {
 	case TrendRangeQueryN1h:
 		return true
 	case TrendRangeQueryN30m:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetAgentLedgerSnapshot403JSONResponseBodyCode.
-const (
-	GetAgentLedgerSnapshot403JSONResponseBodyCodeAgentIdentityNotActive GetAgentLedgerSnapshot403JSONResponseBodyCode = "agent_identity_not_active"
-)
-
-// Valid indicates whether the value is a known member of the GetAgentLedgerSnapshot403JSONResponseBodyCode enum.
-func (e GetAgentLedgerSnapshot403JSONResponseBodyCode) Valid() bool {
-	switch e {
-	case GetAgentLedgerSnapshot403JSONResponseBodyCodeAgentIdentityNotActive:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetAgentLedgerSnapshot403JSONResponseBodySuccess.
-const (
-	GetAgentLedgerSnapshot403JSONResponseBodySuccessFalse GetAgentLedgerSnapshot403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetAgentLedgerSnapshot403JSONResponseBodySuccess enum.
-func (e GetAgentLedgerSnapshot403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetAgentLedgerSnapshot403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostAgentTelemetryReport400JSONResponseBodyCode.
-const (
-	AgentReportInvalid PostAgentTelemetryReport400JSONResponseBodyCode = "agent_report_invalid"
-)
-
-// Valid indicates whether the value is a known member of the PostAgentTelemetryReport400JSONResponseBodyCode enum.
-func (e PostAgentTelemetryReport400JSONResponseBodyCode) Valid() bool {
-	switch e {
-	case AgentReportInvalid:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostAgentTelemetryReport400JSONResponseBodySuccess.
-const (
-	PostAgentTelemetryReport400JSONResponseBodySuccessFalse PostAgentTelemetryReport400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostAgentTelemetryReport400JSONResponseBodySuccess enum.
-func (e PostAgentTelemetryReport400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostAgentTelemetryReport400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostAgentTelemetryReport403JSONResponseBodyCode.
-const (
-	PostAgentTelemetryReport403JSONResponseBodyCodeAgentIdentityNotActive PostAgentTelemetryReport403JSONResponseBodyCode = "agent_identity_not_active"
-)
-
-// Valid indicates whether the value is a known member of the PostAgentTelemetryReport403JSONResponseBodyCode enum.
-func (e PostAgentTelemetryReport403JSONResponseBodyCode) Valid() bool {
-	switch e {
-	case PostAgentTelemetryReport403JSONResponseBodyCodeAgentIdentityNotActive:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostAgentTelemetryReport403JSONResponseBodySuccess.
-const (
-	False PostAgentTelemetryReport403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostAgentTelemetryReport403JSONResponseBodySuccess enum.
-func (e PostAgentTelemetryReport403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case False:
 		return true
 	default:
 		return false
@@ -6811,102 +6593,6 @@ type AccessLogListResponse struct {
 	PageSize int                       `json:"page_size"`
 	Total    int                       `json:"total"`
 }
-
-// AgentConflictErrorResponse defines model for agent-conflict-error-response.
-type AgentConflictErrorResponse struct {
-	Code AgentConflictErrorResponseCode `json:"code"`
-
-	// Data Optional structured error details preserved from the current runtime.
-	Data *map[string]interface{} `json:"data,omitempty"`
-
-	// Locale Locale used to resolve the fallback message text in this response.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text paired with messageKey for compatibility.
-	Message string `json:"message"`
-
-	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
-	MessageKey *string                           `json:"messageKey,omitempty"`
-	Success    AgentConflictErrorResponseSuccess `json:"success"`
-	TraceId    string                            `json:"traceId"`
-}
-
-// AgentConflictErrorResponseCode defines model for AgentConflictErrorResponse.Code.
-type AgentConflictErrorResponseCode string
-
-// AgentConflictErrorResponseSuccess defines model for AgentConflictErrorResponse.Success.
-type AgentConflictErrorResponseSuccess bool
-
-// AgentLedgerSnapshot defines model for agent-ledger-snapshot.
-type AgentLedgerSnapshot struct {
-	AllocatableSlots int `json:"allocatableSlots"`
-
-	// Digest Digest of the canonical immutable snapshot payload.
-	Digest        string    `json:"digest"`
-	ExpiresAt     time.Time `json:"expiresAt"`
-	Generation    int64     `json:"generation"`
-	ObservedAt    time.Time `json:"observedAt"`
-	QueuedBuilds  int       `json:"queuedBuilds"`
-	RunningBuilds int       `json:"runningBuilds"`
-
-	// Sequence Monotonically increasing controller-issued sequence for this active generation.
-	Sequence int64 `json:"sequence"`
-
-	// SnapshotId One-time controller-issued snapshot identifier.
-	SnapshotId openapi_types.UUID `json:"snapshotId"`
-}
-
-// AgentTelemetryReportReceipt defines model for agent-telemetry-report-receipt.
-type AgentTelemetryReportReceipt struct {
-	AcceptedAt    time.Time          `json:"acceptedAt"`
-	ObservationId openapi_types.UUID `json:"observationId"`
-}
-
-// AgentTelemetryReportRequest defines model for agent-telemetry-report-request.
-type AgentTelemetryReportRequest struct {
-	// DiagnosticCode Optional bounded non-secret implementation diagnostic code.
-	DiagnosticCode *string `json:"diagnosticCode,omitempty"`
-	Digest         string  `json:"digest"`
-	Generation     int64   `json:"generation"`
-
-	// ImplementationVersion Optional bounded Agent implementation diagnostic.
-	ImplementationVersion *string `json:"implementationVersion,omitempty"`
-
-	// LivenessStatus Optional bounded liveness diagnostic; it cannot alter ledger values.
-	LivenessStatus *AgentTelemetryReportRequestLivenessStatus `json:"livenessStatus,omitempty"`
-
-	// ObservedAt Agent observation time, validated against the bounded control-plane clock skew.
-	ObservedAt time.Time          `json:"observedAt"`
-	SnapshotId openapi_types.UUID `json:"snapshotId"`
-}
-
-// AgentTelemetryReportRequestLivenessStatus Optional bounded liveness diagnostic; it cannot alter ledger values.
-type AgentTelemetryReportRequestLivenessStatus string
-
-// AgentUnavailableErrorResponse defines model for agent-unavailable-error-response.
-type AgentUnavailableErrorResponse struct {
-	Code AgentUnavailableErrorResponseCode `json:"code"`
-
-	// Data Optional structured error details preserved from the current runtime.
-	Data *map[string]interface{} `json:"data,omitempty"`
-
-	// Locale Locale used to resolve the fallback message text in this response.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text paired with messageKey for compatibility.
-	Message string `json:"message"`
-
-	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
-	MessageKey *string                              `json:"messageKey,omitempty"`
-	Success    AgentUnavailableErrorResponseSuccess `json:"success"`
-	TraceId    string                               `json:"traceId"`
-}
-
-// AgentUnavailableErrorResponseCode defines model for AgentUnavailableErrorResponse.Code.
-type AgentUnavailableErrorResponseCode string
-
-// AgentUnavailableErrorResponseSuccess defines model for AgentUnavailableErrorResponse.Success.
-type AgentUnavailableErrorResponseSuccess bool
 
 // AnnouncementDeliveryMode Announcement delivery presentation mode.
 type AnnouncementDeliveryMode string
@@ -10167,46 +9853,6 @@ type EnvelopedAccessLogListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedAgentLedgerSnapshot defines model for enveloped-agent-ledger-snapshot.
-type EnvelopedAgentLedgerSnapshot struct {
-	// Code Existing canonical response code.
-	Code string              `json:"code"`
-	Data AgentLedgerSnapshot `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedAgentTelemetryReportReceipt defines model for enveloped-agent-telemetry-report-receipt.
-type EnvelopedAgentTelemetryReportReceipt struct {
-	// Code Existing canonical response code.
-	Code string                      `json:"code"`
-	Data AgentTelemetryReportReceipt `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedAnnouncementItem defines model for enveloped-announcement-item.
 type EnvelopedAnnouncementItem struct {
 	// Code Existing canonical response code.
@@ -12255,46 +11901,6 @@ type EnvelopedRolePermissionBindingResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedRuntimeTargetAgentBinding defines model for enveloped-runtime-target-agent-binding.
-type EnvelopedRuntimeTargetAgentBinding struct {
-	// Code Existing canonical response code.
-	Code string                    `json:"code"`
-	Data RuntimeTargetAgentBinding `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedRuntimeTargetAgentEnrollment defines model for enveloped-runtime-target-agent-enrollment.
-type EnvelopedRuntimeTargetAgentEnrollment struct {
-	// Code Existing canonical response code.
-	Code string                       `json:"code"`
-	Data RuntimeTargetAgentEnrollment `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedRuntimeTargetListResponse defines model for enveloped-runtime-target-list-response.
 type EnvelopedRuntimeTargetListResponse struct {
 	// Code Existing canonical response code.
@@ -14094,83 +13700,6 @@ type RuntimeTargetRuntimeProvider string
 // RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
 type RuntimeTargetRuntimeType string
 
-// RuntimeTargetAgentBinding defines model for runtime-target-agent-binding.
-type RuntimeTargetAgentBinding struct {
-	AgentId string `json:"agentId"`
-
-	// AuditCorrelationId Redacted audit correlation identifier for the latest binding transition.
-	AuditCorrelationId *string `json:"auditCorrelationId,omitempty"`
-	BuilderScopeId     string  `json:"builderScopeId"`
-	CapabilityProfile  string  `json:"capabilityProfile"`
-
-	// CertificateFingerprint Public certificate fingerprint; never a certificate or private key.
-	CertificateFingerprint string                          `json:"certificateFingerprint"`
-	CertificateSerial      string                          `json:"certificateSerial"`
-	ExpiresAt              time.Time                       `json:"expiresAt"`
-	Generation             int64                           `json:"generation"`
-	ProviderId             string                          `json:"providerId"`
-	RevokedAt              *time.Time                      `json:"revokedAt,omitempty"`
-	Status                 RuntimeTargetAgentBindingStatus `json:"status"`
-	TrustBundleVersion     string                          `json:"trustBundleVersion"`
-}
-
-// RuntimeTargetAgentBindingStatus defines model for RuntimeTargetAgentBinding.Status.
-type RuntimeTargetAgentBindingStatus string
-
-// RuntimeTargetAgentEnrollment defines model for runtime-target-agent-enrollment.
-type RuntimeTargetAgentEnrollment struct {
-	// AgentId Stable lowercase Agent identity identifier.
-	AgentId string `json:"agentId"`
-
-	// EnrollmentRef Opaque non-secret Vault enrollment reference.
-	EnrollmentRef string `json:"enrollmentRef"`
-
-	// ExpiresAt Enrollment reference expiry.
-	ExpiresAt time.Time `json:"expiresAt"`
-
-	// Generation Monotonically increasing certificate enrollment generation.
-	Generation int64 `json:"generation"`
-
-	// Status The enrollment is not active until its certificate-bound generation is activated.
-	Status RuntimeTargetAgentEnrollmentStatus `json:"status"`
-
-	// TrustBundleVersion Non-secret trust bundle version for managed deployment delivery.
-	TrustBundleVersion string `json:"trustBundleVersion"`
-}
-
-// RuntimeTargetAgentEnrollmentStatus The enrollment is not active until its certificate-bound generation is activated.
-type RuntimeTargetAgentEnrollmentStatus string
-
-// RuntimeTargetAgentEnrollmentRequest defines model for runtime-target-agent-enrollment-request.
-type RuntimeTargetAgentEnrollmentRequest struct {
-	// AgentImageDigest Optional OCI image digest recorded for deployment provenance.
-	AgentImageDigest *string `json:"agentImageDigest,omitempty"`
-
-	// AgentImplementationVersion Optional Agent implementation version recorded for diagnostics.
-	AgentImplementationVersion *string `json:"agentImplementationVersion,omitempty"`
-
-	// BuilderScopeId Canonical Builder scope identifier bound to the Agent.
-	BuilderScopeId string `json:"builderScopeId"`
-
-	// CapabilityProfile Canonical capability profile identifier selected by the operator.
-	CapabilityProfile string `json:"capabilityProfile"`
-
-	// ProviderId Canonical Docker provider identifier bound to the Agent.
-	ProviderId string `json:"providerId"`
-}
-
-// RuntimeTargetAgentRevocationRequest defines model for runtime-target-agent-revocation-request.
-type RuntimeTargetAgentRevocationRequest struct {
-	// Reason Operator-supplied revocation reason retained in the redacted audit record.
-	Reason string `json:"reason"`
-}
-
-// RuntimeTargetAgentRotationRequest defines model for runtime-target-agent-rotation-request.
-type RuntimeTargetAgentRotationRequest struct {
-	// Reason Operator-supplied rotation reason retained in the redacted audit record.
-	Reason string `json:"reason"`
-}
-
 // RuntimeTargetCountMetric defines model for runtime-target-count-metric.
 type RuntimeTargetCountMetric struct {
 	Active            int64  `json:"active"`
@@ -15712,32 +15241,11 @@ type Unauthorized = ErrorResponse
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
-// mutualTLSContextKey is the context key for mutualTLS security scheme
-type mutualTLSContextKey string
-
 // personalAccessTokenAuthContextKey is the context key for personalAccessTokenAuth security scheme
 type personalAccessTokenAuthContextKey string
 
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
-
-// GetAgentLedgerSnapshot403JSONResponseBodyCode defines parameters for GetAgentLedgerSnapshot.
-type GetAgentLedgerSnapshot403JSONResponseBodyCode string
-
-// GetAgentLedgerSnapshot403JSONResponseBodySuccess defines parameters for GetAgentLedgerSnapshot.
-type GetAgentLedgerSnapshot403JSONResponseBodySuccess bool
-
-// PostAgentTelemetryReport400JSONResponseBodyCode defines parameters for PostAgentTelemetryReport.
-type PostAgentTelemetryReport400JSONResponseBodyCode string
-
-// PostAgentTelemetryReport400JSONResponseBodySuccess defines parameters for PostAgentTelemetryReport.
-type PostAgentTelemetryReport400JSONResponseBodySuccess bool
-
-// PostAgentTelemetryReport403JSONResponseBodyCode defines parameters for PostAgentTelemetryReport.
-type PostAgentTelemetryReport403JSONResponseBodyCode string
-
-// PostAgentTelemetryReport403JSONResponseBodySuccess defines parameters for PostAgentTelemetryReport.
-type PostAgentTelemetryReport403JSONResponseBodySuccess bool
 
 // GetAccessLogsParams defines parameters for GetAccessLogs.
 type GetAccessLogsParams struct {
@@ -18177,46 +17685,6 @@ type GetRuntimeTargetParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostRuntimeTargetAgentEnrollmentParams defines parameters for PostRuntimeTargetAgentEnrollment.
-type PostRuntimeTargetAgentEnrollmentParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetRuntimeTargetAgentBindingParams defines parameters for GetRuntimeTargetAgentBinding.
-type GetRuntimeTargetAgentBindingParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostRuntimeTargetAgentRevocationParams defines parameters for PostRuntimeTargetAgentRevocation.
-type PostRuntimeTargetAgentRevocationParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostRuntimeTargetAgentRotationParams defines parameters for PostRuntimeTargetAgentRotation.
-type PostRuntimeTargetAgentRotationParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // GetRuntimeTargetAssignmentsParams defines parameters for GetRuntimeTargetAssignments.
 type GetRuntimeTargetAssignmentsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -18838,9 +18306,6 @@ type GetRealtimeWebSocketParams struct {
 	Topic RealtimeTopicQuery `form:"topic" json:"topic"`
 }
 
-// PostAgentTelemetryReportJSONRequestBody defines body for PostAgentTelemetryReport for application/json ContentType.
-type PostAgentTelemetryReportJSONRequestBody = AgentTelemetryReportRequest
-
 // PostAccessLogSavedViewJSONRequestBody defines body for PostAccessLogSavedView for application/json ContentType.
 type PostAccessLogSavedViewJSONRequestBody = SavedViewRequest
 
@@ -19086,15 +18551,6 @@ type PostRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
 
 // PutRuntimeTargetSavedViewJSONRequestBody defines body for PutRuntimeTargetSavedView for application/json ContentType.
 type PutRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
-
-// PostRuntimeTargetAgentEnrollmentJSONRequestBody defines body for PostRuntimeTargetAgentEnrollment for application/json ContentType.
-type PostRuntimeTargetAgentEnrollmentJSONRequestBody = RuntimeTargetAgentEnrollmentRequest
-
-// PostRuntimeTargetAgentRevocationJSONRequestBody defines body for PostRuntimeTargetAgentRevocation for application/json ContentType.
-type PostRuntimeTargetAgentRevocationJSONRequestBody = RuntimeTargetAgentRevocationRequest
-
-// PostRuntimeTargetAgentRotationJSONRequestBody defines body for PostRuntimeTargetAgentRotation for application/json ContentType.
-type PostRuntimeTargetAgentRotationJSONRequestBody = RuntimeTargetAgentRotationRequest
 
 // PostRuntimeTargetAssignmentJSONRequestBody defines body for PostRuntimeTargetAssignment for application/json ContentType.
 type PostRuntimeTargetAssignmentJSONRequestBody = RuntimeTargetUserAssignmentRequest

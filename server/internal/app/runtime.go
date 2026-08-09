@@ -87,6 +87,7 @@ type Runtime struct {
 	redis                     *redis.Client
 	cacheManager              *cachex.Manager
 	server                    *httpx.Server
+	agentServer               *httpx.AgentServer
 	openapiDocs               *openAPIDocsAssets
 	mcpDocs                   []byte
 	eventBus                  eventbus.Bus
@@ -222,6 +223,8 @@ func newRuntimeCore(startupCtx context.Context, cfg *config.Config) (*Runtime, e
 // newRuntimeCoreWithDeps 创建运行时核心资源及服务，并在初始化失败时释放已创建的资源。
 // startupCtx 用于控制 Redis 客户端的初始化；cfg 提供运行时配置；deps 提供可注入的核心依赖构造函数。
 // 返回构造完成的运行时及错误。
+//
+//nolint:cyclop,funlen // 核心资源按依赖顺序创建，并在每个失败边界释放已取得的资源。
 func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)
@@ -261,6 +264,14 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create access log repository: %w", err)
 	}
 
+	agentServer, err := httpx.NewAgentServer(cfg.HTTPX.AgentTLS, runtimeLogger)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create agent mTLS server: %w", err)
+	}
+
 	cacheManager, err := newRuntimeCacheManager(cfg, redisClient)
 	if err != nil {
 		_ = redisClient.Close()
@@ -293,6 +304,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 			AccessLogSink: httpx.NewAccessLogEventPersistSink(eventDispatcher, accessLogRepo),
 			I18n:          localizer,
 		}, accessLogRepo),
+		agentServer:          agentServer,
 		eventBus:             eventbus.New(runtimeLogger),
 		eventDispatcher:      eventDispatcher,
 		realtimeHub:          realtime.NewHub(),

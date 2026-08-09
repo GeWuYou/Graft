@@ -1,9 +1,0 @@
-type: object
-additionalProperties: false
-required: [providerId, builderScopeId, capabilityProfile]
-properties:
-  providerId: {type: string, minLength: 1, maxLength: 128, description: Canonical Docker provider identifier bound to the Agent.}
-  builderScopeId: {type: string, minLength: 1, maxLength: 128, description: Canonical Builder scope identifier bound to the Agent.}
-  capabilityProfile: {type: string, minLength: 1, maxLength: 128, description: Canonical capability profile identifier selected by the operator.}
-  agentImageDigest: {type: string, pattern: '^sha256:[a-f0-9]{64}$', description: Optional OCI image digest recorded for deployment provenance.}
-  agentImplementationVersion: {type: string, minLength: 1, maxLength: 128, description: Optional Agent implementation version recorded for diagnostics.}

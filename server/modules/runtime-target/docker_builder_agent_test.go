@@ -67,7 +67,7 @@ func TestDockerBuilderAgentTelemetryReflectsControlledLedgerState(t *testing.T) 
 	}
 }
 
-func TestDockerBuilderAgentPublishesSignedLedgerToRuntimeTarget(t *testing.T) {
+func TestDockerBuilderAgentCannotPublishThroughLegacyRuntimeTargetIngress(t *testing.T) {
 	db := openBuilderTelemetryTestDB(t)
 	repository := store.NewSQLRepository(db)
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
@@ -76,10 +76,7 @@ func TestDockerBuilderAgentPublishesSignedLedgerToRuntimeTarget(t *testing.T) {
 	}
 	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
 	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}
-	ingress := controlPlaneBuilderTelemetryIngress{repository: repository, now: func() time.Time { return now }}
-	if err := ingress.ProvisionBuilderTelemetryAgent(context.Background(), registration); err != nil {
-		t.Fatalf("provision agent: %v", err)
-	}
+	ingress := controlPlaneBuilderTelemetryIngress{repository: repository}
 	agent, err := NewDockerBuilderAgent(registration, privateKey, 2)
 	if err != nil {
 		t.Fatalf("new Docker builder agent: %v", err)
@@ -91,16 +88,8 @@ func TestDockerBuilderAgentPublishesSignedLedgerToRuntimeTarget(t *testing.T) {
 	if err := agent.StartBuildContext(context.Background()); err != nil {
 		t.Fatalf("start build: %v", err)
 	}
-	if err := agent.PublishTelemetry(context.Background(), ingress); err != nil {
-		t.Fatalf("publish signed ledger telemetry: %v", err)
-	}
-	provider := controlPlaneBuilderTelemetryProvider{repository: repository, now: func() time.Time { return now }}
-	snapshots, err := provider.ListBuilderTelemetry(context.Background(), []int64{7})
-	if err != nil || len(snapshots) != 1 {
-		t.Fatalf("read agent telemetry = %#v, err=%v", snapshots, err)
-	}
-	if snapshots[0].Running != 1 || snapshots[0].Queued != 0 || snapshots[0].AllocatableSlots != 1 || snapshots[0].Provenance != "docker-builder-agent-ledger" {
-		t.Fatalf("agent ledger telemetry = %#v", snapshots[0])
+	if err := agent.PublishTelemetry(context.Background(), ingress); !errors.Is(err, store.ErrLegacyAgentTrustDisabled) {
+		t.Fatalf("legacy ingress error = %v, want %v", err, store.ErrLegacyAgentTrustDisabled)
 	}
 }
 

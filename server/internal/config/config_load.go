@@ -5,6 +5,8 @@ import "github.com/spf13/viper"
 // 它会填充应用、HTTP、HTTPX、审计、文档、模块、数据库、Redis、日志、运行时、i18n、鉴权和容器相关配置。
 //
 // readConfig 从 Viper 实例读取配置并组装为 Config；调用方应先完成默认值和环境变量绑定。
+//
+//nolint:funlen // Config 映射集中保留键到运行时字段的一一对应关系。
 func readConfig(reader *viper.Viper) *Config {
 	return &Config{
 		App: AppConfig{
@@ -19,6 +21,24 @@ func readConfig(reader *viper.Viper) *Config {
 			AccessLogSlowThresholdMS:  reader.GetInt64("access_log.slow_threshold_ms"),
 			AccessLogPersistTimeoutMS: reader.GetInt64("access_log.persist_timeout_ms"),
 			WebSocketAllowedOrigins:   parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
+			AgentTLS: AgentTLSConfig{
+				Enabled:         reader.GetBool("httpx.agent_tls.enabled"),
+				Addr:            reader.GetString("httpx.agent_tls.addr"),
+				CertificateFile: reader.GetString("httpx.agent_tls.certificate_file"),
+				KeyFile:         reader.GetString("httpx.agent_tls.key_file"),
+				ClientCAFile:    reader.GetString("httpx.agent_tls.client_ca_file"),
+			},
+		},
+		CredentialVault: CredentialVaultConfig{
+			Enabled:        reader.GetBool("credential_vault.enabled"),
+			Backend:        reader.GetString("credential_vault.backend"),
+			Address:        reader.GetString("credential_vault.address"),
+			Namespace:      reader.GetString("credential_vault.namespace"),
+			AuthMount:      reader.GetString("credential_vault.auth_mount"),
+			AuthRole:       reader.GetString("credential_vault.auth_role"),
+			PKIMount:       reader.GetString("credential_vault.pki_mount"),
+			PKIRole:        reader.GetString("credential_vault.pki_role"),
+			TrustBundleRef: reader.GetString("credential_vault.trust_bundle_ref"),
 		},
 		Audit: AuditConfig{},
 		Docs: DocsConfig{
