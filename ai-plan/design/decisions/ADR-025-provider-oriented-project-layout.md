@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-08-10
-- Scope: `server` project organization, provider boundaries, independent agents, runners, integrations and conformance fixtures
+- Scope: `server` project organization, provider boundaries, independent agents, runners, integrations, deployment topology, and conformance fixtures
 - Supersedes: none; this ADR extends the existing module-oriented modular monolith decisions
 
 ## Context

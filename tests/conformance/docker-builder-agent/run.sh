@@ -127,5 +127,7 @@ run_driver \
     (.ledger_receipt_count | type == "number" and . >= 2)
   ' >/dev/null
 
+umask 077
 $compose logs --no-color postgres vault vault-init migrate backend docker-builder-agent > "$evidence_file"
-echo "Docker Builder Agent conformance completed; redacted service logs are in $evidence_file."
+chmod 0600 "$evidence_file"
+echo "Docker Builder Agent conformance completed. Unredacted fixture service logs are in $evidence_file; treat them as secret material and do not commit them."

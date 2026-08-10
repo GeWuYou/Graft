@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+umask 077
+
 if [ -f /conformance/secrets/.initialized ]; then
   exit 0
 fi
@@ -34,13 +36,16 @@ test -s /conformance/vault-tls/vault-ca.pem
 cp /conformance/vault-tls/vault-ca.pem /conformance/secrets/vault-ca.pem
 vault read -field=certificate pki/cert/ca > /conformance/secrets/ca.pem
 vault read -field=certificate pki/cert/ca > /conformance/agent-trust/ca.pem
-vault write -format=json pki/issue/graft-conformance-backend common_name=backend alt_names=localhost > /tmp/backend-certificate.json
-backend_certificate="$(sed -n 's/^[[:space:]]*"certificate": "\(.*\)",$/\1/p' /tmp/backend-certificate.json)"
-backend_key="$(sed -n 's/^[[:space:]]*"private_key": "\(.*\)",$/\1/p' /tmp/backend-certificate.json)"
+certificate_file=$(mktemp)
+trap 'rm -f "$certificate_file"' EXIT HUP INT TERM
+vault write -format=json pki/issue/graft-conformance-backend common_name=backend alt_names=localhost > "$certificate_file"
+backend_certificate="$(sed -n 's/^[[:space:]]*"certificate": "\(.*\)",\{0,1\}$/\1/p' "$certificate_file")"
+backend_key="$(sed -n 's/^[[:space:]]*"private_key": "\(.*\)",\{0,1\}$/\1/p' "$certificate_file")"
 test -n "$backend_certificate" && test -n "$backend_key"
 printf '%b\n' "$backend_certificate" > /conformance/secrets/backend-cert.pem
 printf '%b\n' "$backend_key" > /conformance/secrets/backend-key.pem
-rm -f /tmp/backend-certificate.json
+rm -f "$certificate_file"
+trap - EXIT HUP INT TERM
 printf '%s' "$role_id" > /conformance/secrets/role_id
 printf '%s' "$secret_id" > /conformance/secrets/secret_id
 dd if=/dev/urandom of=/conformance/secrets/enrollment-pepper bs=32 count=1 status=none

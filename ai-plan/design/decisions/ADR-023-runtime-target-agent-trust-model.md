@@ -35,10 +35,10 @@ SAN is the stable workload identity:
 `spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>`
 
 `target_id` and `agent_id` use their canonical textual encodings. DNS, IP and email SANs are omitted; endpoint names are
-connection data, not identity. `generation` is certificate metadata and ledger/receipt evidence, not part of the SPIFFE
-workload identity. The control plane accepts a certificate only when its URI SAN, certificate issuer, serial,
+connection data, not identity. `generation` is server-side enrollment metadata associated through certificate evidence
+and ledger/receipt evidence, not part of the SPIFFE workload identity. The control plane accepts a certificate only when its URI SAN, certificate issuer, serial,
 public-key fingerprint, target binding, provider ID, scope ID and active generation metadata match the enrollment record.
-URI parsing is exact and does not accept aliases, prefixes or a second identity field.
+URI parsing is exact and rejects aliases, prefixes, legacy `/generation/<generation>` URI forms, and a second identity field.
 
 ### 3. Enrollment and delivery
 

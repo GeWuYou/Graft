@@ -7,10 +7,12 @@ The driver image is fixture-only: it is not a `graft conformance` production CLI
 surface and it never exposes a public HTTP contract.
 
 The Backend owns Runtime Target discovery, enrollment, delivery, activation,
-and ledger receipts. The driver requests the fixture scenario through existing
-Backend/module authorities; it neither chooses a Docker target representation
-nor writes lifecycle data to PostgreSQL. Vault owns PKI issuance. The Agent has
-no database connection and receives neither Vault address nor AppRole material.
+and ledger receipts. The driver invokes those existing Backend/module
+authorities; it does not define a Docker target representation or lifecycle
+policy. It loads the fixture Backend configuration, opens the fixture database,
+and receives the Vault AppRole material required to drive that Backend-owned
+scenario. Vault owns PKI issuance. The Agent has no database connection and
+receives neither Vault address nor AppRole material.
 
 ## Required images and inputs
 
@@ -62,6 +64,7 @@ the public `graft` CLI. The runner keeps the driver's JSON evidence in temporary
 files, validates it with `jq`, and passes only non-secret identity, generation,
 and receipt-count fields to the restart phase.
 
-The conformance driver and one-shot Agent use the fixture container's root user
-only to preserve the one-time secret's `0600` boundary and the mounted Agent
-state. This does not grant the Agent Vault credentials or a database connection.
+The one-shot Agent remains root in this fixture because it must read the
+driver-created `0600` bootstrap token. The conformance driver runs as a
+dedicated non-root user and owns its writable fixture mounts. Neither grants the
+Agent Vault credentials or a database connection.

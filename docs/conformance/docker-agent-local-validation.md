@@ -15,6 +15,8 @@ synthetic identities or bypass the normal Backend lifecycle.
 - Docker Compose: v5.1.0
 - Branch: `feature/agent-bootstrap-security`
 - Worktree: clean before this report
+- Recheck Compose project: `graft-agent-recheck-20260810`
+- Recheck ports: Backend `28080`, bootstrap TLS `28443`, Agent mTLS `28444`
 
 Existing running containers include the local Graft server/web validation instances, PostgreSQL and Redis. No Vault or
 Graft Agent container is running.
@@ -33,10 +35,16 @@ Graft Agent container is running.
 | Ledger receipt | pass | first mTLS lifecycle received and consumed a certificate-bound ledger snapshot receipt |
 | Agent restart recovery | pass | second one-shot Agent reused the same identity/generation and increased the accepted receipt count from 1 to 2 |
 
+Agent image digest observed during the recheck:
+
+`sha256:bc0b70fdf84072bcee1e0384889a7e692d1c4150948a6be7517da63af0bc5690`
+
 ## Missing Items
 
 1. CI still needs to provide immutable Backend, Agent, and fixture-only driver images plus the Agent digest.
-2. Retain the generated redacted service logs as CI lifecycle evidence.
+2. A real Vault revoke request has not been added to this lifecycle runner; the existing revocation handler and durable event retry remain covered by server conformance tests.
+3. Retain generated unredacted service logs only as restricted CI secret
+   artifacts; do not commit or share them as ordinary build output.
 
 ## Fixture
 
@@ -49,8 +57,11 @@ directly or provides fake certificate responses.
 ## Runtime Evidence
 
 `tests/conformance/docker-builder-agent/run.sh` completed all eight stages on
-2026-08-10. The redacted service log is retained at
-`/tmp/docker-agent-conformance.log` in this local environment. The proof uses
+2026-08-10 under Compose project `graft-agent-recheck-20260810`. The runner log
+is retained at `/tmp/docker-agent-conformance-rerun-isolated.log`; the
+unredacted service log at `/tmp/docker-agent-conformance-services.log` is mode
+`0600`, contains fixture secrets, and must not be committed or shared. The proof
+uses
 real containers, Backend TLS listeners, Vault AppRole/PKI, and a Docker daemon
 through the production-owned lifecycle rather than a fixture database shortcut.
 
