@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -145,7 +146,7 @@ func localDockerBuilderAgentRoot() (string, error) {
 func runLocalDockerBuilderCompose(ctx context.Context, root, composeFile string, args ...string) error {
 	//nolint:gosec // compose 文件和子命令均来自本开发 CLI 的固定调用点。
 	command := exec.CommandContext(ctx, "docker", append([]string{"compose", "-p", "graft-docker-builder-agent-dev", "-f", composeFile}, args...)...)
-	command.Env = append(os.Environ(), "GRAFT_DOCKER_BUILDER_DEV_ROOT="+root)
+	command.Env = localDockerBuilderComposeEnv(root)
 	command.Stdout, command.Stderr = os.Stdout, os.Stderr
 	if err := command.Run(); err != nil {
 		return fmt.Errorf("run local Docker Builder dependency topology: %w", err)
@@ -156,7 +157,7 @@ func runLocalDockerBuilderCompose(ctx context.Context, root, composeFile string,
 func exportLocalVaultCA(ctx context.Context, root, composeFile string) error {
 	//nolint:gosec // compose 文件与 vault service 名均由本开发 CLI 固定。
 	pathCommand := exec.CommandContext(ctx, "docker", "compose", "-p", "graft-docker-builder-agent-dev", "-f", composeFile, "exec", "-T", "vault", "sh", "-ec", "find /tmp -name vault-ca.pem -print -quit")
-	pathCommand.Env = append(os.Environ(), "GRAFT_DOCKER_BUILDER_DEV_ROOT="+root)
+	pathCommand.Env = localDockerBuilderComposeEnv(root)
 	path, err := pathCommand.Output()
 	if err != nil {
 		return fmt.Errorf("locate local Vault CA: %w", err)
@@ -166,7 +167,7 @@ func exportLocalVaultCA(ctx context.Context, root, composeFile string) error {
 	}
 	//nolint:gosec // compose 文件与 vault service 名均由本开发 CLI 固定。
 	containerCommand := exec.CommandContext(ctx, "docker", "compose", "-p", "graft-docker-builder-agent-dev", "-f", composeFile, "ps", "-q", "vault")
-	containerCommand.Env = append(os.Environ(), "GRAFT_DOCKER_BUILDER_DEV_ROOT="+root)
+	containerCommand.Env = localDockerBuilderComposeEnv(root)
 	container, err := containerCommand.Output()
 	if err != nil {
 		return fmt.Errorf("resolve local Vault container: %w", err)
@@ -225,6 +226,14 @@ func localDevAddress(name, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func localDockerBuilderComposeEnv(root string) []string {
+	return append(os.Environ(),
+		"GRAFT_DOCKER_BUILDER_DEV_ROOT="+root,
+		"GRAFT_DOCKER_BUILDER_DEV_UID="+strconv.Itoa(os.Getuid()),
+		"GRAFT_DOCKER_BUILDER_DEV_GID="+strconv.Itoa(os.Getgid()),
+	)
 }
 
 func waitForLocalDockerBuilderServer(ctx context.Context, address string) error {

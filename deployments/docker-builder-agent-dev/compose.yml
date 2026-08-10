@@ -43,7 +43,7 @@ services:
   vault-init:
     image: hashicorp/vault:1.18
     restart: "no"
-    user: "0:0"
+    user: "${GRAFT_DOCKER_BUILDER_DEV_UID:?GRAFT_DOCKER_BUILDER_DEV_UID is required}:${GRAFT_DOCKER_BUILDER_DEV_GID:?GRAFT_DOCKER_BUILDER_DEV_GID is required}"
     environment:
       GRAFT_DOCKER_BUILDER_DEV_ROOT: /graft-dev
     entrypoint: ["/bin/sh", "/bootstrap/vault-init.sh"]

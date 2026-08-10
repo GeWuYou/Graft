@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# 此 Vault 仅用于一次性本地开发拓扑；root token 和跳过 TLS 校验不得复制到非本地环境。
+umask 077
+
 export VAULT_ADDR=https://vault:8200
 export VAULT_TOKEN=graft-docker-builder-agent-dev
 root=${GRAFT_DOCKER_BUILDER_DEV_ROOT:?}
@@ -25,13 +28,13 @@ vault read -field=role_id auth/approle/role/graft-docker-builder-agent/role-id >
 vault write -field=secret_id -f auth/approle/role/graft-docker-builder-agent/secret-id > "$root/secrets/secret_id"
 vault read -field=certificate pki/cert/ca > "$root/secrets/ca.pem"
 cp "$root/secrets/ca.pem" "$root/agent/trust/ca.pem"
-vault write -format=json pki/issue/graft-local-server common_name=localhost alt_names=localhost ip_sans=127.0.0.1 > /tmp/local-server-certificate.json
-server_certificate=$(sed -n 's/^[[:space:]]*"certificate": "\(.*\)",$/\1/p' /tmp/local-server-certificate.json)
-server_key=$(sed -n 's/^[[:space:]]*"private_key": "\(.*\)",$/\1/p' /tmp/local-server-certificate.json)
-test -n "$server_certificate" && test -n "$server_key"
-printf '%b\n' "$server_certificate" > "$root/secrets/server-cert.pem"
-printf '%b\n' "$server_key" > "$root/secrets/server-key.pem"
-rm -f /tmp/local-server-certificate.json
+issued=$(mktemp)
+trap 'rm -f "$issued"' EXIT HUP INT TERM
+vault write -format=json pki/issue/graft-local-server common_name=localhost alt_names=localhost ip_sans=127.0.0.1 > "$issued"
+jq -er '.data.certificate' "$issued" > "$root/secrets/server-cert.pem"
+jq -er '.data.private_key' "$issued" > "$root/secrets/server-key.pem"
+rm -f "$issued"
+trap - EXIT HUP INT TERM
 dd if=/dev/urandom of="$root/secrets/enrollment-pepper" bs=32 count=1 status=none
 chmod 0600 "$root/secrets"/*
 chmod 0444 "$root/agent/trust/ca.pem"

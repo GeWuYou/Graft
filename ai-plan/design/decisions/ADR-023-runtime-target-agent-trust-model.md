@@ -42,9 +42,9 @@ URI parsing is exact and rejects aliases, prefixes, legacy `/generation/<generat
 
 ### 3. Enrollment and delivery
 
-Enrollment is an operator-authorized Runtime Target operation. `credential-vault` creates a pending enrollment with a
-one-time bootstrap secret (minimum 32 random bytes), stores only a salted digest and a five-minute expiry, and returns
-Runtime Target an opaque enrollment reference plus non-secret trust metadata. Vault-managed deployment delivery
+Enrollment is an operator-authorized Runtime Target operation. Runtime Target creates the pending enrollment with a
+one-time bootstrap secret (minimum 32 random bytes), stores only a salted digest and a five-minute expiry, and requests
+the opaque enrollment reference plus non-secret trust metadata from `credential-vault`. Vault-managed deployment delivery
 materializes the bootstrap secret, client private key and certificate chain directly into the Agent installation. Build,
 Task, browser, Runtime Target HTTP responses, telemetry reads, logs and execution evidence never carry those values.
 
