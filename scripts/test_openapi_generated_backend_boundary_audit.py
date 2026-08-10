@@ -23,6 +23,7 @@ class BackendBoundaryAuditVerdictTests(unittest.TestCase):
                 check=False,
                 capture_output=True,
                 text=True,
+                timeout=30,
             )
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)

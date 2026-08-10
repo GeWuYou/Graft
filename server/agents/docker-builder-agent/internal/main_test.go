@@ -30,9 +30,13 @@ func TestDefaultConfigFileFallsBackToContainerPath(t *testing.T) {
 }
 
 func TestConfigRejectsNonHTTPSListeners(t *testing.T) {
-	configuration := config{BootstrapURL: "http://backend:8443", AgentURL: "https://backend:8444", TargetID: 7, AgentID: "builder-1", BootstrapCA: "/run/trust/ca.pem", TrustBundle: "/run/trust/ca.pem"}
-	if err := configuration.applyDefaultsAndValidate(); err == nil {
-		t.Fatal("config accepted an HTTP bootstrap listener")
+	for _, configuration := range []config{
+		{BootstrapURL: "http://backend:8443", AgentURL: "https://backend:8444", TargetID: 7, AgentID: "builder-1", BootstrapCA: "/run/trust/ca.pem", TrustBundle: "/run/trust/ca.pem"},
+		{BootstrapURL: "https://backend:8443", AgentURL: "http://backend:8444", TargetID: 7, AgentID: "builder-1", BootstrapCA: "/run/trust/ca.pem", TrustBundle: "/run/trust/ca.pem"},
+	} {
+		if err := configuration.applyDefaultsAndValidate(); err == nil {
+			t.Fatal("config accepted an HTTP listener")
+		}
 	}
 }
 
