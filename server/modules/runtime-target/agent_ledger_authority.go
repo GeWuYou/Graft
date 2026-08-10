@@ -35,6 +35,11 @@ func (a runtimeTargetAgentLedgerAuthority) IssueLedgerSnapshot(ctx context.Conte
 		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
 	}
 	now := a.now().UTC()
+	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, identity.TargetID, identity.AgentID, identity.CertificateSerial, identity.PublicKeyFingerprint, now)
+	if err != nil {
+		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
+	}
+	identity.IdentityID, identity.Generation = active.Identity.IdentityID, active.Generation
 	snapshotID, err := newAgentLedgerSnapshotID(a.random)
 	if err != nil {
 		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
@@ -61,6 +66,13 @@ func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Con
 	if a.repository == nil || a.now == nil {
 		return errAgentLedgerRejected
 	}
+	now := a.now().UTC()
+	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, report.TargetID, report.AgentID, report.CertificateSerial, report.PublicKeyFingerprint, now)
+	if err != nil {
+		return errAgentLedgerRejected
+	}
+	// mTLS 只认证稳定 URI 与当前证书；世代和身份必须由服务端的活动绑定派生。
+	report.IdentityID, report.Generation = active.Identity.IdentityID, active.Generation
 	if err := a.repository.RecordAgentTelemetryReceipt(ctx, store.AgentLedgerIdentity{
 		IdentityID: report.IdentityID, TargetID: report.TargetID, AgentID: report.AgentID, Generation: report.Generation,
 		CertificateSerial: report.CertificateSerial, PublicKeyFingerprint: report.PublicKeyFingerprint,
@@ -68,7 +80,7 @@ func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Con
 		SnapshotID: report.SnapshotID, SnapshotDigest: report.SnapshotDigest, ObservedAt: report.ObservedAt,
 		ExpiresAt: report.ExpiresAt, Available: report.Available, ImplementationVersion: report.ImplementationVersion,
 		Diagnostic: report.Diagnostic,
-	}, a.now().UTC()); err != nil {
+	}, now); err != nil {
 		return errAgentLedgerRejected
 	}
 	return nil

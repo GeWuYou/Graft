@@ -12,6 +12,8 @@ Current architecture decisions also include `ADR-004-task-runtime-state-machine.
 and compiler batches begin.
 `ADR-020-configuration-governance-schema.md` fixes the versioned deployment-configuration Schema authority before
 runtime, Compose, template, and CI consumers converge.
+`ADR-025-provider-oriented-project-layout.md` fixes the Provider-oriented project layout and legacy-frozen migration
+boundary before new external capability implementations are added.
 
 ## Rules
 

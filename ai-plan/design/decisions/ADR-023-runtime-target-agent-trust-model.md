@@ -30,20 +30,21 @@ identity.
 ### 2. Identity and SAN/URI rules
 
 Every enrollment generation has one stable `agent_id` and a monotonically increasing `generation`. The certificate URI
-SAN is the canonical identity:
+SAN is the stable workload identity:
 
-`spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>/generation/<generation>`
+`spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>`
 
-`target_id`, `agent_id` and `generation` use their canonical lowercase textual encodings. DNS, IP and email SANs are
-omitted; endpoint names are connection data, not identity. The control plane accepts a certificate only when its URI SAN,
-certificate issuer, serial, public-key fingerprint, target binding, provider ID, scope ID and generation match the active
-enrollment record. URI parsing is exact and does not accept aliases, prefixes or a second identity field.
+`target_id` and `agent_id` use their canonical textual encodings. DNS, IP and email SANs are omitted; endpoint names are
+connection data, not identity. `generation` is server-side enrollment metadata associated through certificate evidence
+and ledger/receipt evidence, not part of the SPIFFE workload identity. The control plane accepts a certificate only when its URI SAN, certificate issuer, serial,
+public-key fingerprint, target binding, provider ID, scope ID and active generation metadata match the enrollment record.
+URI parsing is exact and rejects aliases, prefixes, legacy `/generation/<generation>` URI forms, and a second identity field.
 
 ### 3. Enrollment and delivery
 
-Enrollment is an operator-authorized Runtime Target operation. `credential-vault` creates a pending enrollment with a
-one-time bootstrap secret (minimum 32 random bytes), stores only a salted digest and a five-minute expiry, and returns
-Runtime Target an opaque enrollment reference plus non-secret trust metadata. Vault-managed deployment delivery
+Enrollment is an operator-authorized Runtime Target operation. Runtime Target creates the pending enrollment with a
+one-time bootstrap secret (minimum 32 random bytes), stores only a salted digest and a five-minute expiry, and requests
+the opaque enrollment reference plus non-secret trust metadata from `credential-vault`. Vault-managed deployment delivery
 materializes the bootstrap secret, client private key and certificate chain directly into the Agent installation. Build,
 Task, browser, Runtime Target HTTP responses, telemetry reads, logs and execution evidence never carry those values.
 

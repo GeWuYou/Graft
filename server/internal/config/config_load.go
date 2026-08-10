@@ -39,6 +39,7 @@ func readConfig(reader *viper.Viper) *Config {
 			Enabled:          reader.GetBool("credential_vault.enabled"),
 			Backend:          reader.GetString("credential_vault.backend"),
 			Address:          reader.GetString("credential_vault.address"),
+			CAFile:           reader.GetString("credential_vault.ca_file"),
 			Namespace:        reader.GetString("credential_vault.namespace"),
 			AuthMount:        reader.GetString("credential_vault.auth_mount"),
 			AuthRole:         reader.GetString("credential_vault.auth_role"),

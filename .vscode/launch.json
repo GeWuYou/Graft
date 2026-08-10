@@ -57,7 +57,11 @@
             "args": [
                 "dev",
                 "air"
-            ]
+            ],
+            "preLaunchTask": "agent: prepare Docker Builder development",
+            "env": {
+                "GRAFT_ENV_FILE": "${workspaceFolder}/.data/docker-builder-agent-dev/server.env"
+            }
         },
         {
             "name": "server: 通知开发监督器",
@@ -98,6 +102,35 @@
             "mode": "debug",
             "program": "${workspaceFolder}/server/cmd/graft-signing-key",
             "cwd": "${workspaceFolder}/server"
+        },
+        {
+            "name": "agent: Docker Builder",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "agent: deliver Docker Builder development",
+            "args": [
+                "--config",
+                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json",
+                "--wait-for-delivery"
+            ]
+        },
+        {
+            "name": "agent: Docker Builder（单次）",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "agent: deliver Docker Builder development",
+            "args": [
+                "--config",
+                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json",
+                "--wait-for-delivery",
+                "--once"
+            ]
         },
         {
             "name": "web: dev",
@@ -151,6 +184,7 @@
             "name": "fullstack: dev",
             "configurations": [
                 "server: Air 热重载",
+                "agent: Docker Builder",
                 "web: dev"
             ]
         }

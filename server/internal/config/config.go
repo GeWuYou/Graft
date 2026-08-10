@@ -202,6 +202,7 @@ type CredentialVaultConfig struct {
 	Enabled          bool
 	Backend          string
 	Address          string
+	CAFile           string
 	Namespace        string
 	AuthMount        string
 	AuthRole         string
@@ -570,6 +571,7 @@ func validateCredentialVaultConfig(c *Config) error {
 		value *string
 	}{
 		{name: "GRAFT_CREDENTIAL_VAULT_ADDRESS", value: &vault.Address},
+		{name: "GRAFT_CREDENTIAL_VAULT_CA_FILE", value: &vault.CAFile},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT", value: &vault.AuthMount},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE", value: &vault.AuthRole},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
@@ -590,6 +592,7 @@ func validateCredentialVaultConfig(c *Config) error {
 		name  string
 		value *string
 	}{
+		{name: "GRAFT_CREDENTIAL_VAULT_CA_FILE", value: &vault.CAFile},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", value: &vault.AuthRoleIDFile},
 		{name: "GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", value: &vault.AuthSecretIDFile},
 	} {

@@ -122,7 +122,7 @@ func parseAgentIdentityURI(identityURI *url.URL) (AgentMTLSIdentity, error) {
 		return AgentMTLSIdentity{}, errors.New("agent URI SAN is invalid")
 	}
 	parts := strings.Split(strings.TrimPrefix(identityURI.EscapedPath(), "/"), "/")
-	if len(parts) != 6 || parts[0] != "runtime-target" || parts[2] != "builder-agent" || parts[4] != "generation" {
+	if len(parts) != 4 || parts[0] != "runtime-target" || parts[2] != "builder-agent" {
 		return AgentMTLSIdentity{}, errors.New("agent URI SAN path is invalid")
 	}
 	targetID, err := parseCanonicalPositiveInt64(parts[1])
@@ -132,11 +132,7 @@ func parseAgentIdentityURI(identityURI *url.URL) (AgentMTLSIdentity, error) {
 	if !isCanonicalAgentID(parts[3]) {
 		return AgentMTLSIdentity{}, errors.New("agent URI SAN agent id is invalid")
 	}
-	generation, err := parseCanonicalPositiveInt64(parts[5])
-	if err != nil {
-		return AgentMTLSIdentity{}, fmt.Errorf("parse agent URI SAN generation: %w", err)
-	}
-	return AgentMTLSIdentity{AgentIdentity: moduleapi.AgentIdentity{TargetID: targetID, AgentID: parts[3], Generation: generation}}, nil
+	return AgentMTLSIdentity{AgentIdentity: moduleapi.AgentIdentity{TargetID: targetID, AgentID: parts[3]}}, nil
 }
 
 func parseCanonicalPositiveInt64(value string) (int64, error) {

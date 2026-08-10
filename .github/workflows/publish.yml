@@ -233,11 +233,14 @@ jobs:
       server_image: ${{ steps.image_vars.outputs.server_image }}
       web_image: ${{ steps.image_vars.outputs.web_image }}
       runner_image: ${{ steps.image_vars.outputs.runner_image }}
+      agent_image: ${{ steps.image_vars.outputs.agent_image }}
       is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
       server_digest: ${{ steps.publish_release_images.outputs.server_digest }}
       web_digest: ${{ steps.publish_release_images.outputs.web_digest }}
       runner_digest: ${{ steps.publish_release_images.outputs.runner_digest }}
+      agent_digest: ${{ steps.publish_release_images.outputs.agent_digest }}
       runner_reused: ${{ steps.runner_reuse.outputs.reuse }}
+      agent_reused: ${{ steps.agent_reuse.outputs.reuse }}
 
     steps:
       - name: Checkout repository at tag
@@ -255,15 +258,17 @@ jobs:
           server_image="ghcr.io/${owner_lc}/graft-server"
           web_image="ghcr.io/${owner_lc}/graft-web"
           runner_image="ghcr.io/${owner_lc}/graft-compose-runner"
+          agent_image="ghcr.io/${owner_lc}/graft-docker-builder-agent"
           echo "owner_lc=${owner_lc}" >> "${GITHUB_OUTPUT}"
           echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
           echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
           echo "runner_image=${runner_image}" >> "${GITHUB_OUTPUT}"
+          echo "agent_image=${agent_image}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
-      - name: Setup Go for Runner input discovery
+      - name: Setup Go for Runner and Agent input discovery
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
           go-version-file: server/go.mod
@@ -382,6 +387,86 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
           echo "Runner reuse: ${reuse} (${reason})"
 
+      - name: Resolve reusable Docker Builder Agent image
+        id: agent_reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+          AGENT_IMAGE: ${{ steps.image_vars.outputs.agent_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          inspect_digest() {
+            docker buildx imagetools inspect "$1" | awk '
+              /^Digest:/ { print $2; found = 1; exit }
+              END { if (!found) exit 1 }
+            '
+          }
+
+          mkdir -p .tmp/agent-reuse
+          agent_inputs_file=".tmp/agent-reuse/inputs.txt"
+          releases_json=".tmp/agent-reuse/releases.json"
+          candidates_json=".tmp/agent-reuse/candidates.json"
+
+          # A GitHub API failure is not equivalent to "first release": fail closed
+          # instead of reusing without a trustworthy release catalog.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${releases_json}"
+          python3 scripts/resolve_runner_release_reuse.py \
+            --channel "${RELEASE_CHANNEL}" \
+            --agent-image "${AGENT_IMAGE}" \
+            --current-tag "${RELEASE_REF_NAME}" \
+            < "${releases_json}" > "${candidates_json}"
+
+          (
+            cd server
+            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./agents/docker-builder-agent/cmd
+          ) | sed "s#^${GITHUB_WORKSPACE}/##" | sort -u > "${agent_inputs_file}"
+          [[ -s "${agent_inputs_file}" ]] || {
+            echo "::error::Failed to resolve Docker Builder Agent build inputs."
+            exit 1
+          }
+          mapfile -t agent_inputs < "${agent_inputs_file}"
+          agent_inputs+=(
+            server/agents/docker-builder-agent/Dockerfile
+            server/.dockerignore
+            server/go.mod
+            server/go.sum
+          )
+
+          reuse="false"
+          source_tag=""
+          source_digest=""
+          reason="no verified historical Docker Builder Agent manifest"
+          while IFS= read -r candidate; do
+            candidate_tag="$(jq -er '.tag' <<< "${candidate}")"
+            candidate_digest="$(jq -er '.digest' <<< "${candidate}")"
+            raw_manifest="$(docker buildx imagetools inspect --raw "${AGENT_IMAGE}@${candidate_digest}")" || continue
+            jq -e '
+              (.schemaVersion == 2)
+              and (.mediaType == "application/vnd.docker.distribution.manifest.v2+json" or .mediaType == "application/vnd.oci.image.manifest.v1+json")
+              and (.config.digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.layers | type == "array" and length > 0)
+              and (has("manifests") | not)
+            ' <<< "${raw_manifest}" >/dev/null || continue
+            platform="$(docker buildx imagetools inspect --format '{{.Image.OS}}/{{.Image.Architecture}}' "${AGENT_IMAGE}@${candidate_digest}")" || continue
+            [[ "${platform}" == "linux/amd64" ]] || continue
+            if git diff --quiet "${candidate_tag}" "${GITHUB_SHA}" -- "${agent_inputs[@]}"; then
+              reuse="true"
+              source_tag="${candidate_tag}"
+              source_digest="${candidate_digest}"
+              reason="Docker Builder Agent inputs unchanged since ${candidate_tag}"
+              break
+            fi
+          done < <(jq -c '.candidates[]?' "${candidates_json}")
+
+          echo "reuse=${reuse}" >> "${GITHUB_OUTPUT}"
+          echo "source_tag=${source_tag}" >> "${GITHUB_OUTPUT}"
+          echo "source_digest=${source_digest}" >> "${GITHUB_OUTPUT}"
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          echo "Docker Builder Agent reuse: ${reuse} (${reason})"
+
       - name: Prepare Docker metadata tags
         id: image_tags
         shell: bash
@@ -447,6 +532,16 @@ jobs:
             org.opencontainers.image.title=Graft Compose Update Runner
             org.opencontainers.image.description=One-shot Graft Compose update runner
 
+      - name: Docker metadata for Docker Builder Agent image
+        id: agent_meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ${{ steps.image_vars.outputs.agent_image }}
+          tags: ${{ steps.image_tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Graft Docker Builder Agent
+            org.opencontainers.image.description=Independent Graft Docker Builder Agent
+
       - name: Build and push server image
         id: server_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
@@ -492,6 +587,21 @@ jobs:
           cache-from: type=gha,scope=graft-compose-runner-image
           cache-to: type=gha,mode=max,scope=graft-compose-runner-image
 
+      - name: Build Docker Builder Agent image
+        if: steps.agent_reuse.outputs.reuse != 'true'
+        id: agent_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./server
+          file: ./server/agents/docker-builder-agent/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: graft-release-docker-builder-agent:${{ github.run_id }}
+          labels: ${{ steps.agent_meta.outputs.labels }}
+          cache-from: type=gha,scope=graft-docker-builder-agent-image
+          cache-to: type=gha,mode=max,scope=graft-docker-builder-agent-image
+
       - name: Run Compose smoke against local images
         env:
           GRAFT_RELEASE_SERVER_IMAGE: graft-release-server
@@ -522,11 +632,15 @@ jobs:
           SERVER_IMAGE: ${{ steps.image_vars.outputs.server_image }}
           WEB_IMAGE: ${{ steps.image_vars.outputs.web_image }}
           RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
+          AGENT_IMAGE: ${{ steps.image_vars.outputs.agent_image }}
           SERVER_TAGS: ${{ steps.server_meta.outputs.tags }}
           WEB_TAGS: ${{ steps.web_meta.outputs.tags }}
           RUNNER_TAGS: ${{ steps.runner_meta.outputs.tags }}
+          AGENT_TAGS: ${{ steps.agent_meta.outputs.tags }}
           RUNNER_REUSE: ${{ steps.runner_reuse.outputs.reuse }}
           RUNNER_REUSE_DIGEST: ${{ steps.runner_reuse.outputs.source_digest }}
+          AGENT_REUSE: ${{ steps.agent_reuse.outputs.reuse }}
+          AGENT_REUSE_DIGEST: ${{ steps.agent_reuse.outputs.source_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -557,15 +671,24 @@ jobs:
             publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
             runner_digest="$(inspect_digest "${RUNNER_IMAGE}:${RELEASE_REF_NAME}")"
           fi
+          if [[ "${AGENT_REUSE}" == "true" ]]; then
+            agent_digest="$(inspect_digest "${AGENT_IMAGE}@${AGENT_REUSE_DIGEST}")"
+            [[ "${agent_digest}" == "${AGENT_REUSE_DIGEST}" ]]
+          else
+            publish_local_image "graft-release-docker-builder-agent:${{ github.run_id }}" "${AGENT_TAGS}"
+            agent_digest="$(inspect_digest "${AGENT_IMAGE}:${RELEASE_REF_NAME}")"
+          fi
 
           server_digest="$(inspect_digest "${SERVER_IMAGE}:${RELEASE_REF_NAME}")"
           web_digest="$(inspect_digest "${WEB_IMAGE}:${RELEASE_REF_NAME}")"
           [[ "${server_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${web_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${runner_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${agent_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
           echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
           echo "runner_digest=${runner_digest}" >> "${GITHUB_OUTPUT}"
+          echo "agent_digest=${agent_digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Write image manifest
         env:
@@ -578,6 +701,8 @@ jobs:
           WEB_DIGEST: ${{ steps.publish_release_images.outputs.web_digest }}
           RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
           RUNNER_DIGEST: ${{ steps.publish_release_images.outputs.runner_digest }}
+          AGENT_IMAGE: ${{ steps.image_vars.outputs.agent_image }}
+          AGENT_DIGEST: ${{ steps.publish_release_images.outputs.agent_digest }}
         run: |
           set -euo pipefail
           mkdir -p image-assets
@@ -590,6 +715,8 @@ jobs:
           web_digest=${WEB_DIGEST}
           runner_image=${RUNNER_IMAGE}
           runner_digest=${RUNNER_DIGEST}
+          docker_builder_agent_image=${AGENT_IMAGE}
+          docker_builder_agent_digest=${AGENT_DIGEST}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
@@ -612,6 +739,8 @@ jobs:
             --arg webDigest "${WEB_DIGEST}" \
             --arg runnerImage "${RUNNER_IMAGE}" \
             --arg runnerDigest "${RUNNER_DIGEST}" \
+            --arg agentImage "${AGENT_IMAGE}" \
+            --arg agentDigest "${AGENT_DIGEST}" \
             --arg serverArtifact "${server_asset}" \
             --arg webArtifact "${web_asset}" \
             --arg checksums "${checksums_asset}" \
@@ -643,6 +772,13 @@ jobs:
                   reference: ($runnerImage + "@" + $runnerDigest)
                 }
               },
+              agents: {
+                docker_builder_agent: {
+                  image: $agentImage,
+                  digest: $agentDigest,
+                  reference: ($agentImage + "@" + $agentDigest)
+                }
+              },
               artifacts: {
                 server: $serverArtifact,
                 web: $webArtifact,
@@ -670,6 +806,9 @@ jobs:
             and (.runners.compose.image | startswith("ghcr.io/"))
             and (.runners.compose.digest | startswith("sha256:"))
             and (.runners.compose.reference == (.runners.compose.image + "@" + .runners.compose.digest))
+            and (.agents.docker_builder_agent.image | startswith("ghcr.io/"))
+            and (.agents.docker_builder_agent.digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.agents.docker_builder_agent.reference == (.agents.docker_builder_agent.image + "@" + .agents.docker_builder_agent.digest))
             and (.migration.required_before_runtime == true)
           ' "image-assets/release-manifest.json" >/dev/null
           sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"
@@ -922,6 +1061,7 @@ jobs:
             echo "- Channel: \`${{ needs.build-artifacts.outputs.channel }}\`"
             echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${RELEASE_REF_NAME}\`"
             echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${RELEASE_REF_NAME}\`"
+            echo "- Docker Builder Agent Image: \`${{ needs.publish-images.outputs.agent_image }}:${RELEASE_REF_NAME}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -1113,6 +1253,7 @@ jobs:
           cleanup_package graft-server
           cleanup_package graft-web
           cleanup_package graft-compose-runner
+          cleanup_package graft-docker-builder-agent
 
           verify_release_tag
           tag_response="$(mktemp)"
@@ -1162,8 +1303,11 @@ jobs:
           SERVER_IMAGE: ${{ needs.publish-images.outputs.server_image }}
           WEB_IMAGE: ${{ needs.publish-images.outputs.web_image }}
           RUNNER_IMAGE: ${{ needs.publish-images.outputs.runner_image }}
+          AGENT_IMAGE: ${{ needs.publish-images.outputs.agent_image }}
           RUNNER_DIGEST: ${{ needs.publish-images.outputs.runner_digest }}
+          AGENT_DIGEST: ${{ needs.publish-images.outputs.agent_digest }}
           RUNNER_REUSED: ${{ needs.publish-images.outputs.runner_reused }}
+          AGENT_REUSED: ${{ needs.publish-images.outputs.agent_reused }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1171,8 +1315,12 @@ jobs:
             docker buildx imagetools create --prefer-index=false \
               --tag "${RUNNER_IMAGE}:${RELEASE_REF_NAME}" "${RUNNER_IMAGE}@${RUNNER_DIGEST}"
           fi
-          for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}"; do
-            if [[ "${image}" == "${RUNNER_IMAGE}" ]]; then
+          if [[ "${AGENT_REUSED}" == "true" ]]; then
+            docker buildx imagetools create --prefer-index=false \
+              --tag "${AGENT_IMAGE}:${RELEASE_REF_NAME}" "${AGENT_IMAGE}@${AGENT_DIGEST}"
+          fi
+          for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}" "${AGENT_IMAGE}"; do
+            if [[ "${image}" == "${RUNNER_IMAGE}" || "${image}" == "${AGENT_IMAGE}" ]]; then
               docker buildx imagetools create --prefer-index=false \
                 --tag "${image}:${RELEASE_CHANNEL}" "${image}:${RELEASE_REF_NAME}"
             else

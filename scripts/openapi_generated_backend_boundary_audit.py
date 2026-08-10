@@ -142,10 +142,9 @@ class AuditResult:
 
 
 def find_repo_root() -> Path:
-    current = Path.cwd().resolve()
-    for candidate in (current, *current.parents):
-        if (candidate / REPO_SENTINEL).is_file() and (candidate / "server").is_dir():
-            return candidate
+    repo_root = Path(__file__).resolve().parent.parent
+    if (repo_root / REPO_SENTINEL).is_file() and (repo_root / "server").is_dir():
+        return repo_root
     raise SystemExit(f"could not locate repository root containing {REPO_SENTINEL}")
 
 

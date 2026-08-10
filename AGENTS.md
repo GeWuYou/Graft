@@ -32,6 +32,10 @@ Authoritative repository documents:
 
 - [ai-plan/design/architecture/项目设计.md](ai-plan/design/architecture/项目设计.md)
 - [ai-plan/design/architecture/模块与依赖注入设计.md](ai-plan/design/architecture/模块与依赖注入设计.md)
+- [ai-plan/design/architecture/项目文件组织与扩展点设计.md](ai-plan/design/architecture/项目文件组织与扩展点设计.md) when the task changes
+  server project layout, Provider/Adapter/Integration boundaries, independent Agents, runners, deployments, or conformance fixtures
+- [ai-plan/design/decisions/ADR-025-provider-oriented-project-layout.md](ai-plan/design/decisions/ADR-025-provider-oriented-project-layout.md) when the task
+  introduces or migrates one of those platform extension points
 - [ai-plan/design/architecture/前端架构设计.md](ai-plan/design/architecture/前端架构设计.md)
 - [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) when the task changes
   typed contracts, magic-value governance, contract lifecycle, ownership, compatibility, drift handling, or shared

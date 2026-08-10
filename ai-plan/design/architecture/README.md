@@ -24,3 +24,5 @@ here instead of restoring them to the `ai-plan/design/` root.
 
 - [导航与资源路由信息架构规范.md](导航与资源路由信息架构规范.md) is the authority for Graft's visible navigation domains,
   resource-oriented UI routes, global entries, and runtime/source placement rules.
+- [项目文件组织与扩展点设计.md](项目文件组织与扩展点设计.md) is the authority for the target server layout, Provider/
+  Adapter/Integration boundaries, independent Agents, runners, deployments, and conformance fixtures.

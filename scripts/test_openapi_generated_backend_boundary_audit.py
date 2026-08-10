@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,6 +14,20 @@ import openapi_generated_backend_boundary_audit as audit
 
 
 class BackendBoundaryAuditVerdictTests(unittest.TestCase):
+    def test_script_uses_its_own_repository_root_outside_repository(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as working_directory:
+            completed = subprocess.run(
+                [sys.executable, str(repo_root / "scripts" / "openapi_generated_backend_boundary_audit.py")],
+                cwd=working_directory,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_allowed_findings_only_pass(self) -> None:
         result = audit.build_result()
         result.generated_mapper_allowed.append("mapper allowed")
