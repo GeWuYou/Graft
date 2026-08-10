@@ -14,9 +14,10 @@ import (
 var agentIDPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?$`)
 
 const (
-	defaultConfigPath = "/etc/graft/config/agent.json"
-	defaultStateDir   = "/var/lib/graft-builder-agent/state"
-	version           = "0.1.0"
+	defaultConfigPath     = "/etc/graft/config/agent.json"
+	configPathEnvironment = "GRAFT_DOCKER_BUILDER_AGENT_CONFIG_FILE"
+	defaultStateDir       = "/var/lib/graft-builder-agent/state"
+	version               = "0.1.0"
 )
 
 type config struct {
@@ -48,6 +49,13 @@ func loadConfig(path string) (config, error) {
 		return config{}, err
 	}
 	return c, nil
+}
+
+func defaultConfigFile() string {
+	if path := strings.TrimSpace(os.Getenv(configPathEnvironment)); path != "" {
+		return path
+	}
+	return defaultConfigPath
 }
 
 func (c *config) applyDefaultsAndValidate() error {

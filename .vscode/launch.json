@@ -100,6 +100,27 @@
             "cwd": "${workspaceFolder}/server"
         },
         {
+            "name": "agent: Docker Builder",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "cwd": "${workspaceFolder}/server",
+            "envFile": "${workspaceFolder}/server/agents/docker-builder-agent/.env"
+        },
+        {
+            "name": "agent: Docker Builder（单次）",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "cwd": "${workspaceFolder}/server",
+            "envFile": "${workspaceFolder}/server/agents/docker-builder-agent/.env",
+            "args": [
+                "--once"
+            ]
+        },
+        {
             "name": "web: dev",
             "type": "node",
             "request": "launch",

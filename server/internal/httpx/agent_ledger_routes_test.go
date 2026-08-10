@@ -17,7 +17,7 @@ import (
 
 func TestAgentLedgerRoutesUseVerifiedMTLSIdentityAndNoStore(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	reader := &recordingAgentLedgerReader{snapshot: moduleapi.RuntimeTargetLedgerSnapshot{SnapshotID: "snapshot", SnapshotDigest: "digest", ExpiresAt: time.Now().Add(time.Minute)}}
+	reader := &recordingAgentLedgerReader{snapshot: moduleapi.RuntimeTargetLedgerSnapshot{SnapshotID: "snapshot", SnapshotDigest: "digest", ObservedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Minute)}}
 	engine := gin.New()
 	engine.Use(RequestIDMiddleware(), RequireAgentMTLSIdentity())
 	server := &AgentServer{engine: engine}
@@ -33,6 +33,11 @@ func TestAgentLedgerRoutesUseVerifiedMTLSIdentityAndNoStore(t *testing.T) {
 	}
 	if reader.issued.TargetID != 7 || reader.issued.AgentID != "builder-7" || reader.issued.CertificateSerial != "42" {
 		t.Fatalf("untrusted snapshot identity %#v", reader.issued)
+	}
+	for _, field := range []string{"snapshot_id", "snapshot_digest", "observed_at", "expires_at"} {
+		if !strings.Contains(response.Body.String(), `"`+field+`"`) {
+			t.Fatalf("snapshot response lacks private Agent wire field %q: %s", field, response.Body.String())
+		}
 	}
 
 	reportBody := `{"snapshot_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","snapshot_digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-08-09T12:00:00Z","expires_at":"2026-08-09T12:01:00Z","available":true,"implementation_version":"v1"}`

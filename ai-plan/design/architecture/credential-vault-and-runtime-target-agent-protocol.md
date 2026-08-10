@@ -76,8 +76,9 @@ exact target/Agent Identity/generation, current Docker delivery evidence and CSR
 stable issuance key before requesting Vault PKI issuance for the exact SPIFFE URI SAN. Vault issuance is external to
 that transaction: timeout or
 restart recovery queries or reconciles the same issuance key and must not create a second certificate. After verified
-issuance, one database transaction consumes the token and grant, stores only serial/fingerprint/expiry and redacted
-evidence, and activates the generation. A repeated same-token, same-CSR completion returns the known non-secret result
+issuance, Runtime Target initializes the Agent's durable execution ledger from the new Agent binding before activation;
+that ledger has no foreign-key dependency on retired Ed25519 telemetry identities. One database transaction then consumes
+the token and grant, stores only serial/fingerprint/expiry and redacted evidence, and activates the generation. A repeated same-token, same-CSR completion returns the known non-secret result
 or resumes issuance reconciliation; a changed CSR, expired or consumed token, revoked grant, or binding mismatch fails
 closed.
 

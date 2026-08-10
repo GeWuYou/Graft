@@ -238,25 +238,25 @@ type AgentIdentity struct {
 // CapabilityVersion、AffinityKey、Available、IssuedAt、BuilderScope、ProviderID 属于内部字段，
 // 不等同于 OpenAPI agent-telemetry-report-request；对外快照仍受 additionalProperties: false 约束。
 type RuntimeTargetLedgerSnapshot struct {
-	IdentityID        string
-	TargetID          int64
-	AgentID           string
-	Generation        int64
-	Sequence          int64
-	SnapshotID        string
-	SnapshotDigest    string
-	BuilderScope      string
-	ProviderID        string
-	CapabilityProfile string
-	CapabilityVersion string
-	AffinityKey       string
-	Available         bool
-	Running           int
-	Queued            int
-	AllocatableSlots  int
-	ObservedAt        time.Time
-	ExpiresAt         time.Time
-	IssuedAt          time.Time
+	IdentityID        string    `json:"identity_id"`
+	TargetID          int64     `json:"target_id"`
+	AgentID           string    `json:"agent_id"`
+	Generation        int64     `json:"generation"`
+	Sequence          int64     `json:"sequence"`
+	SnapshotID        string    `json:"snapshot_id"`
+	SnapshotDigest    string    `json:"snapshot_digest"`
+	BuilderScope      string    `json:"builder_scope"`
+	ProviderID        string    `json:"provider_id"`
+	CapabilityProfile string    `json:"capability_profile"`
+	CapabilityVersion string    `json:"capability_version"`
+	AffinityKey       string    `json:"affinity_key"`
+	Available         bool      `json:"available"`
+	Running           int       `json:"running"`
+	Queued            int       `json:"queued"`
+	AllocatableSlots  int       `json:"allocatable_slots"`
+	ObservedAt        time.Time `json:"observed_at"`
+	ExpiresAt         time.Time `json:"expires_at"`
+	IssuedAt          time.Time `json:"issued_at"`
 }
 
 // RuntimeTargetTelemetryReport 是内部 canonical 回执 DTO，不是 agent-telemetry-report-request 的逐字段镜像。

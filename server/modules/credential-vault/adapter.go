@@ -195,7 +195,7 @@ func (v *VaultPKIClient) IssueCSR(ctx context.Context, request moduleapi.AgentCe
 	}
 	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
 	var response vaultIssueResponse
-	if err := v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/issue/"+pathEscape(v.config.PKIRole), map[string]any{"csr": string(csrPEM), "uri_sans": strings.TrimSpace(request.SPIFFEURI), "format": "pem_bundle"}, &response); err != nil {
+	if err := v.call(ctx, token, http.MethodPost, "/v1/"+pathEscape(v.config.PKIMount)+"/sign/"+pathEscape(v.config.PKIRole), map[string]any{"csr": string(csrPEM), "uri_sans": strings.TrimSpace(request.SPIFFEURI), "format": "pem"}, &response); err != nil {
 		return moduleapi.IssuedAgentCertificate{}, err
 	}
 	serial := strings.TrimSpace(response.Data.SerialNumber)
@@ -223,12 +223,27 @@ func (v *VaultPKIClient) ReconcileCSR(ctx context.Context, issuanceKey string) (
 	return v.readCertificate(ctx, issuanceKey, state.Serial)
 }
 
-// ReadTrustBundle 返回不透明信任束引用，不读取或暴露 PEM 内容。
-func (v *VaultPKIClient) ReadTrustBundle(context.Context, moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
+// ReadTrustBundle 返回不透明信任束引用及其 Vault PKI CA 到期时间，不将 PEM 带出模块边界。
+func (v *VaultPKIClient) ReadTrustBundle(ctx context.Context, _ moduleapi.TrustBundleRequest) (moduleapi.TrustBundleReference, error) {
 	if v == nil || strings.TrimSpace(v.config.TrustBundleRef) == "" {
 		return moduleapi.TrustBundleReference{}, errors.New("vault trust bundle is not configured")
 	}
-	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki"}, nil
+	token, err := v.login(ctx)
+	if err != nil {
+		return moduleapi.TrustBundleReference{}, err
+	}
+	var response vaultTrustBundleResponse
+	if err := v.call(ctx, token, http.MethodGet, "/v1/"+pathEscape(v.config.PKIMount)+"/cert/ca", nil, &response); err != nil {
+		return moduleapi.TrustBundleReference{}, err
+	}
+	certificate, err := decodeCertificate(response.Data.Certificate)
+	if err != nil {
+		return moduleapi.TrustBundleReference{}, err
+	}
+	if !certificate.NotAfter.After(time.Now().UTC()) {
+		return moduleapi.TrustBundleReference{}, errors.New("vault trust bundle is expired")
+	}
+	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki", ExpiresAt: certificate.NotAfter.UTC()}, nil
 }
 
 // RevokeCertificate 向 Vault 提交幂等证书撤销请求。
@@ -257,6 +272,11 @@ type vaultLoginResponse struct {
 	Auth struct {
 		ClientToken string `json:"client_token"`
 	} `json:"auth"`
+}
+type vaultTrustBundleResponse struct {
+	Data struct {
+		Certificate string `json:"certificate"`
+	} `json:"data"`
 }
 
 func (v *VaultPKIClient) login(ctx context.Context) (string, error) {
@@ -316,10 +336,9 @@ func (v *VaultPKIClient) readCertificateResponse(issuanceKey string, data vaultC
 	if data.Expiration > 0 {
 		expires = time.Unix(data.Expiration, 0).UTC()
 	}
-	serial := strings.TrimSpace(data.SerialNumber)
-	if serial == "" {
-		serial = leaf.SerialNumber.String()
-	}
+	// X.509 的十进制 serial 是 mTLS listener 导出的唯一 canonical 身份证据；Vault 的原始
+	// serial 仅保存在 issuance state 中，用于后续 Vault 证书读取。
+	serial := leaf.SerialNumber.String()
 	return moduleapi.IssuedAgentCertificate{IssuanceKey: issuanceKey, CertificateSerial: serial, CertificateChainDER: chain, PublicKeyFingerprint: "sha256:" + hex.EncodeToString(fingerprint[:]), ExpiresAt: expires, TrustBundle: moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki", ExpiresAt: expires}}, nil
 }
 

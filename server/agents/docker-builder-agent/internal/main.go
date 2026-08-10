@@ -60,7 +60,7 @@ type certificateRequest struct {
 // RunCLI 运行 Docker Builder Agent 的进程入口。
 // 该入口只装配 Agent 私有配置与生命周期，不承担 Runtime Target 的控制面授权。
 func RunCLI() {
-	configPath := flag.String("config", defaultConfigPath, "agent configuration path")
+	configPath := flag.String("config", defaultConfigFile(), "agent configuration path")
 	showVersion := flag.Bool("version", false, "print agent version")
 	once := flag.Bool("once", false, "run one lifecycle and exit")
 	flag.Parse()

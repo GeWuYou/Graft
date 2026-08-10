@@ -23,6 +23,7 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 	db := openAgentEnrollmentAuthorityTestDB(t)
 	createAgentDeliveryAuthoritySchema(t, db)
 	createAgentCertificateIssuanceSchema(t, db)
+	createAgentBootstrapLedgerSchema(t, db)
 	repository := store.NewSQLRepository(db)
 	enrollment := createPendingAgentDeliveryGeneration(t, repository, now)
 	delivery := newTestAgentDeliveryAuthority(t, repository, now)
@@ -107,6 +108,10 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 	if generationStatus != "active" || grantStatus != "consumed" || issuanceStatus != "completed" {
 		t.Fatalf("post-bootstrap statuses: generation=%q grant=%q issuance=%q", generationStatus, grantStatus, issuanceStatus)
 	}
+	ledger, err := repository.SnapshotBuilderAgentLedger(context.Background(), enrollment.TargetID, enrollment.AgentID)
+	if err != nil || ledger.SlotBudget != initialDockerBuilderAgentLedgerSlots || ledger.TelemetrySequence != 0 {
+		t.Fatalf("post-bootstrap ledger = %#v, err=%v", ledger, err)
+	}
 	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: csrDER}); !errors.Is(err, moduleapi.ErrAgentBootstrapRejected) {
 		t.Fatalf("bootstrap consumed grant = %v", err)
 	}
@@ -148,6 +153,25 @@ func createAgentCertificateIssuanceSchema(t *testing.T, db *sql.DB) {
 	)`)
 	if err != nil {
 		t.Fatalf("create certificate issuance test schema: %v", err)
+	}
+}
+
+func createAgentBootstrapLedgerSchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`CREATE TABLE runtime_target_builder_execution_ledgers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		runtime_target_id INTEGER NOT NULL,
+		agent_id TEXT NOT NULL,
+		slot_budget INTEGER NOT NULL,
+		queued_builds INTEGER NOT NULL DEFAULT 0,
+		running_builds INTEGER NOT NULL DEFAULT 0,
+		telemetry_sequence INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME,
+		updated_at DATETIME,
+		UNIQUE(runtime_target_id, agent_id)
+	)`)
+	if err != nil {
+		t.Fatalf("create bootstrap ledger test schema: %v", err)
 	}
 }
 

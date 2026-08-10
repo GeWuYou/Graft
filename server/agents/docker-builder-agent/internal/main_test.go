@@ -15,6 +15,20 @@ func TestStableSPIFFEIdentityExcludesGeneration(t *testing.T) {
 	}
 }
 
+func TestDefaultConfigFileUsesExplicitEnvironment(t *testing.T) {
+	t.Setenv(configPathEnvironment, "/tmp/docker-builder-agent.json")
+	if got := defaultConfigFile(); got != "/tmp/docker-builder-agent.json" {
+		t.Fatalf("default config file = %q", got)
+	}
+}
+
+func TestDefaultConfigFileFallsBackToContainerPath(t *testing.T) {
+	t.Setenv(configPathEnvironment, "  ")
+	if got := defaultConfigFile(); got != defaultConfigPath {
+		t.Fatalf("default config file = %q", got)
+	}
+}
+
 func TestCSRContainsStableURI(t *testing.T) {
 	request, err := createCSR(stableSPIFFE(7, "builder-1"))
 	if err != nil {

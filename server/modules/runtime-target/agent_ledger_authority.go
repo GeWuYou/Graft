@@ -67,9 +67,11 @@ func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Con
 		return errAgentLedgerRejected
 	}
 	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, report.TargetID, report.AgentID, report.CertificateSerial, report.PublicKeyFingerprint, a.now().UTC())
-	if err != nil || active.Generation != report.Generation || active.Identity.IdentityID != report.IdentityID {
+	if err != nil {
 		return errAgentLedgerRejected
 	}
+	// mTLS 只认证稳定 URI 与当前证书；世代和身份必须由服务端的活动绑定派生。
+	report.IdentityID, report.Generation = active.Identity.IdentityID, active.Generation
 	if err := a.repository.RecordAgentTelemetryReceipt(ctx, store.AgentLedgerIdentity{
 		IdentityID: report.IdentityID, TargetID: report.TargetID, AgentID: report.AgentID, Generation: report.Generation,
 		CertificateSerial: report.CertificateSerial, PublicKeyFingerprint: report.PublicKeyFingerprint,

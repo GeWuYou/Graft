@@ -59,7 +59,7 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 				t.Errorf("decode login body: %v", err)
 			}
 			_, _ = writer.Write([]byte(`{"auth":{"client_token":"session-token"}}`))
-		case "/v1/pki/issue/agent":
+		case "/v1/pki/sign/agent":
 			if got := request.Header.Get("X-Vault-Token"); got != "session-token" {
 				t.Errorf("issue token = %q, want session-token", got)
 			}
@@ -88,8 +88,8 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	if err != nil {
 		t.Fatalf("issue certificate: %v", err)
 	}
-	if issued.CertificateSerial != certificateSerial {
-		t.Fatalf("certificate serial = %q, want %q", issued.CertificateSerial, certificateSerial)
+	if issued.CertificateSerial != "42" {
+		t.Fatalf("certificate serial = %q, want 42", issued.CertificateSerial)
 	}
 	requestMu.Lock()
 	defer requestMu.Unlock()
@@ -101,6 +101,9 @@ func TestVaultPKIClientUsesDockerSecretsForAppRoleAndPersistsOnlySerial(t *testi
 	}
 	if issueBody["uri_sans"] != "spiffe://graft/runtime-target/7/builder-agent/agent-7" {
 		t.Fatalf("issue URI SAN = %q", issueBody["uri_sans"])
+	}
+	if issueBody["format"] != "pem" {
+		t.Fatalf("issue certificate format = %q, want pem", issueBody["format"])
 	}
 	if store.state != (IssuanceState{IssuanceKey: "issue-1", Serial: certificateSerial}) {
 		t.Fatalf("persisted state = %#v", store.state)
@@ -151,7 +154,7 @@ func TestVaultPKIClientReconcileRehydratesPersistedSerialAfterRestart(t *testing
 	if err != nil {
 		t.Fatalf("reconcile certificate: %v", err)
 	}
-	if issued.CertificateSerial != certificateSerial || len(issued.CertificateChainDER) != 1 {
+	if issued.CertificateSerial != "42" || len(issued.CertificateChainDER) != 1 {
 		t.Fatalf("reconciled certificate = %#v", issued)
 	}
 	requestMu.Lock()
