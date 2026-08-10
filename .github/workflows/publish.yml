@@ -390,7 +390,9 @@ jobs:
       - name: Resolve reusable Docker Builder Agent image
         id: agent_reuse
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
           AGENT_IMAGE: ${{ steps.image_vars.outputs.agent_image }}
         shell: bash
         run: |
@@ -403,12 +405,29 @@ jobs:
             '
           }
 
-          mapfile -t agent_inputs < <(
+          mkdir -p .tmp/agent-reuse
+          agent_inputs_file=".tmp/agent-reuse/inputs.txt"
+          releases_json=".tmp/agent-reuse/releases.json"
+          candidates_json=".tmp/agent-reuse/candidates.json"
+
+          # A GitHub API failure is not equivalent to "first release": fail closed
+          # instead of reusing without a trustworthy release catalog.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${releases_json}"
+          python3 scripts/resolve_runner_release_reuse.py \
+            --channel "${RELEASE_CHANNEL}" \
+            --agent-image "${AGENT_IMAGE}" \
+            --current-tag "${RELEASE_REF_NAME}" \
+            < "${releases_json}" > "${candidates_json}"
+
+          (
             cd server
-            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./agents/docker-builder-agent/cmd \
-              | sed "s#^${GITHUB_WORKSPACE}/##" \
-              | sort -u
-          )
+            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./agents/docker-builder-agent/cmd
+          ) | sed "s#^${GITHUB_WORKSPACE}/##" | sort -u > "${agent_inputs_file}"
+          [[ -s "${agent_inputs_file}" ]] || {
+            echo "::error::Failed to resolve Docker Builder Agent build inputs."
+            exit 1
+          }
+          mapfile -t agent_inputs < "${agent_inputs_file}"
           agent_inputs+=(
             server/agents/docker-builder-agent/Dockerfile
             server/.dockerignore
@@ -417,16 +436,12 @@ jobs:
           )
 
           reuse="false"
+          source_tag=""
           source_digest=""
-          for candidate_tag in $(git tag --merged "${GITHUB_SHA}" --sort=-version:refname); do
-            [[ "${candidate_tag}" != "${GITHUB_REF_NAME}" ]] || continue
-            case "${candidate_tag}" in
-              v*-beta.*) [[ "${RELEASE_CHANNEL}" == "beta" ]] || continue ;;
-              v*) [[ "${RELEASE_CHANNEL}" == "stable" ]] || continue ;;
-              *) continue ;;
-            esac
-            candidate_ref="${AGENT_IMAGE}:${candidate_tag}"
-            candidate_digest="$(inspect_digest "${candidate_ref}")" || continue
+          reason="no verified historical Docker Builder Agent manifest"
+          while IFS= read -r candidate; do
+            candidate_tag="$(jq -er '.tag' <<< "${candidate}")"
+            candidate_digest="$(jq -er '.digest' <<< "${candidate}")"
             raw_manifest="$(docker buildx imagetools inspect --raw "${AGENT_IMAGE}@${candidate_digest}")" || continue
             jq -e '
               (.schemaVersion == 2)
@@ -439,14 +454,18 @@ jobs:
             [[ "${platform}" == "linux/amd64" ]] || continue
             if git diff --quiet "${candidate_tag}" "${GITHUB_SHA}" -- "${agent_inputs[@]}"; then
               reuse="true"
+              source_tag="${candidate_tag}"
               source_digest="${candidate_digest}"
+              reason="Docker Builder Agent inputs unchanged since ${candidate_tag}"
               break
             fi
-          done
+          done < <(jq -c '.candidates[]?' "${candidates_json}")
 
           echo "reuse=${reuse}" >> "${GITHUB_OUTPUT}"
+          echo "source_tag=${source_tag}" >> "${GITHUB_OUTPUT}"
           echo "source_digest=${source_digest}" >> "${GITHUB_OUTPUT}"
-          echo "Docker Builder Agent reuse: ${reuse}"
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          echo "Docker Builder Agent reuse: ${reuse} (${reason})"
 
       - name: Prepare Docker metadata tags
         id: image_tags
@@ -720,6 +739,8 @@ jobs:
             --arg webDigest "${WEB_DIGEST}" \
             --arg runnerImage "${RUNNER_IMAGE}" \
             --arg runnerDigest "${RUNNER_DIGEST}" \
+            --arg agentImage "${AGENT_IMAGE}" \
+            --arg agentDigest "${AGENT_DIGEST}" \
             --arg serverArtifact "${server_asset}" \
             --arg webArtifact "${web_asset}" \
             --arg checksums "${checksums_asset}" \
@@ -751,6 +772,13 @@ jobs:
                   reference: ($runnerImage + "@" + $runnerDigest)
                 }
               },
+              agents: {
+                docker_builder_agent: {
+                  image: $agentImage,
+                  digest: $agentDigest,
+                  reference: ($agentImage + "@" + $agentDigest)
+                }
+              },
               artifacts: {
                 server: $serverArtifact,
                 web: $webArtifact,
@@ -778,6 +806,9 @@ jobs:
             and (.runners.compose.image | startswith("ghcr.io/"))
             and (.runners.compose.digest | startswith("sha256:"))
             and (.runners.compose.reference == (.runners.compose.image + "@" + .runners.compose.digest))
+            and (.agents.docker_builder_agent.image | startswith("ghcr.io/"))
+            and (.agents.docker_builder_agent.digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.agents.docker_builder_agent.reference == (.agents.docker_builder_agent.image + "@" + .agents.docker_builder_agent.digest))
             and (.migration.required_before_runtime == true)
           ' "image-assets/release-manifest.json" >/dev/null
           sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"

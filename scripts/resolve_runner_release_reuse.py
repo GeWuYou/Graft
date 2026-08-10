@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find verified historical runner manifests that can be considered for tag reuse."""
+"""Find verified historical release manifests that can be considered for image reuse."""
 
 from __future__ import annotations
 
@@ -32,7 +32,9 @@ class Candidate:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--channel", choices=("stable", "beta"), required=True)
-    parser.add_argument("--runner-image", required=True)
+    image_group = parser.add_mutually_exclusive_group(required=True)
+    image_group.add_argument("--runner-image")
+    image_group.add_argument("--agent-image")
     parser.add_argument("--current-tag", required=True)
     return parser.parse_args()
 
@@ -99,7 +101,22 @@ def checksum_matches(manifest: bytes, checksum: bytes) -> bool:
     return len(matches) == 1 and matches[0] == expected
 
 
-def valid_manifest(manifest: Any, tag: str, channel: str, runner_image: str) -> str | None:
+def manifest_image(manifest: dict[str, Any], path: tuple[str, ...]) -> dict[str, Any] | None:
+    value: Any = manifest
+    for key in path:
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value if isinstance(value, dict) else None
+
+
+def valid_manifest(
+    manifest: Any,
+    tag: str,
+    channel: str,
+    image: str,
+    image_path: tuple[str, ...] = ("runners", "compose"),
+) -> str | None:
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
         return None
     version = parse_version(tag)
@@ -107,20 +124,24 @@ def valid_manifest(manifest: Any, tag: str, channel: str, runner_image: str) -> 
         return None
     if manifest.get("channel") != channel or (channel == "beta") != (version[3] is not None):
         return None
-    runners = manifest.get("runners")
-    compose = runners.get("compose") if isinstance(runners, dict) else None
-    if not isinstance(compose, dict) or compose.get("image") != runner_image:
+    component = manifest_image(manifest, image_path)
+    if component is None or component.get("image") != image:
         return None
-    digest = compose.get("digest")
+    digest = component.get("digest")
     if not isinstance(digest, str) or DIGEST_PATTERN.fullmatch(digest) is None:
         return None
-    if compose.get("reference") != f"{runner_image}@{digest}":
+    if component.get("reference") != f"{image}@{digest}":
         return None
     return digest
 
 
 def resolve_candidates(
-    releases: list[dict[str, Any]], *, channel: str, runner_image: str, current_tag: str
+    releases: list[dict[str, Any]],
+    *,
+    channel: str,
+    runner_image: str,
+    current_tag: str,
+    image_path: tuple[str, ...] = ("runners", "compose"),
 ) -> list[Candidate]:
     current_version = parse_version(current_tag)
     if current_version is None:
@@ -148,7 +169,7 @@ def resolve_candidates(
             continue
         if not checksum_matches(manifest_bytes, checksum_bytes):
             continue
-        digest = valid_manifest(manifest, tag, channel, runner_image)
+        digest = valid_manifest(manifest, tag, channel, runner_image, image_path)
         if digest is None:
             continue
         published_at = release.get("published_at") if isinstance(release.get("published_at"), str) else ""
@@ -161,11 +182,14 @@ def main() -> int:
     args = parse_args()
     try:
         payload = json.load(sys.stdin)
+        image = args.runner_image or args.agent_image
+        image_path = ("runners", "compose") if args.runner_image else ("agents", "docker_builder_agent")
         candidates = resolve_candidates(
             flatten_releases(payload),
             channel=args.channel,
-            runner_image=args.runner_image,
+            runner_image=image,
             current_tag=args.current_tag,
+            image_path=image_path,
         )
     except (json.JSONDecodeError, ValueError) as error:
         print(f"resolve runner release reuse: {error}", file=sys.stderr)
