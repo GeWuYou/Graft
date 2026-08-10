@@ -152,6 +152,14 @@ const TDropdownStub = defineComponent({
       type: Object,
       default: () => ({}),
     },
+    maxColumnWidth: {
+      type: [String, Number],
+      default: undefined,
+    },
+    minColumnWidth: {
+      type: [String, Number],
+      default: undefined,
+    },
   },
   setup(_, { slots }) {
     return () =>
@@ -258,12 +266,12 @@ const LContentStub = defineComponent({
 const TTabsStub = defineComponent({
   name: 'TTabs',
   emits: ['change'],
-  setup(_, { slots }) {
+  setup(_, { attrs, slots }) {
     return () =>
-      h('div', { 'data-testid': 'tabs' }, [
+      h('div', { ...attrs, 'data-testid': 'tabs' }, [
         h('div', { class: 't-tabs__nav-container' }, [
           h('div', { class: 't-tabs__nav-scroll' }, [h('div', { class: 't-tabs__nav-wrap' }, slots.default?.())]),
-          slots.action?.(),
+          h('div', { class: 't-tabs__operations' }, slots.action?.()),
         ]),
       ]);
   },
@@ -320,7 +328,7 @@ function mountLayoutContent() {
         },
         TTabPanel: {
           props: ['value'],
-          template: '<div data-testid="tab-panel"><slot name="label" /></div>',
+          template: '<div class="t-tabs__nav-item" data-testid="tab-panel"><slot name="label" /></div>',
         },
         TTabs: TTabsStub,
       },
@@ -800,6 +808,48 @@ describe('LayoutContent', () => {
     expect(layoutContentStyleSource).toContain('.route-tabs-actions__trigger');
     expect(layoutContentStyleSource).toContain('height: var(--td-comp-size-xxl);');
     expect(layoutContentStyleSource).toContain('height: 100%;');
+  });
+
+  it('opens only global actions from the tab-bar blank area', async () => {
+    const wrapper = mountLayoutContent();
+    const tabs = wrapper.get('[data-testid="tabs"]');
+
+    await tabs.trigger('contextmenu', { clientX: 420, clientY: 96 });
+    await nextTick();
+
+    const blankMenu = wrapper
+      .findAllComponents(TDropdownStub)
+      .find((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible);
+    expect(blankMenu).toBeTruthy();
+    expect(blankMenu!.findAll('[data-testid="dropdown-item"]')).toHaveLength(2);
+    expect(blankMenu!.text()).toContain('layout.tagTabs.closeAll');
+    expect(blankMenu!.text()).toContain('layout.tagTabs.reopenClosed');
+    expect(blankMenu!.text()).not.toContain('layout.tagTabs.refresh');
+  });
+
+  it('does not open the blank-area menu for a tab or operation target', async () => {
+    const wrapper = mountLayoutContent();
+    const tab = wrapper.get('.t-tabs__nav-item');
+    const operation = wrapper.get('.t-tabs__operations');
+
+    await tab.trigger('contextmenu');
+    await operation.trigger('contextmenu');
+    await nextTick();
+
+    expect(
+      wrapper
+        .findAllComponents(TDropdownStub)
+        .some((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible),
+    ).toBe(false);
+  });
+
+  it('uses a viewport-aware menu width without the default truncation width', () => {
+    const wrapper = mountLayoutContent();
+    const dropdown = wrapper.findComponent(TDropdownStub);
+
+    expect(dropdown.props('minColumnWidth')).toBe('min(192px, calc(100vw - 32px))');
+    expect(dropdown.props('maxColumnWidth')).toBe('min(320px, calc(100vw - 32px))');
+    expect(layoutStyleSource).toContain('white-space: normal;');
   });
 
   it('does not create duplicate close-all dialogs for rapid consecutive clicks', async () => {

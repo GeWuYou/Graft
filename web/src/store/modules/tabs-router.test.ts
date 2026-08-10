@@ -635,6 +635,81 @@ describe('useTabsRouterStore', () => {
     expect(restored?.title?.[LOCALE.ZH_CN]).toBe('访问日志');
   });
 
+  it('removes an already-open ordinary tab from persisted recovery and cannot reopen it', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const route = {
+      tabKey: '/applications',
+      path: '/applications',
+      name: 'ApplicationList',
+    };
+
+    tabsRouterStore.appendTabRouterList(route);
+    tabsRouterStore.closedTabStack = [{ ...route }];
+
+    expect(tabsRouterStore.canReopenClosedTab).toBe(false);
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.closedTabs).toEqual([]);
+    expect(tabsRouterStore.reopenClosedTab()).toBeNull();
+    expect(tabsRouterStore.tabRouters.filter((tab) => tab.tabKey === '/applications')).toHaveLength(1);
+  });
+
+  it('removes an already-open ordinary tab from route-aware persisted recovery', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const route = {
+      tabKey: '/applications',
+      path: '/applications',
+      name: 'ApplicationList',
+    };
+
+    tabsRouterStore.appendTabRouterList(route);
+    tabsRouterStore.closedTabStack = [{ ...route }];
+    tabsRouterStore.healPersistedRoutes({
+      getRoutes: () => [
+        { name: 'RootEntry', path: '/' },
+        { name: 'ApplicationList', path: '/applications' },
+      ],
+    } as never);
+
+    expect(tabsRouterStore.closedTabs).toEqual([]);
+  });
+
+  it('skips a stale ordinary tab and reopens the next valid closed tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const alreadyOpen = { tabKey: '/applications', path: '/applications', name: 'ApplicationList' };
+    const recoverable = { tabKey: '/access/logs', path: '/access/logs', name: 'AccessLogs' };
+
+    tabsRouterStore.appendTabRouterList(alreadyOpen);
+    tabsRouterStore.closedTabStack = [{ ...recoverable }, { ...alreadyOpen }];
+
+    expect(tabsRouterStore.reopenClosedTab()?.tabKey).toBe('/access/logs');
+    expect(tabsRouterStore.closedTabs).toEqual([]);
+    expect(tabsRouterStore.tabRouters.filter((tab) => tab.tabKey === '/applications')).toHaveLength(1);
+  });
+
+  it('keeps a closed duplicate recoverable when its source tab is open', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const source = {
+      tabKey: '/applications',
+      path: '/applications',
+      name: 'ApplicationList',
+    };
+    const duplicate = {
+      ...source,
+      tabKey: '/applications#copy-1',
+      isDuplicate: true,
+      duplicatedFrom: '/applications',
+    };
+
+    tabsRouterStore.appendTabRouterList(source);
+    tabsRouterStore.closedTabStack = [duplicate];
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.canReopenClosedTab).toBe(true);
+    expect(tabsRouterStore.reopenClosedTab()?.tabKey).toBe('/applications#copy-1');
+    expect(tabsRouterStore.tabRouters.map((tab) => tab.tabKey)).toEqual(['/', '/applications', '/applications#copy-1']);
+  });
+
   it('keeps at most twenty closed tabs', () => {
     const tabsRouterStore = useTabsRouterStore();
 

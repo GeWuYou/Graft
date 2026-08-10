@@ -2,50 +2,51 @@
   <t-dropdown
     :trigger="trigger"
     :hide-after-item-click="true"
-    :min-column-width="128"
+    :max-column-width="'min(320px, calc(100vw - 32px))'"
+    :min-column-width="'min(192px, calc(100vw - 32px))'"
     :placement="placement"
     :popup-props="popupProps"
   >
     <slot />
     <template #dropdown>
       <t-dropdown-menu>
-        <t-dropdown-item @click="handleRefresh">
+        <t-dropdown-item v-if="!globalActionsOnly" @click="handleRefresh">
           <t-icon name="refresh" />
           {{ t('layout.tagTabs.refresh') }}
         </t-dropdown-item>
-        <t-dropdown-item divider :disabled="tab.isHome" @click="handleDuplicateTab">
+        <t-dropdown-item v-if="!globalActionsOnly" divider :disabled="tab.isHome" @click="handleDuplicateTab">
           <t-icon name="copy" />
           {{ t('layout.tagTabs.duplicate') }}
         </t-dropdown-item>
-        <t-dropdown-item @click="handleCopyPageLink">
+        <t-dropdown-item v-if="!globalActionsOnly" @click="handleCopyPageLink">
           <t-icon name="link" />
           {{ t('layout.tagTabs.copyLink') }}
         </t-dropdown-item>
-        <t-dropdown-item @click="handleOpenInNewWindow">
+        <t-dropdown-item v-if="!globalActionsOnly" @click="handleOpenInNewWindow">
           <t-icon name="window" />
           {{ t('layout.tagTabs.openInNewWindow') }}
         </t-dropdown-item>
-        <t-dropdown-item v-if="!tab.isHome && !tab.isPinned" divider @click="handleTogglePinned">
+        <t-dropdown-item v-if="!globalActionsOnly && !tab.isHome && !tab.isPinned" divider @click="handleTogglePinned">
           <t-icon name="pin" />
           {{ t('layout.tagTabs.pin') }}
         </t-dropdown-item>
-        <t-dropdown-item v-else-if="!tab.isHome" divider @click="handleTogglePinned">
+        <t-dropdown-item v-else-if="!globalActionsOnly && !tab.isHome" divider @click="handleTogglePinned">
           <t-icon name="pin" />
           {{ t('layout.tagTabs.unpin') }}
         </t-dropdown-item>
-        <t-dropdown-item divider :disabled="!hasClosableTabsAhead" @click="handleCloseAhead">
+        <t-dropdown-item v-if="!globalActionsOnly" divider :disabled="!hasClosableTabsAhead" @click="handleCloseAhead">
           <t-icon name="arrow-left" />
           {{ t('layout.tagTabs.closeLeft') }}
         </t-dropdown-item>
-        <t-dropdown-item :disabled="!hasClosableTabsBehind" @click="handleCloseBehind">
+        <t-dropdown-item v-if="!globalActionsOnly" :disabled="!hasClosableTabsBehind" @click="handleCloseBehind">
           <t-icon name="arrow-right" />
           {{ t('layout.tagTabs.closeRight') }}
         </t-dropdown-item>
-        <t-dropdown-item :disabled="!hasClosableOther" @click="handleCloseOther">
+        <t-dropdown-item v-if="!globalActionsOnly" :disabled="!hasClosableOther" @click="handleCloseOther">
           <t-icon name="close-circle" />
           {{ t('layout.tagTabs.closeOther') }}
         </t-dropdown-item>
-        <t-dropdown-item :disabled="!hasClosableTabs" @click="handleCloseAll">
+        <t-dropdown-item :divider="globalActionsOnly" :disabled="!hasClosableTabs" @click="handleCloseAll">
           <t-icon name="close-circle" />
           {{ t('layout.tagTabs.closeAll') }}
         </t-dropdown-item>
@@ -71,7 +72,7 @@
   />
 </template>
 <script setup lang="ts">
-import type { DropdownProps, PopupVisibleChangeContext } from 'tdesign-vue-next';
+import type { DropdownProps, PopupProps, PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, ref } from 'vue';
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
@@ -86,12 +87,16 @@ const props = withDefaults(
   defineProps<{
     tab: TRouterInfo;
     tabIndex: number;
+    globalActionsOnly?: boolean;
+    popupPropsOverride?: Partial<PopupProps>;
     trigger?: 'context-menu' | 'click';
     placement?: DropdownProps['placement'];
   }>(),
   {
     trigger: 'context-menu',
     placement: 'bottom-left',
+    globalActionsOnly: false,
+    popupPropsOverride: undefined,
   },
 );
 
@@ -104,6 +109,7 @@ const closeAllDialogVisible = ref(false);
 const pendingCloseAllDialog = ref(false);
 
 const tabRouters = computed(() => tabsRouterStore.tabRouters);
+const globalActionsOnly = computed(() => props.globalActionsOnly);
 const activeTabKey = computed(() => tabsRouterStore.activeTabKey || route.path);
 const canReopenClosedTab = computed(() => tabsRouterStore.canReopenClosedTab);
 const hasClosableTabs = computed(() => tabRouters.value.some((item) => !item.isHome && !item.isPinned));
@@ -135,6 +141,7 @@ const popupProps = computed(() => ({
   overlayClassName: 'route-tabs-dropdown',
   onVisibleChange: (visible: boolean, context: PopupVisibleChangeContext) => handleMenuVisibleChange(visible, context),
   visible: activeTabKeyForMenu.value === getTabKey(props.tab),
+  ...props.popupPropsOverride,
 }));
 
 const runTabRefresh = async () => {

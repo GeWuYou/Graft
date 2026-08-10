@@ -57,6 +57,7 @@
       "viewAll": "View All"
     },
     "tagTabs": {
+      "actions": "Tab Actions",
       "closeOther": "Close Other",
       "closeLeft": "Close Left",
       "closeRight": "Close Right",

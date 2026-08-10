@@ -12,6 +12,7 @@
       :value="activeTabKey"
       :style="{ position: 'sticky', top: 0, width: '100%' }"
       @change="(value) => handleChangeCurrentTab(value as string)"
+      @contextmenu.capture="handleTabBarContextMenu"
       @remove="handleRemove"
       @drag-sort="handleDragend"
     >
@@ -47,6 +48,16 @@
       </t-tab-panel>
       <template #action>
         <div v-if="activeTab" class="route-tabs-actions">
+          <tab-actions-menu
+            :tab="activeTab"
+            :tab-index="activeTabIndex"
+            global-actions-only
+            placement="bottom-left"
+            trigger="click"
+            :popup-props-override="blankTabMenuPopupProps"
+          >
+            <span ref="blankTabMenuAnchor" class="route-tabs-blank-menu-anchor" :style="blankTabMenuAnchorStyle" />
+          </tab-actions-menu>
           <tab-actions-menu :tab="activeTab" :tab-index="activeTabIndex" placement="bottom-right" trigger="click">
             <span class="route-tabs-actions__menu">
               <t-tooltip placement="bottom" :content="t('layout.tagTabs.actions')">
@@ -82,7 +93,8 @@
 </template>
 <script setup lang="ts">
 import { EllipsisIcon } from 'tdesign-icons-vue-next';
-import { type ComponentPublicInstance, computed, nextTick, ref, watch } from 'vue';
+import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
+import { type ComponentPublicInstance, computed, type CSSProperties, nextTick, ref, watch } from 'vue';
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -131,6 +143,23 @@ const activeTab = computed(
 const activeTabIndex = computed(() =>
   activeTab.value ? tabRouters.value.findIndex((item) => getTabKey(item) === getTabKey(activeTab.value)) : -1,
 );
+const blankTabMenuAnchor = ref<HTMLElement | null>(null);
+const blankTabMenuVisible = ref(false);
+const blankTabMenuPosition = ref({ left: 0, top: 0 });
+const blankTabMenuAnchorStyle = computed<CSSProperties>(() => ({
+  left: `${blankTabMenuPosition.value.left}px`,
+  position: 'fixed',
+  top: `${blankTabMenuPosition.value.top}px`,
+}));
+const blankTabMenuPopupProps = computed(() => ({
+  overlayClassName: 'route-tabs-dropdown',
+  onVisibleChange: (visible: boolean, context: PopupVisibleChangeContext) => {
+    if (!visible || context.trigger !== 'context-menu') {
+      blankTabMenuVisible.value = visible;
+    }
+  },
+  visible: blankTabMenuVisible.value,
+}));
 const footerMeta = computed(() => route.meta.footer);
 const showFooter = computed(() => {
   if (footerMeta.value === false) {
@@ -304,6 +333,18 @@ const handleChangeCurrentTab = (tabKey: string) => {
   navigateToTab(targetRoute);
 };
 
+// 空白标签栏只暴露不依赖当前标签的全局操作，标签项和右侧操作按钮继续由各自菜单处理。
+const handleTabBarContextMenu = (event: MouseEvent) => {
+  const target = event.target;
+  if (!(target instanceof Element) || target.closest('.t-tabs__nav-item, .t-tabs__operations')) {
+    return;
+  }
+
+  event.preventDefault();
+  blankTabMenuPosition.value = { left: event.clientX, top: event.clientY };
+  blankTabMenuVisible.value = true;
+};
+
 const handleRemove = (options: TTabRemoveOptions) => {
   const tabKey = options.value as string;
   const nextRouter = tabsRouterStore.getNextRouteAfterClose(tabKey);
@@ -391,6 +432,12 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 
 .route-tabs-actions__menu :deep(.t-button) {
   height: 100%;
+}
+
+.route-tabs-blank-menu-anchor {
+  height: 1px;
+  pointer-events: none;
+  width: 1px;
 }
 /* stylelint-enable selector-pseudo-class-no-unknown */
 

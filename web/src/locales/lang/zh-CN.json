@@ -61,6 +61,7 @@
     },
     "routeLoading": "页面加载中",
     "tagTabs": {
+      "actions": "标签页操作",
       "closeOther": "关闭其他",
       "closeLeft": "关闭左侧",
       "closeRight": "关闭右侧",
