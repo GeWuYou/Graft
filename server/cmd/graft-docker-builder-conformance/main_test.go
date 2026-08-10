@@ -18,7 +18,7 @@ func TestParseArgumentsRequiresPhaseSpecificEvidence(t *testing.T) {
 
 func TestVerificationBaselineRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
-	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", Generation: 1, LedgerReceiptCount: 2}
+	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, LedgerReceiptCount: 2}
 	if err := writeVerificationBaseline(path, want); err != nil {
 		t.Fatalf("write baseline: %v", err)
 	}
@@ -26,8 +26,18 @@ func TestVerificationBaselineRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read baseline: %v", err)
 	}
-	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount {
+	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount {
 		t.Fatalf("baseline = %#v", got)
+	}
+}
+
+func TestParseArgumentsRetainsExplicitAgentID(t *testing.T) {
+	_, _, baseline, err := parseArguments([]string{"--phase", "verify-bootstrap", "--agent-id", "builder"})
+	if err != nil {
+		t.Fatalf("parse verification arguments: %v", err)
+	}
+	if !baseline.agentIDExplicit || baseline.requestedAgentID != "builder" {
+		t.Fatalf("agent ID input = %#v", baseline)
 	}
 }
 

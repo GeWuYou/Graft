@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -62,10 +63,15 @@ func (c *config) applyDefaultsAndValidate() error {
 	if c.StateDir == "" {
 		c.StateDir = defaultStateDir
 	}
-	if c.BootstrapURL == "" || c.AgentURL == "" || c.TargetID < 1 || !validAgentID(c.AgentID) || c.BootstrapCA == "" || c.TrustBundle == "" {
+	if !validHTTPSURL(c.BootstrapURL) || !validHTTPSURL(c.AgentURL) || c.TargetID < 1 || !validAgentID(c.AgentID) || c.BootstrapCA == "" || c.TrustBundle == "" {
 		return errors.New("config requires bootstrap_url, agent_url, target_id, agent_id, bootstrap_ca_file and trust_bundle_file")
 	}
 	return nil
+}
+
+func validHTTPSURL(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func (c config) token() (string, error) {

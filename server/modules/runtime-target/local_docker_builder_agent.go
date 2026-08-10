@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +51,12 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 	bindings := runtimeTargetAgentBindingReader{repository: repository}
 	binding, bindingErr := bindings.ReadAgentBinding(ctx, targetID, input.AgentID)
 	if bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusActive {
-		return nil
+		if _, err := os.Stat(input.ConfigFile); err == nil {
+			return nil
+		} else if errors.Is(err, os.ErrNotExist) {
+			return errors.New("local Docker Builder Agent binding is active but delivery config is missing; reset the Agent binding before delivering again")
+		}
+		return fmt.Errorf("read local Docker Builder Agent delivery config: %w", err)
 	}
 	now := time.Now().UTC()
 	generation := int64(0)
@@ -116,12 +122,17 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 }
 
 func validLocalDockerBuilderAgentDelivery(input LocalDockerBuilderAgentDelivery) bool {
-	for _, value := range []string{input.AgentID, input.ImageDigest, input.AgentVersion, input.EnrollmentRef, input.AutomationID, input.BootstrapURL, input.AgentURL, input.BootstrapTokenFile, input.ConfigFile, input.StateDir, input.BootstrapCAFile, input.TrustBundleFile} {
+	for _, value := range []string{input.AgentID, input.ImageDigest, input.AgentVersion, input.EnrollmentRef, input.AutomationID, input.BootstrapTokenFile, input.ConfigFile, input.StateDir, input.BootstrapCAFile, input.TrustBundleFile} {
 		if strings.TrimSpace(value) == "" {
 			return false
 		}
 	}
-	return true
+	return validLocalDockerBuilderAgentHTTPSURL(input.BootstrapURL) && validLocalDockerBuilderAgentHTTPSURL(input.AgentURL)
+}
+
+func validLocalDockerBuilderAgentHTTPSURL(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func localDockerBuilderAgentFingerprint(input LocalDockerBuilderAgentDelivery, targetID int64) string {

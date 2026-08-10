@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"crypto/x509"
-	"encoding/pem"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +26,13 @@ func TestDefaultConfigFileFallsBackToContainerPath(t *testing.T) {
 	t.Setenv(configPathEnvironment, "  ")
 	if got := defaultConfigFile(); got != defaultConfigPath {
 		t.Fatalf("default config file = %q", got)
+	}
+}
+
+func TestConfigRejectsNonHTTPSListeners(t *testing.T) {
+	configuration := config{BootstrapURL: "http://backend:8443", AgentURL: "https://backend:8444", TargetID: 7, AgentID: "builder-1", BootstrapCA: "/run/trust/ca.pem", TrustBundle: "/run/trust/ca.pem"}
+	if err := configuration.applyDefaultsAndValidate(); err == nil {
+		t.Fatal("config accepted an HTTP bootstrap listener")
 	}
 }
 
@@ -54,7 +60,7 @@ func TestCSRContainsStableURI(t *testing.T) {
 	}
 }
 
-func TestStateIsAtomicAndSeparate(t *testing.T) {
+func TestStateSeparatesKeyAndCertificate(t *testing.T) {
 	dir := t.TempDir()
 	state := persistedState{TargetID: 7, AgentID: "builder-1", Identity: stableSPIFFE(7, "builder-1"), Generation: 2, CertificatePEM: "cert"}
 	if err := saveState(dir, state, []byte("key"), []byte("trust")); err != nil {
@@ -71,6 +77,24 @@ func TestStateIsAtomicAndSeparate(t *testing.T) {
 		t.Fatal("key and cert were mixed")
 	}
 }
+
+func TestLoadStateTreatsMissingMaterialAsUnenrolled(t *testing.T) {
+	dir := t.TempDir()
+	state := persistedState{TargetID: 7, AgentID: "builder-1", Identity: stableSPIFFE(7, "builder-1"), Generation: 2, CertificatePEM: "cert"}
+	if err := saveState(dir, state, []byte("key"), []byte("trust")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "key.pem")); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := loadState(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.CertificatePEM != "" {
+		t.Fatalf("incomplete state remained enrolled: %#v", loaded)
+	}
+}
 func mustRead(t *testing.T, path string) []byte {
 	t.Helper()
 	// #nosec G304 -- 测试只提供测试所有的临时状态目录中的路径。
@@ -80,5 +104,3 @@ func mustRead(t *testing.T, path string) []byte {
 	}
 	return b
 }
-
-var _ = pem.Block{}

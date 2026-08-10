@@ -70,16 +70,20 @@ func RunCLI() {
 		fmt.Println("graft-docker-builder-agent " + version)
 		return
 	}
-	ctx := context.Background()
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 	var err error
 	if *waitForDelivery {
-		err = runUntilDelivery(ctx, *configPath)
+		err = runUntilDelivery(sigCtx, *configPath)
 	} else {
 		c, loadErr := loadConfig(*configPath)
 		if loadErr != nil {
 			fatal(loadErr)
 		}
-		err = run(ctx, c)
+		err = run(sigCtx, c)
+	}
+	if errors.Is(err, context.Canceled) {
+		return
 	}
 	if err != nil {
 		fatal(err)
@@ -87,8 +91,6 @@ func RunCLI() {
 	if *once {
 		return
 	}
-	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
 	<-sigCtx.Done()
 }
 

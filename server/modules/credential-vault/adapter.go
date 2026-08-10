@@ -136,7 +136,7 @@ type VaultPKIClient struct {
 	http   *http.Client
 }
 
-// NewVaultPKIClient 创建生产 Vault adapter。store 为空时拒绝启动，避免内存-only 恢复语义。
+// NewVaultPKIClient 使用配置的 Vault CA 信任锚和签发状态存储创建生产 Vault PKI client；store 为空时拒绝启动，避免内存-only 恢复语义。
 func NewVaultPKIClient(configuration config.CredentialVaultConfig, store IssuanceStateStore) (*VaultPKIClient, error) {
 	if store == nil {
 		return nil, errors.New("vault PKI issuance state store is required")

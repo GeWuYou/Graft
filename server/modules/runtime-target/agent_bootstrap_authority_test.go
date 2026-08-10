@@ -61,6 +61,20 @@ func TestValidateIssuedBootstrapCertificateBindsIssuanceAndCSR(t *testing.T) {
 	}
 }
 
+func TestValidateIssuedBootstrapCertificateRejectsLegacyGenerationURI(t *testing.T) {
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	csrDER := createBootstrapValidationCSR(t)
+	_, fingerprint, err := parseBootstrapCSR(csrDER)
+	if err != nil {
+		t.Fatalf("parse test CSR: %v", err)
+	}
+	authorization := store.AgentBootstrapAuthorization{Issuance: store.AgentCertificateIssuance{IssuanceKey: "issuance-1"}, Generation: store.AgentTrustGeneration{Generation: 1, Identity: store.AgentTrustIdentity{TargetID: 7, AgentID: "agent-7"}}}
+	issued := newBootstrapValidationCertificateForURI(t, authorization, csrDER, now, agentSPIFFEURI(authorization.Generation)+"/generation/1")
+	if err := validateIssuedBootstrapCertificate(issued, authorization, fingerprint, now); err == nil {
+		t.Fatal("certificate with legacy generation URI unexpectedly accepted")
+	}
+}
+
 func TestValidAgentSPIFFEPathSegment(t *testing.T) {
 	for _, value := range []string{"agent-7", "agent_7", "agent.7", "A7"} {
 		if !validAgentSPIFFEPathSegment(value) {
@@ -116,6 +130,10 @@ func createBootstrapValidationCSR(t *testing.T) []byte {
 }
 
 func newBootstrapValidationCertificate(t *testing.T, authorization store.AgentBootstrapAuthorization, csrDER []byte, now time.Time) moduleapi.IssuedAgentCertificate {
+	return newBootstrapValidationCertificateForURI(t, authorization, csrDER, now, agentSPIFFEURI(authorization.Generation))
+}
+
+func newBootstrapValidationCertificateForURI(t *testing.T, authorization store.AgentBootstrapAuthorization, csrDER []byte, now time.Time, uri string) moduleapi.IssuedAgentCertificate {
 	t.Helper()
 	csr, err := x509.ParseCertificateRequest(csrDER)
 	if err != nil {
@@ -134,7 +152,7 @@ func newBootstrapValidationCertificate(t *testing.T, authorization store.AgentBo
 	if err != nil {
 		t.Fatalf("parse validation CA: %v", err)
 	}
-	identityURI, err := url.Parse(agentSPIFFEURI(authorization.Generation))
+	identityURI, err := url.Parse(uri)
 	if err != nil {
 		t.Fatalf("parse expected SPIFFE URI: %v", err)
 	}

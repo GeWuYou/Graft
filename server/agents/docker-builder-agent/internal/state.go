@@ -25,6 +25,8 @@ type persistedState struct {
 	CertificateSHA string    `json:"certificate_sha256"`
 }
 
+const persistedStateFilePerm = 0o600
+
 func loadState(dir string) (persistedState, error) {
 	// #nosec G304 -- 配置的状态目录是 Agent 私有的持久化状态边界。
 	b, err := os.ReadFile(filepath.Join(dir, "state.json"))
@@ -41,6 +43,14 @@ func loadState(dir string) (persistedState, error) {
 	if s.Generation < 0 || s.CertificatePEM == "" {
 		return persistedState{}, errors.New("state is incomplete")
 	}
+	for _, name := range []string{"key.pem", "trust-bundle.pem"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return persistedState{}, nil
+			}
+			return persistedState{}, fmt.Errorf("read state material %s: %w", name, err)
+		}
+	}
 	return s, nil
 }
 
@@ -53,12 +63,17 @@ func saveState(dir string, state persistedState, keyPEM, trustPEM []byte) error 
 	if err != nil {
 		return err
 	}
-	for name, file := range map[string]struct {
+	// state.json 是 enrollment 已完成的提交标记，必须在依赖材料之后替换。
+	for _, file := range []struct {
+		name     string
 		contents []byte
 		mode     os.FileMode
 	}{
-		"state.json": {data, 0600}, "key.pem": {keyPEM, 0600}, "trust-bundle.pem": {trustPEM, 0600},
+		{name: "key.pem", contents: keyPEM, mode: persistedStateFilePerm},
+		{name: "trust-bundle.pem", contents: trustPEM, mode: persistedStateFilePerm},
+		{name: "state.json", contents: data, mode: persistedStateFilePerm},
 	} {
+		name := file.name
 		tmp, err := os.CreateTemp(dir, "."+name+"-*")
 		if err != nil {
 			return err

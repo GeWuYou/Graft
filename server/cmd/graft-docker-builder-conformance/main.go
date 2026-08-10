@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"graft/server/internal/config"
 	"graft/server/internal/database"
@@ -33,10 +34,18 @@ func run(ctx context.Context, args []string, output *os.File) error {
 		return err
 	}
 	if phase != "prepare" && baseline.targetID == 0 {
+		requestedAgentID, agentIDExplicit := baseline.requestedAgentID, baseline.agentIDExplicit
 		baseline, err = readVerificationBaseline(envOr("GRAFT_CONFORMANCE_EVIDENCE_FILE", "/conformance/agent-config/conformance-evidence.json"))
 		if err != nil {
 			return err
 		}
+		baseline.requestedAgentID, baseline.agentIDExplicit = requestedAgentID, agentIDExplicit
+	}
+	if phase != "prepare" && baseline.agentID != "" {
+		if baseline.agentIDExplicit && baseline.requestedAgentID != baseline.agentID {
+			return errors.New("agent-id does not match conformance baseline")
+		}
+		scenario.AgentID = baseline.agentID
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -91,10 +100,13 @@ func newDriver(db *sql.DB, cfg *config.Config) (*runtimetarget.DockerBuilderAgen
 }
 
 type verificationBaseline struct {
-	targetID     int64
-	identityID   string
-	generation   int64
-	receiptCount int64
+	targetID         int64
+	identityID       string
+	agentID          string
+	generation       int64
+	receiptCount     int64
+	requestedAgentID string
+	agentIDExplicit  bool
 }
 
 func parseArguments(args []string) (string, runtimetarget.DockerBuilderAgentFixtureScenario, verificationBaseline, error) {
@@ -125,11 +137,15 @@ func parseArguments(args []string) (string, runtimetarget.DockerBuilderAgentFixt
 	if err := flags.Parse(args); err != nil {
 		return "", runtimetarget.DockerBuilderAgentFixtureScenario{}, verificationBaseline{}, err
 	}
+	agentIDExplicit := false
+	flags.Visit(func(flag *flag.Flag) {
+		agentIDExplicit = agentIDExplicit || flag.Name == "agent-id"
+	})
 	if *phase == "verify-first" {
 		*phase = "verify-bootstrap"
 	}
 	scenario := runtimetarget.DockerBuilderAgentFixtureScenario{AgentID: *agentID, ImageDigest: *imageDigest, AgentVersion: *agentVersion, EnrollmentRef: *enrollmentRef, ExpectedAutomationID: *automationID, DockerInstallationRef: *dockerInstallationRef, DockerSecretRef: *dockerSecretRef, BootstrapMaterialFile: *bootstrapMaterialFile, AgentConfigFile: *agentConfigFile, BootstrapURL: *bootstrapURL, AgentURL: *agentURL, BootstrapCAFile: *bootstrapCAFile, TrustBundleFile: *trustBundleFile, AgentSecretFile: *agentSecretFile}
-	baseline := verificationBaseline{targetID: *targetID, identityID: *identityID, generation: *generation, receiptCount: *receiptCount}
+	baseline := verificationBaseline{targetID: *targetID, identityID: *identityID, generation: *generation, receiptCount: *receiptCount, requestedAgentID: strings.TrimSpace(*agentID), agentIDExplicit: agentIDExplicit}
 	if *phase != "prepare" && *phase != "verify-bootstrap" && *phase != "verify-restart" {
 		return "", runtimetarget.DockerBuilderAgentFixtureScenario{}, verificationBaseline{}, errors.New("phase must be prepare, verify-bootstrap, or verify-restart")
 	}
@@ -164,10 +180,10 @@ func readVerificationBaseline(path string) (verificationBaseline, error) {
 	if err := json.Unmarshal(contents, &evidence); err != nil {
 		return verificationBaseline{}, errors.New("decode conformance baseline")
 	}
-	if evidence.TargetID < 1 || evidence.IdentityID == "" || evidence.Generation < 1 || evidence.LedgerReceiptCount < 0 {
+	if evidence.TargetID < 1 || strings.TrimSpace(evidence.IdentityID) == "" || strings.TrimSpace(evidence.AgentID) == "" || evidence.Generation < 1 || evidence.LedgerReceiptCount < 0 {
 		return verificationBaseline{}, errors.New("conformance baseline is invalid")
 	}
-	return verificationBaseline{targetID: evidence.TargetID, identityID: evidence.IdentityID, generation: evidence.Generation, receiptCount: evidence.LedgerReceiptCount}, nil
+	return verificationBaseline{targetID: evidence.TargetID, identityID: evidence.IdentityID, agentID: strings.TrimSpace(evidence.AgentID), generation: evidence.Generation, receiptCount: evidence.LedgerReceiptCount}, nil
 }
 
 func writeVerificationBaseline(path string, evidence runtimetarget.DockerBuilderAgentConformanceEvidence) error {

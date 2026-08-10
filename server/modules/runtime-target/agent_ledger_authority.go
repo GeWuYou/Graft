@@ -66,7 +66,8 @@ func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Con
 	if a.repository == nil || a.now == nil {
 		return errAgentLedgerRejected
 	}
-	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, report.TargetID, report.AgentID, report.CertificateSerial, report.PublicKeyFingerprint, a.now().UTC())
+	now := a.now().UTC()
+	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, report.TargetID, report.AgentID, report.CertificateSerial, report.PublicKeyFingerprint, now)
 	if err != nil {
 		return errAgentLedgerRejected
 	}
@@ -79,7 +80,7 @@ func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Con
 		SnapshotID: report.SnapshotID, SnapshotDigest: report.SnapshotDigest, ObservedAt: report.ObservedAt,
 		ExpiresAt: report.ExpiresAt, Available: report.Available, ImplementationVersion: report.ImplementationVersion,
 		Diagnostic: report.Diagnostic,
-	}, a.now().UTC()); err != nil {
+	}, now); err != nil {
 		return errAgentLedgerRejected
 	}
 	return nil

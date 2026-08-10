@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,6 +145,12 @@ func (d *DockerBuilderAgentConformanceDriver) Prepare(ctx context.Context, scena
 	if err != nil {
 		return DockerBuilderAgentConformanceEvidence{}, fmt.Errorf("handoff fixture delivery grant: %w", err)
 	}
+	if err := writeDockerBuilderAgentConformanceMaterial(scenario.BootstrapMaterialFile, DockerBuilderAgentConformanceMaterial{TargetID: targetID, AgentID: scenario.AgentID, BootstrapToken: handoff.BootstrapToken}); err != nil {
+		return DockerBuilderAgentConformanceEvidence{}, err
+	}
+	if err := writeDockerBuilderAgentConformanceConfig(scenario, targetID); err != nil {
+		return DockerBuilderAgentConformanceEvidence{}, err
+	}
 	if _, err := d.delivery.RecordDeliveryReceipt(ctx, actor, moduleapi.AgentDeliveryReceiptRequest{GrantID: grant.GrantID, ReceiptID: "fixture-" + grant.GrantID, ProtocolVersion: conformanceDeliveryProtocol, HandoffID: handoff.HandoffID, AssertedDeliveredAt: now, DockerInstallationRef: scenario.DockerInstallationRef, DockerSecretRef: scenario.DockerSecretRef, PayloadFingerprint: conformancePayloadFingerprint(scenario, targetID)}); err != nil {
 		return DockerBuilderAgentConformanceEvidence{}, fmt.Errorf("record fixture delivery receipt: %w", err)
 	}
@@ -153,12 +160,6 @@ func (d *DockerBuilderAgentConformanceDriver) Prepare(ctx context.Context, scena
 	}
 	if binding.Status != moduleapi.RuntimeTargetAgentStatusPending || binding.CertificateSerial != "" {
 		return DockerBuilderAgentConformanceEvidence{}, errors.New("delivery receipt activated fixture generation")
-	}
-	if err := writeDockerBuilderAgentConformanceMaterial(scenario.BootstrapMaterialFile, DockerBuilderAgentConformanceMaterial{TargetID: targetID, AgentID: scenario.AgentID, BootstrapToken: handoff.BootstrapToken}); err != nil {
-		return DockerBuilderAgentConformanceEvidence{}, err
-	}
-	if err := writeDockerBuilderAgentConformanceConfig(scenario, targetID); err != nil {
-		return DockerBuilderAgentConformanceEvidence{}, err
 	}
 	return conformanceEvidence(binding, 0), nil
 }
@@ -210,7 +211,12 @@ func conformanceEvidence(binding moduleapi.RuntimeTargetAgentBinding, receiptCou
 }
 
 func validDockerBuilderAgentFixtureScenario(s DockerBuilderAgentFixtureScenario) bool {
-	return strings.TrimSpace(s.AgentID) != "" && strings.TrimSpace(s.ImageDigest) != "" && strings.TrimSpace(s.AgentVersion) != "" && strings.TrimSpace(s.EnrollmentRef) != "" && strings.TrimSpace(s.ExpectedAutomationID) != "" && strings.TrimSpace(s.DockerInstallationRef) != "" && strings.TrimSpace(s.DockerSecretRef) != "" && strings.TrimSpace(s.BootstrapMaterialFile) != "" && strings.TrimSpace(s.AgentConfigFile) != "" && strings.TrimSpace(s.BootstrapURL) != "" && strings.TrimSpace(s.AgentURL) != "" && strings.TrimSpace(s.BootstrapCAFile) != "" && strings.TrimSpace(s.TrustBundleFile) != "" && strings.TrimSpace(s.AgentSecretFile) != ""
+	return strings.TrimSpace(s.AgentID) != "" && strings.TrimSpace(s.ImageDigest) != "" && strings.TrimSpace(s.AgentVersion) != "" && strings.TrimSpace(s.EnrollmentRef) != "" && strings.TrimSpace(s.ExpectedAutomationID) != "" && strings.TrimSpace(s.DockerInstallationRef) != "" && strings.TrimSpace(s.DockerSecretRef) != "" && strings.TrimSpace(s.BootstrapMaterialFile) != "" && strings.TrimSpace(s.AgentConfigFile) != "" && validDockerBuilderAgentFixtureHTTPSURL(s.BootstrapURL) && validDockerBuilderAgentFixtureHTTPSURL(s.AgentURL) && strings.TrimSpace(s.BootstrapCAFile) != "" && strings.TrimSpace(s.TrustBundleFile) != "" && strings.TrimSpace(s.AgentSecretFile) != ""
+}
+
+func validDockerBuilderAgentFixtureHTTPSURL(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func conformancePayloadFingerprint(s DockerBuilderAgentFixtureScenario, targetID int64) string {
