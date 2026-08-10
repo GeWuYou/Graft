@@ -26,6 +26,7 @@ import (
 const (
 	rsaKeyBits         = 2048
 	requestTimeout     = 30 * time.Second
+	deliveryWaitPeriod = 2 * time.Second
 	maxResponseBytes   = 1 << 20
 	bootstrapPath      = "/bootstrap/v1/certificate"
 	ledgerSnapshotPath = "/agent/v1/ledger-snapshot"
@@ -63,16 +64,24 @@ func RunCLI() {
 	configPath := flag.String("config", defaultConfigFile(), "agent configuration path")
 	showVersion := flag.Bool("version", false, "print agent version")
 	once := flag.Bool("once", false, "run one lifecycle and exit")
+	waitForDelivery := flag.Bool("wait-for-delivery", false, "wait for Backend-owned development delivery material")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println("graft-docker-builder-agent " + version)
 		return
 	}
-	c, err := loadConfig(*configPath)
-	if err != nil {
-		fatal(err)
+	ctx := context.Background()
+	var err error
+	if *waitForDelivery {
+		err = runUntilDelivery(ctx, *configPath)
+	} else {
+		c, loadErr := loadConfig(*configPath)
+		if loadErr != nil {
+			fatal(loadErr)
+		}
+		err = run(ctx, c)
 	}
-	if err := run(context.Background(), c); err != nil {
+	if err != nil {
 		fatal(err)
 	}
 	if *once {
@@ -81,6 +90,28 @@ func RunCLI() {
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 	<-sigCtx.Done()
+}
+
+func runUntilDelivery(ctx context.Context, configPath string) error {
+	lastError := ""
+	for {
+		c, err := loadConfig(configPath)
+		if err == nil {
+			err = run(ctx, c)
+		}
+		if err == nil {
+			return nil
+		}
+		if message := err.Error(); message != lastError {
+			fmt.Fprintf(os.Stderr, "graft-docker-builder-agent: waiting for Backend-owned delivery: %v\n", err)
+			lastError = message
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(deliveryWaitPeriod):
+		}
+	}
 }
 
 func run(ctx context.Context, c config) error {

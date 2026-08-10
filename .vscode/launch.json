@@ -57,7 +57,11 @@
             "args": [
                 "dev",
                 "air"
-            ]
+            ],
+            "preLaunchTask": "agent: prepare Docker Builder development",
+            "env": {
+                "GRAFT_ENV_FILE": "${workspaceFolder}/.data/docker-builder-agent-dev/server.env"
+            }
         },
         {
             "name": "server: 通知开发监督器",
@@ -106,9 +110,11 @@
             "mode": "debug",
             "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
             "cwd": "${workspaceFolder}",
+            "preLaunchTask": "agent: deliver Docker Builder development",
             "args": [
                 "--config",
-                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json"
+                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json",
+                "--wait-for-delivery"
             ]
         },
         {
@@ -118,9 +124,11 @@
             "mode": "debug",
             "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
             "cwd": "${workspaceFolder}",
+            "preLaunchTask": "agent: deliver Docker Builder development",
             "args": [
                 "--config",
                 "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json",
+                "--wait-for-delivery",
                 "--once"
             ]
         },
@@ -176,6 +184,7 @@
             "name": "fullstack: dev",
             "configurations": [
                 "server: Air 热重载",
+                "agent: Docker Builder",
                 "web: dev"
             ]
         }

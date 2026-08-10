@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"os"
@@ -26,6 +27,16 @@ func TestDefaultConfigFileFallsBackToContainerPath(t *testing.T) {
 	t.Setenv(configPathEnvironment, "  ")
 	if got := defaultConfigFile(); got != defaultConfigPath {
 		t.Fatalf("default config file = %q", got)
+	}
+}
+
+func TestRunUntilDeliveryStopsWhenDevelopmentContextIsCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := runUntilDelivery(ctx, filepath.Join(t.TempDir(), "missing-agent.json"))
+	if err != context.Canceled {
+		t.Fatalf("run until delivery error = %v, want context canceled", err)
 	}
 }
 
