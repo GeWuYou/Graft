@@ -57,7 +57,6 @@
       "viewAll": "View All"
     },
     "tagTabs": {
-      "actions": "Tab Actions",
       "closeOther": "Close Other",
       "closeLeft": "Close Left",
       "closeRight": "Close Right",
@@ -321,8 +320,13 @@
         "style": {
           "radius": "Radius Style",
           "shadow": "Shadow Style",
+          "shadowIntensity": "Shadow Intensity",
           "density": "Density",
           "description": "Adjust radius, shadow, and content density.",
+          "radiusDescription": "Adjust the roundness of interface elements.",
+          "shadowDescription": "Choose the visual language of projections.",
+          "shadowIntensityDescription": "Adjust the current projection magnitude without changing its visual language.",
+          "shadowIntensityUnavailable": "Flat style does not render a shadow intensity.",
           "square": "Square",
           "business": "Business",
           "standard": "Standard",
@@ -331,6 +335,8 @@
           "flat": "Flat",
           "hardOffset": "Hard Offset",
           "floating": "Floating",
+          "subtle": "Subtle",
+          "strong": "Strong",
           "compact": "Compact",
           "comfortable": "Comfortable",
           "densityPreviewLinePrimary": "Aa Admin preview",

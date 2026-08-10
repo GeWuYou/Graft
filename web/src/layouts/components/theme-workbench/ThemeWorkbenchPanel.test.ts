@@ -58,6 +58,30 @@ const switchStub = defineComponent({
   },
 });
 
+const sliderStub = defineComponent({
+  name: 'TSliderStub',
+  props: {
+    disabled: { type: Boolean, required: false, default: false },
+    modelValue: { type: Number, required: false, default: 0 },
+  },
+  emits: ['change'],
+  setup(props) {
+    return () => h('button', { disabled: props.disabled, type: 'button' });
+  },
+});
+
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    disabled: { type: Boolean, required: false, default: false },
+    modelValue: { type: String, required: false, default: '' },
+  },
+  emits: ['change'],
+  setup(props) {
+    return () => h('button', { disabled: props.disabled, type: 'button' });
+  },
+});
+
 const presetCatalogStub = defineComponent({
   name: 'ThemeWorkbenchPresetCatalogStub',
   props: {
@@ -106,8 +130,8 @@ function mountPanel() {
         't-icon': true,
         't-radio-group': true,
         't-tooltip': true,
-        't-select': true,
-        't-slider': true,
+        't-select': selectStub,
+        't-slider': sliderStub,
         't-collapse': true,
         't-collapse-panel': true,
       },
@@ -167,12 +191,88 @@ describe('ThemeWorkbenchPanel', () => {
     store.openThemeWorkbench('style');
     const wrapper = mountPanel();
 
-    await wrapper.get('[data-testid="radius-square"]').trigger('click');
+    const radiusSlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'radius-slider');
+
+    expect(radiusSlider).toBeDefined();
+    radiusSlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
     await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
 
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('updates radius and density from their discrete slider controls', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const sliders = wrapper.findAllComponents(sliderStub);
+    const radiusSlider = sliders.find((component) => component.attributes('data-testid') === 'radius-slider');
+    const densitySlider = sliders.find((component) => component.attributes('data-testid') === 'density-slider');
+    expect(radiusSlider).toBeDefined();
+    expect(densitySlider).toBeDefined();
+    radiusSlider!.vm.$emit('change', 3);
+    densitySlider!.vm.$emit('change', 0.91);
+    await wrapper.vm.$nextTick();
+
+    expect(store.radiusOverride).toBe(3);
+    expect(store.densityOverride).toBe(0.91);
+    expect(wrapper.get('[data-testid="radius-anchor-business"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+    expect(wrapper.get('[data-testid="density-anchor-compact"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+
+    await wrapper.get('[data-testid="radius-anchor-capsule"]').trigger('click');
+    await wrapper.get('[data-testid="density-anchor-comfortable"]').trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect(store.radiusPreset).toBe('capsule');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.radiusOverride).toBeNull();
+    expect(store.densityOverride).toBeNull();
+    expect(wrapper.get('[data-testid="radius-anchor-capsule"]').classes()).toContain('style-control__mark--active');
+    expect(wrapper.get('[data-testid="density-anchor-comfortable"]').classes()).toContain(
+      'style-control__mark--active',
+    );
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('uses a separate shadow intensity control and preserves it when flat shadows disable the control', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const intensitySlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'shadow-intensity-slider');
+
+    await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
+    expect(intensitySlider).toBeDefined();
+    intensitySlider!.vm.$emit('change', 1.35);
+    await wrapper.vm.$nextTick();
+
+    expect(store.shadowIntensityOverride).toBe(1.35);
+    expect(wrapper.get('[data-testid="shadow-intensity-anchor-strong"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+    expect(wrapper.get('[data-testid="shadow-combination-preview"]').classes()).toEqual(
+      expect.arrayContaining(['style-combination-preview--shadow-hard-offset']),
+    );
+    expect(wrapper.get('[data-testid="shadow-combination-preview"]').classes()).not.toContain(
+      'style-combination-preview--intensity-standard',
+    );
+
+    await wrapper.get('[data-testid="shadow-flat"]').trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect(intensitySlider!.attributes('disabled')).toBeDefined();
+    intensitySlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
+    expect(store.shadowIntensityOverride).toBe(1.35);
   });
 
   it('updates the active tab indicator position from layout settings', async () => {

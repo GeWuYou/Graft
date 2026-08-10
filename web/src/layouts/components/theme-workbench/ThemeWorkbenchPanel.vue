@@ -525,26 +525,42 @@
                 <div class="section-title">{{ t('layout.setting.workbench.style.radius') }}</div>
                 <div class="section-desc">{{ t('layout.setting.workbench.style.description') }}</div>
               </div>
-              <div class="style-preview-grid" :class="resetFeedbackClass">
-                <button
-                  v-for="item in radiusOptions"
-                  :key="item.value"
-                  type="button"
-                  class="style-preview-card"
-                  :class="{ 'style-preview-card--active': effectiveTheme.radiusPreset === item.value }"
-                  :data-testid="`radius-${item.value}`"
-                  @click="
-                    settingStore.updateThemeDraftAppearance({
-                      radiusPreset: item.value,
-                    })
-                  "
-                >
-                  <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="radius-preview" :class="`radius-preview--${item.value}`">
-                    <span class="radius-preview__surface radius-preview__surface--main" />
-                    <span class="radius-preview__surface radius-preview__surface--sub" />
-                  </span>
-                </button>
+              <div class="style-control-stack" :class="resetFeedbackClass">
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">0</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="radius-slider"
+                    :label="false"
+                    :max="16"
+                    :min="0"
+                    :model-value="activeRadiusValue"
+                    :step="1"
+                    @change="handleRadiusSliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--rounded" aria-hidden="true">R</span>
+                </div>
+                <div class="style-control__marks style-control__marks--five">
+                  <button
+                    v-for="item in radiusOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isRadiusAnchorActive(item.sliderValue) }"
+                    :data-testid="`radius-anchor-${item.value}`"
+                    @click="handleRadiusAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="style-combination-preview style-combination-preview--radius"
+                :class="radiusPreviewClass"
+                :style="radiusPreviewStyle"
+              >
+                <span class="style-combination-preview__card style-combination-preview__card--back" />
+                <span class="style-combination-preview__card style-combination-preview__card--front" />
               </div>
             </div>
 
@@ -567,11 +583,62 @@
                   "
                 >
                   <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="shadow-preview" :class="`shadow-preview--${item.value}`">
+                  <span
+                    class="shadow-preview"
+                    :class="[
+                      `shadow-preview--${item.value}`,
+                      `shadow-preview--radius-${effectiveTheme.radiusPreset}`,
+                      shadowIntensityPreviewClass,
+                    ]"
+                    :style="shadowPreviewStyle"
+                  >
                     <span class="shadow-preview__card shadow-preview__card--back" />
                     <span class="shadow-preview__card shadow-preview__card--front" />
                   </span>
                 </button>
+              </div>
+              <div
+                class="style-control-stack"
+                :class="{ 'style-control-stack--disabled': !isShadowIntensityAvailable }"
+              >
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">S</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="shadow-intensity-slider"
+                    :disabled="!isShadowIntensityAvailable"
+                    :label="false"
+                    :max="1.5"
+                    :min="0.5"
+                    :model-value="activeShadowIntensityValue"
+                    :step="0.05"
+                    @change="handleShadowIntensitySliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--strong" aria-hidden="true">L</span>
+                </div>
+                <div class="style-control__marks style-control__marks--three">
+                  <button
+                    v-for="item in shadowIntensityOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isShadowIntensityAnchorActive(item.sliderValue) }"
+                    :data-testid="`shadow-intensity-anchor-${item.value}`"
+                    :disabled="!isShadowIntensityAvailable"
+                    @click="handleShadowIntensityAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="style-combination-preview"
+                :class="shadowCombinationPreviewClass"
+                data-testid="shadow-combination-preview"
+                :style="shadowPreviewStyle"
+              >
+                <span class="style-combination-preview__card style-combination-preview__card--back" />
+                <span class="style-combination-preview__card style-combination-preview__card--front" />
               </div>
             </div>
 
@@ -579,26 +646,43 @@
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.density') }}</div>
               </div>
-              <div class="style-preview-grid" :class="resetFeedbackClass">
-                <button
-                  v-for="item in densityOptions"
-                  :key="item.value"
-                  type="button"
-                  class="style-preview-card"
-                  :class="{ 'style-preview-card--active': effectiveTheme.densityPreset === item.value }"
-                  @click="
-                    settingStore.updateThemeDraftAppearance({
-                      densityPreset: item.value,
-                    })
-                  "
-                >
-                  <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="density-preview" :class="`density-preview--${item.value}`">
-                    <span v-for="line in densityPreviewLines" :key="line" class="density-preview__line">
-                      {{ line }}
-                    </span>
-                  </span>
-                </button>
+              <div class="style-control-stack" :class="resetFeedbackClass">
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">C</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="density-slider"
+                    :label="false"
+                    :max="1.12"
+                    :min="0.88"
+                    :model-value="activeDensityValue"
+                    :step="0.01"
+                    @change="handleDensitySliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--strong" aria-hidden="true">D</span>
+                </div>
+                <div class="style-control__marks style-control__marks--three">
+                  <button
+                    v-for="item in densityOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isDensityAnchorActive(item.sliderValue) }"
+                    :data-testid="`density-anchor-${item.value}`"
+                    @click="handleDensityAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="density-preview"
+                :class="`density-preview--${effectiveTheme.densityPreset}`"
+                :style="densityPreviewStyle"
+              >
+                <span v-for="line in densityPreviewLines" :key="line" class="density-preview__line">
+                  {{ line }}
+                </span>
               </div>
             </div>
           </div>
@@ -801,11 +885,11 @@ const fontSizeSelectOptions = computed(() => fontSizeOptions.value.map(({ label,
 const radiusOptions = computed(
   () =>
     [
-      { value: 'square', label: t('layout.setting.workbench.style.square') },
-      { value: 'business', label: t('layout.setting.workbench.style.business') },
-      { value: 'standard', label: t('layout.setting.workbench.style.standard') },
-      { value: 'rounded', label: t('layout.setting.workbench.style.rounded') },
-      { value: 'capsule', label: t('layout.setting.workbench.style.capsule') },
+      { value: 'square', label: t('layout.setting.workbench.style.square'), sliderValue: 0 },
+      { value: 'business', label: t('layout.setting.workbench.style.business'), sliderValue: 4 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 8 },
+      { value: 'rounded', label: t('layout.setting.workbench.style.rounded'), sliderValue: 12 },
+      { value: 'capsule', label: t('layout.setting.workbench.style.capsule'), sliderValue: 16 },
     ] as const,
 );
 
@@ -819,12 +903,21 @@ const shadowOptions = computed(
     ] as const,
 );
 
+const shadowIntensityOptions = computed(
+  () =>
+    [
+      { value: 'subtle', label: t('layout.setting.workbench.style.subtle'), sliderValue: 0.5 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 1 },
+      { value: 'strong', label: t('layout.setting.workbench.style.strong'), sliderValue: 1.5 },
+    ] as const,
+);
+
 const densityOptions = computed(
   () =>
     [
-      { value: 'compact', label: t('layout.setting.workbench.style.compact') },
-      { value: 'standard', label: t('layout.setting.workbench.style.standard') },
-      { value: 'comfortable', label: t('layout.setting.workbench.style.comfortable') },
+      { value: 'compact', label: t('layout.setting.workbench.style.compact'), sliderValue: 0.88 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 1 },
+      { value: 'comfortable', label: t('layout.setting.workbench.style.comfortable'), sliderValue: 1.12 },
     ] as const,
 );
 
@@ -993,10 +1086,70 @@ const activeRadiusLabel = computed(() => {
   return matched?.label ?? radiusOptions.value[0].label;
 });
 
+const activeRadiusValue = computed(
+  () =>
+    effectiveTheme.value.radiusOverride ??
+    radiusOptions.value.find((item) => item.value === effectiveTheme.value.radiusPreset)?.sliderValue ??
+    radiusOptions.value[0].sliderValue,
+);
+
 const activeDensityLabel = computed(() => {
   const matched = densityOptions.value.find((item) => item.value === effectiveTheme.value.densityPreset);
   return matched?.label ?? densityOptions.value[1].label;
 });
+
+const activeDensityValue = computed(
+  () =>
+    effectiveTheme.value.densityOverride ??
+    densityOptions.value.find((item) => item.value === effectiveTheme.value.densityPreset)?.sliderValue ??
+    densityOptions.value[1].sliderValue,
+);
+
+const activeShadowIntensityValue = computed(
+  () =>
+    effectiveTheme.value.shadowIntensityOverride ??
+    shadowIntensityOptions.value.find((item) => item.value === effectiveTheme.value.shadowIntensity)?.sliderValue ??
+    shadowIntensityOptions.value[1].sliderValue,
+);
+
+const isShadowIntensityAvailable = computed(() => effectiveTheme.value.shadowPreset !== 'flat');
+
+const radiusPreviewClass = computed(() => `style-combination-preview--radius-${effectiveTheme.value.radiusPreset}`);
+
+const radiusPreviewStyle = computed(() => ({ '--style-preview-radius': `${activeRadiusValue.value}px` }));
+
+const shadowPreviewStyle = computed(() => {
+  const intensity = activeShadowIntensityValue.value;
+
+  return {
+    '--style-preview-radius': `${activeRadiusValue.value}px`,
+    '--shadow-preview-hard-offset': `${4 * intensity}px ${4 * intensity}px 0 var(--td-text-color-primary)`,
+    '--shadow-preview-standard-back': `0 ${6 * intensity}px ${16 * intensity}px rgb(15 23 42 / ${10 * intensity}%)`,
+    '--shadow-preview-standard-front': `0 ${12 * intensity}px ${24 * intensity}px rgb(15 23 42 / ${12 * intensity}%)`,
+    '--shadow-preview-floating-back': `0 ${10 * intensity}px ${22 * intensity}px rgb(15 23 42 / ${14 * intensity}%)`,
+    '--shadow-preview-floating-front': `0 ${18 * intensity}px ${40 * intensity}px rgb(15 23 42 / ${18 * intensity}%)`,
+  };
+});
+
+const densityPreviewStyle = computed(() => ({ '--graft-theme-density-scale': String(activeDensityValue.value) }));
+
+const shadowCombinationPreviewClass = computed(() => [
+  `style-combination-preview--radius-${effectiveTheme.value.radiusPreset}`,
+  `style-combination-preview--shadow-${effectiveTheme.value.shadowPreset}`,
+  shadowIntensityPreviewClass.value && `style-combination-preview--intensity-${effectiveTheme.value.shadowIntensity}`,
+]);
+
+const isRadiusAnchorActive = (value: number) => activeRadiusValue.value === value;
+
+const isShadowIntensityAnchorActive = (value: number) => activeShadowIntensityValue.value === value;
+
+const isDensityAnchorActive = (value: number) => activeDensityValue.value === value;
+
+const shadowIntensityPreviewClass = computed(() =>
+  shadowIntensityOptions.value.some((item) => item.sliderValue === activeShadowIntensityValue.value)
+    ? `shadow-preview--intensity-${effectiveTheme.value.shadowIntensity}`
+    : undefined,
+);
 
 const overviewSummaryItems = computed(() => [
   {
@@ -1153,6 +1306,44 @@ const handleFontSizeSliderChange = (value: unknown) => {
   }
 
   updateFontSizePreset(fontSizeOptions.value[value]?.value);
+};
+
+const handleRadiusAnchorSelect = (item: (typeof radiusOptions.value)[number]) => {
+  settingStore.updateThemeDraftAppearance({ radiusPreset: item.value, radiusOverride: null });
+};
+
+const handleRadiusSliderChange = (value: unknown) => {
+  if (typeof value !== 'number' || value < 0 || value > 16) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ radiusOverride: value });
+};
+
+const handleDensityAnchorSelect = (item: (typeof densityOptions.value)[number]) => {
+  settingStore.updateThemeDraftAppearance({ densityPreset: item.value, densityOverride: null });
+};
+
+const handleDensitySliderChange = (value: unknown) => {
+  if (typeof value !== 'number' || value < 0.88 || value > 1.12) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ densityOverride: value });
+};
+
+const handleShadowIntensityAnchorSelect = (item: (typeof shadowIntensityOptions.value)[number]) => {
+  if (isShadowIntensityAvailable.value) {
+    settingStore.updateThemeDraftAppearance({ shadowIntensity: item.value, shadowIntensityOverride: null });
+  }
+};
+
+const handleShadowIntensitySliderChange = (value: unknown) => {
+  if (typeof value !== 'number' || value < 0.5 || value > 1.5 || !isShadowIntensityAvailable.value) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ shadowIntensityOverride: value });
 };
 
 const closeWorkbench = () => {
@@ -2383,6 +2574,96 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   word-break: keep-all;
 }
 
+.style-control-stack {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.style-control-stack--disabled {
+  opacity: 0.52;
+}
+
+.style-control {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: auto minmax(132px, 1fr) auto;
+  max-width: 100%;
+  min-height: 56px;
+  min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+}
+
+.style-control__edge-label {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+  font-weight: 700;
+  line-height: 1;
+  min-width: max-content;
+  text-align: center;
+}
+
+.style-control__edge-label--rounded,
+.style-control__edge-label--strong {
+  font: var(--td-font-title-small);
+}
+
+.style-control__slider {
+  min-width: 0;
+}
+
+.style-control__slider :deep(.t-slider__container) {
+  min-width: 0;
+}
+
+.style-control__marks {
+  color: var(--td-text-color-secondary);
+  display: grid;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: 0 var(--graft-density-gap-12);
+}
+
+.style-control__marks--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.style-control__marks--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.style-control__mark {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.style-control__mark-button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.style-control__mark-button:disabled {
+  cursor: not-allowed;
+}
+
+.style-control__mark--active {
+  color: var(--td-brand-color);
+  font-weight: 700;
+}
+
 .style-preview-grid {
   display: grid;
   gap: var(--graft-density-gap-12);
@@ -2434,7 +2715,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   white-space: nowrap;
 }
 
-.radius-preview,
 .shadow-preview,
 .density-preview {
   background:
@@ -2450,54 +2730,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   padding: var(--graft-density-gap-14);
 }
 
-.radius-preview {
-  align-items: end;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-}
-
-.radius-preview__surface {
-  background: color-mix(in srgb, var(--td-brand-color) 12%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 18%, var(--td-component-stroke));
-  display: block;
-  min-width: 0;
-}
-
-.radius-preview__surface--main {
-  flex: 1;
-  height: 42px;
-}
-
-.radius-preview__surface--sub {
-  height: 28px;
-  width: 32%;
-}
-
-.radius-preview--business .radius-preview__surface--main,
-.radius-preview--business .radius-preview__surface--sub {
-  border-radius: 6px;
-}
-
-.radius-preview--square .radius-preview__surface--main,
-.radius-preview--square .radius-preview__surface--sub {
-  border-radius: 0;
-}
-
-.radius-preview--standard .radius-preview__surface--main,
-.radius-preview--standard .radius-preview__surface--sub {
-  border-radius: 12px;
-}
-
-.radius-preview--rounded .radius-preview__surface--main,
-.radius-preview--rounded .radius-preview__surface--sub {
-  border-radius: 20px;
-}
-
-.radius-preview--capsule .radius-preview__surface--main,
-.radius-preview--capsule .radius-preview__surface--sub {
-  border-radius: 999px;
-}
-
 .shadow-preview {
   display: grid;
   place-items: center;
@@ -2507,7 +2739,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .shadow-preview__card {
   background: color-mix(in srgb, var(--td-bg-color-container) 94%, white 3%);
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
-  border-radius: 14px;
+  border-radius: var(--style-preview-radius, 14px);
   display: block;
   position: absolute;
 }
@@ -2530,64 +2762,163 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .shadow-preview--hard-offset .shadow-preview__card {
   border-color: var(--td-text-color-primary);
-  border-radius: 0;
   border-width: 2px;
-  box-shadow: 4px 4px 0 var(--td-text-color-primary);
+  box-shadow: var(--shadow-preview-hard-offset, 4px 4px 0 var(--td-text-color-primary));
 }
 
 .shadow-preview--standard .shadow-preview__card--back {
-  box-shadow: 0 6px 16px rgb(15 23 42 / 10%);
+  box-shadow: var(--shadow-preview-standard-back, 0 6px 16px rgb(15 23 42 / 10%));
 }
 
 .shadow-preview--standard .shadow-preview__card--front {
-  box-shadow: 0 12px 24px rgb(15 23 42 / 12%);
+  box-shadow: var(--shadow-preview-standard-front, 0 12px 24px rgb(15 23 42 / 12%));
 }
 
 .shadow-preview--floating .shadow-preview__card--back {
-  box-shadow: 0 10px 22px rgb(15 23 42 / 14%);
+  box-shadow: var(--shadow-preview-floating-back, 0 10px 22px rgb(15 23 42 / 14%));
 }
 
 .shadow-preview--floating .shadow-preview__card--front {
-  box-shadow: 0 18px 40px rgb(15 23 42 / 18%);
+  box-shadow: var(--shadow-preview-floating-front, 0 18px 40px rgb(15 23 42 / 18%));
+}
+
+.shadow-preview--radius-square,
+.style-combination-preview--radius-square .style-combination-preview__card {
+  --style-preview-radius: 0;
+}
+
+.shadow-preview--radius-business,
+.style-combination-preview--radius-business .style-combination-preview__card {
+  --style-preview-radius: 6px;
+}
+
+.shadow-preview--radius-standard,
+.style-combination-preview--radius-standard .style-combination-preview__card {
+  --style-preview-radius: 12px;
+}
+
+.shadow-preview--radius-rounded,
+.style-combination-preview--radius-rounded .style-combination-preview__card {
+  --style-preview-radius: 20px;
+}
+
+.shadow-preview--radius-capsule,
+.style-combination-preview--radius-capsule .style-combination-preview__card {
+  --style-preview-radius: 999px;
+}
+
+.shadow-preview--intensity-subtle,
+.style-combination-preview--intensity-subtle {
+  --shadow-preview-hard-offset: 2px 2px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 3px 8px rgb(15 23 42 / 8%);
+  --shadow-preview-standard-front: 0 6px 14px rgb(15 23 42 / 10%);
+  --shadow-preview-floating-back: 0 4px 10px rgb(15 23 42 / 10%);
+  --shadow-preview-floating-front: 0 8px 18px rgb(15 23 42 / 13%);
+}
+
+.shadow-preview--intensity-standard,
+.style-combination-preview--intensity-standard {
+  --shadow-preview-hard-offset: 4px 4px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 6px 16px rgb(15 23 42 / 10%);
+  --shadow-preview-standard-front: 0 12px 24px rgb(15 23 42 / 12%);
+  --shadow-preview-floating-back: 0 10px 22px rgb(15 23 42 / 14%);
+  --shadow-preview-floating-front: 0 18px 40px rgb(15 23 42 / 18%);
+}
+
+.shadow-preview--intensity-strong,
+.style-combination-preview--intensity-strong {
+  --shadow-preview-hard-offset: 6px 6px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 10px 24px rgb(15 23 42 / 13%);
+  --shadow-preview-standard-front: 0 18px 36px rgb(15 23 42 / 16%);
+  --shadow-preview-floating-back: 0 14px 32px rgb(15 23 42 / 18%);
+  --shadow-preview-floating-front: 0 24px 52px rgb(15 23 42 / 22%);
+}
+
+.style-combination-preview {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--td-bg-color-container) 88%, transparent), transparent),
+    color-mix(in srgb, var(--td-bg-color-container) 65%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
+  border-radius: 12px;
+  display: grid;
+  height: 96px;
+  overflow: hidden;
+  place-items: center;
+  position: relative;
+}
+
+.style-combination-preview__card {
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, white 3%);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
+  border-radius: var(--style-preview-radius, 14px);
+  display: block;
+  position: absolute;
+}
+
+.style-combination-preview__card--back {
+  height: 38px;
+  transform: translate(-26px, -10px);
+  width: 68px;
+}
+
+.style-combination-preview__card--front {
+  height: 48px;
+  transform: translate(20px, 10px);
+  width: 92px;
+}
+
+.style-combination-preview--shadow-flat .style-combination-preview__card {
+  box-shadow: none;
+}
+
+.style-combination-preview--shadow-hard-offset .style-combination-preview__card {
+  border-color: var(--td-text-color-primary);
+  border-width: 2px;
+  box-shadow: var(--shadow-preview-hard-offset);
+}
+
+.style-combination-preview--shadow-standard .style-combination-preview__card--back {
+  box-shadow: var(--shadow-preview-standard-back);
+}
+
+.style-combination-preview--shadow-standard .style-combination-preview__card--front {
+  box-shadow: var(--shadow-preview-standard-front);
+}
+
+.style-combination-preview--shadow-floating .style-combination-preview__card--back {
+  box-shadow: var(--shadow-preview-floating-back);
+}
+
+.style-combination-preview--shadow-floating .style-combination-preview__card--front {
+  box-shadow: var(--shadow-preview-floating-front);
 }
 
 [theme-mode='dark'] .shadow-preview--standard .shadow-preview__card--back {
-  box-shadow: 0 6px 18px rgb(0 0 0 / 26%);
+  box-shadow: var(--shadow-preview-standard-back, 0 6px 18px rgb(0 0 0 / 26%));
 }
 
 [theme-mode='dark'] .shadow-preview--standard .shadow-preview__card--front {
-  box-shadow: 0 14px 28px rgb(0 0 0 / 32%);
+  box-shadow: var(--shadow-preview-standard-front, 0 14px 28px rgb(0 0 0 / 32%));
 }
 
 [theme-mode='dark'] .shadow-preview--floating .shadow-preview__card--back {
-  box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
+  box-shadow: var(--shadow-preview-floating-back, 0 10px 26px rgb(0 0 0 / 34%));
 }
 
 [theme-mode='dark'] .shadow-preview--floating .shadow-preview__card--front {
-  box-shadow: 0 18px 42px rgb(0 0 0 / 40%);
+  box-shadow: var(--shadow-preview-floating-front, 0 18px 42px rgb(0 0 0 / 40%));
 }
 
 .density-preview {
+  --density-preview-scale: 1;
+
   color: var(--td-text-color-secondary);
   display: grid;
   font: var(--td-font-body-small);
   grid-auto-rows: min-content;
+  line-height: calc(1.42 * var(--density-preview-scale));
+  padding: calc(12px * var(--graft-theme-density-scale)) calc(14px * var(--graft-theme-density-scale));
   width: 100%;
-}
-
-.density-preview--compact {
-  line-height: 1.16;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
-}
-
-.density-preview--standard {
-  line-height: 1.42;
-  padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
-}
-
-.density-preview--comfortable {
-  line-height: 1.5;
-  padding: var(--graft-density-gap-14);
 }
 
 .density-preview__line {
@@ -2600,11 +2931,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 }
 
 .density-preview__line + .density-preview__line {
-  margin-top: var(--graft-density-gap-2);
-}
-
-.density-preview--comfortable .density-preview__line + .density-preview__line {
-  margin-top: var(--graft-density-gap-6);
+  margin-top: calc(2px * var(--graft-theme-density-scale));
 }
 
 .advanced-layout .advanced-settings-card {
@@ -2882,12 +3209,20 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
+  .style-control {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
   .font-size-control__select {
     grid-column: 1 / -1;
     width: 100%;
   }
 
   .font-size-control__marks {
+    padding-inline: 0;
+  }
+
+  .style-control__marks {
     padding-inline: 0;
   }
 

@@ -76,6 +76,168 @@ describe('setting store theme authority', () => {
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
   });
 
+  it('uses standard shadow intensity by default without changing the current floating shadow tokens', () => {
+    const store = useSettingStore();
+
+    store.initializeThemeWorkbenchRuntime();
+
+    expect(store.shadowIntensity).toBe('standard');
+    expect(store.createThemeAuthoritySnapshot().shadowIntensity).toBe('standard');
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-shadow-1': '0 6px 16px rgba(15, 23, 42, 0.12)',
+      '--td-shadow-2': '0 16px 36px rgba(15, 23, 42, 0.18)',
+      '--td-shadow-3': '0 24px 56px rgba(15, 23, 42, 0.24)',
+    });
+  });
+
+  it('scales hard-offset shadows and the neo hard surface together', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ shadowPreset: 'hard-offset', shadowIntensity: 'subtle' });
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-shadow-1': '1px 1px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--td-shadow-2': '2px 2px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--td-shadow-3': '3px 3px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--graft-neo-shadow': '2px 2px 0 var(--graft-neo-ink)',
+    });
+
+    store.updateThemeDraftAppearance({ shadowIntensity: 'strong' });
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-shadow-1': '3px 3px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--td-shadow-2': '6px 6px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--td-shadow-3': '9px 9px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--graft-neo-shadow': '6px 6px 0 var(--graft-neo-ink)',
+    });
+  });
+
+  it('changes soft shadow recipes by intensity while flat remains shadowless', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ shadowPreset: 'standard', shadowIntensity: 'standard' });
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 10px 24px rgba(15, 23, 42, 0.12)');
+
+    store.updateThemeDraftAppearance({ shadowPreset: 'standard', shadowIntensity: 'subtle' });
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 6px 16px rgba(15, 23, 42, 0.08)');
+
+    store.updateThemeDraftAppearance({ shadowIntensity: 'strong' });
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 14px 32px rgba(15, 23, 42, 0.18)');
+
+    store.updateThemeDraftAppearance({ shadowPreset: 'floating', shadowIntensity: 'subtle' });
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 10px 24px rgba(15, 23, 42, 0.12)');
+
+    store.updateThemeDraftAppearance({ shadowIntensity: 'strong' });
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 22px 48px rgba(15, 23, 42, 0.24)');
+
+    store.updateThemeDraftAppearance({ shadowPreset: 'flat' });
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-shadow-1': 'none',
+      '--td-shadow-2': 'none',
+      '--td-shadow-3': 'none',
+    });
+  });
+
+  it('tracks, applies, and persists shadow intensity as theme authority', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ shadowIntensity: 'strong' });
+
+    expect(store.themeAuthorityDiff).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'shadowIntensity', toValue: 'strong' })]),
+    );
+    expect(store.hasThemeDraftPendingChanges).toBe(true);
+
+    store.applyThemeDraft();
+
+    expect(store.shadowIntensity).toBe('strong');
+    expect(store.createThemeAuthoritySnapshot().shadowIntensity).toBe('strong');
+  });
+
+  it('interpolates continuous radius and density values while clearing overrides at preset anchors', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ radiusOverride: 6, densityOverride: 0.94 });
+
+    expect(store.radiusOverride).toBe(6);
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-radius-default': '6px',
+      '--td-radius-medium': '8px',
+      '--td-comp-size-m': '30.08px',
+    });
+    expect(store.densityOverride).toBe(0.94);
+
+    store.updateThemeDraftAppearance({ radiusOverride: 12, densityOverride: 1 });
+
+    expect(store.radiusPreset).toBe('rounded');
+    expect(store.radiusOverride).toBeNull();
+    expect(store.densityPreset).toBe('standard');
+    expect(store.densityOverride).toBeNull();
+  });
+
+  it('keeps a flat shadow override for later visual styles and scales hard-offset surfaces continuously', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ shadowPreset: 'flat', shadowIntensityOverride: 1.25 });
+
+    expect(store.shadowIntensityOverride).toBe(1.25);
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('none');
+
+    store.updateThemeDraftAppearance({ shadowPreset: 'hard-offset' });
+
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--td-shadow-2': '5px 5px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
+      '--graft-neo-shadow': '5px 5px 0 var(--graft-neo-ink)',
+    });
+
+    store.updateThemeDraftAppearance({ shadowIntensityOverride: 1 });
+
+    expect(store.shadowIntensity).toBe('standard');
+    expect(store.shadowIntensityOverride).toBeNull();
+    expect(store.themeResolvedTokens.light['--graft-neo-shadow']).toBe('4px 4px 0 var(--graft-neo-ink)');
+  });
+
+  it('preserves continuous overrides for palette presets and clears them for complete presets', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('presets');
+    store.updateThemeDraftAppearance({
+      radiusOverride: 6,
+      shadowIntensityOverride: 0.75,
+      densityOverride: 0.94,
+    });
+    store.selectThemePreset('tokyo-night');
+
+    expect(store.radiusOverride).toBe(6);
+    expect(store.shadowIntensityOverride).toBe(0.75);
+    expect(store.densityOverride).toBe(0.94);
+
+    store.selectThemePreset('atom-one-dark', 'complete');
+
+    expect(store.radiusOverride).toBeNull();
+    expect(store.shadowIntensityOverride).toBeNull();
+    expect(store.densityOverride).toBeNull();
+  });
+
+  it('removes hard surfaces when Atom One Dark is applied as a complete preset', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('industrial-yellow', 'complete');
+    expect(document.documentElement.toggleAttribute).toHaveBeenLastCalledWith('data-graft-hard-surface', true);
+
+    store.selectThemePreset('atom-one-dark', 'complete');
+
+    expect(store.radiusPreset).toBe('standard');
+    expect(store.radiusOverride).toBeNull();
+    expect(store.shadowPreset).toBe('floating');
+    expect(store.shadowIntensityOverride).toBeNull();
+    expect(document.documentElement.toggleAttribute).toHaveBeenLastCalledWith('data-graft-hard-surface', false);
+  });
+
   it('keeps acrylic as a persisted workbench style preference instead of theme authority', () => {
     const store = useSettingStore();
 
@@ -275,21 +437,21 @@ describe('setting store theme authority', () => {
   it('applies and cancels the floating personalization entry through the layout draft', () => {
     const store = useSettingStore();
 
-    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
 
     store.openThemeWorkbench('layout');
-    store.updateConfig({ showThemeWorkbenchDock: false });
+    store.updateConfig({ showThemeWorkbenchDock: true });
 
-    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
 
     store.cancelThemeDraft();
-    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
 
     store.openThemeWorkbench('layout');
-    store.updateConfig({ showThemeWorkbenchDock: false });
+    store.updateConfig({ showThemeWorkbenchDock: true });
     store.applyThemeDraft();
-    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
   });
 
   it('keeps previewed layout config after applying the workbench changes', () => {
@@ -709,6 +871,7 @@ describe('setting store theme authority', () => {
     expect(store.selectedThemePresetId).toBe('industrial-yellow');
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.shadowIntensity).toBe('standard');
     expect(store.themeResolvedTokens.light).toMatchObject({
       '--graft-neo-accent': '#FFE45C',
       '--graft-neo-shadow': '4px 4px 0 var(--graft-neo-ink)',
@@ -724,6 +887,7 @@ describe('setting store theme authority', () => {
 
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.shadowIntensity).toBe('standard');
     expect(store.selectedThemePresetId).toBe('industrial-yellow');
   });
 
@@ -749,6 +913,9 @@ describe('setting store theme authority', () => {
   it('declares a fixed light or dark mode for every built-in theme preset', () => {
     expect(THEME_PRESET_DEFINITIONS).toHaveLength(21);
     expect(THEME_PRESET_DEFINITIONS.every((preset) => preset.mode === 'light' || preset.mode === 'dark')).toBe(true);
+    expect(
+      THEME_PRESET_DEFINITIONS.every((preset) => (preset.authorityPatch?.shadowIntensity ?? 'standard') === 'standard'),
+    ).toBe(true);
   });
 
   it('resolves scrollbar tracks and hover states from the selected theme preset', () => {
@@ -903,7 +1070,7 @@ describe('setting store theme authority', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
     store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
-    store.updateThemeDraftAppearance({ fontSizePreset: 'large', densityPreset: 'compact' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large', densityPreset: 'compact', shadowIntensity: 'strong' });
     store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
 
     store.selectThemePreset('tokyo-night');
@@ -912,6 +1079,7 @@ describe('setting store theme authority', () => {
     expect(store.brandTheme).toBe('#7AA2F7');
     expect(store.fontSizePreset).toBe('large');
     expect(store.densityPreset).toBe('compact');
+    expect(store.shadowIntensity).toBe('strong');
     expect(store.layout).toBe('side');
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
@@ -929,6 +1097,7 @@ describe('setting store theme authority', () => {
 
     expect(store.fontSizePreset).toBe('standard');
     expect(store.densityPreset).toBe('comfortable');
+    expect(store.shadowIntensity).toBe('standard');
     expect(store.layout).toBe('mix');
     expect(store.isAcrylicEnabled).toBe(true);
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
@@ -954,6 +1123,7 @@ describe('setting store theme authority', () => {
     store.selectThemePreset('industrial-yellow', 'complete');
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.shadowIntensity).toBe('standard');
 
     store.selectThemePreset('one-dark-pro', 'complete');
     expect(store.radiusPreset).toBe('standard');
@@ -963,12 +1133,17 @@ describe('setting store theme authority', () => {
   it('keeps manually selected style values while changing color presets', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateThemeDraftAppearance({ radiusPreset: 'square', shadowPreset: 'hard-offset' });
+    store.updateThemeDraftAppearance({
+      radiusPreset: 'square',
+      shadowPreset: 'hard-offset',
+      shadowIntensity: 'strong',
+    });
 
     store.selectThemePreset('tokyo-night');
 
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
+    expect(store.shadowIntensity).toBe('strong');
   });
 
   it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {
