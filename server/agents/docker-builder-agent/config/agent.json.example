@@ -1,0 +1,11 @@
+{
+  "bootstrap_url": "https://graft-backend:9444",
+  "agent_url": "https://graft-backend:9443",
+  "target_id": 1,
+  "agent_id": "builder-1",
+  "secret_file": "/run/secrets/bootstrap_token",
+  "bootstrap_ca_file": "/etc/graft/config/bootstrap-ca.pem",
+  "trust_bundle_file": "/etc/graft/config/agent-ca.pem",
+  "state_dir": "/var/lib/graft-builder-agent/state",
+  "docker_socket": "/var/run/docker.sock"
+}

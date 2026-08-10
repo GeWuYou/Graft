@@ -30,14 +30,15 @@ identity.
 ### 2. Identity and SAN/URI rules
 
 Every enrollment generation has one stable `agent_id` and a monotonically increasing `generation`. The certificate URI
-SAN is the canonical identity:
+SAN is the stable workload identity:
 
-`spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>/generation/<generation>`
+`spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>`
 
-`target_id`, `agent_id` and `generation` use their canonical lowercase textual encodings. DNS, IP and email SANs are
-omitted; endpoint names are connection data, not identity. The control plane accepts a certificate only when its URI SAN,
-certificate issuer, serial, public-key fingerprint, target binding, provider ID, scope ID and generation match the active
-enrollment record. URI parsing is exact and does not accept aliases, prefixes or a second identity field.
+`target_id` and `agent_id` use their canonical textual encodings. DNS, IP and email SANs are omitted; endpoint names are
+connection data, not identity. `generation` is certificate metadata and ledger/receipt evidence, not part of the SPIFFE
+workload identity. The control plane accepts a certificate only when its URI SAN, certificate issuer, serial,
+public-key fingerprint, target binding, provider ID, scope ID and active generation metadata match the enrollment record.
+URI parsing is exact and does not accept aliases, prefixes or a second identity field.
 
 ### 3. Enrollment and delivery
 

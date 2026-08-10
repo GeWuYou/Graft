@@ -158,7 +158,7 @@ func TestEphemeralAgentPKIFixtureSignsAndReconcilesExactCSR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create CSR: %v", err)
 	}
-	request := moduleapi.AgentCertificateIssuanceRequest{IdentityID: "identity-7", TargetID: 7, AgentID: "agent-7", Generation: 3, IssuanceKey: "issuance-7", SPIFFEURI: "spiffe://graft/runtime-target/7/builder-agent/agent-7/generation/3", CSRDER: csrDER}
+	request := moduleapi.AgentCertificateIssuanceRequest{IdentityID: "identity-7", TargetID: 7, AgentID: "agent-7", Generation: 3, IssuanceKey: "issuance-7", SPIFFEURI: "spiffe://graft/runtime-target/7/builder-agent/agent-7", CSRDER: csrDER}
 	if _, err := fixture.ReconcileCSR(context.Background(), request.IssuanceKey); !errors.Is(err, moduleapi.ErrAgentCertificateIssuanceNotFound) {
 		t.Fatalf("first reconcile = %v", err)
 	}

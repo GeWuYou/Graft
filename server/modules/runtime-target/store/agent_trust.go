@@ -196,6 +196,16 @@ func (r *SQLRepository) ReadActiveAgentTrustGeneration(ctx context.Context, targ
 	return scanAgentTrustGeneration(row)
 }
 
+// ReadActiveAgentTrustGenerationByCertificate resolves lifecycle generation from certificate evidence.
+// The workload URI identifies only the stable Agent; serial and public-key fingerprint bind the current generation.
+func (r *SQLRepository) ReadActiveAgentTrustGenerationByCertificate(ctx context.Context, targetID int64, agentID, certificateSerial, publicKeyFingerprint string, now time.Time) (AgentTrustGeneration, error) {
+	if r == nil || r.db == nil || targetID < 1 || strings.TrimSpace(agentID) == "" || strings.TrimSpace(certificateSerial) == "" || strings.TrimSpace(publicKeyFingerprint) == "" || now.IsZero() {
+		return AgentTrustGeneration{}, ErrAgentTrustNotActive
+	}
+	row := r.executor(ctx).QueryRowContext(ctx, `SELECT `+agentTrustGenerationSelectColumns+` FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND g.certificate_serial = $3 AND g.public_key_fingerprint = $4 AND i.deleted_at = 0 AND g.deleted_at = 0 AND g.status = 'active' AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.expires_at > $5`, targetID, agentID, strings.TrimSpace(certificateSerial), strings.TrimSpace(publicKeyFingerprint), now.UTC())
+	return scanAgentTrustGeneration(row)
+}
+
 // ReadActiveAgentTrustGenerationForLedgerMutation 在同一事务中固定活动世代，避免撤销与账本写入交错。
 func (r *SQLRepository) ReadActiveAgentTrustGenerationForLedgerMutation(ctx context.Context, targetID int64, agentID string, generation int64, now time.Time) (AgentTrustGeneration, error) {
 	active, err := r.ReadActiveAgentTrustGeneration(ctx, targetID, agentID, generation, now)

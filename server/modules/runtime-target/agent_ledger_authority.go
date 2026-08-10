@@ -35,6 +35,11 @@ func (a runtimeTargetAgentLedgerAuthority) IssueLedgerSnapshot(ctx context.Conte
 		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
 	}
 	now := a.now().UTC()
+	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, identity.TargetID, identity.AgentID, identity.CertificateSerial, identity.PublicKeyFingerprint, now)
+	if err != nil {
+		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
+	}
+	identity.IdentityID, identity.Generation = active.Identity.IdentityID, active.Generation
 	snapshotID, err := newAgentLedgerSnapshotID(a.random)
 	if err != nil {
 		return moduleapi.RuntimeTargetLedgerSnapshot{}, errAgentLedgerRejected
@@ -59,6 +64,10 @@ func (a runtimeTargetAgentLedgerAuthority) IssueLedgerSnapshot(ctx context.Conte
 // SubmitTelemetryReport 持久化一个已签发快照的受限回执；完全相同的重试保持幂等。
 func (a runtimeTargetAgentLedgerAuthority) SubmitTelemetryReport(ctx context.Context, report moduleapi.RuntimeTargetTelemetryReport) error {
 	if a.repository == nil || a.now == nil {
+		return errAgentLedgerRejected
+	}
+	active, err := a.repository.ReadActiveAgentTrustGenerationByCertificate(ctx, report.TargetID, report.AgentID, report.CertificateSerial, report.PublicKeyFingerprint, a.now().UTC())
+	if err != nil || active.Generation != report.Generation || active.Identity.IdentityID != report.IdentityID {
 		return errAgentLedgerRejected
 	}
 	if err := a.repository.RecordAgentTelemetryReceipt(ctx, store.AgentLedgerIdentity{

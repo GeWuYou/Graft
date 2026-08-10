@@ -113,7 +113,7 @@ func parseBootstrapCSR(encoded []byte) (*x509.CertificateRequest, string, error)
 }
 
 func agentSPIFFEURI(generation store.AgentTrustGeneration) string {
-	return fmt.Sprintf("spiffe://graft/runtime-target/%d/builder-agent/%s/generation/%d", generation.Identity.TargetID, generation.Identity.AgentID, generation.Generation)
+	return fmt.Sprintf("spiffe://graft/runtime-target/%d/builder-agent/%s", generation.Identity.TargetID, generation.Identity.AgentID)
 }
 
 //nolint:cyclop // 证书 DTO、DER 叶证书、CSR 公钥和精确 URI 必须在同一激活门禁内联立校验。

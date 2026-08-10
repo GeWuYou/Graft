@@ -3,6 +3,7 @@ package credentialvault
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
@@ -140,10 +141,36 @@ func NewVaultPKIClient(configuration config.CredentialVaultConfig, store Issuanc
 	if store == nil {
 		return nil, errors.New("vault PKI issuance state store is required")
 	}
-	if strings.TrimSpace(configuration.Address) == "" || strings.TrimSpace(configuration.AuthMount) == "" || strings.TrimSpace(configuration.AuthRole) == "" || strings.TrimSpace(configuration.AuthRoleIDFile) == "" || strings.TrimSpace(configuration.AuthSecretIDFile) == "" || strings.TrimSpace(configuration.PKIMount) == "" || strings.TrimSpace(configuration.PKIRole) == "" {
-		return nil, errors.New("vault PKI configuration is incomplete")
+	if err := validateVaultPKIConfiguration(configuration); err != nil {
+		return nil, err
 	}
-	return &VaultPKIClient{config: configuration, store: store, http: &http.Client{Timeout: vaultRequestTimeout}}, nil
+	client, err := newVaultTLSClient(configuration.CAFile)
+	if err != nil {
+		return nil, err
+	}
+	return &VaultPKIClient{config: configuration, store: store, http: client}, nil
+}
+
+func validateVaultPKIConfiguration(configuration config.CredentialVaultConfig) error {
+	if strings.TrimSpace(configuration.Address) == "" || strings.TrimSpace(configuration.CAFile) == "" || strings.TrimSpace(configuration.AuthMount) == "" || strings.TrimSpace(configuration.AuthRole) == "" || strings.TrimSpace(configuration.AuthRoleIDFile) == "" || strings.TrimSpace(configuration.AuthSecretIDFile) == "" || strings.TrimSpace(configuration.PKIMount) == "" || strings.TrimSpace(configuration.PKIRole) == "" {
+		return errors.New("vault PKI configuration is incomplete")
+	}
+	return nil
+}
+
+func newVaultTLSClient(caFile string) (*http.Client, error) {
+	// #nosec G304 -- caFile 是已校验的 Vault 信任锚生产配置。
+	caPEM, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, fmt.Errorf("read Vault CA file: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, errors.New("vault CA file contains no certificates")
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: pool}
+	return &http.Client{Timeout: vaultRequestTimeout, Transport: transport}, nil
 }
 
 // IssueCSR 使用稳定签发键协调 Vault PKI 外部副作用，并只返回非秘密证书材料。

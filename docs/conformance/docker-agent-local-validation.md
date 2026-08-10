@@ -2,8 +2,10 @@
 
 ## Status
 
-Blocked at Phase 2. No Docker Agent OCI package exists in the current checkout, so a real Docker + Vault + Agent
-lifecycle cannot be started without first adding the explicitly missing Agent runtime.
+In progress. The independent Docker Builder Agent OCI package and real Vault
+dev-TLS fixture now exist, but local lifecycle acceptance remains blocked before
+bootstrap because the isolated Backend topology has not yet supplied its
+PostgreSQL/migration/runtime-target preparation and server-owned delivery driver.
 
 ## Environment
 
@@ -23,29 +25,48 @@ Graft Agent container is running.
 | --- | --- | --- |
 | Docker daemon | pass | `docker version` returned client/server `29.2.1` |
 | Docker Compose | pass | `docker compose version` returned `v5.1.0` |
-| Agent OCI image build | blocked | no `cmd/graft-agent`, Agent binary, or Agent Dockerfile in `server/**` |
-| Agent container startup | not run | no image can be built |
-| Vault AppRole login | not run | no Vault service/configuration available |
-| Vault PKI issuance | not run | no Agent client or real Vault fixture available |
+| Agent OCI image build | pass | `server/agents/docker-builder-agent/Dockerfile` builds `graft/docker-builder-agent:conformance` |
+| Agent container startup | partial | image entrypoint and `--version` run with read-only root filesystem; full bootstrap is pending Backend preparation |
+| Vault AppRole login | pass | real Vault dev-TLS fixture initializes AppRole and verifies login |
+| Vault PKI issuance | pending | Backend must establish its CA-verified Vault connection during a real bootstrap |
 | mTLS reconnect | not run | server-side tests exist, but no deployable Agent exists |
 | Ledger receipt | not run | no Agent runtime exists to pull and acknowledge a snapshot |
 | Agent restart recovery | not run | no Agent state volume or container exists |
 
 ## Missing Items
 
-1. Dedicated `graft-agent` command and binary.
-2. Agent image with `/app/graft-agent`, `/etc/graft/config`, and `/var/lib/graft-agent/state`.
-3. Agent-side bootstrap, local private-key/state persistence, TLS 1.3 mTLS pull/ack, and reconnect logic.
-4. Docker Compose Vault dev/server fixture with mounted AppRole RoleID/SecretID and PKI setup.
-5. Docker-only conformance harness and image digest/version evidence.
+1. Isolated PostgreSQL service, migration execution, and a Runtime Target created through its normal control-plane authority.
+2. A server-owned non-public conformance driver that resolves registered Runtime Target authorities and records normal delivery evidence without direct SQL.
+3. Backend Agent bootstrap and mTLS listeners with deployment-mounted TLS material.
+4. The Agent config/secret handoff from the normal delivery authority into the named Agent volumes.
+5. A full restart/reconnect run and the resulting durable ledger/receipt evidence.
+
+## Fixture
+
+The real Vault fixture is defined under `deployments/compose/docker-builder-agent/`.
+It uses Vault dev-TLS mode, AppRole login, and PKI issuance configuration through
+the Vault API. `tests/conformance/docker-builder-agent/run.sh` refuses to run
+without `CONFORMANCE_DRIVER_CMD`, which must invoke the existing authenticated
+Runtime Target/moduleapi workflow. The driver never writes the database and does
+not provide fake certificate responses.
+
+The fixture remains blocked until a server-owned command can invoke that normal
+workflow, the isolated Backend topology has a migrated PostgreSQL database and
+an existing Runtime Target, and the Agent bootstrap listener is available.
+Current blockers:
+
+`Runtime Target enrollment/delivery driver seam is not exposed as a runnable server-owned command; isolated Backend database/target preparation is absent; Vault revocation durable reconciliation pending.`
 
 ## Root Cause
 
-The server-side Runtime Target trust boundary is present, but the PR3 deployable Agent package and real Vault fixture
-are absent from this checkout. Existing unit and HTTP tests cannot prove container startup, Docker-secret injection,
-Vault AppRole authentication, or restart/reconnect behavior.
+The server-side Runtime Target trust boundary, deployable Agent package and real
+Vault fixture are present. Existing focused tests and image startup cannot prove
+container secret injection, Backend-to-Vault issuance, mTLS receipt, or restart
+recovery until the normal server-owned delivery workflow is runnable against an
+isolated migrated topology.
 
 ## Next Smallest Fix
 
-Implement the dedicated Agent command/image and a derived local Vault Compose fixture. Do not publish Agent or Operator
-OpenAPI until all Phase 2 through Phase 5 gates pass against those real containers.
+Add the server-owned conformance driver and isolated Backend preparation through
+the normal Runtime Target authority. Do not publish Agent or Operator OpenAPI
+until all Phase 2 through Phase 5 gates pass against those real containers.
