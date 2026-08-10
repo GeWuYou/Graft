@@ -4,9 +4,11 @@ Docker Builder Agent 是独立部署单元。Runtime Target 负责 enrollment、
 
 ## Local debug
 
-将 `.env.example` 复制为 `.env`，再将 `config/agent.json.example` 复制为被 `.env` 引用的本地配置。配置中的 `target_id`、`agent_id`、bootstrap token 与 CA 必须来自 Backend-owned delivery；不能为了调试手写或重用生产 token。
+将 `config/agent.local.json.example` 复制为被忽略的 `config/agent.local.json`。该模板供宿主机 Agent 使用，连接本地 Server 的 `127.0.0.1:8443` bootstrap listener 和 `127.0.0.1:8444` mTLS listener，并复用根 Compose 的 `.data/docker-builder-agent/{bootstrap,trust,state}` 交付目录。
 
-VS Code 的 `agent: Docker Builder` 与 `agent: Docker Builder（单次）` 启动项会读取该 `.env`。命令行也可用 `--config <path>` 显式覆盖环境变量。
+配置中的 `target_id`、`agent_id`、bootstrap token 与 CA 必须来自 Backend-owned delivery；不能为了调试手写或重用生产 token。VS Code 的 `agent: Docker Builder` 与 `agent: Docker Builder（单次）` 启动项会显式使用该本地配置，因此日志直接输出到调试器且无需构建 Agent 镜像。
+
+`config/agent.json.example` 保留给 Compose 容器，使用 Compose DNS 名和容器内挂载路径；不要把它用于宿主机调试。
 
 ## Compose profile
 

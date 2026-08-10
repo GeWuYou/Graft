@@ -105,8 +105,11 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
-            "cwd": "${workspaceFolder}/server",
-            "envFile": "${workspaceFolder}/server/agents/docker-builder-agent/.env"
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--config",
+                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json"
+            ]
         },
         {
             "name": "agent: Docker Builder（单次）",
@@ -114,9 +117,10 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
-            "cwd": "${workspaceFolder}/server",
-            "envFile": "${workspaceFolder}/server/agents/docker-builder-agent/.env",
+            "cwd": "${workspaceFolder}",
             "args": [
+                "--config",
+                "${workspaceFolder}/server/agents/docker-builder-agent/config/agent.local.json",
                 "--once"
             ]
         },
