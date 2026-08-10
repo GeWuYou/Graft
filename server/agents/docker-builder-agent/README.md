@@ -4,7 +4,7 @@ Docker Builder Agent 是独立部署单元。Runtime Target 负责 enrollment、
 
 ## Local debug
 
-VS Code 的启动任务会先调用 Backend-owned `graft dev docker-builder-agent prepare` 与 `deliver`，将被忽略的 `config/agent.local.json` 和交付材料写入隔离的 `.data/docker-builder-agent-dev`。宿主机 Agent 随后连接本地 Server 的 `127.0.0.1:8443` bootstrap listener 和 `127.0.0.1:8444` mTLS listener。
+VS Code 的启动任务会先调用 Backend-owned `graft dev docker-builder-agent prepare` 与 `deliver`，将被忽略的 `config/agent.local.json` 和交付材料写入隔离的 `.data/docker-builder-agent-dev`。默认 `shared` 模式下，调试 Server 使用 `server/.env` 中现有的 Graft 开发数据库，并使用本地 Redis、Vault 和 TLS 配置；需要空库时可在 CLI 的 prepare、deliver 与 reset 命令上统一传递 `--database-mode isolated`。宿主机 Agent 随后连接本地 Server 的 `127.0.0.1:8443` bootstrap listener 和 `127.0.0.1:8444` mTLS listener。
 
 配置中的 `target_id`、`agent_id`、bootstrap token 与 CA 必须来自 Backend-owned delivery；不能为了调试手写或重用生产 token。VS Code 的 Agent 启动项会等待这些开发交付材料，因此日志直接输出到调试器且无需构建 Agent 镜像；正常 production/Compose 启动仍会在配置错误时立即失败。
 

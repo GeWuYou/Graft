@@ -31,8 +31,12 @@ cp "$root/secrets/ca.pem" "$root/agent/trust/ca.pem"
 issued=$(mktemp)
 trap 'rm -f "$issued"' EXIT HUP INT TERM
 vault write -format=json pki/issue/graft-local-server common_name=localhost alt_names=localhost ip_sans=127.0.0.1 > "$issued"
-jq -er '.data.certificate' "$issued" > "$root/secrets/server-cert.pem"
-jq -er '.data.private_key' "$issued" > "$root/secrets/server-key.pem"
+server_certificate="$(sed -n 's/^[[:space:]]*"certificate": "\(.*\)",\{0,1\}$/\1/p' "$issued")"
+server_key="$(sed -n 's/^[[:space:]]*"private_key": "\(.*\)",\{0,1\}$/\1/p' "$issued")"
+test -n "$server_certificate"
+test -n "$server_key"
+printf '%b\n' "$server_certificate" > "$root/secrets/server-cert.pem"
+printf '%b\n' "$server_key" > "$root/secrets/server-key.pem"
 rm -f "$issued"
 trap - EXIT HUP INT TERM
 dd if=/dev/urandom of="$root/secrets/enrollment-pepper" bs=32 count=1 status=none

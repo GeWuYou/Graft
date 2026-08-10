@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
@@ -24,20 +25,50 @@ import (
 const localDockerBuilderAgentName = "docker-builder-agent-local"
 const localDockerBuilderSecretDirPerm = 0o700
 const (
-	localDockerBuilderSecretFilePerm = 0o600
-	localDockerBuilderHealthTimeout  = 5 * time.Second
+	localDockerBuilderSecretFilePerm      = 0o600
+	localDockerBuilderHealthTimeout       = 5 * time.Second
+	localDockerBuilderIsolatedDatabaseURL = "postgres://graft:graft@127.0.0.1:15432/graft?sslmode=disable" //nolint:gosec // 仅用于显式 isolated 调试模式的可丢弃 Compose PostgreSQL。
 )
 const localDockerBuilderServerWait = 90 * time.Second
 
+type localDockerBuilderDatabaseMode string
+
+const (
+	localDockerBuilderDatabaseModeShared   localDockerBuilderDatabaseMode = "shared"
+	localDockerBuilderDatabaseModeIsolated localDockerBuilderDatabaseMode = "isolated"
+)
+
 func newDevDockerBuilderAgentCommand() *cobra.Command {
 	command := &cobra.Command{Use: "docker-builder-agent", Short: "Prepare the local Docker Builder Agent development topology"}
-	command.AddCommand(&cobra.Command{Use: "prepare", Short: "Start isolated local dependencies and write Server environment", Args: cobra.NoArgs, RunE: runDevDockerBuilderAgentPrepare})
-	command.AddCommand(&cobra.Command{Use: "deliver", Short: "Wait for the local Server and deliver the local Agent identity", Args: cobra.NoArgs, RunE: runDevDockerBuilderAgentDeliver})
-	command.AddCommand(&cobra.Command{Use: "reset", Short: "Archive and rebuild the isolated local Docker Builder Agent development environment", Args: cobra.NoArgs, RunE: runDevDockerBuilderAgentReset})
+
+	prepareMode := string(localDockerBuilderDatabaseModeShared)
+	prepare := &cobra.Command{Use: "prepare", Short: "Start local dependencies and write Server environment", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		return runDevDockerBuilderAgentPrepare(cmd, localDockerBuilderDatabaseMode(prepareMode))
+	}}
+	prepare.Flags().StringVar(&prepareMode, "database-mode", prepareMode, "Database mode: shared or isolated")
+
+	deliverMode := string(localDockerBuilderDatabaseModeShared)
+	deliver := &cobra.Command{Use: "deliver", Short: "Wait for the local Server and deliver the local Agent identity", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		return runDevDockerBuilderAgentDeliver(cmd, localDockerBuilderDatabaseMode(deliverMode))
+	}}
+	deliver.Flags().StringVar(&deliverMode, "database-mode", deliverMode, "Database mode: shared or isolated")
+
+	resetMode := string(localDockerBuilderDatabaseModeShared)
+	reset := &cobra.Command{Use: "reset", Short: "Archive and rebuild the local Docker Builder Agent development environment", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		return runDevDockerBuilderAgentReset(cmd, localDockerBuilderDatabaseMode(resetMode))
+	}}
+	reset.Flags().StringVar(&resetMode, "database-mode", resetMode, "Database mode: shared or isolated")
+
+	command.AddCommand(prepare, deliver, reset)
 	return command
 }
 
-func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, _ []string) error {
+func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, databaseMode localDockerBuilderDatabaseMode) error {
+	databaseMode, err := normalizeLocalDockerBuilderDatabaseMode(databaseMode)
+	if err != nil {
+		return err
+	}
+
 	root, err := localDockerBuilderAgentRoot()
 	if err != nil {
 		return err
@@ -46,7 +77,11 @@ func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	composeFile := filepath.Join(filepath.Dir(filepath.Dir(root)), "deployments", "docker-builder-agent-dev", "compose.yml")
-	if err := runLocalDockerBuilderCompose(cmd.Context(), root, composeFile, "up", "-d", "postgres", "redis", "vault"); err != nil {
+	services := []string{"up", "-d", "redis", "vault"}
+	if databaseMode == localDockerBuilderDatabaseModeIsolated {
+		services = append(services, "postgres")
+	}
+	if err := runLocalDockerBuilderCompose(cmd.Context(), root, composeFile, services...); err != nil {
 		return err
 	}
 	if err := runLocalDockerBuilderCompose(cmd.Context(), root, composeFile, "run", "--rm", "vault-init"); err != nil {
@@ -55,12 +90,12 @@ func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, _ []string) error {
 	if err := exportLocalVaultCA(cmd.Context(), root, composeFile); err != nil {
 		return err
 	}
-	return writeLocalDockerBuilderServerEnv(root)
+	return writeLocalDockerBuilderServerEnv(root, databaseMode)
 }
 
 //nolint:cyclop // 开发交付需要在同一 CLI 边界显式装配依赖、配置与 authority。
-func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, _ []string) error {
-	if err := runDevDockerBuilderAgentPrepare(cmd, nil); err != nil {
+func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDockerBuilderDatabaseMode) error {
+	if err := runDevDockerBuilderAgentPrepare(cmd, databaseMode); err != nil {
 		return err
 	}
 	root, err := localDockerBuilderAgentRoot()
@@ -111,7 +146,12 @@ func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, _ []string) error {
 
 // runDevDockerBuilderAgentReset 归档本开发拓扑的受忽略状态后重建依赖与环境文件。
 // 数据库中的 Agent binding 不在该命令的清理范围内；缺少交付配置时 deliver 会明确要求先重置该 binding。
-func runDevDockerBuilderAgentReset(cmd *cobra.Command, _ []string) error {
+func runDevDockerBuilderAgentReset(cmd *cobra.Command, databaseMode localDockerBuilderDatabaseMode) error {
+	databaseMode, err := normalizeLocalDockerBuilderDatabaseMode(databaseMode)
+	if err != nil {
+		return err
+	}
+
 	root, err := localDockerBuilderAgentRoot()
 	if err != nil {
 		return err
@@ -132,7 +172,7 @@ func runDevDockerBuilderAgentReset(cmd *cobra.Command, _ []string) error {
 	if err := os.Remove(configFile); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove generated local Agent config: %w", err)
 	}
-	return runDevDockerBuilderAgentPrepare(cmd, nil)
+	return runDevDockerBuilderAgentPrepare(cmd, databaseMode)
 }
 
 func localDockerBuilderAgentRoot() (string, error) {
@@ -180,13 +220,18 @@ func exportLocalVaultCA(ctx context.Context, root, composeFile string) error {
 	return os.Chmod(filepath.Join(root, "secrets", "vault-ca.pem"), localDockerBuilderSecretFilePerm)
 }
 
-func writeLocalDockerBuilderServerEnv(root string) error {
+func writeLocalDockerBuilderServerEnv(root string, databaseMode localDockerBuilderDatabaseMode) error {
+	databaseURL, err := resolveLocalDockerBuilderDatabaseURL(root, databaseMode)
+	if err != nil {
+		return err
+	}
+
 	secrets := filepath.Join(root, "secrets")
 	entries := []struct{ key, value string }{
 		{"GRAFT_APP_ENV", "local"},
 		{"GRAFT_CONFIG_SCHEMA_VERSION", "1"},
 		{"GRAFT_HTTP_ADDR", localDevAddress("GRAFT_DOCKER_BUILDER_DEV_HTTP_ADDR", "127.0.0.1:8080")},
-		{"GRAFT_DATABASE_URL", "postgres://graft:graft@127.0.0.1:15432/graft?sslmode=disable"},
+		{"GRAFT_DATABASE_URL", databaseURL},
 		{"GRAFT_REDIS_ADDR", "127.0.0.1:16379"},
 		{"GRAFT_AUTH_JWT_SECRET", "local-docker-builder-agent-development"},
 		{"GRAFT_CREDENTIAL_VAULT_ENABLED", "true"},
@@ -219,6 +264,47 @@ func writeLocalDockerBuilderServerEnv(root string) error {
 		contents.WriteByte('\n')
 	}
 	return os.WriteFile(filepath.Join(root, "server.env"), []byte(contents.String()), localDockerBuilderSecretFilePerm)
+}
+
+func localDockerBuilderServerEnvSource(root string) string {
+	return filepath.Join(filepath.Dir(filepath.Dir(root)), "server", ".env")
+}
+
+func normalizeLocalDockerBuilderDatabaseMode(mode localDockerBuilderDatabaseMode) (localDockerBuilderDatabaseMode, error) {
+	switch localDockerBuilderDatabaseMode(strings.ToLower(strings.TrimSpace(string(mode)))) {
+	case localDockerBuilderDatabaseModeShared:
+		return localDockerBuilderDatabaseModeShared, nil
+	case localDockerBuilderDatabaseModeIsolated:
+		return localDockerBuilderDatabaseModeIsolated, nil
+	default:
+		return "", fmt.Errorf("unsupported Docker Builder database mode %q; expected shared or isolated", mode)
+	}
+}
+
+func resolveLocalDockerBuilderDatabaseURL(root string, mode localDockerBuilderDatabaseMode) (string, error) {
+	mode, err := normalizeLocalDockerBuilderDatabaseMode(mode)
+	if err != nil {
+		return "", err
+	}
+	if mode == localDockerBuilderDatabaseModeIsolated {
+		return localDockerBuilderIsolatedDatabaseURL, nil
+	}
+
+	return readLocalDockerBuilderServerDatabaseURL(localDockerBuilderServerEnvSource(root))
+}
+
+func readLocalDockerBuilderServerDatabaseURL(envFile string) (string, error) {
+	values, err := godotenv.Read(envFile)
+	if err != nil {
+		return "", fmt.Errorf("read local Server environment %s: %w", envFile, err)
+	}
+
+	databaseURL := strings.TrimSpace(values["GRAFT_DATABASE_URL"])
+	if databaseURL == "" {
+		return "", fmt.Errorf("GRAFT_DATABASE_URL is required in local Server environment %s", envFile)
+	}
+
+	return databaseURL, nil
 }
 
 func localDevAddress(name, fallback string) string {
