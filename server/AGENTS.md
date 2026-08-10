@@ -41,6 +41,9 @@ authority-first overlay：
 - 根 `AGENTS.md`
 - `ai-plan/design/architecture/项目设计.md`
 - `ai-plan/design/architecture/模块与依赖注入设计.md`
+- `ai-plan/design/architecture/项目文件组织与扩展点设计.md`
+- `ai-plan/design/decisions/ADR-025-provider-oriented-project-layout.md` when the task adds or migrates a Provider,
+  Adapter, Integration, Agent, Runner, deployment fixture, or conformance fixture
 
 按任务类型追加读取：
 
@@ -168,6 +171,31 @@ authority-first overlay：
 - `modules/*`
   - 业务模块与模块自有 contract；长期方向下每个模块还应拥有自己的 capability、store、storeent、ent 与 migrations
 
+### 4.1 平台化目标边界
+
+目标组织模型与当前路径的状态、Provider/Integration 区分和迁移顺序以
+`ai-plan/design/architecture/项目文件组织与扩展点设计.md` 为准；ADR-025 负责锁定跨批次迁移决策。
+
+本阶段不创建空目录、不移动现有实现。新代码按以下规则归类：
+
+- `server/modules/<name>/**`：业务模块、业务持久化和模块公开面；
+- `server/internal/moduleapi/**`：跨模块业务 capability，不被 `internal/ports` 替代；
+- `server/internal/contract/**`：平台级 typed contract；
+- `server/providers/<kind>/<name>/**`：compile-time Provider 实现；
+- `server/agents/<name>/**`：独立部署/发布的 Agent；
+- `server/integrations/**`：GitHub、GitLab、Jira、Slack 等外部业务系统集成；
+- `deployments/**`、`tests/conformance/**`：部署拓扑和一致性 fixture，不进入 Core 或业务模块。
+
+`internal/ports/**` 只允许在已有明确外部能力端口且完成 authority 评审时使用；它不是通用 shared/common/utils
+目录。Provider 可以拥有自己的 adapter；同一供应商实现不得同时复制到 `internal/adapters/**` 和
+`providers/**`。Integration 连接外部业务系统，不是 Runtime Provider。
+
+`server/runner/compose/**`、现有 Docker runtime adapter 和历史 Agent/CLI 路径属于 current 或 legacy-frozen
+实现。旧路径只允许必要维护；新代码不得复制第二份实现，也不得直接进行无 authority 记录的 `git mv`。
+
+所有 Provider、Agent、Runner 的外部副作用都必须复用现有 Runtime、Task/Submission、配置、权限和审计边界；
+不得新增 Provider 自有 scheduler、queue、状态机、global health registry、证据库或第二套 DI。
+
 Observability authority overlay：
 
 - `modules/audit/**` 拥有 audit facts、incident read model、audit analytics 与 audit evidence consumer 语义
@@ -213,12 +241,22 @@ Observability authority overlay：
 | 平台级 typed contract | `server/internal/contract/**` | 只放平台共用 contract |
 | 模块私有稳定 contract | `server/modules/<name>/contract/**` | route fragment、permission code、message key 等 |
 | 已删除历史 migration 回放 | `server/internal/ent/**` | 不再提供 Ent/manual replay 兜底 |
+| 外部能力 port | `server/internal/ports/**`（目标保留边界） | 只放 provider-neutral 外部端口，不替代 `moduleapi` |
+| Provider 实现 | `server/providers/<kind>/<name>/**`（目标路径） | compile-time 注册的外部能力实现 |
+| 独立 Agent | `server/agents/<name>/**`（目标路径） | 独立部署单元，不是 `cmd` 参数分支 |
+| 外部业务集成 | `server/integrations/**`（目标路径） | GitHub/GitLab/Jira/Slack 等，不是 Runtime Provider |
+| Runner 与 fixture | `server/runner/**`、`deployments/**`、`tests/conformance/**` | 外部执行器、部署拓扑和一致性验证资料 |
 
 补充规则：
 
 - 新业务能力默认先问“能否直接放进 `server/modules/<name>/**`”；除非它是平台基础设施，否则不要先放 `internal/**`
 - 新的业务 schema、Ent 生成产物、业务 migration 真相不允许回流 `server/internal/ent/**`
 - 模块间协作默认优先扩展 `moduleapi` 或稳定 `contract`，而不是直接引用对方内部实现
+- 新的 Docker、Vault、Kubernetes、BuildKit 等实现必须先判断是 Provider、Adapter 还是 Integration；Core/Application
+  不得导入供应商 SDK 或读取供应商 secret、endpoint、宿主路径
+- Provider 必须通过 compile-time `ModuleSpec` / `module.Builder` / generated registry 接入；禁止 runtime discovery、
+  hot-load、反射插件系统和 Provider marketplace
+- Runner 只执行受控外部副作用，Task/Submission 仍拥有状态、重试、取消、恢复和证据语义；Runner 不得自建第二套状态机
 - 若协作涉及 observability：
   - `audit` 只能消费 monitor-owned evidence，不得反向拥有 monitor anomaly truth
   - `monitor` 不得推断 audit incident / policy truth
