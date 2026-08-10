@@ -17,7 +17,7 @@ export default {
   isUseTabsRouter: true,
   tabIndicatorPosition: 'none' as TabIndicatorPosition,
   showHeader: true,
-  showThemeWorkbenchDock: true,
+  showThemeWorkbenchDock: false,
   isAcrylicEnabled: true,
   // 仅决定下一次应用预设的范围，不参与运行时主题 token 合成。
   themePresetApplicationScope: 'palette' as 'palette' | 'complete',

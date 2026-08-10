@@ -263,6 +263,7 @@ const TTabsStub = defineComponent({
       h('div', { 'data-testid': 'tabs' }, [
         h('div', { class: 't-tabs__nav-container' }, [
           h('div', { class: 't-tabs__nav-scroll' }, [h('div', { class: 't-tabs__nav-wrap' }, slots.default?.())]),
+          slots.action?.(),
         ]),
       ]);
   },
@@ -338,8 +339,11 @@ async function openRuntimeTabMenu(wrapper: ReturnType<typeof mountLayoutContent>
 }
 
 async function clickCloseAll(wrapper: ReturnType<typeof mountLayoutContent>) {
-  const closeAllItem = wrapper
-    .findAll('[data-testid="dropdown-item"]')
+  const openDropdown = wrapper
+    .findAllComponents(TDropdownStub)
+    .find((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible);
+  const closeAllItem = openDropdown
+    ?.findAll('[data-testid="dropdown-item"]')
     .find((item) => item.text().includes('layout.tagTabs.closeAll'));
 
   expect(closeAllItem).toBeTruthy();
@@ -770,6 +774,32 @@ describe('LayoutContent', () => {
 
     expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
     expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('keeps home-tab context actions available without allowing an unclosable duplicate', async () => {
+    storeState.tabsRouterStore.activeTabKey = '/';
+    const wrapper = mountLayoutContent();
+    const dropdown = await openRuntimeTabMenu(wrapper, 0);
+
+    expect(
+      dropdown.findAll('[data-testid="dropdown-item"]').some((item) => item.text().includes('layout.tagTabs.pin')),
+    ).toBe(false);
+    const duplicateItem = dropdown
+      .findAll('[data-testid="dropdown-item"]')
+      .find((item) => item.text().includes('layout.tagTabs.duplicate'));
+
+    expect(duplicateItem?.attributes('disabled')).toBeDefined();
+  });
+
+  it('renders the full-height action trigger for the active tab', () => {
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.get('[data-testid="route-tabs-actions"]').classes()).toContain('route-tabs-actions__trigger');
+    expect(wrapper.find('.route-tabs-actions').exists()).toBe(true);
+    expect(wrapper.find('.route-tabs-actions__menu').exists()).toBe(true);
+    expect(layoutContentStyleSource).toContain('.route-tabs-actions__trigger');
+    expect(layoutContentStyleSource).toContain('height: var(--td-comp-size-xxl);');
+    expect(layoutContentStyleSource).toContain('height: 100%;');
   });
 
   it('does not create duplicate close-all dialogs for rapid consecutive clicks', async () => {

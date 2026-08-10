@@ -21,6 +21,24 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[0]?.title).toEqual(localizeRouteTitleKey('app.home.title'));
   });
 
+  it('heals persisted duplicate home tabs while preserving the canonical entry', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    tabsRouterStore.tabRouterList = [
+      ...tabsRouterStore.tabRouters,
+      {
+        ...tabsRouterStore.tabRouters[0],
+        tabKey: '/#copy-1',
+      },
+    ];
+    tabsRouterStore.activeTabKey = '/#copy-1';
+
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters).toHaveLength(1);
+    expect(tabsRouterStore.tabRouters[0]?.tabKey).toBe('/');
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
   it('keeps refresh state ephemeral and restores the tab after refresh completes', () => {
     const tabsRouterStore = useTabsRouterStore();
 
@@ -659,6 +677,28 @@ describe('useTabsRouterStore', () => {
     expect(duplicated?.query).toEqual({ scope: 'failed-auth' });
     expect(duplicated?.title?.[LOCALE.ZH_CN]).toBe('审计日志(2)');
     expect(tabsRouterStore.tabRouters).toHaveLength(3);
+  });
+
+  it('does not duplicate the preserved home tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    expect(tabsRouterStore.duplicateTab('/')).toBeNull();
+    expect(tabsRouterStore.tabRouters).toHaveLength(1);
+  });
+
+  it('keeps one home tab when reopening a stale home entry', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    tabsRouterStore.closedTabStack = [
+      {
+        ...tabsRouterStore.tabRouters[0],
+        tabKey: '/#stale-home',
+      },
+    ];
+
+    tabsRouterStore.reopenClosedTab();
+
+    expect(tabsRouterStore.tabRouters).toHaveLength(1);
+    expect(tabsRouterStore.tabRouters[0]?.tabKey).toBe('/');
   });
 
   it('duplicates a tab with a deep-copied page snapshot', () => {
