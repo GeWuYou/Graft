@@ -12,6 +12,7 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/moduleregistry"
 	"graft/server/modules/auth"
 	authstore "graft/server/modules/auth/store"
 	"graft/server/modules/rbac"
@@ -111,6 +112,9 @@ func newDevResetAdminDependencies(resources *database.Resources, i18nConfig conf
 	localizer, err := devResetNewLocalizer(i18nConfig)
 	if err != nil {
 		return devResetAdminDependencies{}, fmt.Errorf("create i18n service: %w", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(moduleregistry.EmbeddedLocaleResources()); err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("register module locale resources: %w", err)
 	}
 	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
 	if err != nil {
