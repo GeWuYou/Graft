@@ -11,6 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//nolint:gocyclo // 交付授权、交接、回执与恢复查询必须在同一测试中验证一次性协议的完整回放路径。
 func TestAgentDeliveryGrantHandoffAndReceiptReplay(t *testing.T) {
 	db := openAgentDeliveryTestDB(t)
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
@@ -29,6 +30,22 @@ func TestAgentDeliveryGrantHandoffAndReceiptReplay(t *testing.T) {
 	first, replay, err := repository.RecordAgentDeliveryReceipt(context.Background(), receipt, now.Add(time.Minute))
 	if err != nil || replay || first.DeliveryGrantID != grant.ID {
 		t.Fatalf("record receipt = %#v, replay=%t, err=%v", first, replay, err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_agent_identities (id INTEGER PRIMARY KEY, runtime_target_id INTEGER NOT NULL, agent_id TEXT NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0)`); err != nil {
+		t.Fatalf("create identity lookup schema: %v", err)
+	}
+	if _, err := db.Exec(`ALTER TABLE runtime_target_agent_generations ADD COLUMN identity_id INTEGER NOT NULL DEFAULT 1`); err != nil {
+		t.Fatalf("add generation identity lookup: %v", err)
+	}
+	if _, err := db.Exec(`ALTER TABLE runtime_target_agent_generations ADD COLUMN generation INTEGER NOT NULL DEFAULT 1`); err != nil {
+		t.Fatalf("add generation number lookup: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_target_agent_identities (id, runtime_target_id, agent_id) VALUES (1, 7, 'agent-7')`); err != nil {
+		t.Fatalf("insert identity lookup: %v", err)
+	}
+	grantRead, err := repository.ReadLiveAgentDeliveryGrant(context.Background(), 7, "agent-7", 1, now.Add(2*time.Minute))
+	if err != nil || grantRead.GrantID != grant.GrantID || grantRead.Status != "delivered" {
+		t.Fatalf("read live delivery grant = %#v, err=%v", grantRead, err)
 	}
 	second, replay, err := repository.RecordAgentDeliveryReceipt(context.Background(), receipt, now.Add(2*time.Minute))
 	if err != nil || !replay || second.ID != first.ID {
@@ -66,6 +83,39 @@ func TestRecordIssuedAgentCertificateIsIdempotent(t *testing.T) {
 	issued.CertificateSerial = "serial-changed"
 	if _, _, err := repository.RecordIssuedAgentCertificate(context.Background(), issued, now.Add(3*time.Minute)); !errors.Is(err, ErrAgentDeliveryRejected) {
 		t.Fatalf("changed issuance error = %v, want %v", err, ErrAgentDeliveryRejected)
+	}
+}
+
+func TestCreatePendingAgentDeliveryGrantRevokesExpiredDeliveredGrant(t *testing.T) {
+	db := openAgentDeliveryTestDB(t)
+	createdAt := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	if _, err := db.Exec(`INSERT INTO runtime_target_agent_generations (id, status, deleted_at) VALUES (21, 'pending', 0)`); err != nil {
+		t.Fatal(err)
+	}
+	repository := NewSQLRepository(db)
+	old, err := repository.CreatePendingAgentDeliveryGrant(context.Background(), AgentDeliveryGrant{GenerationID: 21, GrantID: "grant-expired", TokenVerifier: strings.Repeat("a", 64), ExpectedAutomationID: "automation-1", DockerInstallationRef: "docker:local", ExpiresAt: createdAt.Add(time.Hour)}, createdAt)
+	if err != nil {
+		t.Fatalf("create initial grant: %v", err)
+	}
+	if _, err := repository.AcceptAgentDeliveryHandoff(context.Background(), old.GrantID, "automation-1", "handoff-expired", createdAt); err != nil {
+		t.Fatalf("accept initial handoff: %v", err)
+	}
+	if _, _, err := repository.RecordAgentDeliveryReceipt(context.Background(), AgentDeliveryReceipt{GrantID: old.GrantID, ReceiptID: "receipt-expired", ProtocolVersion: "graft.delivery-receipt.v1", AutomationID: "automation-1", HandoffID: "handoff-expired", AssertedDeliveredAt: createdAt, DockerInstallationRef: "docker:local", DockerSecretRef: "local:delivery", PayloadFingerprint: strings.Repeat("b", 64)}, createdAt); err != nil {
+		t.Fatalf("record initial receipt: %v", err)
+	}
+	replacement, err := repository.CreatePendingAgentDeliveryGrant(context.Background(), AgentDeliveryGrant{GenerationID: 21, GrantID: "grant-replacement", TokenVerifier: strings.Repeat("c", 64), ExpectedAutomationID: "automation-1", DockerInstallationRef: "docker:local", ExpiresAt: createdAt.Add(3 * time.Hour)}, createdAt.Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("create replacement grant: %v", err)
+	}
+	if replacement.GrantID != "grant-replacement" {
+		t.Fatalf("replacement grant = %#v", replacement)
+	}
+	var status, reason string
+	if err := db.QueryRow(`SELECT status, revoked_reason FROM runtime_target_agent_delivery_grants WHERE id = $1`, old.ID).Scan(&status, &reason); err != nil {
+		t.Fatalf("read revoked grant: %v", err)
+	}
+	if status != "revoked" || reason != "expired before replacement delivery grant" {
+		t.Fatalf("old grant status=%q reason=%q", status, reason)
 	}
 }
 

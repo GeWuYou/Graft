@@ -77,10 +77,7 @@ func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, databaseMode localDocke
 		return err
 	}
 	composeFile := filepath.Join(filepath.Dir(filepath.Dir(root)), "deployments", "docker-builder-agent-dev", "compose.yml")
-	services := []string{"up", "-d", "redis", "vault"}
-	if databaseMode == localDockerBuilderDatabaseModeIsolated {
-		services = append(services, "postgres")
-	}
+	services := localDockerBuilderComposeDependencyServices(databaseMode)
 	if err := runLocalDockerBuilderCompose(cmd.Context(), root, composeFile, services...); err != nil {
 		return err
 	}
@@ -91,6 +88,15 @@ func runDevDockerBuilderAgentPrepare(cmd *cobra.Command, databaseMode localDocke
 		return err
 	}
 	return writeLocalDockerBuilderServerEnv(root, databaseMode)
+}
+
+// localDockerBuilderComposeDependencyServices 仅选择当前数据库模式必须启动的开发依赖，避免 shared 模式意外创建独立 PostgreSQL。
+func localDockerBuilderComposeDependencyServices(mode localDockerBuilderDatabaseMode) []string {
+	services := []string{"up", "-d", "redis", "vault"}
+	if mode == localDockerBuilderDatabaseModeIsolated {
+		return append(services, "postgres")
+	}
+	return services
 }
 
 //nolint:cyclop // 开发交付需要在同一 CLI 边界显式装配依赖、配置与 authority。
@@ -302,6 +308,9 @@ func readLocalDockerBuilderServerDatabaseURL(envFile string) (string, error) {
 	databaseURL := strings.TrimSpace(values["GRAFT_DATABASE_URL"])
 	if databaseURL == "" {
 		return "", fmt.Errorf("GRAFT_DATABASE_URL is required in local Server environment %s", envFile)
+	}
+	if appEnv := strings.TrimSpace(values["GRAFT_APP_ENV"]); appEnv != "" && !isDevelopmentAppEnv(appEnv) {
+		return "", fmt.Errorf("local Docker Builder shared database requires local/test GRAFT_APP_ENV in %s, got %q", envFile, appEnv)
 	}
 
 	return databaseURL, nil

@@ -327,7 +327,7 @@
           "radiusDescription": "调整界面元素的圆角程度。",
           "shadowDescription": "选择投影的视觉语言。",
           "shadowIntensityDescription": "调整当前投影风格的幅度，不改变投影语言。",
-          "shadowIntensityUnavailable": "扁平风格不显示阴影强度。",
+          "shadowIntensityUnavailable": "扁平风格会禁用阴影强度。",
           "square": "直角",
           "business": "商务",
           "standard": "标准",
@@ -357,8 +357,12 @@
           "fontFamilyPreset": "字体",
           "fontSizePreset": "字号",
           "radiusPreset": "圆角",
+          "radiusOverride": "圆角自定义值",
           "shadowPreset": "阴影",
+          "shadowIntensity": "阴影强度",
+          "shadowIntensityOverride": "阴影强度自定义值",
           "densityPreset": "密度",
+          "densityOverride": "密度自定义值",
           "themeTokenOverrides": "设计变量"
         },
         "token": {

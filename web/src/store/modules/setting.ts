@@ -329,6 +329,7 @@ export const useSettingStore = defineStore('setting', {
       const tokenMap = composeThemeTokenMap(resolvedTokens);
       insertThemeStylesheet(this.brandTheme, tokenMap, mode);
       document.documentElement.setAttribute('theme-color', this.brandTheme);
+      // 硬表面标记是壳层材质边界：只有无圆角覆盖的硬偏移主题才能启用它。
       document.documentElement.toggleAttribute(
         'data-graft-hard-surface',
         this.radiusPreset === 'square' && this.radiusOverride === null && this.shadowPreset === 'hard-offset',

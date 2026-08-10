@@ -85,44 +85,20 @@ const SHADOW_INTENSITY_ANCHORS = [
   { preset: 'strong', value: 1.5 },
 ] as const satisfies ReadonlyArray<{ preset: ThemeAuthorityState['shadowIntensity']; value: number }>;
 
+export const THEME_RADIUS_OVERRIDE_BOUNDS = { min: 0, max: 16 } as const;
+export const THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS = { min: 0.5, max: 1.5 } as const;
+export const THEME_DENSITY_OVERRIDE_BOUNDS = { min: 0.88, max: 1.12 } as const;
+
+const FLAT_SHADOW_TOKENS: ThemeTokenMap = {
+  '--td-shadow-1': 'none',
+  '--td-shadow-2': 'none',
+  '--td-shadow-3': 'none',
+};
+
 const SHADOW_PRESET_MAP: Record<
-  ThemeAuthorityState['shadowPreset'],
+  Extract<ThemeAuthorityState['shadowPreset'], 'standard' | 'floating'>,
   Record<ThemeAuthorityState['shadowIntensity'], ThemeTokenMap>
 > = {
-  'hard-offset': {
-    subtle: {
-      '--td-shadow-1': '1px 1px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-2': '2px 2px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-3': '3px 3px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-    },
-    standard: {
-      '--td-shadow-1': '2px 2px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-2': '4px 4px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-3': '6px 6px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-    },
-    strong: {
-      '--td-shadow-1': '3px 3px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-2': '6px 6px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-      '--td-shadow-3': '9px 9px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-    },
-  },
-  flat: {
-    subtle: {
-      '--td-shadow-1': 'none',
-      '--td-shadow-2': 'none',
-      '--td-shadow-3': 'none',
-    },
-    standard: {
-      '--td-shadow-1': 'none',
-      '--td-shadow-2': 'none',
-      '--td-shadow-3': 'none',
-    },
-    strong: {
-      '--td-shadow-1': 'none',
-      '--td-shadow-2': 'none',
-      '--td-shadow-3': 'none',
-    },
-  },
   standard: {
     subtle: {
       '--td-shadow-1': '0 1px 6px rgba(15, 23, 42, 0.05)',
@@ -361,33 +337,56 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function resolveAnchorSegment<TPreset extends string>(
+  value: number,
+  anchors: ReadonlyArray<{ preset: TPreset; value: number }>,
+) {
+  const upperIndex = anchors.findIndex((anchor) => anchor.value >= value);
+  const upper = anchors[upperIndex === -1 ? anchors.length - 1 : upperIndex];
+  const lower = anchors[Math.max(0, anchors.indexOf(upper) - 1)];
+  return {
+    lower,
+    upper,
+    progress: lower.value === upper.value ? 0 : (value - lower.value) / (upper.value - lower.value),
+  };
+}
+
 export function normalizeThemeAuthorityOverrides(state: ThemeAuthorityState): ThemeAuthorityState {
-  const radiusValue = state.radiusOverride === null ? null : clamp(state.radiusOverride, 0, 16);
+  const radiusValue =
+    state.radiusOverride === null
+      ? null
+      : clamp(state.radiusOverride, THEME_RADIUS_OVERRIDE_BOUNDS.min, THEME_RADIUS_OVERRIDE_BOUNDS.max);
   const radiusPreset = radiusValue === null ? null : findPresetAnchor(radiusValue, RADIUS_PRESET_ANCHORS);
   const shadowIntensityValue =
-    state.shadowIntensityOverride === null ? null : clamp(state.shadowIntensityOverride, 0.5, 1.5);
+    state.shadowIntensityOverride === null
+      ? null
+      : clamp(
+          state.shadowIntensityOverride,
+          THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+          THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+        );
   const shadowIntensity =
     shadowIntensityValue === null ? null : findPresetAnchor(shadowIntensityValue, SHADOW_INTENSITY_ANCHORS);
-  const densityValue = state.densityOverride === null ? null : clamp(state.densityOverride, 0.88, 1.12);
+  const densityValue =
+    state.densityOverride === null
+      ? null
+      : clamp(state.densityOverride, THEME_DENSITY_OVERRIDE_BOUNDS.min, THEME_DENSITY_OVERRIDE_BOUNDS.max);
   const densityPreset = densityValue === null ? null : findPresetAnchor(densityValue, DENSITY_PRESET_ANCHORS);
 
   return {
     ...state,
     radiusPreset: radiusPreset ?? state.radiusPreset,
-    radiusOverride: radiusPreset ? null : radiusValue,
+    radiusOverride: radiusPreset === null ? radiusValue : null,
     shadowIntensity: shadowIntensity ?? state.shadowIntensity,
-    shadowIntensityOverride: shadowIntensity ? null : shadowIntensityValue,
+    shadowIntensityOverride: shadowIntensity === null ? shadowIntensityValue : null,
     densityPreset: densityPreset ?? state.densityPreset,
-    densityOverride: densityPreset ? null : densityValue,
+    densityOverride: densityPreset === null ? densityValue : null,
   };
 }
 
 function buildInterpolatedRadiusTokens(radiusOverride: number): ThemeTokenMap {
-  const radius = clamp(radiusOverride, 0, 16);
-  const upperIndex = RADIUS_PRESET_ANCHORS.findIndex((anchor) => anchor.value >= radius);
-  const upper = RADIUS_PRESET_ANCHORS[upperIndex === -1 ? RADIUS_PRESET_ANCHORS.length - 1 : upperIndex];
-  const lower = RADIUS_PRESET_ANCHORS[Math.max(0, RADIUS_PRESET_ANCHORS.indexOf(upper) - 1)];
-  const progress = lower.value === upper.value ? 0 : (radius - lower.value) / (upper.value - lower.value);
+  const radius = clamp(radiusOverride, THEME_RADIUS_OVERRIDE_BOUNDS.min, THEME_RADIUS_OVERRIDE_BOUNDS.max);
+  const { lower, upper, progress } = resolveAnchorSegment(radius, RADIUS_PRESET_ANCHORS);
   const lowerTokens = RADIUS_PRESET_MAP[lower.preset];
   const upperTokens = RADIUS_PRESET_MAP[upper.preset];
 
@@ -437,11 +436,12 @@ function buildContinuousSoftShadowTokens(
   shadowPreset: Extract<ThemeAuthorityState['shadowPreset'], 'standard' | 'floating'>,
   shadowIntensityOverride: number,
 ): ThemeTokenMap {
-  const intensity = clamp(shadowIntensityOverride, 0.5, 1.5);
-  const upperIndex = SHADOW_INTENSITY_ANCHORS.findIndex((anchor) => anchor.value >= intensity);
-  const upper = SHADOW_INTENSITY_ANCHORS[upperIndex === -1 ? SHADOW_INTENSITY_ANCHORS.length - 1 : upperIndex];
-  const lower = SHADOW_INTENSITY_ANCHORS[Math.max(0, SHADOW_INTENSITY_ANCHORS.indexOf(upper) - 1)];
-  const progress = lower.value === upper.value ? 0 : (intensity - lower.value) / (upper.value - lower.value);
+  const intensity = clamp(
+    shadowIntensityOverride,
+    THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+    THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+  );
+  const { lower, upper, progress } = resolveAnchorSegment(intensity, SHADOW_INTENSITY_ANCHORS);
   const lowerTokens = SHADOW_PRESET_MAP[shadowPreset][lower.preset];
   const upperTokens = SHADOW_PRESET_MAP[shadowPreset][upper.preset];
 
@@ -454,19 +454,22 @@ function buildContinuousSoftShadowTokens(
 }
 
 function buildShadowTokens(
-  shadowPreset: ThemeAuthorityState['shadowPreset'],
-  shadowIntensity: ThemeAuthorityState['shadowIntensity'],
-  shadowIntensityOverride: ThemeAuthorityState['shadowIntensityOverride'],
+  authorityState: Pick<ThemeAuthorityState, 'shadowPreset' | 'shadowIntensity' | 'shadowIntensityOverride'>,
 ): ThemeTokenMap {
+  const { shadowPreset, shadowIntensity, shadowIntensityOverride } = authorityState;
   const intensity =
     shadowIntensityOverride ?? SHADOW_INTENSITY_ANCHORS.find((anchor) => anchor.preset === shadowIntensity)?.value ?? 1;
 
   if (shadowPreset === 'flat') {
-    return SHADOW_PRESET_MAP.flat.standard;
+    return FLAT_SHADOW_TOKENS;
   }
 
   if (shadowPreset === 'hard-offset') {
-    const hardOffsetIntensity = clamp(intensity, 0.5, 1.5);
+    const hardOffsetIntensity = clamp(
+      intensity,
+      THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+      THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+    );
     const hardOffsetTokens = [1, 2, 3].reduce<ThemeTokenMap>((tokens, level) => {
       const offset = px(level * 2 * hardOffsetIntensity);
       tokens[`--td-shadow-${level}`] = `${offset} ${offset} 0 var(--graft-neo-ink, var(--td-text-color-primary))`;
@@ -492,11 +495,7 @@ export function buildUserThemeTokens(authorityState: ThemeAuthorityState): Theme
     '--td-font-family': FONT_FAMILY_MAP[authorityState.fontFamilyPreset],
     ...buildFontSizeTokens(authorityState.fontSizePreset),
     ...buildRadiusTokens(authorityState),
-    ...buildShadowTokens(
-      authorityState.shadowPreset,
-      authorityState.shadowIntensity,
-      authorityState.shadowIntensityOverride,
-    ),
+    ...buildShadowTokens(authorityState),
     ...buildDensityTokens(authorityState),
   };
 
@@ -574,7 +573,7 @@ export function createPersistedThemeAuthoritySnapshot(state: PersistedThemeAutho
     radiusPreset: state.radiusPreset,
     radiusOverride: state.radiusOverride ?? null,
     shadowPreset: state.shadowPreset,
-    shadowIntensity: state.shadowIntensity,
+    shadowIntensity: state.shadowIntensity ?? 'standard',
     shadowIntensityOverride: state.shadowIntensityOverride ?? null,
     densityPreset: state.densityPreset,
     densityOverride: state.densityOverride ?? null,

@@ -609,6 +609,19 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview', '/security/audit']);
   });
 
+  it('retains the requested tab key when closing other tabs around an active duplicate', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({ tabKey: '/security/audit', path: '/security/audit', name: 'AuditLogs' });
+    const duplicate = tabsRouterStore.duplicateTab('/security/audit');
+    tabsRouterStore.setActiveTabKey(duplicate?.tabKey ?? '');
+
+    tabsRouterStore.subtractTabRouterOther({ tabKey: '/security/audit', path: '', routeIdx: 1 });
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.tabKey)).toEqual(['/', '/security/audit']);
+    expect(tabsRouterStore.activeTabKey).toBe(duplicate?.tabKey);
+  });
+
   it('reopens the most recently closed tab with route state', () => {
     const tabsRouterStore = useTabsRouterStore();
 
@@ -770,7 +783,7 @@ describe('useTabsRouterStore', () => {
       },
     ];
 
-    tabsRouterStore.reopenClosedTab();
+    expect(tabsRouterStore.reopenClosedTab()).toBeNull();
 
     expect(tabsRouterStore.tabRouters).toHaveLength(1);
     expect(tabsRouterStore.tabRouters[0]?.tabKey).toBe('/');

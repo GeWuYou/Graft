@@ -288,6 +288,7 @@ function ensureSingleHomeTab(routes: TRouterInfo[]) {
  * 判断关闭栈中的标签能否恢复。普通标签已由当前标签栏持有时不得再次恢复；复制标签则只按独立 tabKey 去重。
  */
 function isClosedTabReopenable(route: TRouterInfo, openTabs: TRouterInfo[]) {
+  if (route.isHome) return false;
   const routeKey = getTabKey(route);
 
   if (route.isDuplicate) {

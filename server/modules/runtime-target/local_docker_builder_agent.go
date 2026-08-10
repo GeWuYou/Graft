@@ -79,6 +79,17 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 		generation = enrollment.Generation
 	}
 	delivery := newRuntimeTargetAgentDeliveryAuthority(repository, pepper)
+	if existing, err := repository.ReadLiveAgentDeliveryGrant(ctx, targetID, input.AgentID, generation, now); err == nil && existing.GenerationID > 0 {
+		if existing.Status != "delivered" {
+			return errors.New("local Docker Builder Agent delivery is pending; reset the Agent binding before delivering again")
+		}
+		if existing.ExpectedAutomationID != input.AutomationID || existing.DockerInstallationRef != "docker:local" || existing.HandoffID == "" {
+			return errors.New("local Docker Builder Agent delivery grant does not match the local automation binding; reset the Agent binding before delivering again")
+		}
+		return writeLocalDockerBuilderAgentFiles(input, targetID, deriveBootstrapToken(pepper.Pepper(), existing.GrantID))
+	} else if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("read local agent delivery grant: %w", err)
+	}
 	grant, err := delivery.CreateDeliveryGrant(ctx, moduleapi.AgentDeliveryGrantRequest{TargetID: targetID, AgentID: input.AgentID, Generation: generation, ExpectedAutomationID: input.AutomationID, DockerInstallationRef: "docker:local", ExpiresAt: now.Add(localDeliveryGrantTTL)})
 	if err != nil {
 		return fmt.Errorf("create local agent delivery grant: %w", err)
@@ -92,10 +103,14 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 	if _, err := delivery.RecordDeliveryReceipt(ctx, actor, moduleapi.AgentDeliveryReceiptRequest{GrantID: grant.GrantID, ReceiptID: "local-" + grant.GrantID, ProtocolVersion: "graft.delivery-receipt.v1", HandoffID: handoff.HandoffID, AssertedDeliveredAt: now, DockerInstallationRef: "docker:local", DockerSecretRef: "local:delivery", PayloadFingerprint: fingerprint}); err != nil {
 		return fmt.Errorf("record local agent delivery receipt: %w", err)
 	}
+	return writeLocalDockerBuilderAgentFiles(input, targetID, handoff.BootstrapToken)
+}
+
+func writeLocalDockerBuilderAgentFiles(input LocalDockerBuilderAgentDelivery, targetID int64, bootstrapToken string) error {
 	if err := os.MkdirAll(filepath.Dir(input.BootstrapTokenFile), localDeliverySecretDirPerm); err != nil {
 		return err
 	}
-	if err := os.WriteFile(input.BootstrapTokenFile, []byte(handoff.BootstrapToken+"\n"), localDeliverySecretFilePerm); err != nil {
+	if err := os.WriteFile(input.BootstrapTokenFile, []byte(bootstrapToken+"\n"), localDeliverySecretFilePerm); err != nil {
 		return err
 	}
 	configBytes, err := json.Marshal(struct {

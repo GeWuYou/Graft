@@ -523,7 +523,7 @@
             <div class="section">
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.radius') }}</div>
-                <div class="section-desc">{{ t('layout.setting.workbench.style.description') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.style.radiusDescription') }}</div>
               </div>
               <div class="style-control-stack" :class="resetFeedbackClass">
                 <div class="style-control">
@@ -532,8 +532,8 @@
                     class="style-control__slider"
                     data-testid="radius-slider"
                     :label="false"
-                    :max="16"
-                    :min="0"
+                    :max="THEME_RADIUS_OVERRIDE_BOUNDS.max"
+                    :min="THEME_RADIUS_OVERRIDE_BOUNDS.min"
                     :model-value="activeRadiusValue"
                     :step="1"
                     @change="handleRadiusSliderChange"
@@ -567,6 +567,7 @@
             <div class="section">
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.shadow') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.style.shadowDescription') }}</div>
               </div>
               <div class="style-preview-grid" :class="resetFeedbackClass">
                 <button
@@ -601,6 +602,10 @@
                 class="style-control-stack"
                 :class="{ 'style-control-stack--disabled': !isShadowIntensityAvailable }"
               >
+                <div class="section-desc">{{ t('layout.setting.workbench.style.shadowIntensityDescription') }}</div>
+                <div v-if="!isShadowIntensityAvailable" class="section-desc">
+                  {{ t('layout.setting.workbench.style.shadowIntensityUnavailable') }}
+                </div>
                 <div class="style-control">
                   <span class="style-control__edge-label" aria-hidden="true">S</span>
                   <t-slider
@@ -608,8 +613,8 @@
                     data-testid="shadow-intensity-slider"
                     :disabled="!isShadowIntensityAvailable"
                     :label="false"
-                    :max="1.5"
-                    :min="0.5"
+                    :max="THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max"
+                    :min="THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min"
                     :model-value="activeShadowIntensityValue"
                     :step="0.05"
                     @change="handleShadowIntensitySliderChange"
@@ -653,8 +658,8 @@
                     class="style-control__slider"
                     data-testid="density-slider"
                     :label="false"
-                    :max="1.12"
-                    :min="0.88"
+                    :max="THEME_DENSITY_OVERRIDE_BOUNDS.max"
+                    :min="THEME_DENSITY_OVERRIDE_BOUNDS.min"
                     :model-value="activeDensityValue"
                     :step="0.01"
                     @change="handleDensitySliderChange"
@@ -795,6 +800,11 @@ import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
 import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
+import {
+  THEME_DENSITY_OVERRIDE_BOUNDS,
+  THEME_RADIUS_OVERRIDE_BOUNDS,
+  THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS,
+} from '@/store/modules/setting-theme-authority';
 import type {
   ThemeAuthorityState,
   ThemePresetApplicationScope,
@@ -1313,7 +1323,11 @@ const handleRadiusAnchorSelect = (item: (typeof radiusOptions.value)[number]) =>
 };
 
 const handleRadiusSliderChange = (value: unknown) => {
-  if (typeof value !== 'number' || value < 0 || value > 16) {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_RADIUS_OVERRIDE_BOUNDS.min ||
+    value > THEME_RADIUS_OVERRIDE_BOUNDS.max
+  ) {
     return;
   }
 
@@ -1325,7 +1339,11 @@ const handleDensityAnchorSelect = (item: (typeof densityOptions.value)[number]) 
 };
 
 const handleDensitySliderChange = (value: unknown) => {
-  if (typeof value !== 'number' || value < 0.88 || value > 1.12) {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_DENSITY_OVERRIDE_BOUNDS.min ||
+    value > THEME_DENSITY_OVERRIDE_BOUNDS.max
+  ) {
     return;
   }
 
@@ -1339,7 +1357,12 @@ const handleShadowIntensityAnchorSelect = (item: (typeof shadowIntensityOptions.
 };
 
 const handleShadowIntensitySliderChange = (value: unknown) => {
-  if (typeof value !== 'number' || value < 0.5 || value > 1.5 || !isShadowIntensityAvailable.value) {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min ||
+    value > THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max ||
+    !isShadowIntensityAvailable.value
+  ) {
     return;
   }
 

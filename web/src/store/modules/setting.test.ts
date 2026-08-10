@@ -14,7 +14,11 @@ import { THEME_PRESET_DEFINITIONS, THEME_TOKEN_DEFINITIONS } from '@/config/them
 import { insertThemeStylesheet } from '@/utils/color';
 
 import { useSettingStore } from './setting';
-import { STYLE_CONFIG_KEYS, WORKBENCH_STYLE_CONFIG_KEYS } from './setting-theme-authority';
+import {
+  createPersistedThemeAuthoritySnapshot,
+  STYLE_CONFIG_KEYS,
+  WORKBENCH_STYLE_CONFIG_KEYS,
+} from './setting-theme-authority';
 
 const insertThemeStylesheetMock = insertThemeStylesheet as unknown as ReturnType<typeof vi.fn>;
 
@@ -90,6 +94,16 @@ describe('setting store theme authority', () => {
     });
   });
 
+  it('restores standard shadow intensity when reading a legacy persisted snapshot', () => {
+    const store = useSettingStore();
+    const legacySnapshot = { ...store.createThemeAuthoritySnapshot() } as Record<string, unknown>;
+    delete legacySnapshot.shadowIntensity;
+
+    const restored = createPersistedThemeAuthoritySnapshot(legacySnapshot as never);
+
+    expect(restored.shadowIntensity).toBe('standard');
+  });
+
   it('scales hard-offset shadows and the neo hard surface together', () => {
     const store = useSettingStore();
 
@@ -136,6 +150,15 @@ describe('setting store theme authority', () => {
       '--td-shadow-2': 'none',
       '--td-shadow-3': 'none',
     });
+  });
+
+  it('interpolates soft shadow tokens for a continuous intensity override', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('style');
+    store.updateThemeDraftAppearance({ shadowPreset: 'standard', shadowIntensityOverride: 1.25 });
+
+    expect(store.themeResolvedTokens.light['--td-shadow-2']).toBe('0 12px 28px rgba(15, 23, 42, 0.15)');
   });
 
   it('tracks, applies, and persists shadow intensity as theme authority', () => {

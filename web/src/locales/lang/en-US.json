@@ -327,7 +327,7 @@
           "radiusDescription": "Adjust the roundness of interface elements.",
           "shadowDescription": "Choose the visual language of projections.",
           "shadowIntensityDescription": "Adjust the current projection magnitude without changing its visual language.",
-          "shadowIntensityUnavailable": "Flat style does not render a shadow intensity.",
+          "shadowIntensityUnavailable": "Flat style disables shadow intensity.",
           "square": "Square",
           "business": "Business",
           "standard": "Standard",
@@ -357,8 +357,12 @@
           "fontFamilyPreset": "Font",
           "fontSizePreset": "Font Size",
           "radiusPreset": "Radius",
+          "radiusOverride": "Radius Override",
           "shadowPreset": "Shadow",
+          "shadowIntensity": "Shadow Intensity",
+          "shadowIntensityOverride": "Shadow Intensity Override",
           "densityPreset": "Density",
+          "densityOverride": "Density Override",
           "themeTokenOverrides": "Design Tokens"
         },
         "token": {

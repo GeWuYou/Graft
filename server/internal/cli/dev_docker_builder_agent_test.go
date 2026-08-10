@@ -64,6 +64,37 @@ func TestResolveLocalDockerBuilderDatabaseURL(t *testing.T) {
 	}
 }
 
+func TestLocalDockerBuilderComposeDependencyServices(t *testing.T) {
+	tests := []struct {
+		name string
+		mode localDockerBuilderDatabaseMode
+		want []string
+	}{
+		{name: "shared only starts shared dependencies", mode: localDockerBuilderDatabaseModeShared, want: []string{"up", "-d", "redis", "vault"}},
+		{name: "isolated starts its PostgreSQL dependency", mode: localDockerBuilderDatabaseModeIsolated, want: []string{"up", "-d", "redis", "vault", "postgres"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := localDockerBuilderComposeDependencyServices(test.mode)
+			if strings.Join(got, ",") != strings.Join(test.want, ",") {
+				t.Fatalf("dependency services = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestReadLocalDockerBuilderServerDatabaseURLRejectsNonDevelopmentEnvironment(t *testing.T) {
+	envFile := filepath.Join(t.TempDir(), ".env")
+	if err := os.WriteFile(envFile, []byte("GRAFT_APP_ENV=production\nGRAFT_DATABASE_URL=postgres://graft@127.0.0.1:5432/graft?sslmode=disable\n"), 0o600); err != nil {
+		t.Fatalf("write dotenv: %v", err)
+	}
+
+	_, err := readLocalDockerBuilderServerDatabaseURL(envFile)
+	if err == nil || !strings.Contains(err.Error(), "requires local/test GRAFT_APP_ENV") {
+		t.Fatalf("expected non-development environment error, got %v", err)
+	}
+}
+
 func TestNormalizeLocalDockerBuilderDatabaseMode(t *testing.T) {
 	mode, err := normalizeLocalDockerBuilderDatabaseMode(" ISOLATED ")
 	if err != nil {

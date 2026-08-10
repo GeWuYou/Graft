@@ -169,8 +169,9 @@ const handleCloseBehind = () => {
   handleOperationEffect('behind');
 };
 const handleCloseOther = () => {
-  tabsRouterStore.subtractTabRouterOther({ tabKey: getTabKey(props.tab), path: '', routeIdx: props.tabIndex });
-  handleOperationEffect('other');
+  const retainedTabKey = getTabKey(props.tab);
+  tabsRouterStore.subtractTabRouterOther({ tabKey: retainedTabKey, path: '', routeIdx: props.tabIndex });
+  handleOperationEffect('other', retainedTabKey);
 };
 
 const openPendingCloseAllDialog = () => {
@@ -232,7 +233,15 @@ const handleOpenInNewWindow = () => {
   activeTabKeyForMenu.value = null;
 };
 
-const handleOperationEffect = (type: 'other' | 'ahead' | 'behind') => {
+const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', retainedTabKey?: string) => {
+  if (retainedTabKey) {
+    const retainedTab = tabRouters.value.find((item) => getTabKey(item) === retainedTabKey);
+    if (retainedTab) {
+      navigateToTab(retainedTab);
+      activeTabKeyForMenu.value = null;
+      return;
+    }
+  }
   const currentIndex = tabRouters.value.findIndex(
     (item) => getTabKey(item) === activeTabKey.value || item.path === router.currentRoute.value.path,
   );
