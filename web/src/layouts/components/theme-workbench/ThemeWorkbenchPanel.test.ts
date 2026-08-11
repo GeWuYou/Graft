@@ -42,6 +42,13 @@ const drawerStub = defineComponent({
   },
 });
 
+const tooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  setup(_, { slots }) {
+    return () => h('div', slots.default?.());
+  },
+});
+
 const switchStub = defineComponent({
   name: 'TSwitchStub',
   props: {
@@ -129,7 +136,7 @@ function mountPanel() {
         't-color-picker': true,
         't-icon': true,
         't-radio-group': true,
-        't-tooltip': true,
+        't-tooltip': tooltipStub,
         't-select': selectStub,
         't-slider': sliderStub,
         't-collapse': true,
@@ -160,6 +167,17 @@ describe('ThemeWorkbenchPanel', () => {
 
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('uses themed outline buttons for the workbench navigation', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    const wrapper = mountPanel();
+
+    const activeButton = wrapper.get('.nav-item--active');
+    expect(activeButton.attributes('theme')).toBe('primary');
+    expect(activeButton.attributes('variant')).toBe('outline');
+    expect(activeButton.attributes('block')).toBe('');
   });
 
   it('passes the local preset application scope to the workbench store', async () => {

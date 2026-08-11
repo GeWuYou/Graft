@@ -23,17 +23,20 @@
       <div class="theme-workbench-panel__body">
         <aside class="theme-workbench-panel__nav graft-scrollbar">
           <t-tooltip v-for="group in groups" :key="group.key" :content="t(group.labelKey)" placement="right" show-arrow>
-            <button
+            <t-button
+              block
+              :theme="group.key === activeGroup ? 'primary' : 'default'"
               type="button"
+              variant="outline"
               class="nav-item"
               :class="{ 'nav-item--active': group.key === activeGroup }"
               @click="openGroup(group.key)"
             >
-              <span class="nav-item__icon">
+              <template #icon>
                 <t-icon :name="groupIconMap[group.key]" />
-              </span>
+              </template>
               <span class="nav-item__text">{{ t(group.labelKey) }}</span>
-            </button>
+            </t-button>
           </t-tooltip>
         </aside>
 
@@ -1466,11 +1469,18 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .theme-workbench-panel__shell {
   background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+:root[data-graft-hard-surface] .theme-workbench-panel__shell {
+  border-color: var(--graft-neo-ink);
+  border-width: 2px;
 }
 
 .theme-workbench-panel__header {
@@ -1539,28 +1549,16 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .nav-item {
   align-items: center;
-  appearance: none;
-  .theme-workbench-selectable-card();
-
-  color: var(--td-text-color-secondary);
-  display: flex;
   gap: var(--graft-density-gap-8);
   min-height: 48px;
   min-width: 120px;
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
-  width: 100%;
 }
 
-.nav-item--active {
-  border-color: var(--td-brand-color);
-  box-shadow: var(--td-shadow-1);
-  color: var(--td-brand-color);
-}
-
-.nav-item__icon {
-  flex: 0 0 auto;
-  font-size: 20px;
-  line-height: 1;
+.nav-item :deep(.t-icon) {
+  flex: 0 0 20px;
+  height: 20px;
+  width: 20px;
 }
 
 .nav-item__text {
