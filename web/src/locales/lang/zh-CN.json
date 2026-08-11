@@ -140,6 +140,16 @@
           "showFooterHint": "显示页面底部信息。",
           "useTagTabsHint": "开启多页面标签切换。",
           "showThemeWorkbenchDockHint": "显示可拖动的个性化设置入口。",
+          "hideHeaderDialog": {
+            "title": "隐藏 Header？",
+            "description": "隐藏后将无法通过顶部栏使用导航、搜索、通知、语言、全屏和账号操作。个性化悬浮按钮会保留，确保你仍可调整界面。",
+            "confirm": "隐藏并保留悬浮入口"
+          },
+          "hideDockDialog": {
+            "title": "关闭个性化悬浮按钮？",
+            "description": "Header 当前已隐藏。关闭悬浮按钮前需要恢复 Header，以保留个性化设置入口和顶部工具。",
+            "confirm": "显示 Header 并关闭悬浮按钮"
+          },
           "tabAppearance": "标签页指示条",
           "tabAppearanceDescription": "选择当前激活标签页的主题色指示条位置。",
           "tabIndicator": {

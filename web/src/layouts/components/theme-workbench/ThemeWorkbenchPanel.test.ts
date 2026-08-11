@@ -3,6 +3,10 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+const dialogMocks = vi.hoisted(() => ({
+  confirm: vi.fn(),
+}));
+
 vi.mock('@/locales', () => ({
   i18n: {
     global: {
@@ -13,11 +17,21 @@ vi.mock('@/locales', () => ({
 }));
 
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({ locale: { value: 'en-US' } }),
+  useLocale: () => ({ locale: { __v_isRef: true, value: 'en-US' } }),
+}));
+
+vi.mock('@/locales/length-budgets', () => ({
+  warnTranslationLengthBudget: vi.fn(),
 }));
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ meta: {} }),
+}));
+
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  DialogPlugin: {
+    confirm: dialogMocks.confirm,
+  },
 }));
 
 vi.mock('@/utils/color', () => ({
@@ -50,17 +64,26 @@ const tooltipStub = defineComponent({
   },
 });
 
+const buttonStub = defineComponent({
+  name: 'TButtonStub',
+  inheritAttrs: false,
+  setup(_, { attrs, slots }) {
+    return () => h('button', attrs, [slots.icon?.(), slots.default?.()]);
+  },
+});
+
 const switchStub = defineComponent({
   name: 'TSwitchStub',
   props: {
     modelValue: { type: Boolean, required: true },
   },
   emits: ['update:modelValue'],
-  setup(props, { emit }) {
+  setup(props, { attrs, emit }) {
     return () =>
       h('button', {
         'data-testid': 'acrylic-switch',
         'aria-pressed': String(props.modelValue),
+        ...attrs,
         onClick: () => emit('update:modelValue', !props.modelValue),
       });
   },
@@ -133,7 +156,7 @@ function mountPanel() {
         't-drawer': drawerStub,
         't-switch': switchStub,
         'theme-workbench-preset-catalog': presetCatalogStub,
-        't-button': true,
+        't-button': buttonStub,
         't-color-picker': true,
         't-icon': true,
         't-radio-group': true,
@@ -150,6 +173,7 @@ function mountPanel() {
 describe('ThemeWorkbenchPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    dialogMocks.confirm.mockReset();
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn(() => ({ matches: false })),
@@ -170,6 +194,59 @@ describe('ThemeWorkbenchPanel', () => {
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
 
+  it('confirms Header removal and keeps the floating personalization entry available', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('layout');
+    const dialog = { hide: vi.fn() };
+    dialogMocks.confirm.mockReturnValue(dialog);
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="show-header-switch"]').trigger('click');
+
+    expect(store.showHeader).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: 'layout.setting.workbench.layout.hideHeaderDialog.title',
+        theme: 'warning',
+      }),
+    );
+
+    const options = dialogMocks.confirm.mock.calls[0]?.[0];
+    options.onConfirm();
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(dialog.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms Dock removal by restoring Header when it is the only personalization entry', async () => {
+    const store = useSettingStore();
+    store.updateConfig({ showHeader: false, showThemeWorkbenchDock: true });
+    store.openThemeWorkbench('layout');
+    const dialog = { hide: vi.fn() };
+    dialogMocks.confirm.mockReturnValue(dialog);
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="show-theme-workbench-dock-switch"]').trigger('click');
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: 'layout.setting.workbench.layout.hideDockDialog.title',
+        theme: 'warning',
+      }),
+    );
+
+    const options = dialogMocks.confirm.mock.calls[0]?.[0];
+    options.onConfirm();
+
+    expect(store.showHeader).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(dialog.hide).toHaveBeenCalledTimes(1);
+  });
+
   it('uses themed outline buttons for the workbench navigation', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
@@ -179,6 +256,8 @@ describe('ThemeWorkbenchPanel', () => {
     expect(activeButton.attributes('theme')).toBe('primary');
     expect(activeButton.attributes('variant')).toBe('outline');
     expect(activeButton.attributes('block')).toBe('');
+    expect(wrapper.findAll('.theme-workbench-panel__nav-entry')).toHaveLength(7);
+    expect(wrapper.findAll('.nav-item__content')).toHaveLength(7);
   });
 
   it('passes the local preset application scope to the workbench store', async () => {

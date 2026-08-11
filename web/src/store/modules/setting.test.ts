@@ -496,6 +496,37 @@ describe('setting store theme authority', () => {
     expect(store.showThemeWorkbenchDock).toBe(true);
   });
 
+  it('keeps a personalization entry available when configuration hides both Header and Dock', () => {
+    const store = useSettingStore();
+
+    store.updateConfig({ showHeader: false, showThemeWorkbenchDock: false });
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+  });
+
+  it('keeps the Dock enabled after applying a Header-hidden workbench draft', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('layout');
+
+    store.updateConfig({ showHeader: false });
+    store.applyThemeDraft();
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+  });
+
+  it('repairs a persisted unreachable personalization configuration during runtime initialization', () => {
+    const store = useSettingStore();
+    store.showHeader = false;
+    store.showThemeWorkbenchDock = false;
+
+    store.initializeThemeWorkbenchRuntime();
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+  });
+
   it('keeps previewed layout config after applying the workbench changes', () => {
     const store = useSettingStore();
 
@@ -935,6 +966,7 @@ describe('setting store theme authority', () => {
     });
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
   });
 
   it('applies the Industrial Yellow personalized baseline with its palette', () => {

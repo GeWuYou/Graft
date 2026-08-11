@@ -22,22 +22,24 @@
 
       <div class="theme-workbench-panel__body">
         <aside class="theme-workbench-panel__nav graft-scrollbar">
-          <t-tooltip v-for="group in groups" :key="group.key" :content="t(group.labelKey)" placement="right" show-arrow>
-            <t-button
-              block
-              :theme="group.key === activeGroup ? 'primary' : 'default'"
-              type="button"
-              variant="outline"
-              class="nav-item"
-              :class="{ 'nav-item--active': group.key === activeGroup }"
-              @click="openGroup(group.key)"
-            >
-              <template #icon>
-                <t-icon :name="groupIconMap[group.key]" />
-              </template>
-              <span class="nav-item__text">{{ t(group.labelKey) }}</span>
-            </t-button>
-          </t-tooltip>
+          <div v-for="group in groups" :key="group.key" class="theme-workbench-panel__nav-entry">
+            <t-tooltip :content="t(group.labelKey)" placement="right" show-arrow>
+              <t-button
+                block
+                :theme="group.key === activeGroup ? 'primary' : 'default'"
+                type="button"
+                variant="outline"
+                class="nav-item"
+                :class="{ 'nav-item--active': group.key === activeGroup }"
+                @click="openGroup(group.key)"
+              >
+                <span class="nav-item__content">
+                  <t-icon :name="groupIconMap[group.key]" />
+                  <span class="nav-item__text">{{ t(group.labelKey) }}</span>
+                </span>
+              </t-button>
+            </t-tooltip>
+          </div>
         </aside>
 
         <section class="theme-workbench-panel__content graft-scrollbar">
@@ -398,7 +400,11 @@
                     <div class="switch-item__label">{{ t('layout.setting.element.showHeader') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.showHeaderHint') }}</div>
                   </div>
-                  <t-switch :model-value="settingStore.showHeader" @update:model-value="updateShowHeader" />
+                  <t-switch
+                    data-testid="show-header-switch"
+                    :model-value="settingStore.showHeader"
+                    @update:model-value="updateShowHeader"
+                  />
                 </div>
                 <div class="switch-item">
                   <div class="switch-item__content">
@@ -429,6 +435,7 @@
                     </div>
                   </div>
                   <t-switch
+                    data-testid="show-theme-workbench-dock-switch"
                     :model-value="settingStore.showThemeWorkbenchDock"
                     @update:model-value="updateShowThemeWorkbenchDock"
                   />
@@ -789,6 +796,7 @@
 </template>
 <script setup lang="ts">
 /** 主题工作台仅编排本地预览交互，主题草稿与持久化状态统一由 setting store 管理。 */
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -1060,11 +1068,45 @@ const updateSplitMenu = createBooleanConfigUpdater('splitMenu');
 const updateIsSidebarFixed = createBooleanConfigUpdater('isSidebarFixed');
 const updateMenuAutoCollapsed = createBooleanConfigUpdater('menuAutoCollapsed');
 const updateMenuAlwaysExpanded = createBooleanConfigUpdater('menuAlwaysExpanded');
-const updateShowHeader = createBooleanConfigUpdater('showHeader');
+const updateShowHeader = (value: boolean) => {
+  if (value) {
+    settingStore.updateConfig({ showHeader: true });
+    return;
+  }
+
+  const dialog = DialogPlugin.confirm({
+    header: t('layout.setting.workbench.layout.hideHeaderDialog.title'),
+    body: t('layout.setting.workbench.layout.hideHeaderDialog.description'),
+    theme: 'warning',
+    confirmBtn: t('layout.setting.workbench.layout.hideHeaderDialog.confirm'),
+    cancelBtn: t('layout.setting.workbench.actions.cancel'),
+    onConfirm: () => {
+      settingStore.updateConfig({ showHeader: false, showThemeWorkbenchDock: true });
+      dialog.hide();
+    },
+  });
+};
 const updateShowBreadcrumb = createBooleanConfigUpdater('showBreadcrumb');
 const updateShowFooter = createBooleanConfigUpdater('showFooter');
 const updateIsUseTabsRouter = createBooleanConfigUpdater('isUseTabsRouter');
-const updateShowThemeWorkbenchDock = createBooleanConfigUpdater('showThemeWorkbenchDock');
+const updateShowThemeWorkbenchDock = (value: boolean) => {
+  if (value || settingStore.showHeader) {
+    settingStore.updateConfig({ showThemeWorkbenchDock: value });
+    return;
+  }
+
+  const dialog = DialogPlugin.confirm({
+    header: t('layout.setting.workbench.layout.hideDockDialog.title'),
+    body: t('layout.setting.workbench.layout.hideDockDialog.description'),
+    theme: 'warning',
+    confirmBtn: t('layout.setting.workbench.layout.hideDockDialog.confirm'),
+    cancelBtn: t('layout.setting.workbench.actions.cancel'),
+    onConfirm: () => {
+      settingStore.updateConfig({ showHeader: true, showThemeWorkbenchDock: false });
+      dialog.hide();
+    },
+  });
+};
 
 const modeLabel = computed(() => {
   const matched = modeOptions.value.find((item) => item.type === effectiveTheme.value.mode);
@@ -1463,17 +1505,22 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   }
 
   :deep(.t-drawer__body) {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
     padding: 0;
   }
 }
 
 .theme-workbench-panel__shell {
+  --theme-workbench-nav-width: 140px;
+
   background: var(--td-bg-color-page);
   border: 1px solid var(--td-component-stroke);
   box-sizing: border-box;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -1488,6 +1535,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   background: var(--td-bg-color-container);
   border-bottom: 1px solid var(--td-component-stroke);
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
   padding: var(--graft-density-gap-18) var(--graft-density-gap-20) var(--graft-density-gap-16);
 }
@@ -1520,9 +1568,9 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .theme-workbench-panel__body {
   display: grid;
   flex: 1;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
+  grid-template-columns: var(--theme-workbench-nav-width) minmax(0, 1fr);
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-16);
 }
@@ -1530,10 +1578,14 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .theme-workbench-panel__nav {
   align-content: start;
   align-self: stretch;
+  border-inline-end: 1px solid var(--td-component-stroke);
   display: grid;
   gap: var(--graft-density-gap-8);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
   max-height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
   padding-right: var(--graft-density-gap-2);
@@ -1547,16 +1599,33 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   cursor: pointer;
 }
 
+.theme-workbench-panel__nav-entry {
+  min-width: 0;
+  width: 100%;
+}
+
 .nav-item {
   align-items: center;
   gap: var(--graft-density-gap-8);
+  justify-self: stretch;
+  max-width: 100%;
   min-height: 48px;
-  min-width: 120px;
+  min-width: 0;
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  width: 100%;
 }
 
-.nav-item :deep(.t-icon) {
-  flex: 0 0 20px;
+.nav-item__content {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: 20px minmax(0, 1fr);
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.nav-item__content :deep(.t-icon) {
   height: 20px;
   width: 20px;
 }
@@ -1578,8 +1647,9 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   overflow: hidden auto;
-  padding-bottom: calc(var(--graft-density-gap-48) + var(--graft-density-gap-32) + var(--graft-density-gap-24));
+  padding-left: var(--graft-density-gap-12);
   padding-right: var(--graft-density-gap-4);
 }
 
@@ -3100,15 +3170,12 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   align-items: center;
   background: var(--td-bg-color-container);
   border-top: 1px solid var(--td-component-stroke);
-  bottom: 0;
   display: flex;
+  flex: 0 0 auto;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
-  left: 0;
   padding: var(--graft-density-gap-12) var(--graft-density-gap-16)
     calc(var(--graft-density-gap-12) + env(safe-area-inset-bottom, 0px));
-  position: sticky;
-  z-index: 2;
 }
 
 .theme-workbench-panel__footer-actions {
@@ -3175,6 +3242,8 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
   .theme-workbench-panel__nav {
     align-content: initial;
+    border-block-end: 1px solid var(--td-component-stroke);
+    border-inline-end: 0;
     display: flex;
     max-width: 100%;
     overflow: auto hidden;
@@ -3182,8 +3251,18 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     padding-right: 0;
   }
 
-  .nav-item {
+  .theme-workbench-panel__content {
+    padding-left: 0;
+    padding-top: var(--graft-density-gap-12);
+  }
+
+  .theme-workbench-panel__nav-entry {
     flex: 0 0 64px;
+    min-width: 48px;
+    width: 64px;
+  }
+
+  .nav-item {
     justify-content: center;
     min-height: 48px;
     min-width: 48px;

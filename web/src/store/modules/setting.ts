@@ -291,7 +291,13 @@ export const useSettingStore = defineStore('setting', {
       WORKBENCH_STYLE_CONFIG_KEYS.forEach((key) => {
         this[key] = snapshot[key] as never;
       });
+      this.ensureThemeWorkbenchEntry();
       this.changeSideMode(this.sideMode as ModeType);
+    },
+    ensureThemeWorkbenchEntry() {
+      if (!this.showHeader && !this.showThemeWorkbenchDock) {
+        this.showThemeWorkbenchDock = true;
+      }
     },
     markThemeCustomized() {
       this.themeSource = 'customized';
@@ -567,6 +573,7 @@ export const useSettingStore = defineStore('setting', {
       if (this.layout === 'top') {
         this.menuAlwaysExpanded = false;
       }
+      this.ensureThemeWorkbenchEntry();
       this.changeMode(this.mode as ModeType | 'auto');
       this.changeSideMode(this.sideMode as ModeType);
       this.themeWorkbenchRuntimeReady = true;
@@ -605,6 +612,8 @@ export const useSettingStore = defineStore('setting', {
           this.changeBrandTheme(normalizedPayload[stateKey] as string);
         }
       }
+
+      this.ensureThemeWorkbenchEntry();
     },
   },
   persist: {
