@@ -14,7 +14,7 @@ export const buildBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
     meta: {
       tabGroup: 'build-jobs',
       pageKind: 'list',
-      pageSurface: 'form-detail',
+      pageSurface: 'paged-table',
       semanticTitle: jobsTitle,
       breadcrumbTitle: jobsTitle,
       tabTitle: jobsTitle,
