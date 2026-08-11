@@ -32,6 +32,8 @@ var (
 const (
 	systemConfigSnapshotCacheName = "system-config-snapshot"
 	systemConfigSnapshotLoadTTL   = 2 * time.Second
+	systemConfigWriteAttempts     = 2
+	overrideSnapshotCacheVersion  = 1
 )
 
 type snapshotInvalidationAction string
@@ -56,14 +58,14 @@ type ValueSnapshot struct {
 	OverrideValue  json.RawMessage
 	HasOverride    bool
 	// Version 是配置资源的单调递增版本；未产生任何持久化状态时为零。
-	Version        int64
-	Status         ValueStatus
-	CreatedAt      *time.Time
-	CreatedBy      *uint64
-	UpdatedAt      *time.Time
-	UpdatedBy      *uint64
-	UpdatedByName  string
-	Masked         bool
+	Version       int64
+	Status        ValueStatus
+	CreatedAt     *time.Time
+	CreatedBy     *uint64
+	UpdatedAt     *time.Time
+	UpdatedBy     *uint64
+	UpdatedByName string
+	Masked        bool
 }
 
 // ValueStatus 描述有效值来自模块默认值还是已持久化的用户覆盖值。
@@ -310,19 +312,31 @@ func (s *Service) ResetModuleConfig(ctx context.Context, moduleName string, key 
 }
 
 func (s *Service) compareAndSwapCurrentOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
-	expectedVersion, err := s.currentOverrideVersion(ctx, key)
-	if err != nil {
-		return systemconfigstore.Override{}, err
+	for attempt := 0; attempt < systemConfigWriteAttempts; attempt++ {
+		expectedVersion, err := s.currentOverrideVersion(ctx, key)
+		if err != nil {
+			return systemconfigstore.Override{}, err
+		}
+		override, err := s.store.CompareAndSwapOverride(ctx, key, value, userID, expectedVersion)
+		if !errors.Is(err, systemconfigstore.ErrVersionConflict) || attempt == systemConfigWriteAttempts-1 {
+			return override, err
+		}
 	}
-	return s.store.CompareAndSwapOverride(ctx, key, value, userID, expectedVersion)
+	return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
 }
 
 func (s *Service) resetCurrentOverride(ctx context.Context, key string, userID *uint64) (systemconfigstore.Override, error) {
-	expectedVersion, err := s.currentOverrideVersion(ctx, key)
-	if err != nil {
-		return systemconfigstore.Override{}, err
+	for attempt := 0; attempt < systemConfigWriteAttempts; attempt++ {
+		expectedVersion, err := s.currentOverrideVersion(ctx, key)
+		if err != nil {
+			return systemconfigstore.Override{}, err
+		}
+		override, err := s.store.ResetOverride(ctx, key, userID, expectedVersion)
+		if !errors.Is(err, systemconfigstore.ErrVersionConflict) || attempt == systemConfigWriteAttempts-1 {
+			return override, err
+		}
 	}
-	return s.store.ResetOverride(ctx, key, userID, expectedVersion)
+	return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
 }
 
 func (s *Service) currentOverrideVersion(ctx context.Context, key string) (int64, error) {
@@ -686,23 +700,35 @@ func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override 
 	}
 }
 
-// marshalOverrideSnapshotCache 将覆盖快照缓存中的覆盖映射序列化为 JSON 字节。若缓存为 nil，返回错误。
+type overrideSnapshotCachePayload struct {
+	Version   int                                   `json:"version"`
+	Overrides map[string]systemconfigstore.Override `json:"overrides"`
+}
+
+// marshalOverrideSnapshotCache 将带格式版本的覆盖快照缓存序列化为 JSON，避免迁移后的永久旧快照继续生效。
 func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) {
 	if cache == nil {
 		return nil, errors.New("system config snapshot cache is unavailable")
 	}
-	return json.Marshal(cache.overrides)
+	return json.Marshal(overrideSnapshotCachePayload{
+		Version:   overrideSnapshotCacheVersion,
+		Overrides: cache.overrides,
+	})
 }
 
-// unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存；载体为空或无效时返回错误，成功时深拷贝覆盖值，避免缓存共享可变数组。
+// unmarshalOverrideSnapshotCache 从当前格式版本的 JSON 载体重建覆盖快照；旧格式必须重建，避免保留旧版本号。
 func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, error) {
 	if len(payload) == 0 {
 		return nil, errors.New("system config snapshot cache returned empty payload")
 	}
-	var overrides map[string]systemconfigstore.Override
-	if err := json.Unmarshal(payload, &overrides); err != nil {
+	var decoded overrideSnapshotCachePayload
+	if err := json.Unmarshal(payload, &decoded); err != nil {
 		return nil, err
 	}
+	if decoded.Version != overrideSnapshotCacheVersion {
+		return nil, fmt.Errorf("system config snapshot cache version %d is unsupported", decoded.Version)
+	}
+	overrides := decoded.Overrides
 	cache := &overrideSnapshotCache{
 		overrides: make(map[string]systemconfigstore.Override, len(overrides)),
 	}

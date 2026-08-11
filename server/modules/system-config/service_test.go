@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"sync/atomic"
@@ -536,6 +537,48 @@ func TestCurrentUserIDReadsRequestAuthContext(t *testing.T) {
 	}
 }
 
+func TestWriteRouteErrorMapsVersionConflictToConflict(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPut, "/api/system-configs/notification.enabled", nil)
+
+	routeRuntime{ctx: &module.Context{}}.writeRouteError(ginCtx, systemconfigstore.ErrVersionConflict)
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("expected version conflict status %d, got %d", http.StatusConflict, recorder.Code)
+	}
+}
+
+func TestGenericUpdateRetriesOneVersionConflict(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	repo := service.store.(*memoryRepo)
+	repo.compareConflicts.Store(1)
+
+	updated, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil)
+	if err != nil || string(updated.EffectiveValue) != `false` {
+		t.Fatalf("expected generic update retry to succeed, got %#v, %v", updated, err)
+	}
+
+	repo.compareConflicts.Store(systemConfigWriteAttempts)
+	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`true`), nil); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
+		t.Fatalf("expected exhausted generic update retries to conflict, got %v", err)
+	}
+}
+
+func TestUnmarshalOverrideSnapshotCacheRejectsLegacyPayload(t *testing.T) {
+	legacyPayload := []byte(`{"notification.enabled":{"key":"notification.enabled","version":0}}`)
+	if _, err := unmarshalOverrideSnapshotCache(legacyPayload); err == nil {
+		t.Fatal("expected legacy snapshot payload to require rebuild")
+	}
+}
+
 func TestModuleRegisterRequiresUserService(t *testing.T) {
 	service := newTestService(t, configregistry.Definition{
 		Key:          "scheduler.timeout",
@@ -1015,6 +1058,7 @@ type memoryRepo struct {
 
 	listOverridesStarted atomic.Int32
 	getOverrideStarted   atomic.Int32
+	compareConflicts     atomic.Int32
 	listOverridesBlock   chan struct{}
 	listOverridesOnce    sync.Once
 }
@@ -1066,6 +1110,10 @@ func (r *memoryRepo) CompareAndSwapOverride(_ context.Context, key string, value
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.compareConflicts.Load() > 0 {
+		r.compareConflicts.Add(-1)
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
 
 	override := r.audit[key]
 	if override.Version != expectedVersion {

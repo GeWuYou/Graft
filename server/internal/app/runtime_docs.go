@@ -1,14 +1,18 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 
+	"graft/server/internal/config"
 	"graft/server/internal/container"
 	capcontract "graft/server/internal/contract/capability"
 	healthopenapi "graft/server/internal/contract/openapi/health"
@@ -86,7 +90,9 @@ func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
 		I18n:                  r.i18n,
 		Tickets:               ticketService,
 		WebSocketAllowOrigins: append([]string(nil), r.config.HTTPX.WebSocketAllowedOrigins...),
+		Logger:                r.logger,
 	}
+	r.logRealtimeGatewayConfiguration()
 	if err := realtime.RegisterWebSocketGateway(engine, registration); err != nil {
 		return fmt.Errorf("register realtime websocket gateway: %w", err)
 	}
@@ -94,6 +100,28 @@ func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
 		return fmt.Errorf("register realtime SSE gateway: %w", err)
 	}
 	return nil
+}
+
+// logRealtimeGatewayConfiguration 暴露运行时实际选择的 dotenv 路径及白名单数量，避免将来源漂移误判为票据故障。
+func (r *Runtime) logRealtimeGatewayConfiguration() {
+	if r == nil || r.config == nil {
+		return
+	}
+	dotenvPath, err := config.ResolveEnvFile("")
+	if err != nil {
+		dotenvPath = ""
+	}
+	r.appLogger().Info(context.Background(), "realtime gateway configuration resolved",
+		logger.StringField(logger.FieldOperation, "realtime_gateway_config"),
+		logger.StringField("dotenvPath", dotenvPath),
+		logger.IntField("websocketAllowedOriginCount", len(r.config.HTTPX.WebSocketAllowedOrigins)),
+	)
+	if strings.Contains(filepath.ToSlash(dotenvPath), "/.data/docker-builder-agent-dev/") {
+		r.appLogger().Warn(context.Background(), "realtime gateway is using Docker Builder Agent environment",
+			logger.StringField(logger.FieldOperation, "realtime_gateway_config"),
+			logger.StringField("dotenvPath", dotenvPath),
+		)
+	}
 }
 
 func (r *Runtime) registerHealthRoute(engine *gin.Engine) {

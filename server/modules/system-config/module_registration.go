@@ -22,6 +22,7 @@ func registerMessages(localizer *i18n.Service) error {
 			systemconfigcontract.SystemConfigMenuTitle,
 			systemconfigcontract.SystemConfigNotFound,
 			systemconfigcontract.SystemConfigInvalidRequest,
+			systemconfigcontract.SystemConfigVersionConflict,
 		} {
 			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key.String()))
 			if len(matches) == 0 {

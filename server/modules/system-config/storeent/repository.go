@@ -99,7 +99,9 @@ func (r *repository) CompareAndSwapOverride(ctx context.Context, key string, val
 			ctx,
 			`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
 			 VALUES ($1, $2, 1, NOW(), $3, NOW(), $3)
-			 ON CONFLICT (key) DO NOTHING
+			 ON CONFLICT (key) DO UPDATE
+			 SET override_value = EXCLUDED.override_value, version = 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
+			 WHERE system_config_values.version = 0
 			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
 			strings.TrimSpace(key), value, userIDValue,
 		)
@@ -139,7 +141,9 @@ func (r *repository) ResetOverride(ctx context.Context, key string, userID *uint
 		row = r.db.QueryRowContext(ctx,
 			`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
 			 VALUES ($1, NULL, 1, NOW(), $2, NOW(), $2)
-			 ON CONFLICT (key) DO NOTHING
+			 ON CONFLICT (key) DO UPDATE
+			 SET override_value = NULL, version = 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
+			 WHERE system_config_values.version = 0
 			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
 			strings.TrimSpace(key), userIDValue)
 	} else {

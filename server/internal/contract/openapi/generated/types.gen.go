@@ -15220,6 +15220,9 @@ type TrendRangeQuery string
 // BadRequest defines model for bad-request.
 type BadRequest = ErrorResponse
 
+// Conflict defines model for conflict.
+type Conflict = ErrorResponse
+
 // Forbidden defines model for forbidden.
 type Forbidden = ErrorResponse
 

@@ -1,0 +1,8 @@
+description: Request could not be completed because the resource changed concurrently.
+headers:
+  X-Request-Id:
+    $ref: ../headers/request-id.yaml
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/error-response.yaml

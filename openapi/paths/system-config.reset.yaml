@@ -27,5 +27,7 @@ post:
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
+    '409':
+      $ref: ../components/responses/conflict.yaml
     '500':
       $ref: ../components/responses/internal-server-error.yaml

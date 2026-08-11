@@ -10853,6 +10853,16 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
+    /** @description Request could not be completed because the resource changed concurrently. */
+    conflict: {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
     /** @description Invalid request under existing error envelope semantics. */
     'bad-request': {
       headers: {
@@ -15982,6 +15992,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -16016,6 +16027,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };

@@ -102,6 +102,37 @@ func TestRepositoryCompareAndSwapAndResetUseVersionConditions(t *testing.T) {
 	if _, err := repo.ResetOverride(context.Background(), "network.outbound", nil, 2); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
 		t.Fatalf("expected stale reset conflict, got %v", err)
 	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("verify sql expectations: %v", err)
+	}
+}
+
+func TestRepositoryRepairsLegacyVersionZeroRows(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sql mock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	repo := &repository{db: db}
+	columns := []string{"key", "override_value", "version", "created_at", "created_by", "updated_at", "updated_by"}
+	updatedAt := time.Date(2026, time.August, 11, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("INSERT INTO system_config_values").
+		WithArgs("notification.enabled", json.RawMessage(`false`), sql.NullInt64{}).
+		WillReturnRows(sqlmock.NewRows(columns).AddRow("notification.enabled", []byte(`false`), int64(1), updatedAt, nil, updatedAt, nil))
+	updated, err := repo.CompareAndSwapOverride(context.Background(), "notification.enabled", json.RawMessage(`false`), nil, 0)
+	if err != nil || updated.Version != 1 || string(updated.Value) != `false` {
+		t.Fatalf("expected legacy version zero row repair, got %#v, %v", updated, err)
+	}
+
+	mock.ExpectQuery("INSERT INTO system_config_values").
+		WithArgs("notification.enabled", sql.NullInt64{}).
+		WillReturnRows(sqlmock.NewRows(columns).AddRow("notification.enabled", nil, int64(1), updatedAt, nil, updatedAt, nil))
+	reset, err := repo.ResetOverride(context.Background(), "notification.enabled", nil, 0)
+	if err != nil || reset.Version != 1 || reset.Value != nil {
+		t.Fatalf("expected legacy version zero reset repair, got %#v, %v", reset, err)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("verify sql expectations: %v", err)
 	}
