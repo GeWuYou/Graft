@@ -230,6 +230,10 @@
         "summary": "系统健康摘要",
         "title": "系统健康"
       },
+      "platformCapabilityHealth": {
+        "description": "当前平台能力健康快照。",
+        "title": "平台能力"
+      },
       "moduleRuntimeHealth": {
         "description": "当前模块运行时健康状态。",
         "runtimeStatus": {
@@ -281,6 +285,7 @@
       "dashboard": "工作台",
       "monitor": "监控",
       "rbac": "权限",
+      "scheduler": "定时任务",
       "scheduled-task": "定时任务",
       "system-config": "系统配置",
       "user": "用户"

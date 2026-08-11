@@ -1,4 +1,4 @@
-import { t } from '@/locales';
+import { i18n, t } from '@/locales';
 
 const DEFAULT_DASHBOARD_TEXT = '-';
 
@@ -11,17 +11,13 @@ export function hasDashboardTranslation(key?: string) {
     return false;
   }
 
-  const translated = t(key);
-  return translated !== key;
+  return i18n.global.te(key);
 }
 
 /** 优先使用稳定 i18n key，同时保留服务端展示值作为受控回退。 */
 export function resolveDashboardText(key?: string, fallback?: string, defaultText = DEFAULT_DASHBOARD_TEXT) {
-  if (hasText(key)) {
-    const translated = t(key);
-    if (translated !== key) {
-      return translated;
-    }
+  if (hasText(key) && hasDashboardTranslation(key)) {
+    return t(key);
   }
 
   if (hasText(fallback)) {
