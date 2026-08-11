@@ -19230,7 +19230,7 @@
             }
           },
           "400": {
-            "description": "Invalid Registry Connection request."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19239,7 +19239,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "409": {
-            "description": "A live Registry Connection already uses the connection reference."
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19332,7 +19332,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19383,7 +19383,7 @@
             }
           },
           "400": {
-            "description": "Invalid Registry Connection request."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19392,10 +19392,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "System-managed Registry Connections cannot be updated."
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19442,10 +19442,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "Registry Connection cannot be deleted while it owns live Artifact Repositories or is system-managed."
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19495,7 +19495,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19544,7 +19544,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19595,7 +19595,7 @@
             }
           },
           "400": {
-            "description": "Invalid Artifact Repository request."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19604,10 +19604,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Registry Connection not found."
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "A live Artifact Repository already uses this repository reference in the Registry Connection."
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19661,7 +19661,7 @@
             }
           },
           "400": {
-            "description": "Invalid Artifact Repository request."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19670,7 +19670,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Artifact Repository not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19720,7 +19720,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Artifact Repository not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19772,7 +19772,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Artifact Repository not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19826,7 +19826,7 @@
             }
           },
           "400": {
-            "description": "Invalid Artifact Repository assignment request."
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19835,10 +19835,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Artifact Repository or user not found."
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "User already has an active Artifact Repository assignment."
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -19900,7 +19900,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Active Artifact Repository assignment not found."
+            "$ref": "#/components/responses/not-found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -25051,6 +25051,9 @@
       },
       "RegistryConnectionVerification": {
         "$ref": "#/components/schemas/registry-connection-verification"
+      },
+      "RegistryVerificationResult": {
+        "$ref": "#/components/schemas/registry-verification-result"
       },
       "RegistryArtifactRepository": {
         "$ref": "#/components/schemas/registry-artifact-repository"
@@ -40238,7 +40241,8 @@
               "unknown",
               "verified",
               "failed"
-            ]
+            ],
+            "x-go-name": "ConnectionVerificationStatus"
           },
           "last_verified_at": {
             "type": "string",
@@ -40247,7 +40251,7 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 1024,
+            "maxLength": 500,
             "nullable": true
           },
           "system_managed": {
@@ -40353,6 +40357,7 @@
           "endpoint": {
             "type": "string",
             "format": "uri",
+            "pattern": "^https?://[^/?#@]+(?:/[^?#]*)?$",
             "minLength": 1,
             "maxLength": 512,
             "description": "Generic OCI endpoint without userinfo, query, fragment, or embedded credentials."
@@ -40375,7 +40380,7 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 1024,
+            "maxLength": 500,
             "nullable": true
           }
         },
@@ -40496,6 +40501,7 @@
           "endpoint": {
             "type": "string",
             "format": "uri",
+            "pattern": "^https?://[^/?#@]+(?:/[^?#]*)?$",
             "minLength": 1,
             "maxLength": 512,
             "description": "Generic OCI endpoint without userinfo, query, fragment, or embedded credentials."
@@ -40516,11 +40522,19 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 1024,
+            "maxLength": 500,
             "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "registry-verification-result": {
+        "type": "string",
+        "enum": [
+          "verified",
+          "failed"
+        ],
+        "description": "Terminal result of one Registry connection verification attempt."
       },
       "registry-connection-verification": {
         "type": "object",
@@ -40536,7 +40550,7 @@
             "maxLength": 128
           },
           "status": {
-            "type": "string",
+            "$ref": "#/components/schemas/registry-verification-result",
             "description": "Verification outcome. Current values are verified and failed."
           },
           "verified_at": {

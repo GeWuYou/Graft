@@ -16,5 +16,5 @@ post:
           schema: {$ref: ../components/schemas/enveloped-registry-connection-verification.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

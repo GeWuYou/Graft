@@ -16,7 +16,7 @@ get:
           schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Artifact Repository not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 post:
   tags: [registry]
@@ -39,9 +39,9 @@ post:
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-user-assignment.yaml}
-    '400': {description: Invalid Artifact Repository assignment request.}
+    '400': {$ref: ../components/responses/bad-request.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Artifact Repository or user not found.}
-    '409': {description: User already has an active Artifact Repository assignment.}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

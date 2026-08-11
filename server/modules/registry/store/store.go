@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
@@ -15,6 +17,10 @@ var (
 	ErrNotFound = errors.New("registry resource not found")
 	// ErrUnauthorized 表示调用方没有有效的发布使用授权。
 	ErrUnauthorized = errors.New("registry repository is not assigned to actor")
+	// ErrConflict 表示 Registry 资源的存活唯一约束或授权状态发生冲突。
+	ErrConflict = errors.New("registry resource conflict")
+	// ErrSystemManaged 表示系统托管连接不可由 Registry 管理 API 修改或删除。
+	ErrSystemManaged = errors.New("registry connection is system managed")
 )
 
 // AuthorizedRepository 是消费者可以保留的非秘密解析结果。
@@ -80,6 +86,8 @@ type Destination struct {
 	ConnectionName string
 	RepositoryRef  string
 	RepositoryName string
+	AllowPull      bool
+	AllowPush      bool
 }
 
 // ConnectionInput 是连接创建与更新的非秘密输入。
@@ -105,21 +113,21 @@ type RepositoryInput struct {
 
 // ManagementRepository owns Registry management persistence without widening Build's resolver boundary.
 type ManagementRepository interface {
-	ListConnections(context.Context, string, int, int) ([]Connection, int, error)
-	GetConnection(context.Context, string) (Connection, error)
-	CreateConnection(context.Context, ConnectionInput, uint64) (Connection, error)
-	UpdateConnection(context.Context, string, ConnectionInput, uint64) (Connection, error)
-	DeleteConnection(context.Context, string, uint64) error
-	SetVerification(context.Context, string, bool, string, string) (Connection, error)
-	ListRepositories(context.Context, string) ([]Repository, error)
-	CreateRepository(context.Context, string, RepositoryInput, uint64) (Repository, error)
-	UpdateRepository(context.Context, string, string, RepositoryInput, uint64) (Repository, error)
-	DeleteRepository(context.Context, string, string, uint64) error
-	ListAssignments(context.Context, string, string) ([]UserAssignment, error)
-	GrantAssignment(context.Context, string, string, uint64, uint64) (UserAssignment, error)
-	RevokeAssignment(context.Context, string, string, uint64, uint64) error
-	ReplaceAssignments(context.Context, string, string, []uint64, uint64) ([]UserAssignment, error)
-	ListAvailableDestinations(context.Context, uint64) ([]Destination, error)
+	ListConnections(ctx context.Context, search string, limit, offset int) ([]Connection, int, error)
+	GetConnection(ctx context.Context, connectionRef string) (Connection, error)
+	CreateConnection(ctx context.Context, input ConnectionInput, actorID uint64) (Connection, error)
+	UpdateConnection(ctx context.Context, connectionRef string, input ConnectionInput, actorID uint64) (Connection, error)
+	DeleteConnection(ctx context.Context, connectionRef string, actorID uint64) error
+	SetVerification(ctx context.Context, connectionRef string, available bool, status, errorCode string) (Connection, error)
+	ListRepositories(ctx context.Context, connectionRef string) ([]Repository, error)
+	CreateRepository(ctx context.Context, connectionRef string, input RepositoryInput, actorID uint64) (Repository, error)
+	UpdateRepository(ctx context.Context, connectionRef, repositoryRef string, input RepositoryInput, actorID uint64) (Repository, error)
+	DeleteRepository(ctx context.Context, connectionRef, repositoryRef string, actorID uint64) error
+	ListAssignments(ctx context.Context, connectionRef, repositoryRef string) ([]UserAssignment, error)
+	GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (UserAssignment, error)
+	RevokeAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) error
+	ReplaceAssignments(ctx context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]UserAssignment, error)
+	ListAvailableDestinations(ctx context.Context, actorID uint64) ([]Destination, error)
 }
 
 // DestinationRepository 是 Registry 服务使用的窄持久化契约，阻止 Build 直接查询基础设施表。
@@ -274,7 +282,7 @@ VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, $8, $9, false, 'unknown', '', $1
 RETURNING connection_ref, display_name, provider, endpoint, COALESCE(credential_ref, ''), enabled, insecure, description, auth_mode, availability, verification_status, last_verified_at, last_verification_error_code, system_managed, created_at, updated_at`
 	item, err := scanConnection(r.db.QueryRowContext(ctx, query, input.ConnectionRef, input.DisplayName, input.Provider, input.Endpoint, input.CredentialRef, input.Enabled, input.Insecure, input.Description, input.AuthMode, actorID))
 	if err != nil {
-		return Connection{}, fmt.Errorf("create registry connection: %w", err)
+		return Connection{}, fmt.Errorf("create registry connection: %w", registryWriteError(err))
 	}
 	return item, nil
 }
@@ -282,14 +290,14 @@ RETURNING connection_ref, display_name, provider, endpoint, COALESCE(credential_
 // UpdateConnection 覆盖连接配置并使先前验证结果失效。
 func (r *SQLRepository) UpdateConnection(ctx context.Context, connectionRef string, input ConnectionInput, actorID uint64) (Connection, error) {
 	const query = `UPDATE registry_connections SET display_name = $2, provider = $3, endpoint = $4, credential_ref = NULLIF($5, ''), enabled = $6, insecure = $7, description = $8, auth_mode = $9, availability = false, verification_status = 'unknown', last_verified_at = NULL, last_verification_error_code = '', updated_at = NOW(), updated_by = $10
-WHERE connection_ref = $1 AND deleted_at = 0
+WHERE connection_ref = $1 AND deleted_at = 0 AND system_managed = false
 RETURNING connection_ref, display_name, provider, endpoint, COALESCE(credential_ref, ''), enabled, insecure, description, auth_mode, availability, verification_status, last_verified_at, last_verification_error_code, system_managed, created_at, updated_at`
 	item, err := scanConnection(r.db.QueryRowContext(ctx, query, strings.TrimSpace(connectionRef), input.DisplayName, input.Provider, input.Endpoint, input.CredentialRef, input.Enabled, input.Insecure, input.Description, input.AuthMode, actorID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Connection{}, ErrNotFound
 	}
 	if err != nil {
-		return Connection{}, fmt.Errorf("update registry connection: %w", err)
+		return Connection{}, fmt.Errorf("update registry connection: %w", registryWriteError(err))
 	}
 	return item, nil
 }
@@ -297,7 +305,7 @@ RETURNING connection_ref, display_name, provider, endpoint, COALESCE(credential_
 // DeleteConnection 只在不存在活跃 Repository 时软删除连接。
 func (r *SQLRepository) DeleteConnection(ctx context.Context, connectionRef string, actorID uint64) error {
 	const query = `UPDATE registry_connections SET deleted_at = EXTRACT(EPOCH FROM NOW())::BIGINT, deleted_by = $2, updated_at = NOW(), updated_by = $2
-WHERE connection_ref = $1 AND deleted_at = 0 AND NOT EXISTS (
+WHERE connection_ref = $1 AND deleted_at = 0 AND system_managed = false AND NOT EXISTS (
  SELECT 1 FROM artifact_repositories r WHERE r.connection_id = registry_connections.id AND r.deleted_at = 0
 )`
 	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(connectionRef), actorID)
@@ -348,7 +356,10 @@ ORDER BY r.display_name, r.repository_ref`
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate artifact repositories: %w", err)
+	}
+	return items, nil
 }
 
 // CreateRepository 在指定连接下创建可授权的 Repository。
@@ -363,7 +374,7 @@ RETURNING repository_ref, display_name, allow_pull, allow_push, created_at, upda
 		return Repository{}, ErrNotFound
 	}
 	if err != nil {
-		return Repository{}, fmt.Errorf("create artifact repository: %w", err)
+		return Repository{}, fmt.Errorf("create artifact repository: %w", registryWriteError(err))
 	}
 	return item, nil
 }
@@ -379,7 +390,7 @@ RETURNING c.connection_ref, r.repository_ref, r.display_name, r.allow_pull, r.al
 		return Repository{}, ErrNotFound
 	}
 	if err != nil {
-		return Repository{}, fmt.Errorf("update artifact repository: %w", err)
+		return Repository{}, fmt.Errorf("update artifact repository: %w", registryWriteError(err))
 	}
 	return item, nil
 }
@@ -393,7 +404,10 @@ FROM registry_connections c WHERE r.connection_id = c.id AND c.connection_ref = 
 		return fmt.Errorf("delete artifact repository: %w", err)
 	}
 	changed, err := result.RowsAffected()
-	if err != nil || changed == 0 {
+	if err != nil {
+		return fmt.Errorf("check artifact repository delete: %w", err)
+	}
+	if changed == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -419,35 +433,54 @@ WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.deleted_at = 0 ORDER
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate artifact repository assignments: %w", err)
+	}
+	return items, nil
 }
 
-// GrantAssignment 以单条事务语义增加一个用户授权，避免 HTTP 层读改写丢失并发变更。
+// GrantAssignment 原子地验证目标用户与 Repository，并拒绝重复的有效授权。
 func (r *SQLRepository) GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (UserAssignment, error) {
 	if userID == 0 {
 		return UserAssignment{}, ErrNotFound
 	}
-	var userExists bool
-	if err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)`, userID).Scan(&userExists); err != nil {
-		return UserAssignment{}, fmt.Errorf("check artifact repository assignment user: %w", err)
-	}
-	if !userExists {
-		return UserAssignment{}, ErrNotFound
-	}
 	const query = `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
-SELECT r.id, $3, $4, $4 FROM artifact_repositories r
-JOIN registry_connections c ON c.id = r.connection_id
-WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND c.deleted_at = 0 AND r.deleted_at = 0`
+	SELECT r.id, $3, $4, $4 FROM artifact_repositories r
+	JOIN registry_connections c ON c.id = r.connection_id
+	JOIN users u ON u.id = $3
+	WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND c.deleted_at = 0 AND r.deleted_at = 0
+ON CONFLICT DO NOTHING`
 	item := UserAssignment{ConnectionRef: strings.TrimSpace(connectionRef), RepositoryRef: strings.TrimSpace(repositoryRef), UserID: userID}
-	if _, err := r.db.ExecContext(ctx, query, item.ConnectionRef, item.RepositoryRef, userID, actorID); err != nil {
-		return UserAssignment{}, fmt.Errorf("grant artifact repository assignment: %w", err)
+	result, err := r.db.ExecContext(ctx, query, item.ConnectionRef, item.RepositoryRef, userID, actorID)
+	if err != nil {
+		return UserAssignment{}, fmt.Errorf("grant artifact repository assignment: %w", registryWriteError(err))
 	}
-	const selectAssignment = `SELECT a.created_at, a.created_by
-FROM artifact_repository_user_assignments a
-JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
-JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
-WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.user_id = $3 AND a.deleted_at = 0`
-	if err := r.db.QueryRowContext(ctx, selectAssignment, item.ConnectionRef, item.RepositoryRef, userID).Scan(&item.CreatedAt, &item.CreatedBy); err != nil {
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return UserAssignment{}, fmt.Errorf("check artifact repository assignment grant: %w", err)
+	}
+	if changed == 0 {
+		const selectAssignment = `SELECT 1
+	FROM artifact_repository_user_assignments a
+	JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
+	JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+	WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.user_id = $3 AND a.deleted_at = 0`
+		var exists int
+		err := r.db.QueryRowContext(ctx, selectAssignment, item.ConnectionRef, item.RepositoryRef, userID).Scan(&exists)
+		if err == nil {
+			return UserAssignment{}, ErrConflict
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserAssignment{}, ErrNotFound
+		}
+		return UserAssignment{}, fmt.Errorf("check existing artifact repository assignment: %w", err)
+	}
+	const readAssignment = `SELECT a.created_at, a.created_by
+	FROM artifact_repository_user_assignments a
+	JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
+	JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+	WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.user_id = $3 AND a.deleted_at = 0`
+	if err := r.db.QueryRowContext(ctx, readAssignment, item.ConnectionRef, item.RepositoryRef, userID).Scan(&item.CreatedAt, &item.CreatedBy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserAssignment{}, ErrNotFound
 		}
@@ -470,7 +503,10 @@ WHERE a.repository_id = r.id AND c.connection_ref = $1 AND r.repository_ref = $2
 		return fmt.Errorf("revoke artifact repository assignment: %w", err)
 	}
 	changed, err := result.RowsAffected()
-	if err != nil || changed == 0 {
+	if err != nil {
+		return fmt.Errorf("check artifact repository assignment revoke: %w", err)
+	}
+	if changed == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -491,20 +527,16 @@ func (r *SQLRepository) ReplaceAssignments(ctx context.Context, connectionRef, r
 		}
 		return nil, fmt.Errorf("find artifact repository: %w", err)
 	}
+	seen, err := existingAssignmentUsers(ctx, tx, userIDs)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE artifact_repository_user_assignments SET deleted_at = EXTRACT(EPOCH FROM NOW())::BIGINT, deleted_by = $2, updated_at = NOW(), updated_by = $2 WHERE repository_id = $1 AND deleted_at = 0`, repositoryID, actorID); err != nil {
 		return nil, fmt.Errorf("clear artifact repository assignments: %w", err)
 	}
-	seen := make(map[uint64]struct{}, len(userIDs))
-	for _, userID := range userIDs {
-		if userID == 0 {
-			continue
-		}
-		if _, ok := seen[userID]; ok {
-			continue
-		}
-		seen[userID] = struct{}{}
+	for userID := range seen {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by) VALUES ($1, $2, $3, $3)`, repositoryID, userID, actorID); err != nil {
-			return nil, fmt.Errorf("create artifact repository assignment: %w", err)
+			return nil, fmt.Errorf("create artifact repository assignment: %w", registryWriteError(err))
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -513,9 +545,30 @@ func (r *SQLRepository) ReplaceAssignments(ctx context.Context, connectionRef, r
 	return r.ListAssignments(ctx, connectionRef, repositoryRef)
 }
 
+func existingAssignmentUsers(ctx context.Context, tx *sql.Tx, userIDs []uint64) (map[uint64]struct{}, error) {
+	seen := make(map[uint64]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		if userID == 0 {
+			return nil, ErrNotFound
+		}
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		var userExists bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)`, userID).Scan(&userExists); err != nil {
+			return nil, fmt.Errorf("check replacement artifact repository assignment user: %w", err)
+		}
+		if !userExists {
+			return nil, ErrNotFound
+		}
+	}
+	return seen, nil
+}
+
 // ListAvailableDestinations 只返回 actor 已授权且可 push 的可用目的地。
 func (r *SQLRepository) ListAvailableDestinations(ctx context.Context, actorID uint64) ([]Destination, error) {
-	const query = `SELECT c.connection_ref, c.display_name, r.repository_ref, r.display_name
+	const query = `SELECT c.connection_ref, c.display_name, r.repository_ref, r.display_name, r.allow_pull, r.allow_push
 FROM artifact_repositories r JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
 JOIN artifact_repository_user_assignments a ON a.repository_id = r.id AND a.deleted_at = 0
 WHERE a.user_id = $1 AND r.deleted_at = 0 AND c.enabled = true AND c.availability = true AND r.allow_push = true
@@ -528,15 +581,26 @@ ORDER BY c.display_name, r.display_name`
 	items := make([]Destination, 0)
 	for rows.Next() {
 		var item Destination
-		if err := rows.Scan(&item.ConnectionRef, &item.ConnectionName, &item.RepositoryRef, &item.RepositoryName); err != nil {
+		if err := rows.Scan(&item.ConnectionRef, &item.ConnectionName, &item.RepositoryRef, &item.RepositoryName, &item.AllowPull, &item.AllowPush); err != nil {
 			return nil, fmt.Errorf("scan available registry destination: %w", err)
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate available registry destinations: %w", err)
+	}
+	return items, nil
 }
 
 type rowScanner interface{ Scan(...any) error }
+
+func registryWriteError(err error) error {
+	var databaseError *pgconn.PgError
+	if errors.As(err, &databaseError) && databaseError.Code == "23505" {
+		return ErrConflict
+	}
+	return err
+}
 
 func scanConnection(row rowScanner) (Connection, error) {
 	var item Connection

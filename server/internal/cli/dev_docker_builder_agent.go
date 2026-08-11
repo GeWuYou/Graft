@@ -50,10 +50,12 @@ func newDevDockerBuilderAgentCommand() *cobra.Command {
 	prepare.Flags().StringVar(&prepareMode, "database-mode", prepareMode, "Database mode: shared or isolated")
 
 	deliverMode := string(localDockerBuilderDatabaseModeShared)
+	deliverPrepared := false
 	deliver := &cobra.Command{Use: "deliver", Short: "Wait for the local Server and deliver the local Agent identity", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		return runDevDockerBuilderAgentDeliver(cmd, localDockerBuilderDatabaseMode(deliverMode))
+		return runDevDockerBuilderAgentDeliver(cmd, localDockerBuilderDatabaseMode(deliverMode), deliverPrepared)
 	}}
 	deliver.Flags().StringVar(&deliverMode, "database-mode", deliverMode, "Database mode: shared or isolated")
+	deliver.Flags().BoolVar(&deliverPrepared, "prepared", deliverPrepared, "Reuse an already prepared local Docker Builder development environment")
 
 	resetMode := string(localDockerBuilderDatabaseModeShared)
 	reset := &cobra.Command{Use: "reset", Short: "Archive and rebuild the local Docker Builder Agent development environment", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,9 +104,11 @@ func localDockerBuilderComposeDependencyServices(mode localDockerBuilderDatabase
 }
 
 //nolint:cyclop // 开发交付需要在同一 CLI 边界显式装配依赖、配置与 authority。
-func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDockerBuilderDatabaseMode) error {
-	if err := runDevDockerBuilderAgentPrepare(cmd, databaseMode); err != nil {
-		return err
+func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDockerBuilderDatabaseMode, prepared bool) error {
+	if !prepared {
+		if err := runDevDockerBuilderAgentPrepare(cmd, databaseMode); err != nil {
+			return err
+		}
 	}
 	root, err := localDockerBuilderAgentRoot()
 	if err != nil {
@@ -355,7 +359,7 @@ func validateLocalDockerBuilderServerEnvironment(values map[string]string, envFi
 	if databaseURL == "" {
 		return fmt.Errorf("GRAFT_DATABASE_URL is required in local Server environment %s", envFile)
 	}
-	if appEnv := strings.TrimSpace(values["GRAFT_APP_ENV"]); appEnv != "" && !isDevelopmentAppEnv(appEnv) {
+	if appEnv := strings.TrimSpace(values["GRAFT_APP_ENV"]); !isDevelopmentAppEnv(appEnv) {
 		return fmt.Errorf("local Docker Builder shared database requires local/test GRAFT_APP_ENV in %s, got %q", envFile, appEnv)
 	}
 

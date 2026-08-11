@@ -8,6 +8,7 @@ properties:
   endpoint:
     type: string
     format: uri
+    pattern: '^https?://[^/?#@]+(?:/[^?#]*)?$'
     minLength: 1
     maxLength: 512
     description: Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
@@ -24,6 +25,6 @@ properties:
     type: boolean
   description:
     type: string
-    maxLength: 1024
+    maxLength: 500
     nullable: true
 additionalProperties: false

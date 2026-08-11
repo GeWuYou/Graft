@@ -85,6 +85,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { REGISTRY_ROUTE_PATH } from '@/modules/registry/contract/paths';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
@@ -231,7 +232,7 @@ const rules = computed(() => ({
 }));
 
 function openRegistries() {
-  void router.push('/infrastructure/registries');
+  void router.push(REGISTRY_ROUTE_PATH.LIST);
 }
 async function submit({ validateResult }: SubmitContext) {
   if (validateResult !== true) return;

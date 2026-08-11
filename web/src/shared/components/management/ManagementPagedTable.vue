@@ -234,6 +234,7 @@ function resolveTableContentWidthFor(density: ResponsiveDensity) {
 
 const tableLayoutDebugFrames = new Set<number>();
 const tableLayoutDebugTimers = new Set<number>();
+let tableLayoutDebugScheduleVersion = 0;
 
 function sanitizeDebugPath() {
   return typeof window === 'undefined' ? '' : window.location.pathname;
@@ -285,6 +286,7 @@ function measureTableLayout(stage: string) {
 }
 
 function clearTableLayoutDebugSchedule() {
+  tableLayoutDebugScheduleVersion += 1;
   tableLayoutDebugFrames.forEach((frameId) => window.cancelAnimationFrame(frameId));
   tableLayoutDebugFrames.clear();
   tableLayoutDebugTimers.forEach((timerId) => window.clearTimeout(timerId));
@@ -298,8 +300,13 @@ function scheduleTableLayoutMeasurements(reason: string) {
   }
 
   clearTableLayoutDebugSchedule();
+  const scheduleVersion = tableLayoutDebugScheduleVersion;
   measureTableLayout(`${reason}:sync`);
   void nextTick(() => {
+    if (scheduleVersion !== tableLayoutDebugScheduleVersion) {
+      return;
+    }
+
     measureTableLayout(`${reason}:next-tick`);
     const firstFrameId = window.requestAnimationFrame(() => {
       tableLayoutDebugFrames.delete(firstFrameId);

@@ -43,8 +43,8 @@ post:
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
-    '400': {description: Invalid Registry Connection request.}
+    '400': {$ref: ../components/responses/bad-request.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '409': {description: A live Registry Connection already uses the connection reference.}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

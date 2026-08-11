@@ -108,15 +108,11 @@ func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Servic
 		writeRegistryError(c, ctx, err)
 		return
 	}
-	status := "verified"
-	if item.VerificationStatus != verificationSucceeded {
-		status = "failed"
-	}
 	verifiedAt := item.UpdatedAt
 	if item.LastVerifiedAt != nil {
 		verifiedAt = *item.LastVerifiedAt
 	}
-	response := openapigen.RegistryConnectionVerification{ConnectionRef: item.ConnectionRef, Status: status, VerifiedAt: verifiedAt}
+	response := openapigen.RegistryConnectionVerification{ConnectionRef: item.ConnectionRef, Status: openapigen.RegistryVerificationResult(item.VerificationStatus), VerifiedAt: verifiedAt}
 	if item.LastVerificationErrorCode != "" {
 		value := item.LastVerificationErrorCode
 		response.ErrorCode = &value
@@ -238,7 +234,7 @@ func handleAvailableDestinations(c *gin.Context, ctx *module.Context, service *S
 	}
 	result := make([]openapigen.RegistryAvailableDestination, 0, len(items))
 	for _, item := range items {
-		result = append(result, openapigen.RegistryAvailableDestination{Kind: "oci_registry", ConnectionRef: item.ConnectionRef, ConnectionDisplayName: item.ConnectionName, RepositoryRef: item.RepositoryRef, RepositoryDisplayName: item.RepositoryName, AllowPull: true, AllowPush: true})
+		result = append(result, openapigen.RegistryAvailableDestination{Kind: "oci_registry", ConnectionRef: item.ConnectionRef, ConnectionDisplayName: item.ConnectionName, RepositoryRef: item.RepositoryRef, RepositoryDisplayName: item.RepositoryName, AllowPull: item.AllowPull, AllowPush: item.AllowPush})
 	}
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryAvailableDestinationListResponse{Items: result})
 }
@@ -273,6 +269,10 @@ func invalidRegistryRequest(c *gin.Context, ctx *module.Context) {
 func writeRegistryError(c *gin.Context, ctx *module.Context, err error) {
 	if errors.Is(err, registrystore.ErrNotFound) {
 		httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.not_found", nil)
+		return
+	}
+	if errors.Is(err, registrystore.ErrConflict) || errors.Is(err, registrystore.ErrSystemManaged) {
+		httpx.WriteLocalizedError(c, ctx.I18n, http.StatusConflict, "common.invalidArgument", nil)
 		return
 	}
 	if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") {
@@ -310,7 +310,7 @@ func connectionInputFromUpdate(request openapigen.PutRegistryJSONRequestBody, ex
 func mapConnection(item registrystore.Connection) openapigen.RegistryConnection {
 	description := item.Description
 	managed := item.SystemManaged
-	return openapigen.RegistryConnection{ConnectionRef: item.ConnectionRef, DisplayName: item.DisplayName, Provider: openapigen.RegistryConnectionProvider(item.Provider), Endpoint: item.Endpoint, Enabled: item.Enabled, Insecure: item.Insecure, CredentialConfigured: item.CredentialRef != "", Availability: item.Availability, VerificationStatus: openapigen.RegistryConnectionVerificationStatus(item.VerificationStatus), LastVerifiedAt: item.LastVerifiedAt, Description: &description, SystemManaged: &managed, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return openapigen.RegistryConnection{ConnectionRef: item.ConnectionRef, DisplayName: item.DisplayName, Provider: openapigen.RegistryConnectionProvider(item.Provider), Endpoint: item.Endpoint, Enabled: item.Enabled, Insecure: item.Insecure, CredentialConfigured: item.CredentialRef != "", Availability: item.Availability, ConnectionVerificationStatus: openapigen.RegistryConnectionVerificationStatus(item.VerificationStatus), LastVerifiedAt: item.LastVerifiedAt, Description: &description, SystemManaged: &managed, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func mapConnections(items []registrystore.Connection) []openapigen.RegistryConnection {
 	result := make([]openapigen.RegistryConnection, 0, len(items))

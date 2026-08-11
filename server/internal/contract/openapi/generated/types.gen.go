@@ -4457,6 +4457,24 @@ func (e RegistryConnectionCreateRequestProvider) Valid() bool {
 	}
 }
 
+// Defines values for RegistryVerificationResult.
+const (
+	RegistryVerificationResultFailed   RegistryVerificationResult = "failed"
+	RegistryVerificationResultVerified RegistryVerificationResult = "verified"
+)
+
+// Valid indicates whether the value is a known member of the RegistryVerificationResult enum.
+func (e RegistryVerificationResult) Valid() bool {
+	switch e {
+	case RegistryVerificationResultFailed:
+		return true
+	case RegistryVerificationResultVerified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequestPerformanceResponseRange.
 const (
 	RequestPerformanceResponseRangeN10m RequestPerformanceResponseRange = "10m"
@@ -5341,19 +5359,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case RestartRequired:
+	case SystemConfigItemRuntimeApplyModeRestartRequired:
 		return true
-	case RuntimeHot:
+	case SystemConfigItemRuntimeApplyModeRuntimeHot:
 		return true
-	case Unknown:
+	case SystemConfigItemRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -13742,10 +13760,10 @@ type RegistryConnection struct {
 	Provider RegistryConnectionProvider `json:"provider"`
 
 	// SystemManaged System-managed connections cannot be modified or deleted through this API.
-	SystemManaged      *bool                                `json:"system_managed,omitempty"`
-	UpdatedAt          time.Time                            `json:"updated_at"`
-	UpdatedBy          *int64                               `json:"updated_by,omitempty"`
-	VerificationStatus RegistryConnectionVerificationStatus `json:"verification_status"`
+	SystemManaged                *bool                                `json:"system_managed,omitempty"`
+	UpdatedAt                    time.Time                            `json:"updated_at"`
+	UpdatedBy                    *int64                               `json:"updated_by,omitempty"`
+	ConnectionVerificationStatus RegistryConnectionVerificationStatus `json:"verification_status"`
 }
 
 // RegistryConnectionProvider Generic Docker Registry HTTP API V2 / OCI Distribution endpoint.
@@ -13806,9 +13824,12 @@ type RegistryConnectionVerification struct {
 	ErrorCode *string `json:"error_code,omitempty"`
 
 	// Status Verification outcome. Current values are verified and failed.
-	Status     string    `json:"status"`
-	VerifiedAt time.Time `json:"verified_at"`
+	Status     RegistryVerificationResult `json:"status"`
+	VerifiedAt time.Time                  `json:"verified_at"`
 }
+
+// RegistryVerificationResult Terminal result of one Registry connection verification attempt.
+type RegistryVerificationResult string
 
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {

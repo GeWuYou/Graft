@@ -12,7 +12,7 @@ import (
 func TestReadLocalDockerBuilderServerDatabaseURL(t *testing.T) {
 	envFile := filepath.Join(t.TempDir(), ".env")
 	const databaseURL = "postgres://graft@127.0.0.1:5432/graft?sslmode=disable"
-	if err := os.WriteFile(envFile, []byte("GRAFT_DATABASE_URL="+databaseURL+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(envFile, []byte("GRAFT_APP_ENV=local\nGRAFT_DATABASE_URL="+databaseURL+"\n"), 0o600); err != nil {
 		t.Fatalf("write dotenv: %v", err)
 	}
 
@@ -45,7 +45,7 @@ func TestResolveLocalDockerBuilderDatabaseURL(t *testing.T) {
 		t.Fatalf("mkdir server dir: %v", err)
 	}
 	const sharedDatabaseURL = "postgres://graft@127.0.0.1:5432/graft?sslmode=disable"
-	if err := os.WriteFile(filepath.Join(serverDir, ".env"), []byte("GRAFT_DATABASE_URL="+sharedDatabaseURL+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(serverDir, ".env"), []byte("GRAFT_APP_ENV=local\nGRAFT_DATABASE_URL="+sharedDatabaseURL+"\n"), 0o600); err != nil {
 		t.Fatalf("write server dotenv: %v", err)
 	}
 

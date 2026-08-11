@@ -23,5 +23,5 @@ delete:
           schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Active Artifact Repository assignment not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	registrystore "graft/server/modules/registry/store"
 )
@@ -16,12 +18,14 @@ import (
 const (
 	registryProviderGenericOCI = "generic_oci"
 	verificationUnknown        = "unknown"
-	verificationSucceeded      = "succeeded"
+	verificationSucceeded      = "verified"
 	verificationFailed         = "failed"
 	registryVerifyTimeout      = 12 * time.Second
 	registryHTTPTimeout        = 10 * time.Second
 	registryDialTimeout        = 5 * time.Second
 )
+
+var repositoryReferencePattern = regexp.MustCompile(`^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)*$`)
 
 // ConnectionVerifier probes a saved non-secret endpoint and returns only stable outcome codes.
 type ConnectionVerifier interface {
@@ -162,6 +166,13 @@ func (s *Service) UpdateConnection(ctx context.Context, connectionRef string, in
 	if err != nil {
 		return registrystore.Connection{}, err
 	}
+	existing, err := repository.GetConnection(ctx, connectionRef)
+	if err != nil {
+		return registrystore.Connection{}, err
+	}
+	if existing.SystemManaged {
+		return registrystore.Connection{}, registrystore.ErrSystemManaged
+	}
 	if input, err = normalizeConnectionInput(input); err != nil {
 		return registrystore.Connection{}, err
 	}
@@ -191,6 +202,13 @@ func (s *Service) DeleteConnection(ctx context.Context, connectionRef string, ac
 	repository, err := s.managementRepository()
 	if err != nil {
 		return err
+	}
+	connection, err := repository.GetConnection(ctx, connectionRef)
+	if err != nil {
+		return err
+	}
+	if connection.SystemManaged {
+		return registrystore.ErrSystemManaged
 	}
 	return repository.DeleteConnection(ctx, connectionRef, actorID)
 }
@@ -325,7 +343,7 @@ func normalizeConnectionInput(input registrystore.ConnectionInput) (registrystor
 	input.CredentialRef = strings.TrimSpace(input.CredentialRef)
 	input.Description = strings.TrimSpace(input.Description)
 	input.AuthMode = strings.TrimSpace(input.AuthMode)
-	if input.ConnectionRef == "" || len(input.ConnectionRef) > 128 || input.DisplayName == "" || len(input.DisplayName) > 128 || input.Provider != registryProviderGenericOCI || len(input.Description) > 500 {
+	if input.ConnectionRef == "" || utf8.RuneCountInString(input.ConnectionRef) > 128 || input.DisplayName == "" || utf8.RuneCountInString(input.DisplayName) > 128 || input.Provider != registryProviderGenericOCI || utf8.RuneCountInString(input.Description) > 500 {
 		return registrystore.ConnectionInput{}, errors.New("invalid registry connection")
 	}
 	if input.AuthMode == "" {
@@ -369,7 +387,7 @@ func normalizeEndpoint(raw string, insecure bool) (string, error) {
 func normalizeRepositoryInput(input registrystore.RepositoryInput) (registrystore.RepositoryInput, error) {
 	input.RepositoryRef = strings.Trim(strings.TrimSpace(input.RepositoryRef), "/")
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	if input.RepositoryRef == "" || len(input.RepositoryRef) > 255 || input.DisplayName == "" || len(input.DisplayName) > 128 || strings.Contains(input.RepositoryRef, "//") || strings.ContainsAny(input.RepositoryRef, "\\\t\r\n") {
+	if input.RepositoryRef == "" || utf8.RuneCountInString(input.RepositoryRef) > 255 || input.DisplayName == "" || utf8.RuneCountInString(input.DisplayName) > 128 || !repositoryReferencePattern.MatchString(input.RepositoryRef) {
 		return registrystore.RepositoryInput{}, errors.New("invalid artifact repository")
 	}
 	return input, nil

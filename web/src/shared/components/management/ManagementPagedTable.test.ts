@@ -5,6 +5,7 @@ import { defineComponent, h, nextTick, ref } from 'vue';
 import ManagementPagedTable from './ManagementPagedTable.vue';
 
 const tableHostWidth = ref(0);
+const debugMocks = vi.hoisted(() => ({ emitDebugLog: vi.fn(), isDebugFlagEnabled: vi.fn(() => false) }));
 
 vi.mock('./use-table-host-width', () => ({
   useTableHostWidth: () => ({
@@ -12,6 +13,7 @@ vi.mock('./use-table-host-width', () => ({
     tableHostWidth,
   }),
 }));
+vi.mock('@/shared/debug/runtime', () => debugMocks);
 
 const TTableStub = defineComponent({
   name: 'TTableStub',
@@ -169,6 +171,29 @@ describe('ManagementPagedTable', () => {
     await nextTick();
 
     expect(wrapper.emitted('sort-change')).toEqual([[undefined]]);
+  });
+
+  it('cancels debug measurement work deferred past component unmount', async () => {
+    debugMocks.isDebugFlagEnabled.mockReturnValue(true);
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '0-0 / 0',
+        pageSize: 10,
+        rows: [],
+        total: 0,
+      },
+    });
+
+    debugMocks.emitDebugLog.mockClear();
+    wrapper.unmount();
+    await nextTick();
+
+    expect(debugMocks.emitDebugLog).not.toHaveBeenCalled();
   });
 
   it('lets callers override the default pagination total content', () => {

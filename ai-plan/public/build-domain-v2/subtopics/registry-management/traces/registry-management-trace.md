@@ -12,7 +12,7 @@
 - `/api/registries/available-destinations` is actor-filtered by assignment, enabled connection state, verified availability, and `allow_push`; Build creates continue to submit the existing destination tuple rather than a computed image string.
 - The Infrastructure Registry page manages Generic OCI connections, non-secret credential configuration state, repository paths and their pull/push capabilities, assignments by user ID, and V2 reachability verification. Credential material and credential references are not displayed.
 - The Build creation page uses a Registry Connection Select, a dependent Repository Select, and a Tag input; the repository field is no longer free text and no default connection is injected.
-- Static/component validation completed. Browser evidence requires a running primary-checkout Graft runtime and remains the next environment-bound verification step.
+- Static, component, and authenticated browser validation completed. Public Registry verification remains environment-bound because outbound access returned the sanitized `network_failed` status.
 
 ## 2026-08-11: Assignment Integrity Repair
 

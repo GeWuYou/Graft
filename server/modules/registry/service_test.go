@@ -45,6 +45,13 @@ func TestGrantAssignmentRejectsMissingUserBeforeWriting(t *testing.T) {
 	if _, err := repository.GrantAssignment(context.Background(), "registry:primary", "team/api", 10, 7); !errors.Is(err, registrystore.ErrNotFound) {
 		t.Fatalf("grant missing user error = %v, want ErrNotFound", err)
 	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM artifact_repository_user_assignments WHERE user_id = 10 AND deleted_at = 0`).Scan(&count); err != nil {
+		t.Fatalf("count assignment rows: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("assignment rows = %d, want 0", count)
+	}
 }
 
 func TestResolveArtifactDestinationRejectsUnauthorizedAndUnavailableRepositories(t *testing.T) {

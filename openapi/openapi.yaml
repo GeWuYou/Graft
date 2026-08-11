@@ -1492,6 +1492,8 @@ components:
       $ref: ./components/schemas/registry-connection-list-response.yaml
     RegistryConnectionVerification:
       $ref: ./components/schemas/registry-connection-verification.yaml
+    RegistryVerificationResult:
+      $ref: ./components/schemas/registry-verification-result.yaml
     RegistryArtifactRepository:
       $ref: ./components/schemas/registry-artifact-repository.yaml
     RegistryArtifactRepositoryCreateRequest:

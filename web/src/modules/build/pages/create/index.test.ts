@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref } from 'vue';
 
+import { REGISTRY_ROUTE_PATH } from '@/modules/registry/contract/paths';
+
 import BuildCreatePage from './index.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -31,7 +33,7 @@ vi.mock('vue-i18n', () => ({
 
 const WrapperStub = defineComponent({
   setup(_props, { slots }) {
-    return () => h('div', slots.default?.());
+    return () => h('div', [slots.default?.(), slots.operation?.()]);
   },
 });
 const FormStub = defineComponent({
@@ -107,8 +109,9 @@ const RadioGroupStub = defineComponent({
 });
 const ButtonStub = defineComponent({
   props: { type: { type: String, default: 'button' } },
-  setup(props, { slots }) {
-    return () => h('button', { type: props.type }, slots.default?.());
+  emits: ['click'],
+  setup(props, { emit, slots }) {
+    return () => h('button', { type: props.type, onClick: () => emit('click') }, slots.default?.());
   },
 });
 
@@ -282,5 +285,18 @@ describe('BuildCreatePage', () => {
     expect(firstIdempotencyKey).toEqual(expect.any(String));
     expect(firstIdempotencyKey).not.toBe('');
     expect(mocks.createBuildJob.mock.calls[1]?.[1]).toBe(firstIdempotencyKey);
+  });
+
+  it('opens the Registry module through its exported route contract', async () => {
+    mocks.getBuildRegistryDestinations.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('addRegistry'))
+      ?.trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith(REGISTRY_ROUTE_PATH.LIST);
   });
 });

@@ -5192,6 +5192,7 @@ export interface components {
     RegistryConnectionUpdateRequest: components['schemas']['registry-connection-update-request'];
     RegistryConnectionListResponse: components['schemas']['registry-connection-list-response'];
     RegistryConnectionVerification: components['schemas']['registry-connection-verification'];
+    RegistryVerificationResult: components['schemas']['registry-verification-result'];
     RegistryArtifactRepository: components['schemas']['registry-artifact-repository'];
     RegistryArtifactRepositoryCreateRequest: components['schemas']['registry-artifact-repository-create-request'];
     RegistryArtifactRepositoryUpdateRequest: components['schemas']['registry-artifact-repository-update-request'];
@@ -10057,10 +10058,15 @@ export interface components {
       insecure: boolean;
       description?: string | null;
     };
+    /**
+     * @description Terminal result of one Registry connection verification attempt.
+     * @enum {string}
+     */
+    'registry-verification-result': 'verified' | 'failed';
     'registry-connection-verification': {
       connection_ref: string;
       /** @description Verification outcome. Current values are verified and failed. */
-      status: string;
+      status: components['schemas']['registry-verification-result'];
       /** Format: date-time */
       verified_at: string;
       /** @description Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies. */
@@ -22715,22 +22721,10 @@ export interface operations {
           'application/json': components['schemas']['enveloped-registry-connection'];
         };
       };
-      /** @description Invalid Registry Connection request. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description A live Registry Connection already uses the connection reference. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22796,13 +22790,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22839,29 +22827,11 @@ export interface operations {
           'application/json': components['schemas']['enveloped-registry-connection'];
         };
       };
-      /** @description Invalid Registry Connection request. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description System-managed Registry Connections cannot be updated. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22896,20 +22866,8 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Registry Connection cannot be deleted while it owns live Artifact Repositories or is system-managed. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22944,13 +22902,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22985,13 +22937,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23031,22 +22977,10 @@ export interface operations {
           'application/json': components['schemas']['enveloped-registry-artifact-repository'];
         };
       };
-      /** @description Invalid Artifact Repository request. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Artifact Repository not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23083,29 +23017,11 @@ export interface operations {
           'application/json': components['schemas']['enveloped-registry-artifact-repository'];
         };
       };
-      /** @description Invalid Artifact Repository request. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Registry Connection not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description A live Artifact Repository already uses this repository reference in the Registry Connection. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23143,13 +23059,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Artifact Repository not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23187,13 +23097,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Artifact Repository not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23233,29 +23137,11 @@ export interface operations {
           'application/json': components['schemas']['enveloped-registry-artifact-repository-user-assignment'];
         };
       };
-      /** @description Invalid Artifact Repository assignment request. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Artifact Repository or user not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description User already has an active Artifact Repository assignment. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -23294,13 +23180,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Active Artifact Repository assignment not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };

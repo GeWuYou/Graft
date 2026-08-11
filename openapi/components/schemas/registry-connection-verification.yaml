@@ -6,7 +6,7 @@ properties:
     minLength: 1
     maxLength: 128
   status:
-    type: string
+    $ref: ./registry-verification-result.yaml
     description: Verification outcome. Current values are verified and failed.
   verified_at:
     type: string

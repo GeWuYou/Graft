@@ -114,7 +114,7 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 
 func TestRegistryAvailableDestinationsAreBoundToRequestActor(t *testing.T) {
 	repository := newRegistryRouteRepository()
-	repository.destinationsByActor[7] = []registrystore.Destination{{ConnectionRef: "registry:primary", ConnectionName: "Primary", RepositoryRef: "team/app", RepositoryName: "Application"}}
+	repository.destinationsByActor[7] = []registrystore.Destination{{ConnectionRef: "registry:primary", ConnectionName: "Primary", RepositoryRef: "team/app", RepositoryName: "Application", AllowPull: false, AllowPush: true}}
 	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
 
 	allowed := httptest.NewRecorder()
@@ -125,11 +125,37 @@ func TestRegistryAvailableDestinationsAreBoundToRequestActor(t *testing.T) {
 	if repository.availableActor != 7 {
 		t.Fatalf("available destination actor = %d, want 7", repository.availableActor)
 	}
+	if !strings.Contains(allowed.Body.String(), `"allow_pull":false`) {
+		t.Fatalf("available destination did not preserve pull policy: %s", allowed.Body.String())
+	}
 
 	denied := httptest.NewRecorder()
 	engine.ServeHTTP(denied, registryRouteRequest(http.MethodGet, "/api/registries/available-destinations", "", "8"))
 	if denied.Code != http.StatusOK || strings.Contains(denied.Body.String(), "team/app") {
 		t.Fatalf("unassigned destinations = %d: %s", denied.Code, denied.Body.String())
+	}
+}
+
+func TestRegistrySystemManagedConnectionsCannotBeUpdatedOrDeleted(t *testing.T) {
+	repository := newRegistryRouteRepository()
+	repository.connection.SystemManaged = true
+	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
+
+	for _, testCase := range []struct {
+		name   string
+		method string
+		body   string
+	}{
+		{name: "update", method: http.MethodPut, body: `{"display_name":"Primary","endpoint":"https://registry.example","enabled":true,"insecure":false}`},
+		{name: "delete", method: http.MethodDelete},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, registryRouteRequest(testCase.method, "/api/registries/registry:primary", testCase.body, "7"))
+			if response.Code != http.StatusConflict {
+				t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 
@@ -233,11 +259,11 @@ func (r *registryRouteRepository) CreateConnection(_ context.Context, input regi
 	return r.connection, nil
 }
 
-func (r *registryRouteRepository) UpdateConnection(_ context.Context, connectionRef string, input registrystore.ConnectionInput, _ uint64) (registrystore.Connection, error) {
+func (r *registryRouteRepository) UpdateConnection(ctx context.Context, connectionRef string, input registrystore.ConnectionInput, _ uint64) (registrystore.Connection, error) {
 	if connectionRef != r.connection.ConnectionRef {
 		return registrystore.Connection{}, registrystore.ErrNotFound
 	}
-	return r.CreateConnection(context.Background(), input, 0)
+	return r.CreateConnection(ctx, input, 0)
 }
 
 func (r *registryRouteRepository) DeleteConnection(_ context.Context, connectionRef string, _ uint64) error {

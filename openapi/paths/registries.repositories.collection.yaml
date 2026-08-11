@@ -15,7 +15,7 @@ get:
           schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-list-response.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 post:
   tags: [registry]
@@ -37,11 +37,11 @@ post:
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository.yaml}
-    '400': {description: Invalid Artifact Repository request.}
+    '400': {$ref: ../components/responses/bad-request.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
-    '409': {description: A live Artifact Repository already uses this repository reference in the Registry Connection.}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 put:
   tags: [registry]
@@ -64,10 +64,10 @@ put:
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository.yaml}
-    '400': {description: Invalid Artifact Repository request.}
+    '400': {$ref: ../components/responses/bad-request.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Artifact Repository not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 delete:
   tags: [registry]
@@ -87,5 +87,5 @@ delete:
           schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Artifact Repository not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

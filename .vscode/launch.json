@@ -122,7 +122,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "agent: deliver Docker Builder development",
+            "preLaunchTask": "agent: deliver prepared Docker Builder development",
             "args": [
                 "--config",
                 "${workspaceFolder}/server/agents/docker-builder-agent/agent.json",

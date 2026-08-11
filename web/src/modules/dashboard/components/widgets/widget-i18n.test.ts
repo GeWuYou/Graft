@@ -3,17 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 const localeMocks = vi.hoisted(() => {
   const translations: Record<string, string> = {
     'dashboard.known': '已翻译',
+    'dashboard.fallback-locale': 'Fallback locale translation',
     'dashboard.widget.auditRiskEvents.highRisk.description': '过去 24 小时存在高风险事件',
   };
 
   return {
     t: vi.fn((key: string) => translations[key] ?? key),
-    te: vi.fn((key: string) => Boolean(translations[key])),
   };
 });
 
 vi.mock('@/locales', () => ({
-  i18n: { global: { te: localeMocks.te } },
   t: localeMocks.t,
 }));
 
@@ -24,10 +23,15 @@ describe('dashboard widget i18n helpers', () => {
     expect(resolveDashboardText('dashboard.known', 'Server fallback')).toBe('已翻译');
   });
 
+  it('uses the configured fallback locale before server fallback text', () => {
+    expect(resolveDashboardText('dashboard.fallback-locale', 'Server fallback')).toBe('Fallback locale translation');
+    expect(hasDashboardTranslation('dashboard.fallback-locale')).toBe(true);
+  });
+
   it('falls back to provided text only after detecting a missing key', () => {
     expect(resolveDashboardText('dashboard.missing', 'Server fallback')).toBe('Server fallback');
     expect(hasDashboardTranslation('dashboard.missing')).toBe(false);
-    expect(localeMocks.t).not.toHaveBeenCalledWith('dashboard.missing');
+    expect(localeMocks.t).toHaveBeenCalledWith('dashboard.missing');
   });
 
   it('uses a safe default when neither key nor fallback has display text', () => {

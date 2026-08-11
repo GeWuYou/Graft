@@ -15,7 +15,7 @@ get:
           schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
+    '404': {$ref: ../components/responses/not-found.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 put:
   tags: [registry]
@@ -37,11 +37,11 @@ put:
       content:
         application/json:
           schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
-    '400': {description: Invalid Registry Connection request.}
+    '400': {$ref: ../components/responses/bad-request.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
-    '409': {description: System-managed Registry Connections cannot be updated.}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
 delete:
   tags: [registry]
@@ -60,6 +60,6 @@ delete:
           schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
-    '404': {description: Registry Connection not found.}
-    '409': {description: Registry Connection cannot be deleted while it owns live Artifact Repositories or is system-managed.}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

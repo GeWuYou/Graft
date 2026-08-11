@@ -34,13 +34,14 @@ properties:
   verification_status:
     type: string
     enum: [unknown, verified, failed]
+    x-go-name: ConnectionVerificationStatus
   last_verified_at:
     type: string
     format: date-time
     nullable: true
   description:
     type: string
-    maxLength: 1024
+    maxLength: 500
     nullable: true
   system_managed:
     type: boolean

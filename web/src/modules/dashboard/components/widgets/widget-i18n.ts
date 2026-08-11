@@ -1,4 +1,4 @@
-import { i18n, t } from '@/locales';
+import { t } from '@/locales';
 
 const DEFAULT_DASHBOARD_TEXT = '-';
 
@@ -7,11 +7,7 @@ function hasText(value: string | undefined): value is string {
 }
 
 export function hasDashboardTranslation(key?: string) {
-  if (!hasText(key)) {
-    return false;
-  }
-
-  return i18n.global.te(key);
+  return hasText(key) && t(key) !== key;
 }
 
 /** 优先使用稳定 i18n key，同时保留服务端展示值作为受控回退。 */

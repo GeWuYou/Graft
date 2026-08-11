@@ -9,7 +9,13 @@
     </header>
 
     <div class="registry-page__toolbar">
-      <t-input v-model="search" clearable :placeholder="t('registry.list.search')" @enter="load" />
+      <t-input
+        v-model="search"
+        clearable
+        :placeholder="t('registry.list.search')"
+        @clear="clearSearch"
+        @enter="searchRegistries"
+      />
       <t-button variant="outline" @click="load">{{ t('registry.list.refresh') }}</t-button>
     </div>
     <t-alert v-if="errorMessage" theme="error" :message="errorMessage" />
@@ -25,11 +31,7 @@
       </template>
       <template #status="{ row }">
         <t-tag :theme="row.availability ? 'success' : 'warning'" variant="light">
-          {{
-            row.availability
-              ? t('registry.list.status.available')
-              : t(`registry.list.status.${row.verification_status}`)
-          }}
+          {{ registryStatusLabel(row) }}
         </t-tag>
       </template>
       <template #verified="{ row }">{{ formatLocaleDateTime(row.last_verified_at, locale) || '-' }}</template>
@@ -50,6 +52,13 @@
       </template>
       <template #empty><t-empty :description="t('registry.list.empty')" /></template>
     </t-table>
+    <t-pagination
+      v-model:current="pagination.current"
+      v-model:page-size="pagination.pageSize"
+      :page-size-options="[10, 20, 50, 100]"
+      :total="total"
+      @change="handlePageChange"
+    />
 
     <t-drawer
       v-model:visible="drawerVisible"
@@ -122,6 +131,7 @@
         </t-button>
       </t-form>
       <t-table row-key="user_id" :data="assignments" :columns="assignmentColumns" :loading="assignmentLoading">
+        <template #created_at="{ row }">{{ formatLocaleDateTime(row.created_at, locale) }}</template>
         <template #assignmentActions="{ row }">
           <t-popconfirm
             :content="t('registry.list.revokeAssignmentConfirm', { userId: row.user_id })"
@@ -160,7 +170,7 @@
 </template>
 <script setup lang="ts">
 // Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
-import type { TableProps } from 'tdesign-vue-next';
+import type { PageInfo, TableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -192,6 +202,8 @@ const items = ref<RegistryConnection[]>([]);
 const repositories = ref<RegistryRepository[]>([]);
 const assignments = ref<RegistryAssignment[]>([]);
 const search = ref('');
+const pagination = ref({ current: 1, pageSize: 20 });
+const total = ref(0);
 const loading = ref(false);
 const repositoryLoading = ref(false);
 const saving = ref(false);
@@ -217,6 +229,7 @@ const repositoryForm = ref({ repository_ref: '', display_name: '', allow_pull: t
 const assignmentForm = ref({ user_id: undefined as number | undefined });
 const assignmentLoading = ref(false);
 const assignmentSaving = ref(false);
+let registryListRequestSequence = 0;
 
 const drawerTitle = computed(() => (editingRef.value ? t('registry.list.edit') : t('registry.list.add')));
 const rules = computed(() => ({
@@ -247,16 +260,61 @@ const assignmentColumns = computed<TableProps['columns']>(() => [
 onMounted(() => void load());
 
 async function load() {
+  const requestSequence = ++registryListRequestSequence;
   loading.value = true;
   errorMessage.value = '';
   try {
-    const response = await getRegistries({ search: search.value || undefined, limit: 100, offset: 0 });
+    const response = await getRegistries({
+      search: search.value || undefined,
+      limit: pagination.value.pageSize,
+      offset: (pagination.value.current - 1) * pagination.value.pageSize,
+    });
+    if (requestSequence !== registryListRequestSequence) {
+      return;
+    }
+
     items.value = response.items ?? [];
+    total.value = response.total ?? 0;
   } catch (error) {
+    if (requestSequence !== registryListRequestSequence) {
+      return;
+    }
+
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
   } finally {
-    loading.value = false;
+    if (requestSequence === registryListRequestSequence) {
+      loading.value = false;
+    }
   }
+}
+function searchRegistries() {
+  pagination.value.current = 1;
+  void load();
+}
+function clearSearch() {
+  search.value = '';
+  searchRegistries();
+}
+function handlePageChange(pageInfo: PageInfo) {
+  pagination.value.current = pageInfo.current;
+  pagination.value.pageSize = pageInfo.pageSize;
+  void load();
+}
+function registryStatusLabel(row: RegistryConnection) {
+  if (row.availability) {
+    return t('registry.list.status.available');
+  }
+
+  switch (row.verification_status) {
+    case 'failed':
+      return t('registry.list.status.failed');
+    case 'unknown':
+      return t('registry.list.status.unknown');
+    case 'verified':
+      return t('registry.list.status.unavailable');
+  }
+
+  return t('registry.list.status.unknown');
 }
 function openCreate() {
   editingRef.value = '';
