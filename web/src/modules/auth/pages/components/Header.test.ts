@@ -11,6 +11,7 @@ vi.mock('@/utils/color', () => ({
   composeThemeTokenMap: (tokens: Record<string, string>) => tokens,
   generateBrandColorMap: (brandTheme: string) => ({ '--td-brand-color': brandTheme }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 vi.mock('@/locales', () => ({

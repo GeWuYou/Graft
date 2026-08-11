@@ -26,6 +26,7 @@ vi.mock('@/utils/color', () => ({
     '--td-brand-color': brandTheme,
   }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 import { useSettingStore } from '@/store';

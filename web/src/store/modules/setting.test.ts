@@ -8,10 +8,11 @@ vi.mock('@/utils/color', () => ({
     '--td-brand-color': brandTheme,
   }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 import { THEME_PRESET_DEFINITIONS, THEME_TOKEN_DEFINITIONS } from '@/config/theme-workbench';
-import { insertThemeStylesheet } from '@/utils/color';
+import { insertThemeStylesheet, syncFaviconColor } from '@/utils/color';
 
 import { useSettingStore } from './setting';
 import {
@@ -21,6 +22,7 @@ import {
 } from './setting-theme-authority';
 
 const insertThemeStylesheetMock = insertThemeStylesheet as unknown as ReturnType<typeof vi.fn>;
+const syncFaviconColorMock = syncFaviconColor as unknown as ReturnType<typeof vi.fn>;
 
 type StubMatchMediaOptions = {
   reducedMotion?: boolean;
@@ -67,6 +69,7 @@ describe('setting store theme authority', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     stubMatchMedia(false);
+    syncFaviconColorMock.mockReset();
   });
 
   it('uses the standard font size preset by default', () => {
@@ -604,6 +607,21 @@ describe('setting store theme authority', () => {
       }),
       'light',
     );
+  });
+
+  it('syncs the favicon through theme preview and restores it when the draft is canceled', () => {
+    const store = useSettingStore();
+    const initialBrandTheme = store.brandTheme;
+
+    store.initializeThemeWorkbenchRuntime();
+    expect(syncFaviconColorMock).toHaveBeenLastCalledWith(initialBrandTheme);
+
+    store.openThemeWorkbench('appearance');
+    store.setCustomBrandTheme('#2BA471');
+    expect(syncFaviconColorMock).toHaveBeenLastCalledWith('#2BA471');
+
+    store.cancelThemeDraft();
+    expect(syncFaviconColorMock).toHaveBeenLastCalledWith(initialBrandTheme);
   });
 
   it('refreshes theme runtime only once when applying draft preview and final draft', () => {

@@ -24,7 +24,7 @@ import type {
   ThemeWorkbenchGroupKey,
   ThemeWorkbenchStylePatch,
 } from '@/types/theme';
-import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet } from '@/utils/color';
+import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet, syncFaviconColor } from '@/utils/color';
 import {
   buildThemeModeSnapshot,
   cloneThemeModeTokenState,
@@ -328,6 +328,7 @@ export const useSettingStore = defineStore('setting', {
       const resolvedTokens = resolveModeTokens(this.themeResolvedTokens, mode);
       const tokenMap = composeThemeTokenMap(resolvedTokens);
       insertThemeStylesheet(this.brandTheme, tokenMap, mode);
+      syncFaviconColor(this.brandTheme);
       document.documentElement.setAttribute('theme-color', this.brandTheme);
       // 硬表面标记是壳层材质边界：只有无圆角覆盖的硬偏移主题才能启用它。
       document.documentElement.toggleAttribute(
