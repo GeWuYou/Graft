@@ -67,6 +67,16 @@ docker compose ps
 
 确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
 
+在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 `bootstrap` 镜像和生产配置运行目标数据预检。官方 Compose 会将发行 sidecar 只读挂载到 `/opt/graft/migrations`：
+
+```bash
+docker compose run --rm --no-deps --entrypoint /app/graft bootstrap \
+  migrate preflight --manifest /opt/graft/migrations/<module>/migrations/<version>_<name>.preflight.yaml
+docker compose run --rm bootstrap
+```
+
+`graft migrate preflight` 只读执行，不会应用、生成、改写或重排 migration，也不会更新 Atlas revision。重复、引用或不变量检查失败时，必须先协调数据或遵循发行说明，再运行正常的 migration 命令。
+
 必须执行 `docker compose pull` 和 `docker compose up -d`，以启动上文选择的同一固定发行版本。克隆该发行版到执行这些命令之间，不要变更 `GRAFT_IMAGE_TAG`、版本或频道。
 
 ## 恢复受影响的 `0.11.0-beta.22` 更新中心

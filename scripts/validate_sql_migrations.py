@@ -143,6 +143,20 @@ def derive_minimum_risk(sql: str) -> str:
     return "L0"
 
 
+def required_safety_levels(sql: str) -> tuple[str, ...]:
+    normalized = re.sub(r"--.*?$", "", sql, flags=re.MULTILINE).upper()
+    levels: list[str] = []
+    if re.search(r"\b(CREATE\s+UNIQUE\s+INDEX|\bUNIQUE\b|ADD\s+CONSTRAINT|FOREIGN\s+KEY)\b", normalized):
+        levels.append("L2")
+    if re.search(r"\b(UPDATE\b|INSERT\s+INTO.*SELECT\b|BACKFILL)\b", normalized):
+        levels.append("L3")
+    if re.search(r"\b(DROP\s+|DELETE\s+FROM|TRUNCATE\b|RECONCIL|RETIR|SET\s+DELETED_AT)", normalized):
+        levels.append("L4")
+    if not levels:
+        levels.append(derive_minimum_risk(sql))
+    return tuple(levels)
+
+
 def validate_preflight(sql_path: Path, root: Path) -> list[Finding]:
     preflight, findings = load_preflight(sql_path)
     if preflight is None:
@@ -197,13 +211,15 @@ def validate_preflight(sql_path: Path, root: Path) -> list[Finding]:
         "L4": ("reference_impact", "recovery_or_retirement_rationale"),
         "L5": ("backup_restore_owner", "release_upgrade_documentation"),
     }
-    if declared_risk in required_safety:
-        for key in required_safety[declared_risk]:
-            if not isinstance(safety.get(key), str) or not safety[key].strip():
-                findings.append(Finding(preflight.path, f"safety_strategy.{key} is required for {declared_risk}"))
+    applicable_levels = [level for level in required_safety_levels(sql_path.read_text(encoding="utf-8")) if level in required_safety]
+    if applicable_levels:
+        for level in applicable_levels:
+            for key in required_safety[level]:
+                if not isinstance(safety.get(key), str) or not safety[key].strip():
+                    findings.append(Finding(preflight.path, f"safety_strategy.{key} is required for {level}"))
         checks = data.get("preflight_checks")
         if not isinstance(checks, list) or not checks:
-            findings.append(Finding(preflight.path, f"preflight_checks is required for {declared_risk}"))
+            findings.append(Finding(preflight.path, "preflight_checks is required for risk-bearing migration operations"))
     return findings
 
 
@@ -386,22 +402,37 @@ def validate(paths: list[Path], root: Path, require_preflight: bool = False) -> 
 
 
 def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> list[tuple[str, Path]]:
-    command = ["git", "diff", "--name-status", "--diff-filter=ACMR"]
+    if not staged and not base_ref:
+        raise ValueError("--changed requires --base-ref")
+
+    command = ["git", "diff", "--name-status", "-z", "--diff-filter=ACMR"]
     if staged:
         command.append("--cached")
-    elif base_ref:
-        command.append(f"{base_ref}...HEAD")
     else:
-        return []
-    output = subprocess.check_output(command, cwd=root, text=True)
+        command.append(f"{base_ref}...HEAD")
+    output = subprocess.check_output(command, cwd=root).decode("utf-8")
+    fields = output.split("\0")
     paths: list[tuple[str, Path]] = []
-    for line in output.splitlines():
-        parts = line.split("\t", 1)
-        if len(parts) != 2 or not parts[1].endswith(".sql"):
+    index = 0
+    while index < len(fields) - 1:
+        status = fields[index]
+        index += 1
+        if not status:
             continue
-        path = root / parts[1]
-        if path.is_file() and path.parent in default_migration_dirs(root):
-            paths.append((parts[0], path))
+        if status.startswith("R"):
+            if index + 1 >= len(fields):
+                break
+            candidates = (fields[index], fields[index + 1])
+            index += 2
+        else:
+            if index >= len(fields):
+                break
+            candidates = (fields[index],)
+            index += 1
+        for entry in candidates:
+            path = root / entry
+            if entry.endswith(".sql") and path.parent in default_migration_dirs(root):
+                paths.append((status, path))
     return paths
 
 
@@ -416,7 +447,7 @@ def has_unpublished_exception(sql_path: Path) -> bool:
 def validate_historical_immutability(entries: list[tuple[str, Path]]) -> list[Finding]:
     findings: list[Finding] = []
     for status, path in entries:
-        if status.startswith("M") and not has_unpublished_exception(path):
+        if status.startswith(("M", "R")) and not has_unpublished_exception(path):
             findings.append(Finding(path, "historical live migration was modified; add a higher-version migration or governed unpublished_exception evidence"))
     return findings
 
@@ -436,12 +467,17 @@ def main() -> int:
 
     root = repo_root()
     if args.changed or args.staged:
-        changed_entries = git_changed_sql_entries(root, args.base_ref, args.staged)
+        try:
+            changed_entries = git_changed_sql_entries(root, args.base_ref, args.staged)
+        except ValueError as error:
+            parser.error(str(error))
         paths = [path for _, path in changed_entries]
         require_preflight = True
     else:
-        paths = [path if path.is_absolute() else root / path for path in args.paths] if args.paths else live_sql_files(root)
-        require_preflight = bool(args.paths)
+        if not args.paths:
+            parser.error("select migration files with --paths or use --changed --base-ref <ref>")
+        paths = [path if path.is_absolute() else root / path for path in args.paths]
+        require_preflight = True
     if not paths:
         print("sql migration gate: skip (no live migration SQL files found)")
         return 0

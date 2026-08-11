@@ -57,6 +57,9 @@ fi
 
 sh "$python_runner" "$migration_version_checker" --mode changed
 
-if [ -f "$migration_sql_validator" ]; then
-  sh "$python_runner" "$migration_sql_validator" --staged
+if [ ! -f "$migration_sql_validator" ]; then
+  echo "migration SQL gate: missing validator $migration_sql_validator" >&2
+  exit 1
 fi
+
+sh "$python_runner" "$migration_sql_validator" --staged

@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestValidateReadOnlyPreflightCheckRejectsMutation(t *testing.T) {
@@ -14,6 +17,31 @@ func TestValidateReadOnlyPreflightCheckRejectsMutation(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "read-only SELECT") {
 		t.Fatalf("expected read-only query rejection, got %v", err)
+	}
+}
+
+func TestRunMigrationPreflightChecksUsesReadOnlyTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create SQL mock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	query := "WITH deleted AS (\nDELETE FROM registry_connections RETURNING id\n) SELECT 0"
+	mock.ExpectBegin()
+	mock.ExpectQuery("WITH deleted AS").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectRollback()
+
+	err = runMigrationPreflightChecks(context.Background(), db, []migrationPreflightCheck{{
+		Name:      "data-modifying-cte",
+		Query:     query,
+		MustEqual: 0,
+	}})
+	if err != nil {
+		t.Fatalf("run preflight checks: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("preflight transaction expectations: %v", err)
 	}
 }
 

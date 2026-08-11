@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -241,7 +242,7 @@ func (s *Service) VerifyConnection(ctx context.Context, connectionRef string, ve
 func (s *Service) ListRepositories(ctx context.Context, connectionRef string, limit, offset int) ([]registrystore.Repository, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("list registry artifact repositories: %w", err)
 	}
 	return repository.ListRepositories(ctx, connectionRef, limit, offset)
 }
@@ -283,7 +284,7 @@ func (s *Service) DeleteRepository(ctx context.Context, connectionRef, repositor
 func (s *Service) ListAssignments(ctx context.Context, connectionRef, repositoryRef string, limit, offset int) ([]registrystore.UserAssignment, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("list registry artifact repository assignments: %w", err)
 	}
 	return repository.ListAssignments(ctx, connectionRef, repositoryRef, limit, offset)
 }
@@ -319,7 +320,7 @@ func (s *Service) RevokeAssignment(ctx context.Context, connectionRef, repositor
 func (s *Service) ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]registrystore.Destination, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("list available registry destinations: %w", err)
 	}
 	return repository.ListAvailableDestinations(ctx, actorID, limit, offset)
 }

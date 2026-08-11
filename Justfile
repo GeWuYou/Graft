@@ -139,7 +139,6 @@ migrate-validate:
 migration-check:
     cd server && go run ./cmd/graft migrate validate
     python3 scripts/check_migration_versions.py --mode all
-    python3 scripts/validate_sql_migrations.py
     python3 scripts/validate_sql_migrations.py --changed --base-ref "$(git merge-base origin/main HEAD)"
     python3 scripts/check_migration_bootstrap.py
 

@@ -82,6 +82,8 @@ services:
     volumes:
       # The beta cutover is the only bootstrap operation allowed to mutate v1 state.
       - graft-update-state:/var/lib/graft/update-state
+      # Preflight sidecars are read-only deployment evidence and never enter the migration apply path.
+      - ${COMPOSE_FILE_DIR:-.}/server/modules:/opt/graft/migrations:ro
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
 

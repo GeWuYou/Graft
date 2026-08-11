@@ -31,10 +31,6 @@ validation_scenarios:
   - Unreferenced duplicate connections are retired before the partial unique index is created.
   - Referenced duplicate connections cause an explicit abort before the partial unique index is created.
 preflight_checks:
-  - name: duplicate-live-registry-connections
-    query: >-
-      SELECT COUNT(*) FROM (SELECT provider, endpoint FROM registry_connections WHERE deleted_at = 0 GROUP BY provider, endpoint HAVING COUNT(*) > 1) duplicates
-    must_equal: 0
   - name: referenced-duplicate-registry-connections
     query: >-
       SELECT COUNT(*) FROM artifact_repositories repository JOIN registry_connections connection ON connection.id = repository.connection_id AND connection.deleted_at = 0 WHERE repository.deleted_at = 0 AND EXISTS (SELECT 1 FROM registry_connections duplicate WHERE duplicate.provider = connection.provider AND duplicate.endpoint = connection.endpoint AND duplicate.deleted_at = 0 AND duplicate.id <> connection.id)
@@ -42,7 +38,7 @@ preflight_checks:
 retrieval_receipt:
   governance:
     path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
-    revision: sha256:3a5961eedc82b9d1b4a12203f96fa2a7da8ebb86eee3a65c61e74e4a872d02f2
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
   lessons:
     path: ai-plan/lessons/migrations.md
     revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb

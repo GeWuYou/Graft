@@ -6,6 +6,7 @@ from __future__ import annotations
 import sys
 import unittest
 import hashlib
+import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -227,6 +228,60 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
             self.write_preflight(root, sql, risk="L0")
             messages = [finding.message for finding in validator.validate_preflight(sql, root)]
             self.assertIn("risk_level L0 understates SQL-derived minimum L2", messages)
+
+    def test_combined_unique_index_and_delete_requires_all_safety_evidence(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE UNIQUE INDEX uq_demo ON demo_events (id);\nDELETE FROM demo_events WHERE id = 0;\n", encoding="utf-8")
+            sidecar = self.write_preflight(root, sql, risk="L4")
+            sidecar.write_text(sidecar.read_text(encoding="utf-8").replace("  duplicate_scan: SELECT 1\n", "").replace("  live_reference_scan: SELECT 1\n", "").replace("  post_migration_invariant: unique\n", ""), encoding="utf-8")
+
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+
+            self.assertIn("safety_strategy.duplicate_scan is required for L2", messages)
+            self.assertIn("safety_strategy.live_reference_scan is required for L2", messages)
+            self.assertIn("safety_strategy.post_migration_invariant is required for L2", messages)
+
+    def test_changed_mode_requires_a_base_ref(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            with self.assertRaisesRegex(ValueError, "--changed requires --base-ref"):
+                validator.git_changed_sql_entries(Path(temp_dir), None, staged=False)
+
+    def test_changed_command_rejects_a_missing_sidecar(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(validator, "git_changed_sql_entries", return_value=[("A", sql)]),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            self.assertIn("exactly one .preflight.yaml sidecar", stderr.getvalue())
+
+    def test_rename_is_treated_as_historical_migration_change(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator.subprocess, "check_output", return_value=b"R100\x00server/modules/demo/migrations/202608120000_old.sql\x00server/modules/demo/migrations/202608120001_demo.sql\x00"),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[sql.parent]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(entries, [("R100", root / "server/modules/demo/migrations/202608120000_old.sql"), ("R100", sql)])
+            messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
+            self.assertTrue(any("historical live migration was modified" in message for message in messages))
 
 
 if __name__ == "__main__":

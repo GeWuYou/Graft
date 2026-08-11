@@ -64,8 +64,10 @@ Use this skill when the task touches any of:
 After modifying migration SQL, run:
 
 ```bash
-python3 scripts/validate_sql_migrations.py
+python3 scripts/validate_sql_migrations.py --changed --base-ref "$(git merge-base origin/main HEAD)"
 ```
+
+For a deliberately scoped migration file, use `--paths <file>` instead. The validator rejects an unscoped invocation so a changed live migration cannot bypass the sidecar requirement.
 
 If the migration directory contents changed, also recompute the touched directory checksum immediately:
 

@@ -56,7 +56,7 @@ closeout:
 
 ## Acceptance Conditions
 
-- `migration-check.yml` runs `python3 scripts/validate_sql_migrations.py` before migration bootstrap validation.
+- `migration-check.yml` runs `python3 scripts/validate_sql_migrations.py --changed --base-ref origin/main` before migration bootstrap validation.
 - The bootstrap step writes `MIGRATION_SCHEMA_REPORT`, and the diagnostics artifact uploads that exact path.
 - Compose Smoke summary URLs render as Markdown code spans and retain the resolved probe base URL.
 - `README.md` lists `server/internal/migrationcontract/**` in Owned Scope.

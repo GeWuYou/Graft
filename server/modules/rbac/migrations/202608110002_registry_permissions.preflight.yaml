@@ -32,7 +32,7 @@ preflight_checks:
 retrieval_receipt:
   governance:
     path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
-    revision: sha256:3a5961eedc82b9d1b4a12203f96fa2a7da8ebb86eee3a65c61e74e4a872d02f2
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
   lessons:
     path: ai-plan/lessons/migrations.md
     revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb

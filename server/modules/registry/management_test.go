@@ -97,6 +97,33 @@ func TestRegistryManagementNormalization(t *testing.T) {
 	}
 }
 
+func TestRegistryManagementListErrorsIncludeOperationContext(t *testing.T) {
+	var service *Service
+	testCases := []struct {
+		name string
+		call func() error
+		want string
+	}{
+		{name: "repositories", call: func() error { _, _, err := service.ListRepositories(context.Background(), "primary", 1, 0); return err }, want: "list registry artifact repositories"},
+		{name: "assignments", call: func() error {
+			_, _, err := service.ListAssignments(context.Background(), "primary", "team/api", 1, 0)
+			return err
+		}, want: "list registry artifact repository assignments"},
+		{name: "destinations", call: func() error {
+			_, _, err := service.ListAvailableDestinations(context.Background(), 1, 1, 0)
+			return err
+		}, want: "list available registry destinations"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.call()
+			if err == nil || !strings.Contains(err.Error(), testCase.want) || !strings.Contains(err.Error(), "registry management service is unavailable") {
+				t.Fatalf("list error = %v, want operation context %q with preserved cause", err, testCase.want)
+			}
+		})
+	}
+}
+
 type registryResolverStub struct {
 	addresses []netip.Addr
 	err       error

@@ -69,11 +69,12 @@ docker compose ps
 
 Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
 
-Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks from the server image with production configuration, then apply the normal migration command only after the report passes:
+Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks with the same official `bootstrap` image and production configuration that will apply the migration. The official Compose file mounts release sidecars read-only at `/opt/graft/migrations`:
 
 ```bash
-graft migrate preflight --manifest server/modules/<module>/migrations/<version>_<name>.preflight.yaml
-graft migrate up
+docker compose run --rm --no-deps --entrypoint /app/graft bootstrap \
+  migrate preflight --manifest /opt/graft/migrations/<module>/migrations/<version>_<name>.preflight.yaml
+docker compose run --rm bootstrap
 ```
 
 `graft migrate preflight` is read-only: it does not apply, synthesize, rewrite, or reorder migrations, and it does not update Atlas revision state. A duplicate, reference, or invariant finding means the operator must reconcile data or follow the release guidance before running `graft migrate up`.

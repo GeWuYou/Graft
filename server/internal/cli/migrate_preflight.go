@@ -46,12 +46,23 @@ func runMigrationPreflight(ctx context.Context, databaseURL string, manifestPath
 	}
 	defer func() { _ = db.Close() }()
 
-	for _, check := range manifest.PreflightChecks {
+	return runMigrationPreflightChecks(ctx, db, manifest.PreflightChecks)
+}
+
+// runMigrationPreflightChecks 在只读事务中执行全部 preflight 查询，数据库拒绝词法检查无法识别的写入路径。
+func runMigrationPreflightChecks(ctx context.Context, db *sql.DB, checks []migrationPreflightCheck) error {
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return fmt.Errorf("begin read-only migration preflight transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, check := range checks {
 		if err := validateReadOnlyPreflightCheck(check); err != nil {
 			return err
 		}
 		var actual int64
-		if err := db.QueryRowContext(ctx, check.Query).Scan(&actual); err != nil {
+		if err := tx.QueryRowContext(ctx, check.Query).Scan(&actual); err != nil {
 			return fmt.Errorf("run migration preflight check %q: %w", check.Name, err)
 		}
 		if actual != check.MustEqual {
