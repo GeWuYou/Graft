@@ -26,6 +26,8 @@ const localDockerBuilderAgentName = "docker-builder-agent-local"
 const localDockerBuilderSecretDirPerm = 0o700
 const (
 	localDockerBuilderSecretFilePerm      = 0o600
+	localDockerBuilderServerEnvFileName   = ".env.docker-builder-agent"
+	localDockerBuilderAgentConfigFileName = "agent.json"
 	localDockerBuilderHealthTimeout       = 5 * time.Second
 	localDockerBuilderIsolatedDatabaseURL = "postgres://graft:graft@127.0.0.1:15432/graft?sslmode=disable" //nolint:gosec // 仅用于显式 isolated 调试模式的可丢弃 Compose PostgreSQL。
 )
@@ -42,7 +44,7 @@ func newDevDockerBuilderAgentCommand() *cobra.Command {
 	command := &cobra.Command{Use: "docker-builder-agent", Short: "Prepare the local Docker Builder Agent development topology"}
 
 	prepareMode := string(localDockerBuilderDatabaseModeShared)
-	prepare := &cobra.Command{Use: "prepare", Short: "Start local dependencies and write Server environment", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	prepare := &cobra.Command{Use: "prepare", Short: "Start local dependencies and write the local Server integration environment", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		return runDevDockerBuilderAgentPrepare(cmd, localDockerBuilderDatabaseMode(prepareMode))
 	}}
 	prepare.Flags().StringVar(&prepareMode, "database-mode", prepareMode, "Database mode: shared or isolated")
@@ -108,6 +110,9 @@ func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDocke
 	if err != nil {
 		return err
 	}
+	if err := migrateLocalDockerBuilderAgentConfig(root); err != nil {
+		return err
+	}
 	httpAddress := localDevAddress("GRAFT_DOCKER_BUILDER_DEV_HTTP_ADDR", "127.0.0.1:8080")
 	bootstrapAddress := localDevAddress("GRAFT_DOCKER_BUILDER_DEV_BOOTSTRAP_ADDR", "127.0.0.1:8443")
 	agentAddress := localDevAddress("GRAFT_DOCKER_BUILDER_DEV_AGENT_ADDR", "127.0.0.1:8444")
@@ -115,7 +120,7 @@ func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDocke
 		return err
 	}
 	oldEnv, hadEnv := os.LookupEnv("GRAFT_ENV_FILE")
-	if err := os.Setenv("GRAFT_ENV_FILE", filepath.Join(root, "server.env")); err != nil {
+	if err := os.Setenv("GRAFT_ENV_FILE", localDockerBuilderServerEnvFile(root)); err != nil {
 		return err
 	}
 	defer func() {
@@ -146,8 +151,7 @@ func runDevDockerBuilderAgentDeliver(cmd *cobra.Command, databaseMode localDocke
 	if err != nil {
 		return err
 	}
-	repositoryRoot := filepath.Dir(filepath.Dir(root))
-	return runtimetarget.PrepareLocalDockerBuilderAgent(cmd.Context(), resources.SQL, pepper, moduleapi.AgentCertificateIssuer(issuer), runtimetarget.LocalDockerBuilderAgentDelivery{AgentID: localDockerBuilderAgentName, ImageDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", AgentVersion: "local", EnrollmentRef: localDockerBuilderAgentName, AutomationID: localDockerBuilderAgentName, BootstrapURL: "https://" + bootstrapAddress, AgentURL: "https://" + agentAddress, BootstrapTokenFile: filepath.Join(root, "agent", "bootstrap", "bootstrap-token"), ConfigFile: filepath.Join(repositoryRoot, "server", "agents", "docker-builder-agent", "config", "agent.local.json"), StateDir: filepath.Join(root, "agent", "state"), BootstrapCAFile: filepath.Join(root, "agent", "trust", "ca.pem"), TrustBundleFile: filepath.Join(root, "agent", "trust", "ca.pem")})
+	return runtimetarget.PrepareLocalDockerBuilderAgent(cmd.Context(), resources.SQL, pepper, moduleapi.AgentCertificateIssuer(issuer), runtimetarget.LocalDockerBuilderAgentDelivery{AgentID: localDockerBuilderAgentName, ImageDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", AgentVersion: "local", EnrollmentRef: localDockerBuilderAgentName, AutomationID: localDockerBuilderAgentName, BootstrapURL: "https://" + bootstrapAddress, AgentURL: "https://" + agentAddress, BootstrapTokenFile: filepath.Join(root, "agent", "bootstrap", "bootstrap-token"), ConfigFile: localDockerBuilderAgentConfigFile(root), StateDir: filepath.Join(root, "agent", "state"), BootstrapCAFile: filepath.Join(root, "agent", "trust", "ca.pem"), TrustBundleFile: filepath.Join(root, "agent", "trust", "ca.pem")})
 }
 
 // runDevDockerBuilderAgentReset 归档本开发拓扑的受忽略状态后重建依赖与环境文件。
@@ -174,7 +178,7 @@ func runDevDockerBuilderAgentReset(cmd *cobra.Command, databaseMode localDockerB
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	configFile := filepath.Join(filepath.Dir(filepath.Dir(root)), "server", "agents", "docker-builder-agent", "config", "agent.local.json")
+	configFile := localDockerBuilderAgentConfigFile(root)
 	if err := os.Remove(configFile); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove generated local Agent config: %w", err)
 	}
@@ -228,53 +232,88 @@ func exportLocalVaultCA(ctx context.Context, root, composeFile string) error {
 }
 
 func writeLocalDockerBuilderServerEnv(root string, databaseMode localDockerBuilderDatabaseMode) error {
+	values, err := godotenv.Read(localDockerBuilderServerEnvSource(root))
+	if err != nil {
+		return fmt.Errorf("read local Server environment: %w", err)
+	}
+	if err := validateLocalDockerBuilderServerEnvironment(values, localDockerBuilderServerEnvSource(root)); err != nil {
+		return err
+	}
 	databaseURL, err := resolveLocalDockerBuilderDatabaseURL(root, databaseMode)
 	if err != nil {
 		return err
 	}
 
 	secrets := filepath.Join(root, "secrets")
-	entries := []struct{ key, value string }{
-		{"GRAFT_APP_ENV", "local"},
-		{"GRAFT_CONFIG_SCHEMA_VERSION", "1"},
-		{"GRAFT_HTTP_ADDR", localDevAddress("GRAFT_DOCKER_BUILDER_DEV_HTTP_ADDR", "127.0.0.1:8080")},
-		{"GRAFT_DATABASE_URL", databaseURL},
-		{"GRAFT_REDIS_ADDR", "127.0.0.1:16379"},
-		{"GRAFT_AUTH_JWT_SECRET", "local-docker-builder-agent-development"},
-		{"GRAFT_CREDENTIAL_VAULT_ENABLED", "true"},
-		{"GRAFT_CREDENTIAL_VAULT_BACKEND", "vault-pki"},
-		{"GRAFT_CREDENTIAL_VAULT_ADDRESS", "https://127.0.0.1:18200"},
-		{"GRAFT_CREDENTIAL_VAULT_CA_FILE", filepath.Join(secrets, "vault-ca.pem")},
-		{"GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT", "approle"},
-		{"GRAFT_CREDENTIAL_VAULT_AUTH_ROLE", "graft-docker-builder-agent"},
-		{"GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE", filepath.Join(secrets, "role_id")},
-		{"GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE", filepath.Join(secrets, "secret_id")},
-		{"GRAFT_CREDENTIAL_VAULT_PKI_MOUNT", "pki"},
-		{"GRAFT_CREDENTIAL_VAULT_PKI_ROLE", "graft-docker-builder-agent"},
-		{"GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF", "vault://pki/cert/ca"},
-		{"GRAFT_ENROLLMENT_PEPPER_FILE", filepath.Join(secrets, "enrollment-pepper")},
-		{"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED", "true"},
-		{"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ADDR", localDevAddress("GRAFT_DOCKER_BUILDER_DEV_BOOTSTRAP_ADDR", "127.0.0.1:8443")},
-		{"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_CERTIFICATE_FILE", filepath.Join(secrets, "server-cert.pem")},
-		{"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_KEY_FILE", filepath.Join(secrets, "server-key.pem")},
-		{"GRAFT_HTTPX_AGENT_TLS_ENABLED", "true"},
-		{"GRAFT_HTTPX_AGENT_TLS_ADDR", localDevAddress("GRAFT_DOCKER_BUILDER_DEV_AGENT_ADDR", "127.0.0.1:8444")},
-		{"GRAFT_HTTPX_AGENT_TLS_CERTIFICATE_FILE", filepath.Join(secrets, "server-cert.pem")},
-		{"GRAFT_HTTPX_AGENT_TLS_KEY_FILE", filepath.Join(secrets, "server-key.pem")},
-		{"GRAFT_HTTPX_AGENT_TLS_CLIENT_CA_FILE", filepath.Join(secrets, "ca.pem")},
+	// #nosec G101 -- 本地开发数据库地址由显式 database-mode 解析，不是凭据。
+	overrides := map[string]string{
+		"GRAFT_DATABASE_URL":                               databaseURL,
+		"GRAFT_REDIS_ADDR":                                 "127.0.0.1:16379",
+		"GRAFT_CREDENTIAL_VAULT_ENABLED":                   "true",
+		"GRAFT_CREDENTIAL_VAULT_BACKEND":                   "vault-pki",
+		"GRAFT_CREDENTIAL_VAULT_ADDRESS":                   "https://127.0.0.1:18200",
+		"GRAFT_CREDENTIAL_VAULT_CA_FILE":                   filepath.Join(secrets, "vault-ca.pem"),
+		"GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT":                "approle",
+		"GRAFT_CREDENTIAL_VAULT_AUTH_ROLE":                 "graft-docker-builder-agent",
+		"GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE":         filepath.Join(secrets, "role_id"),
+		"GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE":       filepath.Join(secrets, "secret_id"),
+		"GRAFT_CREDENTIAL_VAULT_PKI_MOUNT":                 "pki",
+		"GRAFT_CREDENTIAL_VAULT_PKI_ROLE":                  "graft-docker-builder-agent",
+		"GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF":          "vault://pki/cert/ca",
+		"GRAFT_ENROLLMENT_PEPPER_FILE":                     filepath.Join(secrets, "enrollment-pepper"),
+		"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED":          "true",
+		"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ADDR":             localDevAddress("GRAFT_DOCKER_BUILDER_DEV_BOOTSTRAP_ADDR", "127.0.0.1:8443"),
+		"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_CERTIFICATE_FILE": filepath.Join(secrets, "server-cert.pem"),
+		"GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_KEY_FILE":         filepath.Join(secrets, "server-key.pem"),
+		"GRAFT_HTTPX_AGENT_TLS_ENABLED":                    "true",
+		"GRAFT_HTTPX_AGENT_TLS_ADDR":                       localDevAddress("GRAFT_DOCKER_BUILDER_DEV_AGENT_ADDR", "127.0.0.1:8444"),
+		"GRAFT_HTTPX_AGENT_TLS_CERTIFICATE_FILE":           filepath.Join(secrets, "server-cert.pem"),
+		"GRAFT_HTTPX_AGENT_TLS_KEY_FILE":                   filepath.Join(secrets, "server-key.pem"),
+		"GRAFT_HTTPX_AGENT_TLS_CLIENT_CA_FILE":             filepath.Join(secrets, "ca.pem"),
 	}
-	var contents strings.Builder
-	for _, entry := range entries {
-		contents.WriteString(entry.key)
-		contents.WriteByte('=')
-		contents.WriteString(entry.value)
-		contents.WriteByte('\n')
+	for key, value := range overrides {
+		values[key] = value
 	}
-	return os.WriteFile(filepath.Join(root, "server.env"), []byte(contents.String()), localDockerBuilderSecretFilePerm)
+	contents, err := godotenv.Marshal(values)
+	if err != nil {
+		return fmt.Errorf("marshal local Server integration environment: %w", err)
+	}
+	return os.WriteFile(localDockerBuilderServerEnvFile(root), []byte(contents+"\n"), localDockerBuilderSecretFilePerm)
 }
 
 func localDockerBuilderServerEnvSource(root string) string {
 	return filepath.Join(filepath.Dir(filepath.Dir(root)), "server", ".env")
+}
+
+func localDockerBuilderServerEnvFile(root string) string {
+	return filepath.Join(filepath.Dir(filepath.Dir(root)), "server", localDockerBuilderServerEnvFileName)
+}
+
+func localDockerBuilderAgentConfigFile(root string) string {
+	return filepath.Join(filepath.Dir(filepath.Dir(root)), "server", "agents", "docker-builder-agent", localDockerBuilderAgentConfigFileName)
+}
+
+func legacyLocalDockerBuilderAgentConfigFile(root string) string {
+	return filepath.Join(filepath.Dir(filepath.Dir(root)), "server", "agents", "docker-builder-agent", "config", "agent.local.json")
+}
+
+func migrateLocalDockerBuilderAgentConfig(root string) error {
+	configFile := localDockerBuilderAgentConfigFile(root)
+	if _, err := os.Stat(configFile); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect local Agent config: %w", err)
+	}
+
+	legacyFile := legacyLocalDockerBuilderAgentConfigFile(root)
+	err := os.Rename(legacyFile, configFile)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return fmt.Errorf("move legacy local Agent config to Agent root: %w", err)
 }
 
 func normalizeLocalDockerBuilderDatabaseMode(mode localDockerBuilderDatabaseMode) (localDockerBuilderDatabaseMode, error) {
@@ -305,16 +344,22 @@ func readLocalDockerBuilderServerDatabaseURL(envFile string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read local Server environment %s: %w", envFile, err)
 	}
+	if err := validateLocalDockerBuilderServerEnvironment(values, envFile); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(values["GRAFT_DATABASE_URL"]), nil
+}
 
+func validateLocalDockerBuilderServerEnvironment(values map[string]string, envFile string) error {
 	databaseURL := strings.TrimSpace(values["GRAFT_DATABASE_URL"])
 	if databaseURL == "" {
-		return "", fmt.Errorf("GRAFT_DATABASE_URL is required in local Server environment %s", envFile)
+		return fmt.Errorf("GRAFT_DATABASE_URL is required in local Server environment %s", envFile)
 	}
 	if appEnv := strings.TrimSpace(values["GRAFT_APP_ENV"]); appEnv != "" && !isDevelopmentAppEnv(appEnv) {
-		return "", fmt.Errorf("local Docker Builder shared database requires local/test GRAFT_APP_ENV in %s, got %q", envFile, appEnv)
+		return fmt.Errorf("local Docker Builder shared database requires local/test GRAFT_APP_ENV in %s, got %q", envFile, appEnv)
 	}
 
-	return databaseURL, nil
+	return nil
 }
 
 func localDevAddress(name, fallback string) string {

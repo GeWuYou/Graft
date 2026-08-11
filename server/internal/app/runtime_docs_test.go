@@ -24,3 +24,18 @@ func TestLogRealtimeGatewayConfigurationWarnsForRelativeDockerBuilderEnvFile(t *
 		t.Fatalf("Docker Builder Agent environment warnings = %d, want 1", len(entries))
 	}
 }
+
+func TestLogRealtimeGatewayConfigurationDoesNotWarnForServerOwnedIntegrationEnvFile(t *testing.T) {
+	core, observed := observer.New(zap.WarnLevel)
+	runtime := &Runtime{
+		config:             &config.Config{DotenvPath: "./server/.env.docker-builder-agent"},
+		canonicalAppLogger: logger.NewAppLogger(zap.New(core)),
+	}
+
+	runtime.logRealtimeGatewayConfiguration()
+
+	entries := observed.FilterMessage("realtime gateway is using Docker Builder Agent environment").All()
+	if len(entries) != 0 {
+		t.Fatalf("Docker Builder Agent environment warnings = %d, want 0", len(entries))
+	}
+}

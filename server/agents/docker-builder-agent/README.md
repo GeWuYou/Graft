@@ -4,13 +4,13 @@ Docker Builder Agent 是独立部署单元。Runtime Target 负责 enrollment、
 
 ## Local debug
 
-VS Code 的启动任务会先调用 Backend-owned `graft dev docker-builder-agent prepare` 与 `deliver`，将被忽略的 `config/agent.local.json` 和交付材料写入隔离的 `.data/docker-builder-agent-dev`。默认 `shared` 模式下，调试 Server 使用 `server/.env` 中现有的 Graft 开发数据库，并使用本地 Redis、Vault 和 TLS 配置；需要空库时可在 CLI 的 prepare、deliver 与 reset 命令上统一传递 `--database-mode isolated`。宿主机 Agent 随后连接本地 Server 的 `127.0.0.1:8443` bootstrap listener 和 `127.0.0.1:8444` mTLS listener。
+本地 Agent 调试有明确的独立单元：`server: Air + Agent Gateway` 负责后端 Gateway，`agent: Docker Builder` 负责 Agent 进程，`web: dev` 负责前端；`fullstack: dev` 会并行组合这三个单元。单独调试 Agent 时，先执行 `agent: prepare Docker Builder development`，再启动 Gateway Server，最后启动 Agent（它会调用 Backend-owned `deliver`）。Gateway Server 读取 Server 目录中的 `.env.docker-builder-agent`，该文件以 `server/.env` 为基线，只覆写本地 Redis、Vault 和 TLS 集成值；普通 `server: Air 热重载` 仍只读取 `server/.env`，不会准备或启动 Agent。Agent 只读取同一 Agent 根目录下由 delivery 生成且被忽略的 `agent.json`，并从隔离的 `.data/docker-builder-agent-dev` 读取其 bootstrap、trust 与 state 材料。默认 `shared` 模式下，Gateway Server 使用 `server/.env` 中现有的 Graft 开发数据库；需要空库时可在 CLI 的 prepare、deliver 与 reset 命令上统一传递 `--database-mode isolated`。宿主机 Agent 随后连接本地 Server 的 `127.0.0.1:8443` bootstrap listener 和 `127.0.0.1:8444` mTLS listener。
 
 配置中的 `target_id`、`agent_id`、bootstrap token 与 CA 必须来自 Backend-owned delivery；不能为了调试手写或重用生产 token。VS Code 的 Agent 启动项会等待这些开发交付材料，因此日志直接输出到调试器且无需构建 Agent 镜像；正常 production/Compose 启动仍会在配置错误时立即失败。
 
 开发 Vault 在 pending delivery 后被重启或重建时，显式运行 `graft dev docker-builder-agent reset`。它归档本开发拓扑的忽略数据并重新准备依赖；Runtime Target binding 的状态边界仍以 [Agent Protocol](../../../ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md) 为准。
 
-`config/agent.json.example` 保留给 Compose 容器，使用 Compose DNS 名和容器内挂载路径；不要把它用于宿主机调试。
+`config/agent.json.example` 保留给 Compose 容器，使用 Compose DNS 名和容器内挂载路径；宿主机调试使用同一 Agent 根目录下由 Backend delivery 写入的 `agent.json`。`agent.json.example` 仅展示该宿主机交付文件的结构，不能替代 delivery。
 
 ## Compose profile
 
