@@ -806,12 +806,16 @@ describe('LayoutContent', () => {
       isDuplicate: true,
       tabKey: '/security/audit#copy-1',
     };
-    storeState.tabsRouterStore.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, activeDuplicate];
+    const fixedTab = {
+      ...createTab('/server/runtime', 'RuntimeTargetList'),
+      isPinned: true,
+    };
+    storeState.tabsRouterStore.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, activeDuplicate, fixedTab];
     storeState.tabsRouterStore.activeTabKey = activeDuplicate.tabKey;
     routeProxy.path = sourceTab.path;
     routeProxy.fullPath = sourceTab.fullPath ?? sourceTab.path;
     storeState.tabsRouterStore.subtractTabRouterBehind.mockImplementation(() => {
-      tabsRouterStoreProxy.tabRouters = [createTab('/', 'RootEntry', true), sourceTab];
+      tabsRouterStoreProxy.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, fixedTab];
     });
 
     const wrapper = mountLayoutContent();

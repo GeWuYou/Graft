@@ -248,8 +248,12 @@ const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', retainedTabKe
     (type === 'ahead' && currentIndex < props.tabIndex) ||
     (type === 'behind' && currentIndex === -1);
   if (needRefreshRouter) {
-    const nextTabIndex = type === 'behind' ? tabRouters.value.length - 1 : 1;
-    navigateToTab(tabRouters.value[nextTabIndex]);
+    const fallbackTab =
+      type === 'behind'
+        ? (tabRouters.value.find((item) => getTabKey(item) === getTabKey(props.tab)) ??
+          tabRouters.value[tabRouters.value.length - 1])
+        : tabRouters.value[1];
+    navigateToTab(fallbackTab);
   }
   activeTabKeyForMenu.value = null;
 };
