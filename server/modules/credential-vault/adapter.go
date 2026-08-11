@@ -243,7 +243,8 @@ func (v *VaultPKIClient) ReadTrustBundle(ctx context.Context, _ moduleapi.TrustB
 	if !certificate.NotAfter.After(time.Now().UTC()) {
 		return moduleapi.TrustBundleReference{}, errors.New("vault trust bundle is expired")
 	}
-	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "vault-pki", ExpiresAt: certificate.NotAfter.UTC()}, nil
+	fingerprint := sha256.Sum256(certificate.Raw)
+	return moduleapi.TrustBundleReference{Reference: v.config.TrustBundleRef, Version: "sha256:" + hex.EncodeToString(fingerprint[:]), ExpiresAt: certificate.NotAfter.UTC()}, nil
 }
 
 // RevokeCertificate 向 Vault 提交幂等证书撤销请求。

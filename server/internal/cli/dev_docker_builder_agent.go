@@ -202,7 +202,8 @@ func runLocalDockerBuilderCompose(ctx context.Context, root, composeFile string,
 
 func exportLocalVaultCA(ctx context.Context, root, composeFile string) error {
 	//nolint:gosec // compose 文件与 vault service 名均由本开发 CLI 固定。
-	pathCommand := exec.CommandContext(ctx, "docker", "compose", "-p", "graft-docker-builder-agent-dev", "-f", composeFile, "exec", "-T", "vault", "sh", "-ec", "find /tmp -name vault-ca.pem -print -quit")
+	// Vault dev 在重启后会保留多个 /tmp/vault-tls* 目录；必须选择当前实例最新生成的 CA。
+	pathCommand := exec.CommandContext(ctx, "docker", "compose", "-p", "graft-docker-builder-agent-dev", "-f", composeFile, "exec", "-T", "vault", "sh", "-ec", "ls -t /tmp/vault-tls*/vault-ca.pem 2>/dev/null | head -n 1")
 	pathCommand.Env = localDockerBuilderComposeEnv(root)
 	path, err := pathCommand.Output()
 	if err != nil {

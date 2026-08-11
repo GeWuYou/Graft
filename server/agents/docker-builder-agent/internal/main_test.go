@@ -2,11 +2,18 @@ package agent
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStableSPIFFEIdentityExcludesGeneration(t *testing.T) {
@@ -99,6 +106,92 @@ func TestLoadStateTreatsMissingMaterialAsUnenrolled(t *testing.T) {
 		t.Fatalf("incomplete state remained enrolled: %#v", loaded)
 	}
 }
+
+func TestNewMTLSClientUsesBackendDeliveredTrustBundle(t *testing.T) {
+	dir := t.TempDir()
+	caPEM, certPEM, keyPEM := testTLSMaterial(t)
+	if err := os.WriteFile(filepath.Join(dir, "key.pem"), keyPEM, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "trust-bundle.pem"), []byte("stale"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	currentTrust := filepath.Join(dir, "current-ca.pem")
+	if err := os.WriteFile(currentTrust, caPEM, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client, err := newMTLSClient(config{StateDir: dir, TrustBundle: currentTrust, AgentURL: "https://127.0.0.1:8444"}, persistedState{CertificatePEM: string(certPEM)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := client.Transport.(*http.Transport).TLSClientConfig.RootCAs
+	cert, err := x509.ParseCertificate(pemDecode(t, caPEM))
+	if err != nil {
+		t.Fatal(err)
+	}
+	//nolint:staticcheck // 测试只需确认 RootCAs 装载了配置文件中的唯一 CA。
+	if roots := pool.Subjects(); len(roots) != 1 || string(roots[0]) != string(cert.RawSubject) {
+		t.Fatalf("RootCAs did not use configured bundle: subjects=%d", len(roots))
+	}
+}
+
+func testTLSMaterial(t *testing.T) (caPEM, certPEM, keyPEM []byte) {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Add(-time.Minute)
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "graft.local"}, NotBefore: now, NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: mustMarshalKey(t, key)})
+}
+
+func mustMarshalKey(t *testing.T, key *rsa.PrivateKey) []byte {
+	t.Helper()
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return der
+}
+
+func pemDecode(t *testing.T, data []byte) []byte {
+	t.Helper()
+	block, _ := pem.Decode(data)
+	if block == nil {
+		t.Fatal("missing PEM block")
+	}
+	return block.Bytes
+}
+
+func TestStateTrustBundleMatchesConfiguredBundle(t *testing.T) {
+	dir := t.TempDir()
+	configured := filepath.Join(dir, "configured-ca.pem")
+	stateDir := filepath.Join(dir, "state")
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configured, []byte("ca-v1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "trust-bundle.pem"), []byte("ca-v1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !stateTrustBundleMatches(configured, stateDir) {
+		t.Fatal("matching trust bundle was rejected")
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "trust-bundle.pem"), []byte("ca-v2"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if stateTrustBundleMatches(configured, stateDir) {
+		t.Fatal("stale trust bundle was accepted")
+	}
+}
+
 func mustRead(t *testing.T, path string) []byte {
 	t.Helper()
 	// #nosec G304 -- 测试只提供测试所有的临时状态目录中的路径。

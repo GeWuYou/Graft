@@ -37,7 +37,7 @@ func TestVaultPKIClientReadTrustBundleUsesCAPKIExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read trust bundle: %v", err)
 	}
-	if bundle.Reference != "vault://pki/ca" || bundle.Version != "vault-pki" || bundle.ExpiresAt.IsZero() {
+	if bundle.Reference != "vault://pki/ca" || len(bundle.Version) != len("sha256:")+64 || bundle.ExpiresAt.IsZero() {
 		t.Fatalf("trust bundle = %#v", bundle)
 	}
 }
