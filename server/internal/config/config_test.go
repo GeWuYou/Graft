@@ -519,6 +519,9 @@ func TestLoadPrefersExplicitEnvFile(t *testing.T) {
 	if cfg.Auth.SigningKey != "explicit-signing-key" {
 		t.Fatalf("expected signing key from explicit env file, got %q", cfg.Auth.SigningKey)
 	}
+	if cfg.DotenvPath != "custom.env" {
+		t.Fatalf("expected resolved dotenv path, got %q", cfg.DotenvPath)
+	}
 }
 
 // TestLoadReadsI18nLocales 验证 i18n 相关配置会按逗号分隔解析为稳定列表。

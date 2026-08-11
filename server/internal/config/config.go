@@ -135,6 +135,8 @@ const (
 //
 // core 会把该快照作为只读依赖注入给运行时与模块，避免后续流程再隐式读取环境变量。
 type Config struct {
+	// DotenvPath 是本次配置加载实际采用的 dotenv 路径；运行时诊断只能消费该快照，避免重复解析环境得到漂移来源。
+	DotenvPath          string
 	App                 AppConfig
 	HTTP                HTTPConfig
 	HTTPX               HTTPXConfig
@@ -343,7 +345,8 @@ type ProjectConfig struct {
 // Load 读取环境配置并返回经过校验的配置快照。
 // 当 dotenv 载入失败或配置不满足校验要求时返回错误。
 func Load() (*Config, error) {
-	if err := loadDotenv(); err != nil {
+	dotenvPath, err := loadDotenv()
+	if err != nil {
 		return nil, err
 	}
 
@@ -355,6 +358,7 @@ func Load() (*Config, error) {
 	setDefaults(reader)
 
 	cfg := readConfig(reader)
+	cfg.DotenvPath = dotenvPath
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err

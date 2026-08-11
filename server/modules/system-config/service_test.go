@@ -572,6 +572,32 @@ func TestGenericUpdateRetriesOneVersionConflict(t *testing.T) {
 	}
 }
 
+func TestGenericResetRetriesVersionConflict(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	repo := service.store.(*memoryRepo)
+	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+
+	repo.resetConflicts.Store(1)
+	reset, err := service.Reset(context.Background(), "notification.enabled")
+	if err != nil || string(reset.EffectiveValue) != `true` {
+		t.Fatalf("expected generic reset retry to succeed, got %#v, %v", reset, err)
+	}
+
+	repo.resetConflicts.Store(systemConfigWriteAttempts)
+	if _, err := service.Reset(context.Background(), "notification.enabled"); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
+		t.Fatalf("expected exhausted generic reset retries to conflict, got %v", err)
+	}
+}
+
 func TestUnmarshalOverrideSnapshotCacheRejectsLegacyPayload(t *testing.T) {
 	legacyPayload := []byte(`{"notification.enabled":{"key":"notification.enabled","version":0}}`)
 	if _, err := unmarshalOverrideSnapshotCache(legacyPayload); err == nil {
@@ -1059,6 +1085,7 @@ type memoryRepo struct {
 	listOverridesStarted atomic.Int32
 	getOverrideStarted   atomic.Int32
 	compareConflicts     atomic.Int32
+	resetConflicts       atomic.Int32
 	listOverridesBlock   chan struct{}
 	listOverridesOnce    sync.Once
 }
@@ -1137,6 +1164,10 @@ func (r *memoryRepo) CompareAndSwapOverride(_ context.Context, key string, value
 func (r *memoryRepo) ResetOverride(_ context.Context, key string, userID *uint64, expectedVersion int64) (systemconfigstore.Override, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.resetConflicts.Load() > 0 {
+		r.resetConflicts.Add(-1)
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
 
 	override := r.audit[key]
 	if override.Version != expectedVersion {

@@ -58,7 +58,8 @@ func TestRepositoryCompareAndSwapAndResetUseVersionConditions(t *testing.T) {
 	columns := []string{"key", "override_value", "version", "created_at", "created_by", "updated_at", "updated_by"}
 	createdAt := time.Date(2026, time.August, 4, 0, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery("INSERT INTO system_config_values").
+	legacyRepairQuery := "INSERT INTO system_config_values.*ON CONFLICT \\(key\\) DO UPDATE.*WHERE system_config_values\\.version = 0"
+	mock.ExpectQuery(legacyRepairQuery).
 		WithArgs("network.outbound", json.RawMessage(`{"enabled":true}`), sql.NullInt64{}).
 		WillReturnRows(sqlmock.NewRows(columns).AddRow("network.outbound", []byte(`{"enabled":true}`), int64(1), createdAt, nil, createdAt, nil))
 	updated, err := repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":true}`), nil, 0)
@@ -66,7 +67,7 @@ func TestRepositoryCompareAndSwapAndResetUseVersionConditions(t *testing.T) {
 		t.Fatalf("expected first CAS write, got %#v, %v", updated, err)
 	}
 
-	mock.ExpectQuery("INSERT INTO system_config_values").
+	mock.ExpectQuery(legacyRepairQuery).
 		WithArgs("network.outbound", json.RawMessage(`{"enabled":false}`), sql.NullInt64{}).
 		WillReturnError(sql.ErrNoRows)
 	if _, err := repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":false}`), nil, 0); !errors.Is(err, systemconfigstore.ErrVersionConflict) {

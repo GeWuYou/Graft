@@ -289,7 +289,7 @@ func newMTLSClient(c config, state persistedState) (*http.Client, error) {
 	// Vault/backend certificate rotation.
 	trustPEM, err := os.ReadFile(c.TrustBundle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read configured trust bundle: %w", err)
 	}
 	cert, err := tls.X509KeyPair([]byte(state.CertificatePEM), keyPEM)
 	if err != nil {

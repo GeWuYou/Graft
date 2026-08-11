@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,13 @@ import (
 
 	"graft/server/internal/realtimeauth"
 )
+
+func TestTruncateGatewayLogFieldBoundsRequestControlledValues(t *testing.T) {
+	value := strings.Repeat("x", maxGatewayLogFieldBytes+1)
+	if got := truncateGatewayLogField(value); len(got) != maxGatewayLogFieldBytes {
+		t.Fatalf("truncated log field length = %d, want %d", len(got), maxGatewayLogFieldBytes)
+	}
+}
 
 func TestRegisterSSEGatewayStreamsAuthorizedTopicEvents(t *testing.T) {
 	gin.SetMode(gin.TestMode)

@@ -79,7 +79,7 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 	} else if bindingErr != nil && !errors.Is(bindingErr, store.ErrAgentTrustNotFound) {
 		return fmt.Errorf("read local Docker Builder Agent binding: %w", bindingErr)
 	}
-	if generation == 0 && bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending {
+	if generation == 0 && shouldReusePendingLocalDockerBuilderGeneration(binding, bindingErr, trustBundle) {
 		generation = binding.Generation
 	}
 	if generation == 0 {
@@ -119,6 +119,10 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 		return fmt.Errorf("record local agent delivery receipt: %w", err)
 	}
 	return writeLocalDockerBuilderAgentFiles(input, targetID, handoff.BootstrapToken)
+}
+
+func shouldReusePendingLocalDockerBuilderGeneration(binding moduleapi.RuntimeTargetAgentBinding, bindingErr error, trustBundle moduleapi.TrustBundleReference) bool {
+	return bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending && binding.TrustBundleVersion == trustBundle.Version
 }
 
 func writeLocalDockerBuilderAgentFiles(input LocalDockerBuilderAgentDelivery, targetID int64, bootstrapToken string) error {

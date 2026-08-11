@@ -23,6 +23,7 @@ const (
 	// WebSocketTopicResourceType 是统一实时主题使用的 canonical resource type。
 	WebSocketTopicResourceType = "realtime.topic"
 	websocketBufferSize        = 4096
+	maxGatewayLogFieldBytes    = 512
 )
 
 var websocketUpgrader = websocket.Upgrader{
@@ -92,13 +93,20 @@ func parseGatewayRequest(ctx *gin.Context, registration GatewayRegistration) (ga
 		return gatewayRequest{}, false
 	}
 	if err := realtimeauth.ValidateOrigin(ctx.GetHeader("Origin"), registration.WebSocketAllowOrigins); err != nil {
-		logGatewayOriginDenied(registration.Logger, ctx.GetHeader("Origin"), request.topic, len(registration.WebSocketAllowOrigins))
+		logGatewayOriginDenied(registration.Logger, truncateGatewayLogField(ctx.GetHeader("Origin")), truncateGatewayLogField(request.topic), len(registration.WebSocketAllowOrigins))
 		httpx.WriteLocalizedError(ctx, registration.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
 			"topic": request.topic,
 		})
 		return gatewayRequest{}, false
 	}
 	return request, true
+}
+
+func truncateGatewayLogField(value string) string {
+	if len(value) <= maxGatewayLogFieldBytes {
+		return value
+	}
+	return value[:maxGatewayLogFieldBytes]
 }
 
 // logGatewayOriginDenied 记录来源白名单拒绝原因，不记录短生命周期 ticket。
