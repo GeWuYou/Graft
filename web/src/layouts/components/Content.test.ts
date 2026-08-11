@@ -50,9 +50,25 @@ const TransitionStub = defineComponent({
   setup(props, { slots }) {
     return () => {
       props.onBeforeEnter?.();
-      props.onAfterLeave?.();
       return h('div', slots.default?.());
     };
+  },
+});
+
+const DeferredTransitionStub = defineComponent({
+  name: 'Transition',
+  props: {
+    onAfterLeave: {
+      type: Function,
+      default: undefined,
+    },
+    onBeforeEnter: {
+      type: Function,
+      default: undefined,
+    },
+  },
+  setup(_, { slots }) {
+    return () => h('div', slots.default?.());
   },
 });
 
@@ -206,7 +222,7 @@ describe('Content', () => {
     expect(wrapper.findComponent({ name: 'RolesIndex' }).exists()).toBe(true);
   });
 
-  it('emits the target page surface only after the leaving view finishes', () => {
+  it('waits for the entering view before emitting the target page surface', () => {
     routeState.meta = {
       pageSurface: 'form-detail',
     };
@@ -223,7 +239,7 @@ describe('Content', () => {
               };
             },
           },
-          transition: TransitionStub,
+          transition: DeferredTransitionStub,
           KeepAlive: {
             props: ['include'],
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
@@ -232,6 +248,14 @@ describe('Content', () => {
         },
       },
     });
+
+    const transition = wrapper.findComponent(DeferredTransitionStub);
+    expect(transition.props('onAfterLeave')).toBeUndefined();
+    expect(wrapper.emitted('page-surface-ready')).toBeUndefined();
+
+    const beforeEnter = transition.props('onBeforeEnter') as (() => void) | undefined;
+    expect(beforeEnter).toBeTypeOf('function');
+    beforeEnter?.();
 
     expect(wrapper.emitted('page-surface-ready')).toEqual([['form-detail']]);
   });

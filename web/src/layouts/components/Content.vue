@@ -2,7 +2,7 @@
   <div class="route-view-host route-loading-host" :aria-busy="isPageLoading">
     <div class="route-view-shell">
       <router-view v-if="!isFramePage" v-slot="{ Component }">
-        <transition name="fade" mode="out-in" @after-leave="handleAfterLeave">
+        <transition name="fade" mode="out-in" @before-enter="handleBeforeEnter">
           <keep-alive v-if="shouldKeepActiveViewAlive">
             <component :is="Component" :key="activeViewKey" />
           </keep-alive>
@@ -69,7 +69,8 @@ const isFramePage = computed(() => {
   return !!route.meta?.frameSrc;
 });
 
-const handleAfterLeave = () => {
+// 目标页面实际开始进入后再切换壳层表面，避免首次异步加载时让离场的宽表按表单宽度重排。
+const handleBeforeEnter = () => {
   emit('page-surface-ready', resolvePageSurfaceType(route.meta));
 };
 
