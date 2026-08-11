@@ -64,6 +64,17 @@ describe('scheduled-task cron utility', () => {
     expect(validateCronExpression('0 0 9 ? * MON')).toMatchObject({ valid: false });
   });
 
+  it('rejects expressions that cannot produce an execution date', () => {
+    expect(validateCronExpression('0 0 31 2 *')).toEqual({
+      valid: false,
+      messageKey: 'scheduledTask.cronValidation.execution',
+    });
+  });
+
+  it('accepts valid numeric day-of-week expressions', () => {
+    expect(validateCronExpression('0 0 23 31 12 7')).toEqual({ valid: true });
+  });
+
   it('describes recognized simple schedules with i18n-safe keys', () => {
     expect(describeCronExpression('* * * * *')).toMatchObject({
       key: 'scheduledTask.cronDescription.everyMinute',

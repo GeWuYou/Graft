@@ -67,10 +67,28 @@ func (r *SQLRepository) CreatePendingAgentDeliveryGrant(ctx context.Context, gra
 		if generationStatus != "pending" {
 			return ErrAgentDeliveryRejected
 		}
+		// 过期授权仍可能被历史索引视为 live；先在同一事务中撤销，保留其审计事实后再创建替代授权。
+		if _, err := r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_agent_delivery_grants SET status = 'revoked', revoked_at = $1, revoked_reason = $2, updated_at = $1 WHERE generation_id = $3 AND status IN ('pending', 'delivered') AND expires_at <= $1 AND deleted_at = 0`, now.UTC(), "expired before replacement delivery grant", grant.GenerationID); err != nil {
+			return fmt.Errorf("revoke expired agent delivery grants: %w", err)
+		}
 		row := r.executor(txCtx).QueryRowContext(txCtx, `INSERT INTO runtime_target_agent_delivery_grants (generation_id, grant_id, token_verifier, expected_automation_id, docker_installation_ref, expires_at, status) VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING id, generation_id, grant_id, token_verifier, expected_automation_id, docker_installation_ref, expires_at, status, handoff_id, handed_off_at, delivered_at, consumed_at, revoked_at, revoked_reason`, grant.GenerationID, strings.TrimSpace(grant.GrantID), strings.TrimSpace(grant.TokenVerifier), strings.TrimSpace(grant.ExpectedAutomationID), strings.TrimSpace(grant.DockerInstallationRef), grant.ExpiresAt.UTC())
 		return scanAgentDeliveryGrant(row, &created)
 	})
 	return created, err
+}
+
+// ReadLiveAgentDeliveryGrant 返回某个待激活世代仍可消费的唯一投递授权。
+// 调用方只能据此恢复本地交付编排，不能绕过一次性交接再次释放令牌。
+func (r *SQLRepository) ReadLiveAgentDeliveryGrant(ctx context.Context, targetID int64, agentID string, generation int64, now time.Time) (AgentDeliveryGrant, error) {
+	if r == nil || r.db == nil || targetID < 1 || generation < 1 || strings.TrimSpace(agentID) == "" || now.IsZero() {
+		return AgentDeliveryGrant{}, ErrAgentDeliveryRejected
+	}
+	var grant AgentDeliveryGrant
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT g.id, g.generation_id, g.grant_id, g.token_verifier, g.expected_automation_id, g.docker_installation_ref, g.expires_at, g.status, g.handoff_id, g.handed_off_at, g.delivered_at, g.consumed_at, g.revoked_at, g.revoked_reason FROM runtime_target_agent_delivery_grants g INNER JOIN runtime_target_agent_generations gen ON gen.id = g.generation_id INNER JOIN runtime_target_agent_identities i ON i.id = gen.identity_id WHERE i.runtime_target_id = $1 AND i.agent_id = $2 AND gen.generation = $3 AND gen.status = 'pending' AND g.status IN ('pending', 'delivered') AND g.expires_at > $4 AND g.deleted_at = 0 AND gen.deleted_at = 0 AND i.deleted_at = 0`, targetID, strings.TrimSpace(agentID), generation, now.UTC()).Scan(&grant.ID, &grant.GenerationID, &grant.GrantID, &grant.TokenVerifier, &grant.ExpectedAutomationID, &grant.DockerInstallationRef, &grant.ExpiresAt, &grant.Status, &grant.HandoffID, &grant.HandedOffAt, &grant.DeliveredAt, &grant.ConsumedAt, &grant.RevokedAt, &grant.RevokedReason)
+	if errors.Is(err, sql.ErrNoRows) {
+		return AgentDeliveryGrant{}, ErrNotFound
+	}
+	return grant, err
 }
 
 // AcceptAgentDeliveryHandoff 固化一次既有部署信任边界已验证的交接身份。

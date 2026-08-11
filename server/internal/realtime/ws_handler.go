@@ -8,10 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
 	"graft/server/internal/realtimeauth"
 )
 
@@ -21,6 +23,7 @@ const (
 	// WebSocketTopicResourceType 是统一实时主题使用的 canonical resource type。
 	WebSocketTopicResourceType = "realtime.topic"
 	websocketBufferSize        = 4096
+	maxGatewayLogFieldBytes    = 512
 )
 
 var websocketUpgrader = websocket.Upgrader{
@@ -35,6 +38,7 @@ type GatewayRegistration struct {
 	I18n                  *i18n.Service
 	Tickets               realtimeauth.Service
 	WebSocketAllowOrigins []string
+	Logger                *zap.Logger
 }
 
 // RegisterWebSocketGateway 注册统一的实时 WebSocket 入口路由。
@@ -89,12 +93,33 @@ func parseGatewayRequest(ctx *gin.Context, registration GatewayRegistration) (ga
 		return gatewayRequest{}, false
 	}
 	if err := realtimeauth.ValidateOrigin(ctx.GetHeader("Origin"), registration.WebSocketAllowOrigins); err != nil {
+		logGatewayOriginDenied(registration.Logger, truncateGatewayLogField(ctx.GetHeader("Origin")), truncateGatewayLogField(request.topic), len(registration.WebSocketAllowOrigins))
 		httpx.WriteLocalizedError(ctx, registration.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
 			"topic": request.topic,
 		})
 		return gatewayRequest{}, false
 	}
 	return request, true
+}
+
+func truncateGatewayLogField(value string) string {
+	if len(value) <= maxGatewayLogFieldBytes {
+		return value
+	}
+	return value[:maxGatewayLogFieldBytes]
+}
+
+// logGatewayOriginDenied 记录来源白名单拒绝原因，不记录短生命周期 ticket。
+func logGatewayOriginDenied(runtimeLogger *zap.Logger, origin, topic string, allowedOriginCount int) {
+	if runtimeLogger == nil {
+		return
+	}
+	logger.Category(runtimeLogger, logger.CategoryApplication).Warn("realtime websocket origin denied",
+		zap.String("reason", "origin_denied"),
+		zap.String("origin", origin),
+		zap.String("topic", topic),
+		zap.Int("allowedOriginCount", allowedOriginCount),
+	)
 }
 
 // consumeGatewayTicket 消费用于订阅指定主题的实时访问票据。

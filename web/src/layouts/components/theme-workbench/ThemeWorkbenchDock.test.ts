@@ -22,6 +22,7 @@ vi.mock('@/utils/color', () => ({
     '--td-brand-color': brandTheme,
   }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 const buttonStub = defineComponent({

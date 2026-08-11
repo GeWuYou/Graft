@@ -18,14 +18,13 @@ import type {
   ThemeModeTokenState,
   ThemePresetApplicationScope,
   ThemePresetDefinition,
-  ThemeSourceType,
   ThemeTokenGroupKey,
   ThemeTokenMap,
   ThemeWorkbenchAuthorityPatch,
   ThemeWorkbenchGroupKey,
   ThemeWorkbenchStylePatch,
 } from '@/types/theme';
-import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet } from '@/utils/color';
+import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet, syncFaviconColor } from '@/utils/color';
 import {
   buildThemeModeSnapshot,
   cloneThemeModeTokenState,
@@ -44,6 +43,7 @@ import {
   hasThemeAuthorityStateDiff,
   hasThemeTokenOverrideDiff,
   hasWorkbenchStyleConfigDiff,
+  type PersistedThemeAuthoritySource,
   STYLE_CONFIG_KEYS,
   THEME_AUTHORITY_DIFF_KEYS,
   WORKBENCH_STYLE_CONFIG_KEYS,
@@ -69,32 +69,26 @@ import {
   THEME_RESET_FEEDBACK_DURATION_MS,
 } from './setting-theme-runtime';
 
-export type SettingState = typeof STYLE_CONFIG & {
-  showSettingPanel: boolean;
-  showThemeWorkbench: boolean;
-  themeWorkbenchDockPosition: { xRatio: number; yRatio: number } | null;
-  themeWorkbenchRuntimeReady: boolean;
-  activeThemeWorkbenchGroup: ThemeWorkbenchGroupKey;
-  activeThemeTokenGroup: ThemeTokenGroupKey;
-  themeWorkbenchStyleConfigBaseline: WorkbenchStyleConfigSnapshot | null;
-  themeDraftBaseline: ThemeAuthorityState | null;
-  themeDraft: ThemeAuthorityState | null;
-  themeDraftApplied: boolean;
-  themeResetting: boolean;
-  themeResetFeedbackKey: number;
-  selectedThemePresetId: string | null;
-  themeSource: ThemeSourceType;
-  fontFamilyPreset: ThemeAuthorityState['fontFamilyPreset'];
-  fontSizePreset: ThemeAuthorityState['fontSizePreset'];
-  radiusPreset: ThemeAuthorityState['radiusPreset'];
-  shadowPreset: ThemeAuthorityState['shadowPreset'];
-  densityPreset: ThemeAuthorityState['densityPreset'];
-  themeTokenOverrides: ThemeModeTokenState;
-  themeResolvedTokens: ThemeModeTokenState;
-  themeAuthorityLastModifiedAt: string | null;
-  colorList: TColorSeries;
-  chartColors: TChartColor;
-};
+export type SettingState = typeof STYLE_CONFIG &
+  PersistedThemeAuthoritySource & {
+    showSettingPanel: boolean;
+    showThemeWorkbench: boolean;
+    themeWorkbenchDockPosition: { xRatio: number; yRatio: number } | null;
+    themeWorkbenchRuntimeReady: boolean;
+    activeThemeWorkbenchGroup: ThemeWorkbenchGroupKey;
+    activeThemeTokenGroup: ThemeTokenGroupKey;
+    themeWorkbenchStyleConfigBaseline: WorkbenchStyleConfigSnapshot | null;
+    themeDraftBaseline: ThemeAuthorityState | null;
+    themeDraft: ThemeAuthorityState | null;
+    themeDraftApplied: boolean;
+    themeResetting: boolean;
+    themeResetFeedbackKey: number;
+    selectedThemePresetId: string | null;
+    themeResolvedTokens: ThemeModeTokenState;
+    themeAuthorityLastModifiedAt: string | null;
+    colorList: TColorSeries;
+    chartColors: TChartColor;
+  };
 
 function createInitialSettingState(): SettingState {
   const defaultPreset = THEME_PRESET_DEFINITIONS.find((item) => item.id === DEFAULT_THEME_PRESET_ID);
@@ -123,8 +117,12 @@ function createInitialSettingState(): SettingState {
     fontFamilyPreset: defaultThemeState?.fontFamilyPreset ?? 'system',
     fontSizePreset: defaultThemeState?.fontSizePreset ?? 'standard',
     radiusPreset: defaultThemeState?.radiusPreset ?? 'standard',
+    radiusOverride: defaultThemeState?.radiusOverride ?? null,
     shadowPreset: defaultThemeState?.shadowPreset ?? 'standard',
+    shadowIntensity: defaultThemeState?.shadowIntensity ?? 'standard',
+    shadowIntensityOverride: defaultThemeState?.shadowIntensityOverride ?? null,
     densityPreset: defaultThemeState?.densityPreset ?? 'standard',
+    densityOverride: defaultThemeState?.densityOverride ?? null,
     themeTokenOverrides: defaultThemeState?.themeTokenOverrides ?? createEmptyThemeModeTokenState(),
     themeResolvedTokens: createEmptyThemeModeTokenState(),
     themeAuthorityLastModifiedAt: null,
@@ -261,8 +259,12 @@ export const useSettingStore = defineStore('setting', {
         fontFamilyPreset: this.fontFamilyPreset,
         fontSizePreset: this.fontSizePreset,
         radiusPreset: this.radiusPreset,
+        radiusOverride: this.radiusOverride,
         shadowPreset: this.shadowPreset,
+        shadowIntensity: this.shadowIntensity,
+        shadowIntensityOverride: this.shadowIntensityOverride,
         densityPreset: this.densityPreset,
+        densityOverride: this.densityOverride,
         themeTokenOverrides: cloneThemeModeTokenState(this.themeTokenOverrides),
       };
     },
@@ -274,8 +276,12 @@ export const useSettingStore = defineStore('setting', {
       this.fontFamilyPreset = nextState.fontFamilyPreset;
       this.fontSizePreset = nextState.fontSizePreset;
       this.radiusPreset = nextState.radiusPreset;
+      this.radiusOverride = nextState.radiusOverride;
       this.shadowPreset = nextState.shadowPreset;
+      this.shadowIntensity = nextState.shadowIntensity;
+      this.shadowIntensityOverride = nextState.shadowIntensityOverride;
       this.densityPreset = nextState.densityPreset;
+      this.densityOverride = nextState.densityOverride;
       this.themeTokenOverrides = cloneThemeModeTokenState(nextState.themeTokenOverrides);
     },
     createWorkbenchStyleConfigSnapshot(): WorkbenchStyleConfigSnapshot {
@@ -285,7 +291,13 @@ export const useSettingStore = defineStore('setting', {
       WORKBENCH_STYLE_CONFIG_KEYS.forEach((key) => {
         this[key] = snapshot[key] as never;
       });
+      this.ensureThemeWorkbenchEntry();
       this.changeSideMode(this.sideMode as ModeType);
+    },
+    ensureThemeWorkbenchEntry() {
+      if (!this.showHeader && !this.showThemeWorkbenchDock) {
+        this.showThemeWorkbenchDock = true;
+      }
     },
     markThemeCustomized() {
       this.themeSource = 'customized';
@@ -322,10 +334,12 @@ export const useSettingStore = defineStore('setting', {
       const resolvedTokens = resolveModeTokens(this.themeResolvedTokens, mode);
       const tokenMap = composeThemeTokenMap(resolvedTokens);
       insertThemeStylesheet(this.brandTheme, tokenMap, mode);
+      syncFaviconColor(this.brandTheme);
       document.documentElement.setAttribute('theme-color', this.brandTheme);
+      // 硬表面标记是壳层材质边界：只有无圆角覆盖的硬偏移主题才能启用它。
       document.documentElement.toggleAttribute(
         'data-graft-hard-surface',
-        this.radiusPreset === 'square' && this.shadowPreset === 'hard-offset',
+        this.radiusPreset === 'square' && this.radiusOverride === null && this.shadowPreset === 'hard-offset',
       );
     },
     refreshThemeWorkbenchRuntime(mode?: ModeType | 'auto') {
@@ -448,14 +462,7 @@ export const useSettingStore = defineStore('setting', {
       const nextState = buildSelectedThemePresetState(
         preset,
         this.themeDraft,
-        {
-          mode: this.mode as ModeType | 'auto',
-          fontFamilyPreset: this.fontFamilyPreset,
-          fontSizePreset: this.fontSizePreset,
-          radiusPreset: this.radiusPreset,
-          shadowPreset: this.shadowPreset,
-          densityPreset: this.densityPreset,
-        },
+        this.createThemeAuthoritySnapshot(),
         scope,
         currentPreset,
       );
@@ -500,7 +507,16 @@ export const useSettingStore = defineStore('setting', {
       patch: Partial<
         Pick<
           ThemeAuthorityState,
-          'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+          | 'mode'
+          | 'fontFamilyPreset'
+          | 'fontSizePreset'
+          | 'radiusPreset'
+          | 'radiusOverride'
+          | 'shadowPreset'
+          | 'shadowIntensity'
+          | 'shadowIntensityOverride'
+          | 'densityPreset'
+          | 'densityOverride'
         >
       >,
     ) {
@@ -557,6 +573,7 @@ export const useSettingStore = defineStore('setting', {
       if (this.layout === 'top') {
         this.menuAlwaysExpanded = false;
       }
+      this.ensureThemeWorkbenchEntry();
       this.changeMode(this.mode as ModeType | 'auto');
       this.changeSideMode(this.sideMode as ModeType);
       this.themeWorkbenchRuntimeReady = true;
@@ -595,6 +612,8 @@ export const useSettingStore = defineStore('setting', {
           this.changeBrandTheme(normalizedPayload[stateKey] as string);
         }
       }
+
+      this.ensureThemeWorkbenchEntry();
     },
   },
   persist: {
@@ -608,8 +627,12 @@ export const useSettingStore = defineStore('setting', {
       'fontFamilyPreset',
       'fontSizePreset',
       'radiusPreset',
+      'radiusOverride',
       'shadowPreset',
+      'shadowIntensity',
+      'shadowIntensityOverride',
       'densityPreset',
+      'densityOverride',
       'themeTokenOverrides',
       'themeResolvedTokens',
       'activeThemeWorkbenchGroup',

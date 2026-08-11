@@ -232,6 +232,16 @@ export function validateCronExpression(expression: string): CronValidationResult
     }
   }
 
+  try {
+    const interval = CronExpressionParser.parse(formatCronExpression(expression));
+    interval.next();
+  } catch {
+    return {
+      valid: false,
+      messageKey: 'scheduledTask.cronValidation.execution',
+    };
+  }
+
   return { valid: true };
 }
 

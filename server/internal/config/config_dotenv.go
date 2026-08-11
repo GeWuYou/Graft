@@ -13,16 +13,18 @@ import (
 // loadDotenv 从显式指定或自动发现的 .env 文件加载环境变量。
 // 当 `GRAFT_ENV_FILE` 有值时优先加载该路径；否则会在工作目录向上查找可用的 `.env` 文件并加载。
 // 返回加载过程中的错误。
-func loadDotenv() error {
+func loadDotenv() (string, error) {
 	dotenvPath, err := ResolveEnvFile("")
 	if err != nil {
-		return err
+		return "", fmt.Errorf("resolve dotenv file: %w", err)
 	}
 	if dotenvPath != "" {
-		return godotenv.Load(dotenvPath)
+		if err := godotenv.Load(dotenvPath); err != nil {
+			return "", fmt.Errorf("load dotenv file %q: %w", dotenvPath, err)
+		}
 	}
 
-	return nil
+	return dotenvPath, nil
 }
 
 // ResolveEnvFile 只解析 dotenv 输入路径而不加载它，保证校验能以只读方式保留来源。

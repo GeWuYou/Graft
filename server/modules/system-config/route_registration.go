@@ -14,6 +14,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	systemconfigcontract "graft/server/modules/system-config/contract"
+	systemconfigstore "graft/server/modules/system-config/store"
 )
 
 type routeRuntime struct {
@@ -140,6 +141,8 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, systemconfigcontract.SystemConfigNotFound.String(), nil)
 	case errors.Is(err, errInvalidConfigValue):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, systemconfigcontract.SystemConfigInvalidRequest.String(), nil)
+	case errors.Is(err, systemconfigstore.ErrVersionConflict):
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, systemconfigcontract.SystemConfigVersionConflict.String(), nil)
 	default:
 		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 	}

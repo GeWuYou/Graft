@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -121,6 +122,11 @@ func run(ctx context.Context, c config) error {
 	if err != nil {
 		return err
 	}
+	// 本地 Vault 重建后 CA 可能变化；旧证书和旧信任束必须整体视为未 enrollment，
+	// 否则 Agent 会持续用已不受后端信任的客户端证书重试 mTLS。
+	if state.CertificatePEM != "" && !stateTrustBundleMatches(c.TrustBundle, c.StateDir) {
+		state = persistedState{}
+	}
 	if state.CertificatePEM == "" {
 		state, err = enroll(ctx, c)
 		if err != nil {
@@ -132,6 +138,20 @@ func run(ctx context.Context, c config) error {
 		return err
 	}
 	return persistGeneration(c.StateDir, state, snapshot.Generation)
+}
+
+func stateTrustBundleMatches(configuredPath, stateDir string) bool {
+	// #nosec G304 -- 路径来自 Backend-owned Agent 配置与其私有状态目录。
+	configured, err := os.ReadFile(configuredPath)
+	if err != nil {
+		return false
+	}
+	// #nosec G304 -- stateDir 是 Agent 私有的持久化状态边界。
+	persisted, err := os.ReadFile(filepath.Join(stateDir, "trust-bundle.pem"))
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(configured, persisted)
 }
 
 func enroll(ctx context.Context, c config) (persistedState, error) {
@@ -264,9 +284,12 @@ func newMTLSClient(c config, state persistedState) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	trustPEM, err := os.ReadFile(filepath.Join(c.StateDir, "trust-bundle.pem"))
+	// Backend-owned delivery is the authority for the current trust bundle. The
+	// state copy is retained for audit/recovery, but may be stale after a local
+	// Vault/backend certificate rotation.
+	trustPEM, err := os.ReadFile(c.TrustBundle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read configured trust bundle: %w", err)
 	}
 	cert, err := tls.X509KeyPair([]byte(state.CertificatePEM), keyPEM)
 	if err != nil {
@@ -274,7 +297,7 @@ func newMTLSClient(c config, state persistedState) (*http.Client, error) {
 	}
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(trustPEM) {
-		return nil, errors.New("state trust bundle has no certificates")
+		return nil, errors.New("configured trust bundle has no certificates")
 	}
 	return newTLSClient(pool, []tls.Certificate{cert}, c.AgentURL), nil
 }

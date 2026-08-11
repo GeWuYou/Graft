@@ -3,6 +3,10 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+const dialogMocks = vi.hoisted(() => ({
+  confirm: vi.fn(),
+}));
+
 vi.mock('@/locales', () => ({
   i18n: {
     global: {
@@ -13,11 +17,21 @@ vi.mock('@/locales', () => ({
 }));
 
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({ locale: { value: 'en-US' } }),
+  useLocale: () => ({ locale: { __v_isRef: true, value: 'en-US' } }),
+}));
+
+vi.mock('@/locales/length-budgets', () => ({
+  warnTranslationLengthBudget: vi.fn(),
 }));
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ meta: {} }),
+}));
+
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  DialogPlugin: {
+    confirm: dialogMocks.confirm,
+  },
 }));
 
 vi.mock('@/utils/color', () => ({
@@ -26,11 +40,13 @@ vi.mock('@/utils/color', () => ({
     '--td-brand-color': brandTheme,
   }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 import { useSettingStore } from '@/store';
 
 import ThemeWorkbenchPanel from './ThemeWorkbenchPanel.vue';
+import themeWorkbenchPanelSource from './ThemeWorkbenchPanel.vue?raw';
 
 const drawerStub = defineComponent({
   name: 'TDrawerStub',
@@ -42,19 +58,59 @@ const drawerStub = defineComponent({
   },
 });
 
+const tooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  setup(_, { slots }) {
+    return () => h('div', slots.default?.());
+  },
+});
+
+const buttonStub = defineComponent({
+  name: 'TButtonStub',
+  inheritAttrs: false,
+  setup(_, { attrs, slots }) {
+    return () => h('button', attrs, [slots.icon?.(), slots.default?.()]);
+  },
+});
+
 const switchStub = defineComponent({
   name: 'TSwitchStub',
   props: {
     modelValue: { type: Boolean, required: true },
   },
   emits: ['update:modelValue'],
-  setup(props, { emit }) {
+  setup(props, { attrs, emit }) {
     return () =>
       h('button', {
         'data-testid': 'acrylic-switch',
         'aria-pressed': String(props.modelValue),
+        ...attrs,
         onClick: () => emit('update:modelValue', !props.modelValue),
       });
+  },
+});
+
+const sliderStub = defineComponent({
+  name: 'TSliderStub',
+  props: {
+    disabled: { type: Boolean, required: false, default: false },
+    modelValue: { type: Number, required: false, default: 0 },
+  },
+  emits: ['change'],
+  setup(props) {
+    return () => h('button', { disabled: props.disabled, type: 'button' });
+  },
+});
+
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    disabled: { type: Boolean, required: false, default: false },
+    modelValue: { type: String, required: false, default: '' },
+  },
+  emits: ['change'],
+  setup(props) {
+    return () => h('button', { disabled: props.disabled, type: 'button' });
   },
 });
 
@@ -101,13 +157,13 @@ function mountPanel() {
         't-drawer': drawerStub,
         't-switch': switchStub,
         'theme-workbench-preset-catalog': presetCatalogStub,
-        't-button': true,
+        't-button': buttonStub,
         't-color-picker': true,
         't-icon': true,
         't-radio-group': true,
-        't-tooltip': true,
-        't-select': true,
-        't-slider': true,
+        't-tooltip': tooltipStub,
+        't-select': selectStub,
+        't-slider': sliderStub,
         't-collapse': true,
         't-collapse-panel': true,
       },
@@ -118,6 +174,7 @@ function mountPanel() {
 describe('ThemeWorkbenchPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    dialogMocks.confirm.mockReset();
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn(() => ({ matches: false })),
@@ -136,6 +193,72 @@ describe('ThemeWorkbenchPanel', () => {
 
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('confirms Header removal and keeps the floating personalization entry available', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('layout');
+    const dialog = { hide: vi.fn() };
+    dialogMocks.confirm.mockReturnValue(dialog);
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="show-header-switch"]').trigger('click');
+
+    expect(store.showHeader).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: 'layout.setting.workbench.layout.hideHeaderDialog.title',
+        theme: 'warning',
+      }),
+    );
+
+    const options = dialogMocks.confirm.mock.calls[0]?.[0];
+    options.onConfirm();
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(dialog.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms Dock removal by restoring Header when it is the only personalization entry', async () => {
+    const store = useSettingStore();
+    store.updateConfig({ showHeader: false, showThemeWorkbenchDock: true });
+    store.openThemeWorkbench('layout');
+    const dialog = { hide: vi.fn() };
+    dialogMocks.confirm.mockReturnValue(dialog);
+    const wrapper = mountPanel();
+
+    await wrapper.get('[data-testid="show-theme-workbench-dock-switch"]').trigger('click');
+
+    expect(store.showHeader).toBe(false);
+    expect(store.showThemeWorkbenchDock).toBe(true);
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: 'layout.setting.workbench.layout.hideDockDialog.title',
+        theme: 'warning',
+      }),
+    );
+
+    const options = dialogMocks.confirm.mock.calls[0]?.[0];
+    options.onConfirm();
+
+    expect(store.showHeader).toBe(true);
+    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(dialog.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses themed outline buttons for the workbench navigation', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    const wrapper = mountPanel();
+
+    const activeButton = wrapper.get('.nav-item--active');
+    expect(activeButton.attributes('theme')).toBe('primary');
+    expect(activeButton.attributes('variant')).toBe('outline');
+    expect(activeButton.attributes('block')).toBe('');
+    expect(wrapper.findAll('.theme-workbench-panel__nav-entry')).toHaveLength(7);
+    expect(wrapper.findAll('.nav-item__content')).toHaveLength(7);
   });
 
   it('passes the local preset application scope to the workbench store', async () => {
@@ -167,12 +290,125 @@ describe('ThemeWorkbenchPanel', () => {
     store.openThemeWorkbench('style');
     const wrapper = mountPanel();
 
-    await wrapper.get('[data-testid="radius-square"]').trigger('click');
+    const radiusSlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'radius-slider');
+
+    expect(radiusSlider).toBeDefined();
+    radiusSlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
     await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
 
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('updates radius and density from their discrete slider controls', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const sliders = wrapper.findAllComponents(sliderStub);
+    const radiusSlider = sliders.find((component) => component.attributes('data-testid') === 'radius-slider');
+    const densitySlider = sliders.find((component) => component.attributes('data-testid') === 'density-slider');
+    expect(radiusSlider).toBeDefined();
+    expect(densitySlider).toBeDefined();
+    radiusSlider!.vm.$emit('change', 3);
+    densitySlider!.vm.$emit('change', 0.91);
+    await wrapper.vm.$nextTick();
+
+    expect(store.radiusOverride).toBe(3);
+    expect(store.densityOverride).toBe(0.91);
+    expect(wrapper.get('[data-testid="radius-anchor-business"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+    expect(wrapper.get('[data-testid="density-anchor-compact"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+
+    await wrapper.get('[data-testid="radius-anchor-capsule"]').trigger('click');
+    await wrapper.get('[data-testid="density-anchor-comfortable"]').trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect(store.radiusPreset).toBe('capsule');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.radiusOverride).toBeNull();
+    expect(store.densityOverride).toBeNull();
+    expect(wrapper.get('[data-testid="radius-anchor-capsule"]').classes()).toContain('style-control__mark--active');
+    expect(wrapper.get('[data-testid="density-anchor-comfortable"]').classes()).toContain(
+      'style-control__mark--active',
+    );
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('lets a radius slider override the combination preview preset', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const radiusSlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'radius-slider');
+
+    radiusSlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.style-combination-preview--radius').attributes('style')).toContain(
+      '--style-preview-radius: 0px;',
+    );
+    expect(themeWorkbenchPanelSource).not.toMatch(
+      /\.style-combination-preview--radius-(?:square|business|standard|rounded|capsule) \.style-combination-preview__card/,
+    );
+  });
+
+  it('shows continuous radius and density overrides in the overview', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const sliders = wrapper.findAllComponents(sliderStub);
+    const radiusSlider = sliders.find((component) => component.attributes('data-testid') === 'radius-slider');
+    const densitySlider = sliders.find((component) => component.attributes('data-testid') === 'density-slider');
+
+    radiusSlider!.vm.$emit('change', 3);
+    densitySlider!.vm.$emit('change', 0.91);
+    await wrapper.vm.$nextTick();
+    store.setActiveThemeWorkbenchGroup('overview');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('3px');
+    expect(wrapper.text()).toContain('91%');
+  });
+
+  it('uses a separate shadow intensity control and preserves it when flat shadows disable the control', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const intensitySlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'shadow-intensity-slider');
+
+    await wrapper.get('[data-testid="shadow-hard-offset"]').trigger('click');
+    expect(intensitySlider).toBeDefined();
+    intensitySlider!.vm.$emit('change', 1.35);
+    await wrapper.vm.$nextTick();
+
+    expect(store.shadowIntensityOverride).toBe(1.35);
+    expect(wrapper.get('[data-testid="shadow-intensity-anchor-strong"]').classes()).not.toContain(
+      'style-control__mark--active',
+    );
+    expect(wrapper.get('[data-testid="shadow-combination-preview"]').classes()).toEqual(
+      expect.arrayContaining(['style-combination-preview--shadow-hard-offset']),
+    );
+    expect(wrapper.get('[data-testid="shadow-combination-preview"]').classes()).not.toContain(
+      'style-combination-preview--intensity-standard',
+    );
+
+    await wrapper.get('[data-testid="shadow-flat"]').trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect(intensitySlider!.attributes('disabled')).toBeDefined();
+    intensitySlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
+    expect(store.shadowIntensityOverride).toBe(1.35);
   });
 
   it('updates the active tab indicator position from layout settings', async () => {

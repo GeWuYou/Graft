@@ -10,6 +10,7 @@ vi.mock('@/utils/color', () => ({
   composeThemeTokenMap: (tokens: Record<string, string>) => tokens,
   generateBrandColorMap: (brandTheme: string) => ({ '--td-brand-color': brandTheme }),
   insertThemeStylesheet: vi.fn(),
+  syncFaviconColor: vi.fn(),
 }));
 
 const mountHost = () =>
@@ -31,11 +32,11 @@ describe('theme workbench host', () => {
     const store = useSettingStore();
     const wrapper = mountHost();
 
-    expect(wrapper.find('[data-testid="theme-workbench-dock"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="theme-workbench-dock"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="theme-workbench-panel"]').exists()).toBe(true);
 
-    store.updateConfig({ showThemeWorkbenchDock: false });
+    store.updateConfig({ showThemeWorkbenchDock: true });
     await wrapper.vm.$nextTick();
-    expect(wrapper.find('[data-testid="theme-workbench-dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="theme-workbench-dock"]').exists()).toBe(true);
   });
 });

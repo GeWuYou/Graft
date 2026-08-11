@@ -50,24 +50,39 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 	targetID := int64(target.ID)
 	bindings := runtimeTargetAgentBindingReader{repository: repository}
 	binding, bindingErr := bindings.ReadAgentBinding(ctx, targetID, input.AgentID)
-	if bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusActive {
-		if _, err := os.Stat(input.ConfigFile); err == nil {
-			return nil
-		} else if errors.Is(err, os.ErrNotExist) {
-			return errors.New("local Docker Builder Agent binding is active but delivery config is missing; reset the Agent binding before delivering again")
-		}
-		return fmt.Errorf("read local Docker Builder Agent delivery config: %w", err)
-	}
 	now := time.Now().UTC()
+	trustBundle, err := issuer.ReadTrustBundle(ctx, moduleapi.TrustBundleRequest{TargetID: targetID, ProviderID: target.Provider, Generation: binding.Generation + 1})
+	if err != nil {
+		return fmt.Errorf("read local agent trust bundle: %w", err)
+	}
 	generation := int64(0)
-	if bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending {
+	//nolint:nestif // 本地交付必须在同一 authority 边界内区分活动、待激活和漂移恢复。
+	if bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusActive {
+		if binding.TrustBundleVersion == trustBundle.Version {
+			if _, err := os.Stat(input.ConfigFile); err == nil {
+				return nil
+			} else if errors.Is(err, os.ErrNotExist) {
+				return errors.New("local Docker Builder Agent binding is active but delivery config is missing; reset the Agent binding before delivering again")
+			}
+			return fmt.Errorf("read local Docker Builder Agent delivery config: %w", err)
+		}
+		// 本地 Vault 重建会替换 CA；通过 Runtime Target 轮换保留旧世代审计事实并阻止其继续恢复。
+		rotated, err := newRuntimeTargetAgentEnrollmentAuthority(repository, nil).RotateGeneration(ctx, moduleapi.AgentEnrollmentRotationRequest{
+			IdentityID: binding.IdentityID, TargetID: targetID, AgentID: input.AgentID, ProviderID: target.Provider,
+			BuilderScope: "docker-builder-agent-local", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1",
+			EnrollmentRef: input.EnrollmentRef, TrustBundle: trustBundle, ExpiresAt: now.Add(time.Hour), Reason: "local_trust_bundle_rotated",
+		})
+		if err != nil {
+			return fmt.Errorf("rotate local agent enrollment after trust bundle change: %w", err)
+		}
+		generation = rotated.Generation
+	} else if bindingErr != nil && !errors.Is(bindingErr, store.ErrAgentTrustNotFound) {
+		return fmt.Errorf("read local Docker Builder Agent binding: %w", bindingErr)
+	}
+	if generation == 0 && shouldReusePendingLocalDockerBuilderGeneration(binding, bindingErr, trustBundle) {
 		generation = binding.Generation
 	}
 	if generation == 0 {
-		trustBundle, err := issuer.ReadTrustBundle(ctx, moduleapi.TrustBundleRequest{TargetID: targetID, ProviderID: target.Provider, Generation: 1})
-		if err != nil {
-			return fmt.Errorf("read local agent trust bundle: %w", err)
-		}
 		enrollment, err := newRuntimeTargetAgentEnrollmentAuthority(repository, nil).CreateEnrollment(ctx, moduleapi.AgentEnrollmentRequest{
 			TargetID: targetID, AgentID: input.AgentID, ProviderID: target.Provider, BuilderScope: "docker-builder-agent-local",
 			CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", ImageDigest: input.ImageDigest,
@@ -79,6 +94,17 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 		generation = enrollment.Generation
 	}
 	delivery := newRuntimeTargetAgentDeliveryAuthority(repository, pepper)
+	if existing, err := repository.ReadLiveAgentDeliveryGrant(ctx, targetID, input.AgentID, generation, now); err == nil && existing.GenerationID > 0 {
+		if existing.Status != "delivered" {
+			return errors.New("local Docker Builder Agent delivery is pending; reset the Agent binding before delivering again")
+		}
+		if existing.ExpectedAutomationID != input.AutomationID || existing.DockerInstallationRef != "docker:local" || existing.HandoffID == "" {
+			return errors.New("local Docker Builder Agent delivery grant does not match the local automation binding; reset the Agent binding before delivering again")
+		}
+		return writeLocalDockerBuilderAgentFiles(input, targetID, deriveBootstrapToken(pepper.Pepper(), existing.GrantID))
+	} else if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("read local agent delivery grant: %w", err)
+	}
 	grant, err := delivery.CreateDeliveryGrant(ctx, moduleapi.AgentDeliveryGrantRequest{TargetID: targetID, AgentID: input.AgentID, Generation: generation, ExpectedAutomationID: input.AutomationID, DockerInstallationRef: "docker:local", ExpiresAt: now.Add(localDeliveryGrantTTL)})
 	if err != nil {
 		return fmt.Errorf("create local agent delivery grant: %w", err)
@@ -92,11 +118,19 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 	if _, err := delivery.RecordDeliveryReceipt(ctx, actor, moduleapi.AgentDeliveryReceiptRequest{GrantID: grant.GrantID, ReceiptID: "local-" + grant.GrantID, ProtocolVersion: "graft.delivery-receipt.v1", HandoffID: handoff.HandoffID, AssertedDeliveredAt: now, DockerInstallationRef: "docker:local", DockerSecretRef: "local:delivery", PayloadFingerprint: fingerprint}); err != nil {
 		return fmt.Errorf("record local agent delivery receipt: %w", err)
 	}
+	return writeLocalDockerBuilderAgentFiles(input, targetID, handoff.BootstrapToken)
+}
+
+func shouldReusePendingLocalDockerBuilderGeneration(binding moduleapi.RuntimeTargetAgentBinding, bindingErr error, trustBundle moduleapi.TrustBundleReference) bool {
+	return bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending && binding.TrustBundleVersion == trustBundle.Version
+}
+
+func writeLocalDockerBuilderAgentFiles(input LocalDockerBuilderAgentDelivery, targetID int64, bootstrapToken string) error {
 	if err := os.MkdirAll(filepath.Dir(input.BootstrapTokenFile), localDeliverySecretDirPerm); err != nil {
-		return err
+		return fmt.Errorf("create local agent bootstrap token directory: %w", err)
 	}
-	if err := os.WriteFile(input.BootstrapTokenFile, []byte(handoff.BootstrapToken+"\n"), localDeliverySecretFilePerm); err != nil {
-		return err
+	if err := os.WriteFile(input.BootstrapTokenFile, []byte(bootstrapToken+"\n"), localDeliverySecretFilePerm); err != nil {
+		return fmt.Errorf("write local agent bootstrap token: %w", err)
 	}
 	configBytes, err := json.Marshal(struct {
 		BootstrapURL string `json:"bootstrap_url"`
@@ -110,13 +144,13 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 		DockerSocket string `json:"docker_socket"`
 	}{input.BootstrapURL, input.AgentURL, targetID, input.AgentID, input.BootstrapTokenFile, input.BootstrapCAFile, input.TrustBundleFile, input.StateDir, "/var/run/docker.sock"})
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal local agent delivery config: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(input.ConfigFile), localDeliverySecretDirPerm); err != nil {
-		return err
+		return fmt.Errorf("create local agent delivery config directory: %w", err)
 	}
 	if err := os.WriteFile(input.ConfigFile, configBytes, localDeliverySecretFilePerm); err != nil {
-		return err
+		return fmt.Errorf("write local agent delivery config: %w", err)
 	}
 	return nil
 }

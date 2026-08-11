@@ -476,6 +476,7 @@ const STANDARD_SYSTEM_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
   fontSizePreset: 'standard',
   radiusPreset: 'standard',
   shadowPreset: 'standard',
+  shadowIntensity: 'standard',
   densityPreset: 'standard',
 };
 
@@ -484,6 +485,7 @@ const SOURCE_HAN_ROUNDED_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
   fontSizePreset: 'standard',
   radiusPreset: 'rounded',
   shadowPreset: 'standard',
+  shadowIntensity: 'standard',
   densityPreset: 'comfortable',
 };
 
@@ -574,7 +576,6 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
         '--graft-neo-ink': '#171717',
         '--graft-neo-surface': '#FFFEF8',
         '--graft-neo-muted-surface': '#F2F1EA',
-        '--graft-neo-shadow': '4px 4px 0 var(--graft-neo-ink)',
       },
       dark: {
         '--td-bg-color-page': '#161616',
@@ -603,7 +604,6 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
         '--graft-neo-ink': '#F7F4E8',
         '--graft-neo-surface': '#20201D',
         '--graft-neo-muted-surface': '#2A2A25',
-        '--graft-neo-shadow': '4px 4px 0 var(--graft-neo-ink)',
       },
     },
     authorityPatch: {
@@ -611,6 +611,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
       fontSizePreset: 'small',
       radiusPreset: 'square',
       shadowPreset: 'hard-offset',
+      shadowIntensity: 'standard',
       densityPreset: 'compact',
     },
     stylePatch: {

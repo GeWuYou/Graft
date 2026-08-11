@@ -152,6 +152,14 @@ const TDropdownStub = defineComponent({
       type: Object,
       default: () => ({}),
     },
+    maxColumnWidth: {
+      type: [String, Number],
+      default: undefined,
+    },
+    minColumnWidth: {
+      type: [String, Number],
+      default: undefined,
+    },
   },
   setup(_, { slots }) {
     return () =>
@@ -258,11 +266,12 @@ const LContentStub = defineComponent({
 const TTabsStub = defineComponent({
   name: 'TTabs',
   emits: ['change'],
-  setup(_, { slots }) {
+  setup(_, { attrs, slots }) {
     return () =>
-      h('div', { 'data-testid': 'tabs' }, [
+      h('div', { ...attrs, 'data-testid': 'tabs' }, [
         h('div', { class: 't-tabs__nav-container' }, [
           h('div', { class: 't-tabs__nav-scroll' }, [h('div', { class: 't-tabs__nav-wrap' }, slots.default?.())]),
+          h('div', { class: 't-tabs__operations' }, slots.action?.()),
         ]),
       ]);
   },
@@ -319,7 +328,7 @@ function mountLayoutContent() {
         },
         TTabPanel: {
           props: ['value'],
-          template: '<div data-testid="tab-panel"><slot name="label" /></div>',
+          template: '<div class="t-tabs__nav-item" data-testid="tab-panel"><slot name="label" /></div>',
         },
         TTabs: TTabsStub,
       },
@@ -338,8 +347,11 @@ async function openRuntimeTabMenu(wrapper: ReturnType<typeof mountLayoutContent>
 }
 
 async function clickCloseAll(wrapper: ReturnType<typeof mountLayoutContent>) {
-  const closeAllItem = wrapper
-    .findAll('[data-testid="dropdown-item"]')
+  const openDropdown = wrapper
+    .findAllComponents(TDropdownStub)
+    .find((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible);
+  const closeAllItem = openDropdown
+    ?.findAll('[data-testid="dropdown-item"]')
     .find((item) => item.text().includes('layout.tagTabs.closeAll'));
 
   expect(closeAllItem).toBeTruthy();
@@ -770,6 +782,106 @@ describe('LayoutContent', () => {
 
     expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
     expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('keeps home-tab context actions available without allowing an unclosable duplicate', async () => {
+    storeState.tabsRouterStore.activeTabKey = '/';
+    const wrapper = mountLayoutContent();
+    const dropdown = await openRuntimeTabMenu(wrapper, 0);
+
+    expect(
+      dropdown.findAll('[data-testid="dropdown-item"]').some((item) => item.text().includes('layout.tagTabs.pin')),
+    ).toBe(false);
+    const duplicateItem = dropdown
+      .findAll('[data-testid="dropdown-item"]')
+      .find((item) => item.text().includes('layout.tagTabs.duplicate'));
+
+    expect(duplicateItem?.attributes('disabled')).toBeDefined();
+  });
+
+  it('returns to the retained source tab when closing an active duplicate to its right', async () => {
+    const sourceTab = createTab('/security/audit', 'AuditLogs');
+    const activeDuplicate = {
+      ...sourceTab,
+      isDuplicate: true,
+      tabKey: '/security/audit#copy-1',
+    };
+    const fixedTab = {
+      ...createTab('/server/runtime', 'RuntimeTargetList'),
+      isPinned: true,
+    };
+    storeState.tabsRouterStore.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, activeDuplicate, fixedTab];
+    storeState.tabsRouterStore.activeTabKey = activeDuplicate.tabKey;
+    routeProxy.path = sourceTab.path;
+    routeProxy.fullPath = sourceTab.fullPath ?? sourceTab.path;
+    storeState.tabsRouterStore.subtractTabRouterBehind.mockImplementation(() => {
+      tabsRouterStoreProxy.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, fixedTab];
+    });
+
+    const wrapper = mountLayoutContent();
+    const dropdown = await openRuntimeTabMenu(wrapper, 1);
+    const closeRightItem = dropdown
+      .findAll('[data-testid="dropdown-item"]')
+      .find((item) => item.text().includes('layout.tagTabs.closeRight'));
+
+    expect(closeRightItem).toBeTruthy();
+    await closeRightItem!.trigger('click');
+
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith(sourceTab.tabKey);
+    expect(routerMock.push).toHaveBeenCalledWith({ path: sourceTab.path, query: undefined });
+  });
+
+  it('renders the full-height action trigger for the active tab', () => {
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.get('[data-testid="route-tabs-actions"]').classes()).toContain('route-tabs-actions__trigger');
+    expect(wrapper.find('.route-tabs-actions').exists()).toBe(true);
+    expect(wrapper.find('.route-tabs-actions__menu').exists()).toBe(true);
+    expect(layoutContentStyleSource).toContain('.route-tabs-actions__trigger');
+    expect(layoutContentStyleSource).toContain('height: var(--td-comp-size-xxl);');
+    expect(layoutContentStyleSource).toContain('height: 100%;');
+  });
+
+  it('opens only global actions from the tab-bar blank area', async () => {
+    const wrapper = mountLayoutContent();
+    const tabs = wrapper.get('[data-testid="tabs"]');
+
+    await tabs.trigger('contextmenu', { clientX: 420, clientY: 96 });
+    await nextTick();
+
+    const blankMenu = wrapper
+      .findAllComponents(TDropdownStub)
+      .find((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible);
+    expect(blankMenu).toBeTruthy();
+    expect(blankMenu!.findAll('[data-testid="dropdown-item"]')).toHaveLength(2);
+    expect(blankMenu!.text()).toContain('layout.tagTabs.closeAll');
+    expect(blankMenu!.text()).toContain('layout.tagTabs.reopenClosed');
+    expect(blankMenu!.text()).not.toContain('layout.tagTabs.refresh');
+  });
+
+  it('does not open the blank-area menu for a tab or operation target', async () => {
+    const wrapper = mountLayoutContent();
+    const tab = wrapper.get('.t-tabs__nav-item');
+    const operation = wrapper.get('.t-tabs__operations');
+
+    await tab.trigger('contextmenu');
+    await operation.trigger('contextmenu');
+    await nextTick();
+
+    expect(
+      wrapper
+        .findAllComponents(TDropdownStub)
+        .some((dropdown) => (dropdown.vm.$props.popupProps as DropdownPopupProps).visible),
+    ).toBe(false);
+  });
+
+  it('uses a viewport-aware menu width without the default truncation width', () => {
+    const wrapper = mountLayoutContent();
+    const dropdown = wrapper.findComponent(TDropdownStub);
+
+    expect(dropdown.props('minColumnWidth')).toBe('min(192px, calc(100vw - 32px))');
+    expect(dropdown.props('maxColumnWidth')).toBe('min(320px, calc(100vw - 32px))');
+    expect(layoutStyleSource).toContain('white-space: normal;');
   });
 
   it('does not create duplicate close-all dialogs for rapid consecutive clicks', async () => {

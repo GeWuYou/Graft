@@ -22,19 +22,24 @@
 
       <div class="theme-workbench-panel__body">
         <aside class="theme-workbench-panel__nav graft-scrollbar">
-          <t-tooltip v-for="group in groups" :key="group.key" :content="t(group.labelKey)" placement="right" show-arrow>
-            <button
-              type="button"
-              class="nav-item"
-              :class="{ 'nav-item--active': group.key === activeGroup }"
-              @click="openGroup(group.key)"
-            >
-              <span class="nav-item__icon">
-                <t-icon :name="groupIconMap[group.key]" />
-              </span>
-              <span class="nav-item__text">{{ t(group.labelKey) }}</span>
-            </button>
-          </t-tooltip>
+          <div v-for="group in groups" :key="group.key" class="theme-workbench-panel__nav-entry">
+            <t-tooltip :content="t(group.labelKey)" placement="right" show-arrow>
+              <t-button
+                block
+                :theme="group.key === activeGroup ? 'primary' : 'default'"
+                type="button"
+                variant="outline"
+                class="nav-item"
+                :class="{ 'nav-item--active': group.key === activeGroup }"
+                @click="openGroup(group.key)"
+              >
+                <span class="nav-item__content">
+                  <t-icon :name="groupIconMap[group.key]" />
+                  <span class="nav-item__text">{{ t(group.labelKey) }}</span>
+                </span>
+              </t-button>
+            </t-tooltip>
+          </div>
         </aside>
 
         <section class="theme-workbench-panel__content graft-scrollbar">
@@ -395,7 +400,11 @@
                     <div class="switch-item__label">{{ t('layout.setting.element.showHeader') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.showHeaderHint') }}</div>
                   </div>
-                  <t-switch :model-value="settingStore.showHeader" @update:model-value="updateShowHeader" />
+                  <t-switch
+                    data-testid="show-header-switch"
+                    :model-value="settingStore.showHeader"
+                    @update:model-value="updateShowHeader"
+                  />
                 </div>
                 <div class="switch-item">
                   <div class="switch-item__content">
@@ -426,6 +435,7 @@
                     </div>
                   </div>
                   <t-switch
+                    data-testid="show-theme-workbench-dock-switch"
                     :model-value="settingStore.showThemeWorkbenchDock"
                     @update:model-value="updateShowThemeWorkbenchDock"
                   />
@@ -523,34 +533,51 @@
             <div class="section">
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.radius') }}</div>
-                <div class="section-desc">{{ t('layout.setting.workbench.style.description') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.style.radiusDescription') }}</div>
               </div>
-              <div class="style-preview-grid" :class="resetFeedbackClass">
-                <button
-                  v-for="item in radiusOptions"
-                  :key="item.value"
-                  type="button"
-                  class="style-preview-card"
-                  :class="{ 'style-preview-card--active': effectiveTheme.radiusPreset === item.value }"
-                  :data-testid="`radius-${item.value}`"
-                  @click="
-                    settingStore.updateThemeDraftAppearance({
-                      radiusPreset: item.value,
-                    })
-                  "
-                >
-                  <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="radius-preview" :class="`radius-preview--${item.value}`">
-                    <span class="radius-preview__surface radius-preview__surface--main" />
-                    <span class="radius-preview__surface radius-preview__surface--sub" />
-                  </span>
-                </button>
+              <div class="style-control-stack" :class="resetFeedbackClass">
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">0</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="radius-slider"
+                    :label="false"
+                    :max="THEME_RADIUS_OVERRIDE_BOUNDS.max"
+                    :min="THEME_RADIUS_OVERRIDE_BOUNDS.min"
+                    :model-value="activeRadiusValue"
+                    :step="1"
+                    @change="handleRadiusSliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--rounded" aria-hidden="true">R</span>
+                </div>
+                <div class="style-control__marks style-control__marks--five">
+                  <button
+                    v-for="item in radiusOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isRadiusAnchorActive(item.sliderValue) }"
+                    :data-testid="`radius-anchor-${item.value}`"
+                    @click="handleRadiusAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="style-combination-preview style-combination-preview--radius"
+                :class="radiusPreviewClass"
+                :style="radiusPreviewStyle"
+              >
+                <span class="style-combination-preview__card style-combination-preview__card--back" />
+                <span class="style-combination-preview__card style-combination-preview__card--front" />
               </div>
             </div>
 
             <div class="section">
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.shadow') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.style.shadowDescription') }}</div>
               </div>
               <div class="style-preview-grid" :class="resetFeedbackClass">
                 <button
@@ -567,11 +594,66 @@
                   "
                 >
                   <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="shadow-preview" :class="`shadow-preview--${item.value}`">
+                  <span
+                    class="shadow-preview"
+                    :class="[
+                      `shadow-preview--${item.value}`,
+                      `shadow-preview--radius-${effectiveTheme.radiusPreset}`,
+                      shadowIntensityPreviewClass,
+                    ]"
+                    :style="shadowPreviewStyle"
+                  >
                     <span class="shadow-preview__card shadow-preview__card--back" />
                     <span class="shadow-preview__card shadow-preview__card--front" />
                   </span>
                 </button>
+              </div>
+              <div
+                class="style-control-stack"
+                :class="{ 'style-control-stack--disabled': !isShadowIntensityAvailable }"
+              >
+                <div class="section-desc">{{ t('layout.setting.workbench.style.shadowIntensityDescription') }}</div>
+                <div v-if="!isShadowIntensityAvailable" class="section-desc">
+                  {{ t('layout.setting.workbench.style.shadowIntensityUnavailable') }}
+                </div>
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">S</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="shadow-intensity-slider"
+                    :disabled="!isShadowIntensityAvailable"
+                    :label="false"
+                    :max="THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max"
+                    :min="THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min"
+                    :model-value="activeShadowIntensityValue"
+                    :step="0.05"
+                    @change="handleShadowIntensitySliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--strong" aria-hidden="true">L</span>
+                </div>
+                <div class="style-control__marks style-control__marks--three">
+                  <button
+                    v-for="item in shadowIntensityOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isShadowIntensityAnchorActive(item.sliderValue) }"
+                    :data-testid="`shadow-intensity-anchor-${item.value}`"
+                    :disabled="!isShadowIntensityAvailable"
+                    @click="handleShadowIntensityAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="style-combination-preview"
+                :class="shadowCombinationPreviewClass"
+                data-testid="shadow-combination-preview"
+                :style="shadowPreviewStyle"
+              >
+                <span class="style-combination-preview__card style-combination-preview__card--back" />
+                <span class="style-combination-preview__card style-combination-preview__card--front" />
               </div>
             </div>
 
@@ -579,26 +661,43 @@
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.style.density') }}</div>
               </div>
-              <div class="style-preview-grid" :class="resetFeedbackClass">
-                <button
-                  v-for="item in densityOptions"
-                  :key="item.value"
-                  type="button"
-                  class="style-preview-card"
-                  :class="{ 'style-preview-card--active': effectiveTheme.densityPreset === item.value }"
-                  @click="
-                    settingStore.updateThemeDraftAppearance({
-                      densityPreset: item.value,
-                    })
-                  "
-                >
-                  <span class="style-preview-card__label">{{ item.label }}</span>
-                  <span class="density-preview" :class="`density-preview--${item.value}`">
-                    <span v-for="line in densityPreviewLines" :key="line" class="density-preview__line">
-                      {{ line }}
-                    </span>
-                  </span>
-                </button>
+              <div class="style-control-stack" :class="resetFeedbackClass">
+                <div class="style-control">
+                  <span class="style-control__edge-label" aria-hidden="true">C</span>
+                  <t-slider
+                    class="style-control__slider"
+                    data-testid="density-slider"
+                    :label="false"
+                    :max="THEME_DENSITY_OVERRIDE_BOUNDS.max"
+                    :min="THEME_DENSITY_OVERRIDE_BOUNDS.min"
+                    :model-value="activeDensityValue"
+                    :step="0.01"
+                    @change="handleDensitySliderChange"
+                  />
+                  <span class="style-control__edge-label style-control__edge-label--strong" aria-hidden="true">D</span>
+                </div>
+                <div class="style-control__marks style-control__marks--three">
+                  <button
+                    v-for="item in densityOptions"
+                    :key="item.value"
+                    type="button"
+                    class="style-control__mark style-control__mark-button"
+                    :class="{ 'style-control__mark--active': isDensityAnchorActive(item.sliderValue) }"
+                    :data-testid="`density-anchor-${item.value}`"
+                    @click="handleDensityAnchorSelect(item)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="density-preview"
+                :class="`density-preview--${effectiveTheme.densityPreset}`"
+                :style="densityPreviewStyle"
+              >
+                <span v-for="line in densityPreviewLines" :key="line" class="density-preview__line">
+                  {{ line }}
+                </span>
               </div>
             </div>
           </div>
@@ -697,6 +796,7 @@
 </template>
 <script setup lang="ts">
 /** 主题工作台仅编排本地预览交互，主题草稿与持久化状态统一由 setting store 管理。 */
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -711,6 +811,11 @@ import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
 import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
+import {
+  THEME_DENSITY_OVERRIDE_BOUNDS,
+  THEME_RADIUS_OVERRIDE_BOUNDS,
+  THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS,
+} from '@/store/modules/setting-theme-authority';
 import type {
   ThemeAuthorityState,
   ThemePresetApplicationScope,
@@ -801,11 +906,11 @@ const fontSizeSelectOptions = computed(() => fontSizeOptions.value.map(({ label,
 const radiusOptions = computed(
   () =>
     [
-      { value: 'square', label: t('layout.setting.workbench.style.square') },
-      { value: 'business', label: t('layout.setting.workbench.style.business') },
-      { value: 'standard', label: t('layout.setting.workbench.style.standard') },
-      { value: 'rounded', label: t('layout.setting.workbench.style.rounded') },
-      { value: 'capsule', label: t('layout.setting.workbench.style.capsule') },
+      { value: 'square', label: t('layout.setting.workbench.style.square'), sliderValue: 0 },
+      { value: 'business', label: t('layout.setting.workbench.style.business'), sliderValue: 4 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 8 },
+      { value: 'rounded', label: t('layout.setting.workbench.style.rounded'), sliderValue: 12 },
+      { value: 'capsule', label: t('layout.setting.workbench.style.capsule'), sliderValue: 16 },
     ] as const,
 );
 
@@ -819,12 +924,21 @@ const shadowOptions = computed(
     ] as const,
 );
 
+const shadowIntensityOptions = computed(
+  () =>
+    [
+      { value: 'subtle', label: t('layout.setting.workbench.style.subtle'), sliderValue: 0.5 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 1 },
+      { value: 'strong', label: t('layout.setting.workbench.style.strong'), sliderValue: 1.5 },
+    ] as const,
+);
+
 const densityOptions = computed(
   () =>
     [
-      { value: 'compact', label: t('layout.setting.workbench.style.compact') },
-      { value: 'standard', label: t('layout.setting.workbench.style.standard') },
-      { value: 'comfortable', label: t('layout.setting.workbench.style.comfortable') },
+      { value: 'compact', label: t('layout.setting.workbench.style.compact'), sliderValue: 0.88 },
+      { value: 'standard', label: t('layout.setting.workbench.style.standard'), sliderValue: 1 },
+      { value: 'comfortable', label: t('layout.setting.workbench.style.comfortable'), sliderValue: 1.12 },
     ] as const,
 );
 
@@ -954,11 +1068,45 @@ const updateSplitMenu = createBooleanConfigUpdater('splitMenu');
 const updateIsSidebarFixed = createBooleanConfigUpdater('isSidebarFixed');
 const updateMenuAutoCollapsed = createBooleanConfigUpdater('menuAutoCollapsed');
 const updateMenuAlwaysExpanded = createBooleanConfigUpdater('menuAlwaysExpanded');
-const updateShowHeader = createBooleanConfigUpdater('showHeader');
+const updateShowHeader = (value: boolean) => {
+  if (value) {
+    settingStore.updateConfig({ showHeader: true });
+    return;
+  }
+
+  const dialog = DialogPlugin.confirm({
+    header: t('layout.setting.workbench.layout.hideHeaderDialog.title'),
+    body: t('layout.setting.workbench.layout.hideHeaderDialog.description'),
+    theme: 'warning',
+    confirmBtn: t('layout.setting.workbench.layout.hideHeaderDialog.confirm'),
+    cancelBtn: t('layout.setting.workbench.actions.cancel'),
+    onConfirm: () => {
+      settingStore.updateConfig({ showHeader: false, showThemeWorkbenchDock: true });
+      dialog.hide();
+    },
+  });
+};
 const updateShowBreadcrumb = createBooleanConfigUpdater('showBreadcrumb');
 const updateShowFooter = createBooleanConfigUpdater('showFooter');
 const updateIsUseTabsRouter = createBooleanConfigUpdater('isUseTabsRouter');
-const updateShowThemeWorkbenchDock = createBooleanConfigUpdater('showThemeWorkbenchDock');
+const updateShowThemeWorkbenchDock = (value: boolean) => {
+  if (value || settingStore.showHeader) {
+    settingStore.updateConfig({ showThemeWorkbenchDock: value });
+    return;
+  }
+
+  const dialog = DialogPlugin.confirm({
+    header: t('layout.setting.workbench.layout.hideDockDialog.title'),
+    body: t('layout.setting.workbench.layout.hideDockDialog.description'),
+    theme: 'warning',
+    confirmBtn: t('layout.setting.workbench.layout.hideDockDialog.confirm'),
+    cancelBtn: t('layout.setting.workbench.actions.cancel'),
+    onConfirm: () => {
+      settingStore.updateConfig({ showHeader: true, showThemeWorkbenchDock: false });
+      dialog.hide();
+    },
+  });
+};
 
 const modeLabel = computed(() => {
   const matched = modeOptions.value.find((item) => item.type === effectiveTheme.value.mode);
@@ -989,14 +1137,80 @@ const fontSizePreviewStyle = computed(() => ({
 }));
 
 const activeRadiusLabel = computed(() => {
+  if (effectiveTheme.value.radiusOverride !== null) {
+    return `${effectiveTheme.value.radiusOverride}px`;
+  }
   const matched = radiusOptions.value.find((item) => item.value === effectiveTheme.value.radiusPreset);
   return matched?.label ?? radiusOptions.value[0].label;
 });
 
+const activeRadiusValue = computed(
+  () =>
+    effectiveTheme.value.radiusOverride ??
+    radiusOptions.value.find((item) => item.value === effectiveTheme.value.radiusPreset)?.sliderValue ??
+    radiusOptions.value[0].sliderValue,
+);
+
 const activeDensityLabel = computed(() => {
+  if (effectiveTheme.value.densityOverride !== null) {
+    return `${Math.round(effectiveTheme.value.densityOverride * 100)}%`;
+  }
   const matched = densityOptions.value.find((item) => item.value === effectiveTheme.value.densityPreset);
   return matched?.label ?? densityOptions.value[1].label;
 });
+
+const activeDensityValue = computed(
+  () =>
+    effectiveTheme.value.densityOverride ??
+    densityOptions.value.find((item) => item.value === effectiveTheme.value.densityPreset)?.sliderValue ??
+    densityOptions.value[1].sliderValue,
+);
+
+const activeShadowIntensityValue = computed(
+  () =>
+    effectiveTheme.value.shadowIntensityOverride ??
+    shadowIntensityOptions.value.find((item) => item.value === effectiveTheme.value.shadowIntensity)?.sliderValue ??
+    shadowIntensityOptions.value[1].sliderValue,
+);
+
+const isShadowIntensityAvailable = computed(() => effectiveTheme.value.shadowPreset !== 'flat');
+
+const radiusPreviewClass = computed(() => `style-combination-preview--radius-${effectiveTheme.value.radiusPreset}`);
+
+const radiusPreviewStyle = computed(() => ({ '--style-preview-radius': `${activeRadiusValue.value}px` }));
+
+const shadowPreviewStyle = computed(() => {
+  const intensity = activeShadowIntensityValue.value;
+
+  return {
+    '--style-preview-radius': `${activeRadiusValue.value}px`,
+    '--shadow-preview-hard-offset': `${4 * intensity}px ${4 * intensity}px 0 var(--td-text-color-primary)`,
+    '--shadow-preview-standard-back': `0 ${6 * intensity}px ${16 * intensity}px rgb(15 23 42 / ${10 * intensity}%)`,
+    '--shadow-preview-standard-front': `0 ${12 * intensity}px ${24 * intensity}px rgb(15 23 42 / ${12 * intensity}%)`,
+    '--shadow-preview-floating-back': `0 ${10 * intensity}px ${22 * intensity}px rgb(15 23 42 / ${14 * intensity}%)`,
+    '--shadow-preview-floating-front': `0 ${18 * intensity}px ${40 * intensity}px rgb(15 23 42 / ${18 * intensity}%)`,
+  };
+});
+
+const densityPreviewStyle = computed(() => ({ '--graft-theme-density-scale': String(activeDensityValue.value) }));
+
+const shadowCombinationPreviewClass = computed(() => [
+  `style-combination-preview--radius-${effectiveTheme.value.radiusPreset}`,
+  `style-combination-preview--shadow-${effectiveTheme.value.shadowPreset}`,
+  shadowIntensityPreviewClass.value && `style-combination-preview--intensity-${effectiveTheme.value.shadowIntensity}`,
+]);
+
+const isRadiusAnchorActive = (value: number) => activeRadiusValue.value === value;
+
+const isShadowIntensityAnchorActive = (value: number) => activeShadowIntensityValue.value === value;
+
+const isDensityAnchorActive = (value: number) => activeDensityValue.value === value;
+
+const shadowIntensityPreviewClass = computed(() =>
+  shadowIntensityOptions.value.some((item) => item.sliderValue === activeShadowIntensityValue.value)
+    ? `shadow-preview--intensity-${effectiveTheme.value.shadowIntensity}`
+    : undefined,
+);
 
 const overviewSummaryItems = computed(() => [
   {
@@ -1155,6 +1369,57 @@ const handleFontSizeSliderChange = (value: unknown) => {
   updateFontSizePreset(fontSizeOptions.value[value]?.value);
 };
 
+const handleRadiusAnchorSelect = (item: (typeof radiusOptions.value)[number]) => {
+  settingStore.updateThemeDraftAppearance({ radiusPreset: item.value, radiusOverride: null });
+};
+
+const handleRadiusSliderChange = (value: unknown) => {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_RADIUS_OVERRIDE_BOUNDS.min ||
+    value > THEME_RADIUS_OVERRIDE_BOUNDS.max
+  ) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ radiusOverride: value });
+};
+
+const handleDensityAnchorSelect = (item: (typeof densityOptions.value)[number]) => {
+  settingStore.updateThemeDraftAppearance({ densityPreset: item.value, densityOverride: null });
+};
+
+const handleDensitySliderChange = (value: unknown) => {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_DENSITY_OVERRIDE_BOUNDS.min ||
+    value > THEME_DENSITY_OVERRIDE_BOUNDS.max
+  ) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ densityOverride: value });
+};
+
+const handleShadowIntensityAnchorSelect = (item: (typeof shadowIntensityOptions.value)[number]) => {
+  if (isShadowIntensityAvailable.value) {
+    settingStore.updateThemeDraftAppearance({ shadowIntensity: item.value, shadowIntensityOverride: null });
+  }
+};
+
+const handleShadowIntensitySliderChange = (value: unknown) => {
+  if (
+    typeof value !== 'number' ||
+    value < THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min ||
+    value > THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max ||
+    !isShadowIntensityAvailable.value
+  ) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({ shadowIntensityOverride: value });
+};
+
 const closeWorkbench = () => {
   settingStore.cancelThemeDraft();
 };
@@ -1240,17 +1505,29 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   }
 
   :deep(.t-drawer__body) {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
     padding: 0;
   }
 }
 
 .theme-workbench-panel__shell {
+  --theme-workbench-nav-width: 140px;
+
   background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  box-sizing: border-box;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+:root[data-graft-hard-surface] .theme-workbench-panel__shell {
+  border-color: var(--graft-neo-ink);
+  border-width: 2px;
 }
 
 .theme-workbench-panel__header {
@@ -1258,6 +1535,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   background: var(--td-bg-color-container);
   border-bottom: 1px solid var(--td-component-stroke);
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
   padding: var(--graft-density-gap-18) var(--graft-density-gap-20) var(--graft-density-gap-16);
 }
@@ -1290,9 +1568,9 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .theme-workbench-panel__body {
   display: grid;
   flex: 1;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
+  grid-template-columns: var(--theme-workbench-nav-width) minmax(0, 1fr);
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-16);
 }
@@ -1300,10 +1578,14 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .theme-workbench-panel__nav {
   align-content: start;
   align-self: stretch;
+  border-inline-end: 1px solid var(--td-component-stroke);
   display: grid;
   gap: var(--graft-density-gap-8);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
   max-height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
   padding-right: var(--graft-density-gap-2);
@@ -1317,30 +1599,35 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   cursor: pointer;
 }
 
+.theme-workbench-panel__nav-entry {
+  min-width: 0;
+  width: 100%;
+}
+
 .nav-item {
   align-items: center;
-  appearance: none;
-  .theme-workbench-selectable-card();
-
-  color: var(--td-text-color-secondary);
-  display: flex;
   gap: var(--graft-density-gap-8);
+  justify-self: stretch;
+  max-width: 100%;
   min-height: 48px;
-  min-width: 120px;
+  min-width: 0;
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
   width: 100%;
 }
 
-.nav-item--active {
-  border-color: var(--td-brand-color);
-  box-shadow: var(--td-shadow-1);
-  color: var(--td-brand-color);
+.nav-item__content {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: 20px minmax(0, 1fr);
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
 }
 
-.nav-item__icon {
-  flex: 0 0 auto;
-  font-size: 20px;
-  line-height: 1;
+.nav-item__content :deep(.t-icon) {
+  height: 20px;
+  width: 20px;
 }
 
 .nav-item__text {
@@ -1360,8 +1647,9 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   overflow: hidden auto;
-  padding-bottom: calc(var(--graft-density-gap-48) + var(--graft-density-gap-32) + var(--graft-density-gap-24));
+  padding-left: var(--graft-density-gap-12);
   padding-right: var(--graft-density-gap-4);
 }
 
@@ -2383,6 +2671,96 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   word-break: keep-all;
 }
 
+.style-control-stack {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.style-control-stack--disabled {
+  opacity: 0.52;
+}
+
+.style-control {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: auto minmax(132px, 1fr) auto;
+  max-width: 100%;
+  min-height: 56px;
+  min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+}
+
+.style-control__edge-label {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+  font-weight: 700;
+  line-height: 1;
+  min-width: max-content;
+  text-align: center;
+}
+
+.style-control__edge-label--rounded,
+.style-control__edge-label--strong {
+  font: var(--td-font-title-small);
+}
+
+.style-control__slider {
+  min-width: 0;
+}
+
+.style-control__slider :deep(.t-slider__container) {
+  min-width: 0;
+}
+
+.style-control__marks {
+  color: var(--td-text-color-secondary);
+  display: grid;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: 0 var(--graft-density-gap-12);
+}
+
+.style-control__marks--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.style-control__marks--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.style-control__mark {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.style-control__mark-button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.style-control__mark-button:disabled {
+  cursor: not-allowed;
+}
+
+.style-control__mark--active {
+  color: var(--td-brand-color);
+  font-weight: 700;
+}
+
 .style-preview-grid {
   display: grid;
   gap: var(--graft-density-gap-12);
@@ -2434,7 +2812,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   white-space: nowrap;
 }
 
-.radius-preview,
 .shadow-preview,
 .density-preview {
   background:
@@ -2450,54 +2827,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   padding: var(--graft-density-gap-14);
 }
 
-.radius-preview {
-  align-items: end;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-}
-
-.radius-preview__surface {
-  background: color-mix(in srgb, var(--td-brand-color) 12%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 18%, var(--td-component-stroke));
-  display: block;
-  min-width: 0;
-}
-
-.radius-preview__surface--main {
-  flex: 1;
-  height: 42px;
-}
-
-.radius-preview__surface--sub {
-  height: 28px;
-  width: 32%;
-}
-
-.radius-preview--business .radius-preview__surface--main,
-.radius-preview--business .radius-preview__surface--sub {
-  border-radius: 6px;
-}
-
-.radius-preview--square .radius-preview__surface--main,
-.radius-preview--square .radius-preview__surface--sub {
-  border-radius: 0;
-}
-
-.radius-preview--standard .radius-preview__surface--main,
-.radius-preview--standard .radius-preview__surface--sub {
-  border-radius: 12px;
-}
-
-.radius-preview--rounded .radius-preview__surface--main,
-.radius-preview--rounded .radius-preview__surface--sub {
-  border-radius: 20px;
-}
-
-.radius-preview--capsule .radius-preview__surface--main,
-.radius-preview--capsule .radius-preview__surface--sub {
-  border-radius: 999px;
-}
-
 .shadow-preview {
   display: grid;
   place-items: center;
@@ -2507,7 +2836,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 .shadow-preview__card {
   background: color-mix(in srgb, var(--td-bg-color-container) 94%, white 3%);
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
-  border-radius: 14px;
+  border-radius: var(--style-preview-radius, 14px);
   display: block;
   position: absolute;
 }
@@ -2530,64 +2859,163 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .shadow-preview--hard-offset .shadow-preview__card {
   border-color: var(--td-text-color-primary);
-  border-radius: 0;
   border-width: 2px;
-  box-shadow: 4px 4px 0 var(--td-text-color-primary);
+  box-shadow: var(--shadow-preview-hard-offset, 4px 4px 0 var(--td-text-color-primary));
 }
 
 .shadow-preview--standard .shadow-preview__card--back {
-  box-shadow: 0 6px 16px rgb(15 23 42 / 10%);
+  box-shadow: var(--shadow-preview-standard-back, 0 6px 16px rgb(15 23 42 / 10%));
 }
 
 .shadow-preview--standard .shadow-preview__card--front {
-  box-shadow: 0 12px 24px rgb(15 23 42 / 12%);
+  box-shadow: var(--shadow-preview-standard-front, 0 12px 24px rgb(15 23 42 / 12%));
 }
 
 .shadow-preview--floating .shadow-preview__card--back {
-  box-shadow: 0 10px 22px rgb(15 23 42 / 14%);
+  box-shadow: var(--shadow-preview-floating-back, 0 10px 22px rgb(15 23 42 / 14%));
 }
 
 .shadow-preview--floating .shadow-preview__card--front {
-  box-shadow: 0 18px 40px rgb(15 23 42 / 18%);
+  box-shadow: var(--shadow-preview-floating-front, 0 18px 40px rgb(15 23 42 / 18%));
+}
+
+.shadow-preview--radius-square,
+.style-combination-preview--radius-square {
+  --style-preview-radius: 0;
+}
+
+.shadow-preview--radius-business,
+.style-combination-preview--radius-business {
+  --style-preview-radius: 6px;
+}
+
+.shadow-preview--radius-standard,
+.style-combination-preview--radius-standard {
+  --style-preview-radius: 12px;
+}
+
+.shadow-preview--radius-rounded,
+.style-combination-preview--radius-rounded {
+  --style-preview-radius: 20px;
+}
+
+.shadow-preview--radius-capsule,
+.style-combination-preview--radius-capsule {
+  --style-preview-radius: 999px;
+}
+
+.shadow-preview--intensity-subtle,
+.style-combination-preview--intensity-subtle {
+  --shadow-preview-hard-offset: 2px 2px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 3px 8px rgb(15 23 42 / 8%);
+  --shadow-preview-standard-front: 0 6px 14px rgb(15 23 42 / 10%);
+  --shadow-preview-floating-back: 0 4px 10px rgb(15 23 42 / 10%);
+  --shadow-preview-floating-front: 0 8px 18px rgb(15 23 42 / 13%);
+}
+
+.shadow-preview--intensity-standard,
+.style-combination-preview--intensity-standard {
+  --shadow-preview-hard-offset: 4px 4px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 6px 16px rgb(15 23 42 / 10%);
+  --shadow-preview-standard-front: 0 12px 24px rgb(15 23 42 / 12%);
+  --shadow-preview-floating-back: 0 10px 22px rgb(15 23 42 / 14%);
+  --shadow-preview-floating-front: 0 18px 40px rgb(15 23 42 / 18%);
+}
+
+.shadow-preview--intensity-strong,
+.style-combination-preview--intensity-strong {
+  --shadow-preview-hard-offset: 6px 6px 0 var(--td-text-color-primary);
+  --shadow-preview-standard-back: 0 10px 24px rgb(15 23 42 / 13%);
+  --shadow-preview-standard-front: 0 18px 36px rgb(15 23 42 / 16%);
+  --shadow-preview-floating-back: 0 14px 32px rgb(15 23 42 / 18%);
+  --shadow-preview-floating-front: 0 24px 52px rgb(15 23 42 / 22%);
+}
+
+.style-combination-preview {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--td-bg-color-container) 88%, transparent), transparent),
+    color-mix(in srgb, var(--td-bg-color-container) 65%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
+  border-radius: 12px;
+  display: grid;
+  height: 96px;
+  overflow: hidden;
+  place-items: center;
+  position: relative;
+}
+
+.style-combination-preview__card {
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, white 3%);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
+  border-radius: var(--style-preview-radius, 14px);
+  display: block;
+  position: absolute;
+}
+
+.style-combination-preview__card--back {
+  height: 38px;
+  transform: translate(-26px, -10px);
+  width: 68px;
+}
+
+.style-combination-preview__card--front {
+  height: 48px;
+  transform: translate(20px, 10px);
+  width: 92px;
+}
+
+.style-combination-preview--shadow-flat .style-combination-preview__card {
+  box-shadow: none;
+}
+
+.style-combination-preview--shadow-hard-offset .style-combination-preview__card {
+  border-color: var(--td-text-color-primary);
+  border-width: 2px;
+  box-shadow: var(--shadow-preview-hard-offset);
+}
+
+.style-combination-preview--shadow-standard .style-combination-preview__card--back {
+  box-shadow: var(--shadow-preview-standard-back);
+}
+
+.style-combination-preview--shadow-standard .style-combination-preview__card--front {
+  box-shadow: var(--shadow-preview-standard-front);
+}
+
+.style-combination-preview--shadow-floating .style-combination-preview__card--back {
+  box-shadow: var(--shadow-preview-floating-back);
+}
+
+.style-combination-preview--shadow-floating .style-combination-preview__card--front {
+  box-shadow: var(--shadow-preview-floating-front);
 }
 
 [theme-mode='dark'] .shadow-preview--standard .shadow-preview__card--back {
-  box-shadow: 0 6px 18px rgb(0 0 0 / 26%);
+  box-shadow: var(--shadow-preview-standard-back, 0 6px 18px rgb(0 0 0 / 26%));
 }
 
 [theme-mode='dark'] .shadow-preview--standard .shadow-preview__card--front {
-  box-shadow: 0 14px 28px rgb(0 0 0 / 32%);
+  box-shadow: var(--shadow-preview-standard-front, 0 14px 28px rgb(0 0 0 / 32%));
 }
 
 [theme-mode='dark'] .shadow-preview--floating .shadow-preview__card--back {
-  box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
+  box-shadow: var(--shadow-preview-floating-back, 0 10px 26px rgb(0 0 0 / 34%));
 }
 
 [theme-mode='dark'] .shadow-preview--floating .shadow-preview__card--front {
-  box-shadow: 0 18px 42px rgb(0 0 0 / 40%);
+  box-shadow: var(--shadow-preview-floating-front, 0 18px 42px rgb(0 0 0 / 40%));
 }
 
 .density-preview {
+  --density-preview-scale: 1;
+
   color: var(--td-text-color-secondary);
   display: grid;
   font: var(--td-font-body-small);
   grid-auto-rows: min-content;
+  line-height: calc(1.42 * var(--density-preview-scale));
+  padding: calc(12px * var(--graft-theme-density-scale)) calc(14px * var(--graft-theme-density-scale));
   width: 100%;
-}
-
-.density-preview--compact {
-  line-height: 1.16;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
-}
-
-.density-preview--standard {
-  line-height: 1.42;
-  padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
-}
-
-.density-preview--comfortable {
-  line-height: 1.5;
-  padding: var(--graft-density-gap-14);
 }
 
 .density-preview__line {
@@ -2600,11 +3028,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 }
 
 .density-preview__line + .density-preview__line {
-  margin-top: var(--graft-density-gap-2);
-}
-
-.density-preview--comfortable .density-preview__line + .density-preview__line {
-  margin-top: var(--graft-density-gap-6);
+  margin-top: calc(2px * var(--graft-theme-density-scale));
 }
 
 .advanced-layout .advanced-settings-card {
@@ -2746,15 +3170,12 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   align-items: center;
   background: var(--td-bg-color-container);
   border-top: 1px solid var(--td-component-stroke);
-  bottom: 0;
   display: flex;
+  flex: 0 0 auto;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
-  left: 0;
   padding: var(--graft-density-gap-12) var(--graft-density-gap-16)
     calc(var(--graft-density-gap-12) + env(safe-area-inset-bottom, 0px));
-  position: sticky;
-  z-index: 2;
 }
 
 .theme-workbench-panel__footer-actions {
@@ -2821,6 +3242,8 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
   .theme-workbench-panel__nav {
     align-content: initial;
+    border-block-end: 1px solid var(--td-component-stroke);
+    border-inline-end: 0;
     display: flex;
     max-width: 100%;
     overflow: auto hidden;
@@ -2828,8 +3251,18 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     padding-right: 0;
   }
 
-  .nav-item {
+  .theme-workbench-panel__content {
+    padding-left: 0;
+    padding-top: var(--graft-density-gap-12);
+  }
+
+  .theme-workbench-panel__nav-entry {
     flex: 0 0 64px;
+    min-width: 48px;
+    width: 64px;
+  }
+
+  .nav-item {
     justify-content: center;
     min-height: 48px;
     min-width: 48px;
@@ -2882,12 +3315,20 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
+  .style-control {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
   .font-size-control__select {
     grid-column: 1 / -1;
     width: 100%;
   }
 
   .font-size-control__marks {
+    padding-inline: 0;
+  }
+
+  .style-control__marks {
     padding-inline: 0;
   }
 

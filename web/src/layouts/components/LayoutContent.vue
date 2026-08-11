@@ -12,6 +12,7 @@
       :value="activeTabKey"
       :style="{ position: 'sticky', top: 0, width: '100%' }"
       @change="(value) => handleChangeCurrentTab(value as string)"
+      @contextmenu.capture="handleTabBarContextMenu"
       @remove="handleRemove"
       @drag-sort="handleDragend"
     >
@@ -23,17 +24,7 @@
         :draggable="!routeItem.isHome"
       >
         <template #label>
-          <t-dropdown
-            trigger="context-menu"
-            :hide-after-item-click="true"
-            :min-column-width="128"
-            :popup-props="{
-              overlayClassName: 'route-tabs-dropdown',
-              onVisibleChange: (visible: boolean, ctx: PopupVisibleChangeContext) =>
-                handleTabMenuClick(visible, ctx, getTabKey(routeItem)),
-              visible: activeTabKeyForMenu === getTabKey(routeItem),
-            }"
-          >
+          <tab-actions-menu :tab="routeItem" :tab-index="index" trigger="context-menu">
             <template v-if="!routeItem.isHome">
               <span
                 :ref="(element) => setTabLabelRef(getTabKey(routeItem), element)"
@@ -52,67 +43,39 @@
             >
               <t-icon name="home" />
             </span>
-            <template #dropdown>
-              <t-dropdown-menu>
-                <t-dropdown-item @click="() => handleRefresh(routeItem)">
-                  <t-icon name="refresh" />
-                  {{ t('layout.tagTabs.refresh') }}
-                </t-dropdown-item>
-                <t-dropdown-item divider @click="() => handleDuplicateTab(routeItem)">
-                  <t-icon name="copy" />
-                  {{ t('layout.tagTabs.duplicate') }}
-                </t-dropdown-item>
-                <t-dropdown-item @click="() => handleCopyPageLink(routeItem)">
-                  <t-icon name="link" />
-                  {{ t('layout.tagTabs.copyLink') }}
-                </t-dropdown-item>
-                <t-dropdown-item @click="() => handleOpenInNewWindow(routeItem)">
-                  <t-icon name="window" />
-                  {{ t('layout.tagTabs.openInNewWindow') }}
-                </t-dropdown-item>
-                <t-dropdown-item v-if="!routeItem.isPinned" divider @click="() => handleTogglePinned(routeItem)">
-                  <t-icon name="pin" />
-                  {{ t('layout.tagTabs.pin') }}
-                </t-dropdown-item>
-                <t-dropdown-item v-else divider @click="() => handleTogglePinned(routeItem)">
-                  <t-icon name="pin" />
-                  {{ t('layout.tagTabs.unpin') }}
-                </t-dropdown-item>
-                <t-dropdown-item
-                  divider
-                  :disabled="!hasClosableTabsAhead(index)"
-                  @click="() => handleCloseAhead(routeItem.path, index)"
-                >
-                  <t-icon name="arrow-left" />
-                  {{ t('layout.tagTabs.closeLeft') }}
-                </t-dropdown-item>
-                <t-dropdown-item
-                  :disabled="!hasClosableTabsBehind(index)"
-                  @click="() => handleCloseBehind(routeItem.path, index)"
-                >
-                  <t-icon name="arrow-right" />
-                  {{ t('layout.tagTabs.closeRight') }}
-                </t-dropdown-item>
-                <t-dropdown-item
-                  :disabled="!hasClosableOther(routeItem)"
-                  @click="() => handleCloseOther(routeItem.path, index)"
-                >
-                  <t-icon name="close-circle" />
-                  {{ t('layout.tagTabs.closeOther') }}
-                </t-dropdown-item>
-                <t-dropdown-item :disabled="!hasClosableTabs" @click="handleCloseAll">
-                  <t-icon name="close-circle" />
-                  {{ t('layout.tagTabs.closeAll') }}
-                </t-dropdown-item>
-                <t-dropdown-item divider :disabled="!canReopenClosedTab" @click="handleReopenClosedTab">
-                  <t-icon name="rollback" />
-                  {{ t('layout.tagTabs.reopenClosed') }}
-                </t-dropdown-item>
-              </t-dropdown-menu>
-            </template>
-          </t-dropdown>
+          </tab-actions-menu>
         </template>
       </t-tab-panel>
+      <template #action>
+        <div v-if="activeTab" class="route-tabs-actions">
+          <tab-actions-menu
+            :tab="activeTab"
+            :tab-index="activeTabIndex"
+            global-actions-only
+            placement="bottom-left"
+            trigger="click"
+            :popup-props-override="blankTabMenuPopupProps"
+          >
+            <span ref="blankTabMenuAnchor" class="route-tabs-blank-menu-anchor" :style="blankTabMenuAnchorStyle" />
+          </tab-actions-menu>
+          <tab-actions-menu :tab="activeTab" :tab-index="activeTabIndex" placement="bottom-right" trigger="click">
+            <span class="route-tabs-actions__menu">
+              <t-tooltip placement="bottom" :content="t('layout.tagTabs.actions')">
+                <t-button
+                  data-testid="route-tabs-actions"
+                  class="t-tabs__btn route-tabs-actions__trigger"
+                  :aria-label="t('layout.tagTabs.actions')"
+                  theme="default"
+                  shape="square"
+                  variant="text"
+                >
+                  <ellipsis-icon />
+                </t-button>
+              </t-tooltip>
+            </span>
+          </tab-actions-menu>
+        </div>
+      </template>
     </t-tabs>
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
@@ -126,25 +89,12 @@
         </page-container>
       </div>
     </t-content>
-    <t-dialog
-      v-model:visible="closeAllDialogVisible"
-      attach="body"
-      :header="t('layout.tagTabs.closeAll')"
-      :body="t('layout.tagTabs.closeAllConfirm')"
-      :cancel-btn="t('layout.tagTabs.cancel')"
-      :confirm-btn="t('layout.tagTabs.closeAll')"
-      placement="center"
-      theme="warning"
-      @confirm="handleConfirmCloseAll"
-      @cancel="handleCancelCloseAll"
-      @close="handleCancelCloseAll"
-    />
   </t-layout>
 </template>
 <script setup lang="ts">
+import { EllipsisIcon } from 'tdesign-icons-vue-next';
 import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
-import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { type ComponentPublicInstance, computed, nextTick, ref, watch } from 'vue';
+import { type ComponentPublicInstance, computed, type CSSProperties, nextTick, ref, watch } from 'vue';
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -155,7 +105,6 @@ import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
 import { useResponsiveVariant } from '@/shared/composables';
-import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
 import { hasUnresolvedRouteTitleKey, isRouteTitleKey, localizeRouteTitleKey } from '@/utils/route/title';
@@ -164,6 +113,7 @@ import type { AppRouteMeta, TRouterInfo, TTabRemoveOptions } from '@/utils/types
 
 import LContent from './Content.vue';
 import PageContainer from './PageContainer.vue';
+import TabActionsMenu from './TabActionsMenu.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -186,12 +136,30 @@ const layoutVariant = useResponsiveVariant(layoutRootElement);
 const showRouteTabs = computed(() => settingStore.isUseTabsRouter && layoutVariant.value.density === 'spacious');
 const tabRouters = computed(() => tabsRouterStore.tabRouters);
 const tabLabelRefs = new Map<string, HTMLElement>();
-const activeTabKeyForMenu = ref<string | null>('');
-const closeAllDialogVisible = ref(false);
-const pendingCloseAllDialog = ref(false);
 const activeTabKey = computed(() => tabsRouterStore.activeTabKey || route.path);
-const canReopenClosedTab = computed(() => tabsRouterStore.canReopenClosedTab);
-const hasClosableTabs = computed(() => tabRouters.value.some((route) => !route.isHome && !route.isPinned));
+const activeTab = computed(
+  () => tabRouters.value.find((item) => getTabKey(item) === activeTabKey.value) ?? tabRouters.value[0],
+);
+const activeTabIndex = computed(() =>
+  activeTab.value ? tabRouters.value.findIndex((item) => getTabKey(item) === getTabKey(activeTab.value)) : -1,
+);
+const blankTabMenuAnchor = ref<HTMLElement | null>(null);
+const blankTabMenuVisible = ref(false);
+const blankTabMenuPosition = ref({ left: 0, top: 0 });
+const blankTabMenuAnchorStyle = computed<CSSProperties>(() => ({
+  left: `${blankTabMenuPosition.value.left}px`,
+  position: 'fixed',
+  top: `${blankTabMenuPosition.value.top}px`,
+}));
+const blankTabMenuPopupProps = computed(() => ({
+  overlayClassName: 'route-tabs-dropdown',
+  onVisibleChange: (visible: boolean, context: PopupVisibleChangeContext) => {
+    if (!visible || context.trigger !== 'context-menu') {
+      blankTabMenuVisible.value = visible;
+    }
+  },
+  visible: blankTabMenuVisible.value,
+}));
 const footerMeta = computed(() => route.meta.footer);
 const showFooter = computed(() => {
   if (footerMeta.value === false) {
@@ -284,20 +252,13 @@ const resolveTabBaseTitle = (routeItem: TRouterInfo, routeMeta: AppRouteMeta | u
   return routeTitle ?? defaultTabTitle;
 };
 
-const normalizeQuery = (query?: TRouterInfo['query']): LocationQueryRaw | undefined => {
-  return query;
-};
-
 const getTabKey = (route: TRouterInfo) => route.tabKey || route.path;
-
-const resolveRouteLocation = (targetRoute: TRouterInfo): RouteLocationRaw => {
-  return (
-    tabsRouterStore.resolveNavigationTarget(targetRoute) || {
-      path: targetRoute.path,
-      query: normalizeQuery(targetRoute.query),
-    }
-  );
-};
+const normalizeQuery = (query?: TRouterInfo['query']): LocationQueryRaw | undefined => query;
+const resolveRouteLocation = (targetRoute: TRouterInfo): RouteLocationRaw =>
+  tabsRouterStore.resolveNavigationTarget(targetRoute) || {
+    path: targetRoute.path,
+    query: normalizeQuery(targetRoute.query),
+  };
 
 const resolveLiveTabMeta = (routeItem: TRouterInfo): AppRouteMeta | undefined => {
   try {
@@ -372,6 +333,18 @@ const handleChangeCurrentTab = (tabKey: string) => {
   navigateToTab(targetRoute);
 };
 
+// 空白标签栏只暴露不依赖当前标签的全局操作，标签项和右侧操作按钮继续由各自菜单处理。
+const handleTabBarContextMenu = (event: MouseEvent) => {
+  const target = event.target;
+  if (!(target instanceof Element) || target.closest('.t-tabs__nav-item, .t-tabs__operations')) {
+    return;
+  }
+
+  event.preventDefault();
+  blankTabMenuPosition.value = { left: event.clientX, top: event.clientY };
+  blankTabMenuVisible.value = true;
+};
+
 const handleRemove = (options: TTabRemoveOptions) => {
   const tabKey = options.value as string;
   const nextRouter = tabsRouterStore.getNextRouteAfterClose(tabKey);
@@ -386,163 +359,6 @@ const renderTabTitle = (routeItem: TRouterInfo) =>
   renderTitle(tabDisplayTitles.value.get(getTabKey(routeItem)) ?? routeItem.title);
 const handlePageSurfaceReady = (surface: PageSurfaceType) => {
   pageSurfaceType.value = surface;
-};
-
-const runTabRefresh = async (route: TRouterInfo) => {
-  const tabKey = getTabKey(route);
-
-  if (tabsRouterStore.activeTabKey !== tabKey) {
-    tabsRouterStore.setActiveTabKey(tabKey);
-    await router.push(resolveRouteLocation(route));
-  }
-
-  await nextTick();
-  tabsRouterStore.startTabRefresh(tabKey);
-  await nextTick();
-  tabsRouterStore.finishTabRefresh(tabKey);
-};
-
-const handleRefresh = (route: TRouterInfo) => {
-  void runTabRefresh(route);
-  activeTabKeyForMenu.value = null;
-};
-const handleCloseAhead = (tabKey: string, routeIdx: number) => {
-  tabsRouterStore.subtractTabRouterAhead({ tabKey, path: '', routeIdx });
-
-  handleOperationEffect('ahead', routeIdx);
-};
-const handleCloseBehind = (tabKey: string, routeIdx: number) => {
-  tabsRouterStore.subtractTabRouterBehind({ tabKey, path: '', routeIdx });
-
-  handleOperationEffect('behind', routeIdx);
-};
-const handleCloseOther = (tabKey: string, routeIdx: number) => {
-  tabsRouterStore.subtractTabRouterOther({ tabKey, path: '', routeIdx });
-
-  handleOperationEffect('other', routeIdx);
-};
-
-// 等待标签菜单完全收起后再打开关闭全部确认框，避免弹层与菜单同时占用交互焦点。
-const openPendingCloseAllDialog = () => {
-  void nextTick(() => {
-    if (!pendingCloseAllDialog.value || activeTabKeyForMenu.value) {
-      return;
-    }
-
-    pendingCloseAllDialog.value = false;
-    closeAllDialogVisible.value = true;
-  });
-};
-
-const handleCloseAll = () => {
-  pendingCloseAllDialog.value = true;
-  activeTabKeyForMenu.value = null;
-  openPendingCloseAllDialog();
-};
-
-const handleCancelCloseAll = () => {
-  pendingCloseAllDialog.value = false;
-  closeAllDialogVisible.value = false;
-  activeTabKeyForMenu.value = null;
-};
-
-const handleConfirmCloseAll = () => {
-  pendingCloseAllDialog.value = false;
-  closeAllDialogVisible.value = false;
-  tabsRouterStore.closeAllClosableTabs();
-  const nextRoute =
-    tabsRouterStore.tabRouters.find((item) => getTabKey(item) === activeTabKey.value) ?? tabsRouterStore.tabRouters[0];
-  navigateToTab(nextRoute);
-  activeTabKeyForMenu.value = null;
-};
-
-const handleTogglePinned = (route: TRouterInfo) => {
-  tabsRouterStore.togglePinnedTab(getTabKey(route));
-  activeTabKeyForMenu.value = null;
-};
-
-const handleReopenClosedTab = () => {
-  const restoredRoute = tabsRouterStore.reopenClosedTab();
-  navigateToTab(restoredRoute);
-  activeTabKeyForMenu.value = null;
-};
-
-const handleDuplicateTab = (route: TRouterInfo) => {
-  const duplicatedRoute = tabsRouterStore.duplicateTab(getTabKey(route));
-  navigateToTab(duplicatedRoute);
-  activeTabKeyForMenu.value = null;
-};
-
-const resolveAbsolutePageUrl = (targetRoute: TRouterInfo) => {
-  const resolved = router.resolve(resolveRouteLocation(targetRoute));
-  return new URL(resolved.href, window.location.origin).href;
-};
-
-const handleCopyPageLink = async (targetRoute: TRouterInfo) => {
-  try {
-    const copied = await copyText(resolveAbsolutePageUrl(targetRoute));
-    MessagePlugin[copied ? 'success' : 'error'](
-      t(copied ? 'layout.tagTabs.copyLinkSuccess' : 'layout.tagTabs.copyLinkFail'),
-    );
-  } catch {
-    MessagePlugin.error(t('layout.tagTabs.copyLinkFail'));
-  }
-
-  activeTabKeyForMenu.value = null;
-};
-
-const handleOpenInNewWindow = (route: TRouterInfo) => {
-  window.open(resolveAbsolutePageUrl(route), '_blank', 'noopener,noreferrer');
-  activeTabKeyForMenu.value = null;
-};
-
-const hasClosableTabsAhead = (routeIndex: number) => {
-  return tabRouters.value.some((item, index) => index < routeIndex && !item.isHome && !item.isPinned);
-};
-
-const hasClosableTabsBehind = (routeIndex: number) => {
-  return tabRouters.value.some((item, index) => index > routeIndex && !item.isHome && !item.isPinned);
-};
-
-const hasClosableOther = (routeItem: TRouterInfo) => {
-  const routeKey = getTabKey(routeItem);
-  return tabRouters.value.some((item) => !item.isHome && !item.isPinned && getTabKey(item) !== routeKey);
-};
-
-// 非当前标签的关闭操作可能改变当前路由，需要根据关闭方向补一次路由切换。
-const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', routeIndex: number) => {
-  const { tabRouters } = tabsRouterStore;
-  const currentKey = activeTabKey.value;
-
-  const currentIdx = tabRouters.findIndex(
-    (i) => getTabKey(i) === currentKey || i.path === router.currentRoute.value.path,
-  );
-  // 关闭其他、关闭左侧或关闭右侧后，只有当前标签被间接影响时才刷新路由。
-  const needRefreshRouter =
-    (type === 'other' && currentIdx !== routeIndex) ||
-    (type === 'ahead' && currentIdx < routeIndex) ||
-    (type === 'behind' && currentIdx === -1);
-  if (needRefreshRouter) {
-    const nextRouteIdx = type === 'behind' ? tabRouters.length - 1 : 1;
-    const nextRouter = tabRouters[nextRouteIdx];
-    navigateToTab(nextRouter);
-  }
-
-  activeTabKeyForMenu.value = null;
-};
-const handleTabMenuClick = (visible: boolean, ctx: PopupVisibleChangeContext, tabKey: string) => {
-  if (visible) {
-    activeTabKeyForMenu.value = tabKey;
-    return;
-  }
-
-  if (activeTabKeyForMenu.value === tabKey || ctx.trigger === 'document') {
-    activeTabKeyForMenu.value = null;
-  }
-
-  if (pendingCloseAllDialog.value) {
-    openPendingCloseAllDialog();
-  }
 };
 
 const handleDragend = (options: { currentIndex: number; targetIndex: number }) => {
@@ -598,6 +414,30 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-item) {
   flex: 0 0 auto;
   max-width: 72vw;
+}
+
+.route-tabs-actions__trigger {
+  border-radius: 0;
+  height: 100%;
+  min-height: 100%;
+  width: var(--td-comp-size-xxl);
+}
+
+.route-tabs-actions,
+.route-tabs-actions__menu {
+  align-items: stretch;
+  display: flex;
+  height: var(--td-comp-size-xxl);
+}
+
+.route-tabs-actions__menu :deep(.t-button) {
+  height: 100%;
+}
+
+.route-tabs-blank-menu-anchor {
+  height: 1px;
+  pointer-events: none;
+  width: 1px;
 }
 /* stylelint-enable selector-pseudo-class-no-unknown */
 

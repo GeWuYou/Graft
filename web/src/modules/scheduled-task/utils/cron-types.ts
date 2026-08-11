@@ -8,7 +8,8 @@ export type CronValidationMessageKey =
   | 'scheduledTask.cronValidation.required'
   | 'scheduledTask.cronValidation.fieldCount'
   | 'scheduledTask.cronValidation.stepRange'
-  | 'scheduledTask.cronValidation.fieldRange';
+  | 'scheduledTask.cronValidation.fieldRange'
+  | 'scheduledTask.cronValidation.execution';
 
 export type CronDescriptionKey =
   | 'scheduledTask.cronDescription.everyMinute'

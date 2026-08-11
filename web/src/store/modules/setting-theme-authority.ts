@@ -71,26 +71,67 @@ const RADIUS_PRESET_MAP: Record<ThemeAuthorityState['radiusPreset'], ThemeTokenM
   },
 };
 
-const SHADOW_PRESET_MAP: Record<ThemeAuthorityState['shadowPreset'], ThemeTokenMap> = {
-  'hard-offset': {
-    '--td-shadow-1': '2px 2px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-    '--td-shadow-2': '4px 4px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-    '--td-shadow-3': '6px 6px 0 var(--graft-neo-ink, var(--td-text-color-primary))',
-  },
-  flat: {
-    '--td-shadow-1': 'none',
-    '--td-shadow-2': 'none',
-    '--td-shadow-3': 'none',
-  },
+const RADIUS_PRESET_ANCHORS = [
+  { preset: 'square', value: 0 },
+  { preset: 'business', value: 4 },
+  { preset: 'standard', value: 8 },
+  { preset: 'rounded', value: 12 },
+  { preset: 'capsule', value: 16 },
+] as const satisfies ReadonlyArray<{ preset: ThemeAuthorityState['radiusPreset']; value: number }>;
+
+const SHADOW_INTENSITY_ANCHORS = [
+  { preset: 'subtle', value: 0.5 },
+  { preset: 'standard', value: 1 },
+  { preset: 'strong', value: 1.5 },
+] as const satisfies ReadonlyArray<{ preset: ThemeAuthorityState['shadowIntensity']; value: number }>;
+
+export const THEME_RADIUS_OVERRIDE_BOUNDS = { min: 0, max: 16 } as const;
+export const THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS = { min: 0.5, max: 1.5 } as const;
+export const THEME_DENSITY_OVERRIDE_BOUNDS = { min: 0.88, max: 1.12 } as const;
+
+const FLAT_SHADOW_TOKENS: ThemeTokenMap = {
+  '--td-shadow-1': 'none',
+  '--td-shadow-2': 'none',
+  '--td-shadow-3': 'none',
+};
+
+const SHADOW_PRESET_MAP: Record<
+  Extract<ThemeAuthorityState['shadowPreset'], 'standard' | 'floating'>,
+  Record<ThemeAuthorityState['shadowIntensity'], ThemeTokenMap>
+> = {
   standard: {
-    '--td-shadow-1': '0 2px 10px rgba(15, 23, 42, 0.08)',
-    '--td-shadow-2': '0 10px 24px rgba(15, 23, 42, 0.12)',
-    '--td-shadow-3': '0 18px 42px rgba(15, 23, 42, 0.18)',
+    subtle: {
+      '--td-shadow-1': '0 1px 6px rgba(15, 23, 42, 0.05)',
+      '--td-shadow-2': '0 6px 16px rgba(15, 23, 42, 0.08)',
+      '--td-shadow-3': '0 12px 30px rgba(15, 23, 42, 0.12)',
+    },
+    standard: {
+      '--td-shadow-1': '0 2px 10px rgba(15, 23, 42, 0.08)',
+      '--td-shadow-2': '0 10px 24px rgba(15, 23, 42, 0.12)',
+      '--td-shadow-3': '0 18px 42px rgba(15, 23, 42, 0.18)',
+    },
+    strong: {
+      '--td-shadow-1': '0 3px 14px rgba(15, 23, 42, 0.12)',
+      '--td-shadow-2': '0 14px 32px rgba(15, 23, 42, 0.18)',
+      '--td-shadow-3': '0 26px 58px rgba(15, 23, 42, 0.24)',
+    },
   },
   floating: {
-    '--td-shadow-1': '0 6px 16px rgba(15, 23, 42, 0.12)',
-    '--td-shadow-2': '0 16px 36px rgba(15, 23, 42, 0.18)',
-    '--td-shadow-3': '0 24px 56px rgba(15, 23, 42, 0.24)',
+    subtle: {
+      '--td-shadow-1': '0 3px 10px rgba(15, 23, 42, 0.08)',
+      '--td-shadow-2': '0 10px 24px rgba(15, 23, 42, 0.12)',
+      '--td-shadow-3': '0 16px 40px rgba(15, 23, 42, 0.18)',
+    },
+    standard: {
+      '--td-shadow-1': '0 6px 16px rgba(15, 23, 42, 0.12)',
+      '--td-shadow-2': '0 16px 36px rgba(15, 23, 42, 0.18)',
+      '--td-shadow-3': '0 24px 56px rgba(15, 23, 42, 0.24)',
+    },
+    strong: {
+      '--td-shadow-1': '0 8px 22px rgba(15, 23, 42, 0.16)',
+      '--td-shadow-2': '0 22px 48px rgba(15, 23, 42, 0.24)',
+      '--td-shadow-3': '0 34px 72px rgba(15, 23, 42, 0.3)',
+    },
   },
 };
 
@@ -142,6 +183,12 @@ const DENSITY_SCALE_MAP: Record<ThemeAuthorityState['densityPreset'], number> = 
   standard: 1,
   comfortable: 1.12,
 };
+
+const DENSITY_PRESET_ANCHORS = [
+  { preset: 'compact', value: 0.88 },
+  { preset: 'standard', value: 1 },
+  { preset: 'comfortable', value: 1.12 },
+] as const satisfies ReadonlyArray<{ preset: ThemeAuthorityState['densityPreset']; value: number }>;
 
 const FONT_SIZE_SCALE_MAP: Record<ThemeAuthorityState['fontSizePreset'], number> = {
   'extra-small': 0.88,
@@ -226,8 +273,12 @@ export const THEME_AUTHORITY_DIFF_KEYS = [
   'fontFamilyPreset',
   'fontSizePreset',
   'radiusPreset',
+  'radiusOverride',
   'shadowPreset',
+  'shadowIntensity',
+  'shadowIntensityOverride',
   'densityPreset',
+  'densityOverride',
 ] as const satisfies ReadonlyArray<ThemeAuthorityPresetDiffKey>;
 
 export type PersistedThemeAuthoritySource = {
@@ -238,8 +289,12 @@ export type PersistedThemeAuthoritySource = {
   fontFamilyPreset: ThemeAuthorityState['fontFamilyPreset'];
   fontSizePreset: ThemeAuthorityState['fontSizePreset'];
   radiusPreset: ThemeAuthorityState['radiusPreset'];
+  radiusOverride: ThemeAuthorityState['radiusOverride'];
   shadowPreset: ThemeAuthorityState['shadowPreset'];
+  shadowIntensity: ThemeAuthorityState['shadowIntensity'];
+  shadowIntensityOverride: ThemeAuthorityState['shadowIntensityOverride'];
   densityPreset: ThemeAuthorityState['densityPreset'];
+  densityOverride: ThemeAuthorityState['densityOverride'];
   themeTokenOverrides: ThemeModeTokenState;
 };
 
@@ -271,8 +326,91 @@ function buildFontSizeTokens(fontSizePreset: ThemeAuthorityState['fontSizePreset
   };
 }
 
-function buildDensityTokens(densityPreset: ThemeAuthorityState['densityPreset']): ThemeTokenMap {
-  const scale = DENSITY_SCALE_MAP[densityPreset];
+function findPresetAnchor<TPreset extends string>(
+  value: number,
+  anchors: ReadonlyArray<{ preset: TPreset; value: number }>,
+): TPreset | null {
+  return anchors.find((anchor) => Math.abs(anchor.value - value) < 0.001)?.preset ?? null;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function resolveAnchorSegment<TPreset extends string>(
+  value: number,
+  anchors: ReadonlyArray<{ preset: TPreset; value: number }>,
+) {
+  const upperIndex = anchors.findIndex((anchor) => anchor.value >= value);
+  const upper = anchors[upperIndex === -1 ? anchors.length - 1 : upperIndex];
+  const lower = anchors[Math.max(0, anchors.indexOf(upper) - 1)];
+  return {
+    lower,
+    upper,
+    progress: lower.value === upper.value ? 0 : (value - lower.value) / (upper.value - lower.value),
+  };
+}
+
+export function normalizeThemeAuthorityOverrides(state: ThemeAuthorityState): ThemeAuthorityState {
+  const radiusValue =
+    state.radiusOverride === null
+      ? null
+      : clamp(state.radiusOverride, THEME_RADIUS_OVERRIDE_BOUNDS.min, THEME_RADIUS_OVERRIDE_BOUNDS.max);
+  const radiusPreset = radiusValue === null ? null : findPresetAnchor(radiusValue, RADIUS_PRESET_ANCHORS);
+  const shadowIntensityValue =
+    state.shadowIntensityOverride === null
+      ? null
+      : clamp(
+          state.shadowIntensityOverride,
+          THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+          THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+        );
+  const shadowIntensity =
+    shadowIntensityValue === null ? null : findPresetAnchor(shadowIntensityValue, SHADOW_INTENSITY_ANCHORS);
+  const densityValue =
+    state.densityOverride === null
+      ? null
+      : clamp(state.densityOverride, THEME_DENSITY_OVERRIDE_BOUNDS.min, THEME_DENSITY_OVERRIDE_BOUNDS.max);
+  const densityPreset = densityValue === null ? null : findPresetAnchor(densityValue, DENSITY_PRESET_ANCHORS);
+
+  return {
+    ...state,
+    radiusPreset: radiusPreset ?? state.radiusPreset,
+    radiusOverride: radiusPreset === null ? radiusValue : null,
+    shadowIntensity: shadowIntensity ?? state.shadowIntensity,
+    shadowIntensityOverride: shadowIntensity === null ? shadowIntensityValue : null,
+    densityPreset: densityPreset ?? state.densityPreset,
+    densityOverride: densityPreset === null ? densityValue : null,
+  };
+}
+
+function buildInterpolatedRadiusTokens(radiusOverride: number): ThemeTokenMap {
+  const radius = clamp(radiusOverride, THEME_RADIUS_OVERRIDE_BOUNDS.min, THEME_RADIUS_OVERRIDE_BOUNDS.max);
+  const { lower, upper, progress } = resolveAnchorSegment(radius, RADIUS_PRESET_ANCHORS);
+  const lowerTokens = RADIUS_PRESET_MAP[lower.preset];
+  const upperTokens = RADIUS_PRESET_MAP[upper.preset];
+
+  return Object.fromEntries(
+    Object.keys(lowerTokens).map((key) => {
+      if (key === '--td-radius-circle') {
+        return [key, lowerTokens[key]];
+      }
+
+      const lowerValue = Number.parseFloat(lowerTokens[key]);
+      const upperValue = Number.parseFloat(upperTokens[key]);
+      return [key, px(lowerValue + (upperValue - lowerValue) * progress)];
+    }),
+  );
+}
+
+function buildRadiusTokens(authorityState: ThemeAuthorityState): ThemeTokenMap {
+  return authorityState.radiusOverride === null
+    ? RADIUS_PRESET_MAP[authorityState.radiusPreset]
+    : buildInterpolatedRadiusTokens(authorityState.radiusOverride);
+}
+
+function buildDensityTokens(authorityState: ThemeAuthorityState): ThemeTokenMap {
+  const scale = authorityState.densityOverride ?? DENSITY_SCALE_MAP[authorityState.densityPreset];
 
   return {
     '--graft-theme-density-scale': String(scale),
@@ -280,13 +418,85 @@ function buildDensityTokens(densityPreset: ThemeAuthorityState['densityPreset'])
   } as ThemeTokenMap;
 }
 
+function interpolateSoftShadowToken(from: string, to: string, progress: number) {
+  const pattern = /^0 ([\d.]+)px ([\d.]+)px rgba\(15, 23, 42, ([\d.]+)\)$/;
+  const fromMatch = from.match(pattern);
+  const toMatch = to.match(pattern);
+
+  if (!fromMatch || !toMatch) {
+    return from;
+  }
+
+  const interpolate = (index: number) =>
+    Number(fromMatch[index]) + (Number(toMatch[index]) - Number(fromMatch[index])) * progress;
+  return `0 ${px(interpolate(1))} ${px(interpolate(2))} rgba(15, 23, 42, ${Number(interpolate(3).toFixed(3))})`;
+}
+
+function buildContinuousSoftShadowTokens(
+  shadowPreset: Extract<ThemeAuthorityState['shadowPreset'], 'standard' | 'floating'>,
+  shadowIntensityOverride: number,
+): ThemeTokenMap {
+  const intensity = clamp(
+    shadowIntensityOverride,
+    THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+    THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+  );
+  const { lower, upper, progress } = resolveAnchorSegment(intensity, SHADOW_INTENSITY_ANCHORS);
+  const lowerTokens = SHADOW_PRESET_MAP[shadowPreset][lower.preset];
+  const upperTokens = SHADOW_PRESET_MAP[shadowPreset][upper.preset];
+
+  return Object.fromEntries(
+    Object.keys(lowerTokens).map((key) => [
+      key,
+      interpolateSoftShadowToken(lowerTokens[key], upperTokens[key], progress),
+    ]),
+  );
+}
+
+function buildShadowTokens(
+  authorityState: Pick<ThemeAuthorityState, 'shadowPreset' | 'shadowIntensity' | 'shadowIntensityOverride'>,
+): ThemeTokenMap {
+  const { shadowPreset, shadowIntensity, shadowIntensityOverride } = authorityState;
+  const intensity =
+    shadowIntensityOverride ?? SHADOW_INTENSITY_ANCHORS.find((anchor) => anchor.preset === shadowIntensity)?.value ?? 1;
+
+  if (shadowPreset === 'flat') {
+    return FLAT_SHADOW_TOKENS;
+  }
+
+  if (shadowPreset === 'hard-offset') {
+    const hardOffsetIntensity = clamp(
+      intensity,
+      THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.min,
+      THEME_SHADOW_INTENSITY_OVERRIDE_BOUNDS.max,
+    );
+    const hardOffsetTokens = [1, 2, 3].reduce<ThemeTokenMap>((tokens, level) => {
+      const offset = px(level * 2 * hardOffsetIntensity);
+      tokens[`--td-shadow-${level}`] = `${offset} ${offset} 0 var(--graft-neo-ink, var(--td-text-color-primary))`;
+      return tokens;
+    }, {});
+
+    return {
+      ...hardOffsetTokens,
+      '--graft-neo-shadow': `${px(4 * hardOffsetIntensity)} ${px(4 * hardOffsetIntensity)} 0 var(--graft-neo-ink)`,
+    };
+  }
+
+  const shadowTokens =
+    shadowIntensityOverride === null
+      ? SHADOW_PRESET_MAP[shadowPreset][shadowIntensity]
+      : buildContinuousSoftShadowTokens(shadowPreset, intensity);
+
+  return shadowTokens;
+}
+
 export function buildUserThemeTokens(authorityState: ThemeAuthorityState): ThemeModeTokenState {
   const sharedTokens: ThemeTokenMap = {
     '--td-font-family': FONT_FAMILY_MAP[authorityState.fontFamilyPreset],
     ...buildFontSizeTokens(authorityState.fontSizePreset),
-    ...RADIUS_PRESET_MAP[authorityState.radiusPreset],
-    ...SHADOW_PRESET_MAP[authorityState.shadowPreset],
-    ...buildDensityTokens(authorityState.densityPreset),
+    ...buildRadiusTokens(authorityState),
+    ...buildShadowTokens(authorityState),
+    ...buildDensityTokens(authorityState),
   };
 
   return {
@@ -317,8 +527,12 @@ export function createThemeAuthoritySourceSnapshot(
     | 'fontFamilyPreset'
     | 'fontSizePreset'
     | 'radiusPreset'
+    | 'radiusOverride'
     | 'shadowPreset'
+    | 'shadowIntensity'
+    | 'shadowIntensityOverride'
     | 'densityPreset'
+    | 'densityOverride'
   >,
 ): ThemeAuthorityState {
   return {
@@ -329,8 +543,12 @@ export function createThemeAuthoritySourceSnapshot(
     fontFamilyPreset: preset?.authorityPatch?.fontFamilyPreset ?? 'system',
     fontSizePreset: preset?.authorityPatch?.fontSizePreset ?? 'standard',
     radiusPreset: preset?.authorityPatch?.radiusPreset ?? 'standard',
+    radiusOverride: null,
     shadowPreset: preset?.authorityPatch?.shadowPreset ?? 'standard',
+    shadowIntensity: preset?.authorityPatch?.shadowIntensity ?? 'standard',
+    shadowIntensityOverride: null,
     densityPreset: preset?.authorityPatch?.densityPreset ?? 'standard',
+    densityOverride: null,
     themeTokenOverrides: {
       light: {
         ...(preset?.tokenOverrides?.light ?? {}),
@@ -345,7 +563,7 @@ export function createThemeAuthoritySourceSnapshot(
 }
 
 export function createPersistedThemeAuthoritySnapshot(state: PersistedThemeAuthoritySource): ThemeAuthorityState {
-  return {
+  return normalizeThemeAuthorityOverrides({
     mode: state.mode as ThemeModeValue,
     brandTheme: state.brandTheme,
     selectedThemePresetId: state.selectedThemePresetId,
@@ -353,10 +571,14 @@ export function createPersistedThemeAuthoritySnapshot(state: PersistedThemeAutho
     fontFamilyPreset: state.fontFamilyPreset,
     fontSizePreset: state.fontSizePreset,
     radiusPreset: state.radiusPreset,
+    radiusOverride: state.radiusOverride ?? null,
     shadowPreset: state.shadowPreset,
+    shadowIntensity: state.shadowIntensity ?? 'standard',
+    shadowIntensityOverride: state.shadowIntensityOverride ?? null,
     densityPreset: state.densityPreset,
+    densityOverride: state.densityOverride ?? null,
     themeTokenOverrides: state.themeTokenOverrides,
-  };
+  });
 }
 
 export function hasThemeAuthorityStateDiff(fromState: ThemeAuthorityState, toState: ThemeAuthorityState) {
@@ -368,8 +590,12 @@ export function hasThemeAuthorityStateDiff(fromState: ThemeAuthorityState, toSta
     fromState.fontFamilyPreset !== toState.fontFamilyPreset ||
     fromState.fontSizePreset !== toState.fontSizePreset ||
     fromState.radiusPreset !== toState.radiusPreset ||
+    fromState.radiusOverride !== toState.radiusOverride ||
     fromState.shadowPreset !== toState.shadowPreset ||
+    fromState.shadowIntensity !== toState.shadowIntensity ||
+    fromState.shadowIntensityOverride !== toState.shadowIntensityOverride ||
     fromState.densityPreset !== toState.densityPreset ||
+    fromState.densityOverride !== toState.densityOverride ||
     hasThemeTokenOverrideDiff(fromState.themeTokenOverrides, toState.themeTokenOverrides)
   );
 }

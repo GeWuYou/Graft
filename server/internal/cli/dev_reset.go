@@ -12,6 +12,7 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/moduleregistry"
 	"graft/server/modules/auth"
 	authstore "graft/server/modules/auth/store"
 	"graft/server/modules/rbac"
@@ -19,13 +20,14 @@ import (
 )
 
 var (
-	devResetLoadConfig        = config.Load
-	devResetOpenDB            = database.Open
-	devResetCloseDB           = database.Close
-	devResetNewUserIdentity   = user.NewIdentityProviderForDevelopmentReset
-	devResetNewAuthRepository = auth.NewRepositoryForDevelopmentReset
-	devResetNewLocalizer      = func(cfg config.I18nConfig) (*i18n.Service, error) { return i18n.New(cfg) }
-	devResetAdmin             = func(ctx context.Context, authRepo authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
+	devResetLoadConfig              = config.Load
+	devResetOpenDB                  = database.Open
+	devResetCloseDB                 = database.Close
+	devResetNewUserIdentity         = user.NewIdentityProviderForDevelopmentReset
+	devResetNewAuthRepository       = auth.NewRepositoryForDevelopmentReset
+	devResetNewLocalizer            = func(cfg config.I18nConfig) (*i18n.Service, error) { return i18n.New(cfg) }
+	devResetEmbeddedLocaleResources = moduleregistry.EmbeddedLocaleResources
+	devResetAdmin                   = func(ctx context.Context, authRepo authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
 		return auth.ResetDefaultAdminForDevelopment(ctx, authRepo, identity, localizer, rbac, user.DefaultAdminPermissionItems())
 	}
 	devResetResolveRBACBootstrap = func(resources *database.Resources) (moduleapi.RBACBootstrapService, error) {
@@ -112,11 +114,21 @@ func newDevResetAdminDependencies(resources *database.Resources, i18nConfig conf
 	if err != nil {
 		return devResetAdminDependencies{}, fmt.Errorf("create i18n service: %w", err)
 	}
+	if err := registerDevResetModuleLocaleResources(localizer); err != nil {
+		return devResetAdminDependencies{}, err
+	}
 	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
 	if err != nil {
 		return devResetAdminDependencies{}, fmt.Errorf("create rbac bootstrap service: %w", err)
 	}
 	return devResetAdminDependencies{identity: identity, authRepository: authRepository, localizer: localizer, rbacBootstrap: rbacBootstrap}, nil
+}
+
+func registerDevResetModuleLocaleResources(localizer *i18n.Service) error {
+	if err := localizer.RegisterEmbeddedLocaleResources(devResetEmbeddedLocaleResources()); err != nil {
+		return fmt.Errorf("register module locale resources: %w", err)
+	}
+	return nil
 }
 
 func isDevelopmentAppEnv(env string) bool {

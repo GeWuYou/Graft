@@ -57,6 +57,7 @@
       "viewAll": "View All"
     },
     "tagTabs": {
+      "actions": "Tab Actions",
       "closeOther": "Close Other",
       "closeLeft": "Close Left",
       "closeRight": "Close Right",
@@ -139,6 +140,16 @@
           "showFooterHint": "Show page footer information.",
           "useTagTabsHint": "Enable multi-page tab switching.",
           "showThemeWorkbenchDockHint": "Show the draggable entry for personalization settings.",
+          "hideHeaderDialog": {
+            "title": "Hide Header?",
+            "description": "This removes access to navigation, search, notifications, language, fullscreen, and account actions from the top bar. The personalization floating button will remain available.",
+            "confirm": "Hide Header and Keep Floating Entry"
+          },
+          "hideDockDialog": {
+            "title": "Hide Personalization Floating Button?",
+            "description": "The Header is currently hidden. Restoring it keeps personalization settings and top-bar tools available before the floating button is removed.",
+            "confirm": "Show Header and Hide Floating Button"
+          },
           "tabAppearance": "Tab Indicator",
           "tabAppearanceDescription": "Choose where the theme-colored indicator appears on the active tab.",
           "tabIndicator": {
@@ -320,8 +331,13 @@
         "style": {
           "radius": "Radius Style",
           "shadow": "Shadow Style",
+          "shadowIntensity": "Shadow Intensity",
           "density": "Density",
           "description": "Adjust radius, shadow, and content density.",
+          "radiusDescription": "Adjust the roundness of interface elements.",
+          "shadowDescription": "Choose the visual language of projections.",
+          "shadowIntensityDescription": "Adjust the current projection magnitude without changing its visual language.",
+          "shadowIntensityUnavailable": "Flat style disables shadow intensity.",
           "square": "Square",
           "business": "Business",
           "standard": "Standard",
@@ -330,6 +346,8 @@
           "flat": "Flat",
           "hardOffset": "Hard Offset",
           "floating": "Floating",
+          "subtle": "Subtle",
+          "strong": "Strong",
           "compact": "Compact",
           "comfortable": "Comfortable",
           "densityPreviewLinePrimary": "Aa Admin preview",
@@ -349,8 +367,12 @@
           "fontFamilyPreset": "Font",
           "fontSizePreset": "Font Size",
           "radiusPreset": "Radius",
+          "radiusOverride": "Radius Override",
           "shadowPreset": "Shadow",
+          "shadowIntensity": "Shadow Intensity",
+          "shadowIntensityOverride": "Shadow Intensity Override",
           "densityPreset": "Density",
+          "densityOverride": "Density Override",
           "themeTokenOverrides": "Design Tokens"
         },
         "token": {

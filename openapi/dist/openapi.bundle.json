@@ -9437,6 +9437,9 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
+          "409": {
+            "$ref": "#/components/responses/conflict"
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -9493,6 +9496,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -44783,6 +44789,21 @@
       },
       "internal-server-error": {
         "description": "Internal server error under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "conflict": {
+        "description": "Request could not be completed because the resource changed concurrently.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

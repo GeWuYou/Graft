@@ -273,6 +273,35 @@ function ensureNonEmptyTabs(routes: TRouterInfo[], pinnedKeys = readPinnedTabKey
   return sortTabs(normalized.length > 0 ? normalized : fallbackHomeTabs(pinnedKeys));
 }
 
+function ensureSingleHomeTab(routes: TRouterInfo[]) {
+  const homeTabs = routes.filter((route) => route.isHome);
+  if (homeTabs.length <= 1) {
+    return routes;
+  }
+
+  const canonicalHomeKey = getTabKey(homeRoute[0]);
+  const retainedHome = homeTabs.find((route) => getTabKey(route) === canonicalHomeKey) ?? homeTabs[0];
+  return routes.filter((route) => !route.isHome || route === retainedHome);
+}
+
+/**
+ * 判断关闭栈中的标签能否恢复。普通标签已由当前标签栏持有时不得再次恢复；复制标签则只按独立 tabKey 去重。
+ */
+function isClosedTabReopenable(route: TRouterInfo, openTabs: TRouterInfo[]) {
+  if (route.isHome) return false;
+  const routeKey = getTabKey(route);
+
+  if (route.isDuplicate) {
+    return !openTabs.some((openTab) => getTabKey(openTab) === routeKey);
+  }
+
+  return !openTabs.some((openTab) => !openTab.isDuplicate && getTabKey(openTab) === routeKey);
+}
+
+function filterReopenableClosedTabs(closedTabs: TRouterInfo[], openTabs: TRouterInfo[]) {
+  return closedTabs.filter((route) => isClosedTabReopenable(route, openTabs));
+}
+
 function createRouteRecordMatcher(router: Router) {
   const availableNames = new Set<RouteRecordName>();
 
@@ -350,7 +379,8 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
   getters: {
     tabRouters: (state: TTabRouterType) => state.tabRouterList,
     closedTabs: (state: TTabRouterType) => state.closedTabStack,
-    canReopenClosedTab: (state: TTabRouterType) => state.closedTabStack.length > 0,
+    canReopenClosedTab: (state: TTabRouterType) =>
+      filterReopenableClosedTabs(state.closedTabStack, state.tabRouterList).length > 0,
     refreshing: (state: TTabRouterType) => Boolean(state.refreshingTabKey),
   },
   actions: {
@@ -385,7 +415,12 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle));
+      this.tabRouterList = ensureSingleHomeTab(
+        ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle)),
+      );
+      this.closedTabStack = filterReopenableClosedTabs(removeLegacyTabs(this.closedTabStack), this.tabRouterList).map(
+        cloneTab,
+      );
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -407,12 +442,14 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       );
       const nextTabs = this.tabRouters.filter(canKeepRoute).map(localizePersistedTabTitle);
 
-      this.tabRouterList = ensureNonEmptyTabs(nextTabs, pinnedKeys);
+      this.tabRouterList = ensureSingleHomeTab(ensureNonEmptyTabs(nextTabs, pinnedKeys));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
-      this.closedTabStack = removeLegacyTabs(this.closedTabStack)
-        .filter(canKeepRoute)
+      this.closedTabStack = filterReopenableClosedTabs(
+        removeLegacyTabs(this.closedTabStack).filter(canKeepRoute),
+        this.tabRouterList,
+      )
         .slice(-MAX_CLOSED_TABS)
         .map(cloneTab);
       this.clearSnapshotsForMissingTabs();
@@ -436,22 +473,24 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
       const normalized = normalizeRouteState(newRoute);
       if (!this.tabRouters.find((route: TRouterInfo) => getTabKey(route) === getTabKey(normalized))) {
-        this.tabRouterList = sortTabs(this.tabRouterList.concat(normalized));
+        this.tabRouterList = ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(normalized)));
       } else {
-        this.tabRouterList = sortTabs(
-          this.tabRouterList.map((route) =>
-            getTabKey(route) === getTabKey(normalized)
-              ? {
-                  ...route,
-                  fullPath: normalized.fullPath,
-                  query: normalized.query,
-                  params: normalized.params,
-                  title: resolveNextTabTitle(route, normalized),
-                  name: normalized.name,
-                  meta: normalized.meta,
-                  isAlive: normalized.isAlive,
-                }
-              : route,
+        this.tabRouterList = ensureSingleHomeTab(
+          sortTabs(
+            this.tabRouterList.map((route) =>
+              getTabKey(route) === getTabKey(normalized)
+                ? {
+                    ...route,
+                    fullPath: normalized.fullPath,
+                    query: normalized.query,
+                    params: normalized.params,
+                    title: resolveNextTabTitle(route, normalized),
+                    name: normalized.name,
+                    meta: normalized.meta,
+                    isAlive: normalized.isAlive,
+                  }
+                : route,
+            ),
           ),
         );
       }
@@ -559,7 +598,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     duplicateTab(routeKey: string) {
       const targetIndex = this.tabRouterList.findIndex((route) => getTabKey(route) === routeKey);
       const target = this.tabRouterList[targetIndex];
-      if (!target) {
+      if (!target || target.isHome) {
         return null;
       }
 
@@ -583,16 +622,17 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       return duplicatedRoute;
     },
     reopenClosedTab() {
-      const route = this.closedTabStack.pop();
-      if (!route) {
-        return null;
+      let route = this.closedTabStack.pop();
+      while (route && !isClosedTabReopenable(route, this.tabRouterList)) {
+        route = this.closedTabStack.pop();
       }
+      if (!route) return null;
 
       const restored = normalizeRouteState({
         ...cloneTab(route),
         isPinned: false,
       });
-      this.tabRouterList = sortTabs(this.tabRouterList.concat(restored));
+      this.tabRouterList = ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(restored)));
       return restored;
     },
     removeTabRouterList() {

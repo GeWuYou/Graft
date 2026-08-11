@@ -69,3 +69,4 @@ node_modules/
 .tmp/
 /.worktrees/
 .VSCodeCounter/
+server/agents/docker-builder-agent/cmd/__debug_bin*

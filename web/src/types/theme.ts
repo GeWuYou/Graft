@@ -20,7 +20,16 @@ export type ThemeTokenMap = Record<string, string>;
 export type ThemeWorkbenchAuthorityPatch = Partial<
   Pick<
     ThemeAuthorityState,
-    'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+    | 'mode'
+    | 'fontFamilyPreset'
+    | 'fontSizePreset'
+    | 'radiusPreset'
+    | 'radiusOverride'
+    | 'shadowPreset'
+    | 'shadowIntensity'
+    | 'shadowIntensityOverride'
+    | 'densityPreset'
+    | 'densityOverride'
   >
 >;
 
@@ -57,8 +66,12 @@ export interface ThemeAuthorityDiffItem {
     | 'fontFamilyPreset'
     | 'fontSizePreset'
     | 'radiusPreset'
+    | 'radiusOverride'
     | 'shadowPreset'
+    | 'shadowIntensity'
+    | 'shadowIntensityOverride'
     | 'densityPreset'
+    | 'densityOverride'
     | 'themeTokenOverrides';
   labelKey: string;
   fromValue: string;
@@ -111,7 +124,11 @@ export interface ThemeAuthorityState {
   fontFamilyPreset: 'system' | 'harmonyos' | 'inter' | 'source-han-sans';
   fontSizePreset: 'extra-small' | 'small' | 'standard' | 'large' | 'extra-large';
   radiusPreset: 'square' | 'business' | 'standard' | 'rounded' | 'capsule';
+  radiusOverride: number | null;
   shadowPreset: 'flat' | 'standard' | 'floating' | 'hard-offset';
+  shadowIntensity: 'subtle' | 'standard' | 'strong';
+  shadowIntensityOverride: number | null;
   densityPreset: 'compact' | 'standard' | 'comfortable';
+  densityOverride: number | null;
   themeTokenOverrides: ThemeModeTokenState;
 }

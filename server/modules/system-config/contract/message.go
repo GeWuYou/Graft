@@ -15,4 +15,6 @@ const (
 	SystemConfigNotFound MessageKey = "system_config.not_found"
 	// SystemConfigInvalidRequest 标识配置请求无效时的错误消息。
 	SystemConfigInvalidRequest MessageKey = "system_config.invalid_request"
+	// SystemConfigVersionConflict 标识通用配置写入在有限重试后仍遇到并发更新。
+	SystemConfigVersionConflict MessageKey = "system_config.version_conflict"
 )

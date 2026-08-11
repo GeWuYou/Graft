@@ -10,6 +10,7 @@ import { cloneThemeModeTokenState, createEmptyThemeModeTokenState } from '@/util
 import type { ModeType } from '@/utils/types';
 
 import type { WorkbenchStyleConfigSnapshot } from './setting-theme-authority';
+import { normalizeThemeAuthorityOverrides } from './setting-theme-authority';
 
 function createPresetThemeTokenOverrides(
   preset: ThemePresetDefinition,
@@ -62,8 +63,12 @@ export function createCompleteThemePresetState(
     fontFamilyPreset: preset.authorityPatch?.fontFamilyPreset ?? 'system',
     fontSizePreset: preset.authorityPatch?.fontSizePreset ?? 'standard',
     radiusPreset: preset.authorityPatch?.radiusPreset ?? 'standard',
+    radiusOverride: null,
     shadowPreset: preset.authorityPatch?.shadowPreset ?? 'standard',
+    shadowIntensity: preset.authorityPatch?.shadowIntensity ?? 'standard',
+    shadowIntensityOverride: null,
     densityPreset: preset.authorityPatch?.densityPreset ?? 'standard',
+    densityOverride: null,
     themeTokenOverrides: createPresetThemeTokenOverrides(preset, 'complete'),
   };
 }
@@ -72,13 +77,13 @@ export function buildUpdatedThemeDraft(
   base: ThemeAuthorityState,
   patch: Partial<ThemeAuthorityState>,
 ): ThemeAuthorityState {
-  return {
+  return normalizeThemeAuthorityOverrides({
     ...base,
     ...patch,
     themeTokenOverrides: patch.themeTokenOverrides
       ? cloneThemeModeTokenState(patch.themeTokenOverrides)
       : cloneThemeModeTokenState(base.themeTokenOverrides),
-  };
+  });
 }
 
 export function buildSelectedThemePresetState(
@@ -86,7 +91,16 @@ export function buildSelectedThemePresetState(
   draftState: ThemeAuthorityState | null,
   persistedState: Pick<
     ThemeAuthorityState,
-    'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+    | 'mode'
+    | 'fontFamilyPreset'
+    | 'fontSizePreset'
+    | 'radiusPreset'
+    | 'radiusOverride'
+    | 'shadowPreset'
+    | 'shadowIntensity'
+    | 'shadowIntensityOverride'
+    | 'densityPreset'
+    | 'densityOverride'
   >,
   scope: ThemePresetApplicationScope,
   previousPreset?: ThemePresetDefinition | null,
@@ -108,8 +122,12 @@ export function buildSelectedThemePresetState(
     fontFamilyPreset: current.fontFamilyPreset,
     fontSizePreset: current.fontSizePreset,
     radiusPreset: current.radiusPreset,
+    radiusOverride: current.radiusOverride,
     shadowPreset: current.shadowPreset,
+    shadowIntensity: current.shadowIntensity,
+    shadowIntensityOverride: current.shadowIntensityOverride,
     densityPreset: current.densityPreset,
+    densityOverride: current.densityOverride,
     themeTokenOverrides: createPresetThemeTokenOverrides(
       preset,
       'palette',

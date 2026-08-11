@@ -1,5 +1,6 @@
 services:
   postgres:
+    profiles: ["isolated"]
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: graft

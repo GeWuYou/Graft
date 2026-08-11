@@ -334,6 +334,21 @@ func (e PutSystemConfig403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PutSystemConfig409JSONResponseBodySuccess.
+const (
+	PutSystemConfig409JSONResponseBodySuccessFalse PutSystemConfig409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutSystemConfig409JSONResponseBodySuccess enum.
+func (e PutSystemConfig409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutSystemConfig409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PutSystemConfig500JSONResponseBodySuccess.
 const (
 	PutSystemConfig500JSONResponseBodySuccessFalse PutSystemConfig500JSONResponseBodySuccess = false
@@ -448,6 +463,21 @@ func (e PostSystemConfigReset403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostSystemConfigReset409JSONResponseBodySuccess.
+const (
+	PostSystemConfigReset409JSONResponseBodySuccessFalse PostSystemConfigReset409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostSystemConfigReset409JSONResponseBodySuccess enum.
+func (e PostSystemConfigReset409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostSystemConfigReset409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostSystemConfigReset500JSONResponseBodySuccess.
 const (
 	PostSystemConfigReset500JSONResponseBodySuccessFalse PostSystemConfigReset500JSONResponseBodySuccess = false
@@ -465,9 +495,6 @@ func (e PostSystemConfigReset500JSONResponseBodySuccess) Valid() bool {
 
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
-
-// mutualTLSContextKey is the context key for mutualTLS security scheme
-type mutualTLSContextKey string
 
 // personalAccessTokenAuthContextKey is the context key for personalAccessTokenAuth security scheme
 type personalAccessTokenAuthContextKey string
@@ -562,6 +589,9 @@ type PutSystemConfig401JSONResponseBodySuccess bool
 // PutSystemConfig403JSONResponseBodySuccess defines parameters for PutSystemConfig.
 type PutSystemConfig403JSONResponseBodySuccess bool
 
+// PutSystemConfig409JSONResponseBodySuccess defines parameters for PutSystemConfig.
+type PutSystemConfig409JSONResponseBodySuccess bool
+
 // PutSystemConfig500JSONResponseBodySuccess defines parameters for PutSystemConfig.
 type PutSystemConfig500JSONResponseBodySuccess bool
 
@@ -589,6 +619,9 @@ type PostSystemConfigReset401JSONResponseBodySuccess bool
 
 // PostSystemConfigReset403JSONResponseBodySuccess defines parameters for PostSystemConfigReset.
 type PostSystemConfigReset403JSONResponseBodySuccess bool
+
+// PostSystemConfigReset409JSONResponseBodySuccess defines parameters for PostSystemConfigReset.
+type PostSystemConfigReset409JSONResponseBodySuccess bool
 
 // PostSystemConfigReset500JSONResponseBodySuccess defines parameters for PostSystemConfigReset.
 type PostSystemConfigReset500JSONResponseBodySuccess bool
