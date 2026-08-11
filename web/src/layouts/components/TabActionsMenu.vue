@@ -242,9 +242,7 @@ const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', retainedTabKe
       return;
     }
   }
-  const currentIndex = tabRouters.value.findIndex(
-    (item) => getTabKey(item) === activeTabKey.value || item.path === router.currentRoute.value.path,
-  );
+  const currentIndex = tabRouters.value.findIndex((item) => getTabKey(item) === activeTabKey.value);
   const needRefreshRouter =
     (type === 'other' && currentIndex !== props.tabIndex) ||
     (type === 'ahead' && currentIndex < props.tabIndex) ||

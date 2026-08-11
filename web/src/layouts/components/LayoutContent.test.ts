@@ -799,6 +799,34 @@ describe('LayoutContent', () => {
     expect(duplicateItem?.attributes('disabled')).toBeDefined();
   });
 
+  it('returns to the retained source tab when closing an active duplicate to its right', async () => {
+    const sourceTab = createTab('/security/audit', 'AuditLogs');
+    const activeDuplicate = {
+      ...sourceTab,
+      isDuplicate: true,
+      tabKey: '/security/audit#copy-1',
+    };
+    storeState.tabsRouterStore.tabRouters = [createTab('/', 'RootEntry', true), sourceTab, activeDuplicate];
+    storeState.tabsRouterStore.activeTabKey = activeDuplicate.tabKey;
+    routeProxy.path = sourceTab.path;
+    routeProxy.fullPath = sourceTab.fullPath ?? sourceTab.path;
+    storeState.tabsRouterStore.subtractTabRouterBehind.mockImplementation(() => {
+      tabsRouterStoreProxy.tabRouters = [createTab('/', 'RootEntry', true), sourceTab];
+    });
+
+    const wrapper = mountLayoutContent();
+    const dropdown = await openRuntimeTabMenu(wrapper, 1);
+    const closeRightItem = dropdown
+      .findAll('[data-testid="dropdown-item"]')
+      .find((item) => item.text().includes('layout.tagTabs.closeRight'));
+
+    expect(closeRightItem).toBeTruthy();
+    await closeRightItem!.trigger('click');
+
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith(sourceTab.tabKey);
+    expect(routerMock.push).toHaveBeenCalledWith({ path: sourceTab.path, query: undefined });
+  });
+
   it('renders the full-height action trigger for the active tab', () => {
     const wrapper = mountLayoutContent();
 

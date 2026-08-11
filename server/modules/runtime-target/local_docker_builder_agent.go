@@ -123,10 +123,10 @@ func PrepareLocalDockerBuilderAgent(ctx context.Context, db *sql.DB, pepper *con
 
 func writeLocalDockerBuilderAgentFiles(input LocalDockerBuilderAgentDelivery, targetID int64, bootstrapToken string) error {
 	if err := os.MkdirAll(filepath.Dir(input.BootstrapTokenFile), localDeliverySecretDirPerm); err != nil {
-		return err
+		return fmt.Errorf("create local agent bootstrap token directory: %w", err)
 	}
 	if err := os.WriteFile(input.BootstrapTokenFile, []byte(bootstrapToken+"\n"), localDeliverySecretFilePerm); err != nil {
-		return err
+		return fmt.Errorf("write local agent bootstrap token: %w", err)
 	}
 	configBytes, err := json.Marshal(struct {
 		BootstrapURL string `json:"bootstrap_url"`
@@ -140,13 +140,13 @@ func writeLocalDockerBuilderAgentFiles(input LocalDockerBuilderAgentDelivery, ta
 		DockerSocket string `json:"docker_socket"`
 	}{input.BootstrapURL, input.AgentURL, targetID, input.AgentID, input.BootstrapTokenFile, input.BootstrapCAFile, input.TrustBundleFile, input.StateDir, "/var/run/docker.sock"})
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal local agent delivery config: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(input.ConfigFile), localDeliverySecretDirPerm); err != nil {
-		return err
+		return fmt.Errorf("create local agent delivery config directory: %w", err)
 	}
 	if err := os.WriteFile(input.ConfigFile, configBytes, localDeliverySecretFilePerm); err != nil {
-		return err
+		return fmt.Errorf("write local agent delivery config: %w", err)
 	}
 	return nil
 }

@@ -242,6 +242,24 @@ describe('ThemeWorkbenchPanel', () => {
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
   });
 
+  it('shows continuous radius and density overrides in the overview', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const sliders = wrapper.findAllComponents(sliderStub);
+    const radiusSlider = sliders.find((component) => component.attributes('data-testid') === 'radius-slider');
+    const densitySlider = sliders.find((component) => component.attributes('data-testid') === 'density-slider');
+
+    radiusSlider!.vm.$emit('change', 3);
+    densitySlider!.vm.$emit('change', 0.91);
+    await wrapper.vm.$nextTick();
+    store.setActiveThemeWorkbenchGroup('overview');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('3px');
+    expect(wrapper.text()).toContain('91%');
+  });
+
   it('uses a separate shadow intensity control and preserves it when flat shadows disable the control', async () => {
     const store = useSettingStore();
     store.openThemeWorkbench('style');

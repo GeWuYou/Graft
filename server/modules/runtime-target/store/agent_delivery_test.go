@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-//nolint:gocyclo // 交付授权、交接、回执与恢复查询必须在同一测试中验证一次性协议的完整回放路径。
+//nolint:gocyclo,cyclop // 交付授权、交接、回执与恢复查询必须在同一测试中验证一次性协议的完整回放路径。
 func TestAgentDeliveryGrantHandoffAndReceiptReplay(t *testing.T) {
 	db := openAgentDeliveryTestDB(t)
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
@@ -46,6 +46,12 @@ func TestAgentDeliveryGrantHandoffAndReceiptReplay(t *testing.T) {
 	grantRead, err := repository.ReadLiveAgentDeliveryGrant(context.Background(), 7, "agent-7", 1, now.Add(2*time.Minute))
 	if err != nil || grantRead.GrantID != grant.GrantID || grantRead.Status != "delivered" {
 		t.Fatalf("read live delivery grant = %#v, err=%v", grantRead, err)
+	}
+	if _, err := db.Exec(`UPDATE runtime_target_agent_generations SET status = 'active' WHERE id = 9`); err != nil {
+		t.Fatalf("activate generation: %v", err)
+	}
+	if _, err := repository.ReadLiveAgentDeliveryGrant(context.Background(), 7, "agent-7", 1, now.Add(2*time.Minute)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("read active generation delivery grant error = %v, want %v", err, ErrNotFound)
 	}
 	second, replay, err := repository.RecordAgentDeliveryReceipt(context.Background(), receipt, now.Add(2*time.Minute))
 	if err != nil || !replay || second.ID != first.ID {

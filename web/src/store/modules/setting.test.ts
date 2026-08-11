@@ -104,6 +104,22 @@ describe('setting store theme authority', () => {
     expect(restored.shadowIntensity).toBe('standard');
   });
 
+  it('normalizes persisted continuous overrides before the workbench consumes them', () => {
+    const store = useSettingStore();
+    const persistedSnapshot = {
+      ...store.createThemeAuthoritySnapshot(),
+      densityOverride: 0.5,
+      radiusOverride: -1,
+    };
+
+    const restored = createPersistedThemeAuthoritySnapshot(persistedSnapshot);
+
+    expect(restored.radiusPreset).toBe('square');
+    expect(restored.radiusOverride).toBeNull();
+    expect(restored.densityPreset).toBe('compact');
+    expect(restored.densityOverride).toBeNull();
+  });
+
   it('scales hard-offset shadows and the neo hard surface together', () => {
     const store = useSettingStore();
 

@@ -1092,6 +1092,9 @@ const fontSizePreviewStyle = computed(() => ({
 }));
 
 const activeRadiusLabel = computed(() => {
+  if (effectiveTheme.value.radiusOverride !== null) {
+    return `${effectiveTheme.value.radiusOverride}px`;
+  }
   const matched = radiusOptions.value.find((item) => item.value === effectiveTheme.value.radiusPreset);
   return matched?.label ?? radiusOptions.value[0].label;
 });
@@ -1104,6 +1107,9 @@ const activeRadiusValue = computed(
 );
 
 const activeDensityLabel = computed(() => {
+  if (effectiveTheme.value.densityOverride !== null) {
+    return `${Math.round(effectiveTheme.value.densityOverride * 100)}%`;
+  }
   const matched = densityOptions.value.find((item) => item.value === effectiveTheme.value.densityPreset);
   return matched?.label ?? densityOptions.value[1].label;
 });

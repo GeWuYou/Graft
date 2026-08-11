@@ -563,7 +563,7 @@ export function createThemeAuthoritySourceSnapshot(
 }
 
 export function createPersistedThemeAuthoritySnapshot(state: PersistedThemeAuthoritySource): ThemeAuthorityState {
-  return {
+  return normalizeThemeAuthorityOverrides({
     mode: state.mode as ThemeModeValue,
     brandTheme: state.brandTheme,
     selectedThemePresetId: state.selectedThemePresetId,
@@ -578,7 +578,7 @@ export function createPersistedThemeAuthoritySnapshot(state: PersistedThemeAutho
     densityPreset: state.densityPreset,
     densityOverride: state.densityOverride ?? null,
     themeTokenOverrides: state.themeTokenOverrides,
-  };
+  });
 }
 
 export function hasThemeAuthorityStateDiff(fromState: ThemeAuthorityState, toState: ThemeAuthorityState) {
