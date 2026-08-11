@@ -2,10 +2,16 @@ get:
   tags: [registry]
   operationId: getRegistryAvailableDestinations
   summary: List Artifact Repositories available for the caller's Build destination
-  description: Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories. It never returns endpoints or credential references.
+  description: Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories, including their actual pull and push policies. It never returns endpoints or credential references.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
   security: [{bearerAuth: []}]
   responses:
     '200':

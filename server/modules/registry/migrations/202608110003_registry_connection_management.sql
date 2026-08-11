@@ -7,6 +7,49 @@ ALTER TABLE registry_connections
   ADD COLUMN last_verified_at TIMESTAMPTZ NULL,
   ADD COLUMN last_verification_error_code VARCHAR(128) NOT NULL DEFAULT '';
 
+UPDATE registry_connections
+SET auth_mode = CASE WHEN credential_ref IS NULL OR credential_ref = '' THEN 'anonymous' ELSE 'credential_ref' END,
+    insecure = LOWER(endpoint) LIKE 'http://%',
+    verification_status = CASE WHEN verification_status = 'succeeded' THEN 'verified' ELSE verification_status END
+WHERE deleted_at = 0;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH ranked_connections AS (
+      SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY provider, endpoint
+               ORDER BY system_managed DESC, updated_at DESC, id DESC
+             ) AS position
+      FROM registry_connections
+      WHERE deleted_at = 0
+    )
+    SELECT 1
+    FROM ranked_connections duplicate
+    JOIN artifact_repositories repository ON repository.connection_id = duplicate.id
+    WHERE duplicate.position > 1 AND repository.deleted_at = 0
+  ) THEN
+    RAISE EXCEPTION 'registry connection duplicates referenced by active artifact repositories require manual reconciliation';
+  END IF;
+END $$;
+
+WITH ranked_connections AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY provider, endpoint
+           ORDER BY system_managed DESC, updated_at DESC, id DESC
+         ) AS position
+  FROM registry_connections
+  WHERE deleted_at = 0
+)
+UPDATE registry_connections
+SET deleted_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
+    deleted_by = 0,
+    updated_at = NOW(),
+    updated_by = 0
+WHERE id IN (SELECT id FROM ranked_connections WHERE position > 1);
+
 CREATE UNIQUE INDEX uq_registry_connections_live_provider_endpoint
 ON registry_connections (provider, endpoint)
 WHERE deleted_at = 0;

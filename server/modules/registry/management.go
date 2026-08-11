@@ -238,12 +238,12 @@ func (s *Service) VerifyConnection(ctx context.Context, connectionRef string, ve
 }
 
 // ListRepositories 返回连接下的受管 Repository。
-func (s *Service) ListRepositories(ctx context.Context, connectionRef string) ([]registrystore.Repository, error) {
+func (s *Service) ListRepositories(ctx context.Context, connectionRef string, limit, offset int) ([]registrystore.Repository, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return repository.ListRepositories(ctx, connectionRef)
+	return repository.ListRepositories(ctx, connectionRef, limit, offset)
 }
 
 // CreateRepository 创建带 push/pull 策略的 Repository。
@@ -280,12 +280,12 @@ func (s *Service) DeleteRepository(ctx context.Context, connectionRef, repositor
 }
 
 // ListAssignments 返回 Repository 的有效用户授权。
-func (s *Service) ListAssignments(ctx context.Context, connectionRef, repositoryRef string) ([]registrystore.UserAssignment, error) {
+func (s *Service) ListAssignments(ctx context.Context, connectionRef, repositoryRef string, limit, offset int) ([]registrystore.UserAssignment, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return repository.ListAssignments(ctx, connectionRef, repositoryRef)
+	return repository.ListAssignments(ctx, connectionRef, repositoryRef, limit, offset)
 }
 
 // ReplaceAssignments 用指定用户集替换 Repository 授权，供批量管理场景使用。
@@ -316,12 +316,12 @@ func (s *Service) RevokeAssignment(ctx context.Context, connectionRef, repositor
 }
 
 // ListAvailableDestinations 返回调用方可提交给 Build v2 的非秘密目的地。
-func (s *Service) ListAvailableDestinations(ctx context.Context, actorID uint64) ([]registrystore.Destination, error) {
+func (s *Service) ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]registrystore.Destination, int, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return repository.ListAvailableDestinations(ctx, actorID)
+	return repository.ListAvailableDestinations(ctx, actorID, limit, offset)
 }
 
 func (s *Service) managementRepository() (registrystore.ManagementRepository, error) {

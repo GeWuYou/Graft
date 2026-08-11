@@ -23,15 +23,16 @@ describe('dashboard widget i18n helpers', () => {
     expect(resolveDashboardText('dashboard.known', 'Server fallback')).toBe('已翻译');
   });
 
-  it('uses the configured fallback locale before server fallback text', () => {
+  it('uses the translator fallback result before server fallback text', () => {
     expect(resolveDashboardText('dashboard.fallback-locale', 'Server fallback')).toBe('Fallback locale translation');
     expect(hasDashboardTranslation('dashboard.fallback-locale')).toBe(true);
   });
 
   it('falls back to provided text only after detecting a missing key', () => {
+    localeMocks.t.mockClear();
     expect(resolveDashboardText('dashboard.missing', 'Server fallback')).toBe('Server fallback');
-    expect(hasDashboardTranslation('dashboard.missing')).toBe(false);
     expect(localeMocks.t).toHaveBeenCalledWith('dashboard.missing');
+    expect(hasDashboardTranslation('dashboard.missing')).toBe(false);
   });
 
   it('uses a safe default when neither key nor fallback has display text', () => {

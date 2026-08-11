@@ -3774,7 +3774,7 @@ export interface paths {
     };
     /**
      * List Artifact Repositories available for the caller's Build destination
-     * @description Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories. It never returns endpoints or credential references.
+     * @description Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories, including their actual pull and push policies. It never returns endpoints or credential references.
      */
     get: operations['getRegistryAvailableDestinations'];
     put?: never;
@@ -10041,6 +10041,10 @@ export interface components {
     };
     'registry-available-destination-list-response': {
       items: components['schemas']['registry-available-destination'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-registry-available-destination-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-available-destination-list-response'];
@@ -10095,6 +10099,10 @@ export interface components {
     };
     'registry-artifact-repository-list-response': {
       items: components['schemas']['registry-artifact-repository'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-registry-artifact-repository-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-list-response'];
@@ -10128,6 +10136,10 @@ export interface components {
     };
     'registry-artifact-repository-user-assignment-list-response': {
       items: components['schemas']['registry-artifact-repository-user-assignment'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-registry-artifact-repository-user-assignment-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
@@ -22730,7 +22742,10 @@ export interface operations {
   };
   getRegistryAvailableDestinations: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -22908,7 +22923,10 @@ export interface operations {
   };
   getRegistryArtifactRepositories: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -23068,6 +23086,8 @@ export interface operations {
       query: {
         /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
         repository_ref: components['parameters']['registry-repository-ref-query'];
+        limit?: number;
+        offset?: number;
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

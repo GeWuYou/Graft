@@ -230,6 +230,8 @@ const assignmentForm = ref({ user_id: undefined as number | undefined });
 const assignmentLoading = ref(false);
 const assignmentSaving = ref(false);
 let registryListRequestSequence = 0;
+let repositoryListRequestSequence = 0;
+let assignmentListRequestSequence = 0;
 
 const drawerTitle = computed(() => (editingRef.value ? t('registry.list.edit') : t('registry.list.add')));
 const rules = computed(() => ({
@@ -253,7 +255,7 @@ const repositoryColumns = computed<TableProps['columns']>(() => [
 ]);
 const assignmentColumns = computed<TableProps['columns']>(() => [
   { colKey: 'user_id', title: t('registry.list.form.userId'), width: 120 },
-  { colKey: 'created_at', title: t('registry.list.columns.verified'), minWidth: 180 },
+  { colKey: 'created_at', title: t('registry.list.columns.assignmentCreatedAt'), minWidth: 180 },
   { colKey: 'assignmentActions', title: t('registry.list.columns.actions'), width: 120 },
 ]);
 
@@ -385,13 +387,16 @@ async function remove(connectionRef: string) {
   }
 }
 async function loadRepositories() {
-  if (!editingRef.value) return;
+  const connectionRef = editingRef.value;
+  if (!connectionRef) return;
+  const requestSequence = ++repositoryListRequestSequence;
   repositoryLoading.value = true;
   try {
-    const response = await getRegistryRepositories(editingRef.value);
+    const response = await getRegistryRepositories(connectionRef);
+    if (requestSequence !== repositoryListRequestSequence || editingRef.value !== connectionRef) return;
     repositories.value = response.items ?? [];
   } finally {
-    repositoryLoading.value = false;
+    if (requestSequence === repositoryListRequestSequence) repositoryLoading.value = false;
   }
 }
 async function saveRepository() {
@@ -448,15 +453,26 @@ async function openAssignments(repositoryRef: string) {
   await loadAssignments();
 }
 async function loadAssignments() {
-  if (!editingRef.value || !assignmentRepositoryRef.value) return;
+  const connectionRef = editingRef.value;
+  const repositoryRef = assignmentRepositoryRef.value;
+  if (!connectionRef || !repositoryRef) return;
+  const requestSequence = ++assignmentListRequestSequence;
   assignmentLoading.value = true;
   try {
-    const response = await getRegistryRepositoryAssignments(editingRef.value, assignmentRepositoryRef.value);
+    const response = await getRegistryRepositoryAssignments(connectionRef, repositoryRef);
+    if (
+      requestSequence !== assignmentListRequestSequence ||
+      editingRef.value !== connectionRef ||
+      assignmentRepositoryRef.value !== repositoryRef
+    )
+      return;
     assignments.value = response.items ?? [];
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    if (requestSequence === assignmentListRequestSequence) {
+      errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    }
   } finally {
-    assignmentLoading.value = false;
+    if (requestSequence === assignmentListRequestSequence) assignmentLoading.value = false;
   }
 }
 async function grantAssignment() {

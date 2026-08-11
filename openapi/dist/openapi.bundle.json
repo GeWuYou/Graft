@@ -19254,13 +19254,32 @@
         ],
         "operationId": "getRegistryAvailableDestinations",
         "summary": "List Artifact Repositories available for the caller's Build destination",
-        "description": "Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories. It never returns endpoints or credential references.",
+        "description": "Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories, including their actual pull and push policies. It never returns endpoints or credential references.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "security": [
@@ -19519,6 +19538,25 @@
           },
           {
             "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "security": [
@@ -19747,6 +19785,25 @@
           },
           {
             "$ref": "#/components/parameters/registry-repository-ref-query"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "security": [
@@ -40454,7 +40511,10 @@
       "registry-available-destination-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -40462,6 +40522,19 @@
             "items": {
               "$ref": "#/components/schemas/registry-available-destination"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -40647,7 +40720,10 @@
       "registry-artifact-repository-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -40655,6 +40731,19 @@
             "items": {
               "$ref": "#/components/schemas/registry-artifact-repository"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -40785,7 +40874,10 @@
       "registry-artifact-repository-user-assignment-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -40793,6 +40885,19 @@
             "items": {
               "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false

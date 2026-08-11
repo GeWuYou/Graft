@@ -120,12 +120,13 @@ func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Servic
 	httpx.WriteSuccess(c, http.StatusOK, response)
 }
 func handleListRepositories(c *gin.Context, ctx *module.Context, service *Service) {
-	items, err := service.ListRepositories(c, c.Param("connectionRef"))
+	limit, offset := parsePage(c)
+	items, total, err := service.ListRepositories(c, c.Param("connectionRef"), limit, offset)
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryListResponse{Items: mapRepositories(items)})
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryListResponse{Items: mapRepositories(items), Total: int64(total), Limit: limit, Offset: offset})
 }
 func handleCreateRepository(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PostRegistryArtifactRepositoryJSONRequestBody
@@ -183,12 +184,13 @@ func handleListAssignments(c *gin.Context, ctx *module.Context, service *Service
 		invalidRegistryRequest(c, ctx)
 		return
 	}
-	items, err := service.ListAssignments(c, c.Param("connectionRef"), repositoryRef)
+	limit, offset := parsePage(c)
+	items, total, err := service.ListAssignments(c, c.Param("connectionRef"), repositoryRef, limit, offset)
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items)})
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(total), Limit: limit, Offset: offset})
 }
 func handleGrantAssignment(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentJSONRequestBody
@@ -227,7 +229,8 @@ func handleRevokeAssignment(c *gin.Context, ctx *module.Context, service *Servic
 }
 func handleAvailableDestinations(c *gin.Context, ctx *module.Context, service *Service) {
 	actorID := registryActorID(c)
-	items, err := service.ListAvailableDestinations(c, actorID)
+	limit, offset := parsePage(c)
+	items, total, err := service.ListAvailableDestinations(c, actorID, limit, offset)
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
@@ -236,7 +239,7 @@ func handleAvailableDestinations(c *gin.Context, ctx *module.Context, service *S
 	for _, item := range items {
 		result = append(result, openapigen.RegistryAvailableDestination{Kind: "oci_registry", ConnectionRef: item.ConnectionRef, ConnectionDisplayName: item.ConnectionName, RepositoryRef: item.RepositoryRef, RepositoryDisplayName: item.RepositoryName, AllowPull: item.AllowPull, AllowPush: item.AllowPush})
 	}
-	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryAvailableDestinationListResponse{Items: result})
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryAvailableDestinationListResponse{Items: result, Total: int64(total), Limit: limit, Offset: offset})
 }
 
 func registryActorID(c *gin.Context) uint64 {

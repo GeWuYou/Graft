@@ -25,6 +25,7 @@
         "credential": "Credential",
         "status": "Status",
         "verified": "Last Verified",
+        "assignmentCreatedAt": "Assigned At",
         "actions": "Actions"
       },
       "form": {

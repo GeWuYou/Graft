@@ -7,6 +7,12 @@ get:
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/registry-connection-ref-path.yaml
     - $ref: ../components/parameters/registry-repository-ref-query.yaml
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
   security: [{bearerAuth: []}]
   responses:
     '200':

@@ -13683,7 +13683,10 @@ type RegistryArtifactRepositoryCreateRequest struct {
 
 // RegistryArtifactRepositoryListResponse defines model for registry-artifact-repository-list-response.
 type RegistryArtifactRepositoryListResponse struct {
-	Items []RegistryArtifactRepository `json:"items"`
+	Items  []RegistryArtifactRepository `json:"items"`
+	Limit  int                          `json:"limit"`
+	Offset int                          `json:"offset"`
+	Total  int64                        `json:"total"`
 }
 
 // RegistryArtifactRepositoryUpdateRequest defines model for registry-artifact-repository-update-request.
@@ -13704,7 +13707,10 @@ type RegistryArtifactRepositoryUserAssignment struct {
 
 // RegistryArtifactRepositoryUserAssignmentListResponse defines model for registry-artifact-repository-user-assignment-list-response.
 type RegistryArtifactRepositoryUserAssignmentListResponse struct {
-	Items []RegistryArtifactRepositoryUserAssignment `json:"items"`
+	Items  []RegistryArtifactRepositoryUserAssignment `json:"items"`
+	Limit  int                                        `json:"limit"`
+	Offset int                                        `json:"offset"`
+	Total  int64                                      `json:"total"`
 }
 
 // RegistryArtifactRepositoryUserAssignmentRequest defines model for registry-artifact-repository-user-assignment-request.
@@ -13728,7 +13734,10 @@ type RegistryAvailableDestinationKind string
 
 // RegistryAvailableDestinationListResponse defines model for registry-available-destination-list-response.
 type RegistryAvailableDestinationListResponse struct {
-	Items []RegistryAvailableDestination `json:"items"`
+	Items  []RegistryAvailableDestination `json:"items"`
+	Limit  int                            `json:"limit"`
+	Offset int                            `json:"offset"`
+	Total  int64                          `json:"total"`
 }
 
 // RegistryConnection defines model for registry-connection.
@@ -17929,6 +17938,9 @@ type PostRegistryParams struct {
 
 // GetRegistryAvailableDestinationsParams defines parameters for GetRegistryAvailableDestinations.
 type GetRegistryAvailableDestinationsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -17982,6 +17994,9 @@ type DeleteRegistryArtifactRepositoryParams struct {
 
 // GetRegistryArtifactRepositoriesParams defines parameters for GetRegistryArtifactRepositories.
 type GetRegistryArtifactRepositoriesParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -18017,6 +18032,8 @@ type PutRegistryArtifactRepositoryParams struct {
 type GetRegistryArtifactRepositoryAssignmentsParams struct {
 	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
 	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+	Limit         *int                       `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int                       `form:"offset,omitempty" json:"offset,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

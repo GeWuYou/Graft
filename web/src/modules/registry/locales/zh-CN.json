@@ -25,6 +25,7 @@
         "credential": "凭据",
         "status": "状态",
         "verified": "最近验证",
+        "assignmentCreatedAt": "授权时间",
         "actions": "操作"
       },
       "form": {

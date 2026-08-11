@@ -119,15 +119,15 @@ type ManagementRepository interface {
 	UpdateConnection(ctx context.Context, connectionRef string, input ConnectionInput, actorID uint64) (Connection, error)
 	DeleteConnection(ctx context.Context, connectionRef string, actorID uint64) error
 	SetVerification(ctx context.Context, connectionRef string, available bool, status, errorCode string) (Connection, error)
-	ListRepositories(ctx context.Context, connectionRef string) ([]Repository, error)
+	ListRepositories(ctx context.Context, connectionRef string, limit, offset int) ([]Repository, int, error)
 	CreateRepository(ctx context.Context, connectionRef string, input RepositoryInput, actorID uint64) (Repository, error)
 	UpdateRepository(ctx context.Context, connectionRef, repositoryRef string, input RepositoryInput, actorID uint64) (Repository, error)
 	DeleteRepository(ctx context.Context, connectionRef, repositoryRef string, actorID uint64) error
-	ListAssignments(ctx context.Context, connectionRef, repositoryRef string) ([]UserAssignment, error)
+	ListAssignments(ctx context.Context, connectionRef, repositoryRef string, limit, offset int) ([]UserAssignment, int, error)
 	GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (UserAssignment, error)
 	RevokeAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) error
 	ReplaceAssignments(ctx context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]UserAssignment, error)
-	ListAvailableDestinations(ctx context.Context, actorID uint64) ([]Destination, error)
+	ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]Destination, int, error)
 }
 
 // DestinationRepository 是 Registry 服务使用的窄持久化契约，阻止 Build 直接查询基础设施表。
@@ -338,28 +338,36 @@ RETURNING connection_ref, display_name, provider, endpoint, COALESCE(credential_
 }
 
 // ListRepositories 返回一个连接的存活 Repository。
-func (r *SQLRepository) ListRepositories(ctx context.Context, connectionRef string) ([]Repository, error) {
+func (r *SQLRepository) ListRepositories(ctx context.Context, connectionRef string, limit, offset int) ([]Repository, int, error) {
+	limit, offset = normalizeListPage(limit, offset)
+	const countQuery = `SELECT COUNT(*) FROM artifact_repositories r JOIN registry_connections c ON c.id = r.connection_id
+WHERE c.connection_ref = $1 AND c.deleted_at = 0 AND r.deleted_at = 0`
 	const query = `SELECT c.connection_ref, r.repository_ref, r.display_name, r.allow_pull, r.allow_push, r.created_at, r.updated_at
 FROM artifact_repositories r JOIN registry_connections c ON c.id = r.connection_id
 WHERE c.connection_ref = $1 AND c.deleted_at = 0 AND r.deleted_at = 0
-ORDER BY r.display_name, r.repository_ref`
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(connectionRef))
+	ORDER BY r.display_name, r.repository_ref LIMIT $2 OFFSET $3`
+	connectionRef = strings.TrimSpace(connectionRef)
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, connectionRef).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count artifact repositories: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, query, connectionRef, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list artifact repositories: %w", err)
+		return nil, 0, fmt.Errorf("list artifact repositories: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	items := make([]Repository, 0)
 	for rows.Next() {
 		var item Repository
 		if err := rows.Scan(&item.ConnectionRef, &item.RepositoryRef, &item.DisplayName, &item.AllowPull, &item.AllowPush, &item.CreatedAt, &item.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan artifact repository: %w", err)
+			return nil, 0, fmt.Errorf("scan artifact repository: %w", err)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate artifact repositories: %w", err)
+		return nil, 0, fmt.Errorf("iterate artifact repositories: %w", err)
 	}
-	return items, nil
+	return items, total, nil
 }
 
 // CreateRepository 在指定连接下创建可授权的 Repository。
@@ -414,29 +422,39 @@ FROM registry_connections c WHERE r.connection_id = c.id AND c.connection_ref = 
 }
 
 // ListAssignments 返回 Repository 的有效用户授权。
-func (r *SQLRepository) ListAssignments(ctx context.Context, connectionRef, repositoryRef string) ([]UserAssignment, error) {
+func (r *SQLRepository) ListAssignments(ctx context.Context, connectionRef, repositoryRef string, limit, offset int) ([]UserAssignment, int, error) {
+	limit, offset = normalizeListPage(limit, offset)
+	const countQuery = `SELECT COUNT(*) FROM artifact_repository_user_assignments a
+JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.deleted_at = 0`
 	const query = `SELECT c.connection_ref, r.repository_ref, a.user_id, a.created_at, a.created_by
 FROM artifact_repository_user_assignments a
 JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
 JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
-WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.deleted_at = 0 ORDER BY a.user_id`
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(connectionRef), strings.TrimSpace(repositoryRef))
+WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.deleted_at = 0 ORDER BY a.user_id LIMIT $3 OFFSET $4`
+	connectionRef, repositoryRef = strings.TrimSpace(connectionRef), strings.TrimSpace(repositoryRef)
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, connectionRef, repositoryRef).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count artifact repository assignments: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, query, connectionRef, repositoryRef, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list artifact repository assignments: %w", err)
+		return nil, 0, fmt.Errorf("list artifact repository assignments: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	items := make([]UserAssignment, 0)
 	for rows.Next() {
 		var item UserAssignment
 		if err := rows.Scan(&item.ConnectionRef, &item.RepositoryRef, &item.UserID, &item.CreatedAt, &item.CreatedBy); err != nil {
-			return nil, fmt.Errorf("scan artifact repository assignment: %w", err)
+			return nil, 0, fmt.Errorf("scan artifact repository assignment: %w", err)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate artifact repository assignments: %w", err)
+		return nil, 0, fmt.Errorf("iterate artifact repository assignments: %w", err)
 	}
-	return items, nil
+	return items, total, nil
 }
 
 // GrantAssignment 原子地验证目标用户与 Repository，并拒绝重复的有效授权。
@@ -542,7 +560,8 @@ func (r *SQLRepository) ReplaceAssignments(ctx context.Context, connectionRef, r
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit artifact repository assignments: %w", err)
 	}
-	return r.ListAssignments(ctx, connectionRef, repositoryRef)
+	items, _, err := r.ListAssignments(ctx, connectionRef, repositoryRef, int(^uint(0)>>1), 0)
+	return items, err
 }
 
 func existingAssignmentUsers(ctx context.Context, tx *sql.Tx, userIDs []uint64) (map[uint64]struct{}, error) {
@@ -567,29 +586,47 @@ func existingAssignmentUsers(ctx context.Context, tx *sql.Tx, userIDs []uint64) 
 }
 
 // ListAvailableDestinations 只返回 actor 已授权且可 push 的可用目的地。
-func (r *SQLRepository) ListAvailableDestinations(ctx context.Context, actorID uint64) ([]Destination, error) {
+func (r *SQLRepository) ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]Destination, int, error) {
+	limit, offset = normalizeListPage(limit, offset)
+	const countQuery = `SELECT COUNT(*) FROM artifact_repositories r JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+JOIN artifact_repository_user_assignments a ON a.repository_id = r.id AND a.deleted_at = 0
+WHERE a.user_id = $1 AND r.deleted_at = 0 AND c.enabled = true AND c.availability = true AND r.allow_push = true`
 	const query = `SELECT c.connection_ref, c.display_name, r.repository_ref, r.display_name, r.allow_pull, r.allow_push
 FROM artifact_repositories r JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
 JOIN artifact_repository_user_assignments a ON a.repository_id = r.id AND a.deleted_at = 0
 WHERE a.user_id = $1 AND r.deleted_at = 0 AND c.enabled = true AND c.availability = true AND r.allow_push = true
-ORDER BY c.display_name, r.display_name`
-	rows, err := r.db.QueryContext(ctx, query, actorID)
+ORDER BY c.display_name, c.connection_ref, r.display_name, r.repository_ref LIMIT $2 OFFSET $3`
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, actorID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count available registry destinations: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, query, actorID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list available registry destinations: %w", err)
+		return nil, 0, fmt.Errorf("list available registry destinations: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	items := make([]Destination, 0)
 	for rows.Next() {
 		var item Destination
 		if err := rows.Scan(&item.ConnectionRef, &item.ConnectionName, &item.RepositoryRef, &item.RepositoryName, &item.AllowPull, &item.AllowPush); err != nil {
-			return nil, fmt.Errorf("scan available registry destination: %w", err)
+			return nil, 0, fmt.Errorf("scan available registry destination: %w", err)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate available registry destinations: %w", err)
+		return nil, 0, fmt.Errorf("iterate available registry destinations: %w", err)
 	}
-	return items, nil
+	return items, total, nil
+}
+
+func normalizeListPage(limit, offset int) (int, int) {
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
 }
 
 type rowScanner interface{ Scan(...any) error }

@@ -118,7 +118,7 @@ func TestRegistryAvailableDestinationsAreBoundToRequestActor(t *testing.T) {
 	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
 
 	allowed := httptest.NewRecorder()
-	engine.ServeHTTP(allowed, registryRouteRequest(http.MethodGet, "/api/registries/available-destinations", "", "7"))
+	engine.ServeHTTP(allowed, registryRouteRequest(http.MethodGet, "/api/registries/available-destinations?limit=1&offset=0", "", "7"))
 	if allowed.Code != http.StatusOK || !strings.Contains(allowed.Body.String(), "team/app") {
 		t.Fatalf("authorized destinations = %d: %s", allowed.Code, allowed.Body.String())
 	}
@@ -127,6 +127,9 @@ func TestRegistryAvailableDestinationsAreBoundToRequestActor(t *testing.T) {
 	}
 	if !strings.Contains(allowed.Body.String(), `"allow_pull":false`) {
 		t.Fatalf("available destination did not preserve pull policy: %s", allowed.Body.String())
+	}
+	if !strings.Contains(allowed.Body.String(), `"total":1`) || !strings.Contains(allowed.Body.String(), `"limit":1`) || !strings.Contains(allowed.Body.String(), `"offset":0`) {
+		t.Fatalf("available destination pagination = %s", allowed.Body.String())
 	}
 
 	denied := httptest.NewRecorder()
@@ -281,11 +284,11 @@ func (r *registryRouteRepository) SetVerification(_ context.Context, connectionR
 	return r.connection, nil
 }
 
-func (r *registryRouteRepository) ListRepositories(_ context.Context, connectionRef string) ([]registrystore.Repository, error) {
+func (r *registryRouteRepository) ListRepositories(_ context.Context, connectionRef string, limit, offset int) ([]registrystore.Repository, int, error) {
 	if connectionRef != r.connection.ConnectionRef {
-		return nil, registrystore.ErrNotFound
+		return nil, 0, registrystore.ErrNotFound
 	}
-	return append([]registrystore.Repository(nil), r.repositories...), nil
+	return page(r.repositories, limit, offset), len(r.repositories), nil
 }
 
 func (r *registryRouteRepository) CreateRepository(_ context.Context, connectionRef string, input registrystore.RepositoryInput, _ uint64) (registrystore.Repository, error) {
@@ -317,11 +320,12 @@ func (r *registryRouteRepository) DeleteRepository(_ context.Context, connection
 	return registrystore.ErrNotFound
 }
 
-func (r *registryRouteRepository) ListAssignments(_ context.Context, connectionRef, repositoryRef string) ([]registrystore.UserAssignment, error) {
+func (r *registryRouteRepository) ListAssignments(_ context.Context, connectionRef, repositoryRef string, limit, offset int) ([]registrystore.UserAssignment, int, error) {
 	if !r.repositoryExists(connectionRef, repositoryRef) {
-		return nil, registrystore.ErrNotFound
+		return nil, 0, registrystore.ErrNotFound
 	}
-	return append([]registrystore.UserAssignment(nil), r.assignments[connectionRef+"/"+repositoryRef]...), nil
+	items := r.assignments[connectionRef+"/"+repositoryRef]
+	return page(items, limit, offset), len(items), nil
 }
 
 func (r *registryRouteRepository) ReplaceAssignments(_ context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]registrystore.UserAssignment, error) {
@@ -365,9 +369,21 @@ func (r *registryRouteRepository) RevokeAssignment(_ context.Context, connection
 	return registrystore.ErrNotFound
 }
 
-func (r *registryRouteRepository) ListAvailableDestinations(_ context.Context, actorID uint64) ([]registrystore.Destination, error) {
+func (r *registryRouteRepository) ListAvailableDestinations(_ context.Context, actorID uint64, limit, offset int) ([]registrystore.Destination, int, error) {
 	r.availableActor = actorID
-	return append([]registrystore.Destination(nil), r.destinationsByActor[actorID]...), nil
+	items := r.destinationsByActor[actorID]
+	return page(items, limit, offset), len(items), nil
+}
+
+func page[T any](items []T, limit, offset int) []T {
+	if offset >= len(items) {
+		return []T{}
+	}
+	end := offset + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return append([]T(nil), items[offset:end]...)
 }
 
 func (r *registryRouteRepository) repositoryExists(connectionRef, repositoryRef string) bool {
