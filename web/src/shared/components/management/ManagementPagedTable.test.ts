@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref } from 'vue';
 
 import ManagementPagedTable from './ManagementPagedTable.vue';
@@ -28,6 +28,7 @@ const TTableStub = defineComponent({
         (props.data as Array<Record<string, unknown>>).map((row) =>
           h('div', { key: String(row.id) }, [slots.name?.({ row }), slots.operation?.({ row })]),
         ),
+        h('div', { 'data-testid': 'table-empty' }, slots.empty?.()),
       ]);
   },
 });
@@ -50,8 +51,11 @@ const TPaginationStub = defineComponent({
 });
 
 describe('ManagementPagedTable', () => {
-  it('uses the table host width for an empty wide table and restores horizontal scrolling for rows', async () => {
-    tableHostWidth.value = 960;
+  beforeEach(() => {
+    tableHostWidth.value = 0;
+  });
+
+  it('uses host-width columns for empty tables and restores wide columns with rows', async () => {
     const wrapper = mount(ManagementPagedTable, {
       global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
       props: {
@@ -74,12 +78,33 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('fill');
     expect(wrapper.get('.management-paged-table__table-host').classes()).not.toContain('graft-scrollbar--horizontal');
     expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBeUndefined();
+    expect(wrapper.findComponent(TTableStub).props('columns')).toEqual([
+      { colKey: 'name', title: 'Name' },
+      { colKey: 'repository', title: 'Repository' },
+    ]);
+
+    tableHostWidth.value = 960;
+    await nextTick();
+
+    expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBeUndefined();
+
+    tableHostWidth.value = 840;
+    await nextTick();
+
+    expect(wrapper.findComponent(TTableStub).props('columns')).toEqual([
+      { colKey: 'name', title: 'Name' },
+      { colKey: 'repository', title: 'Repository' },
+    ]);
 
     await wrapper.setProps({ rows: [{ id: 'build-1', name: 'web', repository: 'graft' }] });
 
     expect(wrapper.get('.management-paged-table__table-host').attributes('data-table-mode')).toBe('scroll');
     expect(wrapper.get('.management-paged-table__table-host').classes()).toContain('graft-scrollbar--horizontal');
     expect(wrapper.findComponent(TTableStub).props('tableContentWidth')).toBe('1200px');
+    expect(wrapper.findComponent(TTableStub).props('columns')).toEqual([
+      { colKey: 'name', title: 'Name', width: 600 },
+      { colKey: 'repository', title: 'Repository', width: 600 },
+    ]);
   });
 
   it('routes table cell slots and renders the shared empty/pagination frame', async () => {

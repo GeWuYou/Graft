@@ -13,6 +13,7 @@ interface ImportMetaEnv {
   readonly VITE_DEBUG_TABS?: 'true' | 'false';
   readonly VITE_DEBUG_TABS_LAYOUT?: 'true' | 'false';
   readonly VITE_DEBUG_TABS_STORE?: 'true' | 'false';
+  readonly VITE_DEBUG_MANAGEMENT_TABLE_LAYOUT?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_LOGS?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_MONACO?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_TEMPLATES?: 'true' | 'false';

@@ -149,6 +149,26 @@ export function resolveManagedColumns(
   return buildVisibleColumns(columns, visibleKeys, alwaysVisibleKeys);
 }
 
+/**
+ * 为表格空态生成随宿主宽度伸缩的列定义。
+ *
+ * 空态没有需要横向比对的行，保留宽表的固定列配置会触发 TDesign 的异步溢出空态布局；数据返回后仍使用原始列定义。
+ */
+export function resolveEmptyManagedColumns(columns: TdBaseTableProps['columns']) {
+  return columns?.map((column) => {
+    const emptyColumn = { ...column };
+    delete emptyColumn.fixed;
+    delete emptyColumn.minWidth;
+    delete emptyColumn.width;
+
+    if (emptyColumn.children?.length) {
+      emptyColumn.children = resolveEmptyManagedColumns(emptyColumn.children);
+    }
+
+    return emptyColumn;
+  });
+}
+
 function calculateVisibleColumnWidth(columns: TdBaseTableProps['columns']) {
   return (columns ?? []).reduce((sum, column) => {
     if (typeof column?.width === 'number') {

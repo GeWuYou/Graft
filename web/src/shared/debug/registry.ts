@@ -3,6 +3,7 @@ export type DebugFlagId =
   | 'tabs'
   | 'tabs.layout'
   | 'tabs.store'
+  | 'management.table-layout'
   | 'observability.log-viewer'
   | 'project.logs'
   | 'project.monaco'
@@ -54,6 +55,14 @@ export const DEBUG_FLAG_REGISTRY = [
     relatedPaths: ['src/store/modules/tabs-router.ts', 'src/utils/tabs-debug.ts'],
     defaultEnabled: false,
     parentFlagId: 'tabs',
+  },
+  {
+    flagId: 'management.table-layout',
+    envKeys: ['VITE_DEBUG_MANAGEMENT_TABLE_LAYOUT'],
+    owner: 'shared management paged table layout runtime',
+    summary: '共享管理表格的空态、宿主与 TDesign 表格宽度异步校准诊断日志。',
+    relatedPaths: ['src/shared/components/management/ManagementPagedTable.vue'],
+    defaultEnabled: false,
   },
   {
     flagId: 'observability.log-viewer',
