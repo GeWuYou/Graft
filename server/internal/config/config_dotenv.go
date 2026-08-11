@@ -16,11 +16,11 @@ import (
 func loadDotenv() (string, error) {
 	dotenvPath, err := ResolveEnvFile("")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve dotenv file: %w", err)
 	}
 	if dotenvPath != "" {
 		if err := godotenv.Load(dotenvPath); err != nil {
-			return "", err
+			return "", fmt.Errorf("load dotenv file %q: %w", dotenvPath, err)
 		}
 	}
 

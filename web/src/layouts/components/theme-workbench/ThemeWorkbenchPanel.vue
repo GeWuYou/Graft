@@ -2880,27 +2880,27 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 }
 
 .shadow-preview--radius-square,
-.style-combination-preview--radius-square .style-combination-preview__card {
+.style-combination-preview--radius-square {
   --style-preview-radius: 0;
 }
 
 .shadow-preview--radius-business,
-.style-combination-preview--radius-business .style-combination-preview__card {
+.style-combination-preview--radius-business {
   --style-preview-radius: 6px;
 }
 
 .shadow-preview--radius-standard,
-.style-combination-preview--radius-standard .style-combination-preview__card {
+.style-combination-preview--radius-standard {
   --style-preview-radius: 12px;
 }
 
 .shadow-preview--radius-rounded,
-.style-combination-preview--radius-rounded .style-combination-preview__card {
+.style-combination-preview--radius-rounded {
   --style-preview-radius: 20px;
 }
 
 .shadow-preview--radius-capsule,
-.style-combination-preview--radius-capsule .style-combination-preview__card {
+.style-combination-preview--radius-capsule {
   --style-preview-radius: 999px;
 }
 

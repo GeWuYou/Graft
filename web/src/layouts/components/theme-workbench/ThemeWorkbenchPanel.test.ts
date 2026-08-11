@@ -46,6 +46,7 @@ vi.mock('@/utils/color', () => ({
 import { useSettingStore } from '@/store';
 
 import ThemeWorkbenchPanel from './ThemeWorkbenchPanel.vue';
+import themeWorkbenchPanelSource from './ThemeWorkbenchPanel.vue?raw';
 
 const drawerStub = defineComponent({
   name: 'TDrawerStub',
@@ -338,6 +339,25 @@ describe('ThemeWorkbenchPanel', () => {
       'style-control__mark--active',
     );
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('lets a radius slider override the combination preview preset', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('style');
+    const wrapper = mountPanel();
+    const radiusSlider = wrapper
+      .findAllComponents(sliderStub)
+      .find((component) => component.attributes('data-testid') === 'radius-slider');
+
+    radiusSlider!.vm.$emit('change', 0);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.style-combination-preview--radius').attributes('style')).toContain(
+      '--style-preview-radius: 0px;',
+    );
+    expect(themeWorkbenchPanelSource).not.toMatch(
+      /\.style-combination-preview--radius-(?:square|business|standard|rounded|capsule) \.style-combination-preview__card/,
+    );
   });
 
   it('shows continuous radius and density overrides in the overview', async () => {

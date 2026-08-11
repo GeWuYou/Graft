@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -9,6 +10,21 @@ import (
 	"testing"
 	"time"
 )
+
+func TestLoadDotenvWrapsLoadErrorWithPath(t *testing.T) {
+	dotenvPath := t.TempDir()
+	t.Setenv("GRAFT_ENV_FILE", dotenvPath)
+
+	_, err := loadDotenv()
+	if err == nil || !strings.Contains(err.Error(), `load dotenv file "`+dotenvPath+`"`) {
+		t.Fatalf("expected dotenv load error with path, got %v", err)
+	}
+
+	var pathError *os.PathError
+	if !errors.As(err, &pathError) {
+		t.Fatalf("expected wrapped path error, got %T: %v", err, err)
+	}
+}
 
 // TestLoadReadsDotenv 验证 Load 会读取当前目录下的 .env 默认值。
 func TestLoadReadsDotenv(t *testing.T) {

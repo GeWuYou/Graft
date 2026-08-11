@@ -111,7 +111,9 @@ func (r *Runtime) logRealtimeGatewayConfiguration() {
 		logger.StringField("dotenvPath", dotenvPath),
 		logger.IntField("websocketAllowedOriginCount", len(r.config.HTTPX.WebSocketAllowedOrigins)),
 	)
-	if strings.Contains(strings.ReplaceAll(dotenvPath, "\\", "/"), "/.data/docker-builder-agent-dev/") {
+	normalizedDotenvPath := strings.TrimPrefix(strings.ReplaceAll(dotenvPath, "\\", "/"), "./")
+	if strings.HasPrefix(normalizedDotenvPath, ".data/docker-builder-agent-dev/") ||
+		strings.Contains(normalizedDotenvPath, "/.data/docker-builder-agent-dev/") {
 		r.appLogger().Warn(context.Background(), "realtime gateway is using Docker Builder Agent environment",
 			logger.StringField(logger.FieldOperation, "realtime_gateway_config"),
 			logger.StringField("dotenvPath", dotenvPath),
