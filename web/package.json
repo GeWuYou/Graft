@@ -36,7 +36,7 @@
     "hygiene:check": "bun run deadcode:check && bun run dupcode:check && bun run font-size:check && bun run density:check && bun run scrollbar:check && bun run native-dialog:check && bun run native-button-theme:check && bun run responsive:governance:check",
     "contract:check:changed": "sh ../scripts/run_python.sh ../scripts/magic_value/check_magic_values.py --mode changed",
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bunx openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bunx prettier --write src/contracts/openapi/generated/schema.ts",
-    "openapi:types:check": "sh -c 'mkdir -p .tmp; tmp=.tmp/openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
+    "openapi:types:check": "sh -c 'tmp=openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
     "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
     "check": "bun run --parallel --no-exit-on-error format:check typecheck typecheck:ts7:node openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
   },
