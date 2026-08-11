@@ -7,6 +7,7 @@ import BuildCreatePage from './index.vue';
 const mocks = vi.hoisted(() => ({
   createBuildJob: vi.fn(),
   getBuildBuilderPools: vi.fn(),
+  getBuildRegistryDestinations: vi.fn(),
   getBuildRuntimeTargets: vi.fn(),
   getBuildWorkspaces: vi.fn(),
   push: vi.fn(),
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../api/build', () => ({
   createBuildJob: mocks.createBuildJob,
   getBuildBuilderPools: mocks.getBuildBuilderPools,
+  getBuildRegistryDestinations: mocks.getBuildRegistryDestinations,
   getBuildRuntimeTargets: mocks.getBuildRuntimeTargets,
   getBuildWorkspaces: mocks.getBuildWorkspaces,
 }));
@@ -67,11 +69,17 @@ const SelectStub = defineComponent({
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     return () =>
-      h('select', {
-        value: props.modelValue,
-        'data-options': JSON.stringify(props.options),
-        onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
-      });
+      h(
+        'select',
+        {
+          value: props.modelValue,
+          'data-options': JSON.stringify(props.options),
+          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+        },
+        (props.options as Array<{ label: string; value: string | number }>).map((option) =>
+          h('option', { value: option.value }, option.label),
+        ),
+      );
   },
 });
 const RadioGroupStub = defineComponent({
@@ -132,6 +140,22 @@ describe('BuildCreatePage', () => {
     mocks.getBuildBuilderPools.mockResolvedValue({
       items: [{ pool_id: 'pool:default', display_name: 'Default Pool', scheduling_policy: 'round_robin' }],
     });
+    mocks.getBuildRegistryDestinations.mockResolvedValue({
+      items: [
+        {
+          connection_ref: 'registry:production',
+          connection_display_name: 'Production Harbor',
+          repository_ref: 'graft/server',
+          repository_display_name: 'Server',
+        },
+        {
+          connection_ref: 'registry:production',
+          connection_display_name: 'Production Harbor',
+          repository_ref: 'graft/worker',
+          repository_display_name: 'Worker',
+        },
+      ],
+    });
   });
 
   it('loads selector options through the Build-owned read boundary', async () => {
@@ -141,7 +165,35 @@ describe('BuildCreatePage', () => {
     expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
+    expect(mocks.getBuildRegistryDestinations).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).not.toContain('selectorsUnavailable');
+  });
+
+  it('uses only assigned Registry destinations for the connection and repository selectors', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const selectOptions = wrapper
+      .findAll('select')
+      .map((candidate) => JSON.parse(candidate.attributes('data-options') ?? '[]'));
+    expect(selectOptions).toContainEqual([{ label: 'Production Harbor', value: 'registry:production' }]);
+    expect(selectOptions).toContainEqual([]);
+    const registrySelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('registry:production'));
+    expect(registrySelect).toBeDefined();
+    if (registrySelect) {
+      await registrySelect.setValue('registry:production');
+      await nextTick();
+      const repositorySelect = wrapper
+        .findAll('select')
+        .find((candidate) => candidate.attributes('data-options')?.includes('graft/server'));
+      expect(JSON.parse(repositorySelect?.attributes('data-options') ?? '[]')).toEqual([
+        { label: 'Server', value: 'graft/server' },
+        { label: 'Worker', value: 'graft/worker' },
+      ]);
+    }
+    expect(wrapper.html()).not.toContain('registry:default');
   });
 
   it('projects every server-authorized Pool policy beside its display name', async () => {

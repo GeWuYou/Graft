@@ -1,0 +1,23 @@
+type: object
+required: [connection_ref, status, verified_at]
+properties:
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+  status:
+    type: string
+    description: Verification outcome. Current values are verified and failed.
+  verified_at:
+    type: string
+    format: date-time
+  error_code:
+    type: string
+    nullable: true
+    description: Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies.
+  diagnostic:
+    type: string
+    nullable: true
+    maxLength: 512
+    description: Sanitized operator diagnostic. Consumers must not parse it for control flow.
+additionalProperties: false

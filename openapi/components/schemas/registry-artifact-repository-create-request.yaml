@@ -1,0 +1,19 @@
+type: object
+required: [repository_ref, display_name]
+properties:
+  repository_ref:
+    type: string
+    minLength: 1
+    maxLength: 255
+    description: Repository path within the selected Registry Connection. A full image URL and tag are invalid.
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  allow_pull:
+    type: boolean
+    default: true
+  allow_push:
+    type: boolean
+    default: true
+additionalProperties: false

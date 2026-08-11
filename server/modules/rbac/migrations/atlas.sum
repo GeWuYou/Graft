@@ -1,4 +1,4 @@
-h1:XPirUROohfd016O6BVCd0xdWimCe9c1uYsxrWTG6acg=
+h1:3rAPRg6e4ALoq+49fk1q8GmiTlXi7EkQSjp3tIkaj5Q=
 202605190002_rbac_baseline.sql h1:S1nH9msGCgCCnst6FlRHEKTHezl/SIV4/oAfuaLRSAU=
 202606300001_rbac_role_disabled_at.sql h1:U31CK8thF1EA0CaALgZOcvspuNrP/LGmatbxQMpFmK0=
 202607040001_rbac_permission_module.sql h1:GwFhwe3Bq4QPvQT2iuQA30zEPqOC2mqaSlnrEqaI4Ug=
@@ -13,3 +13,4 @@ h1:XPirUROohfd016O6BVCd0xdWimCe9c1uYsxrWTG6acg=
 202608040005_platform_network_connectivity_permissions.sql h1:wDCTEj4PATL9f6YkI1TRfZc2wtg+Yvfw8l0Ktvq+TwM=
 202608050003_build_center_permissions.sql h1:/qTg3IKmMdGyps/BSwKJwV9fxDMIzCwYNfXEZPG/jvc=
 202608070001_platform_capability_permission.sql h1:G1jE2+AxkShIQviwEWOlawfXl9jEP9EzeLjWvTagbes=
+202608110002_registry_permissions.sql h1:KiyutvLLeVG7qTu/k1Pniep48EOkDEZO2swTNNvOBcc=

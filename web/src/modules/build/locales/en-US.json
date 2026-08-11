@@ -132,8 +132,15 @@
         "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",
         "dockerfilePathRequired": "Dockerfile path is required.",
-        "repository": "Image repository",
-        "repositoryRequired": "Image repository is required.",
+        "registry": "Registry",
+        "registryRequired": "Registry is required.",
+        "registryPlaceholder": "Select a configured Registry",
+        "repository": "Repository Path",
+        "repositoryRequired": "Repository Path is required.",
+        "repositoryPlaceholder": "Select an assigned repository path",
+        "destinationsEmpty": "No Registry repository path is available for push. Add a Registry and configure access first.",
+        "destinationsLoadFailed": "Unable to load available Registry destinations.",
+        "addRegistry": "Add Image Registry",
         "tag": "Image tag",
         "tagRequired": "Image tag is required."
       }

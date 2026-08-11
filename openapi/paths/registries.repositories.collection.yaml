@@ -1,0 +1,91 @@
+get:
+  tags: [registry]
+  operationId: getRegistryArtifactRepositories
+  summary: List Artifact Repositories in a Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Artifact Repositories owned by the Registry Connection.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-list-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+post:
+  tags: [registry]
+  operationId: postRegistryArtifactRepository
+  summary: Create an Artifact Repository in a Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-artifact-repository-create-request.yaml}
+  responses:
+    '201':
+      description: Artifact Repository created.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository.yaml}
+    '400': {description: Invalid Artifact Repository request.}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '409': {description: A live Artifact Repository already uses this repository reference in the Registry Connection.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+put:
+  tags: [registry]
+  operationId: putRegistryArtifactRepository
+  summary: Update an Artifact Repository policy
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+    - $ref: ../components/parameters/registry-repository-ref-query.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-artifact-repository-update-request.yaml}
+  responses:
+    '200':
+      description: Updated Artifact Repository.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository.yaml}
+    '400': {description: Invalid Artifact Repository request.}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Artifact Repository not found.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+delete:
+  tags: [registry]
+  operationId: deleteRegistryArtifactRepository
+  summary: Delete an Artifact Repository
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+    - $ref: ../components/parameters/registry-repository-ref-query.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Artifact Repository deleted.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Artifact Repository not found.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

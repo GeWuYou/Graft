@@ -1,0 +1,57 @@
+{
+  "registry": {
+    "list": {
+      "title": "镜像仓库",
+      "description": "管理可供 Build 使用的外部 OCI Registry 连接与仓库路径。",
+      "search": "搜索名称、引用或端点",
+      "refresh": "刷新",
+      "add": "添加镜像仓库",
+      "edit": "编辑",
+      "verify": "测试连接",
+      "delete": "删除",
+      "repositories": "仓库路径",
+      "addRepository": "添加仓库路径",
+      "assignments": "用户授权",
+      "grantAssignment": "授予授权",
+      "revokeAssignment": "撤销授权",
+      "empty": "暂无镜像仓库",
+      "loadFailed": "无法加载镜像仓库。",
+      "save": "保存",
+      "connection": "Registry 连接",
+      "columns": {
+        "name": "名称",
+        "type": "类型",
+        "endpoint": "Registry URL",
+        "credential": "凭据",
+        "status": "状态",
+        "verified": "最近验证",
+        "actions": "操作"
+      },
+      "form": {
+        "connectionRef": "连接引用",
+        "displayName": "名称",
+        "endpoint": "Registry URL",
+        "description": "说明",
+        "enabled": "启用",
+        "insecure": "使用不安全 HTTP",
+        "repositoryRef": "仓库路径",
+        "repositoryName": "显示名称",
+        "allowPull": "允许拉取",
+        "allowPush": "允许推送",
+        "userId": "用户 ID"
+      },
+      "credential": { "configured": "已配置", "anonymous": "匿名" },
+      "status": {
+        "available": "可用",
+        "unavailable": "不可用",
+        "verified": "已验证",
+        "failed": "验证失败",
+        "unknown": "未验证"
+      },
+      "verifyResult": "连接测试：{status}",
+      "deleteConfirm": "删除此 Registry 连接？已关联的仓库路径会阻止删除。",
+      "repositoryDeleteConfirm": "删除仓库路径 {repository}？",
+      "revokeAssignmentConfirm": "撤销用户 {userId} 的仓库使用授权？"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+get:
+  tags: [registry]
+  operationId: getRegistryAvailableDestinations
+  summary: List Artifact Repositories available for the caller's Build destination
+  description: Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories. It never returns endpoints or credential references.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Caller-scoped non-secret Build destination catalog.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-available-destination-list-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

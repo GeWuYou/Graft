@@ -40,8 +40,21 @@
         ><t-input v-model="form.template_ref" disabled /></t-form-item
       ><t-form-item name="driver" :label="t('build.jobs.create.driver')"
         ><t-input v-model="form.driver" disabled /></t-form-item
+      ><t-form-item name="destination.connection_ref" :label="t('build.jobs.create.registry')"
+        ><t-select
+          v-model="form.destination.connection_ref"
+          :options="registryOptions"
+          :loading="destinationLoading"
+          :placeholder="t('build.jobs.create.registryPlaceholder')"
+          clearable /></t-form-item
       ><t-form-item name="destination.repository_ref" :label="t('build.jobs.create.repository')"
-        ><t-input v-model="form.destination.repository_ref" /></t-form-item
+        ><t-select
+          v-model="form.destination.repository_ref"
+          :options="repositoryOptions"
+          :loading="destinationLoading"
+          :disabled="!form.destination.connection_ref"
+          :placeholder="t('build.jobs.create.repositoryPlaceholder')"
+          clearable /></t-form-item
       ><t-form-item name="destination.reference" :label="t('build.jobs.create.tag')"
         ><t-input v-model="form.destination.reference" /></t-form-item
       ><t-button theme="primary" type="submit" :loading="submitting">{{
@@ -53,6 +66,15 @@
       :message="t('build.jobs.create.selectorsEmpty')"
     />
     <t-alert v-if="selectorError" theme="warning" :message="selectorError" />
+    <t-alert v-if="!destinationLoading && !destinationError && registryOptions.length === 0" theme="warning">
+      <template #message>{{ t('build.jobs.create.destinationsEmpty') }}</template>
+      <template #operation
+        ><t-button size="small" variant="outline" @click="openRegistries">{{
+          t('build.jobs.create.addRegistry')
+        }}</t-button></template
+      >
+    </t-alert>
+    <t-alert v-if="destinationError" theme="warning" :message="destinationError" />
     <t-alert v-if="message" :theme="messageTheme" :message="message" />
   </section>
 </template>
@@ -65,7 +87,13 @@ import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { createBuildJob, getBuildBuilderPools, getBuildRuntimeTargets, getBuildWorkspaces } from '../../api/build';
+import {
+  createBuildJob,
+  getBuildBuilderPools,
+  getBuildRegistryDestinations,
+  getBuildRuntimeTargets,
+  getBuildWorkspaces,
+} from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildBuilderPool } from '../../types/build';
 import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
@@ -82,7 +110,7 @@ const form = ref<BuildJobForm>({
   template_ref: BUILD_TEMPLATE_REF,
   driver: BUILD_DRIVER_REF,
   platforms: ['linux/amd64'],
-  destination: { kind: 'oci_registry', connection_ref: 'registry:default', repository_ref: '', reference: 'latest' },
+  destination: { kind: 'oci_registry', connection_ref: '', repository_ref: '', reference: 'latest' },
 });
 type SelectorOption = { label: string; value: string | number };
 type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
@@ -98,6 +126,20 @@ const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
 });
 const selectorLoading = ref(false);
 const selectorError = ref('');
+const destinationLoading = ref(false);
+const destinationError = ref('');
+type RegistryDestination = Awaited<ReturnType<typeof getBuildRegistryDestinations>>['items'][number];
+const destinations = ref<RegistryDestination[]>([]);
+const registryOptions = computed(() => {
+  const unique = new Map<string, string>();
+  for (const item of destinations.value) unique.set(item.connection_ref, item.connection_display_name);
+  return [...unique].map(([value, label]) => ({ value, label }));
+});
+const repositoryOptions = computed(() =>
+  destinations.value
+    .filter((item) => item.connection_ref === form.value.destination.connection_ref)
+    .map((item) => ({ value: item.repository_ref, label: item.repository_display_name || item.repository_ref })),
+);
 const selectorOptionsUnavailable = computed(
   () =>
     !selectorLoading.value &&
@@ -112,6 +154,8 @@ onMounted(loadSelectorOptions);
 async function loadSelectorOptions() {
   selectorLoading.value = true;
   selectorError.value = '';
+  destinationLoading.value = true;
+  destinationError.value = '';
   try {
     const [workspaces, targets, pools] = await Promise.all([
       getBuildWorkspaces(),
@@ -128,6 +172,14 @@ async function loadSelectorOptions() {
     selectorError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.selectorsLoadFailed'));
   } finally {
     selectorLoading.value = false;
+  }
+  try {
+    const registryDestinations = await getBuildRegistryDestinations();
+    destinations.value = registryDestinations.items ?? [];
+  } catch (error) {
+    destinationError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.destinationsLoadFailed'));
+  } finally {
+    destinationLoading.value = false;
   }
 }
 
@@ -155,6 +207,12 @@ watch(selectionMode, (mode) => {
     form.value.builder_pool_id = undefined;
   }
 });
+watch(
+  () => form.value.destination.connection_ref,
+  () => {
+    form.value.destination.repository_ref = '';
+  },
+);
 // 相同表单的失败重试必须复用同一幂等键；成功或输入变化后才允许生成新键。
 let idempotencyKey: string | undefined;
 let idempotencyPayload: string | undefined;
@@ -167,9 +225,14 @@ const rules = computed(() => ({
       : [],
   builder_pool_id:
     selectionMode.value === 'pool' ? [{ required: true, message: t('build.jobs.create.builderPoolRequired') }] : [],
+  'destination.connection_ref': [{ required: true, message: t('build.jobs.create.registryRequired') }],
   'destination.repository_ref': [{ required: true, message: t('build.jobs.create.repositoryRequired') }],
   'destination.reference': [{ required: true, message: t('build.jobs.create.tagRequired') }],
 }));
+
+function openRegistries() {
+  void router.push('/infrastructure/registries');
+}
 async function submit({ validateResult }: SubmitContext) {
   if (validateResult !== true) return;
   submitting.value = true;

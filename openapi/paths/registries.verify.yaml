@@ -1,0 +1,20 @@
+post:
+  tags: [registry]
+  operationId: postRegistryVerify
+  summary: Verify a Registry Connection
+  description: Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Registry verification completed. Failure is represented by data.status instead of remote diagnostic details.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-connection-verification.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

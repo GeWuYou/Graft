@@ -1,0 +1,13 @@
+menu.registries.title: Image Registries
+rbac.permissionCatalog.registryRead.display: View Image Registries
+rbac.permissionCatalog.registryRead.description: Allows viewing Registry Connections and Artifact Repositories.
+rbac.permissionCatalog.registryCreate.display: Create Image Registry
+rbac.permissionCatalog.registryCreate.description: Allows creating external OCI Registry Connections.
+rbac.permissionCatalog.registryUpdate.display: Update Image Registry
+rbac.permissionCatalog.registryUpdate.description: Allows updating Registry Connections and Artifact Repository policies.
+rbac.permissionCatalog.registryDelete.display: Delete Image Registry
+rbac.permissionCatalog.registryDelete.description: Allows deleting Registry Connections or Artifact Repositories.
+rbac.permissionCatalog.registryVerify.display: Verify Image Registry
+rbac.permissionCatalog.registryVerify.description: Allows verifying external Registry Connections.
+rbac.permissionCatalog.registryAssignmentManage.display: Manage Repository Assignments
+rbac.permissionCatalog.registryAssignmentManage.description: Allows managing user access to Artifact Repositories.

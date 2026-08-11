@@ -127,8 +127,15 @@
         "contextPathRequired": "请输入构建上下文路径。",
         "dockerfilePath": "Dockerfile 路径",
         "dockerfilePathRequired": "请输入 Dockerfile 路径。",
-        "repository": "镜像仓库",
-        "repositoryRequired": "请输入镜像仓库。",
+        "registry": "Registry",
+        "registryRequired": "请选择 Registry。",
+        "registryPlaceholder": "选择已配置 Registry",
+        "repository": "仓库路径",
+        "repositoryRequired": "请选择仓库路径。",
+        "repositoryPlaceholder": "选择已授权仓库路径",
+        "destinationsEmpty": "没有可用于推送的 Registry 仓库路径，请先添加 Registry 并配置授权。",
+        "destinationsLoadFailed": "无法加载可用 Registry 目的地。",
+        "addRegistry": "添加镜像仓库",
         "tag": "镜像标签",
         "tagRequired": "请输入镜像标签。"
       }

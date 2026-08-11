@@ -233,6 +233,10 @@
     {
       "name": "runtime-target",
       "description": "运行目标管理"
+    },
+    {
+      "name": "registry",
+      "description": "外部 OCI 镜像仓库连接与产物仓库管理"
     }
   ],
   "paths": {
@@ -19115,6 +19119,795 @@
         }
       }
     },
+    "/api/registries": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistries",
+        "summary": "List Registry Connections",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry Connection page without credential material.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-connection-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistry",
+        "summary": "Create a Generic OCI Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-connection-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registry Connection created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-connection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Registry Connection request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "A live Registry Connection already uses the connection reference."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/available-destinations": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistryAvailableDestinations",
+        "summary": "List Artifact Repositories available for the caller's Build destination",
+        "description": "Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories. It never returns endpoints or credential references.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Caller-scoped non-secret Build destination catalog.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-available-destination-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistry",
+        "summary": "Read a Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry Connection without credential material.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-connection"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "putRegistry",
+        "summary": "Update a Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-connection-update-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated Registry Connection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-connection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Registry Connection request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "409": {
+            "description": "System-managed Registry Connections cannot be updated."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "deleteRegistry",
+        "summary": "Delete a Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry Connection deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "409": {
+            "description": "Registry Connection cannot be deleted while it owns live Artifact Repositories or is system-managed."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/verify": {
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryVerify",
+        "summary": "Verify a Registry Connection",
+        "description": "Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registry verification completed. Failure is represented by data.status instead of remote diagnostic details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-connection-verification"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/repositories": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistryArtifactRepositories",
+        "summary": "List Artifact Repositories in a Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artifact Repositories owned by the Registry Connection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryArtifactRepository",
+        "summary": "Create an Artifact Repository in a Registry Connection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Artifact Repository created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Artifact Repository request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Registry Connection not found."
+          },
+          "409": {
+            "description": "A live Artifact Repository already uses this repository reference in the Registry Connection."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "putRegistryArtifactRepository",
+        "summary": "Update an Artifact Repository policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-update-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated Artifact Repository.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Artifact Repository request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Artifact Repository not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "deleteRegistryArtifactRepository",
+        "summary": "Delete an Artifact Repository",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artifact Repository deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Artifact Repository not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/repository-assignments": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistryArtifactRepositoryAssignments",
+        "summary": "List users assigned to an Artifact Repository",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active Artifact Repository user assignments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Artifact Repository not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryArtifactRepositoryAssignment",
+        "summary": "Grant a user use of an Artifact Repository",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User assigned to the Artifact Repository.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Artifact Repository assignment request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Artifact Repository or user not found."
+          },
+          "409": {
+            "description": "User already has an active Artifact Repository assignment."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/repository-assignments/{userId}": {
+      "delete": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "deleteRegistryArtifactRepositoryAssignment",
+        "summary": "Revoke a user Artifact Repository assignment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artifact Repository user assignment revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Active Artifact Repository assignment not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/applications/import/validate": {
       "post": {
         "tags": [
@@ -24243,6 +25036,72 @@
       },
       "EnvelopedRuntimeTargetUserAssignmentListResponse": {
         "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
+      },
+      "RegistryConnection": {
+        "$ref": "#/components/schemas/registry-connection"
+      },
+      "RegistryConnectionCreateRequest": {
+        "$ref": "#/components/schemas/registry-connection-create-request"
+      },
+      "RegistryConnectionUpdateRequest": {
+        "$ref": "#/components/schemas/registry-connection-update-request"
+      },
+      "RegistryConnectionListResponse": {
+        "$ref": "#/components/schemas/registry-connection-list-response"
+      },
+      "RegistryConnectionVerification": {
+        "$ref": "#/components/schemas/registry-connection-verification"
+      },
+      "RegistryArtifactRepository": {
+        "$ref": "#/components/schemas/registry-artifact-repository"
+      },
+      "RegistryArtifactRepositoryCreateRequest": {
+        "$ref": "#/components/schemas/registry-artifact-repository-create-request"
+      },
+      "RegistryArtifactRepositoryUpdateRequest": {
+        "$ref": "#/components/schemas/registry-artifact-repository-update-request"
+      },
+      "RegistryArtifactRepositoryListResponse": {
+        "$ref": "#/components/schemas/registry-artifact-repository-list-response"
+      },
+      "RegistryArtifactRepositoryUserAssignment": {
+        "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
+      },
+      "RegistryArtifactRepositoryUserAssignmentRequest": {
+        "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-request"
+      },
+      "RegistryArtifactRepositoryUserAssignmentListResponse": {
+        "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-list-response"
+      },
+      "RegistryAvailableDestination": {
+        "$ref": "#/components/schemas/registry-available-destination"
+      },
+      "RegistryAvailableDestinationListResponse": {
+        "$ref": "#/components/schemas/registry-available-destination-list-response"
+      },
+      "EnvelopedRegistryConnection": {
+        "$ref": "#/components/schemas/enveloped-registry-connection"
+      },
+      "EnvelopedRegistryConnectionListResponse": {
+        "$ref": "#/components/schemas/enveloped-registry-connection-list-response"
+      },
+      "EnvelopedRegistryConnectionVerification": {
+        "$ref": "#/components/schemas/enveloped-registry-connection-verification"
+      },
+      "EnvelopedRegistryArtifactRepository": {
+        "$ref": "#/components/schemas/enveloped-registry-artifact-repository"
+      },
+      "EnvelopedRegistryArtifactRepositoryListResponse": {
+        "$ref": "#/components/schemas/enveloped-registry-artifact-repository-list-response"
+      },
+      "EnvelopedRegistryArtifactRepositoryUserAssignment": {
+        "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment"
+      },
+      "EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse": {
+        "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response"
+      },
+      "EnvelopedRegistryAvailableDestinationListResponse": {
+        "$ref": "#/components/schemas/enveloped-registry-available-destination-list-response"
       },
       "health-response": {
         "type": "object",
@@ -39317,6 +40176,663 @@
           }
         ]
       },
+      "registry-connection": {
+        "type": "object",
+        "required": [
+          "connection_ref",
+          "display_name",
+          "provider",
+          "endpoint",
+          "enabled",
+          "insecure",
+          "credential_configured",
+          "availability",
+          "verification_status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Stable external Registry Connection reference used by Build destination contracts."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "generic_oci"
+            ],
+            "description": "Generic Docker Registry HTTP API V2 / OCI Distribution endpoint."
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 512,
+            "description": "Normalized Registry endpoint without embedded credentials."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether new Build submissions may select this connection when it is available."
+          },
+          "insecure": {
+            "type": "boolean",
+            "description": "Whether this Generic OCI connection explicitly uses HTTP instead of HTTPS."
+          },
+          "credential_configured": {
+            "type": "boolean",
+            "description": "Whether an opaque managed credential reference is configured. The reference and credential material are never returned."
+          },
+          "availability": {
+            "type": "boolean",
+            "description": "Current non-secret usability state for Build destination resolution."
+          },
+          "verification_status": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "verified",
+              "failed"
+            ]
+          },
+          "last_verified_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1024,
+            "nullable": true
+          },
+          "system_managed": {
+            "type": "boolean",
+            "description": "System-managed connections cannot be modified or deleted through this API."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-connection-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/registry-connection"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-connection-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-connection-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "registry-connection-create-request": {
+        "type": "object",
+        "required": [
+          "connection_ref",
+          "display_name",
+          "provider",
+          "endpoint"
+        ],
+        "properties": {
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Stable reference chosen for Build destination contracts; it is immutable after creation."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "generic_oci"
+            ]
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Generic OCI endpoint without userinfo, query, fragment, or embedded credentials."
+          },
+          "credential_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "nullable": true,
+            "writeOnly": true,
+            "description": "Opaque reference to a pre-provisioned managed credential. It is never returned and is not credential material."
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "insecure": {
+            "type": "boolean",
+            "default": false
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1024,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-connection": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-connection"
+              }
+            }
+          }
+        ]
+      },
+      "registry-available-destination": {
+        "type": "object",
+        "required": [
+          "kind",
+          "connection_ref",
+          "connection_display_name",
+          "repository_ref",
+          "repository_display_name",
+          "allow_pull",
+          "allow_push"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "oci_registry"
+            ]
+          },
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "connection_display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "repository_display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "allow_pull": {
+            "type": "boolean"
+          },
+          "allow_push": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-available-destination-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/registry-available-destination"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-available-destination-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-available-destination-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "registry-connection-update-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "endpoint",
+          "enabled",
+          "insecure"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Generic OCI endpoint without userinfo, query, fragment, or embedded credentials."
+          },
+          "credential_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "nullable": true,
+            "writeOnly": true,
+            "description": "Replaces or clears the opaque managed credential reference. It is never returned."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "insecure": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1024,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-connection-verification": {
+        "type": "object",
+        "required": [
+          "connection_ref",
+          "status",
+          "verified_at"
+        ],
+        "properties": {
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "description": "Verification outcome. Current values are verified and failed."
+          },
+          "verified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies."
+          },
+          "diagnostic": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 512,
+            "description": "Sanitized operator diagnostic. Consumers must not parse it for control flow."
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-connection-verification": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-connection-verification"
+              }
+            }
+          }
+        ]
+      },
+      "registry-artifact-repository": {
+        "type": "object",
+        "required": [
+          "connection_ref",
+          "repository_ref",
+          "display_name",
+          "allow_pull",
+          "allow_push",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Repository path within the Registry Connection, not a full image reference and not a Registry endpoint."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "allow_pull": {
+            "type": "boolean"
+          },
+          "allow_push": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-artifact-repository-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/registry-artifact-repository"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-artifact-repository-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-artifact-repository-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "registry-artifact-repository-update-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "allow_pull",
+          "allow_push"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "allow_pull": {
+            "type": "boolean"
+          },
+          "allow_push": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-artifact-repository": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-artifact-repository"
+              }
+            }
+          }
+        ]
+      },
+      "registry-artifact-repository-create-request": {
+        "type": "object",
+        "required": [
+          "repository_ref",
+          "display_name"
+        ],
+        "properties": {
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Repository path within the selected Registry Connection. A full image URL and tag are invalid."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "allow_pull": {
+            "type": "boolean",
+            "default": true
+          },
+          "allow_push": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-artifact-repository-user-assignment": {
+        "type": "object",
+        "required": [
+          "connection_ref",
+          "repository_ref",
+          "user_id",
+          "created_at"
+        ],
+        "properties": {
+          "connection_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "registry-artifact-repository-user-assignment-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-artifact-repository-user-assignment-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "registry-artifact-repository-user-assignment-request": {
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-registry-artifact-repository-user-assignment": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
+              }
+            }
+          }
+        ]
+      },
       "application-import-validate-request": {
         "type": "object",
         "required": [
@@ -44681,6 +46197,28 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "registry-connection-ref-path": {
+        "name": "connectionRef",
+        "in": "path",
+        "required": true,
+        "description": "Stable Registry Connection reference. It is the connection_ref used by the Build destination contract.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "registry-repository-ref-query": {
+        "name": "repository_ref",
+        "in": "query",
+        "required": true,
+        "description": "Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
         }
       },
       "application-import-runtime-candidate-list-keyword": {

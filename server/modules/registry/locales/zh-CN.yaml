@@ -1,0 +1,13 @@
+menu.registries.title: 镜像仓库
+rbac.permissionCatalog.registryRead.display: 查看镜像仓库
+rbac.permissionCatalog.registryRead.description: 允许查看镜像仓库连接与产物仓库配置。
+rbac.permissionCatalog.registryCreate.display: 创建镜像仓库
+rbac.permissionCatalog.registryCreate.description: 允许创建外部 OCI 镜像仓库连接。
+rbac.permissionCatalog.registryUpdate.display: 更新镜像仓库
+rbac.permissionCatalog.registryUpdate.description: 允许更新镜像仓库连接和产物仓库策略。
+rbac.permissionCatalog.registryDelete.display: 删除镜像仓库
+rbac.permissionCatalog.registryDelete.description: 允许删除镜像仓库连接或产物仓库。
+rbac.permissionCatalog.registryVerify.display: 验证镜像仓库
+rbac.permissionCatalog.registryVerify.description: 允许验证外部镜像仓库连接。
+rbac.permissionCatalog.registryAssignmentManage.display: 管理仓库授权
+rbac.permissionCatalog.registryAssignmentManage.description: 允许管理用户对产物仓库的使用授权。

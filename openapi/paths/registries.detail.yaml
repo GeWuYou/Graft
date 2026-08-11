@@ -1,0 +1,65 @@
+get:
+  tags: [registry]
+  operationId: getRegistry
+  summary: Read a Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Registry Connection without credential material.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+put:
+  tags: [registry]
+  operationId: putRegistry
+  summary: Update a Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-connection-update-request.yaml}
+  responses:
+    '200':
+      description: Updated Registry Connection.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
+    '400': {description: Invalid Registry Connection request.}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '409': {description: System-managed Registry Connections cannot be updated.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+delete:
+  tags: [registry]
+  operationId: deleteRegistry
+  summary: Delete a Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Registry Connection deleted.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Registry Connection not found.}
+    '409': {description: Registry Connection cannot be deleted while it owns live Artifact Repositories or is system-managed.}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
