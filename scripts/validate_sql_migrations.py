@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+import yaml
 
 from check_migration_versions import default_migration_dirs, iter_sql_files, repo_root
 
@@ -36,6 +40,7 @@ COMMENT_COLUMN_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 SQL_NAME_RE = re.compile(r"^(?P<version>\d+)_.+\.sql$")
+MIGRATION_PRECHECK_RE = re.compile(r"^(?P<stem>.+)\.preflight\.ya?ml$")
 CHINESE_RE = re.compile(r"[\u4e00-\u9fff]")
 PLACEHOLDER_RE = re.compile(r"\b(TODO|TBD|placeholder)\b|待补充|临时说明", re.IGNORECASE)
 CONSTRAINT_PREFIXES = (
@@ -47,6 +52,10 @@ CONSTRAINT_PREFIXES = (
     "EXCLUDE ",
     "LIKE ",
 )
+RISK_LEVELS = ("L0", "L1", "L2", "L3", "L4", "L5")
+RISK_INDEX = {value: index for index, value in enumerate(RISK_LEVELS)}
+GOVERNANCE_PATH = "ai-plan/design/governance/backend/数据库表设计与迁移规范.md"
+LESSONS_PATH = "ai-plan/lessons/migrations.md"
 
 
 @dataclass(frozen=True)
@@ -77,6 +86,125 @@ class Finding:
 class Comment:
     text: str
     line: int
+
+
+@dataclass(frozen=True)
+class MigrationPreflight:
+    path: Path
+    data: dict[str, object]
+
+
+def content_revision(path: Path) -> str:
+    return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+
+
+def mapping(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}
+
+
+def string_list(value: object) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+
+def active_migration_lessons(path: Path) -> set[str]:
+    if not path.is_file():
+        return set()
+    return set(re.findall(r"^##\s+(MIG-\d{3})\b.*?\n\s*- Status:\s*active\b", path.read_text(encoding="utf-8"), re.MULTILINE))
+
+
+def sidecar_candidates(sql_path: Path) -> list[Path]:
+    pattern = f"{sql_path.stem}.preflight.y*ml"
+    return sorted(path for path in sql_path.parent.glob(pattern) if MIGRATION_PRECHECK_RE.match(path.name))
+
+
+def load_preflight(sql_path: Path) -> tuple[MigrationPreflight | None, list[Finding]]:
+    candidates = sidecar_candidates(sql_path)
+    if len(candidates) != 1:
+        return None, [Finding(sql_path, "live migration must have exactly one .preflight.yaml sidecar")]
+    try:
+        raw = yaml.safe_load(candidates[0].read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        return None, [Finding(candidates[0], f"invalid migration preflight YAML: {error}")]
+    if not isinstance(raw, dict):
+        return None, [Finding(candidates[0], "migration preflight YAML root must be a mapping")]
+    return MigrationPreflight(candidates[0], raw), []
+
+
+def derive_minimum_risk(sql: str) -> str:
+    normalized = re.sub(r"--.*?$", "", sql, flags=re.MULTILINE).upper()
+    if re.search(r"\b(DROP\s+|DELETE\s+FROM|TRUNCATE\b|RECONCIL|RETIR|SET\s+DELETED_AT)", normalized):
+        return "L4"
+    if re.search(r"\b(UPDATE\b|INSERT\s+INTO.*SELECT\b|BACKFILL)\b", normalized):
+        return "L3"
+    if re.search(r"\b(CREATE\s+UNIQUE\s+INDEX|\bUNIQUE\b|ADD\s+CONSTRAINT|FOREIGN\s+KEY)\b", normalized):
+        return "L2"
+    if re.search(r"\bALTER\s+TABLE\b", normalized):
+        return "L1"
+    return "L0"
+
+
+def validate_preflight(sql_path: Path, root: Path) -> list[Finding]:
+    preflight, findings = load_preflight(sql_path)
+    if preflight is None:
+        return findings
+
+    data = preflight.data
+    migration = mapping(data.get("migration"))
+    expected_path = str(sql_path.relative_to(root))
+    version = SQL_NAME_RE.match(sql_path.name).group("version") if SQL_NAME_RE.match(sql_path.name) else ""
+    if migration.get("path") != expected_path:
+        findings.append(Finding(preflight.path, f"migration.path must be {expected_path}"))
+    if str(migration.get("version", "")) != version:
+        findings.append(Finding(preflight.path, f"migration.version must be {version}"))
+    if not isinstance(data.get("owner"), str) or not data["owner"].strip():
+        findings.append(Finding(preflight.path, "owner is required"))
+
+    declared_risk = data.get("risk_level")
+    if declared_risk not in RISK_LEVELS:
+        findings.append(Finding(preflight.path, "risk_level must be one of L0, L1, L2, L3, L4, L5"))
+    else:
+        minimum = derive_minimum_risk(sql_path.read_text(encoding="utf-8"))
+        if RISK_INDEX[declared_risk] < RISK_INDEX[minimum]:
+            findings.append(Finding(preflight.path, f"risk_level {declared_risk} understates SQL-derived minimum {minimum}"))
+
+    for key in ("affected_tables", "operation_categories", "historical_data_assumptions", "referenced_tables", "planned_upgrade_order", "validation_scenarios"):
+        if not string_list(data.get(key)):
+            findings.append(Finding(preflight.path, f"{key} must be a non-empty list of strings"))
+
+    receipt = mapping(data.get("retrieval_receipt"))
+    governance = mapping(receipt.get("governance"))
+    lessons = mapping(receipt.get("lessons"))
+    for label, expected, record in (("governance", GOVERNANCE_PATH, governance), ("lessons", LESSONS_PATH, lessons)):
+        authority_path = root / expected
+        if record.get("path") != expected:
+            findings.append(Finding(preflight.path, f"retrieval_receipt.{label}.path must be {expected}"))
+        elif not authority_path.is_file():
+            findings.append(Finding(preflight.path, f"retrieval_receipt.{label} authority file is missing"))
+        elif record.get("revision") != content_revision(authority_path):
+            findings.append(Finding(preflight.path, f"retrieval_receipt.{label}.revision does not match canonical content"))
+    lesson_ids = string_list(receipt.get("lesson_ids"))
+    active_ids = active_migration_lessons(root / LESSONS_PATH)
+    if any(not re.fullmatch(r"MIG-\d{3}", lesson_id) for lesson_id in lesson_ids):
+        findings.append(Finding(preflight.path, "retrieval_receipt.lesson_ids must contain only MIG-### IDs"))
+    inactive = sorted(set(lesson_ids) - active_ids)
+    if inactive:
+        findings.append(Finding(preflight.path, f"retrieval_receipt.lesson_ids are not active migration lessons: {', '.join(inactive)}"))
+
+    safety = mapping(data.get("safety_strategy"))
+    required_safety: dict[str, tuple[str, ...]] = {
+        "L2": ("duplicate_scan", "live_reference_scan", "reconcile_or_abort", "post_migration_invariant"),
+        "L3": ("bounded_backfill",),
+        "L4": ("reference_impact", "recovery_or_retirement_rationale"),
+        "L5": ("backup_restore_owner", "release_upgrade_documentation"),
+    }
+    if declared_risk in required_safety:
+        for key in required_safety[declared_risk]:
+            if not isinstance(safety.get(key), str) or not safety[key].strip():
+                findings.append(Finding(preflight.path, f"safety_strategy.{key} is required for {declared_risk}"))
+        checks = data.get("preflight_checks")
+        if not isinstance(checks, list) or not checks:
+            findings.append(Finding(preflight.path, f"preflight_checks is required for {declared_risk}"))
+    return findings
 
 
 def sql_unquote(identifier: str) -> str:
@@ -247,31 +375,80 @@ def unique_paths(paths: list[Path]) -> list[Path]:
     return unique
 
 
-def validate(paths: list[Path], root: Path) -> list[Finding]:
+def validate(paths: list[Path], root: Path, require_preflight: bool = False) -> list[Finding]:
     findings: list[Finding] = []
     findings.extend(validate_versions(unique_paths([*paths, *live_sql_files(root)]), root))
     for path in sorted(paths):
+        if require_preflight or sidecar_candidates(path):
+            findings.extend(validate_preflight(path, root))
         findings.extend(validate_file(path))
     return findings
 
 
+def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> list[tuple[str, Path]]:
+    command = ["git", "diff", "--name-status", "--diff-filter=ACMR"]
+    if staged:
+        command.append("--cached")
+    elif base_ref:
+        command.append(f"{base_ref}...HEAD")
+    else:
+        return []
+    output = subprocess.check_output(command, cwd=root, text=True)
+    paths: list[tuple[str, Path]] = []
+    for line in output.splitlines():
+        parts = line.split("\t", 1)
+        if len(parts) != 2 or not parts[1].endswith(".sql"):
+            continue
+        path = root / parts[1]
+        if path.is_file() and path.parent in default_migration_dirs(root):
+            paths.append((parts[0], path))
+    return paths
+
+
+def has_unpublished_exception(sql_path: Path) -> bool:
+    preflight, _ = load_preflight(sql_path)
+    if preflight is None:
+        return False
+    exception = mapping(preflight.data.get("unpublished_exception"))
+    return all(isinstance(exception.get(key), str) and exception[key].strip() for key in ("reason", "evidence"))
+
+
+def validate_historical_immutability(entries: list[tuple[str, Path]]) -> list[Finding]:
+    findings: list[Finding] = []
+    for status, path in entries:
+        if status.startswith("M") and not has_unpublished_exception(path):
+            findings.append(Finding(path, "historical live migration was modified; add a higher-version migration or governed unpublished_exception evidence"))
+    return findings
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate live migration SQL comments and globally unique versions.")
+    parser = argparse.ArgumentParser(description="Validate live migration SQL comments, sidecars, and globally unique versions.")
     parser.add_argument(
         "--paths",
         nargs="*",
         type=Path,
         help="Optional SQL files to validate. Defaults to all live default-chain migration files.",
     )
+    parser.add_argument("--changed", action="store_true", help="require sidecars for SQL files changed from --base-ref")
+    parser.add_argument("--staged", action="store_true", help="require sidecars for staged migration SQL files")
+    parser.add_argument("--base-ref", help="Git base ref used with --changed")
     args = parser.parse_args()
 
     root = repo_root()
-    paths = [path if path.is_absolute() else root / path for path in args.paths] if args.paths else live_sql_files(root)
+    if args.changed or args.staged:
+        changed_entries = git_changed_sql_entries(root, args.base_ref, args.staged)
+        paths = [path for _, path in changed_entries]
+        require_preflight = True
+    else:
+        paths = [path if path.is_absolute() else root / path for path in args.paths] if args.paths else live_sql_files(root)
+        require_preflight = bool(args.paths)
     if not paths:
         print("sql migration gate: skip (no live migration SQL files found)")
         return 0
 
-    findings = validate(paths, root)
+    findings = validate(paths, root, require_preflight=require_preflight)
+    if args.changed or args.staged:
+        findings.extend(validate_historical_immutability(changed_entries))
     if not findings:
         print(f"sql migration gate: ok ({len(paths)} files)")
         return 0

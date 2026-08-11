@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -15,6 +16,56 @@ from validate_sql_migrations import validate, validate_file
 
 
 class ValidateSqlMigrationsTest(unittest.TestCase):
+    def write_authorities(self, root: Path) -> tuple[str, str]:
+        governance = root / validator.GOVERNANCE_PATH
+        lessons = root / validator.LESSONS_PATH
+        governance.parent.mkdir(parents=True, exist_ok=True)
+        lessons.parent.mkdir(parents=True, exist_ok=True)
+        governance.write_text("# migration governance\n", encoding="utf-8")
+        lessons.write_text("## MIG-001: uniqueness\n- Status: active\n", encoding="utf-8")
+        return (
+            f"sha256:{hashlib.sha256(governance.read_bytes()).hexdigest()}",
+            f"sha256:{hashlib.sha256(lessons.read_bytes()).hexdigest()}",
+        )
+
+    def write_preflight(self, root: Path, sql: Path, risk: str = "L0", lesson_ids: str = "[]") -> Path:
+        governance_revision, lessons_revision = self.write_authorities(root)
+        sidecar = sql.with_suffix("").with_name(f"{sql.stem}.preflight.yaml")
+        sidecar.write_text(
+            f"""migration:
+  path: {sql.relative_to(root)}
+  version: '{sql.name.split('_', 1)[0]}'
+owner: test
+risk_level: {risk}
+affected_tables: [demo_events]
+operation_categories: [schema]
+historical_data_assumptions: [empty]
+referenced_tables: [none]
+planned_upgrade_order: [preflight, migrate]
+safety_strategy:
+  duplicate_scan: SELECT 1
+  live_reference_scan: SELECT 1
+  reconcile_or_abort: abort
+  post_migration_invariant: unique
+  bounded_backfill: bounded
+  reference_impact: checked
+  recovery_or_retirement_rationale: documented
+  backup_restore_owner: operator
+  release_upgrade_documentation: docs
+validation_scenarios: [empty-bootstrap]
+retrieval_receipt:
+  governance:
+    path: {validator.GOVERNANCE_PATH}
+    revision: {governance_revision}
+  lessons:
+    path: {validator.LESSONS_PATH}
+    revision: {lessons_revision}
+  lesson_ids: {lesson_ids}
+""",
+            encoding="utf-8",
+        )
+        return sidecar
+
     def test_valid_create_table_and_add_column_pass(self) -> None:
         with TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "202606110001_valid.sql"
@@ -141,6 +192,41 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
             self.assertEqual(len(findings), 1)
             self.assertIn("live migration version 202606110001 is reused by", findings[0].message)
             self.assertIn(str(existing.relative_to(root)), findings[0].message)
+
+    def test_preflight_requires_one_sidecar_and_receipt(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+            findings = validator.validate_preflight(sql, root)
+            self.assertIn("exactly one .preflight.yaml", findings[0].message)
+
+            self.write_preflight(root, sql, lesson_ids="[MIG-001]")
+            self.assertEqual(validator.validate_preflight(sql, root), [])
+
+    def test_preflight_rejects_stale_receipt_and_inactive_lesson(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+            sidecar = self.write_preflight(root, sql, lesson_ids="[MIG-999]")
+            text = sidecar.read_text(encoding="utf-8").replace("revision: sha256:", "revision: stale-sha256:", 1)
+            sidecar.write_text(text, encoding="utf-8")
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+            self.assertIn("retrieval_receipt.governance.revision does not match canonical content", messages)
+            self.assertTrue(any("not active migration lessons" in message for message in messages))
+
+    def test_sql_risk_cannot_be_understated(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE UNIQUE INDEX uq_demo ON demo_events (id);\n", encoding="utf-8")
+            self.write_preflight(root, sql, risk="L0")
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+            self.assertIn("risk_level L0 understates SQL-derived minimum L2", messages)
 
 
 if __name__ == "__main__":

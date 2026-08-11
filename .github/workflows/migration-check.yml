@@ -38,7 +38,7 @@ jobs:
       - name: Test migration governance helpers
         run: python3 -m unittest scripts/test_check_migration_bootstrap.py
       - name: Validate SQL migration policy
-        run: python3 scripts/validate_sql_migrations.py
+        run: python3 scripts/validate_sql_migrations.py --changed --base-ref origin/main
       - name: Validate migration source
         shell: bash
         run: |

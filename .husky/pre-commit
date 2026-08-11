@@ -5,6 +5,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 scanner="$repo_root/scripts/magic_value/check_magic_values.py"
 python_runner="$repo_root/scripts/run_python.sh"
 migration_version_checker="$repo_root/scripts/check_migration_versions.py"
+migration_sql_validator="$repo_root/scripts/validate_sql_migrations.py"
 run_lint_staged=0
 run_i18n_lint=0
 
@@ -55,3 +56,7 @@ if [ ! -f "$migration_version_checker" ]; then
 fi
 
 sh "$python_runner" "$migration_version_checker" --mode changed
+
+if [ -f "$migration_sql_validator" ]; then
+  sh "$python_runner" "$migration_sql_validator" --staged
+fi

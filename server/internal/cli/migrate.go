@@ -86,6 +86,26 @@ func newMigrateCommand() *cobra.Command {
 		},
 	})
 
+	preflightOptions := migratePreflightOptions{}
+	preflightCommand := &cobra.Command{
+		Use:          "preflight",
+		Short:        "Run read-only target-data checks declared by a migration preflight sidecar",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := migrateConfigValidator(cmd); err != nil {
+				return err
+			}
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+			return migratePreflightRunner(cmd.Context(), cfg.Database.URL, preflightOptions.manifest)
+		},
+	}
+	preflightCommand.Flags().StringVar(&preflightOptions.manifest, "manifest", "", "migration .preflight.yaml sidecar")
+	_ = preflightCommand.MarkFlagRequired("manifest")
+	command.AddCommand(preflightCommand)
+
 	checkSchemaOptions := migrateCheckSchemaOptions{}
 	checkSchemaCommand := &cobra.Command{
 		Use:          "check-schema",

@@ -55,6 +55,7 @@ authority-first overlay：
   文档行为，还必须读取 `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - 改动数据库表设计、Ent schema、migration、审计字段、软删除、索引、store query 语义或数据库注释时，读
   `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
+- live migration SQL 的新增、修改或删除必须使用 `graft-sql-migration`；该 workflow 会在编写前检索 Migration Governance 与 Migration Lessons。
 - 改动查询形状、分页、Count 策略、原始 SQL、查询超时、大字段读取、批量写入、Explain 证据或 repository 查询成本时，读
   `ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md`
 - 改动 HTTP request / response、DTO / VO / Entity 边界、OpenAPI authority、兼容策略或弃用路径时，读
