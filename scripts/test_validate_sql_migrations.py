@@ -351,6 +351,51 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
             messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
             self.assertTrue(any("historical live migration was modified" in message for message in messages))
 
+    def test_changed_sidecar_modification_maps_to_owning_sql(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+            sql = migrations / "202608120001_demo.sql"
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(
+                    validator.subprocess,
+                    "check_output",
+                    return_value=b"M\x00server/modules/demo/migrations/202608120001_demo.preflight.yaml\x00",
+                ),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[migrations]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(
+                entries,
+                [validator.ChangedSqlEntry("M", sql, True, True)],
+            )
+
+    def test_changed_sidecar_deletion_validates_current_sql(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+            sql = migrations / "202608120001_demo.sql"
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(
+                    validator,
+                    "git_changed_sql_entries",
+                    return_value=[validator.ChangedSqlEntry("D", sql, True, True)],
+                ),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            self.assertIn("exactly one .preflight.yaml sidecar", stderr.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

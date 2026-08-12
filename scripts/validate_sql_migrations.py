@@ -99,6 +99,7 @@ class ChangedSqlEntry:
     status: str
     path: Path
     is_current_path: bool
+    is_sidecar: bool = False
 
 
 def content_revision(path: Path) -> str:
@@ -438,8 +439,14 @@ def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> l
             index += 1
         for entry, is_current_path in candidates:
             path = root / entry
-            if entry.endswith(".sql") and path.parent in default_migration_dirs(root):
+            if path.parent not in default_migration_dirs(root):
+                continue
+            sidecar_match = MIGRATION_PRECHECK_RE.match(path.name)
+            if path.name.endswith(".sql"):
                 paths.append(ChangedSqlEntry(status, path, is_current_path))
+            elif sidecar_match:
+                sql_path = path.with_name(f"{sidecar_match.group('stem')}.sql")
+                paths.append(ChangedSqlEntry(status, sql_path, True if status.startswith("D") else is_current_path, True))
     return paths
 
 
@@ -454,6 +461,8 @@ def has_unpublished_exception(sql_path: Path) -> bool:
 def validate_historical_immutability(entries: list[ChangedSqlEntry]) -> list[Finding]:
     findings: list[Finding] = []
     for entry in entries:
+        if entry.is_sidecar:
+            continue
         if entry.status.startswith(("M", "R", "D")) and not has_unpublished_exception(entry.path):
             findings.append(Finding(entry.path, "historical live migration was modified; add a higher-version migration or governed unpublished_exception evidence"))
     return findings
