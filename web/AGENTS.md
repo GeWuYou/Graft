@@ -424,6 +424,14 @@ UI 约束：
   主检出区 follow-up，不能因此阻塞已验证的工作树 scoped commit。
 - 浏览器 QA 只允许在开发者拥有的主检出区执行，且必须先获得用户或开发者许可，并确认运行时实际服务的是待验收分支和
   HEAD；不得把其它分支、脏工作区或返回错误的服务当作证据。
+- 本地 Agent 默认不启动服务、不操作浏览器、不截图；Web/UI 改动本身不是 browser QA 的授权理由。优先运行当前
+  Vitest、路由/组件/状态测试和 `bun run check`。
+- 获授权的浏览器检查必须针对任务中已声明的浏览器专属缺陷、真实运行环境调查或明确要求的自动化路径，并复用同一
+  session/artifact；不得为普通 UI 任务重复整套交互流程。
+- 当前仓库没有正式 CI browser test 基线。未来只有已在 CI 登记、可重复、隔离环境运行且带明确断言的 browser test
+  才可由 CI 自动执行；该例外不改变本地 Agent 必须获授权的规则。
+- 浏览器截图、DOM snapshot 和 artifact 是 inspection evidence，不是 acceptance proof；仍需人工判断的视觉、可用性
+  或真实业务体验必须按根 `AGENTS.md` 的人工验收交付。
 
 前端完成态的强制校验入口是：
 

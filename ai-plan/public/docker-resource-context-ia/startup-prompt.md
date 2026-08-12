@@ -1,4 +1,5 @@
-Continue the Docker Resource Context IA topic through cross-boundary validation, browser evidence, and closeout.
+Continue the Docker Resource Context IA topic through cross-boundary automated validation, conditional browser
+inspection only when authorized, and closeout.
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
@@ -34,7 +35,8 @@ Completed batches:
 
 Current batch:
 
-- Run cross-boundary validation, collect browser evidence, and close out the topic.
+- Run cross-boundary automated validation, classify browser need, and close out the topic. Do not start browser work
+  unless it is explicitly authorized; otherwise provide the concise human acceptance contract.
 
 Validation expectations:
 
@@ -44,6 +46,6 @@ git diff --check
 
 Required closeout:
 
-- State the cross-boundary validation and browser evidence status.
+- State the cross-boundary validation, browser classification, and human acceptance status.
 - State validation run and any deliberate gaps.
 - Update topic tracking and trace before handing off.

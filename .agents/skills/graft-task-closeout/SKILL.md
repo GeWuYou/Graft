@@ -32,6 +32,8 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 3. If validation status is unclear, use `graft-validation-runner` before deciding whether a commit is allowed.
 4. For a numbered managed worktree, do not report a completed closeout while owned changes remain uncommitted. After a
    clean validated commit, invoke `graft-worktree-manager ... closeout` so later release can verify the lifecycle.
+5. Read the task's verification classification. A remaining human acceptance step does not invalidate completed
+   automated validation or a safe scoped commit, but it must be reported separately from closeout status.
 
 ## Workflow
 
@@ -66,7 +68,11 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
    - what validation was used or what exact validation gap remains
    - the `Experience capture` result, following the routing and threshold rules from `graft-lessons-learned` when the
      task produced a reusable lesson
-9. When the caller asks for machine-readable closeout, end the result with one fenced ` ```json ` block that matches the
+9. When `human_acceptance` is required, stop after automated validation and provide the minimal contract from
+   `AI代码生成与Review规范.md`: prerequisites, role, 3-7 steps with expected results, necessary negative case,
+   cleanup, and known automated-validation gaps. State `Implementation complete; automated verification passed;
+   awaiting human acceptance.` Do not start a browser merely to fill this handoff.
+10. When the caller asks for machine-readable closeout, end the result with one fenced ` ```json ` block that matches the
    closeout state and the current delegated-round budget.
 
 ## Output Contract
@@ -77,9 +83,11 @@ The closeout result should stay concise and should contain:
    `blocked`, `cancelled`, or `unsafe`; `exhausted_retry` is not a closeout status and is recorded only as batch-wave
    evidence/recovery input for the outer controller
 2. `validation`: exact command run or the exact limitation
-3. `next-step startup prompt`: only when a future turn is expected
-4. `experience capture`: `none`, `added`, `updated`, `promoted`, or `deprecated`, with the lesson/doc targets when applicable
-5. when machine-readable closeout is requested, one fenced JSON block with:
+3. `verification`: classification, browser status, and human-acceptance status
+4. `human acceptance contract`: only when human acceptance is required
+5. `next-step startup prompt`: only when a future turn is expected
+6. `experience capture`: `none`, `added`, `updated`, `promoted`, or `deprecated`, with the lesson/doc targets when applicable
+7. when machine-readable closeout is requested, one fenced JSON block with:
    - `closeout_status`
    - `continue`
    - `loop_mode`
@@ -91,6 +99,7 @@ The closeout result should stay concise and should contain:
    - `next_prompt`
    - `stop_reason`
    - `validation`
+   - `verification`
    - `commit`
    - `consumed_budget`
    - `remaining_budget`
@@ -147,6 +156,11 @@ Recommended JSON shape:
     "status": "passed | failed | not_run",
     "commands": ["..."],
     "note": "string or null"
+  },
+  "verification": {
+    "classification": "agent-only | human-acceptance-required | browser-automation-required | mixed",
+    "browser_status": "not-needed | authorized-local | ci-contract",
+    "human_acceptance": "not-required | required | awaiting_human_acceptance"
   },
   "commit": {
     "created": true,

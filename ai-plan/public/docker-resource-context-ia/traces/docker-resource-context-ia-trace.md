@@ -12,7 +12,9 @@
 - Network list projection gained sanitized container references; the old inspect-shaped detail endpoint field and its unreferenced schema were removed.
 - Web now renders Context before Relations, uses a single detail request per Drawer, moves advanced filters behind the default keyword/status controls, and keeps metadata collapsed or absent when empty.
 - Validation passed: `git diff --check`, `python3 scripts/validate_ai_plan_structure.py`, `cd server && go run ./cmd/graft validate backend`, and `cd web && bun run check`.
-- Recovery state advanced: contract, server projection, and Web implementation are complete; the topic now awaits cross-boundary validation, browser evidence, and closeout.
+- Recovery state advanced: contract, server projection, and Web implementation are complete; the topic now awaits
+  cross-boundary automated validation, verification classification, and closeout. Browser inspection is conditional on
+  explicit authorization; otherwise remaining product judgment is handed to human acceptance.
 
 ## Locked Decisions
 
@@ -34,7 +36,7 @@
     "cross-boundary-validation-and-closeout"
   ],
   "current_batch": "cross-boundary-validation-and-closeout",
-  "next_batch": "browser-evidence-and-closeout",
+  "next_batch": "verification-classification-and-closeout",
   "closeout_status": "in-progress"
 }
 ```

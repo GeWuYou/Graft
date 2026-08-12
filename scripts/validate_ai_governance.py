@@ -25,6 +25,10 @@ AI_PLAN_AGENTS = REPO_ROOT / "ai-plan" / "AGENTS.md"
 AI_PLAN_README = REPO_ROOT / "ai-plan" / "README.md"
 AI_TASK_TRACKING_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "AI任务追踪与恢复设计.md"
 WEB_BROWSER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-browser-agent" / "SKILL.md"
+VALIDATION_RUNNER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-validation-runner" / "SKILL.md"
+TASK_CLOSEOUT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-task-closeout" / "SKILL.md"
+WEB_VIBE_CODING_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-vibe-coding" / "SKILL.md"
+WEB_AGENTS = REPO_ROOT / "web" / "AGENTS.md"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
@@ -628,6 +632,14 @@ def validate_openapi_worktree_governance() -> list[Finding]:
             ),
         ),
         (
+            AI_TOOLING_DOC,
+            (
+                "自动验证、浏览器检查与人工验收的责任边界",
+                "scripts/validate_ai_governance.py",
+                "browser evidence 写成默认 closeout gate",
+            ),
+        ),
+        (
             WORKTREE_MANAGER_SKILL,
             (
                 "OpenAPI source and its deterministic generated artifacts",
@@ -1033,6 +1045,100 @@ def validate_backend_guardrail_governance() -> list[Finding]:
     return findings
 
 
+def validate_verification_responsibility_governance() -> list[Finding]:
+    """Keep automated verification, browser inspection, and human acceptance distinct."""
+    findings: list[Finding] = []
+    checks = (
+        (
+            AGENTS,
+            (
+                "### 10.5 Verification Responsibility Boundary",
+                "`agent-only`",
+                "`human-acceptance-required`",
+                "`browser-automation-required`",
+                "`mixed`",
+                "awaiting human acceptance",
+                "Local browser interaction is opt-in",
+            ),
+        ),
+        (
+            AI_CODE_REVIEW_DOC,
+            (
+                "## 6. 验证责任与人工验收",
+                "`agent-only`",
+                "`human-acceptance-required`",
+                "`browser-automation-required`",
+                "`mixed`",
+                "最小人工验收契约",
+                "`awaiting_human_acceptance`",
+            ),
+        ),
+        (
+            WEB_AGENTS,
+            (
+                "本地 Agent 默认不启动服务、不操作浏览器、不截图",
+                "当前仓库没有正式 CI browser test 基线",
+                "inspection evidence，不是 acceptance proof",
+            ),
+        ),
+        (
+            VALIDATION_RUNNER_SKILL,
+            (
+                "Record the verification classification",
+                "`agent-only`, `human-acceptance-required`, `browser-automation-required`, or `mixed`",
+                "`browser_status`",
+                "human_acceptance: awaiting_human_acceptance",
+            ),
+        ),
+        (
+            TASK_CLOSEOUT_SKILL,
+            (
+                "human acceptance contract",
+                "Implementation complete; automated verification passed;",
+                "awaiting human acceptance.",
+                "`verification`",
+            ),
+        ),
+        (
+            WEB_BROWSER_SKILL,
+            (
+                "verification classification",
+                "task-local user or developer authorization",
+                "Do not use this skill to replace an outstanding human acceptance flow",
+            ),
+        ),
+        (
+            WEB_VIBE_CODING_SKILL,
+            (
+                "verification classification is recorded",
+                "minimal human acceptance contract",
+            ),
+        ),
+    )
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "verification responsibility governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "verification responsibility", terms))
+
+    active_topic = REPO_ROOT / "ai-plan" / "public" / "docker-resource-context-ia"
+    active_files = (
+        active_topic / "README.md",
+        active_topic / "startup-prompt.md",
+        active_topic / "todos" / "docker-resource-context-ia-tracking.md",
+        active_topic / "traces" / "docker-resource-context-ia-trace.md",
+    )
+    for path in active_files:
+        if not path.is_file():
+            findings.append(Finding(path, "active verification-boundary recovery file is missing"))
+            continue
+        text = read_text(path)
+        if "browser evidence and closeout" in text:
+            findings.append(Finding(path, "active recovery must not make browser evidence an unconditional closeout gate"))
+
+    return findings
+
+
 def validate_shared_asset_governance() -> list[Finding]:
     """
     验证共享资产治理文档、注册表和验证器脚本。
@@ -1161,6 +1267,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_commit_completion_governance())
     findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())
+    findings.extend(validate_verification_responsibility_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))
     findings.extend(validate_no_personal_skill_refs(tracked))

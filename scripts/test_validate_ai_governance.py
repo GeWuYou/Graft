@@ -360,6 +360,45 @@ class BackendGuardrailGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_backend_guardrail_governance(), [])
 
 
+class VerificationResponsibilityGovernanceTests(unittest.TestCase):
+    def test_verification_responsibility_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_verification_responsibility_governance(), [])
+
+    def test_verification_responsibility_rejects_default_browser_gate(self) -> None:
+        target = MODULE.WEB_AGENTS
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace(
+            "本地 Agent 默认不启动服务、不操作浏览器、不截图",
+            "本地 Agent 默认启动服务并执行浏览器截图",
+            1,
+        )
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_verification_responsibility_governance()
+
+        self.assertTrue(any(finding.path == target for finding in findings))
+
+    def test_verification_responsibility_rejects_missing_human_acceptance_status(self) -> None:
+        target = MODULE.AI_CODE_REVIEW_DOC
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace("`awaiting_human_acceptance`", "`accepted`", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_verification_responsibility_governance()
+
+        self.assertTrue(any(finding.path == target for finding in findings))
+
+
 class HeadroomGovernanceTests(unittest.TestCase):
     def test_detects_headroom_rtk_injection_block(self) -> None:
         text = "<!-- headroom:rtk-instructions -->\ncontent\n<!-- /headroom:rtk-instructions -->\n"
