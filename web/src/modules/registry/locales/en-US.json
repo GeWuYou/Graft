@@ -59,7 +59,8 @@
         "failed": "Verification Failed",
         "unknown": "Not Verified"
       },
-      "verifyResult": "Connection test: {status}",
+      "verifySuccess": "Connection test succeeded. The connection is available.",
+      "verifyFailed": "Connection test failed. Check the connection configuration and try again.",
       "deleteConfirm": "Delete this Registry connection? Linked repository paths will prevent deletion.",
       "repositoryDeleteConfirm": "Delete repository path {repository}?",
       "revokeAssignmentConfirm": "Revoke repository access for user {userId}?"

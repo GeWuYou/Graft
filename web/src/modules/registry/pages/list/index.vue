@@ -194,6 +194,7 @@
 <script setup lang="ts">
 // Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
 import type { PageInfo, TableProps } from 'tdesign-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -300,7 +301,7 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'credential', title: t('registry.list.columns.credential'), width: 120 },
   { colKey: 'status', title: t('registry.list.columns.status'), width: 130 },
   { colKey: 'verified', title: t('registry.list.columns.verified'), minWidth: 170 },
-  createActionColumn(t('registry.list.columns.actions'), 160),
+  createActionColumn(t('registry.list.columns.actions'), 160, 'center', 'actions'),
 ]);
 const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'repository_ref', title: t('registry.list.form.repositoryRef'), minWidth: 220 },
@@ -451,10 +452,16 @@ async function verify(connectionRef: string) {
   verifying.value = connectionRef;
   try {
     const result = await verifyRegistry(connectionRef);
-    errorMessage.value = t('registry.list.verifyResult', { status: result.status });
+    if (result.status === 'verified') {
+      MessagePlugin.success(t('registry.list.verifySuccess'));
+    } else {
+      MessagePlugin.error(t('registry.list.verifyFailed'));
+    }
     await load();
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    const message = resolveLocalizedErrorMessage(t, error, t('registry.list.verifyFailed'));
+    errorMessage.value = message;
+    MessagePlugin.error(message);
   } finally {
     verifying.value = '';
   }

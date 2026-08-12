@@ -59,7 +59,8 @@
         "failed": "验证失败",
         "unknown": "未验证"
       },
-      "verifyResult": "连接测试：{status}",
+      "verifySuccess": "连接测试成功，连接已可用",
+      "verifyFailed": "连接测试失败，请检查连接配置后重试",
       "deleteConfirm": "删除此 Registry 连接？已关联的仓库路径会阻止删除。",
       "repositoryDeleteConfirm": "删除仓库路径 {repository}？",
       "revokeAssignmentConfirm": "撤销用户 {userId} 的仓库使用授权？"

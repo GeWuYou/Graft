@@ -9,6 +9,19 @@ const apiMocks = vi.hoisted(() => ({
   getRegistries: vi.fn(),
   verifyRegistry: vi.fn(),
 }));
+const messageMocks = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
+}));
+const managementMocks = vi.hoisted(() => ({
+  createActionColumn: vi.fn((title: string, width: number, align = 'center', colKey = 'operation') => ({
+    align,
+    colKey,
+    fixed: 'right',
+    title,
+    width,
+  })),
+}));
 
 vi.mock('../../api/registry', () => ({
   createRegistry: vi.fn(),
@@ -24,8 +37,9 @@ vi.mock('../../api/registry', () => ({
   updateRegistryRepository: vi.fn(),
   verifyRegistry: apiMocks.verifyRegistry,
 }));
+vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
 vi.mock('@/shared/components/management', () => ({
-  createActionColumn: (title: string, width: number) => ({ colKey: 'actions', fixed: 'right', title, width }),
+  createActionColumn: managementMocks.createActionColumn,
   ManagementPageContent: defineComponent({
     name: 'ManagementPageContent',
     setup(_props, { slots }) {
@@ -84,12 +98,11 @@ vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
         h('div', [
           slots.feedback?.(),
           slots.toolbar?.(),
-          ...(props.rows as Array<Record<string, unknown>>).flatMap((row) => [
-            slots.credential?.({ row }),
-            slots.status?.({ row }),
-            slots.verified?.({ row }),
-            slots.actions?.({ row }),
-          ]),
+          ...(props.rows as Array<Record<string, unknown>>).flatMap((row) =>
+            (props.columns as Array<{ colKey?: string }>).flatMap(({ colKey }) =>
+              colKey ? slots[colKey]?.({ row }) : [],
+            ),
+          ),
           slots['empty-action']?.(),
         ]);
     },
@@ -180,6 +193,31 @@ describe('RegistryListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.getRegistries.mockResolvedValue({ items: [], total: 0 });
+  });
+
+  it('shows a success message after a verified connection test', async () => {
+    apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
+    apiMocks.verifyRegistry.mockResolvedValue({ status: 'verified' });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
+    await flushPromises();
+
+    expect(messageMocks.success).toHaveBeenCalledWith('registry.list.verifySuccess');
+    expect(messageMocks.error).not.toHaveBeenCalled();
+  });
+
+  it('shows an error message when a connection test reports failure', async () => {
+    apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
+    apiMocks.verifyRegistry.mockResolvedValue({ status: 'failed' });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
+    await flushPromises();
+
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.verifyFailed');
   });
 
   it('opens the Connection create drawer from the management action', async () => {
@@ -288,6 +326,12 @@ describe('RegistryListPage', () => {
     expect(pagedTable.props('footerSummary')).toBe('registry.list.summary');
     expect(pagedTable.props('columns')).toEqual(
       expect.arrayContaining([expect.objectContaining({ colKey: 'actions' })]),
+    );
+    expect(managementMocks.createActionColumn).toHaveBeenCalledWith(
+      'registry.list.columns.actions',
+      160,
+      'center',
+      'actions',
     );
     expect(wrapper.findComponent({ name: 'TableActionMenu' }).props('actions')).toEqual([
       expect.objectContaining({ value: 'edit' }),
