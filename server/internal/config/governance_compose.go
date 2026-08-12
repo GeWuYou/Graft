@@ -157,14 +157,48 @@ func validateRuntimeFields(service composeService, rule ComposeServiceRule) []st
 func nodeHasKey(node yaml.Node, key string) bool {
 	node = unwrapNode(node)
 	if node.Kind == yaml.MappingNode {
-		for index := 0; index+1 < len(node.Content); index += 2 {
-			if node.Content[index].Value == key {
+		return mappingNodeHasKey(node, key, 0)
+	}
+	return nodeHasValue(node, key) || nodeHasValue(node, key+"=")
+}
+
+const composeMergeKey = "<<"
+
+// composeMergeMaxDepth 限制 YAML merge 展开深度，避免异常 alias 结构让配置校验递归失控。
+const composeMergeMaxDepth = 16
+
+func mappingNodeHasKey(node yaml.Node, key string, depth int) bool {
+	if depth > composeMergeMaxDepth {
+		return false
+	}
+	for index := 0; index+1 < len(node.Content); index += 2 {
+		if node.Content[index].Value == key {
+			return true
+		}
+		if node.Content[index].Value == composeMergeKey && mergeNodeHasKey(*node.Content[index+1], key, depth+1) {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeNodeHasKey(node yaml.Node, key string, depth int) bool {
+	if depth > composeMergeMaxDepth {
+		return false
+	}
+	node = unwrapNode(node)
+	if node.Kind == yaml.AliasNode && node.Alias != nil {
+		return mergeNodeHasKey(*node.Alias, key, depth+1)
+	}
+	if node.Kind == yaml.SequenceNode {
+		for _, child := range node.Content {
+			if mergeNodeHasKey(*child, key, depth+1) {
 				return true
 			}
 		}
 		return false
 	}
-	return nodeHasValue(node, key) || nodeHasValue(node, key+"=")
+	return node.Kind == yaml.MappingNode && mappingNodeHasKey(node, key, depth+1)
 }
 
 func nodeHasValue(node yaml.Node, expected string) bool {
