@@ -599,6 +599,35 @@ README, skills, tracking docs, and CI workflows may point to repository entrypoi
 they must not redefine validation order, acceptance criteria, or local-vs-CI environment rules into a second source of
 truth. When wording diverges, root `AGENTS.md` plus the repository entrypoints it names win.
 
+### 10.5 Verification Responsibility Boundary
+
+Before implementation, classify verification responsibility as one of:
+
+- `agent-only`
+  - automated checks can directly establish the requested behavior; no human product judgment remains
+- `human-acceptance-required`
+  - implementation has automated coverage, but product, visual, usability, or real-user judgment remains
+- `browser-automation-required`
+  - an approved browser-specific defect or an existing CI browser-test contract requires browser execution
+- `mixed`
+  - automated checks establish objective behavior and a short human acceptance flow remains
+
+Agents must run the smallest sufficient automated validation first. Use static checks, focused tests, repository
+completion entrypoints, contract freshness, migration validation, and API/HTTP checks according to the changed scope.
+Do not infer that a UI task requires local browser interaction: existing component, route, state, and Vitest coverage
+remain agent-owned automated validation.
+
+Human acceptance owns product judgment that current automation cannot reliably decide, including visual quality,
+real-user ergonomics, multi-step business experience, role-switching experience, and environment-dependent behavior.
+When that judgment remains, the agent may complete and commit the validated owned scope under the normal git rules, but
+must report `Implementation complete; automated verification passed; awaiting human acceptance.` rather than claiming
+final acceptance.
+
+Local browser interaction is opt-in: it requires a task-local user or developer authorization and the applicable
+`web/AGENTS.md` primary-checkout safeguards. A future browser test registered in CI may run there as part of its CI
+contract; this does not authorize local agent browser interaction. Screenshots and browser artifacts are inspection
+evidence, never standalone acceptance proof.
+
 ## 11. Git Workflow Rules
 
 For repository work:

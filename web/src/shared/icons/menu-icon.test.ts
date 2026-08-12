@@ -4,6 +4,7 @@ import downloadCloud from '@iconify-icons/lucide/download-cloud';
 import hammer from '@iconify-icons/lucide/hammer';
 import hardDrive from '@iconify-icons/lucide/hard-drive';
 import imageIcon from '@iconify-icons/lucide/image';
+import packageOpen from '@iconify-icons/lucide/package-open';
 import waypoints from '@iconify-icons/lucide/waypoints';
 import wrench from '@iconify-icons/lucide/wrench';
 import docker from '@iconify-icons/tabler/brand-docker';
@@ -22,6 +23,11 @@ describe('resolveMenuIcon', () => {
 
   it('uses an artifact icon for image menus', () => {
     expect(resolveMenuIcon('image-artifact')).toEqual(imageIcon);
+  });
+
+  it('uses an open package icon for image registries', () => {
+    expect(resolveMenuIcon('image-registry')).toEqual(packageOpen);
+    expect(resolveMenuIcon('image-registry')).not.toEqual(resolveMenuIcon('image-artifact'));
   });
 
   it('uses a persistent-storage icon for volume menus', () => {
@@ -80,6 +86,7 @@ describe('resolveMenuIcon', () => {
       'docker-provider',
       'container-workload',
       'image-artifact',
+      'image-registry',
       'persistent-volume',
       'network-resource',
       'observability-overview',

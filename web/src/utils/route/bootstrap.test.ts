@@ -152,6 +152,50 @@ describe('bootstrap navigation graph', () => {
     expect(routes[1]?.name).toBe('DockerImageList');
   });
 
+  it('places shared image registries before runtime targets without creating a section route', () => {
+    const navigation = buildBootstrapNavigationTree([
+      {
+        code: 'domain.infrastructure',
+        kind: 'group',
+        order: 20,
+        title: 'Infrastructure',
+        icon: 'infrastructure-domain',
+        permission: '',
+      },
+      {
+        code: 'registry.list',
+        parent_code: 'domain.infrastructure',
+        kind: 'entry',
+        order: 30,
+        title: '',
+        title_key: 'menu.registries.title',
+        section_key: 'shared-resources',
+        section_title_key: 'menu.section.shared_resources',
+        path: '/infrastructure/registries',
+        icon: 'image-registry',
+        permission: 'registry.read',
+      },
+      {
+        code: 'runtime-target.list',
+        parent_code: 'domain.infrastructure',
+        kind: 'entry',
+        order: 40,
+        title: 'Runtime Targets',
+        title_key: 'menu.runtimeTargets.title',
+        path: '/infrastructure/runtime-targets',
+        icon: 'runtime-target',
+        permission: 'runtime_target.view',
+      },
+    ]);
+
+    expect(navigation[0]?.children?.map((item) => item.path)).toEqual(['registry.list', 'runtime-target.list']);
+    expect(navigation[0]?.children?.[0]?.meta?.navigationSection).toEqual({
+      key: 'shared-resources',
+      title: { 'zh-CN': '共享资源', 'en-US': 'Shared Resources' },
+    });
+    expect(navigation[0]?.children?.[0]?.meta?.navigationTargetPath).toBe('/infrastructure/registries');
+  });
+
   it('builds visible navigation by explicit parent code and prunes empty groups', () => {
     const navigation = buildBootstrapNavigationTree(graph.map((item) => ({ ...item })));
     expect(navigation).toHaveLength(1);

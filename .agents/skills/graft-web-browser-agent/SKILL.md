@@ -11,6 +11,11 @@ Use this skill to give Codex an eyes-on-browser loop for Graft `web` work. It is
 
 Follow root `AGENTS.md` startup governance before using this skill. For frontend implementation tasks, also follow `web/AGENTS.md` and `graft-web-vibe-coding`; this skill only adds browser inspection capability after the normal frontend authority and design rules are in force.
 
+Before entering this skill, record the task's verification classification. Local browser use is not the default for UI
+work: use it only after a task-local user or developer authorization for an explicit browser request, a browser-only
+defect, or a real-browser environment investigation. Existing CI browser tests may be automated in CI, but never grant
+local browser authority. Do not use this skill to replace an outstanding human acceptance flow.
+
 Browser QA is a developer-owned primary-checkout activity. Do not use this skill from a numbered agent worktree, and
 do not start services, invoke Playwright, capture screenshots, or run browser interactions there. Before browser
 interaction, obtain user or developer approval, first confirm the runtime identity, and then confirm it serves the
@@ -26,7 +31,8 @@ turn the stable path into a `browser_agent.py` command so the final evidence is 
 
 ## Workflow
 
-1. From the approved developer-owned primary checkout, confirm the local web app is already running.
+1. Confirm the explicit local authorization and target browser-only question, then from the approved developer-owned
+   primary checkout confirm the local web app is already running.
    - Default local targets are backend `127.0.0.1:8080` through the Vite proxy and frontend `http://172.21.235.129:3002`.
    - If those ports are occupied, verify that the process serves the branch and HEAD under review; do not start or use
      an unrelated runtime as evidence.
@@ -42,7 +48,7 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://localhost:5173 \
+  --url http://172.21.235.129:3002 \
   --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session ui-inspection \
   --screenshot \
@@ -74,7 +80,7 @@ or commit credential values, access tokens, or session storage dumps.
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://localhost:5173/audit/logs \
+  --url http://172.21.235.129:3002/audit/logs \
   --session audit-filter-check \
   --click "text=Filter" \
   --fill "input[placeholder='Keyword']=admin" \
@@ -83,6 +89,7 @@ or commit credential values, access tokens, or session storage dumps.
 ```
 
 6. Use the browser evidence to guide fixes, then run the normal repository validation required by the changed scope.
+   Stop after the focused question is resolved; do not repeat unrelated interaction flows for generic UI confidence.
 
 ## Playwright MCP Fast Path
 

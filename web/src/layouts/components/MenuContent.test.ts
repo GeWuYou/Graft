@@ -91,6 +91,58 @@ describe('MenuContent', () => {
     expect(wrapper.find('[data-menu-value="runtime"]').exists()).toBe(false);
   });
 
+  it('renders shared resources before runtime targets without making either section clickable', () => {
+    const wrapper = mount(MenuContent, {
+      props: {
+        showSections: true,
+        navData: [
+          {
+            path: '/infrastructure/registries',
+            meta: {
+              orderNo: 30,
+              title: { 'zh-CN': '镜像仓库', 'en-US': 'Image Registries' },
+              navigationSection: {
+                key: 'shared-resources',
+                title: { 'zh-CN': '共享资源', 'en-US': 'Shared Resources' },
+              },
+            },
+          },
+          {
+            path: '/infrastructure/runtime-targets',
+            meta: {
+              orderNo: 40,
+              title: { 'zh-CN': '运行目标', 'en-US': 'Runtime Targets' },
+            },
+          },
+          {
+            path: '/infrastructure/docker/containers',
+            meta: {
+              orderNo: 50,
+              title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
+              navigationSection: {
+                key: 'runtime',
+                title: { 'zh-CN': '运行时', 'en-US': 'Runtime' },
+              },
+            },
+          },
+        ],
+      },
+      global: {
+        stubs: {
+          't-menu-item': createMenuItemStub(),
+          't-icon': defineComponent({ setup: () => () => h('i') }),
+        },
+      },
+    });
+
+    expect(wrapper.findAll('.graft-menu-section-label').map((label) => label.text())).toEqual(['共享资源', '运行时']);
+    expect(wrapper.findAll('button').map((button) => button.attributes('data-menu-value'))).toEqual([
+      '/infrastructure/registries',
+      '/infrastructure/runtime-targets',
+      '/infrastructure/docker/containers',
+    ]);
+  });
+
   it('does not render sidebar section labels outside the side navigation', () => {
     const wrapper = mount(MenuContent, {
       props: {

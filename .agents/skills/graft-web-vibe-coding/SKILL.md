@@ -129,5 +129,9 @@ Before handing off:
 - i18n ownership is correct
 - token/theme response is intact
 - no second UI baseline was introduced
+- verification classification is recorded; browser interaction is not started unless `web/AGENTS.md` permits it and
+  task-local authorization exists
+- when visual or product judgment remains, hand off the minimal human acceptance contract instead of treating a
+  screenshot as final acceptance
 - reusable-lesson evaluation is completed through `graft-task-closeout`, or explicitly delegated to
   `graft-lessons-learned` when this skill owns a self-contained closeout

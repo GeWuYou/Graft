@@ -30,6 +30,10 @@ const (
 
 	// RuntimeSectionKey 是仅影响侧边栏展示的运行时分区键。
 	RuntimeSectionKey = "runtime"
+	// SharedResourcesSectionKey 是仅影响侧边栏展示的共享资源分区键。
+	SharedResourcesSectionKey = "shared-resources"
+	// SharedResourcesSectionTitleKey 是共享资源分区标题的本地化键。
+	SharedResourcesSectionTitleKey = "menu.section.shared_resources"
 	// AccessControlSectionKey 是仅影响侧边栏展示的访问控制分区键。
 	AccessControlSectionKey = "access-control"
 	// AccessControlSectionTitleKey 是访问控制分区标题的本地化键。

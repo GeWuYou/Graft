@@ -124,6 +124,30 @@ jobs:
           path: /tmp/contract-governance-report.json
           if-no-files-found: ignore
 
+  ai-governance-check:
+    name: AI Governance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Install AI governance dependencies
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+
+      - name: Validate AI governance
+        run: python3 scripts/validate_ai_governance.py
+
+      - name: Run AI governance validator tests
+        run: python3 -m unittest scripts/test_validate_ai_governance.py
+
   web-check:
     name: Web Check
     runs-on: ubuntu-latest

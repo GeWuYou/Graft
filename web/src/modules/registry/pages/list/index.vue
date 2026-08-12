@@ -1,63 +1,86 @@
 <template>
-  <section class="registry-page">
-    <header class="registry-page__header">
-      <div>
-        <h1>{{ t('registry.list.title') }}</h1>
-        <p>{{ t('registry.list.description') }}</p>
-      </div>
-      <t-button theme="primary" @click="openCreate">{{ t('registry.list.add') }}</t-button>
-    </header>
+  <section class="registry-page" data-page-type="list-form-detail">
+    <management-page-content>
+      <management-page-header
+        title-key="menu.registries.title"
+        :description="t('registry.list.description')"
+        description-key="registry.list.description"
+        :source="{ labelKey: 'menu.section.shared_resources', fallback: t('menu.section.shared_resources') }"
+      >
+        <template #actions>
+          <t-button data-testid="registry-create" theme="primary" @click="openCreate">{{
+            t('registry.list.add')
+          }}</t-button>
+        </template>
+      </management-page-header>
 
-    <div class="registry-page__toolbar">
-      <t-input
-        v-model="search"
-        clearable
-        :placeholder="t('registry.list.search')"
-        @clear="clearSearch"
-        @enter="searchRegistries"
+      <resource-query-panel
+        v-model="resourceQueryState"
+        :config="queryConfig"
+        :loading="loading"
+        @reset="resetQuery"
+        @search="applyQuery"
       />
-      <t-button variant="outline" @click="load">{{ t('registry.list.refresh') }}</t-button>
-    </div>
-    <t-alert v-if="errorMessage" theme="error" :message="errorMessage" />
-    <t-table row-key="connection_ref" :data="items" :columns="columns" :loading="loading">
-      <template #credential="{ row }">
-        <t-tag :theme="row.credential_configured ? 'success' : 'default'" variant="light">
-          {{
-            row.credential_configured
-              ? t('registry.list.credential.configured')
-              : t('registry.list.credential.anonymous')
-          }}
-        </t-tag>
-      </template>
-      <template #status="{ row }">
-        <t-tag :theme="row.availability ? 'success' : 'warning'" variant="light">
-          {{ registryStatusLabel(row) }}
-        </t-tag>
-      </template>
-      <template #verified="{ row }">{{ formatLocaleDateTime(row.last_verified_at, locale) || '-' }}</template>
-      <template #actions="{ row }">
-        <t-space size="small">
-          <t-button theme="primary" variant="text" @click="openEdit(row)">{{ t('registry.list.edit') }}</t-button>
-          <t-button
-            theme="primary"
-            variant="text"
-            :loading="verifying === row.connection_ref"
-            @click="verify(row.connection_ref)"
-            >{{ t('registry.list.verify') }}</t-button
-          >
-          <t-popconfirm :content="t('registry.list.deleteConfirm')" @confirm="remove(row.connection_ref)">
-            <t-button theme="danger" variant="text">{{ t('registry.list.delete') }}</t-button>
-          </t-popconfirm>
-        </t-space>
-      </template>
-      <template #empty><t-empty :description="t('registry.list.empty')" /></template>
-    </t-table>
-    <t-pagination
-      v-model:current="pagination.current"
-      v-model:page-size="pagination.pageSize"
-      :page-size-options="[10, 20, 50, 100]"
-      :total="total"
-      @change="handlePageChange"
+
+      <management-paged-table
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        :columns="columns"
+        :empty-description="
+          t(resourceQueryState.keyword ? 'registry.list.filteredEmptyDescription' : 'registry.list.emptyDescription')
+        "
+        :empty-title="t(resourceQueryState.keyword ? 'registry.list.filteredEmpty' : 'registry.list.empty')"
+        :footer-summary="t('registry.list.summary', { count: total })"
+        :loading="loading"
+        :rows="items"
+        :total="total"
+        row-key="connection_ref"
+        :pagination-props="{ showPageNumber: true }"
+        @page-change="handlePageChange"
+      >
+        <template #feedback><t-alert v-if="errorMessage" theme="error" :message="errorMessage" /></template>
+        <template #toolbar>
+          <table-view-toolbar :refresh-label="t('registry.list.refresh')" :refresh-loading="loading" @refresh="load" />
+        </template>
+        <template #credential="{ row }">
+          <t-tag :theme="row.credential_configured ? 'success' : 'default'" variant="light">
+            {{
+              row.credential_configured
+                ? t('registry.list.credential.configured')
+                : t('registry.list.credential.anonymous')
+            }}
+          </t-tag>
+        </template>
+        <template #status="{ row }">
+          <t-tag :theme="row.availability ? 'success' : 'warning'" variant="light">
+            {{ registryStatusLabel(row) }}
+          </t-tag>
+        </template>
+        <template #verified="{ row }">{{ formatLocaleDateTime(row.last_verified_at, locale) || '-' }}</template>
+        <template #actions="{ row }">
+          <table-action-menu
+            :actions="registryRowActions(row)"
+            :more-label="t('registry.list.more')"
+            :more-label-fallback="t('registry.list.more')"
+            @action="handleRegistryRowAction($event, row)"
+          />
+        </template>
+        <template #empty-action>
+          <t-button v-if="resourceQueryState.keyword" variant="outline" @click="resetQuery(resourceQueryState)">
+            {{ t('registry.list.clearSearch') }}
+          </t-button>
+        </template>
+      </management-paged-table>
+    </management-page-content>
+
+    <t-dialog
+      v-model:visible="deleteDialogVisible"
+      theme="danger"
+      :header="t('registry.list.delete')"
+      :body="t('registry.list.deleteConfirm')"
+      :cancel-btn="t('registry.list.cancel')"
+      :confirm-btn="{ content: t('registry.list.delete'), theme: 'danger', loading: deleting }"
+      @confirm="confirmRemove"
     />
 
     <t-drawer
@@ -99,18 +122,40 @@
           :loading="repositoryLoading"
         >
           <template #repositoryActions="{ row }">
-            <t-button theme="primary" variant="text" @click="openEditRepository(row)">
-              {{ t('registry.list.edit') }}
-            </t-button>
-            <t-button theme="primary" variant="text" @click="openAssignments(row.repository_ref)">
-              {{ t('registry.list.assignments') }}
-            </t-button>
-            <t-popconfirm
-              :content="t('registry.list.repositoryDeleteConfirm', { repository: row.repository_ref })"
-              @confirm="removeRepository(row.repository_ref)"
-            >
-              <t-button theme="danger" variant="text">{{ t('registry.list.delete') }}</t-button>
-            </t-popconfirm>
+            <t-space class="registry-repository-actions" size="small">
+              <t-button size="small" theme="default" variant="outline" @click="openEditRepository(row)">
+                {{ t('registry.list.edit') }}
+              </t-button>
+              <t-button size="small" theme="default" variant="outline" @click="openAssignments(row.repository_ref)">
+                {{ t('registry.list.assignments') }}
+              </t-button>
+              <t-dropdown placement="bottom-right" trigger="click">
+                <t-tooltip :content="t('registry.list.more')">
+                  <t-button
+                    :aria-label="t('registry.list.more')"
+                    shape="square"
+                    size="small"
+                    theme="default"
+                    variant="outline"
+                  >
+                    <template #icon><ellipsis-icon /></template>
+                  </t-button>
+                </t-tooltip>
+                <t-dropdown-menu>
+                  <t-dropdown-item @click="openEditRepository(row)">{{ t('registry.list.edit') }}</t-dropdown-item>
+                  <t-dropdown-item @click="openAssignments(row.repository_ref)">
+                    {{ t('registry.list.assignments') }}
+                  </t-dropdown-item>
+                  <t-popconfirm
+                    theme="danger"
+                    :content="t('registry.list.repositoryDeleteConfirm', { repository: row.repository_ref })"
+                    @confirm="removeRepository(row.repository_ref)"
+                  >
+                    <t-dropdown-item theme="error">{{ t('registry.list.delete') }}</t-dropdown-item>
+                  </t-popconfirm>
+                </t-dropdown-menu>
+              </t-dropdown>
+            </t-space>
           </template>
         </t-table>
       </section>
@@ -170,11 +215,22 @@
 </template>
 <script setup lang="ts">
 // Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
+import { EllipsisIcon } from 'tdesign-icons-vue-next';
 import type { PageInfo, TableProps } from 'tdesign-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { components } from '@/contracts/openapi/generated/schema';
+import {
+  createActionColumn,
+  ManagementPageContent,
+  ManagementPageHeader,
+  TableActionMenu,
+  TableViewToolbar,
+} from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -201,14 +257,15 @@ const { locale, t } = useI18n();
 const items = ref<RegistryConnection[]>([]);
 const repositories = ref<RegistryRepository[]>([]);
 const assignments = ref<RegistryAssignment[]>([]);
-const search = ref('');
 const pagination = ref({ current: 1, pageSize: 20 });
+const search = ref('');
 const total = ref(0);
 const loading = ref(false);
 const repositoryLoading = ref(false);
 const saving = ref(false);
 const repositorySaving = ref(false);
 const verifying = ref('');
+const deleting = ref(false);
 const errorMessage = ref('');
 const drawerVisible = ref(false);
 const repositoryDrawerVisible = ref(false);
@@ -216,6 +273,8 @@ const assignmentDrawerVisible = ref(false);
 const editingRef = ref('');
 const assignmentRepositoryRef = ref('');
 const editingRepositoryRef = ref('');
+const deleteDialogVisible = ref(false);
+const deleteTargetRef = ref('');
 const form = ref({
   connection_ref: '',
   display_name: '',
@@ -239,6 +298,25 @@ const rules = computed(() => ({
   display_name: [{ required: true, message: t('registry.list.form.displayName') }],
   endpoint: [{ required: true, message: t('registry.list.form.endpoint') }],
 }));
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'registry.list',
+  search: true,
+  filterBuilder: { enabled: false },
+  placeholder: t('registry.list.search'),
+}));
+const resourceQueryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: search.value,
+    filters: {},
+    page: pagination.value.current,
+    pageSize: pagination.value.pageSize,
+  }),
+  set: (value) => {
+    search.value = value.keyword;
+    pagination.value.current = value.page;
+    pagination.value.pageSize = value.pageSize;
+  },
+});
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'display_name', title: t('registry.list.columns.name'), minWidth: 160 },
   { colKey: 'provider', title: t('registry.list.columns.type'), width: 130 },
@@ -246,12 +324,12 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'credential', title: t('registry.list.columns.credential'), width: 120 },
   { colKey: 'status', title: t('registry.list.columns.status'), width: 130 },
   { colKey: 'verified', title: t('registry.list.columns.verified'), minWidth: 170 },
-  { colKey: 'actions', title: t('registry.list.columns.actions'), width: 230, fixed: 'right' },
+  createActionColumn(t('registry.list.columns.actions'), 160, 'center', 'actions'),
 ]);
 const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'repository_ref', title: t('registry.list.form.repositoryRef'), minWidth: 220 },
   { colKey: 'display_name', title: t('registry.list.form.repositoryName'), minWidth: 160 },
-  { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 240 },
+  { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 264 },
 ]);
 const assignmentColumns = computed<TableProps['columns']>(() => [
   { colKey: 'user_id', title: t('registry.list.form.userId'), width: 120 },
@@ -289,13 +367,15 @@ async function load() {
     }
   }
 }
-function searchRegistries() {
+function applyQuery(value: ResourceQueryState) {
+  resourceQueryState.value = value;
   pagination.value.current = 1;
   void load();
 }
-function clearSearch() {
-  search.value = '';
-  searchRegistries();
+function resetQuery(value: ResourceQueryState) {
+  resourceQueryState.value = value;
+  pagination.value.current = 1;
+  void load();
 }
 function handlePageChange(pageInfo: PageInfo) {
   pagination.value.current = pageInfo.current;
@@ -317,6 +397,31 @@ function registryStatusLabel(row: RegistryConnection) {
   }
 
   return t('registry.list.status.unknown');
+}
+function registryRowActions(row: RegistryConnection) {
+  return [
+    { label: t('registry.list.edit'), value: 'edit' },
+    {
+      disabled: verifying.value === row.connection_ref,
+      label: t('registry.list.verify'),
+      value: 'verify',
+    },
+    { danger: true, label: t('registry.list.delete'), value: 'delete' },
+  ];
+}
+function handleRegistryRowAction(action: string, row: RegistryConnection) {
+  if (action === 'edit') {
+    void openEdit(row);
+    return;
+  }
+  if (action === 'verify') {
+    void verify(row.connection_ref);
+    return;
+  }
+  if (action === 'delete') {
+    deleteTargetRef.value = row.connection_ref;
+    deleteDialogVisible.value = true;
+  }
 }
 function openCreate() {
   editingRef.value = '';
@@ -370,20 +475,32 @@ async function verify(connectionRef: string) {
   verifying.value = connectionRef;
   try {
     const result = await verifyRegistry(connectionRef);
-    errorMessage.value = t('registry.list.verifyResult', { status: result.status });
+    if (result.status === 'verified') {
+      MessagePlugin.success(t('registry.list.verifySuccess'));
+    } else {
+      MessagePlugin.error(t('registry.list.verifyFailed'));
+    }
     await load();
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    const message = resolveLocalizedErrorMessage(t, error, t('registry.list.verifyFailed'));
+    errorMessage.value = message;
+    MessagePlugin.error(message);
   } finally {
     verifying.value = '';
   }
 }
-async function remove(connectionRef: string) {
+async function confirmRemove() {
+  if (!deleteTargetRef.value) return;
+  deleting.value = true;
   try {
-    await deleteRegistry(connectionRef);
+    await deleteRegistry(deleteTargetRef.value);
+    deleteDialogVisible.value = false;
+    deleteTargetRef.value = '';
     await load();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+  } finally {
+    deleting.value = false;
   }
 }
 async function loadRepositories() {
@@ -502,12 +619,9 @@ async function revokeAssignment(userId: number) {
 </script>
 <style scoped lang="less">
 .registry-page {
-  display: grid;
-  gap: var(--graft-density-gap-16);
+  min-width: 0;
 }
 
-.registry-page__header,
-.registry-page__toolbar,
 .registry-repositories__header {
   align-items: center;
   display: flex;
@@ -515,23 +629,17 @@ async function revokeAssignment(userId: number) {
   justify-content: space-between;
 }
 
-.registry-page__header h1,
 .registry-repositories h2 {
   margin: 0;
-}
-
-.registry-page__header p {
-  color: var(--td-text-color-secondary);
-  margin: var(--graft-density-gap-4) 0 0;
-}
-
-.registry-page__toolbar :deep(.t-input) {
-  max-width: 360px;
 }
 
 .registry-repositories {
   display: grid;
   gap: var(--graft-density-gap-12);
   margin-top: var(--graft-density-gap-24);
+}
+
+.registry-repository-actions {
+  flex-wrap: nowrap;
 }
 </style>

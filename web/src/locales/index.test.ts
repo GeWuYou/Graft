@@ -35,6 +35,8 @@ describe('locales bootstrap', () => {
     expect(i18n.global.t('security.overview.title')).toBe('安全概览');
     expect(i18n.global.t('menu.container.title')).toBe('容器');
     expect(i18n.global.t('menu.section.access_control')).toBe('访问控制');
+    expect(i18n.global.t('menu.registries.title')).toBe('镜像仓库');
+    expect(i18n.global.t('menu.section.shared_resources')).toBe('共享资源');
   });
 
   it('deep merges nested locale namespaces instead of replacing the whole top-level branch', async () => {

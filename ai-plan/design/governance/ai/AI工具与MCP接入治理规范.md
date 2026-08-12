@@ -235,6 +235,9 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
   contract-driven minimal bootstrap 和 dispatch，所有领域正文仍由对应专业 skill 负责。
 - `graft-ai-governance-audit` 保持 broader AI tooling / MCP / skill / inventory drift audit；当同一批次同时修改
   `.agents/skills/**`、`scripts/**` 或本规范时，可与 `graft-ai-plan-governance` 组合使用。
+- 自动验证、浏览器检查与人工验收的责任边界由根 `AGENTS.md` 与 `AI代码生成与Review规范.md` 定义；
+  `scripts/validate_ai_governance.py` 只检查这些 authority、相关 skills 和 active recovery wording 是否漂移，
+  不成为 `server` / `web` 的第二套完成态或产品验收入口。
 - `graft-comment-governance` 是手写 Go、TypeScript、Vue 注释的专项 skill；它必须回到
   `代码注释与模块文档规范.md` 判断注释价值。仅当实际 diff 发生注释变更时，代码任务 closeout 才要求输出
   注释和 scoped commit 回执；没有注释 diff 时不要求 comment/scoped commit 回执，不得把启发式质量判断伪装成
@@ -273,6 +276,9 @@ Python helper 用于仓库自动化和 AI 辅助验证时：
 - `scripts/validate_shared_asset_registries.py` 只做轻量 registry 结构检查：解析 YAML、校验必填字段、允许类型、
   已登记路径和 examples 存在、拒绝 generated-only authority 与本地 / 构建产物路径；它不得自动生成 registry，
   新发现的未登记文件最多作为 warning，不作为阻断错误。
+- `scripts/validate_ai_governance.py` 可校验 AI 工作流 authority 的稳定锚点，包括 verification classification、
+  本地 browser opt-in、human acceptance handoff 和 active topic recovery 不得把 browser evidence 写成默认 closeout gate；
+  它与其 `unittest` 仅作为 docs/automation guard，并由 PR workflow 执行。
 
 ## 7. Closeout Evidence
 

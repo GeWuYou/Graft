@@ -9,9 +9,9 @@ export const registryBootstrapRouteRegistrations: BootstrapRouteRegistration[] =
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
       pageKind: 'list',
-      pageSurface: 'form-detail',
-      semanticTitle: localizeRouteTitleKey('registry.list.title'),
-      breadcrumbTitle: localizeRouteTitleKey('registry.list.title'),
+      pageSurface: 'paged-table',
+      semanticTitle: localizeRouteTitleKey('menu.registries.title'),
+      breadcrumbTitle: localizeRouteTitleKey('menu.registries.title'),
       tabGroup: 'infrastructure',
     },
   },

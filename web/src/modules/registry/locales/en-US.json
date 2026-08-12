@@ -1,10 +1,16 @@
 {
+  "menu": {
+    "registries": { "title": "Image Registries" },
+    "section": { "shared_resources": "Shared Resources" }
+  },
   "registry": {
     "list": {
-      "title": "Image Registries",
       "description": "Manage external OCI Registry connections and repository paths available to Build.",
       "search": "Search name, reference, or endpoint",
       "refresh": "Refresh",
+      "more": "More",
+      "clearSearch": "Clear Search",
+      "cancel": "Cancel",
       "add": "Add Image Registry",
       "edit": "Edit",
       "verify": "Test Connection",
@@ -15,6 +21,10 @@
       "grantAssignment": "Grant Assignment",
       "revokeAssignment": "Revoke Assignment",
       "empty": "No image registries",
+      "emptyDescription": "Image registry connections will appear here after they are added.",
+      "filteredEmpty": "No matching image registries",
+      "filteredEmptyDescription": "Adjust or clear the search and try again.",
+      "summary": "{count} image registries",
       "loadFailed": "Unable to load image registries.",
       "save": "Save",
       "connection": "Registry Connection",
@@ -49,7 +59,8 @@
         "failed": "Verification Failed",
         "unknown": "Not Verified"
       },
-      "verifyResult": "Connection test: {status}",
+      "verifySuccess": "Connection test succeeded. The connection is available.",
+      "verifyFailed": "Connection test failed. Check the connection configuration and try again.",
       "deleteConfirm": "Delete this Registry connection? Linked repository paths will prevent deletion.",
       "repositoryDeleteConfirm": "Delete repository path {repository}?",
       "revokeAssignmentConfirm": "Revoke repository access for user {userId}?"

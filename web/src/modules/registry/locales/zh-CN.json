@@ -1,10 +1,16 @@
 {
+  "menu": {
+    "registries": { "title": "镜像仓库" },
+    "section": { "shared_resources": "共享资源" }
+  },
   "registry": {
     "list": {
-      "title": "镜像仓库",
       "description": "管理可供 Build 使用的外部 OCI Registry 连接与仓库路径。",
       "search": "搜索名称、引用或端点",
       "refresh": "刷新",
+      "more": "更多",
+      "clearSearch": "清空搜索",
+      "cancel": "取消",
       "add": "添加镜像仓库",
       "edit": "编辑",
       "verify": "测试连接",
@@ -15,6 +21,10 @@
       "grantAssignment": "授予授权",
       "revokeAssignment": "撤销授权",
       "empty": "暂无镜像仓库",
+      "emptyDescription": "添加一个镜像仓库连接后，它会显示在这里。",
+      "filteredEmpty": "未找到匹配的镜像仓库",
+      "filteredEmptyDescription": "请调整或清空搜索条件后重试。",
+      "summary": "共 {count} 个镜像仓库",
       "loadFailed": "无法加载镜像仓库。",
       "save": "保存",
       "connection": "Registry 连接",
@@ -49,7 +59,8 @@
         "failed": "验证失败",
         "unknown": "未验证"
       },
-      "verifyResult": "连接测试：{status}",
+      "verifySuccess": "连接测试成功，连接已可用",
+      "verifyFailed": "连接测试失败，请检查连接配置后重试",
       "deleteConfirm": "删除此 Registry 连接？已关联的仓库路径会阻止删除。",
       "repositoryDeleteConfirm": "删除仓库路径 {repository}？",
       "revokeAssignmentConfirm": "撤销用户 {userId} 的仓库使用授权？"

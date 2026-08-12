@@ -84,7 +84,42 @@ AI 在当前任务中不得：
 - 写明清理触发条件
 - 本次改动已具备最小可接受行为
 
-## 6. Closeout 最低要求
+## 6. 验证责任与人工验收
+
+任务开始时必须先记录验证分类，不得因为改动涉及页面、交互或截图就默认启动浏览器：
+
+- `agent-only`
+  - 可由编译、静态检查、单元/组件/集成测试、API/HTTP、OpenAPI、迁移或仓库完成态入口直接证明；无剩余产品判断。
+- `human-acceptance-required`
+  - 自动验证完成后，仍需人工判断视觉质量、可用性、真实角色体验、多步骤业务体验或环境依赖结果。
+- `browser-automation-required`
+  - 已登记的 CI 浏览器测试契约，或已获本任务本地授权且只能在真实浏览器复现/诊断的缺陷。
+- `mixed`
+  - 先完成客观自动验证，再交付最小人工验收流程。
+
+Agent 自动验证优先使用当前仓库的静态检查、受影响 Go/Vitest 测试、`graft validate backend`、`bun run check`、
+OpenAPI/contract freshness、迁移 SQL 验证和已有 API/HTTP 检查。UI 不等于人工验收：可由现有组件、路由、状态或
+Vitest 测试证明的行为仍由 Agent 验证。
+
+本地浏览器是受控诊断和检查工具，不是默认完成态。只有用户/开发者在本任务明确授权，且需要调查浏览器专属缺陷、
+真实浏览器环境，或用户明确要求浏览器自动化时，才可按 `web/AGENTS.md` 和 `graft-web-browser-agent` 执行。未来已
+登记且隔离的 CI browser test 可在 CI 自动运行，但当前本地 Agent 操作浏览器始终需要授权。截图、DOM snapshot 和
+artifact 只记录检查证据，不能替代自动化测试或人工验收。
+
+当自动验证通过但仍需真实用户判断时，Agent 停止继续验证，输出：
+
+`Implementation complete; automated verification passed; awaiting human acceptance.`
+
+最小人工验收契约必须只包含：
+
+- 前置条件（分支/版本、必要服务或测试数据）
+- 登录角色
+- 3 至 7 个操作步骤与每步预期结果
+- 必要的负向场景
+- 清理步骤
+- 已完成的自动化验证与已知缺口
+
+## 7. Closeout 最低要求
 
 AI 参与的任务 closeout 必须包含：
 
@@ -105,7 +140,10 @@ AI closeout:
 
 如果存在兼容桥接、批量操作、安全影响或多 agent 协作，closeout 还应补充对应专项证据。
 
-## 7. 多 Agent 协作规则
+若 `human_acceptance` 为 `required`，closeout 还必须给出最小人工验收契约，并将验收状态写为
+`awaiting_human_acceptance`；不得把浏览器截图、Agent 交互或人工验收待办写成已完成验收。
+
+## 8. 多 Agent 协作规则
 
 多 agent 协作时，主 agent 负责：
 
@@ -130,9 +168,9 @@ AI closeout:
 - 如果任务来自 PR review finding repair，不得把 `Outside diff range comments`、`Nitpick comments` 或其它
   folded latest-review findings 视为可忽略项；主 agent 建立的完整 finding inventory 仍然是子切片边界前提
 
-## 8. Review 清单
+## 9. Review 清单
 
-### 8.1 单 Agent Review
+### 9.1 单 Agent Review
 
 - authority owner 是否确认清楚
 - 是否严格留在 owned scope
@@ -141,10 +179,11 @@ AI closeout:
 - 前端 server state 是否已优先评估 Query，且未把 URL、草稿、选择或编辑器实例放进 query cache
 - 是否有证据支持 Table、Virtual、Router 或 Form 的新增 TanStack 依赖
 - closeout 是否给出 summary / risk / validation / rollback
+- 是否记录 verification classification，且 browser 与 human acceptance 状态没有被混作自动验证
 - 如果任务来自 PR review，是否明确覆盖 `Outside diff range comments`、`Nitpick comments` 和其它 folded
   latest-review findings，而不是只处理 open threads 或高优先级子集
 
-### 8.2 多 Agent Review
+### 9.2 多 Agent Review
 
 - 各 agent 的 owned scope 是否明确且不重叠
 - 是否有人越界修改上游 authority 或共享契约
@@ -155,7 +194,7 @@ AI closeout:
 - 如果协作来自 PR review finding repair，是否把 `Outside diff range comments`、`Nitpick comments` 和其它
   folded latest-review findings 继续保留在统一 disposition 清单内，而不是在拆批后丢失
 
-## 9. 证据要求
+## 10. 证据要求
 
 AI 生成、修改或 review 任务的 closeout 至少记录：
 
@@ -166,6 +205,9 @@ ai review evidence:
 - opportunistic_fix: none | included-with-justification
 - todo_leakage: none | temporary-with-expiry
 - validation: <command or reason>
+- verification_class: agent-only | human-acceptance-required | browser-automation-required | mixed
+- browser_status: not-needed | authorized-local | ci-contract
+- human_acceptance: not-required | required | awaiting_human_acceptance
 - rollback: documented | not-applicable
 - multi_agent: no | yes
 ```
@@ -180,7 +222,7 @@ multi-agent evidence:
 - integration_validation: done | partial | not-run
 ```
 
-## 10. 适合进入 CI 的规则
+## 11. 适合进入 CI 的规则
 
 适合结构化检查或 PR 模板门禁的规则：
 
@@ -188,6 +230,7 @@ multi-agent evidence:
 - 禁止新增裸 `TODO` / `FIXME`
 - 禁止无授权的大范围 rename、锁文件刷新或依赖升级
 - 多 agent 任务必须声明 slices 与验证状态
+- browser 不得被写成所有 Web 任务的默认完成门槛
 
 更适合留在文档 / review 的规则：
 

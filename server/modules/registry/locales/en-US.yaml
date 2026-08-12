@@ -1,4 +1,5 @@
 menu.registries.title: Image Registries
+menu.section.shared_resources: Shared Resources
 rbac.permissionCatalog.registryRead.display: View Image Registries
 rbac.permissionCatalog.registryRead.description: Allows viewing Registry Connections and Artifact Repositories.
 rbac.permissionCatalog.registryCreate.display: Create Image Registry

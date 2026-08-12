@@ -21,6 +21,7 @@ import listTree from '@iconify-icons/lucide/list-tree';
 import megaphone from '@iconify-icons/lucide/megaphone';
 import network from '@iconify-icons/lucide/network';
 import application from '@iconify-icons/lucide/package';
+import packageOpen from '@iconify-icons/lucide/package-open';
 import route from '@iconify-icons/lucide/route';
 import search from '@iconify-icons/lucide/search';
 import serverCog from '@iconify-icons/lucide/server-cog';
@@ -50,6 +51,7 @@ const menuIcons = {
   'docker-provider': docker,
   'container-workload': container,
   'image-artifact': imageIcon,
+  'image-registry': packageOpen,
   'persistent-volume': hardDrive,
   'network-resource': network,
   'observability-overview': activity,

@@ -12,7 +12,7 @@
   - `server/modules/container/**` for normalized Docker resource projections.
   - `web/src/modules/container/**` for the Graft presentation layer.
 - Completed so far: product IA, contract, server projection, and Web implementation.
-- Current stage: cross-boundary validation, browser evidence, and closeout.
+- Current stage: cross-boundary automated validation, conditional browser inspection only when authorized, and closeout.
 
 ## Recovery Receipt
 
@@ -41,13 +41,14 @@ Out of scope:
 ## Phase Plan
 
 - Completed: Context contract, relationship-trust projection, product guideline, and Network/Volume implementation.
-- Current: cross-boundary validation, browser evidence, and closeout.
+- Current: cross-boundary automated validation, conditional browser inspection only when authorized, and closeout.
 
 ## Current Recovery Point
 
 - Contract, server projection, and Web implementation are complete.
 - The authority repair is a normalized Volume Context projection; web does not infer it from labels.
-- Next step: collect cross-boundary validation and browser evidence, then close out the topic.
+- Next step: collect cross-boundary automated validation, classify any browser need, then close out or hand off the
+  concise human acceptance contract. Browser inspection is not a default closeout gate.
 
 ## Work Intake
 

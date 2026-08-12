@@ -34,7 +34,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	} {
 		ctx.PermissionRegistry.Register(item)
 	}
-	ctx.MenuRegistry.Register(menu.Item{Code: "registry.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: registrycontract.MenuTitle, Path: registrycontract.MenuPath, Icon: "image", Order: 50, Permission: registrycontract.ReadPermission, Module: moduleID})
+	ctx.MenuRegistry.Register(menu.Item{Code: "registry.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: registrycontract.MenuTitle, SectionKey: menu.SharedResourcesSectionKey, SectionTitleKey: menu.SharedResourcesSectionTitleKey, Path: registrycontract.MenuPath, Icon: registrycontract.MenuIcon, Order: registrycontract.MenuOrder, Permission: registrycontract.ReadPermission, Module: moduleID})
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RegistryDestinationResolver)(nil), func(containerdi.Resolver) (any, error) {
 		return m.service, nil
 	}); err != nil {

@@ -45,14 +45,15 @@ closeout:
 
 - Contract, server, and Web implementation batches are complete: OpenAPI and Container provide one normalized resource-detail projection, Context, relationship trust, and server-side advanced filters; Network and Volume consume those contracts without frontend aggregation.
 - No compatibility bridge was introduced: web does not parse Labels to infer Context, and the obsolete inspect-shaped Network detail schema was removed after its references were removed.
-- Current stage: cross-boundary validation, browser evidence when a developer-owned runtime is available, and closeout.
+- Current stage: cross-boundary automated validation, conditional browser inspection only when explicitly authorized,
+  and closeout.
 
 ## Task Checklist
 
 - [x] Contract and design guideline.
 - [x] Server projection and relationship trust.
 - [x] Network and Volume Web IA implementation.
-- [ ] Cross-boundary validation, browser evidence, and closeout.
+- [ ] Cross-boundary automated validation, browser classification, human acceptance handoff when needed, and closeout.
 
 ## Acceptance Conditions
 
@@ -75,7 +76,7 @@ closeout:
     "cross-boundary-validation-and-closeout"
   ],
   "current_batch": "cross-boundary-validation-and-closeout",
-  "next_batch": "browser-evidence-and-closeout",
+  "next_batch": null,
   "closeout_status": "in-progress"
 }
 ```
