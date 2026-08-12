@@ -1,0 +1,11 @@
+{
+  "bootstrap_url": "https://127.0.0.1:8443",
+  "agent_url": "https://127.0.0.1:8444",
+  "target_id": 0,
+  "agent_id": "replace-with-backend-issued-agent-id",
+  "secret_file": ".data/docker-builder-agent-dev/agent/bootstrap/bootstrap-token",
+  "bootstrap_ca_file": ".data/docker-builder-agent-dev/agent/trust/ca.pem",
+  "trust_bundle_file": ".data/docker-builder-agent-dev/agent/trust/ca.pem",
+  "state_dir": ".data/docker-builder-agent-dev/agent/state",
+  "docker_socket": "/var/run/docker.sock"
+}

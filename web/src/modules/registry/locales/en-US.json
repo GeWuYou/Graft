@@ -1,0 +1,58 @@
+{
+  "registry": {
+    "list": {
+      "title": "Image Registries",
+      "description": "Manage external OCI Registry connections and repository paths available to Build.",
+      "search": "Search name, reference, or endpoint",
+      "refresh": "Refresh",
+      "add": "Add Image Registry",
+      "edit": "Edit",
+      "verify": "Test Connection",
+      "delete": "Delete",
+      "repositories": "Repository Paths",
+      "addRepository": "Add Repository Path",
+      "assignments": "User Assignments",
+      "grantAssignment": "Grant Assignment",
+      "revokeAssignment": "Revoke Assignment",
+      "empty": "No image registries",
+      "loadFailed": "Unable to load image registries.",
+      "save": "Save",
+      "connection": "Registry Connection",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "endpoint": "Registry URL",
+        "credential": "Credential",
+        "status": "Status",
+        "verified": "Last Verified",
+        "assignmentCreatedAt": "Assigned At",
+        "actions": "Actions"
+      },
+      "form": {
+        "connectionRef": "Connection Reference",
+        "displayName": "Name",
+        "endpoint": "Registry URL",
+        "description": "Description",
+        "enabled": "Enabled",
+        "insecure": "Use Insecure HTTP",
+        "repositoryRef": "Repository Path",
+        "repositoryName": "Display Name",
+        "allowPull": "Allow Pull",
+        "allowPush": "Allow Push",
+        "userId": "User ID"
+      },
+      "credential": { "configured": "Configured", "anonymous": "Anonymous" },
+      "status": {
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "verified": "Verified",
+        "failed": "Verification Failed",
+        "unknown": "Not Verified"
+      },
+      "verifyResult": "Connection test: {status}",
+      "deleteConfirm": "Delete this Registry connection? Linked repository paths will prevent deletion.",
+      "repositoryDeleteConfirm": "Delete repository path {repository}?",
+      "revokeAssignmentConfirm": "Revoke repository access for user {userId}?"
+    }
+  }
+}

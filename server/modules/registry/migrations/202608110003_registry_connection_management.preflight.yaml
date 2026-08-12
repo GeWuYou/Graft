@@ -1,0 +1,46 @@
+migration:
+  path: server/modules/registry/migrations/202608110003_registry_connection_management.sql
+  version: '202608110003'
+owner: registry
+risk_level: L4
+affected_tables:
+  - registry_connections
+  - artifact_repositories
+operation_categories:
+  - add-column
+  - historical-data-reconciliation
+  - partial-unique-index
+historical_data_assumptions:
+  - Existing live connections can share provider and endpoint.
+  - Active artifact repositories must retain their referenced connection.
+referenced_tables:
+  - artifact_repositories
+planned_upgrade_order:
+  - Add backward-compatible connection fields.
+  - Inspect duplicate live connections and active repository references.
+  - Abort referenced duplicates, retire only unreferenced duplicates, then create the unique index.
+safety_strategy:
+  duplicate_scan: Group live registry_connections by provider and endpoint before applying the uniqueness invariant.
+  live_reference_scan: Join duplicate connections to live artifact_repositories before any retirement.
+  reconcile_or_abort: Abort when a duplicate has a live repository reference; soft-delete only unreferenced duplicate connections.
+  post_migration_invariant: At most one live registry_connections row exists for each provider and endpoint.
+  bounded_backfill: Update only live registry_connections rows once to normalize the new fields.
+  reference_impact: artifact_repositories.connection_id remains unchanged because referenced duplicates block the migration.
+  recovery_or_retirement_rationale: Unreferenced duplicate connections are soft-deleted and remain auditable; referenced duplicates require operator reconciliation.
+validation_scenarios:
+  - Unreferenced duplicate connections are retired before the partial unique index is created.
+  - Referenced duplicate connections cause an explicit abort before the partial unique index is created.
+preflight_checks:
+  - name: referenced-duplicate-registry-connections
+    query: >-
+      SELECT COUNT(*) FROM artifact_repositories repository JOIN registry_connections connection ON connection.id = repository.connection_id AND connection.deleted_at = 0 WHERE repository.deleted_at = 0 AND EXISTS (SELECT 1 FROM registry_connections duplicate WHERE duplicate.provider = connection.provider AND duplicate.endpoint = connection.endpoint AND duplicate.deleted_at = 0 AND duplicate.id <> connection.id)
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-001

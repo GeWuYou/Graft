@@ -39,7 +39,9 @@ Levels describe governance destination, not severity.
 - [web-ui.md](./web-ui.md)
   - frontend UI, TDesign, layout, theme, empty state, and page-pattern lessons
 - [backend.md](./backend.md)
-  - backend architecture, contract, module, migration, and validation lessons
+  - backend architecture, contract, module, and validation lessons
+- [migrations.md](./migrations.md)
+  - live migration history, safety, and preflight lessons
 - [governance.md](./governance.md)
   - closeout, commit, validation, collaboration, and worktree governance lessons
 - [deprecated.md](./deprecated.md)

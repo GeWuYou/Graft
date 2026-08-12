@@ -29,7 +29,8 @@ Use this skill when the task touches any of:
 1. Complete the startup preflight from root `AGENTS.md`.
 2. Read `server/AGENTS.md`.
 3. Read `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`.
-4. Read the current module's related migration files.
+4. Search `ai-plan/lessons/migrations.md` by operation, risk, and affected tables, then report the matched `MIG-###` IDs before migration design. No match is a valid result for unrelated L0 work.
+5. Read the current module's related migration files.
 5. If the task also requires table design decisions, use `graft-table-design` first.
 
 ## SQL Comment Hard Rules
@@ -53,14 +54,20 @@ Use this skill when the task touches any of:
 - Do not recreate legacy migration files just to pass the current live SQL gate.
 - If adding a live migration directory, update `scripts/validate_sql_migrations.py` discovery when registry/core-dir
   discovery would not include it.
+- Every newly added or modified live migration SQL has exactly one sibling `<migration>.preflight.yaml`. It records the migration path/version, owner, derived risk level, affected and referenced tables, operation categories, historical assumptions, upgrade order, safety strategy, validation scenarios, and retrieval receipt.
+- The receipt records the canonical governance and migration-lessons paths, their tooling-generated SHA-256 content revisions, and the actual matching `MIG-###` IDs. Do not use a self-attestation field such as `lessons_read: true`.
+- The static gate derives a minimum risk: L0 additive schema, L1 metadata/backfill-safe, L2 constraint/index, L3 data transformation, L4 deletion/reconciliation, L5 irreversible or production-sensitive. A sidecar cannot understate it.
+- Historical SQL is forward-only. A modified historical migration is rejected unless the sidecar carries governed unpublished-exception evidence; normal repair uses a higher version.
 
 ## Validation
 
 After modifying migration SQL, run:
 
 ```bash
-python3 scripts/validate_sql_migrations.py
+python3 scripts/validate_sql_migrations.py --changed --base-ref "$(git merge-base origin/main HEAD)"
 ```
+
+For a deliberately scoped migration file, use `--paths <file>` instead. The validator rejects an unscoped invocation so a changed live migration cannot bypass the sidecar requirement.
 
 If the migration directory contents changed, also recompute the touched directory checksum immediately:
 

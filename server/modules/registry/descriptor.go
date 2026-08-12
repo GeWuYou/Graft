@@ -6,16 +6,17 @@ import (
 	"fmt"
 
 	"graft/server/internal/module"
+	registrycontract "graft/server/modules/registry/contract"
 	registrystore "graft/server/modules/registry/store"
 )
 
-const moduleID = "registry"
+const moduleID = registrycontract.ModuleID
 
 // NewModuleSpec 声明由基础设施域拥有的 Registry 模块；模块不实现镜像仓库服务，也不向消费者暴露提供方凭据。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user"},
+		Dependencies:  []string{"user", "auth", "rbac"},
 		MigrationPath: []string{"modules/registry/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

@@ -24,3 +24,9 @@
 ## 2026-08-01 PR review documentation alignment
 
 - Aligned the Pipeline Governance recovery validation commands with its completed local-validation record: one `server` directory transition now runs the focused realtime test and both backend validation stages, and the startup prompt lists the complete target set.
+
+## 2026-08-12 Migration lessons and semantic gate
+
+- Moved migration-specific experience into `ai-plan/lessons/migrations.md` and introduced active `MIG-001` for existing-data uniqueness on `registry_connections` with `artifact_repositories` references.
+- Established one `*.preflight.yaml` sidecar contract. The static gate verifies its path/version, receipt revisions, active lesson IDs, safety evidence, and SQL-derived minimum risk without taking ownership of PostgreSQL scenario execution.
+- Added `graft migrate preflight --manifest` as a deployment-time read-only data check. It cannot apply migrations or alter Atlas revision state; the operator guide places it before the existing `graft migrate up` path.

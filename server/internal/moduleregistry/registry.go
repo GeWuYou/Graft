@@ -21,6 +21,7 @@ import (
 	networklocales "graft/server/modules/network/locales"
 	projectlocales "graft/server/modules/project/locales"
 	rbaclocales "graft/server/modules/rbac/locales"
+	registrylocales "graft/server/modules/registry/locales"
 	runtimetargetlocales "graft/server/modules/runtime-target/locales"
 	schedulerlocales "graft/server/modules/scheduler/locales"
 	securitylocales "graft/server/modules/security/locales"
@@ -68,6 +69,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "platform-network", load: networklocales.EmbeddedLocaleResources},
 		{name: "project", load: projectlocales.EmbeddedLocaleResources},
 		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},
+		{name: "registry", load: registrylocales.EmbeddedLocaleResources},
 		{name: "runtime-target", load: runtimetargetlocales.EmbeddedLocaleResources},
 		{name: "scheduler", load: schedulerlocales.EmbeddedLocaleResources},
 		{name: "security", load: securitylocales.EmbeddedLocaleResources},

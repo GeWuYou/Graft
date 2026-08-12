@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import sys
 import unittest
+import hashlib
+import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -15,6 +17,56 @@ from validate_sql_migrations import validate, validate_file
 
 
 class ValidateSqlMigrationsTest(unittest.TestCase):
+    def write_authorities(self, root: Path) -> tuple[str, str]:
+        governance = root / validator.GOVERNANCE_PATH
+        lessons = root / validator.LESSONS_PATH
+        governance.parent.mkdir(parents=True, exist_ok=True)
+        lessons.parent.mkdir(parents=True, exist_ok=True)
+        governance.write_text("# migration governance\n", encoding="utf-8")
+        lessons.write_text("## MIG-001: uniqueness\n- Status: active\n", encoding="utf-8")
+        return (
+            f"sha256:{hashlib.sha256(governance.read_bytes()).hexdigest()}",
+            f"sha256:{hashlib.sha256(lessons.read_bytes()).hexdigest()}",
+        )
+
+    def write_preflight(self, root: Path, sql: Path, risk: str = "L0", lesson_ids: str = "[]") -> Path:
+        governance_revision, lessons_revision = self.write_authorities(root)
+        sidecar = sql.with_suffix("").with_name(f"{sql.stem}.preflight.yaml")
+        sidecar.write_text(
+            f"""migration:
+  path: {sql.relative_to(root)}
+  version: '{sql.name.split('_', 1)[0]}'
+owner: test
+risk_level: {risk}
+affected_tables: [demo_events]
+operation_categories: [schema]
+historical_data_assumptions: [empty]
+referenced_tables: [none]
+planned_upgrade_order: [preflight, migrate]
+safety_strategy:
+  duplicate_scan: SELECT 1
+  live_reference_scan: SELECT 1
+  reconcile_or_abort: abort
+  post_migration_invariant: unique
+  bounded_backfill: bounded
+  reference_impact: checked
+  recovery_or_retirement_rationale: documented
+  backup_restore_owner: operator
+  release_upgrade_documentation: docs
+validation_scenarios: [empty-bootstrap]
+retrieval_receipt:
+  governance:
+    path: {validator.GOVERNANCE_PATH}
+    revision: {governance_revision}
+  lessons:
+    path: {validator.LESSONS_PATH}
+    revision: {lessons_revision}
+  lesson_ids: {lesson_ids}
+""",
+            encoding="utf-8",
+        )
+        return sidecar
+
     def test_valid_create_table_and_add_column_pass(self) -> None:
         with TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "202606110001_valid.sql"
@@ -141,6 +193,208 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
             self.assertEqual(len(findings), 1)
             self.assertIn("live migration version 202606110001 is reused by", findings[0].message)
             self.assertIn(str(existing.relative_to(root)), findings[0].message)
+
+    def test_preflight_requires_one_sidecar_and_receipt(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+            findings = validator.validate_preflight(sql, root)
+            self.assertIn("exactly one .preflight.yaml", findings[0].message)
+
+            self.write_preflight(root, sql, lesson_ids="[MIG-001]")
+            self.assertEqual(validator.validate_preflight(sql, root), [])
+
+    def test_preflight_rejects_stale_receipt_and_inactive_lesson(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+            sidecar = self.write_preflight(root, sql, lesson_ids="[MIG-999]")
+            text = sidecar.read_text(encoding="utf-8").replace("revision: sha256:", "revision: stale-sha256:", 1)
+            sidecar.write_text(text, encoding="utf-8")
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+            self.assertIn("retrieval_receipt.governance.revision does not match canonical content", messages)
+            self.assertTrue(any("not active migration lessons" in message for message in messages))
+
+    def test_sql_risk_cannot_be_understated(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE UNIQUE INDEX uq_demo ON demo_events (id);\n", encoding="utf-8")
+            self.write_preflight(root, sql, risk="L0")
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+            self.assertIn("risk_level L0 understates SQL-derived minimum L2", messages)
+
+    def test_combined_unique_index_and_delete_requires_all_safety_evidence(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE UNIQUE INDEX uq_demo ON demo_events (id);\nDELETE FROM demo_events WHERE id = 0;\n", encoding="utf-8")
+            sidecar = self.write_preflight(root, sql, risk="L4")
+            sidecar.write_text(sidecar.read_text(encoding="utf-8").replace("  duplicate_scan: SELECT 1\n", "").replace("  live_reference_scan: SELECT 1\n", "").replace("  post_migration_invariant: unique\n", ""), encoding="utf-8")
+
+            messages = [finding.message for finding in validator.validate_preflight(sql, root)]
+
+            self.assertIn("safety_strategy.duplicate_scan is required for L2", messages)
+            self.assertIn("safety_strategy.live_reference_scan is required for L2", messages)
+            self.assertIn("safety_strategy.post_migration_invariant is required for L2", messages)
+
+    def test_changed_mode_requires_a_base_ref(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            with self.assertRaisesRegex(ValueError, "--changed requires --base-ref"):
+                validator.git_changed_sql_entries(Path(temp_dir), None, staged=False)
+
+    def test_changed_command_rejects_a_missing_sidecar(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("CREATE TABLE demo_events (id BIGINT);\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(validator, "git_changed_sql_entries", return_value=[validator.ChangedSqlEntry("A", sql, True)]),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            self.assertIn("exactly one .preflight.yaml sidecar", stderr.getvalue())
+
+    def test_changed_command_reports_deleted_historical_migration_before_skip(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            deleted = root / "server/modules/demo/migrations/202608120000_deleted.sql"
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(validator, "git_changed_sql_entries", return_value=[validator.ChangedSqlEntry("D", deleted, False)]),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            output = stderr.getvalue()
+            self.assertIn("sql migration gate: failed", output)
+            self.assertIn("historical live migration was modified", output)
+
+    def test_changed_command_validates_rename_current_path_without_reading_old_path(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            old = root / "server/modules/demo/migrations/202608120000_old.sql"
+            new = root / "server/modules/demo/migrations/202608120001_new.sql"
+            new.parent.mkdir(parents=True)
+            new.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(
+                    validator,
+                    "git_changed_sql_entries",
+                    return_value=[
+                        validator.ChangedSqlEntry("R100", old, False),
+                        validator.ChangedSqlEntry("R100", new, True),
+                    ],
+                ),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            output = stderr.getvalue()
+            self.assertIn("202608120000_old.sql", output)
+            self.assertIn("historical live migration was modified", output)
+            self.assertIn("202608120001_new.sql", output)
+            self.assertIn("exactly one .preflight.yaml sidecar", output)
+
+    def test_rename_is_treated_as_historical_migration_change(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sql = root / "server/modules/demo/migrations/202608120001_demo.sql"
+            sql.parent.mkdir(parents=True)
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator.subprocess, "check_output", return_value=b"R100\x00server/modules/demo/migrations/202608120000_old.sql\x00server/modules/demo/migrations/202608120001_demo.sql\x00"),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[sql.parent]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(
+                entries,
+                [
+                    validator.ChangedSqlEntry("R100", root / "server/modules/demo/migrations/202608120000_old.sql", False),
+                    validator.ChangedSqlEntry("R100", sql, True),
+                ],
+            )
+            messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
+            self.assertTrue(any("historical live migration was modified" in message for message in messages))
+
+    def test_deleted_migration_is_tracked_for_historical_validation(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+
+            with (
+                mock.patch.object(validator.subprocess, "check_output", return_value=b"D\x00server/modules/demo/migrations/202608120000_deleted.sql\x00"),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[migrations]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(entries, [validator.ChangedSqlEntry("D", root / "server/modules/demo/migrations/202608120000_deleted.sql", False)])
+            messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
+            self.assertTrue(any("historical live migration was modified" in message for message in messages))
+
+    def test_changed_sidecar_modification_maps_to_owning_sql(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+            sql = migrations / "202608120001_demo.sql"
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(
+                    validator.subprocess,
+                    "check_output",
+                    return_value=b"M\x00server/modules/demo/migrations/202608120001_demo.preflight.yaml\x00",
+                ),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[migrations]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(
+                entries,
+                [validator.ChangedSqlEntry("M", sql, True, True)],
+            )
+
+    def test_changed_sidecar_deletion_validates_current_sql(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+            sql = migrations / "202608120001_demo.sql"
+            sql.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(
+                    validator,
+                    "git_changed_sql_entries",
+                    return_value=[validator.ChangedSqlEntry("D", sql, True, True)],
+                ),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            self.assertIn("exactly one .preflight.yaml sidecar", stderr.getvalue())
 
 
 if __name__ == "__main__":

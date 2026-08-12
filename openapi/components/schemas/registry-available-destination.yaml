@@ -1,0 +1,27 @@
+type: object
+required: [kind, connection_ref, connection_display_name, repository_ref, repository_display_name, allow_pull, allow_push]
+properties:
+  kind:
+    type: string
+    enum: [oci_registry]
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+  connection_display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  repository_ref:
+    type: string
+    minLength: 1
+    maxLength: 255
+  repository_display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  allow_pull:
+    type: boolean
+  allow_push:
+    type: boolean
+additionalProperties: false

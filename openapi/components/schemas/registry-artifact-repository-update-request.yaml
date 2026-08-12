@@ -1,0 +1,12 @@
+type: object
+required: [display_name, allow_pull, allow_push]
+properties:
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  allow_pull:
+    type: boolean
+  allow_push:
+    type: boolean
+additionalProperties: false

@@ -78,6 +78,8 @@ tags:
     description: Dockerfile 构建作业管理
   - name: runtime-target
     description: 运行目标管理
+  - name: registry
+    description: 外部 OCI 镜像仓库连接与产物仓库管理
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -466,6 +468,20 @@ paths:
     $ref: ./paths/runtime-targets.assignments.yaml
   /api/runtime-targets/{id}/assignments/{userId}/delete:
     $ref: ./paths/runtime-targets.assignment-delete.yaml
+  /api/registries:
+    $ref: ./paths/registries.collection.yaml
+  /api/registries/available-destinations:
+    $ref: ./paths/registries.available-destinations.yaml
+  /api/registries/{connectionRef}:
+    $ref: ./paths/registries.detail.yaml
+  /api/registries/{connectionRef}/verify:
+    $ref: ./paths/registries.verify.yaml
+  /api/registries/{connectionRef}/repositories:
+    $ref: ./paths/registries.repositories.collection.yaml
+  /api/registries/{connectionRef}/repository-assignments:
+    $ref: ./paths/registries.repositories.assignments.yaml
+  /api/registries/{connectionRef}/repository-assignments/{userId}:
+    $ref: ./paths/registries.repositories.assignment-detail.yaml
   /api/ops/applications/import/validate:
     $ref: ./paths/ops-applications.import-validate.yaml
   /api/ops/applications/import/runtime-candidates:
@@ -1466,6 +1482,52 @@ components:
       $ref: ./components/schemas/enveloped-runtime-target-user-assignment.yaml
     EnvelopedRuntimeTargetUserAssignmentListResponse:
       $ref: ./components/schemas/enveloped-runtime-target-user-assignment-list-response.yaml
+    RegistryConnection:
+      $ref: ./components/schemas/registry-connection.yaml
+    RegistryConnectionCreateRequest:
+      $ref: ./components/schemas/registry-connection-create-request.yaml
+    RegistryConnectionUpdateRequest:
+      $ref: ./components/schemas/registry-connection-update-request.yaml
+    RegistryConnectionListResponse:
+      $ref: ./components/schemas/registry-connection-list-response.yaml
+    RegistryConnectionVerification:
+      $ref: ./components/schemas/registry-connection-verification.yaml
+    RegistryVerificationResult:
+      $ref: ./components/schemas/registry-verification-result.yaml
+    RegistryArtifactRepository:
+      $ref: ./components/schemas/registry-artifact-repository.yaml
+    RegistryArtifactRepositoryCreateRequest:
+      $ref: ./components/schemas/registry-artifact-repository-create-request.yaml
+    RegistryArtifactRepositoryUpdateRequest:
+      $ref: ./components/schemas/registry-artifact-repository-update-request.yaml
+    RegistryArtifactRepositoryListResponse:
+      $ref: ./components/schemas/registry-artifact-repository-list-response.yaml
+    RegistryArtifactRepositoryUserAssignment:
+      $ref: ./components/schemas/registry-artifact-repository-user-assignment.yaml
+    RegistryArtifactRepositoryUserAssignmentRequest:
+      $ref: ./components/schemas/registry-artifact-repository-user-assignment-request.yaml
+    RegistryArtifactRepositoryUserAssignmentListResponse:
+      $ref: ./components/schemas/registry-artifact-repository-user-assignment-list-response.yaml
+    RegistryAvailableDestination:
+      $ref: ./components/schemas/registry-available-destination.yaml
+    RegistryAvailableDestinationListResponse:
+      $ref: ./components/schemas/registry-available-destination-list-response.yaml
+    EnvelopedRegistryConnection:
+      $ref: ./components/schemas/enveloped-registry-connection.yaml
+    EnvelopedRegistryConnectionListResponse:
+      $ref: ./components/schemas/enveloped-registry-connection-list-response.yaml
+    EnvelopedRegistryConnectionVerification:
+      $ref: ./components/schemas/enveloped-registry-connection-verification.yaml
+    EnvelopedRegistryArtifactRepository:
+      $ref: ./components/schemas/enveloped-registry-artifact-repository.yaml
+    EnvelopedRegistryArtifactRepositoryListResponse:
+      $ref: ./components/schemas/enveloped-registry-artifact-repository-list-response.yaml
+    EnvelopedRegistryArtifactRepositoryUserAssignment:
+      $ref: ./components/schemas/enveloped-registry-artifact-repository-user-assignment.yaml
+    EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse:
+      $ref: ./components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response.yaml
+    EnvelopedRegistryAvailableDestinationListResponse:
+      $ref: ./components/schemas/enveloped-registry-available-destination-list-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

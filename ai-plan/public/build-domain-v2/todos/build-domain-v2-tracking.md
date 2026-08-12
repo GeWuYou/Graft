@@ -54,6 +54,10 @@ closeout:
 
 ## Current Recovery Point
 
+- Registry management is an active cross-boundary subtopic at
+  `subtopics/registry-management/todos/registry-management-tracking.md`. It implements the existing Infrastructure
+  Registry authority and Build v2 destination selector without changing Build Runtime publication authority.
+
 - `authority-bootstrap` was accepted and committed as `084ae531` after structure and diff validation.
 - Current design recovery point: the authority RFC replaces the old phase numbering as the release gate. Registry
   credentials require `CredentialProvider` plus `RuntimeExecutionAdapter`; `docker-runtime-store` is historical-only.

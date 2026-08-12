@@ -7,6 +7,26 @@ import AlertListWidget from './AlertListWidget.vue';
 
 vi.mock('@/locales', () => ({
   currentLocale: 'en-US',
+  i18n: {
+    global: {
+      te: (key: string) =>
+        [
+          'dashboard.actions.open',
+          'dashboard.alert.count',
+          'dashboard.alert.latestAt',
+          'dashboard.alert.level.error',
+          'dashboard.alert.level.info',
+          'dashboard.alert.level.warning',
+          'audit.overview.riskGroups.authFailures',
+          'audit.overview.riskGroups.permissionDenials',
+          'dashboard.widget.auditRiskEvents.authFailures.action',
+          'dashboard.widget.auditRiskEvents.authFailures.description',
+          'dashboard.widget.auditRiskEvents.permissionDenials.description',
+          'dashboard.widget.empty',
+          'dashboard.widget.invalidPayload',
+        ].includes(key),
+    },
+  },
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
       'dashboard.actions.open': '打开',

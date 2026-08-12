@@ -234,6 +234,30 @@
       }
     },
     "permissionCatalog": {
+      "registryRead": {
+        "display": "View Image Registries",
+        "description": "Allows viewing Registry Connections and Repository Paths."
+      },
+      "registryCreate": {
+        "display": "Create Image Registries",
+        "description": "Allows creating external OCI Registry Connections and Repository Paths."
+      },
+      "registryUpdate": {
+        "display": "Update Image Registries",
+        "description": "Allows updating Registry Connections and Repository Paths."
+      },
+      "registryDelete": {
+        "display": "Delete Image Registries",
+        "description": "Allows deleting Registry Connections and Repository Paths."
+      },
+      "registryVerify": {
+        "display": "Verify Image Registries",
+        "description": "Allows testing external Registry Connections."
+      },
+      "registryAssignmentManage": {
+        "display": "Manage Repository Assignments",
+        "description": "Allows managing user access to Repository Paths."
+      },
       "platformCapabilitiesRead": {
         "display": "Platform Capability Health Read",
         "description": "Allows reading the platform infrastructure and integration capability health snapshot."

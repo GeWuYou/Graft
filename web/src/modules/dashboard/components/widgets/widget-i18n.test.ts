@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const localeMocks = vi.hoisted(() => {
+  const translations: Record<string, string> = {
+    'dashboard.known': '已翻译',
+    'dashboard.fallback-locale': 'Fallback locale translation',
+    'dashboard.widget.auditRiskEvents.highRisk.description': '过去 24 小时存在高风险事件',
+  };
+
+  return {
+    t: vi.fn((key: string) => translations[key] ?? key),
+  };
+});
+
 vi.mock('@/locales', () => ({
-  t: (key: string) => {
-    const translations: Record<string, string> = {
-      'dashboard.known': '已翻译',
-      'dashboard.widget.auditRiskEvents.highRisk.description': '过去 24 小时存在高风险事件',
-    };
-    return translations[key] ?? key;
-  },
+  t: localeMocks.t,
 }));
 
 import { hasDashboardTranslation, resolveDashboardRelatedText, resolveDashboardText } from './widget-i18n';
@@ -17,8 +23,15 @@ describe('dashboard widget i18n helpers', () => {
     expect(resolveDashboardText('dashboard.known', 'Server fallback')).toBe('已翻译');
   });
 
+  it('uses the translator fallback result before server fallback text', () => {
+    expect(resolveDashboardText('dashboard.fallback-locale', 'Server fallback')).toBe('Fallback locale translation');
+    expect(hasDashboardTranslation('dashboard.fallback-locale')).toBe(true);
+  });
+
   it('falls back to provided text only after detecting a missing key', () => {
+    localeMocks.t.mockClear();
     expect(resolveDashboardText('dashboard.missing', 'Server fallback')).toBe('Server fallback');
+    expect(localeMocks.t).toHaveBeenCalledWith('dashboard.missing');
     expect(hasDashboardTranslation('dashboard.missing')).toBe(false);
   });
 

@@ -1,0 +1,50 @@
+get:
+  tags: [registry]
+  operationId: getRegistries
+  summary: List Registry Connections
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    - name: search
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 255 }
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Registry Connection page without credential material.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-connection-list-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+post:
+  tags: [registry]
+  operationId: postRegistry
+  summary: Create a Generic OCI Registry Connection
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-connection-create-request.yaml}
+  responses:
+    '201':
+      description: Registry Connection created.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-connection.yaml}
+    '400': {$ref: ../components/responses/bad-request.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '409': {$ref: ../components/responses/conflict.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

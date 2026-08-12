@@ -7,6 +7,7 @@ import {
   createStatusColumn,
   createTechnicalColumn,
   createTimeColumn,
+  resolveEmptyManagedColumns,
   resolveTableWidthPolicy,
 } from './table-columns';
 
@@ -43,5 +44,32 @@ describe('table column width policy', () => {
       mode: 'scroll',
       tableContentWidth: '1432px',
     });
+  });
+
+  it('removes wide-table constraints from empty-state columns without mutating the data-state columns', () => {
+    const columns = [
+      createIdentifierColumn('任务', 'build_id', 180),
+      {
+        colKey: 'actions',
+        title: '操作',
+        width: 120,
+        fixed: 'right' as const,
+        children: [createTechnicalColumn('日志', 'logs', 260)],
+      },
+    ];
+
+    expect(resolveEmptyManagedColumns(columns)).toEqual([
+      { colKey: 'build_id', title: '任务', align: 'left', ellipsis: { theme: 'default', placement: 'top-left' } },
+      {
+        colKey: 'actions',
+        title: '操作',
+        children: [
+          { colKey: 'logs', title: '日志', align: 'left', ellipsis: { theme: 'default', placement: 'top-left' } },
+        ],
+      },
+    ]);
+    expect(columns[0]?.width).toBe(180);
+    expect(columns[1]?.fixed).toBe('right');
+    expect(columns[1]?.children?.[0]?.width).toBe(260);
   });
 });

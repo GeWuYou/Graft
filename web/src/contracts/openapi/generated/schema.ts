@@ -3747,6 +3747,138 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/registries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Registry Connections */
+    get: operations['getRegistries'];
+    put?: never;
+    /** Create a Generic OCI Registry Connection */
+    post: operations['postRegistry'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/available-destinations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Artifact Repositories available for the caller's Build destination
+     * @description Returns only the caller's assigned, enabled, available, push-authorized Artifact Repositories, including their actual pull and push policies. It never returns endpoints or credential references.
+     */
+    get: operations['getRegistryAvailableDestinations'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a Registry Connection */
+    get: operations['getRegistry'];
+    /** Update a Registry Connection */
+    put: operations['putRegistry'];
+    post?: never;
+    /** Delete a Registry Connection */
+    delete: operations['deleteRegistry'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/verify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Verify a Registry Connection
+     * @description Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.
+     */
+    post: operations['postRegistryVerify'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/repositories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Artifact Repositories in a Registry Connection */
+    get: operations['getRegistryArtifactRepositories'];
+    /** Update an Artifact Repository policy */
+    put: operations['putRegistryArtifactRepository'];
+    /** Create an Artifact Repository in a Registry Connection */
+    post: operations['postRegistryArtifactRepository'];
+    /** Delete an Artifact Repository */
+    delete: operations['deleteRegistryArtifactRepository'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/repository-assignments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List users assigned to an Artifact Repository */
+    get: operations['getRegistryArtifactRepositoryAssignments'];
+    put?: never;
+    /** Grant a user use of an Artifact Repository */
+    post: operations['postRegistryArtifactRepositoryAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/repository-assignments/{userId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a user Artifact Repository assignment */
+    delete: operations['deleteRegistryArtifactRepositoryAssignment'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/import/validate': {
     parameters: {
       query?: never;
@@ -5055,6 +5187,29 @@ export interface components {
     RuntimeTargetUserAssignmentListResponse: components['schemas']['runtime-target-user-assignment-list-response'];
     EnvelopedRuntimeTargetUserAssignment: components['schemas']['enveloped-runtime-target-user-assignment'];
     EnvelopedRuntimeTargetUserAssignmentListResponse: components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
+    RegistryConnection: components['schemas']['registry-connection'];
+    RegistryConnectionCreateRequest: components['schemas']['registry-connection-create-request'];
+    RegistryConnectionUpdateRequest: components['schemas']['registry-connection-update-request'];
+    RegistryConnectionListResponse: components['schemas']['registry-connection-list-response'];
+    RegistryConnectionVerification: components['schemas']['registry-connection-verification'];
+    RegistryVerificationResult: components['schemas']['registry-verification-result'];
+    RegistryArtifactRepository: components['schemas']['registry-artifact-repository'];
+    RegistryArtifactRepositoryCreateRequest: components['schemas']['registry-artifact-repository-create-request'];
+    RegistryArtifactRepositoryUpdateRequest: components['schemas']['registry-artifact-repository-update-request'];
+    RegistryArtifactRepositoryListResponse: components['schemas']['registry-artifact-repository-list-response'];
+    RegistryArtifactRepositoryUserAssignment: components['schemas']['registry-artifact-repository-user-assignment'];
+    RegistryArtifactRepositoryUserAssignmentRequest: components['schemas']['registry-artifact-repository-user-assignment-request'];
+    RegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
+    RegistryAvailableDestination: components['schemas']['registry-available-destination'];
+    RegistryAvailableDestinationListResponse: components['schemas']['registry-available-destination-list-response'];
+    EnvelopedRegistryConnection: components['schemas']['enveloped-registry-connection'];
+    EnvelopedRegistryConnectionListResponse: components['schemas']['enveloped-registry-connection-list-response'];
+    EnvelopedRegistryConnectionVerification: components['schemas']['enveloped-registry-connection-verification'];
+    EnvelopedRegistryArtifactRepository: components['schemas']['enveloped-registry-artifact-repository'];
+    EnvelopedRegistryArtifactRepositoryListResponse: components['schemas']['enveloped-registry-artifact-repository-list-response'];
+    EnvelopedRegistryArtifactRepositoryUserAssignment: components['schemas']['enveloped-registry-artifact-repository-user-assignment'];
+    EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['enveloped-registry-artifact-repository-user-assignment-list-response'];
+    EnvelopedRegistryAvailableDestinationListResponse: components['schemas']['enveloped-registry-available-destination-list-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -9804,6 +9959,198 @@ export interface components {
     'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment'];
     };
+    'registry-connection': {
+      /** @description Stable external Registry Connection reference used by Build destination contracts. */
+      connection_ref: string;
+      display_name: string;
+      /**
+       * @description Generic Docker Registry HTTP API V2 / OCI Distribution endpoint.
+       * @enum {string}
+       */
+      provider: 'generic_oci';
+      /**
+       * Format: uri
+       * @description Normalized Registry endpoint without embedded credentials.
+       */
+      endpoint: string;
+      /** @description Whether new Build submissions may select this connection when it is available. */
+      enabled: boolean;
+      /** @description Whether this Generic OCI connection explicitly uses HTTP instead of HTTPS. */
+      insecure: boolean;
+      /** @description Whether an opaque managed credential reference is configured. The reference and credential material are never returned. */
+      credential_configured: boolean;
+      /** @description Current non-secret usability state for Build destination resolution. */
+      availability: boolean;
+      /** @enum {string} */
+      verification_status: 'unknown' | 'verified' | 'failed';
+      /** Format: date-time */
+      last_verified_at?: string | null;
+      description?: string | null;
+      /** @description System-managed connections cannot be modified or deleted through this API. */
+      system_managed?: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: int64 */
+      created_by?: number;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: int64 */
+      updated_by?: number;
+    };
+    'registry-connection-list-response': {
+      items: components['schemas']['registry-connection'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-registry-connection-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-connection-list-response'];
+    };
+    'registry-connection-create-request': {
+      /** @description Stable reference chosen for Build destination contracts; it is immutable after creation. */
+      connection_ref: string;
+      display_name: string;
+      /** @enum {string} */
+      provider: 'generic_oci';
+      /**
+       * Format: uri
+       * @description Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
+       */
+      endpoint: string;
+      /** @description Opaque reference to a pre-provisioned managed credential. It is never returned and is not credential material. */
+      credential_ref?: string | null;
+      /** @default true */
+      enabled: boolean;
+      /** @default false */
+      insecure: boolean;
+      description?: string | null;
+    };
+    'enveloped-registry-connection': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-connection'];
+    };
+    'registry-available-destination': {
+      /** @enum {string} */
+      kind: 'oci_registry';
+      connection_ref: string;
+      connection_display_name: string;
+      repository_ref: string;
+      repository_display_name: string;
+      allow_pull: boolean;
+      allow_push: boolean;
+    };
+    'registry-available-destination-list-response': {
+      items: components['schemas']['registry-available-destination'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-registry-available-destination-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-available-destination-list-response'];
+    };
+    'registry-connection-update-request': {
+      display_name: string;
+      /**
+       * Format: uri
+       * @description Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
+       */
+      endpoint: string;
+      /** @description Replaces or clears the opaque managed credential reference. It is never returned. */
+      credential_ref?: string | null;
+      enabled: boolean;
+      insecure: boolean;
+      description?: string | null;
+    };
+    /**
+     * @description Terminal result of one Registry connection verification attempt.
+     * @enum {string}
+     */
+    'registry-verification-result': 'verified' | 'failed';
+    'registry-connection-verification': {
+      connection_ref: string;
+      /** @description Verification outcome. Current values are verified and failed. */
+      status: components['schemas']['registry-verification-result'];
+      /** Format: date-time */
+      verified_at: string;
+      /** @description Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies. */
+      error_code?: string | null;
+      /** @description Sanitized operator diagnostic. Consumers must not parse it for control flow. */
+      diagnostic?: string | null;
+    };
+    'enveloped-registry-connection-verification': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-connection-verification'];
+    };
+    'registry-artifact-repository': {
+      connection_ref: string;
+      /** @description Repository path within the Registry Connection, not a full image reference and not a Registry endpoint. */
+      repository_ref: string;
+      display_name: string;
+      allow_pull: boolean;
+      allow_push: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: int64 */
+      created_by?: number;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: int64 */
+      updated_by?: number;
+    };
+    'registry-artifact-repository-list-response': {
+      items: components['schemas']['registry-artifact-repository'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-registry-artifact-repository-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-artifact-repository-list-response'];
+    };
+    'registry-artifact-repository-update-request': {
+      display_name: string;
+      allow_pull: boolean;
+      allow_push: boolean;
+    };
+    'enveloped-registry-artifact-repository': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-artifact-repository'];
+    };
+    'registry-artifact-repository-create-request': {
+      /** @description Repository path within the selected Registry Connection. A full image URL and tag are invalid. */
+      repository_ref: string;
+      display_name: string;
+      /** @default true */
+      allow_pull: boolean;
+      /** @default true */
+      allow_push: boolean;
+    };
+    'registry-artifact-repository-user-assignment': {
+      connection_ref: string;
+      repository_ref: string;
+      /** Format: int64 */
+      user_id: number;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: int64 */
+      created_by?: number;
+    };
+    'registry-artifact-repository-user-assignment-list-response': {
+      items: components['schemas']['registry-artifact-repository-user-assignment'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-registry-artifact-repository-user-assignment-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
+    };
+    'registry-artifact-repository-user-assignment-request': {
+      /** Format: int64 */
+      user_id: number;
+    };
+    'enveloped-registry-artifact-repository-user-assignment': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-artifact-repository-user-assignment'];
+    };
     'application-import-validate-request': {
       workspace_path: string;
       /** @description Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file. */
@@ -11070,6 +11417,10 @@ export interface components {
     'application-list-sort': ('created_at:desc' | 'created_at:asc')[];
     /** @description Private saved-view identifier. */
     'application-saved-view-id': number;
+    /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+    'registry-connection-ref-path': string;
+    /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+    'registry-repository-ref-query': string;
     /** @description Optional case-insensitive keyword matched against application name, working directory, compose files, runtime, service names, and candidate diagnostics. */
     'application-import-runtime-candidate-list-keyword': string;
     /** @description Optional runtime import availability filter. */
@@ -22314,6 +22665,542 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistries: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+        search?: string;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry Connection page without credential material. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-connection-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistry: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-connection-create-request'];
+      };
+    };
+    responses: {
+      /** @description Registry Connection created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-connection'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistryAvailableDestinations: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Caller-scoped non-secret Build destination catalog. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-available-destination-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistry: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry Connection without credential material. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-connection'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putRegistry: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-connection-update-request'];
+      };
+    };
+    responses: {
+      /** @description Updated Registry Connection. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-connection'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteRegistry: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry Connection deleted. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistryVerify: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registry verification completed. Failure is represented by data.status instead of remote diagnostic details. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-connection-verification'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistryArtifactRepositories: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Artifact Repositories owned by the Registry Connection. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putRegistryArtifactRepository: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-update-request'];
+      };
+    };
+    responses: {
+      /** @description Updated Artifact Repository. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistryArtifactRepository: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-create-request'];
+      };
+    };
+    responses: {
+      /** @description Artifact Repository created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteRegistryArtifactRepository: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Artifact Repository deleted. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistryArtifactRepositoryAssignments: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Active Artifact Repository user assignments. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-user-assignment-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistryArtifactRepositoryAssignment: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-user-assignment-request'];
+      };
+    };
+    responses: {
+      /** @description User assigned to the Artifact Repository. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-user-assignment'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteRegistryArtifactRepositoryAssignment: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+        userId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Artifact Repository user assignment revoked. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };

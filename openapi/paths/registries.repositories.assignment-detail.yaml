@@ -1,0 +1,27 @@
+delete:
+  tags: [registry]
+  operationId: deleteRegistryArtifactRepositoryAssignment
+  summary: Revoke a user Artifact Repository assignment
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+    - $ref: ../components/parameters/registry-repository-ref-query.yaml
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Artifact Repository user assignment revoked.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-empty-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

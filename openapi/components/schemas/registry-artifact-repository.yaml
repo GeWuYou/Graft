@@ -1,0 +1,35 @@
+type: object
+required: [connection_ref, repository_ref, display_name, allow_pull, allow_push, created_at, updated_at]
+properties:
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+  repository_ref:
+    type: string
+    minLength: 1
+    maxLength: 255
+    description: Repository path within the Registry Connection, not a full image reference and not a Registry endpoint.
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  allow_pull:
+    type: boolean
+  allow_push:
+    type: boolean
+  created_at:
+    type: string
+    format: date-time
+  created_by:
+    type: integer
+    format: int64
+    minimum: 0
+  updated_at:
+    type: string
+    format: date-time
+  updated_by:
+    type: integer
+    format: int64
+    minimum: 0
+additionalProperties: false

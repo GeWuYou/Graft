@@ -1,0 +1,40 @@
+type: object
+required: [connection_ref, display_name, provider, endpoint]
+properties:
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: Stable reference chosen for Build destination contracts; it is immutable after creation.
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  provider:
+    type: string
+    enum: [generic_oci]
+  endpoint:
+    type: string
+    format: uri
+    pattern: '^https?://[^/?#@]+(?:/[^?#]*)?$'
+    minLength: 1
+    maxLength: 512
+    description: Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
+  credential_ref:
+    type: string
+    minLength: 1
+    maxLength: 255
+    nullable: true
+    writeOnly: true
+    description: Opaque reference to a pre-provisioned managed credential. It is never returned and is not credential material.
+  enabled:
+    type: boolean
+    default: true
+  insecure:
+    type: boolean
+    default: false
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+additionalProperties: false

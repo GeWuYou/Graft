@@ -1,0 +1,23 @@
+type: object
+required: [connection_ref, repository_ref, user_id, created_at]
+properties:
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+  repository_ref:
+    type: string
+    minLength: 1
+    maxLength: 255
+  user_id:
+    type: integer
+    format: int64
+    minimum: 1
+  created_at:
+    type: string
+    format: date-time
+  created_by:
+    type: integer
+    format: int64
+    minimum: 0
+additionalProperties: false

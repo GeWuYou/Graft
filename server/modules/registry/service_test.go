@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,6 +33,25 @@ func TestResolveArtifactDestinationRequiresLiveAssignedPublishRepository(t *test
 		t.Fatalf("destination = %#v, want %#v", destination, want)
 	}
 	assertAuthorizedDestinationIsNonSecret(t)
+}
+
+func TestGrantAssignmentRejectsMissingUserBeforeWriting(t *testing.T) {
+	db := openRegistryTestDB(t)
+	seedRegistryDestination(t, db, true, true, true, true)
+	repository, err := registrystore.NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	if _, err := repository.GrantAssignment(context.Background(), "registry:primary", "team/api", 10, 7); !errors.Is(err, registrystore.ErrNotFound) {
+		t.Fatalf("grant missing user error = %v, want ErrNotFound", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM artifact_repository_user_assignments WHERE user_id = 10 AND deleted_at = 0`).Scan(&count); err != nil {
+		t.Fatalf("count assignment rows: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("assignment rows = %d, want 0", count)
+	}
 }
 
 func TestResolveArtifactDestinationRejectsUnauthorizedAndUnavailableRepositories(t *testing.T) {
@@ -156,7 +176,7 @@ func assertAuthorizedDestinationIsNonSecret(t *testing.T) {
 
 func seedRegistryDestination(t *testing.T, db *sql.DB, connectionAvailable, allowPush, unassigned, allowPull bool) {
 	t.Helper()
-	if _, err := db.Exec(`INSERT INTO registry_connections (id, connection_ref, endpoint, credential_ref, availability, deleted_at) VALUES (1, 'registry:primary', 'https://registry.example', 'credential:registry-primary', ?, 0)`, connectionAvailable); err != nil {
+	if _, err := db.Exec(`INSERT INTO registry_connections (id, connection_ref, endpoint, credential_ref, availability, enabled, deleted_at) VALUES (1, 'registry:primary', 'https://registry.example', 'credential:registry-primary', ?, true, 0)`, connectionAvailable); err != nil {
 		t.Fatalf("seed connection: %v", err)
 	}
 	if _, err := db.Exec(`INSERT INTO artifact_repositories (id, connection_id, repository_ref, allow_pull, allow_push, deleted_at) VALUES (1, 1, 'team/api', ?, ?, 0)`, allowPull, allowPush); err != nil {
@@ -177,9 +197,11 @@ func openRegistryTestDB(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	for _, statement := range []string{
-		`CREATE TABLE registry_connections (id INTEGER PRIMARY KEY, connection_ref TEXT NOT NULL, endpoint TEXT NOT NULL, credential_ref TEXT NULL, availability BOOLEAN NOT NULL, deleted_at INTEGER NOT NULL)`,
+		`CREATE TABLE users (id INTEGER PRIMARY KEY)`,
+		`CREATE TABLE registry_connections (id INTEGER PRIMARY KEY, connection_ref TEXT NOT NULL, endpoint TEXT NOT NULL, credential_ref TEXT NULL, availability BOOLEAN NOT NULL, enabled BOOLEAN NOT NULL, deleted_at INTEGER NOT NULL)`,
 		`CREATE TABLE artifact_repositories (id INTEGER PRIMARY KEY, connection_id INTEGER NOT NULL, repository_ref TEXT NOT NULL, allow_pull BOOLEAN NOT NULL, allow_push BOOLEAN NOT NULL, deleted_at INTEGER NOT NULL)`,
-		`CREATE TABLE artifact_repository_user_assignments (repository_id INTEGER NOT NULL, user_id INTEGER NOT NULL, deleted_at INTEGER NOT NULL)`,
+		`CREATE TABLE artifact_repository_user_assignments (repository_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE UNIQUE INDEX uq_registry_test_assignment ON artifact_repository_user_assignments (repository_id, user_id) WHERE deleted_at = 0`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatalf("create registry test table: %v", err)

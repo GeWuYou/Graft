@@ -21,6 +21,15 @@
             "problemMatcher": []
         },
         {
+            "label": "agent: deliver prepared Docker Builder development",
+            "type": "shell",
+            "command": "go run ./cmd/graft dev docker-builder-agent deliver --prepared",
+            "options": {
+                "cwd": "${workspaceFolder}/server"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "web: dev",
             "type": "shell",
             "command": "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; bun run dev",

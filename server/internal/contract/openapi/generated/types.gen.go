@@ -4391,6 +4391,90 @@ func (e PlatformUpdateStatusInstallationProfileServiceManager) Valid() bool {
 	}
 }
 
+// Defines values for RegistryAvailableDestinationKind.
+const (
+	OciRegistry RegistryAvailableDestinationKind = "oci_registry"
+)
+
+// Valid indicates whether the value is a known member of the RegistryAvailableDestinationKind enum.
+func (e RegistryAvailableDestinationKind) Valid() bool {
+	switch e {
+	case OciRegistry:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegistryConnectionProvider.
+const (
+	RegistryConnectionProviderGenericOci RegistryConnectionProvider = "generic_oci"
+)
+
+// Valid indicates whether the value is a known member of the RegistryConnectionProvider enum.
+func (e RegistryConnectionProvider) Valid() bool {
+	switch e {
+	case RegistryConnectionProviderGenericOci:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegistryConnectionVerificationStatus.
+const (
+	RegistryConnectionVerificationStatusFailed   RegistryConnectionVerificationStatus = "failed"
+	RegistryConnectionVerificationStatusUnknown  RegistryConnectionVerificationStatus = "unknown"
+	RegistryConnectionVerificationStatusVerified RegistryConnectionVerificationStatus = "verified"
+)
+
+// Valid indicates whether the value is a known member of the RegistryConnectionVerificationStatus enum.
+func (e RegistryConnectionVerificationStatus) Valid() bool {
+	switch e {
+	case RegistryConnectionVerificationStatusFailed:
+		return true
+	case RegistryConnectionVerificationStatusUnknown:
+		return true
+	case RegistryConnectionVerificationStatusVerified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegistryConnectionCreateRequestProvider.
+const (
+	RegistryConnectionCreateRequestProviderGenericOci RegistryConnectionCreateRequestProvider = "generic_oci"
+)
+
+// Valid indicates whether the value is a known member of the RegistryConnectionCreateRequestProvider enum.
+func (e RegistryConnectionCreateRequestProvider) Valid() bool {
+	switch e {
+	case RegistryConnectionCreateRequestProviderGenericOci:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegistryVerificationResult.
+const (
+	RegistryVerificationResultFailed   RegistryVerificationResult = "failed"
+	RegistryVerificationResultVerified RegistryVerificationResult = "verified"
+)
+
+// Valid indicates whether the value is a known member of the RegistryVerificationResult enum.
+func (e RegistryVerificationResult) Valid() bool {
+	switch e {
+	case RegistryVerificationResultFailed:
+		return true
+	case RegistryVerificationResultVerified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequestPerformanceResponseRange.
 const (
 	RequestPerformanceResponseRangeN10m RequestPerformanceResponseRange = "10m"
@@ -11801,6 +11885,166 @@ type EnvelopedRealtimeSubscriptionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRegistryArtifactRepository defines model for enveloped-registry-artifact-repository.
+type EnvelopedRegistryArtifactRepository struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data RegistryArtifactRepository `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryArtifactRepositoryListResponse defines model for enveloped-registry-artifact-repository-list-response.
+type EnvelopedRegistryArtifactRepositoryListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                 `json:"code"`
+	Data RegistryArtifactRepositoryListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryArtifactRepositoryUserAssignment defines model for enveloped-registry-artifact-repository-user-assignment.
+type EnvelopedRegistryArtifactRepositoryUserAssignment struct {
+	// Code Existing canonical response code.
+	Code string                                   `json:"code"`
+	Data RegistryArtifactRepositoryUserAssignment `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse defines model for enveloped-registry-artifact-repository-user-assignment-list-response.
+type EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                               `json:"code"`
+	Data RegistryArtifactRepositoryUserAssignmentListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryAvailableDestinationListResponse defines model for enveloped-registry-available-destination-list-response.
+type EnvelopedRegistryAvailableDestinationListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                   `json:"code"`
+	Data RegistryAvailableDestinationListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryConnection defines model for enveloped-registry-connection.
+type EnvelopedRegistryConnection struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
+	Data RegistryConnection `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryConnectionListResponse defines model for enveloped-registry-connection-list-response.
+type EnvelopedRegistryConnectionListResponse struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data RegistryConnectionListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRegistryConnectionVerification defines model for enveloped-registry-connection-verification.
+type EnvelopedRegistryConnectionVerification struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data RegistryConnectionVerification `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRequestPerformanceResponse defines model for enveloped-request-performance-response.
 type EnvelopedRequestPerformanceResponse struct {
 	// Code Existing canonical response code.
@@ -13411,6 +13655,190 @@ type RealtimeSubscriptionResponse struct {
 	// WebsocketUrl Relative WebSocket URL containing the issued ticket and topic for immediate upgrade.
 	WebsocketUrl string `json:"websocket_url"`
 }
+
+// RegistryArtifactRepository defines model for registry-artifact-repository.
+type RegistryArtifactRepository struct {
+	AllowPull     bool      `json:"allow_pull"`
+	AllowPush     bool      `json:"allow_push"`
+	ConnectionRef string    `json:"connection_ref"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedBy     *int64    `json:"created_by,omitempty"`
+	DisplayName   string    `json:"display_name"`
+
+	// RepositoryRef Repository path within the Registry Connection, not a full image reference and not a Registry endpoint.
+	RepositoryRef string    `json:"repository_ref"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	UpdatedBy     *int64    `json:"updated_by,omitempty"`
+}
+
+// RegistryArtifactRepositoryCreateRequest defines model for registry-artifact-repository-create-request.
+type RegistryArtifactRepositoryCreateRequest struct {
+	AllowPull   *bool  `json:"allow_pull,omitempty"`
+	AllowPush   *bool  `json:"allow_push,omitempty"`
+	DisplayName string `json:"display_name"`
+
+	// RepositoryRef Repository path within the selected Registry Connection. A full image URL and tag are invalid.
+	RepositoryRef string `json:"repository_ref"`
+}
+
+// RegistryArtifactRepositoryListResponse defines model for registry-artifact-repository-list-response.
+type RegistryArtifactRepositoryListResponse struct {
+	Items  []RegistryArtifactRepository `json:"items"`
+	Limit  int                          `json:"limit"`
+	Offset int                          `json:"offset"`
+	Total  int64                        `json:"total"`
+}
+
+// RegistryArtifactRepositoryUpdateRequest defines model for registry-artifact-repository-update-request.
+type RegistryArtifactRepositoryUpdateRequest struct {
+	AllowPull   bool   `json:"allow_pull"`
+	AllowPush   bool   `json:"allow_push"`
+	DisplayName string `json:"display_name"`
+}
+
+// RegistryArtifactRepositoryUserAssignment defines model for registry-artifact-repository-user-assignment.
+type RegistryArtifactRepositoryUserAssignment struct {
+	ConnectionRef string    `json:"connection_ref"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedBy     *int64    `json:"created_by,omitempty"`
+	RepositoryRef string    `json:"repository_ref"`
+	UserId        int64     `json:"user_id"`
+}
+
+// RegistryArtifactRepositoryUserAssignmentListResponse defines model for registry-artifact-repository-user-assignment-list-response.
+type RegistryArtifactRepositoryUserAssignmentListResponse struct {
+	Items  []RegistryArtifactRepositoryUserAssignment `json:"items"`
+	Limit  int                                        `json:"limit"`
+	Offset int                                        `json:"offset"`
+	Total  int64                                      `json:"total"`
+}
+
+// RegistryArtifactRepositoryUserAssignmentRequest defines model for registry-artifact-repository-user-assignment-request.
+type RegistryArtifactRepositoryUserAssignmentRequest struct {
+	UserId int64 `json:"user_id"`
+}
+
+// RegistryAvailableDestination defines model for registry-available-destination.
+type RegistryAvailableDestination struct {
+	AllowPull             bool                             `json:"allow_pull"`
+	AllowPush             bool                             `json:"allow_push"`
+	ConnectionDisplayName string                           `json:"connection_display_name"`
+	ConnectionRef         string                           `json:"connection_ref"`
+	Kind                  RegistryAvailableDestinationKind `json:"kind"`
+	RepositoryDisplayName string                           `json:"repository_display_name"`
+	RepositoryRef         string                           `json:"repository_ref"`
+}
+
+// RegistryAvailableDestinationKind defines model for RegistryAvailableDestination.Kind.
+type RegistryAvailableDestinationKind string
+
+// RegistryAvailableDestinationListResponse defines model for registry-available-destination-list-response.
+type RegistryAvailableDestinationListResponse struct {
+	Items  []RegistryAvailableDestination `json:"items"`
+	Limit  int                            `json:"limit"`
+	Offset int                            `json:"offset"`
+	Total  int64                          `json:"total"`
+}
+
+// RegistryConnection defines model for registry-connection.
+type RegistryConnection struct {
+	// Availability Current non-secret usability state for Build destination resolution.
+	Availability bool `json:"availability"`
+
+	// ConnectionRef Stable external Registry Connection reference used by Build destination contracts.
+	ConnectionRef string    `json:"connection_ref"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedBy     *int64    `json:"created_by,omitempty"`
+
+	// CredentialConfigured Whether an opaque managed credential reference is configured. The reference and credential material are never returned.
+	CredentialConfigured bool    `json:"credential_configured"`
+	Description          *string `json:"description,omitempty"`
+	DisplayName          string  `json:"display_name"`
+
+	// Enabled Whether new Build submissions may select this connection when it is available.
+	Enabled bool `json:"enabled"`
+
+	// Endpoint Normalized Registry endpoint without embedded credentials.
+	Endpoint string `json:"endpoint"`
+
+	// Insecure Whether this Generic OCI connection explicitly uses HTTP instead of HTTPS.
+	Insecure       bool       `json:"insecure"`
+	LastVerifiedAt *time.Time `json:"last_verified_at,omitempty"`
+
+	// Provider Generic Docker Registry HTTP API V2 / OCI Distribution endpoint.
+	Provider RegistryConnectionProvider `json:"provider"`
+
+	// SystemManaged System-managed connections cannot be modified or deleted through this API.
+	SystemManaged                *bool                                `json:"system_managed,omitempty"`
+	UpdatedAt                    time.Time                            `json:"updated_at"`
+	UpdatedBy                    *int64                               `json:"updated_by,omitempty"`
+	ConnectionVerificationStatus RegistryConnectionVerificationStatus `json:"verification_status"`
+}
+
+// RegistryConnectionProvider Generic Docker Registry HTTP API V2 / OCI Distribution endpoint.
+type RegistryConnectionProvider string
+
+// RegistryConnectionVerificationStatus defines model for RegistryConnection.VerificationStatus.
+type RegistryConnectionVerificationStatus string
+
+// RegistryConnectionCreateRequest defines model for registry-connection-create-request.
+type RegistryConnectionCreateRequest struct {
+	// ConnectionRef Stable reference chosen for Build destination contracts; it is immutable after creation.
+	ConnectionRef string `json:"connection_ref"`
+
+	// CredentialRef Opaque reference to a pre-provisioned managed credential. It is never returned and is not credential material.
+	CredentialRef *string `json:"credential_ref,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	DisplayName   string  `json:"display_name"`
+	Enabled       *bool   `json:"enabled,omitempty"`
+
+	// Endpoint Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
+	Endpoint string                                  `json:"endpoint"`
+	Insecure *bool                                   `json:"insecure,omitempty"`
+	Provider RegistryConnectionCreateRequestProvider `json:"provider"`
+}
+
+// RegistryConnectionCreateRequestProvider defines model for RegistryConnectionCreateRequest.Provider.
+type RegistryConnectionCreateRequestProvider string
+
+// RegistryConnectionListResponse defines model for registry-connection-list-response.
+type RegistryConnectionListResponse struct {
+	Items  []RegistryConnection `json:"items"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Total  int64                `json:"total"`
+}
+
+// RegistryConnectionUpdateRequest defines model for registry-connection-update-request.
+type RegistryConnectionUpdateRequest struct {
+	// CredentialRef Replaces or clears the opaque managed credential reference. It is never returned.
+	CredentialRef *string `json:"credential_ref,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	DisplayName   string  `json:"display_name"`
+	Enabled       bool    `json:"enabled"`
+
+	// Endpoint Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
+	Endpoint string `json:"endpoint"`
+	Insecure bool   `json:"insecure"`
+}
+
+// RegistryConnectionVerification defines model for registry-connection-verification.
+type RegistryConnectionVerification struct {
+	ConnectionRef string `json:"connection_ref"`
+
+	// Diagnostic Sanitized operator diagnostic. Consumers must not parse it for control flow.
+	Diagnostic *string `json:"diagnostic,omitempty"`
+
+	// ErrorCode Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// Status Verification outcome. Current values are verified and failed.
+	Status     RegistryVerificationResult `json:"status"`
+	VerifiedAt time.Time                  `json:"verified_at"`
+}
+
+// RegistryVerificationResult Terminal result of one Registry connection verification attempt.
+type RegistryVerificationResult string
 
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {
@@ -15177,6 +15605,12 @@ type RealtimeTicketQuery = string
 
 // RealtimeTopicQuery defines model for realtime-topic-query.
 type RealtimeTopicQuery = string
+
+// RegistryConnectionRefPath defines model for registry-connection-ref-path.
+type RegistryConnectionRefPath = string
+
+// RegistryRepositoryRefQuery defines model for registry-repository-ref-query.
+type RegistryRepositoryRefQuery = string
 
 // RequestIdHeader defines model for request-id-header.
 type RequestIdHeader = string
@@ -17478,6 +17912,173 @@ type PostRealtimeSubscriptionParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetRegistriesParams defines parameters for GetRegistries.
+type GetRegistriesParams struct {
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRegistryParams defines parameters for PostRegistry.
+type PostRegistryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRegistryAvailableDestinationsParams defines parameters for GetRegistryAvailableDestinations.
+type GetRegistryAvailableDestinationsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteRegistryParams defines parameters for DeleteRegistry.
+type DeleteRegistryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRegistryParams defines parameters for GetRegistry.
+type GetRegistryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutRegistryParams defines parameters for PutRegistry.
+type PutRegistryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteRegistryArtifactRepositoryParams defines parameters for DeleteRegistryArtifactRepository.
+type DeleteRegistryArtifactRepositoryParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRegistryArtifactRepositoriesParams defines parameters for GetRegistryArtifactRepositories.
+type GetRegistryArtifactRepositoriesParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRegistryArtifactRepositoryParams defines parameters for PostRegistryArtifactRepository.
+type PostRegistryArtifactRepositoryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutRegistryArtifactRepositoryParams defines parameters for PutRegistryArtifactRepository.
+type PutRegistryArtifactRepositoryParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRegistryArtifactRepositoryAssignmentsParams defines parameters for GetRegistryArtifactRepositoryAssignments.
+type GetRegistryArtifactRepositoryAssignmentsParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+	Limit         *int                       `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int                       `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRegistryArtifactRepositoryAssignmentParams defines parameters for PostRegistryArtifactRepositoryAssignment.
+type PostRegistryArtifactRepositoryAssignmentParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteRegistryArtifactRepositoryAssignmentParams defines parameters for DeleteRegistryArtifactRepositoryAssignment.
+type DeleteRegistryArtifactRepositoryAssignmentParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRegistryVerifyParams defines parameters for PostRegistryVerify.
+type PostRegistryVerifyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetRolesParams defines parameters for GetRoles.
 type GetRolesParams struct {
 	Keyword *string               `form:"keyword,omitempty" json:"keyword,omitempty"`
@@ -18521,6 +19122,21 @@ type PostPlatformUpdateOperationJSONRequestBody = CreatePlatformUpdateOperationR
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest
+
+// PostRegistryJSONRequestBody defines body for PostRegistry for application/json ContentType.
+type PostRegistryJSONRequestBody = RegistryConnectionCreateRequest
+
+// PutRegistryJSONRequestBody defines body for PutRegistry for application/json ContentType.
+type PutRegistryJSONRequestBody = RegistryConnectionUpdateRequest
+
+// PostRegistryArtifactRepositoryJSONRequestBody defines body for PostRegistryArtifactRepository for application/json ContentType.
+type PostRegistryArtifactRepositoryJSONRequestBody = RegistryArtifactRepositoryCreateRequest
+
+// PutRegistryArtifactRepositoryJSONRequestBody defines body for PutRegistryArtifactRepository for application/json ContentType.
+type PutRegistryArtifactRepositoryJSONRequestBody = RegistryArtifactRepositoryUpdateRequest
+
+// PostRegistryArtifactRepositoryAssignmentJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignment for application/json ContentType.
+type PostRegistryArtifactRepositoryAssignmentJSONRequestBody = RegistryArtifactRepositoryUserAssignmentRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

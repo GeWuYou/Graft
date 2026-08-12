@@ -42,6 +42,15 @@ describe('debug runtime', () => {
     expect(isDebugFlagEnabled('navigation')).toBe(true);
   });
 
+  it('resolves the management table layout diagnostic flag through the debug store', () => {
+    vi.stubEnv('VITE_DEBUG_MANAGEMENT_TABLE_LAYOUT', 'true');
+
+    const debugStore = useDebugStore(store);
+    debugStore.recompute();
+
+    expect(isDebugFlagEnabled('management.table-layout')).toBe(true);
+  });
+
   it('resolves the project log diagnostic flag through the debug store', () => {
     vi.stubEnv('VITE_DEBUG_PROJECT_LOGS', 'true');
 

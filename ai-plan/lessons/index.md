@@ -6,7 +6,8 @@
 | -------------------------------------- | ---------------------------------------------- | ---------- | ----: | ------ | ------------------------------- | ------------------------------------------------------------------------- |
 | LESSON-BACKEND-CAPABILITY-AUTHORITY-001 | 能力健康必须与平台可达性分层                  | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-HTTPX-CONTEXT-001       | 守卫发布安全审计前必须先写回增强后的请求上下文 | backend    |    L1 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
-| LESSON-BACKEND-MIGRATION-VERSION-001   | 已执行 Atlas migration 版本不能追加新 DDL      | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`            |
+| MIG-001                               | Existing-data uniqueness must reconcile or abort before the index | migrations | L4 | active | `ai-plan/lessons/migrations.md` | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md` |
+| MIG-002                               | Executed Atlas versions must receive forward-only repairs | migrations | L3 | active | `ai-plan/lessons/migrations.md` | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md` |
 | LESSON-BACKEND-MODULE-LIFECYCLE-001    | Builder 不应解析 Register 才暴露的跨模块服务   | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-TASK-OWNER-001          | 跨模块 Task owner 必须使用资源公开稳定标识    | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/architecture/任务执行运行时设计.md`                       |
 | LESSON-BACKEND-SAVED-VIEW-001          | 分页保存视图必须分离通用存储与消费页面语义     | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/domains/compose/Compose项目管理设计.md`                  |

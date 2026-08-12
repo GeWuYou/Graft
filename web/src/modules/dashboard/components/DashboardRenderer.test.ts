@@ -7,6 +7,39 @@ import DashboardRenderer from './DashboardRenderer.vue';
 
 vi.mock('@/locales', () => ({
   currentLocale: 'en-US',
+  i18n: {
+    global: {
+      te: (key: string) =>
+        [
+          'dashboard.actions.details',
+          'dashboard.actions.retry',
+          'dashboard.category.count',
+          'dashboard.category.business',
+          'dashboard.category.operation',
+          'dashboard.category.security',
+          'dashboard.category.system',
+          'dashboard.health.summaryHealthy',
+          'dashboard.health.summaryHealthyWithCounts',
+          'dashboard.health.healthy',
+          'dashboard.module.audit',
+          'dashboard.module.core',
+          'dashboard.widget.disabledDescription',
+          'dashboard.widget.empty',
+          'dashboard.widget.errorFallback',
+          'dashboard.widget.errorTitle',
+          'dashboard.widget.priority.critical',
+          'dashboard.widget.priority.info',
+          'dashboard.widget.priority.normal',
+          'dashboard.widget.priority.warning',
+          'dashboard.widget.state.critical',
+          'dashboard.widget.state.warning',
+          'dashboard.widget.status.disabled',
+          'dashboard.widget.status.error',
+          'dashboard.widget.status.normal',
+          'dashboard.widget.status.warning',
+        ].includes(key),
+    },
+  },
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
       'dashboard.actions.details': '查看详情',

@@ -18,6 +18,7 @@ type TargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTarg
 type PoolListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildBuilderPools]['get'];
 type ArtifactListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifacts]['get'];
 type PromotionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildArtifactPromotion]['post'];
+type RegistryDestinationOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryAvailableDestinations]['get'];
 
 export function getBuildJobs(query?: ListOperation['parameters']['query']) {
   return request.get<NonNullable<ListOperation['responses'][200]['content']['application/json']['data']>>({
@@ -55,6 +56,14 @@ export function getBuildRuntimeTargets() {
 export function getBuildBuilderPools() {
   return request.get<NonNullable<PoolListOperation['responses'][200]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.getBuildBuilderPools,
+  });
+}
+
+export function getBuildRegistryDestinations() {
+  return request.get<
+    NonNullable<RegistryDestinationOperation['responses'][200]['content']['application/json']['data']>
+  >({
+    url: OPENAPI_RUNTIME_PATH.getRegistryAvailableDestinations,
   });
 }
 

@@ -36,9 +36,11 @@ jobs:
         run: |
           "${RUNNER_TEMP}/graft" config validate --env-file ../compose.env.example --compose-file ../compose.yml
       - name: Test migration governance helpers
-        run: python3 -m unittest scripts/test_check_migration_bootstrap.py
+        run: |
+          python3 -m unittest scripts/test_check_migration_bootstrap.py
+          python3 -m unittest scripts/test_validate_sql_migrations.py
       - name: Validate SQL migration policy
-        run: python3 scripts/validate_sql_migrations.py
+        run: python3 scripts/validate_sql_migrations.py --changed --base-ref origin/main
       - name: Validate migration source
         shell: bash
         run: |

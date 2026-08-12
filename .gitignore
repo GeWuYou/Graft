@@ -28,7 +28,8 @@ go.work.sum
 .env
 .data/
 .local/
-server/agents/docker-builder-agent/config/agent.local.json
+server/agents/docker-builder-agent/agent.json
+server/.env.docker-builder-agent
 
 # Editor/IDE
 .idea/

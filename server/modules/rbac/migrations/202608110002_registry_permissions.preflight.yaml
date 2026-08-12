@@ -1,0 +1,39 @@
+migration:
+  path: server/modules/rbac/migrations/202608110002_registry_permissions.sql
+  version: '202608110002'
+owner: rbac
+risk_level: L3
+affected_tables:
+  - permissions
+  - role_permissions
+operation_categories:
+  - permission-catalog-backfill
+  - role-permission-reconciliation
+historical_data_assumptions:
+  - Built-in administrator roles use builtin_key admin.
+  - Permission codes remain the stable identity for registry permissions.
+referenced_tables:
+  - roles
+  - permissions
+  - role_permissions
+planned_upgrade_order:
+  - Upsert registry permissions by stable code.
+  - Reconcile administrator role assignments by permission identity.
+safety_strategy:
+  bounded_backfill: The migration upserts only six fixed registry permission codes and their administrator assignments.
+validation_scenarios:
+  - Existing registry permission rows retain their stable code and receive current metadata.
+  - The built-in administrator receives all declared registry permissions.
+preflight_checks:
+  - name: duplicate-registry-permission-codes
+    query: >-
+      SELECT COUNT(*) FROM (SELECT code FROM permissions WHERE code LIKE 'registry.%' AND deleted_at = 0 GROUP BY code HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids: []

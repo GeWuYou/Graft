@@ -220,7 +220,9 @@ func TestValidateComposeFile(t *testing.T) {
 
 func TestValidateComposeFileReportsFieldContractsWithoutValues(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "compose.yml")
-	contents := `services:
+	contents := `x-graft-server-runtime-env: &graft-server-runtime-env
+  GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
+services:
   postgres:
     environment:
       POSTGRES_DB: graft
@@ -239,7 +241,8 @@ func TestValidateComposeFileReportsFieldContractsWithoutValues(t *testing.T) {
       - compose:/opt/graft/deployment/compose.yml:ro
       - env:/opt/graft/deployment/.env:ro
   bootstrap:
-    environment: [GRAFT_AUTH_JWT_SECRET]
+    environment:
+      <<: *graft-server-runtime-env
     command: [migrate, up]
     restart: "no"
     depends_on:
@@ -263,7 +266,8 @@ func TestValidateComposeFileReportsFieldContractsWithoutValues(t *testing.T) {
     user: "0:0"
     restart: unless-stopped
     entrypoint: [/app/graft serve]
-    environment: [GRAFT_AUTH_JWT_SECRET]
+    environment:
+      <<: *graft-server-runtime-env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - state:/var/lib/graft/update-state:ro

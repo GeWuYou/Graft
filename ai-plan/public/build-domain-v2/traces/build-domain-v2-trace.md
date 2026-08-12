@@ -1,5 +1,11 @@
 # Build Domain v2 Trace
 
+## 2026-08-11: Registry Management Subtopic Opened
+
+- Registry Connection management, Artifact Repository assignment, verification, Infrastructure UI and Build selector
+  work are tracked under `subtopics/registry-management/`. The work is an authority-compliant productization of the
+  existing Registry module, not a new Registry or Credential domain.
+
 ## 2026-08-08: Phase 3 Static Pool Release Gate
 
 - Authority discovery kept placement policy in Build, capability facts in Runtime Target, execution lifecycle in Task

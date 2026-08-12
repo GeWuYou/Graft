@@ -9,6 +9,11 @@ import DashboardQuickActions from './DashboardQuickActions.vue';
 const localeCallKeys: string[] = [];
 
 vi.mock('@/locales', () => ({
+  i18n: {
+    global: {
+      te: (key: string) => ['dashboard.module.audit', 'dashboard.module.core'].includes(key),
+    },
+  },
   t: (key: string, params?: Record<string, unknown>) => {
     localeCallKeys.push(key);
 

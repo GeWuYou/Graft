@@ -11,12 +11,23 @@ Agent-local state:
   disposable database at `127.0.0.1:15432`, stored under `.data`.
 
 `graft dev docker-builder-agent prepare` defaults to `shared`: it reads
-`GRAFT_DATABASE_URL` from `server/.env`, supplies the remaining generated
-environment values, and starts `vault-init`. Use
+`server/.env`, writes the Server-owned `server/.env.docker-builder-agent` by
+preserving that file's values and only overriding local Agent integration
+values, and starts `vault-init`. The generated file is used only by the
+`server: Air + Agent Gateway` launch configuration; normal Server development
+continues to read `server/.env`. `fullstack: dev` composes the Gateway Server,
+Agent, and Web as separate processes. Run the preparation task explicitly when
+debugging an individual Agent workflow, then start the Gateway Server and Agent
+separately. Use
 `graft dev docker-builder-agent prepare --database-mode isolated` for a
 disposable database. Use the same `--database-mode` for `deliver` and `reset`.
 Do not point `server/.env` at production credentials or a production database
 for this topology.
+
+The Agent reads only the Backend-owned delivery file
+`server/agents/docker-builder-agent/agent.json`. It is generated, ignored, and
+contains only Agent-local endpoints, identity, and references to its bootstrap
+and trust material; it is never a Server configuration input.
 
 `vault-init` creates disposable Vault PKI/AppRole material, the local Server
 TLS certificate and key, and the enrollment pepper below `.data`:

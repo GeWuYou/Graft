@@ -230,6 +230,10 @@
         "summary": "System Health Summary",
         "title": "System Health"
       },
+      "platformCapabilityHealth": {
+        "description": "Current platform capability health snapshot.",
+        "title": "Platform Capabilities"
+      },
       "moduleRuntimeHealth": {
         "description": "Current module runtime health.",
         "runtimeStatus": {
@@ -281,6 +285,7 @@
       "dashboard": "Dashboard",
       "monitor": "Monitor",
       "rbac": "RBAC",
+      "scheduler": "Scheduled Tasks",
       "scheduled-task": "Scheduled Task",
       "system-config": "System Config",
       "user": "User"

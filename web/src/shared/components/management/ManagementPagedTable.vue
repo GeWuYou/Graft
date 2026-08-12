@@ -94,16 +94,18 @@
 </template>
 <script setup lang="ts">
 import type { PageInfo, PaginationProps, TableRowData, TableSort, TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, useSlots } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, useSlots, watch } from 'vue';
 
 import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
+import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
 
 import ManagementTableCard from './ManagementTableCard.vue';
 import ManagementTablePagination from './ManagementTablePagination.vue';
-import { resolveManagedColumns, resolveTableWidthPolicy } from './table-columns';
+import { resolveEmptyManagedColumns, resolveManagedColumns, resolveTableWidthPolicy } from './table-columns';
 import { useTableHostWidth } from './use-table-host-width';
 
+// 管理列表统一在此收口响应式列宽、空态和分页，调用方只提供领域数据与单元格插槽。
 const RESERVED_SLOT_NAMES = new Set([
   'batch',
   'cards',
@@ -209,7 +211,8 @@ function resolveSelectedRowKeys(density: ResponsiveDensity) {
 }
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 function resolveColumns(density: ResponsiveDensity) {
-  return resolveManagedColumns(props.columns, props.columnSets[density]);
+  const columns = resolveManagedColumns(props.columns, props.columnSets[density]);
+  return props.rows.length === 0 ? resolveEmptyManagedColumns(columns) : columns;
 }
 
 function resolveTableWidthPolicyFor(density: ResponsiveDensity) {
@@ -221,9 +224,118 @@ function resolveTableModeFor(density: ResponsiveDensity) {
 }
 
 function resolveTableContentWidthFor(density: ResponsiveDensity) {
-  // 空态没有需要横向查看的行，使用宿主宽度避免 TDesign 以超宽表格内容区作为空态居中基准。
-  return props.rows.length > 0 ? resolveTableWidthPolicyFor(density).tableContentWidth : undefined;
+  if (props.rows.length > 0) {
+    return resolveTableWidthPolicyFor(density).tableContentWidth;
+  }
+
+  // 空态列定义不保留数据态宽表约束，使 TDesign 直接按宿主宽度布局。
+  return undefined;
 }
+
+const tableLayoutDebugFrames = new Set<number>();
+const tableLayoutDebugTimers = new Set<number>();
+let tableLayoutDebugScheduleVersion = 0;
+
+function sanitizeDebugPath() {
+  return typeof window === 'undefined' ? '' : window.location.pathname;
+}
+
+function roundLayoutMetric(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function measureTableLayout(stage: string) {
+  if (!isDebugFlagEnabled('management.table-layout')) {
+    return;
+  }
+
+  const host = tableHostRef.value;
+  const tableContent = host?.querySelector<HTMLElement>('.t-table__content');
+  const table = tableContent?.querySelector<HTMLTableElement>('table');
+  const empty = host?.querySelector<HTMLElement>('.t-table__empty');
+  const emptyContent = host?.querySelector<HTMLElement>('.management-paged-table__empty');
+  const hostRect = host?.getBoundingClientRect();
+  const tableContentRect = tableContent?.getBoundingClientRect();
+  const tableRect = table?.getBoundingClientRect();
+  const emptyRect = empty?.getBoundingClientRect();
+  const emptyContentRect = emptyContent?.getBoundingClientRect();
+  const tableContentStyle = tableContent ? window.getComputedStyle(tableContent) : undefined;
+
+  emitDebugLog('management.table-layout', 'geometry', {
+    stage,
+    path: sanitizeDebugPath(),
+    rows: props.rows.length,
+    hostClientW: host?.clientWidth ?? 0,
+    hostScrollW: host?.scrollWidth ?? 0,
+    hostX: roundLayoutMetric(hostRect?.x ?? 0),
+    hostW: roundLayoutMetric(hostRect?.width ?? 0),
+    contentClientW: tableContent?.clientWidth ?? 0,
+    contentScrollW: tableContent?.scrollWidth ?? 0,
+    contentX: roundLayoutMetric(tableContentRect?.x ?? 0),
+    contentW: roundLayoutMetric(tableContentRect?.width ?? 0),
+    contentOverflowX: tableContentStyle?.overflowX ?? '',
+    tableX: roundLayoutMetric(tableRect?.x ?? 0),
+    tableW: roundLayoutMetric(tableRect?.width ?? 0),
+    emptyX: roundLayoutMetric(emptyRect?.x ?? 0),
+    emptyW: roundLayoutMetric(emptyRect?.width ?? 0),
+    emptyInlineW: empty?.style.width || '',
+    emptyContentX: roundLayoutMetric(emptyContentRect?.x ?? 0),
+    emptyContentW: roundLayoutMetric(emptyContentRect?.width ?? 0),
+    tableMode: host?.dataset.tableMode ?? '',
+  });
+}
+
+function clearTableLayoutDebugSchedule() {
+  tableLayoutDebugScheduleVersion += 1;
+  tableLayoutDebugFrames.forEach((frameId) => window.cancelAnimationFrame(frameId));
+  tableLayoutDebugFrames.clear();
+  tableLayoutDebugTimers.forEach((timerId) => window.clearTimeout(timerId));
+  tableLayoutDebugTimers.clear();
+}
+
+// 覆盖 Vue 提交与 TDesign 定时溢出校准窗口，比较同一实例在相邻帧的真实几何变化。
+function scheduleTableLayoutMeasurements(reason: string) {
+  if (typeof window === 'undefined' || !isDebugFlagEnabled('management.table-layout')) {
+    return;
+  }
+
+  clearTableLayoutDebugSchedule();
+  const scheduleVersion = tableLayoutDebugScheduleVersion;
+  measureTableLayout(`${reason}:sync`);
+  void nextTick(() => {
+    if (scheduleVersion !== tableLayoutDebugScheduleVersion) {
+      return;
+    }
+
+    measureTableLayout(`${reason}:next-tick`);
+    const firstFrameId = window.requestAnimationFrame(() => {
+      tableLayoutDebugFrames.delete(firstFrameId);
+      measureTableLayout(`${reason}:frame-1`);
+      const secondFrameId = window.requestAnimationFrame(() => {
+        tableLayoutDebugFrames.delete(secondFrameId);
+        measureTableLayout(`${reason}:frame-2`);
+      });
+      tableLayoutDebugFrames.add(secondFrameId);
+    });
+    tableLayoutDebugFrames.add(firstFrameId);
+  });
+  [0, 32, 160].forEach((delay) => {
+    const timerId = window.setTimeout(() => {
+      tableLayoutDebugTimers.delete(timerId);
+      measureTableLayout(`${reason}:timeout-${delay}`);
+    }, delay);
+    tableLayoutDebugTimers.add(timerId);
+  });
+}
+
+onMounted(() => scheduleTableLayoutMeasurements('mounted'));
+onActivated(() => scheduleTableLayoutMeasurements('activated'));
+onDeactivated(clearTableLayoutDebugSchedule);
+onBeforeUnmount(clearTableLayoutDebugSchedule);
+
+watch([tableHostWidth, () => props.rows.length, () => props.loading], () =>
+  scheduleTableLayoutMeasurements('layout-input-changed'),
+);
 
 function emitPageChange(pageInfo: PageInfo) {
   emit('page-change', pageInfo);

@@ -1,0 +1,63 @@
+type: object
+required: [connection_ref, display_name, provider, endpoint, enabled, insecure, credential_configured, availability, verification_status, created_at, updated_at]
+properties:
+  connection_ref:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: Stable external Registry Connection reference used by Build destination contracts.
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 128
+  provider:
+    type: string
+    enum: [generic_oci]
+    description: Generic Docker Registry HTTP API V2 / OCI Distribution endpoint.
+  endpoint:
+    type: string
+    format: uri
+    maxLength: 512
+    description: Normalized Registry endpoint without embedded credentials.
+  enabled:
+    type: boolean
+    description: Whether new Build submissions may select this connection when it is available.
+  insecure:
+    type: boolean
+    description: Whether this Generic OCI connection explicitly uses HTTP instead of HTTPS.
+  credential_configured:
+    type: boolean
+    description: Whether an opaque managed credential reference is configured. The reference and credential material are never returned.
+  availability:
+    type: boolean
+    description: Current non-secret usability state for Build destination resolution.
+  verification_status:
+    type: string
+    enum: [unknown, verified, failed]
+    x-go-name: ConnectionVerificationStatus
+  last_verified_at:
+    type: string
+    format: date-time
+    nullable: true
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+  system_managed:
+    type: boolean
+    description: System-managed connections cannot be modified or deleted through this API.
+  created_at:
+    type: string
+    format: date-time
+  created_by:
+    type: integer
+    format: int64
+    minimum: 0
+  updated_at:
+    type: string
+    format: date-time
+  updated_by:
+    type: integer
+    format: int64
+    minimum: 0
+additionalProperties: false

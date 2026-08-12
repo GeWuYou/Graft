@@ -7,21 +7,13 @@ function hasText(value: string | undefined): value is string {
 }
 
 export function hasDashboardTranslation(key?: string) {
-  if (!hasText(key)) {
-    return false;
-  }
-
-  const translated = t(key);
-  return translated !== key;
+  return hasText(key) && t(key) !== key;
 }
 
 /** 优先使用稳定 i18n key，同时保留服务端展示值作为受控回退。 */
 export function resolveDashboardText(key?: string, fallback?: string, defaultText = DEFAULT_DASHBOARD_TEXT) {
-  if (hasText(key)) {
-    const translated = t(key);
-    if (translated !== key) {
-      return translated;
-    }
+  if (hasText(key) && hasDashboardTranslation(key)) {
+    return t(key);
   }
 
   if (hasText(fallback)) {

@@ -1,0 +1,8 @@
+name: connectionRef
+in: path
+required: true
+description: Stable Registry Connection reference. It is the connection_ref used by the Build destination contract.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128
