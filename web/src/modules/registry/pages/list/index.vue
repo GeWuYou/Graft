@@ -122,18 +122,40 @@
           :loading="repositoryLoading"
         >
           <template #repositoryActions="{ row }">
-            <t-button theme="primary" variant="text" @click="openEditRepository(row)">
-              {{ t('registry.list.edit') }}
-            </t-button>
-            <t-button theme="primary" variant="text" @click="openAssignments(row.repository_ref)">
-              {{ t('registry.list.assignments') }}
-            </t-button>
-            <t-popconfirm
-              :content="t('registry.list.repositoryDeleteConfirm', { repository: row.repository_ref })"
-              @confirm="removeRepository(row.repository_ref)"
-            >
-              <t-button theme="danger" variant="text">{{ t('registry.list.delete') }}</t-button>
-            </t-popconfirm>
+            <t-space class="registry-repository-actions" size="small">
+              <t-button size="small" theme="default" variant="outline" @click="openEditRepository(row)">
+                {{ t('registry.list.edit') }}
+              </t-button>
+              <t-button size="small" theme="default" variant="outline" @click="openAssignments(row.repository_ref)">
+                {{ t('registry.list.assignments') }}
+              </t-button>
+              <t-dropdown placement="bottom-right" trigger="click">
+                <t-tooltip :content="t('registry.list.more')">
+                  <t-button
+                    :aria-label="t('registry.list.more')"
+                    shape="square"
+                    size="small"
+                    theme="default"
+                    variant="outline"
+                  >
+                    <template #icon><ellipsis-icon /></template>
+                  </t-button>
+                </t-tooltip>
+                <t-dropdown-menu>
+                  <t-dropdown-item @click="openEditRepository(row)">{{ t('registry.list.edit') }}</t-dropdown-item>
+                  <t-dropdown-item @click="openAssignments(row.repository_ref)">
+                    {{ t('registry.list.assignments') }}
+                  </t-dropdown-item>
+                  <t-popconfirm
+                    theme="danger"
+                    :content="t('registry.list.repositoryDeleteConfirm', { repository: row.repository_ref })"
+                    @confirm="removeRepository(row.repository_ref)"
+                  >
+                    <t-dropdown-item theme="error">{{ t('registry.list.delete') }}</t-dropdown-item>
+                  </t-popconfirm>
+                </t-dropdown-menu>
+              </t-dropdown>
+            </t-space>
           </template>
         </t-table>
       </section>
@@ -193,6 +215,7 @@
 </template>
 <script setup lang="ts">
 // Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
+import { EllipsisIcon } from 'tdesign-icons-vue-next';
 import type { PageInfo, TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
@@ -306,7 +329,7 @@ const columns = computed<TableProps['columns']>(() => [
 const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'repository_ref', title: t('registry.list.form.repositoryRef'), minWidth: 220 },
   { colKey: 'display_name', title: t('registry.list.form.repositoryName'), minWidth: 160 },
-  { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 240 },
+  { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 264 },
 ]);
 const assignmentColumns = computed<TableProps['columns']>(() => [
   { colKey: 'user_id', title: t('registry.list.form.userId'), width: 120 },
@@ -614,5 +637,9 @@ async function revokeAssignment(userId: number) {
   display: grid;
   gap: var(--graft-density-gap-12);
   margin-top: var(--graft-density-gap-24);
+}
+
+.registry-repository-actions {
+  flex-wrap: nowrap;
 }
 </style>
