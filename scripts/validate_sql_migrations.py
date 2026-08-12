@@ -94,6 +94,13 @@ class MigrationPreflight:
     data: dict[str, object]
 
 
+@dataclass(frozen=True)
+class ChangedSqlEntry:
+    status: str
+    path: Path
+    is_current_path: bool
+
+
 def content_revision(path: Path) -> str:
     return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
 
@@ -401,18 +408,18 @@ def validate(paths: list[Path], root: Path, require_preflight: bool = False) -> 
     return findings
 
 
-def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> list[tuple[str, Path]]:
+def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> list[ChangedSqlEntry]:
     if not staged and not base_ref:
         raise ValueError("--changed requires --base-ref")
 
-    command = ["git", "diff", "--name-status", "-z", "--diff-filter=ACMR"]
+    command = ["git", "diff", "--name-status", "-z", "--diff-filter=ACMRD"]
     if staged:
         command.append("--cached")
     else:
         command.append(f"{base_ref}...HEAD")
     output = subprocess.check_output(command, cwd=root).decode("utf-8")
     fields = output.split("\0")
-    paths: list[tuple[str, Path]] = []
+    paths: list[ChangedSqlEntry] = []
     index = 0
     while index < len(fields) - 1:
         status = fields[index]
@@ -422,17 +429,17 @@ def git_changed_sql_entries(root: Path, base_ref: str | None, staged: bool) -> l
         if status.startswith("R"):
             if index + 1 >= len(fields):
                 break
-            candidates = (fields[index], fields[index + 1])
+            candidates = ((fields[index], False), (fields[index + 1], True))
             index += 2
         else:
             if index >= len(fields):
                 break
-            candidates = (fields[index],)
+            candidates = ((fields[index], not status.startswith("D")),)
             index += 1
-        for entry in candidates:
+        for entry, is_current_path in candidates:
             path = root / entry
             if entry.endswith(".sql") and path.parent in default_migration_dirs(root):
-                paths.append((status, path))
+                paths.append(ChangedSqlEntry(status, path, is_current_path))
     return paths
 
 
@@ -444,11 +451,11 @@ def has_unpublished_exception(sql_path: Path) -> bool:
     return all(isinstance(exception.get(key), str) and exception[key].strip() for key in ("reason", "evidence"))
 
 
-def validate_historical_immutability(entries: list[tuple[str, Path]]) -> list[Finding]:
+def validate_historical_immutability(entries: list[ChangedSqlEntry]) -> list[Finding]:
     findings: list[Finding] = []
-    for status, path in entries:
-        if status.startswith(("M", "R")) and not has_unpublished_exception(path):
-            findings.append(Finding(path, "historical live migration was modified; add a higher-version migration or governed unpublished_exception evidence"))
+    for entry in entries:
+        if entry.status.startswith(("M", "R", "D")) and not has_unpublished_exception(entry.path):
+            findings.append(Finding(entry.path, "historical live migration was modified; add a higher-version migration or governed unpublished_exception evidence"))
     return findings
 
 
@@ -471,20 +478,22 @@ def main() -> int:
             changed_entries = git_changed_sql_entries(root, args.base_ref, args.staged)
         except ValueError as error:
             parser.error(str(error))
-        paths = [path for _, path in changed_entries]
+        paths = [entry.path for entry in changed_entries if entry.is_current_path and entry.path.is_file()]
         require_preflight = True
     else:
         if not args.paths:
             parser.error("select migration files with --paths or use --changed --base-ref <ref>")
         paths = [path if path.is_absolute() else root / path for path in args.paths]
         require_preflight = True
-    if not paths:
-        print("sql migration gate: skip (no live migration SQL files found)")
-        return 0
 
-    findings = validate(paths, root, require_preflight=require_preflight)
+    findings: list[Finding] = []
     if args.changed or args.staged:
         findings.extend(validate_historical_immutability(changed_entries))
+    if paths:
+        findings.extend(validate(paths, root, require_preflight=require_preflight))
+    elif not findings:
+        print("sql migration gate: skip (no live migration SQL files found)")
+        return 0
     if not findings:
         print(f"sql migration gate: ok ({len(paths)} files)")
         return 0

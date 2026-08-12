@@ -1,3 +1,16 @@
+x-graft-server-image: &graft-server-image ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+
+x-graft-server-runtime-env: &graft-server-runtime-env
+  GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
+  GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
+  GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
+  GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
+  # Keep deployment identity and image strategy explicit in every official server-image container.
+  GRAFT_DEPLOYMENT_RUNTIME: ${GRAFT_DEPLOYMENT_RUNTIME:-compose}
+  GRAFT_IMAGE_TAG: ${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+  GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE: ${GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE:-}
+  GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -41,7 +54,7 @@ services:
       retries: 10
 
   config-validate:
-    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    image: *graft-server-image
     restart: "no"
     # The deployment .env may be root-owned, so this short-lived read-only check runs as root.
     user: "0:0"
@@ -53,7 +66,7 @@ services:
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
 
   bootstrap:
-    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    image: *graft-server-image
     restart: "no"
     env_file:
       - .env
@@ -70,25 +83,81 @@ services:
       redis:
         condition: service_healthy
     environment:
-      GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
-      GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
-      GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
-      GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
-      # Keep deployment identity and image strategy explicit in the official server container.
-      GRAFT_DEPLOYMENT_RUNTIME: ${GRAFT_DEPLOYMENT_RUNTIME:-compose}
-      GRAFT_IMAGE_TAG: ${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
-      GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE: ${GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE:-}
-      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
+      <<: *graft-server-runtime-env
     volumes:
       # The beta cutover is the only bootstrap operation allowed to mutate v1 state.
       - graft-update-state:/var/lib/graft/update-state
-      # Preflight sidecars are read-only deployment evidence and never enter the migration apply path.
-      - ${COMPOSE_FILE_DIR:-.}/server/modules:/opt/graft/migrations:ro
+      - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
+      - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
+
+  migration-preflight:
+    image: *graft-server-image
+    restart: "no"
+    profiles: ["migration-preflight"]
+    env_file:
+      - .env
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ -z "$${GRAFT_MIGRATION_SIDECAR_HOST_PATH:-}" ]; then
+          echo "GRAFT_MIGRATION_SIDECAR_HOST_PATH must point at a verified sidecar directory for GRAFT_IMAGE_TAG" >&2
+          exit 64
+        fi
+        case "$${GRAFT_IMAGE_TAG:-}" in
+          ""|latest|beta)
+            echo "migration preflight requires a fixed release GRAFT_IMAGE_TAG, not latest or beta" >&2
+            exit 64
+            ;;
+        esac
+        case "$${GRAFT_MIGRATION_PREFLIGHT_MANIFEST:-}" in
+          ""|/*|..|*../*|../*)
+            echo "GRAFT_MIGRATION_PREFLIGHT_MANIFEST must be a relative path inside the verified sidecar directory" >&2
+            exit 64
+            ;;
+        esac
+        case "$${GRAFT_MIGRATION_PREFLIGHT_SHA256:-}" in
+          ""|*[!0123456789abcdefABCDEF]*)
+            echo "GRAFT_MIGRATION_PREFLIGHT_SHA256 must be the expected SHA-256 hex digest for the sidecar manifest" >&2
+            exit 64
+            ;;
+        esac
+        if [ "$${#GRAFT_MIGRATION_PREFLIGHT_SHA256}" -ne 64 ]; then
+          echo "GRAFT_MIGRATION_PREFLIGHT_SHA256 must be 64 hex characters" >&2
+          exit 64
+        fi
+        manifest="/opt/graft/migration-sidecars/$${GRAFT_MIGRATION_PREFLIGHT_MANIFEST}"
+        if [ ! -f "$${manifest}" ]; then
+          echo "migration preflight manifest was not found inside the verified sidecar directory" >&2
+          exit 64
+        fi
+        expected_sha256="$$(printf '%s' "$${GRAFT_MIGRATION_PREFLIGHT_SHA256}" | tr '[:upper:]' '[:lower:]')"
+        actual_sha256="$$(sha256sum "$${manifest}" | awk '{print $$1}')"
+        if [ "$${actual_sha256}" != "$${expected_sha256}" ]; then
+          echo "migration preflight manifest digest mismatch" >&2
+          exit 64
+        fi
+        exec /app/graft migrate preflight --manifest "$${manifest}"
+    depends_on:
+      config-validate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *graft-server-runtime-env
+      GRAFT_MIGRATION_SIDECAR_HOST_PATH: ${GRAFT_MIGRATION_SIDECAR_HOST_PATH:-}
+      GRAFT_MIGRATION_PREFLIGHT_MANIFEST: ${GRAFT_MIGRATION_PREFLIGHT_MANIFEST:-}
+      GRAFT_MIGRATION_PREFLIGHT_SHA256: ${GRAFT_MIGRATION_PREFLIGHT_SHA256:-}
+    volumes:
+      # Release sidecars are read-only evidence for `migrate preflight`.
+      # They must be copied from the same verified release as GRAFT_IMAGE_TAG.
+      - ${GRAFT_MIGRATION_SIDECAR_HOST_PATH:-./.data/migration-sidecars}:/opt/graft/migration-sidecars:ro
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
 
   application-root-init:
-    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    image: *graft-server-image
     restart: "no"
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
@@ -107,7 +176,7 @@ services:
         condition: service_completed_successfully
 
   backup-root-init:
-    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    image: *graft-server-image
     restart: "no"
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
@@ -124,7 +193,7 @@ services:
         condition: service_completed_successfully
 
   server:
-    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    image: *graft-server-image
     restart: unless-stopped
     user: "0:0"
     entrypoint:
@@ -151,15 +220,8 @@ services:
       backup-root-init:
         condition: service_completed_successfully
     environment:
-      GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
+      <<: *graft-server-runtime-env
       GRAFT_HTTP_ADDR: ${GRAFT_HTTP_ADDR:-:8080}
-      GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
-      GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
-      GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
-      GRAFT_DEPLOYMENT_RUNTIME: ${GRAFT_DEPLOYMENT_RUNTIME:-compose}
-      GRAFT_IMAGE_TAG: ${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
-      GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE: ${GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE:-}
-      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
       GRAFT_PROJECT_IMPORT_DEFAULT_PATH: ${GRAFT_PROJECT_IMPORT_DEFAULT_PATH:-}
       GRAFT_PROJECT_IMPORT_CONTAINER_PATH: ${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}
     expose:

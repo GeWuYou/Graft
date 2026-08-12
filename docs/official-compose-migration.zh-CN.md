@@ -67,11 +67,21 @@ docker compose ps
 
 确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
 
-在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 `bootstrap` 镜像和生产配置运行目标数据预检。官方 Compose 会将发行 sidecar 只读挂载到 `/opt/graft/migrations`：
+在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 server 镜像和生产配置运行目标数据预检。官方 Compose 提供了带 profile 的一次性 `migration-preflight` 服务，它与 `bootstrap` 共享同一个 `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` 镜像引用和运行时环境；随后 `bootstrap` 会使用同一个 server binary 内嵌的 migration registry 执行实际迁移。
+
+不要把任意 checkout、工作树或宿主机 `server/modules` 目录当作 preflight 证据。必须先确认 sidecar 来源属于 `GRAFT_IMAGE_TAG` 选择的同一个不可变 release：将已拉取 server 镜像的 digest 与该 GitHub Release 的 `release-manifest.json` 资产核对，然后在运行前校验确切 preflight sidecar 文件的 SHA-256。`migration-preflight` 服务会拒绝 `latest` 或 `beta` 跟随标签，并且只有 `GRAFT_MIGRATION_PREFLIGHT_SHA256` 与选中的 sidecar 文件一致时才会运行。若 release manifest、server 镜像 digest、固定 Tag、sidecar 路径或 sidecar digest 不一致，必须停止。
 
 ```bash
-docker compose run --rm --no-deps --entrypoint /app/graft bootstrap \
-  migrate preflight --manifest /opt/graft/migrations/<module>/migrations/<version>_<name>.preflight.yaml
+docker compose pull --policy always bootstrap
+release_tag="$(sed -n 's/^GRAFT_IMAGE_TAG=//p' .env | tail -n 1)"
+docker image inspect "ghcr.io/gewuyou/graft-server:${release_tag}" \
+  --format '{{index .RepoDigests 0}}'
+
+GRAFT_MIGRATION_SIDECAR_HOST_PATH=/opt/graft/server/modules \
+GRAFT_MIGRATION_PREFLIGHT_MANIFEST=<module>/migrations/<version>_<name>.preflight.yaml \
+GRAFT_MIGRATION_PREFLIGHT_SHA256=<sidecar-sha256-from-release-guidance> \
+docker compose --profile migration-preflight run --rm migration-preflight
+
 docker compose run --rm bootstrap
 ```
 

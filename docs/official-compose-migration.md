@@ -69,11 +69,21 @@ docker compose ps
 
 Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
 
-Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks with the same official `bootstrap` image and production configuration that will apply the migration. The official Compose file mounts release sidecars read-only at `/opt/graft/migrations`:
+Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks with the same official server image and production configuration that will apply the migration. The official Compose file provides a profile-gated `migration-preflight` one-shot service that shares the same `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` image reference and runtime environment as `bootstrap`; `bootstrap` then applies migrations from the embedded migration registry in that same server binary.
+
+Do not use an arbitrary checkout, working tree, or host `server/modules` directory as preflight evidence. First verify that the sidecar source belongs to the same immutable release selected by `GRAFT_IMAGE_TAG`: compare the pulled server image digest with the `release-manifest.json` asset for that GitHub Release, then verify the exact preflight sidecar file SHA-256 before running it. The `migration-preflight` service refuses tracking tags (`latest` or `beta`) and refuses to run unless `GRAFT_MIGRATION_PREFLIGHT_SHA256` matches the selected sidecar file. Stop if the release manifest, server image digest, fixed tag, sidecar path, or sidecar digest do not match.
 
 ```bash
-docker compose run --rm --no-deps --entrypoint /app/graft bootstrap \
-  migrate preflight --manifest /opt/graft/migrations/<module>/migrations/<version>_<name>.preflight.yaml
+docker compose pull --policy always bootstrap
+release_tag="$(sed -n 's/^GRAFT_IMAGE_TAG=//p' .env | tail -n 1)"
+docker image inspect "ghcr.io/gewuyou/graft-server:${release_tag}" \
+  --format '{{index .RepoDigests 0}}'
+
+GRAFT_MIGRATION_SIDECAR_HOST_PATH=/opt/graft/server/modules \
+GRAFT_MIGRATION_PREFLIGHT_MANIFEST=<module>/migrations/<version>_<name>.preflight.yaml \
+GRAFT_MIGRATION_PREFLIGHT_SHA256=<sidecar-sha256-from-release-guidance> \
+docker compose --profile migration-preflight run --rm migration-preflight
+
 docker compose run --rm bootstrap
 ```
 

@@ -89,14 +89,156 @@ func validateReadOnlyPreflightCheck(check migrationPreflightCheck) error {
 	if strings.TrimSpace(check.Name) == "" {
 		return fmt.Errorf("migration preflight check name is required")
 	}
-	query := strings.TrimSpace(strings.ToUpper(check.Query))
-	if (!strings.HasPrefix(query, "SELECT") && !strings.HasPrefix(query, "WITH")) || strings.Contains(query, ";") {
+	query := strings.TrimSpace(check.Query)
+	tokens, hasStatementSeparator := scanPreflightSQLTokens(query)
+	if len(tokens) == 0 || (tokens[0] != "SELECT" && tokens[0] != "WITH") || hasStatementSeparator {
 		return fmt.Errorf("migration preflight check %q must be one read-only SELECT or WITH query", check.Name)
 	}
-	for _, forbidden := range []string{" INSERT ", " UPDATE ", " DELETE ", " ALTER ", " DROP ", " CREATE ", " COPY ", " CALL ", " DO "} {
-		if strings.Contains(" "+query+" ", forbidden) {
+	for _, token := range tokens {
+		if _, ok := forbiddenPreflightSQLKeywords[token]; ok {
 			return fmt.Errorf("migration preflight check %q contains a mutating SQL keyword", check.Name)
 		}
 	}
 	return nil
+}
+
+var forbiddenPreflightSQLKeywords = map[string]struct{}{
+	"INSERT": {},
+	"UPDATE": {},
+	"DELETE": {},
+	"MERGE":  {},
+	"ALTER":  {},
+	"DROP":   {},
+	"CREATE": {},
+	"COPY":   {},
+	"CALL":   {},
+	"DO":     {},
+}
+
+const (
+	preflightSQLTokenCapacity = 8
+	sqlPairLength             = 2
+)
+
+// scanPreflightSQLTokens 只扫描 SQL 代码区的关键字，避免换行、括号或注释让写入语句绕过 preflight 词法闸门。
+func scanPreflightSQLTokens(query string) ([]string, bool) {
+	tokens := make([]string, 0, preflightSQLTokenCapacity)
+	hasStatementSeparator := false
+	for i := 0; i < len(query); {
+		next, token, separator := scanNextPreflightSQLToken(query, i)
+		if token != "" {
+			tokens = append(tokens, token)
+		}
+		hasStatementSeparator = hasStatementSeparator || separator
+		i = next
+	}
+	return tokens, hasStatementSeparator
+}
+
+func scanNextPreflightSQLToken(query string, start int) (int, string, bool) {
+	ch := query[start]
+	if ch == '\'' {
+		return skipSingleQuotedSQLString(query, start), "", false
+	}
+	if ch == '"' {
+		return skipDoubleQuotedSQLIdentifier(query, start), "", false
+	}
+	if start+1 < len(query) && ch == '-' && query[start+1] == '-' {
+		return skipSQLLineComment(query, start+sqlPairLength), "", false
+	}
+	if start+1 < len(query) && ch == '/' && query[start+1] == '*' {
+		return skipSQLBlockComment(query, start+sqlPairLength), "", false
+	}
+	if ch == '$' {
+		if next, ok := skipDollarQuotedSQLString(query, start); ok {
+			return next, "", false
+		}
+	}
+	if ch == ';' {
+		return start + 1, "", true
+	}
+	if !isSQLIdentifierStart(ch) {
+		return start + 1, "", false
+	}
+	end := start + 1
+	for end < len(query) && isSQLIdentifierPart(query[end]) {
+		end++
+	}
+	return end, strings.ToUpper(query[start:end]), false
+}
+
+func skipSingleQuotedSQLString(query string, start int) int {
+	for i := start + 1; i < len(query); i++ {
+		if query[i] != '\'' {
+			continue
+		}
+		if i+1 < len(query) && query[i+1] == '\'' {
+			i++
+			continue
+		}
+		return i + 1
+	}
+	return len(query)
+}
+
+func skipDoubleQuotedSQLIdentifier(query string, start int) int {
+	for i := start + 1; i < len(query); i++ {
+		if query[i] != '"' {
+			continue
+		}
+		if i+1 < len(query) && query[i+1] == '"' {
+			i++
+			continue
+		}
+		return i + 1
+	}
+	return len(query)
+}
+
+func skipSQLLineComment(query string, start int) int {
+	for i := start; i < len(query); i++ {
+		if query[i] == '\n' || query[i] == '\r' {
+			return i + 1
+		}
+	}
+	return len(query)
+}
+
+func skipSQLBlockComment(query string, start int) int {
+	for i := start; i+1 < len(query); i++ {
+		if query[i] == '*' && query[i+1] == '/' {
+			return i + sqlPairLength
+		}
+	}
+	return len(query)
+}
+
+func skipDollarQuotedSQLString(query string, start int) (int, bool) {
+	end := start + 1
+	for end < len(query) && query[end] != '$' {
+		if !isSQLDollarQuoteTagPart(query[end]) {
+			return start, false
+		}
+		end++
+	}
+	if end >= len(query) || query[end] != '$' {
+		return start, false
+	}
+	delimiter := query[start : end+1]
+	if next := strings.Index(query[end+1:], delimiter); next >= 0 {
+		return end + 1 + next + len(delimiter), true
+	}
+	return len(query), true
+}
+
+func isSQLIdentifierStart(ch byte) bool {
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_'
+}
+
+func isSQLIdentifierPart(ch byte) bool {
+	return isSQLIdentifierStart(ch) || (ch >= '0' && ch <= '9') || ch == '$'
+}
+
+func isSQLDollarQuoteTagPart(ch byte) bool {
+	return isSQLIdentifierPart(ch) && ch != '$'
 }

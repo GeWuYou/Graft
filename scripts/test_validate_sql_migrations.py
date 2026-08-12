@@ -258,13 +258,59 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
 
             with (
                 mock.patch.object(validator, "repo_root", return_value=root),
-                mock.patch.object(validator, "git_changed_sql_entries", return_value=[("A", sql)]),
+                mock.patch.object(validator, "git_changed_sql_entries", return_value=[validator.ChangedSqlEntry("A", sql, True)]),
                 mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
                 mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
             ):
                 self.assertEqual(validator.main(), 1)
 
             self.assertIn("exactly one .preflight.yaml sidecar", stderr.getvalue())
+
+    def test_changed_command_reports_deleted_historical_migration_before_skip(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            deleted = root / "server/modules/demo/migrations/202608120000_deleted.sql"
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(validator, "git_changed_sql_entries", return_value=[validator.ChangedSqlEntry("D", deleted, False)]),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            output = stderr.getvalue()
+            self.assertIn("sql migration gate: failed", output)
+            self.assertIn("historical live migration was modified", output)
+
+    def test_changed_command_validates_rename_current_path_without_reading_old_path(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            old = root / "server/modules/demo/migrations/202608120000_old.sql"
+            new = root / "server/modules/demo/migrations/202608120001_new.sql"
+            new.parent.mkdir(parents=True)
+            new.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "repo_root", return_value=root),
+                mock.patch.object(
+                    validator,
+                    "git_changed_sql_entries",
+                    return_value=[
+                        validator.ChangedSqlEntry("R100", old, False),
+                        validator.ChangedSqlEntry("R100", new, True),
+                    ],
+                ),
+                mock.patch.object(sys, "argv", ["validate_sql_migrations.py", "--changed", "--base-ref", "origin/main"]),
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(validator.main(), 1)
+
+            output = stderr.getvalue()
+            self.assertIn("202608120000_old.sql", output)
+            self.assertIn("historical live migration was modified", output)
+            self.assertIn("202608120001_new.sql", output)
+            self.assertIn("exactly one .preflight.yaml sidecar", output)
 
     def test_rename_is_treated_as_historical_migration_change(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -279,7 +325,29 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
             ):
                 entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
 
-            self.assertEqual(entries, [("R100", root / "server/modules/demo/migrations/202608120000_old.sql"), ("R100", sql)])
+            self.assertEqual(
+                entries,
+                [
+                    validator.ChangedSqlEntry("R100", root / "server/modules/demo/migrations/202608120000_old.sql", False),
+                    validator.ChangedSqlEntry("R100", sql, True),
+                ],
+            )
+            messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
+            self.assertTrue(any("historical live migration was modified" in message for message in messages))
+
+    def test_deleted_migration_is_tracked_for_historical_validation(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            migrations = root / "server/modules/demo/migrations"
+            migrations.mkdir(parents=True)
+
+            with (
+                mock.patch.object(validator.subprocess, "check_output", return_value=b"D\x00server/modules/demo/migrations/202608120000_deleted.sql\x00"),
+                mock.patch.object(validator, "default_migration_dirs", return_value=[migrations]),
+            ):
+                entries = validator.git_changed_sql_entries(root, "origin/main", staged=False)
+
+            self.assertEqual(entries, [validator.ChangedSqlEntry("D", root / "server/modules/demo/migrations/202608120000_deleted.sql", False)])
             messages = [finding.message for finding in validator.validate_historical_immutability(entries)]
             self.assertTrue(any("historical live migration was modified" in message for message in messages))
 
