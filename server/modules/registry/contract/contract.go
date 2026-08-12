@@ -8,6 +8,10 @@ const (
 	MenuTitle = "menu.registries.title"
 	// MenuPath 是 Registry 管理页面路由。
 	MenuPath = "/infrastructure/registries"
+	// MenuIcon 是镜像仓库共享资源的菜单图标语义键。
+	MenuIcon = "image-registry"
+	// MenuOrder 确保镜像仓库共享资源显示在运行目标之前。
+	MenuOrder = 30
 	// ReadPermission 允许读取 Registry 管理信息。
 	ReadPermission = "registry.read"
 	// CreatePermission 允许创建 Registry 连接和 Repository。

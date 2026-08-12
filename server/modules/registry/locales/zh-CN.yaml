@@ -1,4 +1,5 @@
 menu.registries.title: 镜像仓库
+menu.section.shared_resources: 共享资源
 rbac.permissionCatalog.registryRead.display: 查看镜像仓库
 rbac.permissionCatalog.registryRead.description: 允许查看镜像仓库连接与产物仓库配置。
 rbac.permissionCatalog.registryCreate.display: 创建镜像仓库

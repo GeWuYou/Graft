@@ -18,8 +18,10 @@ import (
 	containerdi "graft/server/internal/container"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
+	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/permission"
 	buildcontract "graft/server/modules/build/contract"
 	registrycontract "graft/server/modules/registry/contract"
 	registrystore "graft/server/modules/registry/store"
@@ -56,6 +58,42 @@ func TestRegistryRoutesRequireExpectedPermissions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRegistryModuleRegistersSharedResourceNavigation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	services := containerdi.New()
+	if err := services.RegisterSingleton((*moduleapi.AuthService)(nil), func(containerdi.Resolver) (any, error) { return registryRouteAuthService{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return &registryRouteAuthorizer{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	menuRegistry := menu.NewRegistry()
+	ctx := &module.Context{
+		Router:             engine.Group("/api"),
+		Services:           services,
+		EventBus:           eventbus.New(zap.NewNop()),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		MenuRegistry:       menuRegistry,
+		PermissionRegistry: permission.NewRegistry(),
+	}
+
+	if err := NewModule(NewService(newRegistryRouteRepository())).Register(ctx); err != nil {
+		t.Fatalf("register registry module: %v", err)
+	}
+
+	for _, item := range menuRegistry.Items() {
+		if item.Code != "registry.list" {
+			continue
+		}
+		if item.TitleKey != registrycontract.MenuTitle || item.SectionKey != menu.SharedResourcesSectionKey || item.SectionTitleKey != menu.SharedResourcesSectionTitleKey || item.Icon != registrycontract.MenuIcon || item.Order != registrycontract.MenuOrder || item.Permission != registrycontract.ReadPermission {
+			t.Fatalf("registry navigation metadata = %#v", item)
+		}
+		return
+	}
+	t.Fatal("registry navigation entry was not registered")
 }
 
 func TestRegistryConnectionResponseDoesNotExposeCredentialReference(t *testing.T) {
