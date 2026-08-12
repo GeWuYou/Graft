@@ -170,7 +170,7 @@ AI closeout:
 
 ## 9. Review 清单
 
-### 8.1 单 Agent Review
+### 9.1 单 Agent Review
 
 - authority owner 是否确认清楚
 - 是否严格留在 owned scope
@@ -183,7 +183,7 @@ AI closeout:
 - 如果任务来自 PR review，是否明确覆盖 `Outside diff range comments`、`Nitpick comments` 和其它 folded
   latest-review findings，而不是只处理 open threads 或高优先级子集
 
-### 8.2 多 Agent Review
+### 9.2 多 Agent Review
 
 - 各 agent 的 owned scope 是否明确且不重叠
 - 是否有人越界修改上游 authority 或共享契约

@@ -48,7 +48,7 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://localhost:5173 \
+  --url http://172.21.235.129:3002 \
   --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session ui-inspection \
   --screenshot \
@@ -80,7 +80,7 @@ or commit credential values, access tokens, or session storage dumps.
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://localhost:5173/audit/logs \
+  --url http://172.21.235.129:3002/audit/logs \
   --session audit-filter-check \
   --click "text=Filter" \
   --fill "input[placeholder='Keyword']=admin" \

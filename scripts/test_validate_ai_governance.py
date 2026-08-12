@@ -383,6 +383,39 @@ class VerificationResponsibilityGovernanceTests(unittest.TestCase):
 
         self.assertTrue(any(finding.path == target for finding in findings))
 
+    def test_verification_responsibility_allows_explicit_conditional_browser_gate(self) -> None:
+        target = MODULE.REPO_ROOT / "ai-plan" / "public" / "docker-resource-context-ia" / "README.md"
+        original_read_text = MODULE.read_text
+
+        def read_conditional(path: MODULE.Path) -> str:
+            text = original_read_text(path)
+            if path == target:
+                return text.replace(
+                    "Browser inspection is not a default closeout gate.",
+                    "Browser inspection is conditional; browser evidence is not a default closeout gate.",
+                )
+            return text
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_conditional):
+            findings = MODULE.validate_verification_responsibility_governance()
+
+        self.assertFalse(any(finding.path == target for finding in findings))
+
+    def test_verification_responsibility_rejects_recovery_without_conditional_authorization(self) -> None:
+        target = MODULE.REPO_ROOT / "ai-plan" / "public" / "docker-resource-context-ia" / "README.md"
+        original_read_text = MODULE.read_text
+
+        def read_unconditional(path: MODULE.Path) -> str:
+            text = original_read_text(path)
+            if path == target:
+                return text.replace("conditional browser inspection only when authorized", "browser inspection before closeout")
+            return text
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_unconditional):
+            findings = MODULE.validate_verification_responsibility_governance()
+
+        self.assertTrue(any(finding.path == target for finding in findings))
+
     def test_verification_responsibility_rejects_missing_human_acceptance_status(self) -> None:
         target = MODULE.AI_CODE_REVIEW_DOC
         original_read_text = MODULE.read_text

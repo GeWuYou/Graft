@@ -1133,7 +1133,14 @@ def validate_verification_responsibility_governance() -> list[Finding]:
             findings.append(Finding(path, "active verification-boundary recovery file is missing"))
             continue
         text = read_text(path)
-        if "browser evidence and closeout" in text:
+        normalized_text = " ".join(text.split())
+        has_conditional_browser_authorization = (
+            "conditional browser inspection" in normalized_text
+            or "Browser inspection is conditional on" in text
+            or "Do not start browser work unless it is explicitly authorized" in text
+        )
+        has_human_acceptance_handoff = "human acceptance" in text
+        if not has_conditional_browser_authorization or not has_human_acceptance_handoff:
             findings.append(Finding(path, "active recovery must not make browser evidence an unconditional closeout gate"))
 
     return findings
