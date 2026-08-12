@@ -36,7 +36,7 @@
     "cross-boundary-validation-and-closeout"
   ],
   "current_batch": "cross-boundary-validation-and-closeout",
-  "next_batch": "verification-classification-and-closeout",
+  "next_batch": null,
   "closeout_status": "in-progress"
 }
 ```
