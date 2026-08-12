@@ -136,28 +136,36 @@ func scanPreflightSQLTokens(query string) ([]string, bool) {
 }
 
 func scanNextPreflightSQLToken(query string, start int) (int, string, bool) {
-	ch := query[start]
-	if ch == '\'' {
-		return skipSingleQuotedSQLString(query, start), "", false
+	if next, ok := skipPreflightSQLNonCode(query, start); ok {
+		return next, "", false
 	}
-	if ch == '"' {
-		return skipDoubleQuotedSQLIdentifier(query, start), "", false
-	}
-	if start+1 < len(query) && ch == '-' && query[start+1] == '-' {
-		return skipSQLLineComment(query, start+sqlPairLength), "", false
-	}
-	if start+1 < len(query) && ch == '/' && query[start+1] == '*' {
-		return skipSQLBlockComment(query, start+sqlPairLength), "", false
-	}
-	if ch == '$' {
-		if next, ok := skipDollarQuotedSQLString(query, start); ok {
-			return next, "", false
-		}
-	}
-	if ch == ';' {
+	if query[start] == ';' {
 		return start + 1, "", true
 	}
-	if !isSQLIdentifierStart(ch) {
+	return scanPreflightSQLIdentifierToken(query, start)
+}
+
+func skipPreflightSQLNonCode(query string, start int) (int, bool) {
+	ch := query[start]
+	switch {
+	case ch == '\'':
+		return skipSingleQuotedSQLString(query, start), true
+	case ch == '"':
+		return skipDoubleQuotedSQLIdentifier(query, start), true
+	case startsSQLLineComment(query, start):
+		return skipSQLLineComment(query, start+sqlPairLength), true
+	case startsSQLBlockComment(query, start):
+		return skipSQLBlockComment(query, start+sqlPairLength), true
+	case ch == '$':
+		if next, ok := skipDollarQuotedSQLString(query, start); ok {
+			return next, true
+		}
+	}
+	return start, false
+}
+
+func scanPreflightSQLIdentifierToken(query string, start int) (int, string, bool) {
+	if !isSQLIdentifierStart(query[start]) {
 		return start + 1, "", false
 	}
 	end := start + 1
@@ -165,6 +173,14 @@ func scanNextPreflightSQLToken(query string, start int) (int, string, bool) {
 		end++
 	}
 	return end, strings.ToUpper(query[start:end]), false
+}
+
+func startsSQLLineComment(query string, start int) bool {
+	return start+1 < len(query) && query[start] == '-' && query[start+1] == '-'
+}
+
+func startsSQLBlockComment(query string, start int) bool {
+	return start+1 < len(query) && query[start] == '/' && query[start+1] == '*'
 }
 
 func skipSingleQuotedSQLString(query string, start int) int {
