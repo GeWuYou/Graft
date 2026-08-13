@@ -297,7 +297,7 @@ import {
   updateRegistryRepository,
 } from '../../api/registry';
 import RegistryConnectionForm, { type RegistryConnectionFormData } from '../../components/RegistryConnectionForm.vue';
-import { REGISTRY_DETAIL_MODE } from '../../contract/paths';
+import { REGISTRY_DETAIL_MODE, registryDetailPath } from '../../contract/paths';
 
 type RegistryConnection = components['schemas']['registry-connection'];
 type RegistryRepository = components['schemas']['registry-artifact-repository'];
@@ -317,6 +317,7 @@ const repositories = ref<RegistryRepository[]>([]);
 const assignments = ref<RegistryAssignment[]>([]);
 const loading = ref(false);
 const connectionSaving = ref(false);
+const connectionEditClosing = ref(false);
 const connectionFormRef = ref<{ validate: () => ReturnType<FormInstanceFunctions['validate']> } | null>(null);
 const connectionForm = ref<RegistryConnectionFormData>({
   connection_ref: '',
@@ -386,6 +387,11 @@ const candidateColumns = computed<TableProps['columns']>(() => [
 onMounted(() => void load());
 
 watch(connectionEditVisible, (visible) => {
+  if (!visible) {
+    connectionEditClosing.value = false;
+    return;
+  }
+
   if (visible && connection.value) hydrateConnectionForm(connection.value);
 });
 
@@ -428,8 +434,12 @@ function openConnectionEdit() {
 }
 
 function closeConnectionEdit() {
-  if (connectionSaving.value) return;
-  void router.replace({ query: { ...route.query, mode: undefined } });
+  if (connectionSaving.value || connectionEditClosing.value || !connectionEditVisible.value) return;
+  connectionEditClosing.value = true;
+  void router.replace({
+    path: registryDetailPath(connectionRef.value),
+    query: { ...route.query, mode: undefined },
+  });
 }
 
 function handleConnectionEditVisible(visible: boolean) {
@@ -449,7 +459,10 @@ async function saveConnection() {
     });
     MessagePlugin.success(t('registry.route.detail.connectionSaveSuccess'));
     await load();
-    await router.replace({ query: { ...route.query, mode: undefined } });
+    await router.replace({
+      path: registryDetailPath(connectionRef.value),
+      query: { ...route.query, mode: undefined },
+    });
   } catch (error) {
     const message = resolveLocalizedErrorMessage(t, error, t('registry.route.detail.connectionSaveFailed'));
     errorMessage.value = message;

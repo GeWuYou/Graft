@@ -10,7 +10,7 @@ const apiMocks = vi.hoisted(() => ({
   updateRegistry: vi.fn(),
 }));
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
-const routerMocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const routerMocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn().mockResolvedValue(undefined) }));
 const routeState = reactive({
   params: { connectionRef: 'registry-a' },
   query: {} as Record<string, unknown>,
@@ -230,7 +230,10 @@ describe('RegistryDetailPage connection editing', () => {
     expect(apiMocks.getRegistry).toHaveBeenCalledTimes(2);
     expect(apiMocks.getRegistryRepositories).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('registry.route.detail.connectionSaveSuccess');
-    expect(routerMocks.replace).toHaveBeenCalledWith({ query: { source: 'list', mode: undefined } });
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      path: '/infrastructure/registries/registry-a',
+      query: { source: 'list', mode: undefined },
+    });
   });
 
   it('does not submit when the Connection form is invalid', async () => {
@@ -262,10 +265,28 @@ describe('RegistryDetailPage connection editing', () => {
   });
 
   it('removes edit mode when the drawer closes', async () => {
+    routeState.params.connectionRef = 'registry:acceptance-ghcr';
     const wrapper = mountPage();
     await flushPromises();
     await connectionDialog(wrapper).vm.$emit('update:visible', false);
+    await flushPromises();
 
-    expect(routerMocks.replace).toHaveBeenCalledWith({ query: { source: 'list', mode: undefined } });
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      path: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+      query: { source: 'list', mode: undefined },
+    });
+    expect(apiMocks.getRegistry).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getRegistryRepositories).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates repeated close events while the canonical route is being replaced', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await connectionDialog(wrapper).vm.$emit('update:visible', false);
+    await connectionDialog(wrapper).vm.$emit('update:visible', false);
+    await flushPromises();
+
+    expect(routerMocks.replace).toHaveBeenCalledTimes(1);
   });
 });
