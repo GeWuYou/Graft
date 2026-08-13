@@ -26,3 +26,6 @@ here instead of restoring them to the `ai-plan/design/` root.
   resource-oriented UI routes, global entries, and runtime/source placement rules.
 - [项目文件组织与扩展点设计.md](项目文件组织与扩展点设计.md) is the authority for the target server layout, Provider/
   Adapter/Integration boundaries, independent Agents, runners, deployments, and conformance fixtures.
+- [运行时组合与资源治理设计.md](运行时组合与资源治理设计.md) is the authority for runtime resource ownership,
+  bounded capability visibility, and composition-unit lifecycle/cleanup declarations across Runtime, Module, Provider,
+  Agent, Runner, Task Runtime, event, and realtime boundaries.
