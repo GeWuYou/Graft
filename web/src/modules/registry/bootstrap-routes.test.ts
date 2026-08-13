@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { registryBootstrapRouteRegistrations } from './bootstrap-routes';
+import { registryBootstrapRouteRegistrations, registryGlobalRouteRegistrations } from './bootstrap-routes';
 
 describe('registry bootstrap route registrations', () => {
   it('registers the canonical registry list with localized list titles', () => {
@@ -20,6 +20,15 @@ describe('registry bootstrap route registrations', () => {
             'en-US': 'Image Registries',
           },
         }),
+      }),
+    );
+  });
+
+  it('declares the mounted detail page route used for its runtime tab title', () => {
+    expect(registryGlobalRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        pageRouteName: 'RegistryConnectionDetailIndex',
+        routeName: 'RegistryConnectionDetail',
       }),
     );
   });

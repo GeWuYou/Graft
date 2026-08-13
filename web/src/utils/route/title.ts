@@ -1,5 +1,5 @@
 import type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
-import { supportedLocales } from '@/contracts/i18n/locales';
+import { LOCALE, supportedLocales } from '@/contracts/i18n/locales';
 import { i18n } from '@/locales';
 
 const ROUTE_TITLE_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_-]+)+$/;
@@ -42,6 +42,22 @@ export function localizeRouteTitle(fallbackTitle: string, titleKey?: string): Lo
 
 export function localizeRouteTitleKey(titleKey: string): LocalizedTitle {
   return localizeRouteTitle(titleKey, titleKey);
+}
+
+/**
+ * 构造对象详情 Tab 的本地化标题，名称不可用时保留路由基础标题。
+ */
+export function buildDetailTitleWithFallback(routeTitleKey: string, name: string): LocalizedTitle {
+  const normalizedName = name.trim();
+  const baseTitle = localizeRouteTitleKey(routeTitleKey);
+  if (!normalizedName || normalizedName === baseTitle[LOCALE.ZH_CN] || normalizedName === baseTitle[LOCALE.EN_US]) {
+    return baseTitle;
+  }
+
+  return {
+    [LOCALE.ZH_CN]: `${baseTitle[LOCALE.ZH_CN]} - ${normalizedName}`,
+    [LOCALE.EN_US]: `${baseTitle[LOCALE.EN_US]} - ${normalizedName}`,
+  };
 }
 
 /**

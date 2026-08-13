@@ -7,6 +7,7 @@ export const REGISTRY_BOOTSTRAP_ROUTE = {
   },
   DETAIL: {
     path: REGISTRY_ROUTE_PATH.DETAIL,
+    pageRouteName: 'RegistryConnectionDetailIndex',
     routeName: 'RegistryConnectionDetail',
   },
 } as const;

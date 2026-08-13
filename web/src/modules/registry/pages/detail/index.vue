@@ -277,6 +277,8 @@ import { PagedMultiSelect } from '@/shared/components/selection';
 import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { useTabsRouterStore } from '@/store/modules/tabs-router';
+import { buildDetailTitleWithFallback } from '@/utils/route/title';
 
 import {
   createRegistryRepository,
@@ -291,6 +293,7 @@ import {
   updateRegistryRepository,
 } from '../../api/registry';
 import RegistryConnectionForm, { type RegistryConnectionFormData } from '../../components/RegistryConnectionForm.vue';
+import { REGISTRY_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { REGISTRY_DETAIL_MODE, registryDetailPath } from '../../contract/paths';
 
 type RegistryConnection = components['schemas']['registry-connection'];
@@ -306,6 +309,7 @@ const ASSIGNMENT_PAGE_LIMIT = 100;
 const ASSIGNMENT_MUTATION_CONCURRENCY = 10;
 const route = useRoute();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const connectionRef = computed(() => String(route.params.connectionRef || ''));
 const connectionEditVisible = computed(() => route.query.mode === REGISTRY_DETAIL_MODE.EDIT);
 const connection = ref<RegistryConnection | null>(null);
@@ -403,6 +407,7 @@ async function load() {
       }),
     ]);
     connection.value = connectionResult;
+    updateCurrentTabTitle(connectionResult.display_name);
     if (connectionEditVisible.value) hydrateConnectionForm(connectionResult);
     repositories.value = repositoryResult.items ?? [];
     repositoryTotal.value = repositoryResult.total ?? repositories.value.length;
@@ -411,6 +416,14 @@ async function load() {
   } finally {
     loading.value = false;
   }
+}
+
+function updateCurrentTabTitle(name: string) {
+  tabsRouterStore.updateActiveTabTitle(
+    REGISTRY_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+    route,
+    buildDetailTitleWithFallback('registry.route.detail.title', name),
+  );
 }
 
 function hydrateConnectionForm(value: RegistryConnection) {

@@ -17,8 +17,11 @@ const apiMocks = vi.hoisted(() => ({
 }));
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const routerMocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn().mockResolvedValue(undefined) }));
+const tabsRouterStoreMocks = vi.hoisted(() => ({ updateActiveTabTitle: vi.fn() }));
 const routeState = reactive({
+  name: 'RegistryConnectionDetailIndex',
   params: { connectionRef: 'registry-a' },
+  path: '/infrastructure/registries/registry-a',
   query: {} as Record<string, unknown>,
 });
 const formMocks = vi.hoisted(() => ({ validate: vi.fn() }));
@@ -26,6 +29,15 @@ const formMocks = vi.hoisted(() => ({ validate: vi.fn() }));
 vi.mock('vue-router', () => ({
   useRoute: () => routeState,
   useRouter: () => routerMocks,
+}));
+vi.mock('@/store/modules/tabs-router', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMocks,
+}));
+vi.mock('@/utils/route/title', () => ({
+  buildDetailTitleWithFallback: (_titleKey: string, name: string) => ({
+    'en-US': `Image Registry Detail - ${name}`,
+    'zh-CN': `镜像仓库详情 - ${name}`,
+  }),
 }));
 vi.mock('../../api/registry', () => ({
   createRegistryRepository: vi.fn(),
@@ -209,7 +221,24 @@ describe('RegistryDetailPage connection editing', () => {
     expect(connectionDialog(refreshed).props('visible')).toBe(true);
   });
 
+  it('updates the active detail tab title with the loaded Connection name', async () => {
+    mountPage();
+    await flushPromises();
+
+    expect(tabsRouterStoreMocks.updateActiveTabTitle).toHaveBeenCalledWith(
+      'RegistryConnectionDetailIndex',
+      routeState,
+      {
+        'en-US': 'Image Registry Detail - Registry A',
+        'zh-CN': '镜像仓库详情 - Registry A',
+      },
+    );
+  });
+
   it('saves the editable fields, refreshes detail data, and restores the normal URL', async () => {
+    apiMocks.getRegistry
+      .mockResolvedValueOnce(connection())
+      .mockResolvedValueOnce(connection({ display_name: 'Updated Registry' }));
     const wrapper = mountPage();
     await flushPromises();
     wrapper.findComponent(connectionFormStub).vm.$emit('update:modelValue', {
@@ -236,6 +265,14 @@ describe('RegistryDetailPage connection editing', () => {
     expect(apiMocks.getRegistry).toHaveBeenCalledTimes(2);
     expect(apiMocks.getRegistryRepositories).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('registry.route.detail.connectionSaveSuccess');
+    expect(tabsRouterStoreMocks.updateActiveTabTitle).toHaveBeenLastCalledWith(
+      'RegistryConnectionDetailIndex',
+      routeState,
+      {
+        'en-US': 'Image Registry Detail - Updated Registry',
+        'zh-CN': '镜像仓库详情 - Updated Registry',
+      },
+    );
     expect(routerMocks.replace).toHaveBeenCalledWith({
       path: '/infrastructure/registries/registry-a',
       query: { source: 'list', mode: undefined },

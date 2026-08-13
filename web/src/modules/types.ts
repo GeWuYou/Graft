@@ -17,6 +17,8 @@ export type BootstrapRouteRegistration = {
 export type GlobalRouteRegistration = {
   path: string;
   routeName: string;
+  /** 子页面路由名；未声明时由壳层按 `${routeName}Index` 推导。 */
+  pageRouteName?: string;
   loadPage: RouteRecordRaw['component'];
   /** 显式声明拥有该全局详情页导航祖先的 bootstrap 资源。 */
   navigationParentPath?: string;

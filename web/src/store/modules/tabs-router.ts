@@ -111,7 +111,20 @@ function writePinnedTabKeys(keys: string[]) {
 }
 
 function normalizeTabKey(value?: string) {
-  return typeof value === 'string' ? value.trim() : '';
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
 }
 
 /**
@@ -201,12 +214,14 @@ function formatTabsSummary(routes: TRouterInfo[]) {
  */
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
   const tabKey = getTabKey(route);
+  const path = normalizeTabKey(route.path) || route.path;
 
   return {
     ...route,
+    path,
     titleSource: route.titleSource ?? 'route',
     tabKey,
-    fullPath: route.fullPath || route.path,
+    fullPath: route.fullPath || path,
     isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
     isAlive: route.isHome ? true : shouldKeepTabAlive(route),
   };
@@ -282,6 +297,22 @@ function ensureSingleHomeTab(routes: TRouterInfo[]) {
   const canonicalHomeKey = getTabKey(homeRoute[0]);
   const retainedHome = homeTabs.find((route) => getTabKey(route) === canonicalHomeKey) ?? homeTabs[0];
   return routes.filter((route) => !route.isHome || route === retainedHome);
+}
+
+/**
+ * 保留每个资源键的首个标签，避免编码差异或旧持久化状态重复展示同一资源。
+ */
+function ensureUniqueTabKeys(routes: TRouterInfo[]) {
+  const tabKeys = new Set<string>();
+  return routes.filter((route) => {
+    const tabKey = getTabKey(route);
+    if (tabKeys.has(tabKey)) {
+      return false;
+    }
+
+    tabKeys.add(tabKey);
+    return true;
+  });
 }
 
 /**
@@ -415,8 +446,8 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureSingleHomeTab(
-        ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle)),
+      this.tabRouterList = ensureUniqueTabKeys(
+        ensureSingleHomeTab(ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle))),
       );
       this.closedTabStack = filterReopenableClosedTabs(removeLegacyTabs(this.closedTabStack), this.tabRouterList).map(
         cloneTab,
@@ -442,7 +473,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       );
       const nextTabs = this.tabRouters.filter(canKeepRoute).map(localizePersistedTabTitle);
 
-      this.tabRouterList = ensureSingleHomeTab(ensureNonEmptyTabs(nextTabs, pinnedKeys));
+      this.tabRouterList = ensureUniqueTabKeys(ensureSingleHomeTab(ensureNonEmptyTabs(nextTabs, pinnedKeys)));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -473,23 +504,27 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
       const normalized = normalizeRouteState(newRoute);
       if (!this.tabRouters.find((route: TRouterInfo) => getTabKey(route) === getTabKey(normalized))) {
-        this.tabRouterList = ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(normalized)));
+        this.tabRouterList = ensureUniqueTabKeys(ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(normalized))));
       } else {
-        this.tabRouterList = ensureSingleHomeTab(
-          sortTabs(
-            this.tabRouterList.map((route) =>
-              getTabKey(route) === getTabKey(normalized)
-                ? {
-                    ...route,
-                    fullPath: normalized.fullPath,
-                    query: normalized.query,
-                    params: normalized.params,
-                    title: resolveNextTabTitle(route, normalized),
-                    name: normalized.name,
-                    meta: normalized.meta,
-                    isAlive: normalized.isAlive,
-                  }
-                : route,
+        this.tabRouterList = ensureUniqueTabKeys(
+          ensureSingleHomeTab(
+            sortTabs(
+              this.tabRouterList.map((route) =>
+                getTabKey(route) === getTabKey(normalized)
+                  ? {
+                      ...route,
+                      path: normalized.path,
+                      fullPath: normalized.fullPath,
+                      query: normalized.query,
+                      params: normalized.params,
+                      tabKey: normalized.tabKey,
+                      title: resolveNextTabTitle(route, normalized),
+                      name: normalized.name,
+                      meta: normalized.meta,
+                      isAlive: normalized.isAlive,
+                    }
+                  : route,
+              ),
             ),
           ),
         );

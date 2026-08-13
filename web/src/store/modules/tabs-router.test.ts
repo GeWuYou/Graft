@@ -82,6 +82,52 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
   });
 
+  it('keeps one resource tab when its path switches between encoded and decoded forms', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+      name: 'RegistryConnectionDetailIndex',
+      title: { 'zh-CN': '镜像仓库详情', 'en-US': 'Image Registry Detail' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/registries/registry:acceptance-ghcr',
+      name: 'RegistryConnectionDetailIndex',
+      title: { 'zh-CN': '镜像仓库详情', 'en-US': 'Image Registry Detail' },
+    });
+
+    expect(tabsRouterStore.tabRouters).toHaveLength(2);
+    expect(tabsRouterStore.tabRouters[1]).toMatchObject({
+      path: '/infrastructure/registries/registry:acceptance-ghcr',
+      tabKey: '/infrastructure/registries/registry:acceptance-ghcr',
+    });
+  });
+
+  it('heals persisted resource tabs with encoded and decoded paths into one tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    tabsRouterStore.tabRouterList = [
+      ...tabsRouterStore.tabRouters,
+      {
+        path: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+        name: 'RegistryConnectionDetailIndex',
+        tabKey: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+      },
+      {
+        path: '/infrastructure/registries/registry:acceptance-ghcr',
+        name: 'RegistryConnectionDetailIndex',
+        tabKey: '/infrastructure/registries/registry:acceptance-ghcr',
+      },
+    ];
+
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters).toHaveLength(2);
+    expect(tabsRouterStore.tabRouters[1]).toMatchObject({
+      path: '/infrastructure/registries/registry:acceptance-ghcr',
+      tabKey: '/infrastructure/registries/registry:acceptance-ghcr',
+    });
+  });
+
   it('replaces an unresolved key inside a persisted navigation title', () => {
     const tabsRouterStore = useTabsRouterStore();
 

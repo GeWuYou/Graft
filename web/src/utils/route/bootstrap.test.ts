@@ -356,6 +356,23 @@ describe('bootstrap navigation graph', () => {
     });
   });
 
+  it('uses an explicitly declared child route name when mounting a global page', async () => {
+    const routes = transformGlobalRegistrationsToRoutes([
+      {
+        path: '/infrastructure/registries/:connectionRef',
+        pageRouteName: 'RegistryConnectionDetailIndex',
+        routeName: 'RegistryConnectionDetail',
+        loadPage: () => import('@/modules/registry/pages/detail/index.vue'),
+        meta: { title: { 'zh-CN': '镜像仓库详情', 'en-US': 'Image Registry Detail' } },
+      },
+    ]);
+    const router = createRouter({ history: createMemoryHistory(), routes });
+
+    await router.push('/infrastructure/registries/registry-a');
+
+    expect(router.currentRoute.value.name).toBe('RegistryConnectionDetailIndex');
+  });
+
   it('attaches an explicitly declared parent resource trail to global detail routes', () => {
     const routes = transformGlobalRegistrationsToRoutes(
       [
