@@ -9,7 +9,8 @@ export type DebugFlagId =
   | 'project.monaco'
   | 'project.templates'
   | 'project.workspace'
-  | 'container.raw-json';
+  | 'container.raw-json'
+  | 'frontend-investigation';
 
 export type DebugFlagDefinition = {
   defaultEnabled: boolean;
@@ -125,6 +126,13 @@ export const DEBUG_FLAG_REGISTRY = [
     owner: 'container detail JSON tree viewer',
     summary: '容器详情 JSON 树数据刷新与展开状态保留诊断日志。',
     relatedPaths: ['src/modules/container/components/JsonTreeViewer.vue'],
+    defaultEnabled: false,
+  },
+  {
+    flagId: 'frontend-investigation',
+    owner: 'shared frontend behavior investigation foundation',
+    summary: '前端行为取证基础事件、关联 ID、序列和脱敏日志开关；具体业务探针仍按调查范围临时添加。',
+    relatedPaths: ['src/shared/debug/behavior-investigation.ts'],
     defaultEnabled: false,
   },
 ] as const satisfies readonly DebugFlagDefinition[];
