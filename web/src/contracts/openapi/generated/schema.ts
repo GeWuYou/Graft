@@ -5557,6 +5557,10 @@ export interface components {
     };
     'role-list-response': {
       items: components['schemas']['role-list-item'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-role-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-response'];
@@ -5667,6 +5671,10 @@ export interface components {
     };
     'permission-list-response': {
       items: components['schemas']['permission-list-item'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-permission-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['permission-list-response'];
@@ -11394,6 +11402,10 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+    'rbac-list-limit': number;
+    /** @description Optional zero-based offset for RBAC records. */
+    'rbac-list-offset': number;
     /** @description Strong entity tag for the complete Module Config representation being replaced. */
     'if-match-header': string;
     /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
@@ -12888,6 +12900,10 @@ export interface operations {
         keyword?: string;
         builtin?: boolean;
         status?: 'enabled' | 'disabled';
+        /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['rbac-list-limit'];
+        /** @description Optional zero-based offset for RBAC records. */
+        offset?: components['parameters']['rbac-list-offset'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -13674,6 +13690,10 @@ export interface operations {
       query?: {
         keyword?: string;
         module?: string;
+        /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['rbac-list-limit'];
+        /** @description Optional zero-based offset for RBAC records. */
+        offset?: components['parameters']['rbac-list-offset'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15109,6 +15129,9 @@ export interface operations {
         limit?: components['parameters']['scheduled-task-list-limit'];
         /** @description Optional zero-based offset for scheduled tasks. */
         offset?: components['parameters']['scheduled-task-list-offset'];
+        keyword?: string;
+        job_key?: string;
+        status?: 'enabled' | 'disabled';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

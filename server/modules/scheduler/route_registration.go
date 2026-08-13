@@ -151,8 +151,11 @@ func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {
 	}
 	limit, offset := normalizedTaskListWindow(params)
 	tasks, err := runtime.ListTasks(ginCtx.Request.Context(), schedulercore.TaskListQuery{
-		Limit:  limit,
-		Offset: offset,
+		Limit:   limit,
+		Offset:  offset,
+		Keyword: optionalSchedulerQueryValue(params.Keyword),
+		JobKey:  optionalSchedulerQueryValue(params.JobKey),
+		Status:  scheduledTaskStatusValue(params.Status),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -160,6 +163,13 @@ func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {
 	}
 
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toScheduledTaskListResponse(tasks, limit, offset))
+}
+
+func scheduledTaskStatusValue(status *scheduleropenapi.GetScheduledTasksParamsStatus) string {
+	if status == nil {
+		return ""
+	}
+	return string(*status)
 }
 
 func (r schedulerRouteRuntime) handleListJobDefinitions(ginCtx *gin.Context) {

@@ -66,6 +66,21 @@ const pagedUsers = computed(() => users.value.slice(0, pageSize.value));
     expect(result.debt).toEqual([expect.objectContaining({ method: 'slice', variable: 'pagedUsers' })]);
   });
 
+  it.each([
+    ['filter', 'visibleUsers', 'users.value.filter((user) => user.enabled)'],
+    ['slice', 'visibleUsers', 'users.value.slice(0, pageSize.value)'],
+  ])('blocks a %s local list regardless of its binding variable name', (_method, variable, expression) => {
+    const result = runAuditWithSource(
+      'src/modules/demo/pages/list/index.vue',
+      `<template><management-paged-table :rows="${variable}" /></template>
+<script setup lang="ts">
+const ${variable} = computed(() => ${expression});
+</script>`,
+    );
+
+    expect(result.debt).toEqual([expect.objectContaining({ variable })]);
+  });
+
   it('blocks direct filter and slice table bindings', () => {
     const result = runAuditWithSource(
       'src/modules/demo/pages/list/index.vue',
@@ -85,6 +100,19 @@ const pagedUsers = computed(() => users.value.slice(0, pageSize.value));
       `<template><management-paged-table :rows="items" /></template>
 <script setup lang="ts">
 const filteredSummary = computed(() => items.value.filter((item) => item.enabled));
+</script>`,
+    );
+
+    expect(result.debt).toHaveLength(0);
+  });
+
+  it('does not inspect unrelated helpers after the bound declaration', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/pages/list/index.vue',
+      `<template><management-paged-table :rows="items" /></template>
+<script setup lang="ts">
+const items = computed(() => response.value.items);
+const summary = computed(() => response.value.items.filter((item) => item.enabled));
 </script>`,
     );
 

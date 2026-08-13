@@ -6650,6 +6650,24 @@ func (e GetRuntimeTargetsParamsSort) Valid() bool {
 	}
 }
 
+// Defines values for GetScheduledTasksParamsStatus.
+const (
+	GetScheduledTasksParamsStatusDisabled GetScheduledTasksParamsStatus = "disabled"
+	GetScheduledTasksParamsStatusEnabled  GetScheduledTasksParamsStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTasksParamsStatus enum.
+func (e GetScheduledTasksParamsStatus) Valid() bool {
+	switch e {
+	case GetScheduledTasksParamsStatusDisabled:
+		return true
+	case GetScheduledTasksParamsStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetSecurityOverviewParamsPreset.
 const (
 	Last24h GetSecurityOverviewParamsPreset = "last_24h"
@@ -6673,16 +6691,16 @@ func (e GetSecurityOverviewParamsPreset) Valid() bool {
 
 // Defines values for GetUsersParamsStatus.
 const (
-	GetUsersParamsStatusDisabled GetUsersParamsStatus = "disabled"
-	GetUsersParamsStatusEnabled  GetUsersParamsStatus = "enabled"
+	Disabled GetUsersParamsStatus = "disabled"
+	Enabled  GetUsersParamsStatus = "enabled"
 )
 
 // Valid indicates whether the value is a known member of the GetUsersParamsStatus enum.
 func (e GetUsersParamsStatus) Valid() bool {
 	switch e {
-	case GetUsersParamsStatusDisabled:
+	case Disabled:
 		return true
-	case GetUsersParamsStatusEnabled:
+	case Enabled:
 		return true
 	default:
 		return false
@@ -13063,7 +13081,10 @@ type PermissionListItemRiskLevel string
 
 // PermissionListResponse defines model for permission-list-response.
 type PermissionListResponse struct {
-	Items []PermissionListItem `json:"items"`
+	Items  []PermissionListItem `json:"items"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Total  int64                `json:"total"`
 }
 
 // PersonalAccessTokenCreateRequest defines model for personal-access-token-create-request.
@@ -14140,7 +14161,10 @@ type RoleListItemType string
 
 // RoleListResponse defines model for role-list-response.
 type RoleListResponse struct {
-	Items []RoleListItem `json:"items"`
+	Items  []RoleListItem `json:"items"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Total  int64          `json:"total"`
 }
 
 // RolePermissionBindingItem defines model for role-permission-binding-item.
@@ -15692,6 +15716,12 @@ type IfMatchHeader = string
 
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
+
+// RbacListLimit defines model for rbac-list-limit.
+type RbacListLimit = int
+
+// RbacListOffset defines model for rbac-list-offset.
+type RbacListOffset = int
 
 // RealtimeTicketQuery defines model for realtime-ticket-query.
 type RealtimeTicketQuery = string
@@ -17734,6 +17764,12 @@ type GetPermissionsParams struct {
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
 	Module  *string `form:"module,omitempty" json:"module,omitempty"`
 
+	// Limit Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100.
+	Limit *RbacListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for RBAC records.
+	Offset *RbacListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -18206,6 +18242,12 @@ type GetRolesParams struct {
 	Builtin *bool                 `form:"builtin,omitempty" json:"builtin,omitempty"`
 	Status  *GetRolesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
 
+	// Limit Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100.
+	Limit *RbacListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for RBAC records.
+	Offset *RbacListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -18456,7 +18498,10 @@ type GetScheduledTasksParams struct {
 	Limit *ScheduledTaskListLimit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Offset Optional zero-based offset for scheduled tasks.
-	Offset *ScheduledTaskListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+	Offset  *ScheduledTaskListOffset       `form:"offset,omitempty" json:"offset,omitempty"`
+	Keyword *string                        `form:"keyword,omitempty" json:"keyword,omitempty"`
+	JobKey  *string                        `form:"job_key,omitempty" json:"job_key,omitempty"`
+	Status  *GetScheduledTasksParamsStatus `form:"status,omitempty" json:"status,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -18465,6 +18510,9 @@ type GetScheduledTasksParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetScheduledTasksParamsStatus defines parameters for GetScheduledTasks.
+type GetScheduledTasksParamsStatus string
 
 // PostScheduledTaskParams defines parameters for PostScheduledTask.
 type PostScheduledTaskParams struct {

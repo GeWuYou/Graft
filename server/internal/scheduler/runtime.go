@@ -265,8 +265,11 @@ type TaskMutation struct {
 
 // TaskListQuery scopes scheduled task lookup.
 type TaskListQuery struct {
-	Limit  int
-	Offset int
+	Limit   int
+	Offset  int
+	Keyword string
+	JobKey  string
+	Status  string
 }
 
 // TaskListResult contains one page of scheduled tasks plus a total count.

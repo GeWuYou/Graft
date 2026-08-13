@@ -214,6 +214,7 @@
 <script setup lang="ts">
 // Registry 详情页拥有仓库路径与使用授权操作；连接列表只负责导航和连接级操作。
 import type { TableProps } from 'tdesign-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -233,7 +234,6 @@ import {
   getRegistryRepositoryAssignmentCandidates,
   getRegistryRepositoryAssignments,
   grantRegistryRepositoryAssignment,
-  replaceRegistryRepositoryAssignments,
   revokeRegistryRepositoryAssignment,
   updateRegistryRepository,
 } from '../../api/registry';
@@ -244,6 +244,7 @@ type RegistryAssignment = components['schemas']['registry-artifact-repository-us
 type RegistryAssignmentCandidate = components['schemas']['registry-repository-assignment-candidate'];
 
 const { locale, t } = useI18n();
+const MAX_REPOSITORY_ASSIGNMENT_CANDIDATES = 100;
 const route = useRoute();
 const connectionRef = computed(() => String(route.params.connectionRef || ''));
 const connection = ref<RegistryConnection | null>(null);
@@ -383,6 +384,10 @@ async function removeRepository(repositoryRef: string) {
 }
 
 function handleRepositorySelection(keys: Array<string | number>) {
+  if (keys.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
+    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
+    return;
+  }
   selectedRepositoryRefs.value = keys;
 }
 
@@ -403,6 +408,10 @@ async function removeSelectedRepositories() {
 }
 
 function openBatchRepositoryAssignments() {
+  if (selectedRepositoryRefs.value.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
+    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
+    return;
+  }
   candidateSearch.value = '';
   candidatePagination.value.current = 1;
   selectedCandidateUserIds.value = [];
@@ -437,13 +446,11 @@ async function grantSelectedRepositoryAssignments() {
   batchRepositoryAssignmentSaving.value = true;
   try {
     await Promise.all(
-      selectedRepositoryRefs.value.map(async (repositoryRef) => {
-        const currentAssignments = await getRegistryRepositoryAssignments(connectionRef.value, String(repositoryRef));
-        const existingUserIds = currentAssignments.items?.map((item) => item.user_id) ?? [];
-        await replaceRegistryRepositoryAssignments(connectionRef.value, String(repositoryRef), {
-          user_ids: [...new Set([...existingUserIds, ...userIds])],
-        });
-      }),
+      selectedRepositoryRefs.value.flatMap((repositoryRef) =>
+        userIds.map((userId) =>
+          grantRegistryRepositoryAssignment(connectionRef.value, String(repositoryRef), { user_id: userId }),
+        ),
+      ),
     );
     closeBatchRepositoryAssignments();
     selectedRepositoryRefs.value = [];
@@ -456,6 +463,10 @@ async function grantSelectedRepositoryAssignments() {
 
 async function loadAssignmentCandidates() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
+  if (selectedRepositoryRefs.value.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
+    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
+    return;
+  }
   candidateLoading.value = true;
   try {
     const response = await getRegistryRepositoryAssignmentCandidates(connectionRef.value, {
@@ -523,10 +534,11 @@ async function grantBatchAssignments() {
   if (!userIds.length) return;
   assignmentSaving.value = true;
   try {
-    const existingUserIDs = assignments.value.map((item) => item.user_id);
-    await replaceRegistryRepositoryAssignments(connectionRef.value, assignmentRepositoryRef.value, {
-      user_ids: [...new Set([...existingUserIDs, ...userIds])],
-    });
+    await Promise.all(
+      userIds.map((userId) =>
+        grantRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, { user_id: userId }),
+      ),
+    );
     batchUserIds.value = '';
     await loadAssignments();
   } catch (error) {
@@ -540,11 +552,11 @@ async function revokeSelectedAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value || !selectedAssignmentIds.value.length) return;
   assignmentSaving.value = true;
   try {
-    const selected = new Set(selectedAssignmentIds.value.map(Number));
-    const userIds = assignments.value.map((item) => item.user_id).filter((id) => !selected.has(id));
-    await replaceRegistryRepositoryAssignments(connectionRef.value, assignmentRepositoryRef.value, {
-      user_ids: userIds,
-    });
+    await Promise.all(
+      selectedAssignmentIds.value.map((userId) =>
+        revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, Number(userId)),
+      ),
+    );
     await loadAssignments();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
@@ -583,7 +595,11 @@ async function revokeAllAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
   assignmentSaving.value = true;
   try {
-    await replaceRegistryRepositoryAssignments(connectionRef.value, assignmentRepositoryRef.value, { user_ids: [] });
+    await Promise.all(
+      assignments.value.map(({ user_id: userId }) =>
+        revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, userId),
+      ),
+    );
     await loadAssignments();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));

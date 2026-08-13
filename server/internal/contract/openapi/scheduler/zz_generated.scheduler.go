@@ -7,6 +7,24 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetScheduledTasksParamsStatus.
+const (
+	Disabled GetScheduledTasksParamsStatus = "disabled"
+	Enabled  GetScheduledTasksParamsStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTasksParamsStatus enum.
+func (e GetScheduledTasksParamsStatus) Valid() bool {
+	switch e {
+	case Disabled:
+		return true
+	case Enabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTasks200JSONResponseBodyDataItemsConfigSource.
 const (
 	GetScheduledTasks200JSONResponseBodyDataItemsConfigSourceSystem GetScheduledTasks200JSONResponseBodyDataItemsConfigSource = "system"
@@ -2092,7 +2110,10 @@ type GetScheduledTasksParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Offset Optional zero-based offset for scheduled tasks.
-	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+	Offset  *int                           `form:"offset,omitempty" json:"offset,omitempty"`
+	Keyword *string                        `form:"keyword,omitempty" json:"keyword,omitempty"`
+	JobKey  *string                        `form:"job_key,omitempty" json:"job_key,omitempty"`
+	Status  *GetScheduledTasksParamsStatus `form:"status,omitempty" json:"status,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -2101,6 +2122,9 @@ type GetScheduledTasksParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetScheduledTasksParamsStatus defines parameters for GetScheduledTasks.
+type GetScheduledTasksParamsStatus string
 
 // GetScheduledTasks200JSONResponseBodyDataItemsConfigSource defines parameters for GetScheduledTasks.
 type GetScheduledTasks200JSONResponseBodyDataItemsConfigSource string

@@ -75,16 +75,17 @@
           hasActiveFilters ? t('rbac.permissionList.emptyFilteredDescription') : t('rbac.permissionList.empty')
         "
         :empty-title="t('rbac.permissionList.emptyTitle')"
-        :footer-summary="t('rbac.permissionList.footerTotal', { count: filteredPermissions.length })"
+        :footer-summary="t('rbac.permissionList.footerTotal', { count: permissionsTotal })"
         :loading="loading"
-        :rows="pagedPermissions"
-        :total="filteredPermissions.length"
+        :rows="permissions"
+        :total="permissionsTotal"
+        @page-change="handlePageChange"
       >
         <template #head>
           <div class="table-head">
             <div>
               <p class="table-head__summary">
-                {{ t('rbac.permissionList.summary', { count: filteredPermissions.length }) }}
+                {{ t('rbac.permissionList.summary', { count: permissionsTotal }) }}
               </p>
               <p class="table-head__description">{{ t('rbac.permissionList.tableHint') }}</p>
               <div class="inline-note">
@@ -344,9 +345,15 @@ const pagination = ref({
   pageSize: 10,
 });
 const permissionListQuery = usePermissionListQuery(
-  computed(() => ({ keyword: appliedFilters.value.keyword, module: appliedFilters.value.module })),
+  computed(() => ({
+    keyword: appliedFilters.value.keyword,
+    module: appliedFilters.value.module,
+    limit: pagination.value.pageSize,
+    offset: (pagination.value.current - 1) * pagination.value.pageSize,
+  })),
 );
 const permissions = computed(() => permissionListQuery.data.value?.items ?? []);
+const permissionsTotal = computed(() => permissionListQuery.data.value?.total ?? 0);
 const loading = computed(() => permissionListQuery.isFetching.value);
 const listError = computed(() =>
   permissionListQuery.isError.value
@@ -449,13 +456,6 @@ const savedViews = useSavedQueryViews<PermissionSavedViewState, number>({
   }),
 });
 
-const filteredPermissions = computed(() => permissions.value);
-
-const pagedPermissions = computed(() => {
-  const start = (pagination.value.current - 1) * pagination.value.pageSize;
-  return filteredPermissions.value.slice(start, start + pagination.value.pageSize);
-});
-
 const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
 
@@ -500,6 +500,11 @@ function resetFilters() {
 function applyPermissionFilters() {
   appliedFilters.value = { ...filters.value };
   pagination.value.current = 1;
+}
+
+function handlePageChange(pageInfo: { current: number; pageSize: number }) {
+  pagination.value.current = pageInfo.current;
+  pagination.value.pageSize = pageInfo.pageSize;
 }
 
 function updatePermissionFilterField(payload: { key: string; value: string | string[] }) {

@@ -1,6 +1,6 @@
 migration:
-  path: server/modules/registry/migrations/202608130001_registry_repository_display_name_uniqueness.sql
-  version: '202608130001'
+  path: server/modules/registry/migrations/202608130002_registry_repository_display_name_predicate_repair.sql
+  version: '202608130002'
 owner: registry
 risk_level: L4
 affected_tables:
@@ -8,23 +8,26 @@ affected_tables:
 referenced_tables:
   - artifact_repositories
 operation_categories:
+  - forward-only-repair
   - duplicate-scan
   - partial-unique-index
 historical_data_assumptions:
-  - Existing artifact repositories with deleted_at = 0 may contain duplicate display names within one connection, including repositories under deleted connections.
+  - The historical 202608130001 duplicate scan excluded repositories whose connections were soft-deleted, while its unique index covers every repository with deleted_at = 0.
+  - Existing artifact repositories with deleted_at = 0 may contain duplicate display names within one connection.
 planned_upgrade_order:
+  - Drop the historical index so the forward-only repair is applied on databases where 202608130001 already executed.
   - Scan every repository row covered by the partial unique-index predicate and abort if any duplicate exists.
-  - Create the partial unique index after the scan succeeds.
+  - Recreate the partial unique index with its canonical predicate after the scan succeeds.
 safety_strategy:
   duplicate_scan: Group every artifact repository with deleted_at = 0 by connection_id and display_name before applying the uniqueness invariant.
-  live_reference_scan: Apply the exact deleted_at = 0 predicate used by the partial unique index, including rows under deleted connections.
+  live_reference_scan: Apply the exact deleted_at = 0 predicate used by the partial unique index.
   reconcile_or_abort: Abort and require operator reconciliation when duplicates exist; do not choose a survivor automatically.
-  post_migration_invariant: At most one live artifact repository per connection has each display name.
-  reference_impact: registry_connections remain unchanged and every artifact_repositories row covered by the unique-index predicate is preserved because duplicates block the migration.
+  post_migration_invariant: At most one artifact repository with deleted_at = 0 per connection has each display name.
+  reference_impact: Registry connections remain unchanged and every artifact repository covered by the unique-index predicate is preserved because duplicates block the migration.
   recovery_or_retirement_rationale: The migration does not retire or rewrite duplicate repositories; operators reconcile them before retrying the forward-only index creation.
 validation_scenarios:
   - Duplicate display names among rows covered by deleted_at = 0 cause the migration to abort before index creation.
-  - Unique display names among rows covered by deleted_at = 0 allow the partial unique index to be created.
+  - Unique display names among rows covered by deleted_at = 0 allow the replacement unique index to be created.
 preflight_checks:
   - name: duplicate-live-repository-display-names
     query: >-
@@ -39,3 +42,4 @@ retrieval_receipt:
     revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
   lesson_ids:
     - MIG-001
+    - MIG-002

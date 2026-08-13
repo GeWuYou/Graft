@@ -56,7 +56,7 @@ func handleListRoles(
 				return generated.RoleListResponse{}, err
 			}
 
-			return toRoleListResponse(roles)
+			return toRoleListResponse(roles, *params.Limit, *params.Offset)
 		},
 	)
 }
@@ -96,7 +96,11 @@ func handleListPermissions(
 	handler := rbacReadGeneratedHandler{}
 
 	return func(ginCtx *gin.Context) {
-		params := bindGeneratedPermissionParams(ginCtx)
+		params, invalidField := bindGeneratedPermissionParams(ginCtx)
+		if invalidField != "" {
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": invalidField})
+			return
+		}
 		handler.GetPermissions(params)
 
 		filter := rbacstore.PermissionFilter{}
@@ -117,7 +121,7 @@ func handleListPermissions(
 			return
 		}
 
-		payload, mapErr := toPermissionListResponse(permissions)
+		payload, mapErr := toPermissionListResponse(permissions, *params.Limit, *params.Offset)
 		if mapErr != nil {
 			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, "map permissions response failed", mapErr,
 				logger.StringField("module", moduleName),
@@ -162,7 +166,7 @@ func (h rbacReadGeneratedHandler) GetRolePermissions(id uint64, params rbacopena
 	_ = params
 }
 
-func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissionsParams {
+func bindGeneratedPermissionParams(ginCtx *gin.Context) (rbacopenapi.GetPermissionsParams, string) {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
 	params := rbacopenapi.GetPermissionsParams{
 		XGraftLocale: locale,
@@ -174,7 +178,35 @@ func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissio
 	if raw := strings.TrimSpace(ginCtx.Query("module")); raw != "" {
 		params.Module = &raw
 	}
-	return params
+	limit, offset, invalidField := bindRBACListWindow(ginCtx)
+	if invalidField != "" {
+		return params, invalidField
+	}
+	params.Limit = &limit
+	params.Offset = &offset
+	return params, ""
+}
+
+func bindRBACListWindow(ginCtx *gin.Context) (int, int, string) {
+	const defaultLimit = 20
+	const maxLimit = 100
+	limit := defaultLimit
+	if raw := strings.TrimSpace(ginCtx.Query("limit")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 || value > maxLimit {
+			return 0, 0, "limit"
+		}
+		limit = value
+	}
+	offset := 0
+	if raw := strings.TrimSpace(ginCtx.Query("offset")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 0 {
+			return 0, 0, "offset"
+		}
+		offset = value
+	}
+	return limit, offset, ""
 }
 
 func bindGeneratedPermissionDetailParams(ginCtx *gin.Context) rbacopenapi.GetPermissionParams {
@@ -213,6 +245,12 @@ func bindGeneratedRoleParams(ginCtx *gin.Context) (rbacopenapi.GetRolesParams, s
 			return params, "builtin"
 		}
 	}
+	limit, offset, invalidField := bindRBACListWindow(ginCtx)
+	if invalidField != "" {
+		return params, invalidField
+	}
+	params.Limit = &limit
+	params.Offset = &offset
 	return params, ""
 }
 

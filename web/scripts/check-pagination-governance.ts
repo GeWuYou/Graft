@@ -16,7 +16,7 @@ const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', 'mock', '__mo
 const MANAGEMENT_TABLE_TAG_PATTERN =
   /<(?:management-paged-table|advanced-query-paged-table)\b(?<attributes>[\s\S]*?)>/gi;
 const TABLE_ROWS_BINDING_PATTERN = /:(?:rows|data)\s*=\s*"(?<expression>[^"]+)"/gi;
-const DERIVED_LIST_NAME_PATTERN = /\b(?:filtered|paged)[A-Z_$][\w$]*/g;
+const IDENTIFIER_EXPRESSION_PATTERN = /^[$A-Z_][\w$]*$/i;
 const EXEMPT_PATH_PATTERNS = [
   /\/pages\/detail\//,
   /\/pages\/import\//,
@@ -99,8 +99,9 @@ function collectTableRowsBindings(source: string) {
 }
 
 function findDerivedListMethod(source: string, variable: string) {
+  const escapedVariable = variable.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const declarationPattern = new RegExp(
-    `\\b(?:const|let)\\s+${variable}\\s*=\\s*(?:computed(?:<[^>]*>)?\\s*\\()?`,
+    `\\b(?:const|let)\\s+${escapedVariable}\\s*=\\s*(?:computed(?:<[^>]*>)?\\s*\\()?`,
     'g',
   );
   const declaration = declarationPattern.exec(source);
@@ -108,8 +109,8 @@ function findDerivedListMethod(source: string, variable: string) {
     return null;
   }
 
-  // 限制声明搜索范围，避免同文件后续无关 helper 的数组操作被误判为该表格数据源。
-  const declarationSource = source.slice(declaration.index, declaration.index + 2400);
+  const expressionStart = declaration.index + declaration[0].length;
+  const declarationSource = readDeclarationExpression(source, expressionStart);
   const filterIndex = declarationSource.search(/\.filter\s*\(/);
   const sliceIndex = declarationSource.search(/\.slice\s*\(/);
   if (filterIndex < 0 && sliceIndex < 0) {
@@ -120,6 +121,42 @@ function findDerivedListMethod(source: string, variable: string) {
     return { index: declaration.index + filterIndex, method: 'filter' as const };
   }
   return { index: declaration.index + sliceIndex, method: 'slice' as const };
+}
+
+function readDeclarationExpression(source: string, start: number) {
+  let quote = '';
+  let escaped = false;
+  let depth = 0;
+
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === quote) {
+        quote = '';
+      }
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') {
+      depth += 1;
+      continue;
+    }
+    if (character === ')' || character === ']' || character === '}') {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (character === ';' && depth === 0) {
+      return source.slice(start, index);
+    }
+  }
+  return source.slice(start);
 }
 
 function collectFindings(rootDir: string, srcDir: string): PaginationGovernanceFinding[] {
@@ -144,8 +181,9 @@ function collectFindings(rootDir: string, srcDir: string): PaginationGovernanceF
           variable: '<table rows binding>',
         });
       }
-      for (const nameMatch of binding.expression.matchAll(DERIVED_LIST_NAME_PATTERN)) {
-        variables.add(nameMatch[0]);
+      const expression = binding.expression.trim();
+      if (IDENTIFIER_EXPRESSION_PATTERN.test(expression)) {
+        variables.add(expression);
       }
     }
     for (const variable of variables) {

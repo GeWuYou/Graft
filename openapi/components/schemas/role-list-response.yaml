@@ -1,7 +1,14 @@
 type: object
-required: [items]
+required: [items, total, limit, offset]
 properties:
   items:
     type: array
     items:
       $ref: ./role-list-item.yaml
+  total:
+    type: integer
+    format: int64
+  limit:
+    type: integer
+  offset:
+    type: integer

@@ -14,11 +14,13 @@ describe('RBAC query cache', () => {
     expect(normalizePermissionFilters({ keyword: ' user.read ', module: undefined })).toEqual({
       keyword: 'user.read',
       module: '',
+      limit: 20,
+      offset: 0,
     });
     expect(rbacQueryKeys.permissionList(normalizePermissionFilters())).toEqual([
       'rbac',
       'permissions',
-      { keyword: '', module: '' },
+      { keyword: '', module: '', limit: 20, offset: 0 },
     ]);
   });
 

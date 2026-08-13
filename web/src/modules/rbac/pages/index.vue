@@ -79,10 +79,10 @@
         :column-sets="roleColumnSets"
         density-scope="viewport"
         presentation="data"
-        :rows="pagedRoles"
+        :rows="roles"
         :loading="loading"
-        :total="filteredRoles.length"
-        :footer-summary="t('rbac.roleList.footerTotal', { count: filteredRoles.length })"
+        :total="rolesTotal"
+        :footer-summary="t('rbac.roleList.footerTotal', { count: rolesTotal })"
         :empty-title="t('rbac.roleList.emptyTitle')"
         :empty-description="t('rbac.roleList.emptyDescription')"
         :pagination-props="{ showPageNumber: true }"
@@ -90,7 +90,7 @@
         <template #head>
           <div class="table-head">
             <div>
-              <p class="table-head__summary">{{ t('rbac.roleList.summary', { count: filteredRoles.length }) }}</p>
+              <p class="table-head__summary">{{ t('rbac.roleList.summary', { count: rolesTotal }) }}</p>
               <p class="table-head__description">{{ t('rbac.roleList.tableHint') }}</p>
             </div>
             <t-button v-if="hasActiveFilters" theme="default" variant="text" @click="resetFilters">
@@ -154,8 +154,8 @@
 
         <template #cards>
           <t-loading :loading="loading">
-            <responsive-card-list v-if="pagedRoles.length" class="role-mobile-list">
-              <t-card v-for="row in pagedRoles" :key="row.id" class="role-mobile-card" size="small">
+            <responsive-card-list v-if="roles.length" class="role-mobile-list">
+              <t-card v-for="row in roles" :key="row.id" class="role-mobile-card" size="small">
                 <div class="role-mobile-card__head">
                   <div class="role-identity">
                     <span class="role-identity__display">{{ row.display }}</span>
@@ -827,9 +827,16 @@ const canCreateRoles = computed(() => permissionStore.hasPermission(permissionCo
 const canDeleteRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_DELETE));
 const canToggleRoleStatus = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_STATUS_UPDATE));
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
-const rolesQuery = useRolesQuery();
+const roleQueryInput = computed(() => ({
+  keyword: appliedFilters.value.keyword,
+  builtin: appliedFilters.value.type === 'builtin' ? true : appliedFilters.value.type === 'custom' ? false : undefined,
+  limit: pagination.value.pageSize,
+  offset: (pagination.value.current - 1) * pagination.value.pageSize,
+}));
+const rolesQuery = useRolesQuery(roleQueryInput);
 const permissionCatalogQuery = usePermissionCatalogQuery(canReadPermissions);
 const roles = computed(() => rolesQuery.data.value?.items ?? []);
+const rolesTotal = computed(() => rolesQuery.data.value?.total ?? 0);
 const permissions = computed(() => permissionCatalogQuery.data.value?.items ?? []);
 const loading = computed(
   () => rolesQuery.isFetching.value || (canReadPermissions.value && permissionCatalogQuery.isFetching.value),
@@ -1065,34 +1072,6 @@ const savedViews = useSavedQueryViews<RoleSavedViewState, number>({
     queryState: { ...appliedFilters.value },
     visibleColumns: [...visibleColumnKeys.value],
   }),
-});
-
-const filteredRoles = computed(() => {
-  const keyword = appliedFilters.value.keyword.trim().toLowerCase();
-
-  return roles.value.filter((role) => {
-    if (keyword) {
-      const haystack = `${role.name} ${role.display} ${resolveRoleRemark(role)}`.toLowerCase();
-      if (!haystack.includes(keyword)) {
-        return false;
-      }
-    }
-
-    if (appliedFilters.value.type === 'builtin' && !isSystemRole(role)) {
-      return false;
-    }
-
-    if (appliedFilters.value.type === 'custom' && isSystemRole(role)) {
-      return false;
-    }
-
-    return true;
-  });
-});
-
-const pagedRoles = computed(() => {
-  const start = (pagination.value.current - 1) * pagination.value.pageSize;
-  return filteredRoles.value.slice(start, start + pagination.value.pageSize);
 });
 
 const roleRowMoreOptions = (role: RoleStatusCompat) => {

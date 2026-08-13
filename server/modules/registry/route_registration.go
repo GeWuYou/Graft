@@ -187,7 +187,8 @@ func handleReplaceAssignments(c *gin.Context, ctx *module.Context, service *Serv
 		writeRegistryError(c, ctx, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(len(items)), Limit: len(items), Offset: 0})
+	limit := max(1, len(items))
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(len(items)), Limit: limit, Offset: 0})
 }
 func handleUpdateRepository(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PutRegistryArtifactRepositoryJSONRequestBody

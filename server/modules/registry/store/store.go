@@ -395,11 +395,17 @@ WHERE c.connection_ref = $1 AND c.deleted_at = 0 AND r.deleted_at = 0
 
 // CreateRepository 在指定连接下创建可授权的 Repository。
 func (r *SQLRepository) CreateRepository(ctx context.Context, connectionRef string, input RepositoryInput, actorID uint64) (Repository, error) {
+	if input.GrantCreatorUse && actorID == 0 {
+		return Repository{}, ErrUnauthorized
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Repository{}, fmt.Errorf("begin artifact repository creation: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := ensureRepositoryCreator(ctx, tx, input.GrantCreatorUse, actorID); err != nil {
+		return Repository{}, err
+	}
 	const query = `INSERT INTO artifact_repositories (connection_id, repository_ref, display_name, allow_pull, allow_push, created_by, updated_by)
 SELECT id, $2, $3, $4, $5, $6, $6 FROM registry_connections WHERE connection_ref = $1 AND deleted_at = 0
 RETURNING id, repository_ref, display_name, allow_pull, allow_push, created_at, updated_at`
@@ -413,19 +419,38 @@ RETURNING id, repository_ref, display_name, allow_pull, allow_push, created_at, 
 	if err != nil {
 		return Repository{}, fmt.Errorf("create artifact repository: %w", registryWriteError(err))
 	}
-	if input.GrantCreatorUse {
-		if actorID == 0 {
-			return Repository{}, ErrUnauthorized
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
-SELECT $1, id, $2, $2 FROM users WHERE id = $2`, repositoryID, actorID); err != nil {
-			return Repository{}, fmt.Errorf("grant creator artifact repository assignment: %w", registryWriteError(err))
-		}
+	if err := grantRepositoryCreatorUse(ctx, tx, input.GrantCreatorUse, repositoryID, actorID); err != nil {
+		return Repository{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return Repository{}, fmt.Errorf("commit artifact repository creation: %w", err)
 	}
 	return item, nil
+}
+
+func ensureRepositoryCreator(ctx context.Context, tx *sql.Tx, grantCreatorUse bool, actorID uint64) error {
+	if !grantCreatorUse {
+		return nil
+	}
+	var userExists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)`, actorID).Scan(&userExists); err != nil {
+		return fmt.Errorf("check repository creator: %w", err)
+	}
+	if !userExists {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func grantRepositoryCreatorUse(ctx context.Context, tx *sql.Tx, grantCreatorUse bool, repositoryID, actorID uint64) error {
+	if !grantCreatorUse {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
+VALUES ($1, $2, $3, $3)`, repositoryID, actorID); err != nil {
+		return fmt.Errorf("grant creator artifact repository assignment: %w", registryWriteError(err))
+	}
+	return nil
 }
 
 // UpdateRepository 更新 Repository 的显示和 pull/push 策略。

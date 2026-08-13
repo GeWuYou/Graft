@@ -320,7 +320,7 @@ describe('PermissionPage', () => {
 
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
-    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ limit: 10, offset: 0 });
     expect(wrapper.text()).toContain('Read Permissions Localized');
     expect(wrapper.text()).toContain('Localized permission description');
     expect(wrapper.get('[data-testid="permission-code-0"]').text()).toBe('permission.read');
@@ -408,7 +408,7 @@ describe('PermissionPage', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'user.create' });
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'user.create', limit: 10, offset: 0 });
   });
 
   it('falls back to API copy for unknown permission codes', async () => {
@@ -498,7 +498,7 @@ describe('PermissionPage', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match', limit: 10, offset: 0 });
 
     const clearButton = wrapper
       .findAll('button')

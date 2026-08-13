@@ -140,71 +140,77 @@
         </template>
 
         <template #cards>
-          <div v-if="users.length" class="user-card-list">
-            <article v-for="user in users" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
-              <div class="user-card__head">
-                <t-checkbox
-                  class="user-card__selection"
-                  :checked="selectedRowKeys.includes(user.id)"
-                  :aria-label="t('user.userList.batch.selectUser', { user: user.display || user.username })"
-                  data-testid="user-card-selection"
-                  @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
-                />
-                <div class="user-card__identity-row">
-                  <user-identity :user="user" />
-                  <div class="user-card__badges">
-                    <t-tag
-                      v-if="isProtectedDefaultAdminUser(user)"
-                      theme="warning"
-                      variant="light-outline"
-                      size="small"
-                      :title="t('user.userList.protectedDefaultAdmin.badge')"
-                      data-testid="user-protected-badge"
-                    >
-                      {{ t('user.userList.protectedDefaultAdmin.compactBadge') }}
-                    </t-tag>
-                    <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
+          <t-loading :loading="loading">
+            <div v-if="users.length" class="user-card-list">
+              <article v-for="user in users" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
+                <div class="user-card__head">
+                  <t-checkbox
+                    class="user-card__selection"
+                    :checked="selectedRowKeys.includes(user.id)"
+                    :aria-label="t('user.userList.batch.selectUser', { user: user.display || user.username })"
+                    data-testid="user-card-selection"
+                    @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
+                  />
+                  <div class="user-card__identity-row">
+                    <user-identity :user="user" />
+                    <div class="user-card__badges">
+                      <t-tag
+                        v-if="isProtectedDefaultAdminUser(user)"
+                        theme="warning"
+                        variant="light-outline"
+                        size="small"
+                        :title="t('user.userList.protectedDefaultAdmin.badge')"
+                        data-testid="user-protected-badge"
+                      >
+                        {{ t('user.userList.protectedDefaultAdmin.compactBadge') }}
+                      </t-tag>
+                      <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <dl class="user-card__details">
-                <div>
-                  <dt>{{ t('user.userList.columns.roles') }}</dt>
-                  <dd>{{ roleSummaryText(user) }}</dd>
+                <dl class="user-card__details">
+                  <div>
+                    <dt>{{ t('user.userList.columns.roles') }}</dt>
+                    <dd>{{ roleSummaryText(user) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('user.userList.columns.lastLoginAt') }}</dt>
+                    <dd>{{ formatTimestamp(user.last_login_at) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('user.userList.columns.updatedAt') }}</dt>
+                    <dd>{{ formatTimestamp(user.updated_at) }}</dd>
+                  </div>
+                </dl>
+                <div class="user-card__actions">
+                  <table-action-menu
+                    :actions="userRowActions(user)"
+                    :more-label="t('user.userList.more')"
+                    :more-label-fallback="t('user.userList.more')"
+                    @action="(action) => handleUserRowAction(action, user)"
+                  />
                 </div>
-                <div>
-                  <dt>{{ t('user.userList.columns.lastLoginAt') }}</dt>
-                  <dd>{{ formatTimestamp(user.last_login_at) }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t('user.userList.columns.updatedAt') }}</dt>
-                  <dd>{{ formatTimestamp(user.updated_at) }}</dd>
-                </div>
-              </dl>
-              <div class="user-card__actions">
-                <table-action-menu
-                  :actions="userRowActions(user)"
-                  :more-label="t('user.userList.more')"
-                  :more-label-fallback="t('user.userList.more')"
-                  @action="(action) => handleUserRowAction(action, user)"
-                />
-              </div>
-            </article>
-          </div>
-          <div v-else class="table-empty-state">
-            <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
-              <template #action>
-                <div class="table-empty-state__actions">
-                  <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
-                    {{ t('user.userList.toolbar.clearFilters') }}
-                  </t-button>
-                  <t-button v-permission="userPermissionCodes.CREATE" theme="primary" @click="openUserDrawer('create')">
-                    {{ t('user.userList.create') }}
-                  </t-button>
-                </div>
-              </template>
-            </t-empty>
-          </div>
+              </article>
+            </div>
+            <div v-else class="table-empty-state">
+              <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
+                <template #action>
+                  <div class="table-empty-state__actions">
+                    <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
+                      {{ t('user.userList.toolbar.clearFilters') }}
+                    </t-button>
+                    <t-button
+                      v-permission="userPermissionCodes.CREATE"
+                      theme="primary"
+                      @click="openUserDrawer('create')"
+                    >
+                      {{ t('user.userList.create') }}
+                    </t-button>
+                  </div>
+                </template>
+              </t-empty>
+            </div>
+          </t-loading>
         </template>
 
         <template #user="{ row }">

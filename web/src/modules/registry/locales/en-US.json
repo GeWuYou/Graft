@@ -40,6 +40,7 @@
       "candidateSearch": "Search",
       "candidateSearchPlaceholder": "Search User Name or Account",
       "candidateSelected": "{count} Users Selected",
+      "repositorySelectionLimit": "You can grant access to at most {count} repository paths at once.",
       "candidatesEmpty": "No Eligible Users Found",
       "batchDelete": "Delete in Batch",
       "batchDeleteConfirm": "Delete the selected {count} repository paths?",

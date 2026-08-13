@@ -20,12 +20,12 @@ import {
 } from '@/shared/components/query-list';
 import * as BuilderHelpers from '@/shared/components/query-list';
 
-import type { ScheduledTaskJobKey, ScheduledTaskStatus } from '../types/scheduled-task';
+import type { ScheduledTaskJobKey } from '../types/scheduled-task';
 
 type FilterState = {
   keyword: string;
   jobKey: ScheduledTaskJobKey | 'all';
-  status: ScheduledTaskStatus | 'all';
+  status: 'enabled' | 'disabled' | 'all';
 };
 type FilterKey = Exclude<keyof FilterState, 'keyword'>;
 
@@ -62,8 +62,8 @@ const fields = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
     label: t('scheduledTask.list.filters.status'),
     options: [
       { label: t('scheduledTask.list.filters.allStatuses'), value: 'all' },
-      ...(['idle', 'running', 'success', 'failed', 'unknown'] satisfies ScheduledTaskStatus[]).map((value) => ({
-        label: t(`scheduledTask.list.status.${value}`),
+      ...(['enabled', 'disabled'] as const).map((value) => ({
+        label: t(`scheduledTask.list.statusLabels.${value}`),
         value,
       })),
     ],

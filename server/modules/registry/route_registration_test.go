@@ -153,6 +153,12 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 		t.Fatalf("revoke assignment = %d: %s", revoke.Code, revoke.Body.String())
 	}
 
+	clear := httptest.NewRecorder()
+	engine.ServeHTTP(clear, registryRouteRequest(http.MethodPut, "/api/registries/registry:primary/repository-assignments?repository_ref=team/release", `{"user_ids":[]}`, "7"))
+	if clear.Code != http.StatusOK || !strings.Contains(clear.Body.String(), `"total":0`) || !strings.Contains(clear.Body.String(), `"limit":1`) {
+		t.Fatalf("clear assignments = %d: %s", clear.Code, clear.Body.String())
+	}
+
 	deleteResponse := httptest.NewRecorder()
 	engine.ServeHTTP(deleteResponse, registryRouteRequest(http.MethodDelete, "/api/registries/registry:primary/repositories?repository_ref=team/release", "", "7"))
 	if deleteResponse.Code != http.StatusOK {
@@ -199,10 +205,10 @@ func TestRegistryAssignmentCandidatesAggregateSelectedRepositories(t *testing.T)
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
 	body := response.Body.String()
-	if !strings.Contains(body, `"id":7`) || !strings.Contains(body, `"authorization_state":"partial"`) || !strings.Contains(body, `"assigned_repository_count":1`) || !strings.Contains(body, `"selected_repository_count":2`) {
+	if !strings.Contains(body, `"id":9`) || !strings.Contains(body, `"authorization_state":"partial"`) || !strings.Contains(body, `"assigned_repository_count":1`) || !strings.Contains(body, `"selected_repository_count":2`) {
 		t.Fatalf("candidate aggregation = %s", body)
 	}
-	if !strings.Contains(body, `"total":2`) || !strings.Contains(body, `"limit":1`) || !strings.Contains(body, `"offset":0`) {
+	if !strings.Contains(body, `"total":1`) || !strings.Contains(body, `"limit":1`) || !strings.Contains(body, `"offset":0`) {
 		t.Fatalf("candidate pagination = %s", body)
 	}
 }
@@ -295,6 +301,16 @@ type registryRouteUserCandidateReader struct{}
 
 func (registryRouteUserCandidateReader) ListUserCandidates(_ context.Context, query moduleapi.UserCandidateQuery) ([]moduleapi.UserCandidate, int, error) {
 	items := []moduleapi.UserCandidate{{ID: 7, Username: "registry-user", Display: "Registry User", Status: "enabled"}, {ID: 9, Username: "candidate", Display: "Candidate", Status: "enabled"}}
+	search := strings.ToLower(strings.TrimSpace(query.Search))
+	if search != "" {
+		filtered := make([]moduleapi.UserCandidate, 0, len(items))
+		for _, item := range items {
+			if strings.Contains(strings.ToLower(item.Username), search) || strings.Contains(strings.ToLower(item.Display), search) {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
 	if query.Offset >= len(items) {
 		return []moduleapi.UserCandidate{}, len(items), nil
 	}

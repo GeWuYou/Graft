@@ -54,7 +54,7 @@
         :loading="loading"
         presentation="entity"
         row-key="task_key"
-        :rows="filteredTasks"
+        :rows="tasks"
         :total="pagination.total"
         @page-change="handlePageChange"
       >
@@ -62,7 +62,7 @@
           <div class="scheduled-task-table-head">
             <div>
               <p class="scheduled-task-table-head__summary">{{ tableSummary }}</p>
-              <p>{{ t('scheduledTask.list.tableHint', { count: filteredTasks.length }) }}</p>
+              <p>{{ t('scheduledTask.list.tableHint', { count: tasks.length }) }}</p>
             </div>
           </div>
         </template>
@@ -198,9 +198,9 @@
               <t-skeleton animation="gradient" :row-col="taskCardSkeletonRows" />
             </article>
           </template>
-          <template v-else-if="filteredTasks.length">
+          <template v-else-if="tasks.length">
             <article
-              v-for="task in filteredTasks"
+              v-for="task in tasks"
               :key="task.task_key"
               class="scheduled-task-card"
               :data-testid="`scheduled-task-card-${task.task_key}`"
@@ -1240,7 +1240,7 @@ type FormFieldErrors = {
 type FilterModel = {
   keyword: string;
   jobKey: ScheduledTaskJobKey | 'all';
-  status: ScheduledTaskStatus | 'all';
+  status: 'enabled' | 'disabled' | 'all';
 };
 
 type ScheduledTaskSavedQueryState = FilterModel;
@@ -1455,33 +1455,9 @@ const savedViews = useSavedQueryViews<ScheduledTaskSavedViewState, number>({
   }),
 });
 
-const filteredTasks = computed(() => {
-  const keyword = filters.keyword.trim().toLowerCase();
-  return tasks.value.filter((task) => {
-    const view = rowView(task);
-    const matchesKeyword =
-      !keyword ||
-      [
-        view.taskKey,
-        view.jobKey,
-        view.taskTitle,
-        view.taskDescription,
-        view.jobTitle,
-        view.jobShortTitle,
-        view.jobCategoryLabel,
-        view.moduleLabel,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword));
-    const matchesJob = filters.jobKey === 'all' || task.job_key === filters.jobKey;
-    const matchesStatus = filters.status === 'all' || task.status === filters.status;
-    return matchesKeyword && matchesJob && matchesStatus;
-  });
-});
-
 const tableSummary = computed(() =>
   t('scheduledTask.list.tableSummary', {
-    count: filteredTasks.value.length,
+    count: tasks.value.length,
     total: pagination.total,
   }),
 );
@@ -1800,6 +1776,9 @@ async function refreshTasks() {
 
   try {
     const response = await getScheduledTasks({
+      ...(filters.keyword.trim() ? { keyword: filters.keyword.trim() } : {}),
+      ...(filters.jobKey !== 'all' ? { job_key: filters.jobKey } : {}),
+      ...(filters.status === 'enabled' || filters.status === 'disabled' ? { status: filters.status } : {}),
       limit: pagination.pageSize,
       offset: (pagination.current - 1) * pagination.pageSize,
     });

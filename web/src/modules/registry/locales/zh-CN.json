@@ -40,6 +40,7 @@
       "candidateSearch": "搜索",
       "candidateSearchPlaceholder": "搜索用户名称或账号",
       "candidateSelected": "已选择 {count} 位用户",
+      "repositorySelectionLimit": "一次最多可为 {count} 个仓库路径批量授权。",
       "candidatesEmpty": "未找到可授权用户",
       "batchDelete": "批量删除",
       "batchDeleteConfirm": "删除选中的 {count} 个仓库路径？",

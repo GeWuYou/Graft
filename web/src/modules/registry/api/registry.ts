@@ -15,7 +15,6 @@ type AssignmentListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArti
 type GrantAssignmentOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignment]['post'];
 type RevokeAssignmentOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.deleteRegistryArtifactRepositoryAssignment]['delete'];
-type ReplaceAssignmentsOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistryArtifactRepositoryAssignments]['put'];
 type AssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
 
@@ -131,18 +130,4 @@ export function revokeRegistryRepositoryAssignment(connectionRef: string, reposi
     url: buildOpenApiRuntimePath('deleteRegistryArtifactRepositoryAssignment', { connectionRef, userId }),
     params: { repository_ref: repositoryRef } satisfies RevokeAssignmentOperation['parameters']['query'],
   });
-}
-
-export function replaceRegistryRepositoryAssignments(
-  connectionRef: string,
-  repositoryRef: string,
-  payload: ReplaceAssignmentsOperation['requestBody']['content']['application/json'],
-) {
-  return request.put<NonNullable<ReplaceAssignmentsOperation['responses'][200]['content']['application/json']['data']>>(
-    {
-      url: buildOpenApiRuntimePath('putRegistryArtifactRepositoryAssignments', { connectionRef }),
-      params: { repository_ref: repositoryRef } satisfies ReplaceAssignmentsOperation['parameters']['query'],
-      data: payload,
-    },
-  );
 }
