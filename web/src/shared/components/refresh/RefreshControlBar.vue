@@ -75,7 +75,7 @@
         class="refresh-control-bar__button"
         theme="primary"
         size="small"
-        :loading="refreshing"
+        :loading="displayRefreshing"
         :disabled="disabled"
         data-refresh-now="true"
         @click="emit('refresh')"
@@ -103,7 +103,7 @@
 </template>
 <script setup lang="ts">
 import { RefreshIcon } from 'tdesign-icons-vue-next';
-import { computed } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatRefreshCountdown } from './countdown';
@@ -191,13 +191,76 @@ const showCountdownStatus = computed(() => props.showCountdown && props.status =
 
 const pendingSummaryText = computed(() => t('app.refreshControl.pending'));
 
+const displayedCountdownSeconds = ref<number | null>(null);
+const displayRefreshing = ref(false);
+const MIN_REFRESHING_DISPLAY_MS = 500;
+let refreshingStartedAt: number | null = null;
+let refreshingHideTimer: number | null = null;
+
+watch(
+  () => [props.countdownSeconds, props.showCountdown, props.status] as const,
+  ([countdownSeconds, showCountdown, status]) => {
+    if (!showCountdown || status !== 'running') {
+      displayedCountdownSeconds.value = null;
+      return;
+    }
+
+    if (typeof countdownSeconds === 'number' && Number.isFinite(countdownSeconds) && countdownSeconds > 0) {
+      displayedCountdownSeconds.value = countdownSeconds;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.refreshing,
+  (refreshing) => {
+    if (refreshingHideTimer !== null) {
+      window.clearTimeout(refreshingHideTimer);
+      refreshingHideTimer = null;
+    }
+
+    if (refreshing) {
+      displayRefreshing.value = true;
+      refreshingStartedAt = Date.now();
+      return;
+    }
+
+    if (!displayRefreshing.value || refreshingStartedAt === null) {
+      displayRefreshing.value = false;
+      refreshingStartedAt = null;
+      return;
+    }
+
+    const remainingDisplayMs = MIN_REFRESHING_DISPLAY_MS - (Date.now() - refreshingStartedAt);
+    if (remainingDisplayMs <= 0) {
+      displayRefreshing.value = false;
+      refreshingStartedAt = null;
+      return;
+    }
+
+    refreshingHideTimer = window.setTimeout(() => {
+      refreshingHideTimer = null;
+      displayRefreshing.value = false;
+      refreshingStartedAt = null;
+    }, remainingDisplayMs);
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  if (refreshingHideTimer !== null) {
+    window.clearTimeout(refreshingHideTimer);
+  }
+});
+
 const countdownSummaryText = computed(() => {
-  if (props.countdownSeconds === null || props.countdownSeconds === undefined || props.countdownSeconds <= 0) {
+  if (displayedCountdownSeconds.value === null) {
     return pendingSummaryText.value;
   }
 
   return t('app.refreshControl.countdown', {
-    countdown: formatRefreshCountdown(props.countdownSeconds),
+    countdown: formatRefreshCountdown(displayedCountdownSeconds.value),
   });
 });
 

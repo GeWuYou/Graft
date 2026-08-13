@@ -225,8 +225,6 @@ interface ChartDefinition {
   help?: string;
 }
 
-const MIN_PENDING_REFRESH_DISPLAY_MS = 500;
-
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -243,7 +241,6 @@ const chartInstances = new Map<ChartKey, echarts.ECharts>();
 const chartElements = new Map<ChartKey, HTMLDivElement>();
 let refreshTimer: number | null = null;
 let refreshDeadline: number | null = null;
-let pendingDisplayTimer: number | null = null;
 let isMounted = false;
 
 const {
@@ -579,11 +576,7 @@ function updateRange(value: number | string) {
 }
 
 async function refresh() {
-  const pendingDisplayStartedAt = remainingRefreshSeconds.value === 0 ? Date.now() : null;
   await refetchSnapshot();
-  if (pendingDisplayStartedAt !== null) {
-    await keepPendingStateVisible(pendingDisplayStartedAt);
-  }
   if (isMounted) {
     scheduleRefresh();
   }
@@ -594,18 +587,6 @@ watch(snapshot, async (value) => {
   await nextTick();
   renderCharts();
 });
-
-async function keepPendingStateVisible(startedAt: number) {
-  const remainingDelay = MIN_PENDING_REFRESH_DISPLAY_MS - (Date.now() - startedAt);
-  if (remainingDelay <= 0) return;
-
-  await new Promise<void>((resolve) => {
-    pendingDisplayTimer = window.setTimeout(() => {
-      pendingDisplayTimer = null;
-      resolve();
-    }, remainingDelay);
-  });
-}
 
 function scheduleRefresh() {
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
@@ -855,7 +836,6 @@ onMounted(() => {
 onUnmounted(() => {
   isMounted = false;
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
-  if (pendingDisplayTimer !== null) window.clearTimeout(pendingDisplayTimer);
   chartInstances.forEach((instance) => instance.dispose());
   chartInstances.clear();
   chartElements.clear();
