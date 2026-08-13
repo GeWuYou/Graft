@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
@@ -22,6 +25,9 @@ const managementMocks = vi.hoisted(() => ({
     width,
   })),
 }));
+const routerMocks = vi.hoisted(() => ({ push: vi.fn() }));
+
+vi.mock('vue-router', () => ({ useRouter: () => routerMocks }));
 
 vi.mock('../../api/registry', () => ({
   createRegistry: vi.fn(),
@@ -92,7 +98,7 @@ vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
       rows: { type: Array, default: () => [] },
       total: { type: Number, default: 0 },
     },
-    emits: ['page-change', 'update:current', 'update:pageSize'],
+    emits: ['page-change', 'row-click', 'update:current', 'update:pageSize'],
     setup(props, { slots }) {
       return () =>
         h('div', [
@@ -228,6 +234,33 @@ describe('RegistryListPage', () => {
     await wrapper.get('[data-testid="registry-create"]').trigger('click');
 
     expect(wrapper.findAll('aside').at(0)?.attributes('data-visible')).toBe('true');
+  });
+
+  it('navigates edits to the canonical Connection detail URL', async () => {
+    apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'edit');
+
+    expect(routerMocks.push).toHaveBeenCalledWith('/infrastructure/registries/registry-a?mode=edit');
+  });
+
+  it('opens the normal Connection detail URL from a list row', async () => {
+    apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'ManagementPagedTable' }).vm.$emit('row-click', { connection_ref: 'registry-a' });
+
+    expect(routerMocks.push).toHaveBeenCalledWith('/infrastructure/registries/registry-a');
+  });
+
+  it('does not retain Connection editing state or the update API', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/modules/registry/pages/list/index.vue'), 'utf8');
+
+    expect(source).not.toContain('editingRef');
+    expect(source).not.toContain('updateRegistry');
   });
 
   it('uses the shared resource query panel with the registry keyword query contract', async () => {

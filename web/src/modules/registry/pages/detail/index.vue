@@ -6,6 +6,9 @@
         :description="connection?.endpoint || t('registry.route.detail.description')"
       >
         <template #actions>
+          <t-button v-if="connection" variant="outline" @click="openConnectionEdit">
+            {{ t('registry.list.edit') }}
+          </t-button>
           <t-button variant="outline" :loading="loading" @click="load">
             {{ t('registry.list.refresh') }}
           </t-button>
@@ -14,7 +17,7 @@
 
       <t-alert v-if="errorMessage" theme="error" :message="errorMessage" />
       <t-card :title="t('registry.route.detail.connection')" class="registry-detail__section">
-        <t-descriptions v-if="connection" :column="2" bordered>
+        <t-descriptions v-if="connection" :column="isCompactDensity ? 1 : 2" bordered>
           <t-descriptions-item :label="t('registry.list.form.connectionRef')">{{
             connection.connection_ref
           }}</t-descriptions-item>
@@ -45,6 +48,8 @@
           :rows="repositories"
           :selected-row-keys="selectedRepositoryRefs"
           :total="repositoryTotal"
+          cards-visible
+          density-scope="viewport"
           row-key="repository_ref"
           @page-change="handleRepositoryPageChange"
           @select-change="handleRepositorySelection"
@@ -64,6 +69,35 @@
                 <t-button size="small" theme="danger" variant="text">{{ t('registry.list.delete') }}</t-button>
               </t-popconfirm>
             </t-space>
+          </template>
+          <template #cards>
+            <responsive-card-list v-if="repositories.length" class="registry-detail__repository-list">
+              <article v-for="row in repositories" :key="row.repository_ref" class="registry-detail__repository-card">
+                <div class="registry-detail__repository-card-main">
+                  <strong>{{ row.display_name }}</strong>
+                  <span>{{ row.repository_ref }}</span>
+                </div>
+                <div class="registry-detail__repository-card-permissions">
+                  <t-tag :theme="row.allow_pull ? 'success' : 'default'" size="small" variant="light">
+                    {{ t('registry.list.form.allowPull') }}
+                  </t-tag>
+                  <t-tag :theme="row.allow_push ? 'success' : 'default'" size="small" variant="light">
+                    {{ t('registry.list.form.allowPush') }}
+                  </t-tag>
+                </div>
+                <t-space class="registry-detail__repository-card-actions" size="small">
+                  <t-button
+                    v-for="action in repositoryCardActions(row)"
+                    :key="action.value"
+                    size="small"
+                    variant="outline"
+                    @click="handleRepositoryCardAction(row, action.value)"
+                  >
+                    {{ action.label }}
+                  </t-button>
+                </t-space>
+              </article>
+            </responsive-card-list>
           </template>
           <template v-if="selectedRepositoryRefs.length" #batch>
             <management-batch-bar
@@ -93,6 +127,27 @@
         </management-paged-table>
       </t-card>
     </management-page-content>
+
+    <responsive-dialog
+      :visible="connectionEditVisible"
+      :close-label="t('components.common.close')"
+      :title="t('registry.route.detail.editConnection')"
+      purpose="form"
+      size="medium"
+      :close-on-esc-keydown="!connectionSaving"
+      :close-on-overlay-click="!connectionSaving"
+      @update:visible="handleConnectionEditVisible"
+    >
+      <registry-connection-form ref="connectionFormRef" v-model="connectionForm" editing />
+      <template #footer>
+        <t-button variant="outline" :disabled="connectionSaving" @click="closeConnectionEdit">
+          {{ t('registry.list.cancel') }}
+        </t-button>
+        <t-button theme="primary" :loading="connectionSaving" @click="saveConnection">
+          {{ t('registry.list.save') }}
+        </t-button>
+      </template>
+    </responsive-dialog>
 
     <t-drawer
       v-model:visible="repositoryDrawerVisible"
@@ -213,16 +268,19 @@
 </template>
 <script setup lang="ts">
 // Registry 详情页拥有仓库路径与使用授权操作；连接列表只负责导航和连接级操作。
-import type { TableProps } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import type { components } from '@/contracts/openapi/generated/schema';
 import { ManagementBatchBar, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
+import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { PagedMultiSelect } from '@/shared/components/selection';
+import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -235,8 +293,11 @@ import {
   getRegistryRepositoryAssignments,
   grantRegistryRepositoryAssignment,
   revokeRegistryRepositoryAssignment,
+  updateRegistry,
   updateRegistryRepository,
 } from '../../api/registry';
+import RegistryConnectionForm, { type RegistryConnectionFormData } from '../../components/RegistryConnectionForm.vue';
+import { REGISTRY_DETAIL_MODE } from '../../contract/paths';
 
 type RegistryConnection = components['schemas']['registry-connection'];
 type RegistryRepository = components['schemas']['registry-artifact-repository'];
@@ -244,13 +305,27 @@ type RegistryAssignment = components['schemas']['registry-artifact-repository-us
 type RegistryAssignmentCandidate = components['schemas']['registry-repository-assignment-candidate'];
 
 const { locale, t } = useI18n();
+const viewportVariant = useViewportResponsiveVariant();
+const isCompactDensity = computed(() => viewportVariant.value.density === 'compact');
 const MAX_REPOSITORY_ASSIGNMENT_CANDIDATES = 100;
 const route = useRoute();
+const router = useRouter();
 const connectionRef = computed(() => String(route.params.connectionRef || ''));
+const connectionEditVisible = computed(() => route.query.mode === REGISTRY_DETAIL_MODE.EDIT);
 const connection = ref<RegistryConnection | null>(null);
 const repositories = ref<RegistryRepository[]>([]);
 const assignments = ref<RegistryAssignment[]>([]);
 const loading = ref(false);
+const connectionSaving = ref(false);
+const connectionFormRef = ref<{ validate: () => ReturnType<FormInstanceFunctions['validate']> } | null>(null);
+const connectionForm = ref<RegistryConnectionFormData>({
+  connection_ref: '',
+  display_name: '',
+  endpoint: '',
+  enabled: true,
+  insecure: false,
+  description: '',
+});
 const repositoryLoading = ref(false);
 const repositorySaving = ref(false);
 const repositoryPagination = ref({ current: 1, pageSize: 20 });
@@ -310,6 +385,10 @@ const candidateColumns = computed<TableProps['columns']>(() => [
 
 onMounted(() => void load());
 
+watch(connectionEditVisible, (visible) => {
+  if (visible && connection.value) hydrateConnectionForm(connection.value);
+});
+
 async function load() {
   if (!connectionRef.value) return;
   loading.value = true;
@@ -323,12 +402,60 @@ async function load() {
       }),
     ]);
     connection.value = connectionResult;
+    if (connectionEditVisible.value) hydrateConnectionForm(connectionResult);
     repositories.value = repositoryResult.items ?? [];
     repositoryTotal.value = repositoryResult.total ?? repositories.value.length;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
   } finally {
     loading.value = false;
+  }
+}
+
+function hydrateConnectionForm(value: RegistryConnection) {
+  connectionForm.value = {
+    connection_ref: value.connection_ref,
+    display_name: value.display_name,
+    endpoint: value.endpoint,
+    enabled: value.enabled,
+    insecure: value.insecure,
+    description: value.description ?? '',
+  };
+}
+
+function openConnectionEdit() {
+  void router.push({ query: { ...route.query, mode: REGISTRY_DETAIL_MODE.EDIT } });
+}
+
+function closeConnectionEdit() {
+  if (connectionSaving.value) return;
+  void router.replace({ query: { ...route.query, mode: undefined } });
+}
+
+function handleConnectionEditVisible(visible: boolean) {
+  if (!visible) closeConnectionEdit();
+}
+
+async function saveConnection() {
+  if (!connectionRef.value || (await connectionFormRef.value?.validate()) !== true) return;
+  connectionSaving.value = true;
+  try {
+    await updateRegistry(connectionRef.value, {
+      display_name: connectionForm.value.display_name,
+      endpoint: connectionForm.value.endpoint,
+      enabled: connectionForm.value.enabled,
+      insecure: connectionForm.value.insecure,
+      description: connectionForm.value.description || null,
+    });
+    MessagePlugin.success(t('registry.route.detail.connectionSaveSuccess'));
+    await load();
+    await router.replace({ query: { ...route.query, mode: undefined } });
+  } catch (error) {
+    const message = resolveLocalizedErrorMessage(t, error, t('registry.route.detail.connectionSaveFailed'));
+    errorMessage.value = message;
+    MessagePlugin.error(message);
+  } finally {
+    connectionSaving.value = false;
   }
 }
 
@@ -349,6 +476,24 @@ function openRepository(repository?: RegistryRepository) {
       }
     : { repository_ref: '', display_name: '', allow_pull: true, allow_push: true, grant_creator_use: true };
   repositoryDrawerVisible.value = true;
+}
+
+function repositoryCardActions(_repository: RegistryRepository) {
+  return [
+    { label: t('registry.list.edit'), value: 'edit' },
+    { label: t('registry.list.assignments'), value: 'assignments' },
+  ] as const;
+}
+
+function handleRepositoryCardAction(
+  repository: RegistryRepository,
+  action: ReturnType<typeof repositoryCardActions>[number]['value'],
+) {
+  if (action === 'edit') {
+    openRepository(repository);
+    return;
+  }
+  void openAssignments(repository.repository_ref);
 }
 
 async function saveRepository() {
@@ -611,5 +756,36 @@ async function revokeAllAssignments() {
 <style scoped lang="less">
 .registry-detail__section {
   margin-top: var(--graft-density-gap-16);
+}
+
+.registry-detail__repository-list {
+  padding-top: var(--graft-density-gap-12);
+}
+
+.registry-detail__repository-card {
+  border-bottom: 1px solid var(--td-component-stroke);
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  padding: var(--graft-density-gap-12) 0;
+}
+
+.registry-detail__repository-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.registry-detail__repository-card-main span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.registry-detail__repository-card-permissions,
+.registry-detail__repository-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
 }
 </style>

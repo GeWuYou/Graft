@@ -54,7 +54,8 @@ const activeViewKey = computed(() => {
   const activeTabRoute = tabsRouterStore.tabRouters.find(
     (tabRoute) => tabRoute.tabKey === tabsRouterStore.activeTabKey,
   );
-  if (activeTabRoute?.path === route.path || activeTabRoute?.fullPath === route.fullPath) {
+  // 同一资源详情的 query 只表达页面内状态，不应因编辑模式或筛选参数变化重建页面实例。
+  if (activeTabRoute?.path === route.path) {
     const tabKey = tabsRouterStore.activeTabKey;
     const refreshNonce = tabsRouterStore.refreshNonceByTabKey[tabKey] ?? 0;
     return `${tabKey}::${refreshNonce}`;

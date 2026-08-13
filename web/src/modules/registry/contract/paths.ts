@@ -3,6 +3,14 @@ export const REGISTRY_ROUTE_PATH = {
   DETAIL: '/infrastructure/registries/:connectionRef',
 } as const;
 
-export function registryDetailPath(connectionRef: string) {
-  return `/infrastructure/registries/${encodeURIComponent(connectionRef)}`;
+export const REGISTRY_DETAIL_MODE = {
+  EDIT: 'edit',
+} as const;
+
+export function registryDetailPath(
+  connectionRef: string,
+  options?: { mode?: (typeof REGISTRY_DETAIL_MODE)[keyof typeof REGISTRY_DETAIL_MODE] },
+) {
+  const path = `/infrastructure/registries/${encodeURIComponent(connectionRef)}`;
+  return options?.mode ? `${path}?mode=${options.mode}` : path;
 }

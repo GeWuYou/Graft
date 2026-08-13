@@ -34,9 +34,12 @@
         :loading="loading"
         :rows="items"
         :total="total"
+        cards-visible
+        density-scope="viewport"
         row-key="connection_ref"
         :pagination-props="{ showPageNumber: true }"
         @page-change="handlePageChange"
+        @row-click="handleRowClick"
       >
         <template #feedback><t-alert v-if="errorMessage" theme="error" :message="errorMessage" /></template>
         <template #toolbar>
@@ -65,6 +68,52 @@
             @action="handleRegistryRowAction($event, row)"
           />
         </template>
+        <template #cards>
+          <responsive-card-list v-if="items.length" class="registry-page__mobile-list">
+            <article v-for="row in items" :key="row.connection_ref" class="registry-page__mobile-card">
+              <button
+                class="registry-page__mobile-card-main"
+                type="button"
+                :aria-label="t('registry.list.openDetail', { name: row.display_name })"
+                @click="openDetail(row)"
+              >
+                <strong>{{ row.display_name }}</strong>
+                <span>{{ row.endpoint }}</span>
+              </button>
+              <div class="registry-page__mobile-card-status">
+                <t-tag :theme="row.credential_configured ? 'success' : 'default'" size="small" variant="light">
+                  {{
+                    row.credential_configured
+                      ? t('registry.list.credential.configured')
+                      : t('registry.list.credential.anonymous')
+                  }}
+                </t-tag>
+                <t-tag :theme="row.availability ? 'success' : 'warning'" size="small" variant="light">
+                  {{ registryStatusLabel(row) }}
+                </t-tag>
+              </div>
+              <table-action-menu
+                class="registry-page__mobile-card-actions"
+                :actions="registryRowActions(row)"
+                :more-label="t('registry.list.more')"
+                :more-label-fallback="t('registry.list.more')"
+                @click.stop
+                @action="handleRegistryRowAction($event, row)"
+              />
+            </article>
+          </responsive-card-list>
+          <t-empty
+            v-else-if="!loading"
+            :title="t(resourceQueryState.keyword ? 'registry.list.filteredEmpty' : 'registry.list.empty')"
+            :description="
+              t(
+                resourceQueryState.keyword
+                  ? 'registry.list.filteredEmptyDescription'
+                  : 'registry.list.emptyDescription',
+              )
+            "
+          />
+        </template>
         <template #empty-action>
           <t-button v-if="resourceQueryState.keyword" variant="outline" @click="resetQuery(resourceQueryState)">
             {{ t('registry.list.clearSearch') }}
@@ -85,34 +134,19 @@
 
     <t-drawer
       v-model:visible="drawerVisible"
-      :header="drawerTitle"
+      :header="t('registry.list.add')"
       size="min(720px, 92vw)"
       :confirm-btn="t('registry.list.save')"
       :confirm-loading="saving"
       @confirm="save"
     >
-      <t-form :data="form" :rules="rules" label-align="top">
-        <t-form-item :label="t('registry.list.form.connectionRef')" name="connection_ref">
-          <t-input v-model="form.connection_ref" :disabled="Boolean(editingRef)" />
-        </t-form-item>
-        <t-form-item :label="t('registry.list.form.displayName')" name="display_name"
-          ><t-input v-model="form.display_name"
-        /></t-form-item>
-        <t-form-item :label="t('registry.list.form.endpoint')" name="endpoint"
-          ><t-input v-model="form.endpoint" placeholder="https://registry.example.com"
-        /></t-form-item>
-        <t-form-item :label="t('registry.list.form.description')"
-          ><t-textarea v-model="form.description"
-        /></t-form-item>
-        <t-form-item :label="t('registry.list.form.enabled')"><t-switch v-model="form.enabled" /></t-form-item>
-        <t-form-item :label="t('registry.list.form.insecure')"><t-switch v-model="form.insecure" /></t-form-item>
-      </t-form>
+      <registry-connection-form v-model="form" />
     </t-drawer>
   </section>
 </template>
 <script setup lang="ts">
 // Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
-import type { PageInfo, TableProps } from 'tdesign-vue-next';
+import type { PageInfo, TableProps, TableRowData } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -128,11 +162,13 @@ import {
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
-import { createRegistry, deleteRegistry, getRegistries, updateRegistry, verifyRegistry } from '../../api/registry';
-import { registryDetailPath } from '../../contract/paths';
+import { createRegistry, deleteRegistry, getRegistries, verifyRegistry } from '../../api/registry';
+import RegistryConnectionForm, { type RegistryConnectionFormData } from '../../components/RegistryConnectionForm.vue';
+import { REGISTRY_DETAIL_MODE, registryDetailPath } from '../../contract/paths';
 
 type RegistryConnection = components['schemas']['registry-connection'];
 
@@ -148,13 +184,11 @@ const verifying = ref('');
 const deleting = ref(false);
 const errorMessage = ref('');
 const drawerVisible = ref(false);
-const editingRef = ref('');
 const deleteDialogVisible = ref(false);
 const deleteTargetRef = ref('');
-const form = ref({
+const form = ref<RegistryConnectionFormData>({
   connection_ref: '',
   display_name: '',
-  provider: 'generic_oci' as const,
   endpoint: '',
   enabled: true,
   insecure: false,
@@ -162,12 +196,6 @@ const form = ref({
 });
 let registryListRequestSequence = 0;
 
-const drawerTitle = computed(() => (editingRef.value ? t('registry.list.edit') : t('registry.list.add')));
-const rules = computed(() => ({
-  connection_ref: [{ required: true, message: t('registry.list.form.connectionRef') }],
-  display_name: [{ required: true, message: t('registry.list.form.displayName') }],
-  endpoint: [{ required: true, message: t('registry.list.form.endpoint') }],
-}));
 const queryConfig = computed<ResourceQueryConfig>(() => ({
   resource: 'registry.list',
   search: true,
@@ -271,7 +299,7 @@ function registryRowActions(row: RegistryConnection) {
 }
 function handleRegistryRowAction(action: string, row: RegistryConnection) {
   if (action === 'edit') {
-    void router.push(registryDetailPath(row.connection_ref));
+    void router.push(registryDetailPath(row.connection_ref, { mode: REGISTRY_DETAIL_MODE.EDIT }));
     return;
   }
   if (action === 'verify') {
@@ -283,12 +311,16 @@ function handleRegistryRowAction(action: string, row: RegistryConnection) {
     deleteDialogVisible.value = true;
   }
 }
+function openDetail(row: RegistryConnection) {
+  void router.push(registryDetailPath(row.connection_ref));
+}
+function handleRowClick(row: TableRowData) {
+  openDetail(row as RegistryConnection);
+}
 function openCreate() {
-  editingRef.value = '';
   form.value = {
     connection_ref: '',
     display_name: '',
-    provider: 'generic_oci',
     endpoint: '',
     enabled: true,
     insecure: false,
@@ -299,15 +331,7 @@ function openCreate() {
 async function save() {
   saving.value = true;
   try {
-    if (editingRef.value)
-      await updateRegistry(editingRef.value, {
-        display_name: form.value.display_name,
-        endpoint: form.value.endpoint,
-        enabled: form.value.enabled,
-        insecure: form.value.insecure,
-        description: form.value.description || null,
-      });
-    else await createRegistry({ ...form.value, description: form.value.description || null });
+    await createRegistry({ ...form.value, provider: 'generic_oci', description: form.value.description || null });
     drawerVisible.value = false;
     await load();
   } catch (error) {
@@ -349,6 +373,59 @@ async function confirmRemove() {
   }
 }
 </script>
+<style scoped lang="less">
+.registry-page__mobile-list {
+  padding-top: var(--graft-density-gap-12);
+}
+
+.registry-page__mobile-card {
+  align-items: center;
+  border-bottom: 1px solid var(--td-component-stroke);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--graft-density-gap-12) 0;
+}
+
+.registry-page__mobile-card-main {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.registry-page__mobile-card-main strong,
+.registry-page__mobile-card-main span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.registry-page__mobile-card-main span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.registry-page__mobile-card-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6);
+  grid-column: 1;
+}
+
+.registry-page__mobile-card-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+</style>
 <style scoped lang="less">
 .registry-page {
   min-width: 0;
