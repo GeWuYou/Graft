@@ -111,20 +111,35 @@ function writePinnedTabKeys(keys: string[]) {
 }
 
 function normalizeTabKey(value?: string) {
-  if (typeof value !== 'string') {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+// 路由路径必须保持 Vue Router 使用的编码形态，避免 Tab key 与 route.path 比较时把同一页面误判为不同实例。
+function normalizeRoutePath(path?: string) {
+  if (typeof path !== 'string') {
     return '';
   }
 
-  const normalized = value.trim();
-  if (!normalized) {
-    return '';
+  return path
+    .trim()
+    .split('/')
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return segment;
+      }
+    })
+    .join('/');
+}
+
+function normalizeRouteFullPath(fullPath: string | undefined, path: string) {
+  if (!fullPath) {
+    return path;
   }
 
-  try {
-    return decodeURIComponent(normalized);
-  } catch {
-    return normalized;
-  }
+  const [rawPath, suffix = ''] = fullPath.split(/([?#].*)/, 2);
+  return `${normalizeRoutePath(rawPath)}${suffix}`;
 }
 
 /**
@@ -213,15 +228,15 @@ function formatTabsSummary(routes: TRouterInfo[]) {
  * @returns 补充计算标签属性后的路由
  */
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
-  const tabKey = getTabKey(route);
-  const path = normalizeTabKey(route.path) || route.path;
+  const path = normalizeRoutePath(route.path) || route.path;
+  const tabKey = route.isDuplicate ? getTabKey(route) : path;
 
   return {
     ...route,
     path,
     titleSource: route.titleSource ?? 'route',
     tabKey,
-    fullPath: route.fullPath || path,
+    fullPath: normalizeRouteFullPath(route.fullPath, path),
     isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
     isAlive: route.isHome ? true : shouldKeepTabAlive(route),
   };

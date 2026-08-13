@@ -82,7 +82,7 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
   });
 
-  it('keeps one resource tab when its path switches between encoded and decoded forms', () => {
+  it('keeps the encoded Router path when a resource tab is appended with decoded legacy state', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
@@ -98,8 +98,8 @@ describe('useTabsRouterStore', () => {
 
     expect(tabsRouterStore.tabRouters).toHaveLength(2);
     expect(tabsRouterStore.tabRouters[1]).toMatchObject({
-      path: '/infrastructure/registries/registry:acceptance-ghcr',
-      tabKey: '/infrastructure/registries/registry:acceptance-ghcr',
+      path: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+      tabKey: '/infrastructure/registries/registry%3Aacceptance-ghcr',
     });
   });
 
@@ -123,8 +123,8 @@ describe('useTabsRouterStore', () => {
 
     expect(tabsRouterStore.tabRouters).toHaveLength(2);
     expect(tabsRouterStore.tabRouters[1]).toMatchObject({
-      path: '/infrastructure/registries/registry:acceptance-ghcr',
-      tabKey: '/infrastructure/registries/registry:acceptance-ghcr',
+      path: '/infrastructure/registries/registry%3Aacceptance-ghcr',
+      tabKey: '/infrastructure/registries/registry%3Aacceptance-ghcr',
     });
   });
 
