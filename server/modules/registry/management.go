@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"graft/server/internal/moduleapi"
 	registrystore "graft/server/modules/registry/store"
 )
 
@@ -287,6 +288,81 @@ func (s *Service) ListAssignments(ctx context.Context, connectionRef, repository
 		return nil, 0, fmt.Errorf("list registry artifact repository assignments: %w", err)
 	}
 	return repository.ListAssignments(ctx, connectionRef, repositoryRef, limit, offset)
+}
+
+// AssignmentCandidate 是 Registry 对候选用户授权状态的管理面投影。
+type AssignmentCandidate struct {
+	UserID                  uint64
+	Username                string
+	Display                 string
+	Status                  string
+	AssignedRepositoryCount int
+	SelectedRepositoryCount int
+	AuthorizationState      registrystore.AssignmentCandidateState
+}
+
+// ListAssignmentCandidates 返回搜索和分页后的用户候选，并聚合其在所选 Repository 的授权状态。
+func (s *Service) ListAssignmentCandidates(ctx context.Context, connectionRef string, repositoryRefs []string, search string, limit, offset int) ([]AssignmentCandidate, int, error) {
+	repository, err := s.managementRepository()
+	if err != nil {
+		return nil, 0, fmt.Errorf("list registry repository assignment candidates: %w", err)
+	}
+	repositoryRefs, err = validateAssignmentCandidateQuery(s, repositoryRefs, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	users, total, err := s.users.ListUserCandidates(ctx, moduleapi.UserCandidateQuery{Search: search, Limit: limit, Offset: offset})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list candidate users: %w", err)
+	}
+	userIDs := make([]uint64, 0, len(users))
+	for _, user := range users {
+		userIDs = append(userIDs, user.ID)
+	}
+	states, err := repository.ListAssignmentCandidates(ctx, connectionRef, repositoryRefs, userIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]AssignmentCandidate, 0, len(users))
+	for _, user := range users {
+		state, exists := states[user.ID]
+		if !exists {
+			state = registrystore.AssignmentCandidate{UserID: user.ID, SelectedRepositoryCount: len(repositoryRefs), AuthorizationState: registrystore.AssignmentCandidateStateNone}
+		}
+		items = append(items, AssignmentCandidate{UserID: user.ID, Username: user.Username, Display: user.Display, Status: user.Status, AssignedRepositoryCount: state.AssignedRepositoryCount, SelectedRepositoryCount: state.SelectedRepositoryCount, AuthorizationState: state.AuthorizationState})
+	}
+	return items, total, nil
+}
+
+func validateAssignmentCandidateQuery(service *Service, repositoryRefs []string, limit, offset int) ([]string, error) {
+	if service == nil || service.users == nil {
+		return nil, errors.New("registry user candidate reader is unavailable")
+	}
+	repositoryRefs = normalizeRepositoryRefs(repositoryRefs)
+	if len(repositoryRefs) == 0 || len(repositoryRefs) > 100 {
+		return nil, errors.New("invalid repository references")
+	}
+	if limit < 1 || limit > 100 || offset < 0 {
+		return nil, errors.New("invalid candidate page bounds")
+	}
+	return repositoryRefs, nil
+}
+
+func normalizeRepositoryRefs(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	refs := make([]string, 0, len(values))
+	for _, value := range values {
+		ref := strings.TrimSpace(value)
+		if ref == "" {
+			continue
+		}
+		if _, exists := seen[ref]; exists {
+			continue
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+	return refs
 }
 
 // ReplaceAssignments 用指定用户集替换 Repository 授权，供批量管理场景使用。

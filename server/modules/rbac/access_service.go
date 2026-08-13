@@ -117,6 +117,10 @@ func (s accessService) ListUserIDsByPermissionCode(ctx context.Context, permissi
 	return listStableUserIDsByPermissionCode(ctx, s.rbac, permissionCode)
 }
 
+func (s accessService) ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error) {
+	return listStableUserIDsByRoleID(ctx, s.rbac, roleID)
+}
+
 func (s accessService) ListRoleSummariesByUserIDs(
 	ctx context.Context,
 	userIDs []uint64,

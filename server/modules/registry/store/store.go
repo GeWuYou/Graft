@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -80,6 +81,26 @@ type UserAssignment struct {
 	CreatedBy     uint64
 }
 
+// AssignmentCandidateState 是用户在所选 Repository 集合上的授权聚合状态。
+type AssignmentCandidateState string
+
+const (
+	// AssignmentCandidateStateAll 表示用户已拥有全部所选 Repository 的授权。
+	AssignmentCandidateStateAll AssignmentCandidateState = "all"
+	// AssignmentCandidateStatePartial 表示用户只拥有部分所选 Repository 的授权。
+	AssignmentCandidateStatePartial AssignmentCandidateState = "partial"
+	// AssignmentCandidateStateNone 表示用户未拥有任何所选 Repository 的授权。
+	AssignmentCandidateStateNone AssignmentCandidateState = "none"
+)
+
+// AssignmentCandidate 描述一个用户在所选 Repository 集合中的授权聚合结果。
+type AssignmentCandidate struct {
+	UserID                  uint64
+	AssignedRepositoryCount int
+	SelectedRepositoryCount int
+	AuthorizationState      AssignmentCandidateState
+}
+
 // Destination 是 Build 创建页可安全消费的授权目的地。
 type Destination struct {
 	ConnectionRef  string
@@ -105,10 +126,11 @@ type ConnectionInput struct {
 
 // RepositoryInput 是 Repository 策略写入输入。
 type RepositoryInput struct {
-	RepositoryRef string
-	DisplayName   string
-	AllowPull     bool
-	AllowPush     bool
+	RepositoryRef   string
+	DisplayName     string
+	AllowPull       bool
+	AllowPush       bool
+	GrantCreatorUse bool
 }
 
 // ManagementRepository owns Registry management persistence without widening Build's resolver boundary.
@@ -127,6 +149,7 @@ type ManagementRepository interface {
 	GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (UserAssignment, error)
 	RevokeAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) error
 	ReplaceAssignments(ctx context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]UserAssignment, error)
+	ListAssignmentCandidates(ctx context.Context, connectionRef string, repositoryRefs []string, userIDs []uint64) (map[uint64]AssignmentCandidate, error)
 	ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]Destination, int, error)
 }
 
@@ -372,17 +395,35 @@ WHERE c.connection_ref = $1 AND c.deleted_at = 0 AND r.deleted_at = 0
 
 // CreateRepository 在指定连接下创建可授权的 Repository。
 func (r *SQLRepository) CreateRepository(ctx context.Context, connectionRef string, input RepositoryInput, actorID uint64) (Repository, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Repository{}, fmt.Errorf("begin artifact repository creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	const query = `INSERT INTO artifact_repositories (connection_id, repository_ref, display_name, allow_pull, allow_push, created_by, updated_by)
 SELECT id, $2, $3, $4, $5, $6, $6 FROM registry_connections WHERE connection_ref = $1 AND deleted_at = 0
-RETURNING repository_ref, display_name, allow_pull, allow_push, created_at, updated_at`
+RETURNING id, repository_ref, display_name, allow_pull, allow_push, created_at, updated_at`
 	var item Repository
 	item.ConnectionRef = strings.TrimSpace(connectionRef)
-	err := r.db.QueryRowContext(ctx, query, item.ConnectionRef, input.RepositoryRef, input.DisplayName, input.AllowPull, input.AllowPush, actorID).Scan(&item.RepositoryRef, &item.DisplayName, &item.AllowPull, &item.AllowPush, &item.CreatedAt, &item.UpdatedAt)
+	var repositoryID uint64
+	err = tx.QueryRowContext(ctx, query, item.ConnectionRef, input.RepositoryRef, input.DisplayName, input.AllowPull, input.AllowPush, actorID).Scan(&repositoryID, &item.RepositoryRef, &item.DisplayName, &item.AllowPull, &item.AllowPush, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Repository{}, ErrNotFound
 	}
 	if err != nil {
 		return Repository{}, fmt.Errorf("create artifact repository: %w", registryWriteError(err))
+	}
+	if input.GrantCreatorUse {
+		if actorID == 0 {
+			return Repository{}, ErrUnauthorized
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
+SELECT $1, id, $2, $2 FROM users WHERE id = $2`, repositoryID, actorID); err != nil {
+			return Repository{}, fmt.Errorf("grant creator artifact repository assignment: %w", registryWriteError(err))
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return Repository{}, fmt.Errorf("commit artifact repository creation: %w", err)
 	}
 	return item, nil
 }
@@ -455,6 +496,81 @@ WHERE c.connection_ref = $1 AND r.repository_ref = $2 AND a.deleted_at = 0 ORDER
 		return nil, 0, fmt.Errorf("iterate artifact repository assignments: %w", err)
 	}
 	return items, total, nil
+}
+
+// ListAssignmentCandidates 聚合一页用户在所选有效 Repository 集合上的有效授权，不读取用户模块字段。
+func (r *SQLRepository) ListAssignmentCandidates(ctx context.Context, connectionRef string, repositoryRefs []string, userIDs []uint64) (map[uint64]AssignmentCandidate, error) {
+	connectionRef = strings.TrimSpace(connectionRef)
+	repositoryRefs = normalizeRepositoryRefs(repositoryRefs)
+	if connectionRef == "" || len(repositoryRefs) == 0 {
+		return nil, errors.New("repository references are required")
+	}
+
+	var selectedRepositoryCount int
+	const countRepositories = `SELECT COUNT(*) FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.deleted_at = 0 AND r.repository_ref = ANY($2)`
+	if err := r.db.QueryRowContext(ctx, countRepositories, connectionRef, pgtype.FlatArray[string](repositoryRefs)).Scan(&selectedRepositoryCount); err != nil {
+		return nil, fmt.Errorf("count selected artifact repositories: %w", err)
+	}
+	if selectedRepositoryCount != len(repositoryRefs) {
+		return nil, ErrNotFound
+	}
+
+	items := make(map[uint64]AssignmentCandidate, len(userIDs))
+	if len(userIDs) == 0 {
+		return items, nil
+	}
+	const query = `SELECT a.user_id, COUNT(DISTINCT a.repository_id)
+FROM artifact_repository_user_assignments a
+JOIN artifact_repositories r ON r.id = a.repository_id AND r.deleted_at = 0
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND a.user_id = ANY($3) AND a.deleted_at = 0
+GROUP BY a.user_id`
+	rows, err := r.db.QueryContext(ctx, query, connectionRef, pgtype.FlatArray[string](repositoryRefs), pgtype.FlatArray[uint64](userIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list artifact repository assignment candidates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var userID uint64
+		var assignedRepositoryCount int
+		if err := rows.Scan(&userID, &assignedRepositoryCount); err != nil {
+			return nil, fmt.Errorf("scan artifact repository assignment candidate: %w", err)
+		}
+		items[userID] = assignmentCandidate(userID, assignedRepositoryCount, selectedRepositoryCount)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate artifact repository assignment candidates: %w", err)
+	}
+	return items, nil
+}
+
+func normalizeRepositoryRefs(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	refs := make([]string, 0, len(values))
+	for _, value := range values {
+		ref := strings.TrimSpace(value)
+		if ref == "" {
+			continue
+		}
+		if _, exists := seen[ref]; exists {
+			continue
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+func assignmentCandidate(userID uint64, assignedRepositoryCount, selectedRepositoryCount int) AssignmentCandidate {
+	state := AssignmentCandidateStateNone
+	if assignedRepositoryCount >= selectedRepositoryCount {
+		state = AssignmentCandidateStateAll
+	} else if assignedRepositoryCount > 0 {
+		state = AssignmentCandidateStatePartial
+	}
+	return AssignmentCandidate{UserID: userID, AssignedRepositoryCount: assignedRepositoryCount, SelectedRepositoryCount: selectedRepositoryCount, AuthorizationState: state}
 }
 
 // GrantAssignment 原子地验证目标用户与 Repository，并拒绝重复的有效授权。

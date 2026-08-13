@@ -1,0 +1,13 @@
+type: object
+required: [user_ids]
+properties:
+  user_ids:
+    type: array
+    maxItems: 100
+    uniqueItems: true
+    items:
+      type: integer
+      format: int64
+      minimum: 1
+    description: Complete set of users allowed to use the Artifact Repository. An empty array revokes all assignments.
+additionalProperties: false

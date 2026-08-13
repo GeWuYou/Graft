@@ -61,10 +61,13 @@ function normalizeUserListItem(item: RawUserListItem): UserListItem {
   };
 }
 
-export function getUsers() {
+export type UserListQuery = NonNullable<GetUsersOperation['parameters']['query']>;
+
+export function getUsers(query: UserListQuery) {
   return request
     .get<GetUsersResponseData>({
       url: OPENAPI_RUNTIME_PATH.getUsers,
+      params: query,
     })
     .then((response): UserListResponse => ({
       ...response,

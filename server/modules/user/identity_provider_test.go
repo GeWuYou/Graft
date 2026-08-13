@@ -29,6 +29,14 @@ func (r *identityProviderRepository) List(context.Context) ([]userstore.User, er
 	return nil, errors.New("List must not be used for username lookup")
 }
 
+func (*identityProviderRepository) ListPage(context.Context, userstore.UserListFilter) ([]userstore.User, int, error) {
+	return nil, 0, nil
+}
+
+func (*identityProviderRepository) ListCandidates(context.Context, userstore.UserCandidateQuery) ([]userstore.User, int, error) {
+	return nil, 0, nil
+}
+
 func (*identityProviderRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
 	return nil, nil
 }

@@ -89,6 +89,18 @@ func listStableUserIDsByPermissionCode(ctx context.Context, repository rbacstore
 	return stableUint64s(userIDs), nil
 }
 
+// listStableUserIDsByRoleID 查询有效角色绑定的用户 ID，并收敛为稳定顺序。
+func listStableUserIDsByRoleID(ctx context.Context, repository rbacstore.Repository, roleID uint64) ([]uint64, error) {
+	userIDs, err := runNamedRBACQuery(repository, fmt.Sprintf("list user ids by role %d", roleID), func(repo rbacstore.Repository) ([]uint64, error) {
+		return repo.ListUserIDsByRoleID(ctx, roleID)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return stableUint64s(userIDs), nil
+}
+
 // listRoleSummariesByUserIDs 获取每个用户 ID 对应的角色摘要列表，并保证输入中的每个用户 ID 都在结果中有键。
 // 对于没有角色的用户，返回空切片。
 func listRoleSummariesByUserIDs(ctx context.Context, repository rbacstore.Repository, userIDs []uint64) (map[uint64][]moduleapi.RoleSummary, error) {

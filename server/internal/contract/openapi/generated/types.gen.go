@@ -3088,25 +3088,25 @@ func (e DockerNetworkActionResponseResult) Valid() bool {
 
 // Defines values for DockerNetworkCreateRequestDriver.
 const (
-	Bridge  DockerNetworkCreateRequestDriver = "bridge"
-	Ipvlan  DockerNetworkCreateRequestDriver = "ipvlan"
-	Macvlan DockerNetworkCreateRequestDriver = "macvlan"
-	None    DockerNetworkCreateRequestDriver = "none"
-	Overlay DockerNetworkCreateRequestDriver = "overlay"
+	DockerNetworkCreateRequestDriverBridge  DockerNetworkCreateRequestDriver = "bridge"
+	DockerNetworkCreateRequestDriverIpvlan  DockerNetworkCreateRequestDriver = "ipvlan"
+	DockerNetworkCreateRequestDriverMacvlan DockerNetworkCreateRequestDriver = "macvlan"
+	DockerNetworkCreateRequestDriverNone    DockerNetworkCreateRequestDriver = "none"
+	DockerNetworkCreateRequestDriverOverlay DockerNetworkCreateRequestDriver = "overlay"
 )
 
 // Valid indicates whether the value is a known member of the DockerNetworkCreateRequestDriver enum.
 func (e DockerNetworkCreateRequestDriver) Valid() bool {
 	switch e {
-	case Bridge:
+	case DockerNetworkCreateRequestDriverBridge:
 		return true
-	case Ipvlan:
+	case DockerNetworkCreateRequestDriverIpvlan:
 		return true
-	case Macvlan:
+	case DockerNetworkCreateRequestDriverMacvlan:
 		return true
-	case None:
+	case DockerNetworkCreateRequestDriverNone:
 		return true
-	case Overlay:
+	case DockerNetworkCreateRequestDriverOverlay:
 		return true
 	default:
 		return false
@@ -4451,6 +4451,27 @@ const (
 func (e RegistryConnectionCreateRequestProvider) Valid() bool {
 	switch e {
 	case RegistryConnectionCreateRequestProviderGenericOci:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegistryRepositoryAssignmentCandidateAuthorizationState.
+const (
+	RegistryRepositoryAssignmentCandidateAuthorizationStateAll     RegistryRepositoryAssignmentCandidateAuthorizationState = "all"
+	RegistryRepositoryAssignmentCandidateAuthorizationStateNone    RegistryRepositoryAssignmentCandidateAuthorizationState = "none"
+	RegistryRepositoryAssignmentCandidateAuthorizationStatePartial RegistryRepositoryAssignmentCandidateAuthorizationState = "partial"
+)
+
+// Valid indicates whether the value is a known member of the RegistryRepositoryAssignmentCandidateAuthorizationState enum.
+func (e RegistryRepositoryAssignmentCandidateAuthorizationState) Valid() bool {
+	switch e {
+	case RegistryRepositoryAssignmentCandidateAuthorizationStateAll:
+		return true
+	case RegistryRepositoryAssignmentCandidateAuthorizationStateNone:
+		return true
+	case RegistryRepositoryAssignmentCandidateAuthorizationStatePartial:
 		return true
 	default:
 		return false
@@ -6511,16 +6532,16 @@ func (e GetDockerVolumesParamsSortOrder) Valid() bool {
 
 // Defines values for GetRolesParamsStatus.
 const (
-	Disabled GetRolesParamsStatus = "disabled"
-	Enabled  GetRolesParamsStatus = "enabled"
+	GetRolesParamsStatusDisabled GetRolesParamsStatus = "disabled"
+	GetRolesParamsStatusEnabled  GetRolesParamsStatus = "enabled"
 )
 
 // Valid indicates whether the value is a known member of the GetRolesParamsStatus enum.
 func (e GetRolesParamsStatus) Valid() bool {
 	switch e {
-	case Disabled:
+	case GetRolesParamsStatusDisabled:
 		return true
-	case Enabled:
+	case GetRolesParamsStatusEnabled:
 		return true
 	default:
 		return false
@@ -6644,6 +6665,24 @@ func (e GetSecurityOverviewParamsPreset) Valid() bool {
 	case Last30d:
 		return true
 	case Last7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetUsersParamsStatus.
+const (
+	GetUsersParamsStatusDisabled GetUsersParamsStatus = "disabled"
+	GetUsersParamsStatusEnabled  GetUsersParamsStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the GetUsersParamsStatus enum.
+func (e GetUsersParamsStatus) Valid() bool {
+	switch e {
+	case GetUsersParamsStatusDisabled:
+		return true
+	case GetUsersParamsStatusEnabled:
 		return true
 	default:
 		return false
@@ -12045,6 +12084,26 @@ type EnvelopedRegistryConnectionVerification struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRegistryRepositoryAssignmentCandidateListResponse defines model for enveloped-registry-repository-assignment-candidate-list-response.
+type EnvelopedRegistryRepositoryAssignmentCandidateListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                            `json:"code"`
+	Data RegistryRepositoryAssignmentCandidateListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRequestPerformanceResponse defines model for enveloped-request-performance-response.
 type EnvelopedRequestPerformanceResponse struct {
 	// Code Existing canonical response code.
@@ -13677,6 +13736,9 @@ type RegistryArtifactRepositoryCreateRequest struct {
 	AllowPush   *bool  `json:"allow_push,omitempty"`
 	DisplayName string `json:"display_name"`
 
+	// GrantCreatorUse Whether to grant the authenticated creator use of the new Artifact Repository.
+	GrantCreatorUse *bool `json:"grant_creator_use,omitempty"`
+
 	// RepositoryRef Repository path within the selected Registry Connection. A full image URL and tag are invalid.
 	RepositoryRef string `json:"repository_ref"`
 }
@@ -13711,6 +13773,12 @@ type RegistryArtifactRepositoryUserAssignmentListResponse struct {
 	Limit  int                                        `json:"limit"`
 	Offset int                                        `json:"offset"`
 	Total  int64                                      `json:"total"`
+}
+
+// RegistryArtifactRepositoryUserAssignmentReplaceRequest defines model for registry-artifact-repository-user-assignment-replace-request.
+type RegistryArtifactRepositoryUserAssignmentReplaceRequest struct {
+	// UserIds Complete set of users allowed to use the Artifact Repository. An empty array revokes all assignments.
+	UserIds []int64 `json:"user_ids"`
 }
 
 // RegistryArtifactRepositoryUserAssignmentRequest defines model for registry-artifact-repository-user-assignment-request.
@@ -13835,6 +13903,28 @@ type RegistryConnectionVerification struct {
 	// Status Verification outcome. Current values are verified and failed.
 	Status     RegistryVerificationResult `json:"status"`
 	VerifiedAt time.Time                  `json:"verified_at"`
+}
+
+// RegistryRepositoryAssignmentCandidate defines model for registry-repository-assignment-candidate.
+type RegistryRepositoryAssignmentCandidate struct {
+	AssignedRepositoryCount int                                                     `json:"assigned_repository_count"`
+	AuthorizationState      RegistryRepositoryAssignmentCandidateAuthorizationState `json:"authorization_state"`
+	Display                 string                                                  `json:"display"`
+	Id                      int64                                                   `json:"id"`
+	SelectedRepositoryCount int                                                     `json:"selected_repository_count"`
+	Status                  string                                                  `json:"status"`
+	Username                string                                                  `json:"username"`
+}
+
+// RegistryRepositoryAssignmentCandidateAuthorizationState defines model for RegistryRepositoryAssignmentCandidate.AuthorizationState.
+type RegistryRepositoryAssignmentCandidateAuthorizationState string
+
+// RegistryRepositoryAssignmentCandidateListResponse defines model for registry-repository-assignment-candidate-list-response.
+type RegistryRepositoryAssignmentCandidateListResponse struct {
+	Items  []RegistryRepositoryAssignmentCandidate `json:"items"`
+	Limit  int                                     `json:"limit"`
+	Offset int                                     `json:"offset"`
+	Total  int64                                   `json:"total"`
 }
 
 // RegistryVerificationResult Terminal result of one Registry connection verification attempt.
@@ -15381,7 +15471,10 @@ type UserListItem struct {
 
 // UserListResponse defines model for user-list-response.
 type UserListResponse struct {
-	Items []UserListItem `json:"items"`
+	Items  []UserListItem `json:"items"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Total  int64          `json:"total"`
 }
 
 // UserRoleBindingResponse defines model for user-role-binding-response.
@@ -18028,6 +18121,21 @@ type PutRegistryArtifactRepositoryParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetRegistryRepositoryAssignmentCandidatesParams defines parameters for GetRegistryRepositoryAssignmentCandidates.
+type GetRegistryRepositoryAssignmentCandidatesParams struct {
+	RepositoryRef []string `form:"repository_ref" json:"repository_ref"`
+	Search        *string  `form:"search,omitempty" json:"search,omitempty"`
+	Limit         *int     `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int     `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetRegistryArtifactRepositoryAssignmentsParams defines parameters for GetRegistryArtifactRepositoryAssignments.
 type GetRegistryArtifactRepositoryAssignmentsParams struct {
 	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
@@ -18045,6 +18153,19 @@ type GetRegistryArtifactRepositoryAssignmentsParams struct {
 
 // PostRegistryArtifactRepositoryAssignmentParams defines parameters for PostRegistryArtifactRepositoryAssignment.
 type PostRegistryArtifactRepositoryAssignmentParams struct {
+	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
+	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutRegistryArtifactRepositoryAssignmentsParams defines parameters for PutRegistryArtifactRepositoryAssignments.
+type PutRegistryArtifactRepositoryAssignmentsParams struct {
 	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
 	RepositoryRef RegistryRepositoryRefQuery `form:"repository_ref" json:"repository_ref"`
 
@@ -18661,6 +18782,12 @@ type RetryTaskStageParams struct {
 
 // GetUsersParams defines parameters for GetUsers.
 type GetUsersParams struct {
+	Keyword *string               `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Status  *GetUsersParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	RoleId  *int64                `form:"role_id,omitempty" json:"role_id,omitempty"`
+	Limit   *int                  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int                  `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -18668,6 +18795,9 @@ type GetUsersParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetUsersParamsStatus defines parameters for GetUsers.
+type GetUsersParamsStatus string
 
 // PostUsersParams defines parameters for PostUsers.
 type PostUsersParams struct {
@@ -19137,6 +19267,9 @@ type PutRegistryArtifactRepositoryJSONRequestBody = RegistryArtifactRepositoryUp
 
 // PostRegistryArtifactRepositoryAssignmentJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignment for application/json ContentType.
 type PostRegistryArtifactRepositoryAssignmentJSONRequestBody = RegistryArtifactRepositoryUserAssignmentRequest
+
+// PutRegistryArtifactRepositoryAssignmentsJSONRequestBody defines body for PutRegistryArtifactRepositoryAssignments for application/json ContentType.
+type PutRegistryArtifactRepositoryAssignmentsJSONRequestBody = RegistryArtifactRepositoryUserAssignmentReplaceRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

@@ -5,4 +5,8 @@ export const REGISTRY_BOOTSTRAP_ROUTE = {
     menuPath: REGISTRY_ROUTE_PATH.LIST,
     routeName: 'RegistryConnectionList',
   },
+  DETAIL: {
+    path: REGISTRY_ROUTE_PATH.DETAIL,
+    routeName: 'RegistryConnectionDetail',
+  },
 } as const;

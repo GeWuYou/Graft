@@ -31,6 +31,22 @@ type User struct {
 	UpdatedAt             time.Time
 }
 
+// UserListFilter 描述管理用户列表的服务端筛选和分页条件。
+type UserListFilter struct {
+	Keyword string
+	Status  string
+	UserIDs []uint64
+	Limit   int
+	Offset  int
+}
+
+// UserCandidateQuery 描述跨模块用户候选读取的搜索和分页条件。
+type UserCandidateQuery struct {
+	Search string
+	Limit  int
+	Offset int
+}
+
 // CreateUserInput 描述创建用户所需的最小输入，并保留执行操作的主体用于审计归属。
 type CreateUserInput struct {
 	Username string
@@ -66,6 +82,10 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
 	GetByUsername(ctx context.Context, username string) (User, error)
 	List(ctx context.Context) ([]User, error)
+	// ListPage 在同一组筛选条件下返回稳定 ID 排序的当前页与总数。
+	ListPage(ctx context.Context, filter UserListFilter) ([]User, int, error)
+	// ListCandidates 返回跨模块选择器所需的最小用户字段，且不暴露用户管理详情。
+	ListCandidates(ctx context.Context, query UserCandidateQuery) ([]User, int, error)
 	ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]User, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)

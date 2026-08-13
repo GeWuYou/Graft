@@ -42,6 +42,28 @@ var (
 	errProtectedDefaultAdminImmutable = errors.New("protected default admin is immutable for this operation")
 )
 
+const (
+	defaultUserListLimit = 20
+	maximumUserListLimit = 100
+)
+
+// ListQuery 是用户管理列表的已校验查询条件。
+type ListQuery struct {
+	Keyword string
+	Status  string
+	RoleID  *uint64
+	Limit   int
+	Offset  int
+}
+
+// ListPage 是用户管理列表的服务端分页结果。
+type ListPage struct {
+	Users  []userstore.User
+	Total  int
+	Limit  int
+	Offset int
+}
+
 // NewModule 创建示例用户模块。
 func NewModule(userRepo userstore.UserRepository) *Module {
 	return &Module{userRepo: userRepo}
@@ -238,6 +260,22 @@ func (s userService) CountUsers(ctx context.Context) (int, error) {
 	return s.users.Count(ctx)
 }
 
+// ListUserCandidates 返回跨模块候选选择器所需的分页用户摘要。
+func (s userService) ListUserCandidates(ctx context.Context, query moduleapi.UserCandidateQuery) ([]moduleapi.UserCandidate, int, error) {
+	if s.users == nil {
+		return nil, 0, errors.New("user repository is unavailable")
+	}
+	users, total, err := s.users.ListCandidates(ctx, userstore.UserCandidateQuery{Search: query.Search, Limit: query.Limit, Offset: query.Offset})
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]moduleapi.UserCandidate, 0, len(users))
+	for _, user := range users {
+		items = append(items, moduleapi.UserCandidate{ID: user.ID, Username: user.Username, Display: user.Display, Status: user.Status})
+	}
+	return items, total, nil
+}
+
 // ListSecuritySummaries 返回供授权聚合读取方使用的有界用户状态页，并按用户 ID 递增读取。
 func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
 	if s.users == nil {
@@ -271,6 +309,41 @@ func (s userService) ListUsers(ctx context.Context) ([]userstore.User, error) {
 	}
 
 	return s.users.List(ctx)
+}
+
+// ListUsersPage 在用户模块内完成筛选、总数统计和分页；角色归属只通过 RBAC 公共能力读取。
+func (s userService) ListUsersPage(ctx context.Context, query ListQuery) (ListPage, error) {
+	if s.users == nil {
+		return ListPage{}, errors.New("user repository is unavailable")
+	}
+	limit := query.Limit
+	if limit <= 0 {
+		limit = defaultUserListLimit
+	}
+	if limit > maximumUserListLimit {
+		limit = maximumUserListLimit
+	}
+	if query.Offset < 0 {
+		return ListPage{}, errors.New("user list offset must not be negative")
+	}
+
+	filter := userstore.UserListFilter{Keyword: strings.TrimSpace(query.Keyword), Status: strings.TrimSpace(query.Status), Limit: limit, Offset: query.Offset}
+	if query.RoleID != nil {
+		if s.rbac == nil {
+			return ListPage{}, errors.New("rbac access service is unavailable")
+		}
+		userIDs, err := s.rbac.ListUserIDsByRoleID(ctx, *query.RoleID)
+		if err != nil {
+			return ListPage{}, fmt.Errorf("list users by role: %w", err)
+		}
+		filter.UserIDs = userIDs
+	}
+
+	users, total, err := s.users.ListPage(ctx, filter)
+	if err != nil {
+		return ListPage{}, err
+	}
+	return ListPage{Users: users, Total: total, Limit: limit, Offset: query.Offset}, nil
 }
 
 func (s userService) ListUserRoleSummaries(ctx context.Context, userIDs []uint64) (map[uint64][]moduleapi.RoleSummary, error) {

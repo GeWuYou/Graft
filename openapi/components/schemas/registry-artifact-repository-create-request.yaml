@@ -16,4 +16,8 @@ properties:
   allow_push:
     type: boolean
     default: true
+  grant_creator_use:
+    type: boolean
+    default: true
+    description: Whether to grant the authenticated creator use of the new Artifact Repository.
 additionalProperties: false

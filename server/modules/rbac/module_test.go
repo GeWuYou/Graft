@@ -288,6 +288,10 @@ func (r testRBACRepository) ListUserIDsByPermissionCode(context.Context, string)
 	return nil, nil
 }
 
+func (r testRBACRepository) ListUserIDsByRoleID(context.Context, uint64) ([]uint64, error) {
+	return nil, nil
+}
+
 func (r testRBACRepository) ListPermissions(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error) {
 	if r.listPermissionsFn != nil {
 		return r.listPermissionsFn(ctx, filter)

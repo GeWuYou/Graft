@@ -13,8 +13,9 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
-type userListResponse = generated.UserListResponse
 type userListItem = generated.UserListItem
+
+type userListResponse = generated.UserListResponse
 
 func normalizeUserStatus(status string) string {
 	switch strings.TrimSpace(status) {
@@ -58,9 +59,9 @@ func toUpdateUserStatusCommand(request useropenapi.PostUserStatusJSONRequestBody
 
 func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatus) (string, bool) {
 	switch status {
-	case useropenapi.Enabled:
+	case useropenapi.PostUserStatusJSONBodyStatusEnabled:
 		return usercontract.UserStatusEnabled, true
-	case useropenapi.Disabled:
+	case useropenapi.PostUserStatusJSONBodyStatusDisabled:
 		return usercontract.UserStatusDisabled, true
 	default:
 		return "", false
@@ -70,6 +71,9 @@ func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatu
 func toUserListResponse(
 	users []userstore.User,
 	roleSummariesByUserID map[uint64][]moduleapi.RoleSummary,
+	total int,
+	limit int,
+	offset int,
 ) (userListResponse, error) {
 	items := make([]userListItem, 0, len(users))
 	for _, user := range users {
@@ -80,7 +84,7 @@ func toUserListResponse(
 		items = append(items, item)
 	}
 
-	return userListResponse{Items: items}, nil
+	return userListResponse{Items: items, Total: int64(total), Limit: limit, Offset: offset}, nil
 }
 
 // toUserListItem 将用户信息和角色摘要转换为生成的用户列表项。

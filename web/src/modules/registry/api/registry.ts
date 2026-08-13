@@ -5,6 +5,7 @@ import { request } from '@/utils/request';
 type ListConnectionsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistries]['get'];
 type CreateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistry]['post'];
 type UpdateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistry]['put'];
+type GetConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistry]['get'];
 type VerifyConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryVerify]['post'];
 type RepositoryListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArtifactRepositories]['get'];
 type CreateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepository]['post'];
@@ -14,6 +15,9 @@ type AssignmentListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArti
 type GrantAssignmentOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignment]['post'];
 type RevokeAssignmentOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.deleteRegistryArtifactRepositoryAssignment]['delete'];
+type ReplaceAssignmentsOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistryArtifactRepositoryAssignments]['put'];
+type AssignmentCandidatesOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
 
 export function getRegistries(query?: ListConnectionsOperation['parameters']['query']) {
   return request.get<NonNullable<ListConnectionsOperation['responses'][200]['content']['application/json']['data']>>({
@@ -26,6 +30,12 @@ export function createRegistry(payload: CreateConnectionOperation['requestBody']
   return request.post<NonNullable<CreateConnectionOperation['responses'][201]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.postRegistry,
     data: payload,
+  });
+}
+
+export function getRegistry(connectionRef: GetConnectionOperation['parameters']['path']['connectionRef']) {
+  return request.get<NonNullable<GetConnectionOperation['responses'][200]['content']['application/json']['data']>>({
+    url: buildOpenApiRuntimePath('getRegistry', { connectionRef }),
   });
 }
 
@@ -49,9 +59,10 @@ export function verifyRegistry(connectionRef: string) {
   });
 }
 
-export function getRegistryRepositories(connectionRef: string) {
+export function getRegistryRepositories(connectionRef: string, query?: RepositoryListOperation['parameters']['query']) {
   return request.get<NonNullable<RepositoryListOperation['responses'][200]['content']['application/json']['data']>>({
     url: buildOpenApiRuntimePath('getRegistryArtifactRepositories', { connectionRef }),
+    params: query,
   });
 }
 
@@ -91,6 +102,18 @@ export function getRegistryRepositoryAssignments(connectionRef: string, reposito
   });
 }
 
+export function getRegistryRepositoryAssignmentCandidates(
+  connectionRef: string,
+  query: AssignmentCandidatesOperation['parameters']['query'],
+) {
+  return request.get<
+    NonNullable<AssignmentCandidatesOperation['responses'][200]['content']['application/json']['data']>
+  >({
+    url: buildOpenApiRuntimePath('getRegistryRepositoryAssignmentCandidates', { connectionRef }),
+    params: query,
+  });
+}
+
 export function grantRegistryRepositoryAssignment(
   connectionRef: string,
   repositoryRef: string,
@@ -108,4 +131,18 @@ export function revokeRegistryRepositoryAssignment(connectionRef: string, reposi
     url: buildOpenApiRuntimePath('deleteRegistryArtifactRepositoryAssignment', { connectionRef, userId }),
     params: { repository_ref: repositoryRef } satisfies RevokeAssignmentOperation['parameters']['query'],
   });
+}
+
+export function replaceRegistryRepositoryAssignments(
+  connectionRef: string,
+  repositoryRef: string,
+  payload: ReplaceAssignmentsOperation['requestBody']['content']['application/json'],
+) {
+  return request.put<NonNullable<ReplaceAssignmentsOperation['responses'][200]['content']['application/json']['data']>>(
+    {
+      url: buildOpenApiRuntimePath('putRegistryArtifactRepositoryAssignments', { connectionRef }),
+      params: { repository_ref: repositoryRef } satisfies ReplaceAssignmentsOperation['parameters']['query'],
+      data: payload,
+    },
+  );
 }

@@ -1,0 +1,41 @@
+migration:
+  path: server/modules/registry/migrations/202608130001_registry_repository_display_name_uniqueness.sql
+  version: '202608130001'
+owner: registry
+risk_level: L4
+affected_tables:
+  - artifact_repositories
+referenced_tables:
+  - registry_connections
+operation_categories:
+  - duplicate-scan
+  - partial-unique-index
+historical_data_assumptions:
+  - Existing live artifact repositories may contain duplicate display names within one connection.
+planned_upgrade_order:
+  - Scan live duplicate display names and abort if any exist.
+  - Create the partial unique index after the scan succeeds.
+safety_strategy:
+  duplicate_scan: Group live artifact repositories by connection_id and display_name before applying the uniqueness invariant.
+  live_reference_scan: Verify only live repositories under live connections are included in the duplicate scan.
+  reconcile_or_abort: Abort and require operator reconciliation when duplicates exist; do not choose a survivor automatically.
+  post_migration_invariant: At most one live artifact repository per connection has each display name.
+  reference_impact: registry_connections remain unchanged and every live artifact_repositories row is preserved because duplicates block the migration.
+  recovery_or_retirement_rationale: The migration does not retire or rewrite duplicate repositories; operators reconcile them before retrying the forward-only index creation.
+validation_scenarios:
+  - Duplicate live display names cause the migration to abort before index creation.
+  - Unique live display names allow the partial unique index to be created.
+preflight_checks:
+  - name: duplicate-live-repository-display-names
+    query: >-
+      SELECT COUNT(*) FROM (SELECT repository.connection_id, repository.display_name FROM artifact_repositories repository JOIN registry_connections connection ON connection.id = repository.connection_id AND connection.deleted_at = 0 WHERE repository.deleted_at = 0 GROUP BY repository.connection_id, repository.display_name HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-001

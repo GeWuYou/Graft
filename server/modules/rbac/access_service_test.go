@@ -120,6 +120,10 @@ func (r accessServiceTestRepository) ListUserIDsByPermissionCode(context.Context
 	return r.userIDs, nil
 }
 
+func (r accessServiceTestRepository) ListUserIDsByRoleID(context.Context, uint64) ([]uint64, error) {
+	return r.userIDs, nil
+}
+
 func (r accessServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
 }
@@ -169,6 +173,12 @@ func TestAccessServiceListsStableRoleNamesAndPermissionCodes(t *testing.T) {
 		t.Fatalf("list user ids by permission code: %v", err)
 	}
 	requireUserIDs(t, userIDs, []uint64{7, 11, 42})
+
+	roleUserIDs, err := service.ListUserIDsByRoleID(context.Background(), 3)
+	if err != nil {
+		t.Fatalf("list user ids by role id: %v", err)
+	}
+	requireUserIDs(t, roleUserIDs, []uint64{7, 11, 42})
 }
 
 func TestReadSecurityPostureReadsUserSummariesInBoundedPages(t *testing.T) {

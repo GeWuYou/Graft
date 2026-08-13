@@ -136,6 +136,10 @@ func (r *bootstrapServiceTestRepository) ListUserIDsByPermissionCode(context.Con
 	return nil, nil
 }
 
+func (r *bootstrapServiceTestRepository) ListUserIDsByRoleID(context.Context, uint64) ([]uint64, error) {
+	return nil, nil
+}
+
 func (r *bootstrapServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
 }

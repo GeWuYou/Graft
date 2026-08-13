@@ -21,6 +21,21 @@ type UserSummary struct {
 	ProtectedDefaultAdmin bool
 }
 
+// UserCandidate 是跨模块候选选择器所需的最小用户投影。
+type UserCandidate struct {
+	ID       uint64
+	Username string
+	Display  string
+	Status   string
+}
+
+// UserCandidateQuery 描述跨模块候选选择器的服务端搜索和分页窗口。
+type UserCandidateQuery struct {
+	Search string
+	Limit  int
+	Offset int
+}
+
 // UserSecuritySummary 是安全态势读取方所需的窄化用户状态投影。
 type UserSecuritySummary struct {
 	ID     uint64
@@ -37,6 +52,11 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uint64) (UserSummary, error)
 	// CountUsers 返回当前可管理用户总数，供跨模块摘要类只读能力使用。
 	CountUsers(ctx context.Context) (int, error)
+}
+
+// UserCandidateReader 仅暴露受限候选选择所需的用户摘要查询，避免消费者依赖 user store。
+type UserCandidateReader interface {
+	ListUserCandidates(ctx context.Context, query UserCandidateQuery) ([]UserCandidate, int, error)
 }
 
 // UserSecurityReader 暴露安全态势聚合所需的窄化账户状态投影。

@@ -165,6 +165,14 @@ Graft does not implement a registry server. The supported platform model is exte
   Registry Connection.
 - Artifact Repository is separate from Connection so namespace, authorization and repository policy do not collapse
   into credential configuration.
+- A Registry Connection owns endpoint, credential reference, availability and lifecycle management. An Artifact
+  Repository owns one unique repository path and its pull/push policy within that connection. User assignments are a
+  separate many-to-many use-authority relation owned by the Registry module; granting a creator use access does not
+  grant Connection or Repository management permissions.
+- Repository management is reached from the Registry Connection detail surface rather than a separate first-level
+  navigation item. Repository creation may atomically grant the creating user use access by an explicit, default-on
+  request option. Assignment management is repository-centric in the first release and supports bounded batch
+  replacement; a reverse user-centric view remains a future projection.
 - A future system-app installer may provision Harbor or Distribution, then create an ordinary Registry Connection; that
   is not a Graft Registry implementation.
 

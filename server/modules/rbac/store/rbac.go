@@ -242,6 +242,7 @@ type Repository interface {
 	ListRoles(ctx context.Context, filter RoleFilter) ([]Role, error)
 	ListPermissionsByUserID(ctx context.Context, userID uint64) ([]Permission, error)
 	ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error)
+	ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error)
 	ListPermissions(ctx context.Context, filter PermissionFilter) ([]Permission, error)
 	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]RolePermissionBinding, error)
 }

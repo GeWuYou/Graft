@@ -2,6 +2,7 @@ package registry
 
 import (
 	"errors"
+	"fmt"
 
 	containerdi "graft/server/internal/container"
 	"graft/server/internal/menu"
@@ -24,6 +25,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil || ctx.Services == nil || ctx.PermissionRegistry == nil || ctx.MenuRegistry == nil {
 		return errors.New("registry module service is unavailable")
 	}
+	users, err := module.ResolveService[moduleapi.UserCandidateReader](ctx.Services, (*moduleapi.UserCandidateReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve user candidate reader: %w", err)
+	}
+	m.service.bindUserCandidateReader(users)
 	for _, item := range []permission.Item{
 		{Code: registrycontract.ReadPermission, DisplayKey: "rbac.permissionCatalog.registryRead.display", DescriptionKey: "rbac.permissionCatalog.registryRead.description", Module: moduleID, Resource: "registry", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead},
 		{Code: registrycontract.CreatePermission, DisplayKey: "rbac.permissionCatalog.registryCreate.display", DescriptionKey: "rbac.permissionCatalog.registryCreate.description", Module: moduleID, Resource: "registry", Action: "create", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},

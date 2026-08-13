@@ -4,6 +4,18 @@
     "section": { "shared_resources": "共享资源" }
   },
   "registry": {
+    "route": {
+      "detail": {
+        "title": "镜像仓库详情",
+        "description": "管理连接下的仓库路径与使用授权。",
+        "connection": "连接信息",
+        "enabled": "已启用",
+        "disabled": "未启用",
+        "notFound": "未找到镜像仓库连接",
+        "noRepositories": "暂无仓库路径",
+        "repositorySummary": "共 {count} 个仓库路径"
+      }
+    },
     "list": {
       "description": "管理可供 Build 使用的外部 OCI Registry 连接与仓库路径。",
       "search": "搜索名称、引用或端点",
@@ -17,9 +29,20 @@
       "delete": "删除",
       "repositories": "仓库路径",
       "addRepository": "添加仓库路径",
-      "assignments": "用户授权",
+      "assignments": "授权",
       "grantAssignment": "授予授权",
       "revokeAssignment": "撤销授权",
+      "grantBatchAssignment": "批量授权",
+      "revokeBatchAssignment": "批量撤销授权（{count}）",
+      "batchDeleteRepositories": "批量删除仓库路径（{count}）",
+      "batchAuthorizeRepositories": "批量授权",
+      "batchAuthorizeRepositoriesTitle": "批量授权仓库路径",
+      "candidateSearch": "搜索",
+      "candidateSearchPlaceholder": "搜索用户名称或账号",
+      "candidateSelected": "已选择 {count} 位用户",
+      "candidatesEmpty": "未找到可授权用户",
+      "batchDelete": "批量删除",
+      "batchDeleteConfirm": "删除选中的 {count} 个仓库路径？",
       "empty": "暂无镜像仓库",
       "emptyDescription": "添加一个镜像仓库连接后，它会显示在这里。",
       "filteredEmpty": "未找到匹配的镜像仓库",
@@ -36,6 +59,9 @@
         "status": "状态",
         "verified": "最近验证",
         "assignmentCreatedAt": "授权时间",
+        "candidateUser": "用户",
+        "candidateUsername": "账号",
+        "authorizationState": "授权状态",
         "actions": "操作"
       },
       "form": {
@@ -49,7 +75,10 @@
         "repositoryName": "显示名称",
         "allowPull": "允许拉取",
         "allowPush": "允许推送",
-        "userId": "用户 ID"
+        "userId": "用户 ID",
+        "grantCreatorUse": "同时授予创建者使用权限",
+        "batchUserIds": "批量用户 ID",
+        "batchUserIdsPlaceholder": "输入用户 ID，使用空格或逗号分隔"
       },
       "credential": { "configured": "已配置", "anonymous": "匿名" },
       "status": {
@@ -59,11 +88,13 @@
         "failed": "验证失败",
         "unknown": "未验证"
       },
+      "authorizationState": { "all": "已全部授权", "partial": "部分授权", "none": "未授权" },
       "verifySuccess": "连接测试成功，连接已可用",
       "verifyFailed": "连接测试失败，请检查连接配置后重试",
       "deleteConfirm": "删除此 Registry 连接？已关联的仓库路径会阻止删除。",
       "repositoryDeleteConfirm": "删除仓库路径 {repository}？",
-      "revokeAssignmentConfirm": "撤销用户 {userId} 的仓库使用授权？"
+      "revokeAssignmentConfirm": "撤销用户 {userId} 的仓库使用授权？",
+      "revokeAllAssignments": "撤销全部使用授权"
     }
   }
 }

@@ -251,6 +251,40 @@ func (r *repository) ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (
 	return rolesByUserID, nil
 }
 
+// ListUserIDsByRoleID 返回绑定到有效角色的用户 ID，供 RBAC 公共读取能力收敛。
+func (r *repository) ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error) {
+	id, err := toDBID(roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT ur.user_id
+		FROM user_roles ur
+		INNER JOIN roles r ON r.id = ur.role_id
+		WHERE ur.role_id = $1 AND r.deleted_at = 0 AND r.disabled_at = 0
+		ORDER BY ur.user_id ASC`,
+		id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list user ids by role id: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	userIDs := make([]uint64, 0)
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("list user ids by role id: scan row: %w", err)
+		}
+		userIDs = append(userIDs, toStoreID(userID))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list user ids by role id: iterate rows: %w", err)
+	}
+	return userIDs, nil
+}
+
 // insertUserRole 将用户和角色的绑定记录写入 user_roles，并设置创建时间为 UTC。
 // @param userID 用户 ID。
 // @param roleID 角色 ID。

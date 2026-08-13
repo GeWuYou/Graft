@@ -1,4 +1,5 @@
-h1:5lNtBd5GwxcJuLNJHT1xyrhzZg7Fnbm+ZX1SanV+slo=
+h1:rGuKEiaHg5I9bNyhJAuiNgGYUw+/0x4+6nPoaVQOZ8U=
 202608060004_registry_connection_repository_authority.sql h1:nzUSgDwq+VngyL26S+xqqVWokY7I/oeUY1E4C22V+WE=
 202608060016_registry_artifact_copy_pull_authority.sql h1:JyscPdjUdjg4sTLmWuIKpk8oW6bgbafPYJrbJ52fgxQ=
 202608110003_registry_connection_management.sql h1:ci9HKJz+yhEaimr8HO6EwFQ9OPDLr3vK0daRAIUZYNg=
+202608130001_registry_repository_display_name_uniqueness.sql h1:Wt+fqarCs0EFtetwNRK7PpREi8ntMW8nrnKsdg0KHnI=

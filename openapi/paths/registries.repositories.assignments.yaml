@@ -51,3 +51,29 @@ post:
     '404': {$ref: ../components/responses/not-found.yaml}
     '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}
+put:
+  tags: [registry]
+  operationId: putRegistryArtifactRepositoryAssignments
+  summary: Replace all users assigned to an Artifact Repository
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+    - $ref: ../components/parameters/registry-repository-ref-query.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-artifact-repository-user-assignment-replace-request.yaml}
+  responses:
+    '200':
+      description: Complete active Artifact Repository user assignments after replacement.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response.yaml}
+    '400': {$ref: ../components/responses/bad-request.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
