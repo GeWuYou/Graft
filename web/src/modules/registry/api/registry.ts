@@ -5,6 +5,7 @@ import { request } from '@/utils/request';
 type ListConnectionsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistries]['get'];
 type CreateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistry]['post'];
 type UpdateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistry]['put'];
+type GetConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistry]['get'];
 type VerifyConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryVerify]['post'];
 type RepositoryListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArtifactRepositories]['get'];
 type CreateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepository]['post'];
@@ -14,6 +15,8 @@ type AssignmentListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArti
 type GrantAssignmentOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignment]['post'];
 type RevokeAssignmentOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.deleteRegistryArtifactRepositoryAssignment]['delete'];
+type AssignmentCandidatesOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
 
 export function getRegistries(query?: ListConnectionsOperation['parameters']['query']) {
   return request.get<NonNullable<ListConnectionsOperation['responses'][200]['content']['application/json']['data']>>({
@@ -26,6 +29,12 @@ export function createRegistry(payload: CreateConnectionOperation['requestBody']
   return request.post<NonNullable<CreateConnectionOperation['responses'][201]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.postRegistry,
     data: payload,
+  });
+}
+
+export function getRegistry(connectionRef: GetConnectionOperation['parameters']['path']['connectionRef']) {
+  return request.get<NonNullable<GetConnectionOperation['responses'][200]['content']['application/json']['data']>>({
+    url: buildOpenApiRuntimePath('getRegistry', { connectionRef }),
   });
 }
 
@@ -49,9 +58,10 @@ export function verifyRegistry(connectionRef: string) {
   });
 }
 
-export function getRegistryRepositories(connectionRef: string) {
+export function getRegistryRepositories(connectionRef: string, query?: RepositoryListOperation['parameters']['query']) {
   return request.get<NonNullable<RepositoryListOperation['responses'][200]['content']['application/json']['data']>>({
     url: buildOpenApiRuntimePath('getRegistryArtifactRepositories', { connectionRef }),
+    params: query,
   });
 }
 
@@ -84,10 +94,25 @@ export function deleteRegistryRepository(connectionRef: string, repositoryRef: s
   });
 }
 
-export function getRegistryRepositoryAssignments(connectionRef: string, repositoryRef: string) {
+export function getRegistryRepositoryAssignments(
+  connectionRef: string,
+  query: AssignmentListOperation['parameters']['query'],
+) {
   return request.get<NonNullable<AssignmentListOperation['responses'][200]['content']['application/json']['data']>>({
     url: buildOpenApiRuntimePath('getRegistryArtifactRepositoryAssignments', { connectionRef }),
-    params: { repository_ref: repositoryRef } satisfies AssignmentListOperation['parameters']['query'],
+    params: query,
+  });
+}
+
+export function getRegistryRepositoryAssignmentCandidates(
+  connectionRef: string,
+  query: AssignmentCandidatesOperation['parameters']['query'],
+) {
+  return request.get<
+    NonNullable<AssignmentCandidatesOperation['responses'][200]['content']['application/json']['data']>
+  >({
+    url: buildOpenApiRuntimePath('getRegistryRepositoryAssignmentCandidates', { connectionRef }),
+    params: query,
   });
 }
 

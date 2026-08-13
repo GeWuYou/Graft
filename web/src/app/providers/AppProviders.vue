@@ -21,6 +21,30 @@ import { store as pinia } from '@/store/pinia';
 const store = useSettingStore();
 const availability = usePlatformAvailabilityStore(pinia);
 availability.bindRequestBridge();
+let recoveryNavigation: Promise<void> | null = null;
+
+// 浏览器刷新与错误页按钮都经过同一恢复入口，避免首屏探测和状态监听重复消费回跳目标。
+function recoverFromServiceUnavailable() {
+  if (recoveryNavigation) {
+    return recoveryNavigation;
+  }
+
+  recoveryNavigation = (async () => {
+    if (router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+      return;
+    }
+
+    const requestedRedirect =
+      typeof router.currentRoute.value.query.redirect === 'string' ? router.currentRoute.value.query.redirect : null;
+    const pendingPath = availability.consumePendingPath();
+    const redirect = resolveRecoveryRoutePath(requestedRedirect, pendingPath);
+    await router.replace(redirect);
+  })().finally(() => {
+    recoveryNavigation = null;
+  });
+
+  return recoveryNavigation;
+}
 
 watch(
   () => availability.status,
@@ -40,10 +64,7 @@ watch(
     }
 
     if (status === 'healthy' && currentRoute.path === APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
-      const requestedRedirect = typeof currentRoute.query.redirect === 'string' ? currentRoute.query.redirect : null;
-      const pendingPath = availability.consumePendingPath();
-      const redirect = resolveRecoveryRoutePath(requestedRedirect, pendingPath);
-      void router.replace(redirect);
+      void recoverFromServiceUnavailable();
     }
   },
 );
@@ -59,10 +80,16 @@ const { getComponentsLocale } = useLocale();
 
 if (import.meta.env.MODE !== 'test') {
   if (availability.status === 'unknown') {
-    void availability.checkHealth().then((healthy) => {
-      if (!healthy && router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
+    void router.isReady().then(async () => {
+      const healthy = await availability.checkHealth();
+      if (healthy) {
+        await recoverFromServiceUnavailable();
+        return;
+      }
+
+      if (router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE) {
         availability.pendingPath = router.currentRoute.value.fullPath;
-        void router.replace({
+        await router.replace({
           path: APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE,
           query: { redirect: router.currentRoute.value.fullPath },
         });

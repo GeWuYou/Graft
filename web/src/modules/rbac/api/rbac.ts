@@ -60,9 +60,10 @@ type RoleSavedViewList = NonNullable<
   RoleSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
 >;
 
-export function getRoles() {
+export function getRoles(filters?: { keyword?: string; builtin?: boolean; limit?: number; offset?: number }) {
   return request.get<GetRolesData>({
     url: OPENAPI_RUNTIME_PATH.getRoles,
+    params: filters,
   }) as Promise<RoleListResponse>;
 }
 

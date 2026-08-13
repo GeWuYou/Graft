@@ -128,6 +128,10 @@ func (r *bootstrapServiceTestRepository) ListRoles(context.Context, rbacstore.Ro
 	return nil, nil
 }
 
+func (r *bootstrapServiceTestRepository) ListRolesPage(context.Context, rbacstore.RoleFilter, rbacstore.ListWindow) (rbacstore.RoleListResult, error) {
+	return rbacstore.RoleListResult{}, nil
+}
+
 func (r *bootstrapServiceTestRepository) ListPermissionsByUserID(context.Context, uint64) ([]rbacstore.Permission, error) {
 	return nil, nil
 }
@@ -136,8 +140,16 @@ func (r *bootstrapServiceTestRepository) ListUserIDsByPermissionCode(context.Con
 	return nil, nil
 }
 
+func (r *bootstrapServiceTestRepository) ListUserIDsByRoleID(context.Context, uint64) ([]uint64, error) {
+	return nil, nil
+}
+
 func (r *bootstrapServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
+}
+
+func (r *bootstrapServiceTestRepository) ListPermissionsPage(context.Context, rbacstore.PermissionFilter, rbacstore.ListWindow) (rbacstore.PermissionListResult, error) {
+	return rbacstore.PermissionListResult{}, nil
 }
 
 func (r *bootstrapServiceTestRepository) ListRolePermissionBindings(context.Context, uint64) ([]rbacstore.RolePermissionBinding, error) {

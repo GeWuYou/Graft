@@ -335,16 +335,37 @@ func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) 
 	if err := r.ensureTaskAvailable(); err != nil {
 		return nil, 0, err
 	}
-	total, err := r.countTasks(ctx)
-	if err != nil {
-		return nil, 0, err
+	normalized := normalizeTaskListQuery(query)
+	where := []string{"deleted_at = 0"}
+	args := make([]any, 0, 3) //nolint:mnd // 关键词、作业键和启用状态是当前列表支持的固定筛选项。
+	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
+		args = append(args, "%"+keyword+"%")
+		where = append(where, fmt.Sprintf("(task_key ILIKE $%d OR title ILIKE $%d OR description ILIKE $%d)", len(args), len(args), len(args)))
+	}
+	if jobKey := strings.TrimSpace(query.JobKey); jobKey != "" {
+		args = append(args, jobKey)
+		where = append(where, fmt.Sprintf("job_key = $%d", len(args)))
+	}
+	if status := strings.TrimSpace(query.Status); status != "" {
+		switch status {
+		case "enabled", "disabled":
+			args = append(args, status == "enabled")
+			where = append(where, fmt.Sprintf("enabled = $%d", len(args)))
+		}
+	}
+	whereClause := strings.Join(where, " AND ")
+	countArgs := append([]any(nil), args...)
+	countQuery := "SELECT COUNT(*) FROM scheduled_tasks WHERE " + whereClause
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count scheduled tasks: %w", err)
 	}
 	statement := `SELECT id, task_key, job_key, title_key, title, description_key, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
-	WHERE deleted_at = 0
+	WHERE ` + whereClause + `
 	ORDER BY builtin DESC, created_at ASC, id ASC`
-	normalized := normalizeTaskListQuery(query)
-	rows, err := r.db.QueryContext(ctx, statement+` LIMIT $1 OFFSET $2`, normalized.Limit, normalized.Offset)
+	args = append(args, normalized.Limit, normalized.Offset)
+	rows, err := r.db.QueryContext(ctx, statement+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list scheduled tasks: %w", err)
 	}
@@ -353,17 +374,6 @@ func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) 
 		return nil, 0, err
 	}
 	return items, total, nil
-}
-
-func (r *SQLTaskRepository) countTasks(ctx context.Context) (int, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT COUNT(*)
-	FROM scheduled_tasks
-	WHERE deleted_at = 0`)
-	var total int
-	if err := row.Scan(&total); err != nil {
-		return 0, fmt.Errorf("count scheduled tasks: %w", err)
-	}
-	return total, nil
 }
 
 // GetTask returns one active persisted scheduled task by key.

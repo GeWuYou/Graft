@@ -182,6 +182,11 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	}); err != nil {
 		return registeredServices{}, err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(_ container.Resolver) (any, error) {
+		return userSvc, nil
+	}); err != nil {
+		return registeredServices{}, err
+	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserSecurityReader)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
 	}); err != nil {
@@ -391,6 +396,17 @@ func (s *deferredRBACAccessService) ListUserIDsByPermissionCode(ctx context.Cont
 	}
 
 	return target.ListUserIDsByPermissionCode(ctx, permissionCode)
+}
+
+func (s *deferredRBACAccessService) ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+	if target == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	return target.ListUserIDsByRoleID(ctx, roleID)
 }
 
 func (s *deferredRBACAccessService) ListRoleSummariesByUserIDs(

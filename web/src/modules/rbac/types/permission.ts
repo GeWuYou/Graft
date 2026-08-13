@@ -6,6 +6,8 @@ export type PermissionListResponse = OpenAPIComponents['schemas']['PermissionLis
 export type PermissionFilters = {
   module?: string;
   keyword?: string;
+  limit?: number;
+  offset?: number;
 };
 
 export type PermissionDetailResponse = OpenAPIComponents['schemas']['PermissionDetailResponse'];

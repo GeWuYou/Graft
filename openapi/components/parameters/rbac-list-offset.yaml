@@ -1,0 +1,14 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for RBAC records.
+schema:
+  type: integer
+  minimum: 0
+examples:
+  firstPage:
+    summary: Start at the first RBAC record
+    value: 0
+  nextPage:
+    summary: Skip the first default RBAC list window
+    value: 20

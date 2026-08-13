@@ -43,10 +43,12 @@ describe('users api', () => {
       ],
     } as never);
 
-    await getUsers();
+    const query = { limit: 20, offset: 0 };
+    await getUsers(query);
 
     expect(requestGet).toHaveBeenCalledWith({
       url: OPENAPI_RUNTIME_PATH.getUsers,
+      params: query,
     });
   });
 

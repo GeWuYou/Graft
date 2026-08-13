@@ -41,6 +41,7 @@ func TestRegistryRoutesRequireExpectedPermissions(t *testing.T) {
 		{name: "connection delete", method: http.MethodDelete, path: "/api/registries/registry:primary", permission: registrycontract.DeletePermission},
 		{name: "connection verify", method: http.MethodPost, path: "/api/registries/registry:primary/verify", permission: registrycontract.VerifyPermission},
 		{name: "repository assignment", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignments?repository_ref=team/app", permission: registrycontract.AssignmentManagePermission},
+		{name: "repository assignment candidates", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app", permission: registrycontract.AssignmentManagePermission},
 		{name: "available build destinations", method: http.MethodGet, path: "/api/registries/available-destinations", permission: buildcontract.BuildCreatePermission},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -68,6 +69,9 @@ func TestRegistryModuleRegistersSharedResourceNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return &registryRouteAuthorizer{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
 		t.Fatal(err)
 	}
 	menuRegistry := menu.NewRegistry()
@@ -137,10 +141,22 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 		t.Fatalf("grant assignment = %d: %s", grant.Code, grant.Body.String())
 	}
 
+	replace := httptest.NewRecorder()
+	engine.ServeHTTP(replace, registryRouteRequest(http.MethodPut, "/api/registries/registry:primary/repository-assignments?repository_ref=team/release", `{"user_ids":[7,9]}`, "7"))
+	if replace.Code != http.StatusOK || !strings.Contains(replace.Body.String(), `"user_id":9`) {
+		t.Fatalf("replace assignments = %d: %s", replace.Code, replace.Body.String())
+	}
+
 	revoke := httptest.NewRecorder()
 	engine.ServeHTTP(revoke, registryRouteRequest(http.MethodDelete, "/api/registries/registry:primary/repository-assignments/9?repository_ref=team/release", "", "7"))
 	if revoke.Code != http.StatusOK {
 		t.Fatalf("revoke assignment = %d: %s", revoke.Code, revoke.Body.String())
+	}
+
+	clear := httptest.NewRecorder()
+	engine.ServeHTTP(clear, registryRouteRequest(http.MethodPut, "/api/registries/registry:primary/repository-assignments?repository_ref=team/release", `{"user_ids":[]}`, "7"))
+	if clear.Code != http.StatusOK || !strings.Contains(clear.Body.String(), `"total":0`) || !strings.Contains(clear.Body.String(), `"limit":1`) {
+		t.Fatalf("clear assignments = %d: %s", clear.Code, clear.Body.String())
 	}
 
 	deleteResponse := httptest.NewRecorder()
@@ -174,6 +190,65 @@ func TestRegistryAvailableDestinationsAreBoundToRequestActor(t *testing.T) {
 	engine.ServeHTTP(denied, registryRouteRequest(http.MethodGet, "/api/registries/available-destinations", "", "8"))
 	if denied.Code != http.StatusOK || strings.Contains(denied.Body.String(), "team/app") {
 		t.Fatalf("unassigned destinations = %d: %s", denied.Code, denied.Body.String())
+	}
+}
+
+func TestRegistryAssignmentCandidatesAggregateSelectedRepositories(t *testing.T) {
+	repository := newRegistryRouteRepository()
+	repository.repositories = append(repository.repositories, registrystore.Repository{ConnectionRef: "registry:primary", RepositoryRef: "team/worker", DisplayName: "Worker", AllowPull: true, AllowPush: true})
+	repository.assignments["registry:primary/team/worker"] = []registrystore.UserAssignment{{UserID: 7}, {UserID: 9}}
+	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app&repository_ref=team/worker&search=candidate&limit=1&offset=0", "", "7"))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"id":9`) || !strings.Contains(body, `"authorization_state":"partial"`) || !strings.Contains(body, `"assigned_repository_count":1`) || !strings.Contains(body, `"selected_repository_count":2`) {
+		t.Fatalf("candidate aggregation = %s", body)
+	}
+	if !strings.Contains(body, `"total":1`) || !strings.Contains(body, `"limit":1`) || !strings.Contains(body, `"offset":0`) {
+		t.Fatalf("candidate pagination = %s", body)
+	}
+}
+
+func TestRegistryAssignmentCandidatesRejectUnknownSelectedRepository(t *testing.T) {
+	engine := newRegistryRouteTestEngine(t, newRegistryRouteRepository(), &registryRouteAuthorizer{})
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=missing", "", "7"))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegistryAssignmentCandidatesRejectMoreThanContractMaximumRepositoryRefs(t *testing.T) {
+	engine := newRegistryRouteTestEngine(t, newRegistryRouteRepository(), &registryRouteAuthorizer{})
+	query := strings.Repeat("repository_ref=app&", 100) + "repository_ref=app"
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?"+query, "", "7"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegistryAssignmentCandidatesApplySearchBeforeAuthorizationAggregation(t *testing.T) {
+	engine := newRegistryRouteTestEngine(t, newRegistryRouteRepository(), &registryRouteAuthorizer{})
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app&search=registry-user", "", "7"))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"id":7`) || strings.Contains(response.Body.String(), `"id":9`) || !strings.Contains(response.Body.String(), `"total":1`) {
+		t.Fatalf("candidate search = %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegistryAssignmentListReturnsRequestedPagination(t *testing.T) {
+	repository := newRegistryRouteRepository()
+	repository.assignments["registry:primary/app"] = []registrystore.UserAssignment{{UserID: 7}, {UserID: 9}}
+	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignments?repository_ref=app&limit=1&offset=1", "", "7"))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"user_id":9`) || !strings.Contains(response.Body.String(), `"total":2`) || !strings.Contains(response.Body.String(), `"limit":1`) || !strings.Contains(response.Body.String(), `"offset":1`) {
+		t.Fatalf("assignment pagination = %d: %s", response.Code, response.Body.String())
 	}
 }
 
@@ -238,11 +313,44 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return authorizer, nil }); err != nil {
 		t.Fatal(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
+		t.Fatal(err)
+	}
 	ctx := &module.Context{Router: engine.Group("/api"), Services: services, EventBus: eventbus.New(zap.NewNop()), I18n: i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})}
-	if err := registerRegistryRoutes(ctx, NewService(repository)); err != nil {
+	users, err := module.ResolveService[moduleapi.UserCandidateReader](services, (*moduleapi.UserCandidateReader)(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(repository)
+	service.bindUserCandidateReader(users)
+	if err := registerRegistryRoutes(ctx, service); err != nil {
 		t.Fatal(err)
 	}
 	return engine
+}
+
+type registryRouteUserCandidateReader struct{}
+
+func (registryRouteUserCandidateReader) ListUserCandidates(_ context.Context, query moduleapi.UserCandidateQuery) ([]moduleapi.UserCandidate, int, error) {
+	items := []moduleapi.UserCandidate{{ID: 7, Username: "registry-user", Display: "Registry User", Status: "enabled"}, {ID: 9, Username: "candidate", Display: "Candidate", Status: "enabled"}}
+	search := strings.ToLower(strings.TrimSpace(query.Search))
+	if search != "" {
+		filtered := make([]moduleapi.UserCandidate, 0, len(items))
+		for _, item := range items {
+			if strings.Contains(strings.ToLower(item.Username), search) || strings.Contains(strings.ToLower(item.Display), search) {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	if query.Offset >= len(items) {
+		return []moduleapi.UserCandidate{}, len(items), nil
+	}
+	end := query.Offset + query.Limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return append([]moduleapi.UserCandidate(nil), items[query.Offset:end]...), len(items), nil
 }
 
 func registryRouteRequest(method, path, body, userID string) *http.Request {
@@ -364,6 +472,33 @@ func (r *registryRouteRepository) ListAssignments(_ context.Context, connectionR
 	}
 	items := r.assignments[connectionRef+"/"+repositoryRef]
 	return page(items, limit, offset), len(items), nil
+}
+
+func (r *registryRouteRepository) ListAssignmentCandidates(_ context.Context, connectionRef string, repositoryRefs []string, userIDs []uint64) (map[uint64]registrystore.AssignmentCandidate, error) {
+	for _, repositoryRef := range repositoryRefs {
+		if !r.repositoryExists(connectionRef, repositoryRef) {
+			return nil, registrystore.ErrNotFound
+		}
+	}
+	items := make(map[uint64]registrystore.AssignmentCandidate, len(userIDs))
+	for _, userID := range userIDs {
+		assigned := 0
+		for _, repositoryRef := range repositoryRefs {
+			for _, assignment := range r.assignments[connectionRef+"/"+repositoryRef] {
+				if assignment.UserID == userID {
+					assigned++
+				}
+			}
+		}
+		state := registrystore.AssignmentCandidateStateNone
+		if assigned == len(repositoryRefs) {
+			state = registrystore.AssignmentCandidateStateAll
+		} else if assigned > 0 {
+			state = registrystore.AssignmentCandidateStatePartial
+		}
+		items[userID] = registrystore.AssignmentCandidate{UserID: userID, AssignedRepositoryCount: assigned, SelectedRepositoryCount: len(repositoryRefs), AuthorizationState: state}
+	}
+	return items, nil
 }
 
 func (r *registryRouteRepository) ReplaceAssignments(_ context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]registrystore.UserAssignment, error) {

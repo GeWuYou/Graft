@@ -1545,6 +1545,52 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "enabled",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "role_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "security": [
@@ -3120,6 +3166,12 @@
                 "disabled"
               ]
             }
+          },
+          {
+            "$ref": "#/components/parameters/rbac-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/rbac-list-offset"
           }
         ],
         "security": [
@@ -4445,6 +4497,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/rbac-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/rbac-list-offset"
           }
         ],
         "security": [
@@ -7322,6 +7380,34 @@
           },
           {
             "$ref": "#/components/parameters/scheduled-task-list-offset"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "job_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "enabled",
+                "disabled"
+              ]
+            }
           }
         ],
         "security": [
@@ -19901,6 +19987,163 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "put": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "putRegistryArtifactRepositoryAssignments",
+        "summary": "Replace all users assigned to an Artifact Repository",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "$ref": "#/components/parameters/registry-repository-ref-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-replace-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete active Artifact Repository user assignments after replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/repository-assignment-candidates": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "getRegistryRepositoryAssignmentCandidates",
+        "summary": "List user candidates for selected Artifact Repositories",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          },
+          {
+            "name": "repository_ref",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidate users with authorization state aggregated over the selected repositories.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-repository-assignment-candidate-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/registries/{connectionRef}/repository-assignments/{userId}": {
@@ -25133,6 +25376,12 @@
       "RegistryArtifactRepositoryUserAssignmentListResponse": {
         "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-list-response"
       },
+      "RegistryRepositoryAssignmentCandidate": {
+        "$ref": "#/components/schemas/registry-repository-assignment-candidate"
+      },
+      "RegistryRepositoryAssignmentCandidateListResponse": {
+        "$ref": "#/components/schemas/registry-repository-assignment-candidate-list-response"
+      },
       "RegistryAvailableDestination": {
         "$ref": "#/components/schemas/registry-available-destination"
       },
@@ -25159,6 +25408,9 @@
       },
       "EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse": {
         "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response"
+      },
+      "EnvelopedRegistryRepositoryAssignmentCandidateListResponse": {
+        "$ref": "#/components/schemas/enveloped-registry-repository-assignment-candidate-list-response"
       },
       "EnvelopedRegistryAvailableDestinationListResponse": {
         "$ref": "#/components/schemas/enveloped-registry-available-destination-list-response"
@@ -25910,7 +26162,10 @@
       "user-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -25918,6 +26173,19 @@
             "items": {
               "$ref": "#/components/schemas/user-list-item"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -26231,7 +26499,10 @@
       "role-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -26239,6 +26510,16 @@
             "items": {
               "$ref": "#/components/schemas/role-list-item"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
           }
         }
       },
@@ -26566,7 +26847,10 @@
       "permission-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -26574,6 +26858,16 @@
             "items": {
               "$ref": "#/components/schemas/permission-list-item"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
           }
         }
       },
@@ -40831,6 +41125,11 @@
           "allow_push": {
             "type": "boolean",
             "default": true
+          },
+          "grant_creator_use": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to grant the authenticated creator use of the new Artifact Repository."
           }
         },
         "additionalProperties": false
@@ -40920,6 +41219,26 @@
           }
         ]
       },
+      "registry-artifact-repository-user-assignment-replace-request": {
+        "type": "object",
+        "required": [
+          "user_ids"
+        ],
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            },
+            "description": "Complete set of users allowed to use the Artifact Repository. An empty array revokes all assignments."
+          }
+        },
+        "additionalProperties": false
+      },
       "registry-artifact-repository-user-assignment-request": {
         "type": "object",
         "required": [
@@ -40947,6 +41266,95 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
+              }
+            }
+          }
+        ]
+      },
+      "registry-repository-assignment-candidate": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display",
+          "status",
+          "assigned_repository_count",
+          "selected_repository_count",
+          "authorization_state"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "assigned_repository_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "selected_repository_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "authorization_state": {
+            "type": "string",
+            "enum": [
+              "all",
+              "partial",
+              "none"
+            ]
+          }
+        }
+      },
+      "registry-repository-assignment-candidate-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/registry-repository-assignment-candidate"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-registry-repository-assignment-candidate-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-repository-assignment-candidate-list-response"
               }
             }
           }
@@ -45857,6 +46265,47 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "rbac-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "defaultWindow": {
+            "summary": "Fetch the default RBAC list window",
+            "value": 20
+          },
+          "maxWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "rbac-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for RBAC records.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start at the first RBAC record",
+            "value": 0
+          },
+          "nextPage": {
+            "summary": "Skip the first default RBAC list window",
+            "value": 20
+          }
         }
       },
       "if-match-header": {

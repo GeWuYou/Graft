@@ -4,11 +4,27 @@
     "section": { "shared_resources": "Shared Resources" }
   },
   "registry": {
+    "route": {
+      "detail": {
+        "title": "Image Registry Detail",
+        "description": "Manage repository paths and use assignments for this connection.",
+        "connection": "Connection Information",
+        "editConnection": "Edit Connection",
+        "connectionSaveSuccess": "Connection Saved",
+        "connectionSaveFailed": "Unable to Save Connection. Please Try Again.",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "notFound": "Image registry connection not found",
+        "noRepositories": "No repository paths",
+        "repositorySummary": "{count} repository paths"
+      }
+    },
     "list": {
       "description": "Manage external OCI Registry connections and repository paths available to Build.",
       "search": "Search name, reference, or endpoint",
       "refresh": "Refresh",
       "more": "More",
+      "openDetail": "View details for {name}",
       "clearSearch": "Clear Search",
       "cancel": "Cancel",
       "add": "Add Image Registry",
@@ -17,9 +33,21 @@
       "delete": "Delete",
       "repositories": "Repository Paths",
       "addRepository": "Add Repository Path",
-      "assignments": "User Assignments",
+      "assignments": "Access",
       "grantAssignment": "Grant Assignment",
       "revokeAssignment": "Revoke Assignment",
+      "userIdRequired": "Enter a valid user ID.",
+      "revokeBatchAssignment": "Revoke Selected ({count})",
+      "batchDeleteRepositories": "Delete Repositories ({count})",
+      "batchAuthorizeRepositories": "Grant in Batch",
+      "batchAuthorizeRepositoriesTitle": "Grant Repository Access in Batch",
+      "candidateSearch": "Search",
+      "candidateSearchPlaceholder": "Search User Name or Account",
+      "candidateSelected": "{count} Users Selected",
+      "repositorySelectionLimit": "You can grant access to at most {count} repository paths at once.",
+      "candidatesEmpty": "No Eligible Users Found",
+      "batchDelete": "Delete in Batch",
+      "batchDeleteConfirm": "Delete the selected {count} repository paths?",
       "empty": "No image registries",
       "emptyDescription": "Image registry connections will appear here after they are added.",
       "filteredEmpty": "No matching image registries",
@@ -36,6 +64,9 @@
         "status": "Status",
         "verified": "Last Verified",
         "assignmentCreatedAt": "Assigned At",
+        "candidateUser": "User",
+        "candidateUsername": "Account",
+        "authorizationState": "Authorization Status",
         "actions": "Actions"
       },
       "form": {
@@ -49,7 +80,8 @@
         "repositoryName": "Display Name",
         "allowPull": "Allow Pull",
         "allowPush": "Allow Push",
-        "userId": "User ID"
+        "userId": "User ID",
+        "grantCreatorUse": "Grant Creator Use Access"
       },
       "credential": { "configured": "Configured", "anonymous": "Anonymous" },
       "status": {
@@ -59,11 +91,13 @@
         "failed": "Verification Failed",
         "unknown": "Not Verified"
       },
+      "authorizationState": { "all": "Fully Authorized", "partial": "Partially Authorized", "none": "Not Authorized" },
       "verifySuccess": "Connection test succeeded. The connection is available.",
       "verifyFailed": "Connection test failed. Check the connection configuration and try again.",
       "deleteConfirm": "Delete this Registry connection? Linked repository paths will prevent deletion.",
       "repositoryDeleteConfirm": "Delete repository path {repository}?",
-      "revokeAssignmentConfirm": "Revoke repository access for user {userId}?"
+      "revokeAssignmentConfirm": "Revoke repository access for user {userId}?",
+      "revokeAllAssignments": "Revoke All Use Access"
     }
   }
 }

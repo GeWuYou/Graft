@@ -1,0 +1,45 @@
+migration:
+  path: server/modules/registry/migrations/202608130002_registry_repository_display_name_predicate_repair.sql
+  version: '202608130002'
+owner: registry
+risk_level: L4
+affected_tables:
+  - artifact_repositories
+referenced_tables:
+  - artifact_repositories
+operation_categories:
+  - forward-only-repair
+  - duplicate-scan
+  - partial-unique-index
+historical_data_assumptions:
+  - The historical 202608130001 duplicate scan excluded repositories whose connections were soft-deleted, while its unique index covers every repository with deleted_at = 0.
+  - Existing artifact repositories with deleted_at = 0 may contain duplicate display names within one connection.
+planned_upgrade_order:
+  - Drop the historical index so the forward-only repair is applied on databases where 202608130001 already executed.
+  - Scan every repository row covered by the partial unique-index predicate and abort if any duplicate exists.
+  - Recreate the partial unique index with its canonical predicate after the scan succeeds.
+safety_strategy:
+  duplicate_scan: Group every artifact repository with deleted_at = 0 by connection_id and display_name before applying the uniqueness invariant.
+  live_reference_scan: Apply the exact deleted_at = 0 predicate used by the partial unique index.
+  reconcile_or_abort: Abort and require operator reconciliation when duplicates exist; do not choose a survivor automatically.
+  post_migration_invariant: At most one artifact repository with deleted_at = 0 per connection has each display name.
+  reference_impact: Registry connections remain unchanged and every artifact repository covered by the unique-index predicate is preserved because duplicates block the migration.
+  recovery_or_retirement_rationale: The migration does not retire or rewrite duplicate repositories; operators reconcile them before retrying the forward-only index creation.
+validation_scenarios:
+  - Duplicate display names among rows covered by deleted_at = 0 cause the migration to abort before index creation.
+  - Unique display names among rows covered by deleted_at = 0 allow the replacement unique index to be created.
+preflight_checks:
+  - name: duplicate-live-repository-display-names
+    query: >-
+      SELECT COUNT(*) FROM (SELECT repository.connection_id, repository.display_name FROM artifact_repositories repository WHERE repository.deleted_at = 0 GROUP BY repository.connection_id, repository.display_name HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-001
+    - MIG-002

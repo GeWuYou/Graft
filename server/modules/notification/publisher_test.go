@@ -573,6 +573,10 @@ func (p permissionFanoutRBAC) ListUserIDsByPermissionCode(context.Context, strin
 	return p.userIDs, nil
 }
 
+func (permissionFanoutRBAC) ListUserIDsByRoleID(context.Context, uint64) ([]uint64, error) {
+	return nil, nil
+}
+
 func (p permissionFanoutRBAC) ListRoleSummariesByUserIDs(context.Context, []uint64) (map[uint64][]moduleapi.RoleSummary, error) {
 	return nil, nil
 }

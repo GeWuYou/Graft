@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryClient } from '@/shared/query';
 
 import { getUsers } from '../api/users';
-import { updateUserListCache, userQueryKeys } from './user-queries';
+import { invalidateUserListQueries, userQueryKeys } from './user-queries';
 
 vi.mock('../api/users', () => ({
   getUsers: vi.fn(),
@@ -17,8 +17,9 @@ describe('user query cache', () => {
     getUsersMock.mockReset();
   });
 
-  it('uses a stable module key and applies mutation results to that snapshot', () => {
-    queryClient.setQueryData(userQueryKeys.list(), {
+  it('uses query parameters in its cache identity and invalidates every list page after a mutation', async () => {
+    const query = { limit: 20, offset: 0 };
+    queryClient.setQueryData(userQueryKeys.list(query), {
       items: [
         {
           id: 7,
@@ -32,11 +33,9 @@ describe('user query cache', () => {
       ],
     });
 
-    updateUserListCache((items) => items.map((item) => (item.id === 7 ? { ...item, status: 'disabled' } : item)));
+    await invalidateUserListQueries();
 
-    expect(queryClient.getQueryData(userQueryKeys.list())).toMatchObject({
-      items: [expect.objectContaining({ id: 7, status: 'disabled' })],
-    });
+    expect(queryClient.getQueryState(userQueryKeys.list(query))?.isInvalidated).toBe(true);
     expect(getUsersMock).not.toHaveBeenCalled();
   });
 });

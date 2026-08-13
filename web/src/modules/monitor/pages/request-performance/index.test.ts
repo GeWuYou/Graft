@@ -266,7 +266,7 @@ afterEach(() => {
 });
 
 describe('request performance page', () => {
-  it('keeps pending visible at the refresh deadline before starting the next countdown', async () => {
+  it('restarts the countdown after refreshing at the deadline', async () => {
     vi.useFakeTimers();
     const wrapper = shallowMount(RequestPerformancePage, {
       global: {
@@ -294,11 +294,6 @@ describe('request performance page', () => {
     expect(page.remainingRefreshSeconds).toBe(0);
 
     resolveRefresh?.(createResponse());
-    await flushPromises();
-    await nextTick();
-    expect(page.remainingRefreshSeconds).toBe(0);
-
-    await vi.advanceTimersByTimeAsync(500);
     await flushPromises();
     await nextTick();
     expect(page.remainingRefreshSeconds).toBe(5);

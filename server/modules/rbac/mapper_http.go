@@ -9,9 +9,9 @@ import (
 	rbacstore "graft/server/modules/rbac/store"
 )
 
-func toRoleListResponse(roles []rbacstore.Role) (generated.RoleListResponse, error) {
-	items := make([]generated.RoleListItem, 0, len(roles))
-	for _, role := range roles {
+func toRoleListResponse(result rbacstore.RoleListResult, limit, offset int) (generated.RoleListResponse, error) {
+	items := make([]generated.RoleListItem, 0, len(result.Items))
+	for _, role := range result.Items {
 		item, err := toRoleListItem(role)
 		if err != nil {
 			return generated.RoleListResponse{}, err
@@ -19,7 +19,7 @@ func toRoleListResponse(roles []rbacstore.Role) (generated.RoleListResponse, err
 		items = append(items, item)
 	}
 
-	return generated.RoleListResponse{Items: items}, nil
+	return generated.RoleListResponse{Items: items, Total: int64(result.Total), Limit: limit, Offset: offset}, nil
 }
 
 func toRoleListItem(role rbacstore.Role) (generated.RoleListItem, error) {
@@ -96,9 +96,9 @@ func toUserRoleBindingResponse(roleIDs []uint64) (generated.UserRoleBindingRespo
 	return generated.UserRoleBindingResponse{RoleIds: converted}, nil
 }
 
-func toPermissionListResponse(permissions []rbacstore.Permission) (generated.PermissionListResponse, error) {
-	items := make([]generated.PermissionListItem, 0, len(permissions))
-	for _, item := range permissions {
+func toPermissionListResponse(result rbacstore.PermissionListResult, limit, offset int) (generated.PermissionListResponse, error) {
+	items := make([]generated.PermissionListItem, 0, len(result.Items))
+	for _, item := range result.Items {
 		converted, err := toPermissionListItem(item)
 		if err != nil {
 			return generated.PermissionListResponse{}, err
@@ -106,7 +106,7 @@ func toPermissionListResponse(permissions []rbacstore.Permission) (generated.Per
 		items = append(items, converted)
 	}
 
-	return generated.PermissionListResponse{Items: items}, nil
+	return generated.PermissionListResponse{Items: items, Total: int64(result.Total), Limit: limit, Offset: offset}, nil
 }
 
 func toPermissionListItem(item rbacstore.Permission) (generated.PermissionListItem, error) {

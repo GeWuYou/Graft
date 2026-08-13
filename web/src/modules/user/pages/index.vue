@@ -71,12 +71,12 @@
         entity-card-layout="compact"
         :empty-description="t('user.userList.emptyDescription')"
         :empty-title="t('user.userList.emptyTitle')"
-        :footer-summary="t('user.userList.footerTotal', { count: filteredUsers.length })"
+        :footer-summary="t('user.userList.footerTotal', { count: userTotal })"
         :loading="loading"
         presentation="entity"
-        :rows="pagedUsers"
+        :rows="users"
         :selected-row-keys="selectedRowKeys"
-        :total="filteredUsers.length"
+        :total="userTotal"
         @select-change="handleSelectChange"
       >
         <template #head>
@@ -140,71 +140,77 @@
         </template>
 
         <template #cards>
-          <div v-if="pagedUsers.length" class="user-card-list">
-            <article v-for="user in pagedUsers" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
-              <div class="user-card__head">
-                <t-checkbox
-                  class="user-card__selection"
-                  :checked="selectedRowKeys.includes(user.id)"
-                  :aria-label="t('user.userList.batch.selectUser', { user: user.display || user.username })"
-                  data-testid="user-card-selection"
-                  @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
-                />
-                <div class="user-card__identity-row">
-                  <user-identity :user="user" />
-                  <div class="user-card__badges">
-                    <t-tag
-                      v-if="isProtectedDefaultAdminUser(user)"
-                      theme="warning"
-                      variant="light-outline"
-                      size="small"
-                      :title="t('user.userList.protectedDefaultAdmin.badge')"
-                      data-testid="user-protected-badge"
-                    >
-                      {{ t('user.userList.protectedDefaultAdmin.compactBadge') }}
-                    </t-tag>
-                    <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
+          <t-loading :loading="loading">
+            <div v-if="users.length" class="user-card-list">
+              <article v-for="user in users" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
+                <div class="user-card__head">
+                  <t-checkbox
+                    class="user-card__selection"
+                    :checked="selectedRowKeys.includes(user.id)"
+                    :aria-label="t('user.userList.batch.selectUser', { user: user.display || user.username })"
+                    data-testid="user-card-selection"
+                    @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
+                  />
+                  <div class="user-card__identity-row">
+                    <user-identity :user="user" />
+                    <div class="user-card__badges">
+                      <t-tag
+                        v-if="isProtectedDefaultAdminUser(user)"
+                        theme="warning"
+                        variant="light-outline"
+                        size="small"
+                        :title="t('user.userList.protectedDefaultAdmin.badge')"
+                        data-testid="user-protected-badge"
+                      >
+                        {{ t('user.userList.protectedDefaultAdmin.compactBadge') }}
+                      </t-tag>
+                      <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <dl class="user-card__details">
-                <div>
-                  <dt>{{ t('user.userList.columns.roles') }}</dt>
-                  <dd>{{ roleSummaryText(user) }}</dd>
+                <dl class="user-card__details">
+                  <div>
+                    <dt>{{ t('user.userList.columns.roles') }}</dt>
+                    <dd>{{ roleSummaryText(user) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('user.userList.columns.lastLoginAt') }}</dt>
+                    <dd>{{ formatTimestamp(user.last_login_at) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('user.userList.columns.updatedAt') }}</dt>
+                    <dd>{{ formatTimestamp(user.updated_at) }}</dd>
+                  </div>
+                </dl>
+                <div class="user-card__actions">
+                  <table-action-menu
+                    :actions="userRowActions(user)"
+                    :more-label="t('user.userList.more')"
+                    :more-label-fallback="t('user.userList.more')"
+                    @action="(action) => handleUserRowAction(action, user)"
+                  />
                 </div>
-                <div>
-                  <dt>{{ t('user.userList.columns.lastLoginAt') }}</dt>
-                  <dd>{{ formatTimestamp(user.last_login_at) }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t('user.userList.columns.updatedAt') }}</dt>
-                  <dd>{{ formatTimestamp(user.updated_at) }}</dd>
-                </div>
-              </dl>
-              <div class="user-card__actions">
-                <table-action-menu
-                  :actions="userRowActions(user)"
-                  :more-label="t('user.userList.more')"
-                  :more-label-fallback="t('user.userList.more')"
-                  @action="(action) => handleUserRowAction(action, user)"
-                />
-              </div>
-            </article>
-          </div>
-          <div v-else class="table-empty-state">
-            <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
-              <template #action>
-                <div class="table-empty-state__actions">
-                  <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
-                    {{ t('user.userList.toolbar.clearFilters') }}
-                  </t-button>
-                  <t-button v-permission="userPermissionCodes.CREATE" theme="primary" @click="openUserDrawer('create')">
-                    {{ t('user.userList.create') }}
-                  </t-button>
-                </div>
-              </template>
-            </t-empty>
-          </div>
+              </article>
+            </div>
+            <div v-else class="table-empty-state">
+              <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
+                <template #action>
+                  <div class="table-empty-state__actions">
+                    <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
+                      {{ t('user.userList.toolbar.clearFilters') }}
+                    </t-button>
+                    <t-button
+                      v-permission="userPermissionCodes.CREATE"
+                      theme="primary"
+                      @click="openUserDrawer('create')"
+                    >
+                      {{ t('user.userList.create') }}
+                    </t-button>
+                  </div>
+                </template>
+              </t-empty>
+            </div>
+          </t-loading>
         </template>
 
         <template #user="{ row }">
@@ -644,15 +650,9 @@ import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
 import { resolveResetPasswordFieldError, resolveUserFormFieldError } from '../error-adapter';
 import { evaluateUserPasswordPolicy } from '../shared/password-policy';
-import { updateUserListCache, useUsersQuery } from '../shared/user-queries';
+import { invalidateUserListQueries, useUsersQuery } from '../shared/user-queries';
 import type { BatchUserRoleMutationPayload, RoleListItem, UserRoleMutation } from '../types/role';
-import type {
-  CreateUserPayload,
-  ResetUserPasswordPayload,
-  UpdateUserPayload,
-  UserListItem,
-  UserRoleSummary,
-} from '../types/user';
+import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
 defineOptions({
   name: 'UsersIndex',
@@ -718,11 +718,7 @@ const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
-const usersQuery = useUsersQuery();
-const users = computed<UserRow[]>(() => usersQuery.data.value?.items ?? []);
 const roles = ref<RoleListItem[]>([]);
-const loading = usersQuery.isFetching;
-const listError = computed(() => (usersQuery.isError.value ? t('user.userList.loadFailed') : ''));
 const roleCatalogLoading = ref(false);
 const userDrawerVisible = ref(false);
 const userDrawerMode = ref<UserDrawerMode>('create');
@@ -772,6 +768,17 @@ const pagination = ref({
   current: 1,
   pageSize: 10,
 });
+const usersQuery = useUsersQuery(() => ({
+  keyword: appliedFilters.value.keyword.trim() || undefined,
+  limit: pagination.value.pageSize,
+  offset: (pagination.value.current - 1) * pagination.value.pageSize,
+  role_id: appliedFilters.value.roleId,
+  status: appliedFilters.value.status || undefined,
+}));
+const users = computed<UserRow[]>(() => usersQuery.data.value?.items ?? []);
+const userTotal = computed(() => usersQuery.data.value?.total ?? 0);
+const loading = usersQuery.isFetching;
+const listError = computed(() => (usersQuery.isError.value ? t('user.userList.loadFailed') : ''));
 
 const savedViews = useSavedQueryViews<UserSavedViewState, number>({
   adapter: {
@@ -985,56 +992,13 @@ const columnSettingOptions = computed(() => [
   { label: t('components.commonTable.operation'), value: 'operation' },
 ]);
 
-const filteredUsers = computed(() => {
-  const keyword = appliedFilters.value.keyword.trim().toLowerCase();
-
-  return users.value.filter((user) => {
-    if (keyword) {
-      const haystack = `${user.username} ${user.display} ${user.email ?? ''}`.toLowerCase();
-      if (!haystack.includes(keyword)) {
-        return false;
-      }
-    }
-
-    if (appliedFilters.value.status && normalizeUserStatus(user.status) !== appliedFilters.value.status) {
-      return false;
-    }
-
-    if (appliedFilters.value.roleId !== undefined) {
-      const assignedRoleIds = user.roles.map((role) => role.id);
-      if (!assignedRoleIds.includes(appliedFilters.value.roleId)) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-});
-
 const userStatistics = computed(() => {
-  const enabled = users.value.filter((user) => normalizeUserStatus(user.status) === USER_STATUS.ENABLED).length;
-
   return [
     {
       label: t('user.userList.statistics.total'),
-      value: users.value.length,
-    },
-    {
-      label: t('user.userList.status.enabled'),
-      marker: '🟢',
-      value: enabled,
-    },
-    {
-      label: t('user.userList.status.disabled'),
-      marker: '🟠',
-      value: users.value.length - enabled,
+      value: userTotal.value,
     },
   ];
-});
-
-const pagedUsers = computed(() => {
-  const start = (pagination.value.current - 1) * pagination.value.pageSize;
-  return filteredUsers.value.slice(start, start + pagination.value.pageSize);
 });
 
 const {
@@ -1344,7 +1308,6 @@ const visibleColumns = computed(() => {
 
 async function refetchUsers() {
   selectedRowKeys.value = [];
-  pagination.value.current = 1;
   await usersQuery.refetch();
 }
 
@@ -1670,18 +1633,16 @@ async function handleUserSubmit(ctx: SubmitContext) {
         display: userForm.value.display.trim(),
         password: userForm.value.password,
       };
-      const created = await createUser(payload);
-      updateUserListCache((items) => [{ ...created, roles: [] as UserRoleSummary[] }, ...items]);
+      await createUser(payload);
+      await invalidateUserListQueries();
       MessagePlugin.success(formatHintedMessage(t('user.userList.createSuccess')));
     } else if (userDrawerTarget.value) {
       const payload: UpdateUserPayload = {
         username: userForm.value.username.trim(),
         display: userForm.value.display.trim(),
       };
-      const updated = await updateUser(userDrawerTarget.value.id, payload);
-      updateUserListCache((items) =>
-        items.map((item) => (item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item)),
-      );
+      await updateUser(userDrawerTarget.value.id, payload);
+      await invalidateUserListQueries();
       MessagePlugin.success(formatHintedMessage(t('user.userList.editSuccess')));
     }
     closeUserDrawer();
@@ -1843,8 +1804,8 @@ async function submitStatusDialog() {
 
   pendingStatusSubmit.value = true;
   try {
-    const updated = await updateUserStatus(pendingStatusTarget.value.id, { status: pendingStatusNext.value });
-    updateUserListCache((items) => items.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+    await updateUserStatus(pendingStatusTarget.value.id, { status: pendingStatusNext.value });
+    await invalidateUserListQueries();
     MessagePlugin.success(formatHintedMessage(t('user.userList.statusUpdateSuccess')));
     closeStatusDialog();
   } catch (error) {
@@ -1895,7 +1856,7 @@ async function submitDeleteDialog() {
   pendingDeleteSubmit.value = true;
   try {
     await deleteUser(deleteTargetId);
-    updateUserListCache((items) => items.filter((item) => item.id !== deleteTargetId));
+    await invalidateUserListQueries();
     selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== deleteTargetId);
     MessagePlugin.success(formatHintedMessage(t('user.userList.deleteSuccess')));
     closeDeleteDialog();
@@ -2153,38 +2114,11 @@ async function submitUserRoleAssignment() {
       return;
     }
 
-    const mutationRoleIDs = new Set(payload.role_ids);
-    const mutationRoles = roles.value.filter((role) => mutationRoleIDs.has(role.id));
-    const applyRoleMutation = (currentRoles: UserRoleSummary[]) => {
-      if (roleMutationMode.value === 'replace') {
-        return mutationRoles;
-      }
-
-      if (roleMutationMode.value === 'add') {
-        const merged = [...currentRoles];
-        mutationRoles.forEach((role) => {
-          if (!merged.some((existing) => existing.id === role.id)) {
-            merged.push(role);
-          }
-        });
-        return merged;
-      }
-
-      return currentRoles.filter((role) => !mutationRoleIDs.has(role.id));
-    };
-
     if (roleDialogMode.value === 'batch') {
-      const targetIds = new Set(selectedBatchUserIds.value);
-      updateUserListCache((items) =>
-        items.map((item) => (targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item)),
-      );
+      await invalidateUserListQueries();
       MessagePlugin.success(formatHintedMessage(t('user.userList.batchRoleUpdateSuccess')));
     } else {
-      updateUserListCache((items) =>
-        items.map((item) =>
-          item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
-        ),
-      );
+      await invalidateUserListQueries();
       MessagePlugin.success(formatHintedMessage(t('user.userList.roleUpdateSuccess')));
     }
     closeUserRoleDrawer();

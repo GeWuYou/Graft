@@ -14,11 +14,19 @@ const ociRegistryDestinationKind = "oci_registry"
 // Service 解析已授权的、提供方中立的产物目的地；提供方端点和凭据使用刻意不进入提交边界。
 type Service struct {
 	repository registrystore.DestinationRepository
+	users      moduleapi.UserCandidateReader
 }
 
 // NewService 创建 Registry 面向跨模块调用的有界服务。
 func NewService(repository registrystore.DestinationRepository) *Service {
 	return &Service{repository: repository}
+}
+
+// bindUserCandidateReader 在依赖模块的 Register 阶段完成后注入候选用户查询能力。
+func (s *Service) bindUserCandidateReader(users moduleapi.UserCandidateReader) {
+	if s != nil {
+		s.users = users
+	}
 }
 
 // ResolveArtifactDestination 校验调用方的 OCI 发布目的地，并返回可冻结的非秘密引用。

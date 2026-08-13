@@ -1,0 +1,12 @@
+type: object
+required: [id, username, display, status, assigned_repository_count, selected_repository_count, authorization_state]
+properties:
+  id: { type: integer, format: int64, minimum: 1 }
+  username: { type: string }
+  display: { type: string }
+  status: { type: string }
+  assigned_repository_count: { type: integer, minimum: 0 }
+  selected_repository_count: { type: integer, minimum: 1 }
+  authorization_state:
+    type: string
+    enum: [all, partial, none]

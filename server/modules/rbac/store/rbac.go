@@ -101,6 +101,24 @@ type PermissionFilter struct {
 	Query  string
 }
 
+// ListWindow 描述管理列表查询在存储边界执行的稳定分页窗口。
+type ListWindow struct {
+	Limit  int
+	Offset int
+}
+
+// RoleListResult 保存角色管理列表当前页及满足筛选条件的总数。
+type RoleListResult struct {
+	Items []Role
+	Total int
+}
+
+// PermissionListResult 保存权限目录当前页及满足筛选条件的总数。
+type PermissionListResult struct {
+	Items []Permission
+	Total int
+}
+
 // RolePermissionBinding 表示角色当前绑定的一条稳定权限关系。
 type RolePermissionBinding struct {
 	RoleID       uint64
@@ -242,6 +260,13 @@ type Repository interface {
 	ListRoles(ctx context.Context, filter RoleFilter) ([]Role, error)
 	ListPermissionsByUserID(ctx context.Context, userID uint64) ([]Permission, error)
 	ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error)
+	ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error)
 	ListPermissions(ctx context.Context, filter PermissionFilter) ([]Permission, error)
 	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]RolePermissionBinding, error)
+}
+
+// ManagementListRepository 为管理 HTTP 列表提供在数据库边界完成的分页读取。
+type ManagementListRepository interface {
+	ListRolesPage(ctx context.Context, filter RoleFilter, window ListWindow) (RoleListResult, error)
+	ListPermissionsPage(ctx context.Context, filter PermissionFilter, window ListWindow) (PermissionListResult, error)
 }

@@ -1,41 +1,28 @@
 import { useQuery } from '@tanstack/vue-query';
+import { computed } from 'vue';
 
 import { queryClient } from '@/shared/query';
 
-import { getUsers } from '../api/users';
-import type { UserListItem, UserListResponse } from '../types/user';
+import { getUsers, type UserListQuery } from '../api/users';
 
 const USER_QUERY_SCOPE = ['user'] as const;
 
 export const userQueryKeys = {
-  list: () => [...USER_QUERY_SCOPE, 'list'] as const,
+  list: (query: UserListQuery) => [...USER_QUERY_SCOPE, 'list', query] as const,
 };
 
 /** 用户列表快照只由 Query cache 持有，页面不保留第二份服务端数据。 */
-export function useUsersQuery() {
+export function useUsersQuery(query: () => UserListQuery) {
   return useQuery(
     {
-      queryKey: userQueryKeys.list(),
-      queryFn: getUsers,
+      queryKey: computed(() => userQueryKeys.list(query())),
+      queryFn: () => getUsers(query()),
     },
     queryClient,
   );
 }
 
-/**
- * updateUserListCache 将已确认的用户 mutation 精确写回当前列表快照。
- *
- * 调用方只更新 API 已影响的条目，避免以页面局部 ref 覆盖或复制 Query cache。
- */
-export function updateUserListCache(updateItems: (items: UserListItem[]) => UserListItem[]) {
-  queryClient.setQueryData<UserListResponse>(userQueryKeys.list(), (current) => {
-    if (!current) {
-      return current;
-    }
-
-    return {
-      ...current,
-      items: updateItems(current.items),
-    };
-  });
+/** 用户 mutation 会影响多个筛选页，因此统一失效整个用户列表命名空间。 */
+export function invalidateUserListQueries() {
+  return queryClient.invalidateQueries({ queryKey: USER_QUERY_SCOPE });
 }

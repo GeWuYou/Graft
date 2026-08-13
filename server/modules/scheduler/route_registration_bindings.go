@@ -148,6 +148,20 @@ func bindGeneratedTaskListParams(ginCtx *gin.Context, ctx *module.Context) (sche
 	}
 	params.Limit = limit
 	params.Offset = offset
+	if raw := strings.TrimSpace(ginCtx.Query("keyword")); raw != "" {
+		params.Keyword = &raw
+	}
+	if raw := strings.TrimSpace(ginCtx.Query("job_key")); raw != "" {
+		params.JobKey = &raw
+	}
+	if raw := strings.TrimSpace(ginCtx.Query("status")); raw != "" {
+		status := scheduleropenapi.GetScheduledTasksParamsStatus(raw)
+		if !status.Valid() {
+			writeInvalidSchedulerQuery(ginCtx, ctx, "status")
+			return scheduleropenapi.GetScheduledTasksParams{}, false
+		}
+		params.Status = &status
+	}
 
 	return params, true
 }
@@ -280,6 +294,13 @@ func normalizedTaskListWindow(params scheduleropenapi.GetScheduledTasksParams) (
 		offset = *params.Offset
 	}
 	return limit, offset
+}
+
+func optionalSchedulerQueryValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func writeInvalidSchedulerQuery(ginCtx *gin.Context, ctx *module.Context, field string) {

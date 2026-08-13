@@ -1,0 +1,9 @@
+type: object
+required: [items, total, limit, offset]
+properties:
+  items:
+    type: array
+    items: {$ref: ./registry-repository-assignment-candidate.yaml}
+  total: { type: integer, format: int64, minimum: 0 }
+  limit: { type: integer, minimum: 1 }
+  offset: { type: integer, minimum: 0 }

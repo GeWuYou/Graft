@@ -8,6 +8,10 @@ const localeRef = ref('zh-CN');
 const providerLocaleRef = ref({ localeName: 'zh-CN-components' });
 const displayModeRef = ref('light');
 const availabilityStatusRef = ref<'healthy' | 'recovering' | 'unavailable'>('healthy');
+const routerMock = vi.hoisted(() => ({
+  currentRoute: { value: { path: '/', fullPath: '/', query: {} as Record<string, unknown> } },
+  replace: vi.fn(),
+}));
 const routeProbeMounts = { count: 0 };
 
 vi.mock('@/layouts/setting.vue', () => ({
@@ -37,10 +41,15 @@ vi.mock('@/store', () => ({
 vi.mock('@/store/modules/platform-availability', () => ({
   usePlatformAvailabilityStore: () => ({
     bindRequestBridge: vi.fn(),
+    consumePendingPath: vi.fn(() => '/'),
     get status() {
       return availabilityStatusRef.value;
     },
   }),
+}));
+
+vi.mock('@/router', () => ({
+  default: routerMock,
 }));
 
 const RouteProbe = defineComponent({
@@ -57,6 +66,8 @@ describe('AppProviders', () => {
     providerLocaleRef.value = { localeName: 'zh-CN-components' };
     displayModeRef.value = 'light';
     availabilityStatusRef.value = 'healthy';
+    routerMock.currentRoute.value = { path: '/', fullPath: '/', query: {} };
+    routerMock.replace.mockReset();
     routeProbeMounts.count = 0;
   });
 
@@ -121,5 +132,33 @@ describe('AppProviders', () => {
     await nextTick();
 
     expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(false);
+  });
+
+  it('recovers the original route when the service becomes healthy on the unavailable page', async () => {
+    routerMock.currentRoute.value = {
+      path: '/result/service-unavailable',
+      fullPath: '/result/service-unavailable?redirect=%2Fprojects',
+      query: { redirect: '/projects' },
+    };
+    availabilityStatusRef.value = 'unavailable';
+
+    mount(AppProviders, {
+      global: {
+        stubs: {
+          RouterView: RouteProbe,
+          TConfigProvider: defineComponent({
+            name: 'TConfigProviderStub',
+            setup(_, { slots }) {
+              return () => h('div', slots.default?.());
+            },
+          }),
+        },
+      },
+    });
+
+    availabilityStatusRef.value = 'healthy';
+    await nextTick();
+
+    expect(routerMock.replace).toHaveBeenCalledWith('/projects');
   });
 });

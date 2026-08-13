@@ -11,6 +11,22 @@ get:
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/scheduled-task-list-limit.yaml
     - $ref: ../components/parameters/scheduled-task-list-offset.yaml
+    - name: keyword
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: job_key
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [enabled, disabled]
   security:
     - bearerAuth: []
   responses:

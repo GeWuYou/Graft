@@ -255,6 +255,53 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 	)
 }
 
+func (r *repository) ListRolesPage(ctx context.Context, filter rbacstore.RoleFilter, window rbacstore.ListWindow) (rbacstore.RoleListResult, error) {
+	where, args, err := roleListWhere(filter)
+	if err != nil {
+		return rbacstore.RoleListResult{}, err
+	}
+	if window.Limit < 1 || window.Offset < 0 {
+		return rbacstore.RoleListResult{}, rbacstore.ErrInvalidID
+	}
+	//nolint:gosec // where clauses contain only fixed predicates and numbered placeholders; values remain bound args.
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM roles WHERE %s", strings.Join(where, " AND "))
+	var total int
+	if err := r.executor(ctx).QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return rbacstore.RoleListResult{}, fmt.Errorf("count roles: %w", err)
+	}
+	args = append(args, window.Limit, window.Offset)
+	items, err := queryAndScanRows(ctx, r.executor(ctx), "list roles page", fmt.Sprintf(`SELECT id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
+		(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+		(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
+		FROM roles WHERE %s ORDER BY id ASC LIMIT $%d OFFSET $%d`, strings.Join(where, " AND "), len(args)-1, len(args)), scanRoleRows, args...)
+	if err != nil {
+		return rbacstore.RoleListResult{}, err
+	}
+	return rbacstore.RoleListResult{Items: items, Total: total}, nil
+}
+
+func roleListWhere(filter rbacstore.RoleFilter) ([]string, []any, error) {
+	where := []string{"1=1"}
+	var args []any
+	switch strings.TrimSpace(filter.Status) {
+	case "", rbacstore.RoleStatusEnabled:
+		where = append(where, "deleted_at = 0", "disabled_at = 0")
+	case rbacstore.RoleStatusDisabled:
+		where = append(where, "deleted_at = 0", "disabled_at <> 0")
+	default:
+		return nil, nil, rbacstore.ErrInvalidID
+	}
+	if query := strings.TrimSpace(filter.Query); query != "" {
+		args = append(args, "%"+query+"%", "%"+query+"%")
+		where = append(where, fmt.Sprintf("(name ILIKE $%d OR display ILIKE $%d)", len(args)-1, len(args)))
+	}
+	if filter.Builtin != nil {
+		args = append(args, *filter.Builtin)
+		where = append(where, fmt.Sprintf("builtin = $%d", len(args)))
+	}
+	return where, args, nil
+}
+
 func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int64) (rbacstore.Role, error) {
 	existing, err := r.loadRoleIncludingDisabled(ctx, inputID, roleID, "enable")
 	if err != nil {

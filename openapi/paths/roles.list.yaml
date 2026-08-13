@@ -31,6 +31,8 @@ get:
       schema:
         type: string
         enum: [enabled, disabled]
+    - $ref: ../components/parameters/rbac-list-limit.yaml
+    - $ref: ../components/parameters/rbac-list-offset.yaml
   security:
     - bearerAuth: []
   responses:

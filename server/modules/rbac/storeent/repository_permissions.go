@@ -207,6 +207,44 @@ func (r *repository) ListPermissions(ctx context.Context, filter rbacstore.Permi
 	)
 }
 
+func (r *repository) ListPermissionsPage(ctx context.Context, filter rbacstore.PermissionFilter, window rbacstore.ListWindow) (rbacstore.PermissionListResult, error) {
+	if window.Limit < 1 || window.Offset < 0 {
+		return rbacstore.PermissionListResult{}, rbacstore.ErrInvalidID
+	}
+	where, args := permissionListWhere(filter)
+	//nolint:gosec // where clauses contain only fixed predicates and numbered placeholders; values remain bound args.
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM permissions WHERE %s", strings.Join(where, " AND "))
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return rbacstore.PermissionListResult{}, fmt.Errorf("count permissions: %w", err)
+	}
+	args = append(args, window.Limit, window.Offset)
+	items, err := queryAndScanRows(ctx, r.db, "list permissions page", fmt.Sprintf(`SELECT id, code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, updated_at,
+		(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
+		FROM permissions WHERE %s ORDER BY id ASC LIMIT $%d OFFSET $%d`, strings.Join(where, " AND "), len(args)-1, len(args)), scanPermissionRows, args...)
+	if err != nil {
+		return rbacstore.PermissionListResult{}, err
+	}
+	return rbacstore.PermissionListResult{Items: items, Total: total}, nil
+}
+
+func permissionListWhere(filter rbacstore.PermissionFilter) ([]string, []any) {
+	where := []string{"deleted_at = 0"}
+	var args []any
+	if module := strings.TrimSpace(filter.Module); module != "" {
+		args = append(args, module)
+		where = append(where, fmt.Sprintf("module = $%d", len(args)))
+	}
+	if query := strings.TrimSpace(filter.Query); query != "" {
+		args = append(args, "%"+query+"%", "%"+query+"%", "%"+query+"%")
+		codeIndex := len(args) - (permissionSearchFields - 1)
+		displayIndex := len(args) - 1
+		moduleIndex := len(args)
+		where = append(where, fmt.Sprintf("(code ILIKE $%d OR display ILIKE $%d OR module ILIKE $%d)", codeIndex, displayIndex, moduleIndex))
+	}
+	return where, args
+}
+
 func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]rbacstore.Permission, error) {
 	id, err := toDBID(userID)
 	if err != nil {

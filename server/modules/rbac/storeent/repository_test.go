@@ -204,6 +204,22 @@ func TestRepositoryListRolesSeparatesDisabledFromSoftDeleted(t *testing.T) {
 	}
 }
 
+func TestRepositoryListRolesPageAppliesWindowBeforeScanning(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+	for _, name := range []string{"first", "second", "third"} {
+		seedRole(t, db, seededRoleRecord{name: name})
+	}
+
+	result, err := repo.ListRolesPage(context.Background(), rbacstore.RoleFilter{}, rbacstore.ListWindow{Limit: 1, Offset: 1})
+	if err != nil {
+		t.Fatalf("ListRolesPage: %v", err)
+	}
+	if result.Total != 3 || len(result.Items) != 1 || result.Items[0].Name != "second" {
+		t.Fatalf("unexpected role page: %#v", result)
+	}
+}
+
 func TestRepositorySetRoleStatusDoesNotReviveSoftDeletedRole(t *testing.T) {
 	db := openTestDB(t)
 	repo := &repository{db: db}
@@ -523,6 +539,22 @@ func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testin
 		t.Fatalf("reconcile permission metadata: %v", err)
 	}
 	assertReconciledPermissionRecord(t, updated)
+}
+
+func TestRepositoryListPermissionsPageAppliesWindowBeforeScanning(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+	for _, code := range []string{"permission.first", "permission.second", "permission.third"} {
+		seedPermission(t, db, code)
+	}
+
+	result, err := repo.ListPermissionsPage(context.Background(), rbacstore.PermissionFilter{}, rbacstore.ListWindow{Limit: 1, Offset: 1})
+	if err != nil {
+		t.Fatalf("ListPermissionsPage: %v", err)
+	}
+	if result.Total != 3 || len(result.Items) != 1 || result.Items[0].Code != "permission.second" {
+		t.Fatalf("unexpected permission page: %#v", result)
+	}
 }
 
 func TestRepositoryCloneRoleCopiesBindingsAsCustomRole(t *testing.T) {

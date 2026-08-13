@@ -7,6 +7,24 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetUsersParamsStatus.
+const (
+	GetUsersParamsStatusDisabled GetUsersParamsStatus = "disabled"
+	GetUsersParamsStatusEnabled  GetUsersParamsStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the GetUsersParamsStatus enum.
+func (e GetUsersParamsStatus) Valid() bool {
+	switch e {
+	case GetUsersParamsStatusDisabled:
+		return true
+	case GetUsersParamsStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetUsers401JSONResponseBodySuccess.
 const (
 	GetUsers401JSONResponseBodySuccessFalse GetUsers401JSONResponseBodySuccess = false
@@ -564,16 +582,16 @@ func (e PostUserSessionRevoke500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostUserStatusJSONBodyStatus.
 const (
-	Disabled PostUserStatusJSONBodyStatus = "disabled"
-	Enabled  PostUserStatusJSONBodyStatus = "enabled"
+	PostUserStatusJSONBodyStatusDisabled PostUserStatusJSONBodyStatus = "disabled"
+	PostUserStatusJSONBodyStatusEnabled  PostUserStatusJSONBodyStatus = "enabled"
 )
 
 // Valid indicates whether the value is a known member of the PostUserStatusJSONBodyStatus enum.
 func (e PostUserStatusJSONBodyStatus) Valid() bool {
 	switch e {
-	case Disabled:
+	case PostUserStatusJSONBodyStatusDisabled:
 		return true
-	case Enabled:
+	case PostUserStatusJSONBodyStatusEnabled:
 		return true
 	default:
 		return false
@@ -741,6 +759,12 @@ type refreshCookieContextKey string
 
 // GetUsersParams defines parameters for GetUsers.
 type GetUsersParams struct {
+	Keyword *string               `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Status  *GetUsersParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	RoleId  *int64                `form:"role_id,omitempty" json:"role_id,omitempty"`
+	Limit   *int                  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int                  `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -748,6 +772,9 @@ type GetUsersParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetUsersParamsStatus defines parameters for GetUsers.
+type GetUsersParamsStatus string
 
 // GetUsers401JSONResponseBodySuccess defines parameters for GetUsers.
 type GetUsers401JSONResponseBodySuccess bool

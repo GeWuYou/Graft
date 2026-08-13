@@ -1915,6 +1915,12 @@ type GetPermissionsParams struct {
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
 	Module  *string `form:"module,omitempty" json:"module,omitempty"`
 
+	// Limit Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for RBAC records.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -1968,6 +1974,12 @@ type GetRolesParams struct {
 	Keyword *string               `form:"keyword,omitempty" json:"keyword,omitempty"`
 	Builtin *bool                 `form:"builtin,omitempty" json:"builtin,omitempty"`
 	Status  *GetRolesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Limit Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for RBAC records.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`

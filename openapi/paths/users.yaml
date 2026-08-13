@@ -16,6 +16,21 @@ get:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - name: keyword
+      in: query
+      schema: { type: string }
+    - name: status
+      in: query
+      schema: { type: string, enum: [enabled, disabled] }
+    - name: role_id
+      in: query
+      schema: { type: integer, format: int64, minimum: 1 }
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
   security:
     - bearerAuth: []
   responses:

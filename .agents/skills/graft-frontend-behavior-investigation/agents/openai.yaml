@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Behavior Investigation"
+  short_description: "Trace Vue behavior with runtime evidence"
+  default_prompt: "Use $graft-frontend-behavior-investigation when static analysis cannot prove a Vue interaction trigger chain; add minimal probes, pause for user reproduction, and verify the runtime cause before fixing."

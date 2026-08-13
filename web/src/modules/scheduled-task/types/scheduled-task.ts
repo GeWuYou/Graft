@@ -25,6 +25,9 @@ export type ScheduledTaskSavedView = components['schemas']['saved-view'];
 export type ScheduledTaskSavedViewRequest = components['schemas']['saved-view-request'];
 
 export type ScheduledTaskListQuery = {
+  keyword?: string;
+  job_key?: string;
+  status?: 'enabled' | 'disabled';
   limit?: number;
   offset?: number;
 };

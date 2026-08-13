@@ -2,6 +2,7 @@ package user
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,12 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 	group.GET(usercontract.UserCollection, r.guards.userRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
 		userReadGeneratedHandler{}.GetUsers(bindGeneratedUserListParams(ginCtx))
 
-		users, err := r.userSvc.ListUsers(ginCtx.Request.Context())
+		query, ok := readUserListQuery(ginCtx)
+		if !ok {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "query")
+			return
+		}
+		page, err := r.userSvc.ListUsersPage(ginCtx.Request.Context(), query)
 		if err != nil {
 			reported := applog.ReportError(ginCtx.Request.Context(), r.runtime().appLogger().Named("read"), "list users failed", err,
 				applog.StringField("module", r.moduleName),
@@ -25,8 +31,8 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		userIDs := make([]uint64, 0, len(users))
-		for _, user := range users {
+		userIDs := make([]uint64, 0, len(page.Users))
+		for _, user := range page.Users {
 			userIDs = append(userIDs, user.ID)
 		}
 
@@ -39,7 +45,7 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListResponse(users, roleSummariesByUserID)
+		payload, mapErr := toUserListResponse(page.Users, roleSummariesByUserID, page.Total, page.Limit, page.Offset)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map user list response failed", mapErr)
 			return
@@ -62,6 +68,58 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		r.writeUserItemResponse(ginCtx, "map user detail response failed", record)
 	})
+}
+
+func readUserListQuery(ginCtx *gin.Context) (ListQuery, bool) {
+	query := ListQuery{Keyword: strings.TrimSpace(ginCtx.Query("keyword")), Status: strings.TrimSpace(ginCtx.Query("status")), Limit: defaultUserListLimit}
+	if query.Status != "" && query.Status != usercontract.UserStatusEnabled && query.Status != usercontract.UserStatusDisabled {
+		return ListQuery{}, false
+	}
+	limit, ok := readOptionalPositiveInt(ginCtx.Query("limit"), defaultUserListLimit)
+	if !ok {
+		return ListQuery{}, false
+	}
+	query.Limit = min(limit, maximumUserListLimit)
+	offset, ok := readOptionalNonNegativeInt(ginCtx.Query("offset"))
+	if !ok {
+		return ListQuery{}, false
+	}
+	query.Offset = offset
+	roleID, hasRoleID, ok := readOptionalRoleID(ginCtx.Query("role_id"))
+	if !ok {
+		return ListQuery{}, false
+	}
+	if hasRoleID {
+		query.RoleID = &roleID
+	}
+	return query, true
+}
+
+func readOptionalPositiveInt(raw string, fallback int) (int, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return fallback, true
+	}
+	parsed, err := strconv.Atoi(value)
+	return parsed, err == nil && parsed > 0
+}
+
+func readOptionalNonNegativeInt(raw string) (int, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return 0, true
+	}
+	parsed, err := strconv.Atoi(value)
+	return parsed, err == nil && parsed >= 0
+}
+
+func readOptionalRoleID(raw string) (uint64, bool, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return 0, false, true
+	}
+	parsed, err := strconv.ParseUint(value, 10, 64)
+	return parsed, true, err == nil && parsed > 0
 }
 
 type userReadGeneratedHandler struct{}

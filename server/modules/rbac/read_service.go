@@ -11,8 +11,8 @@ import (
 type readManagementService interface {
 	GetRole(ctx context.Context, roleID uint64) (rbacstore.Role, error)
 	GetPermission(ctx context.Context, permissionID uint64) (rbacstore.Permission, error)
-	ListRoles(ctx context.Context, filter rbacstore.RoleFilter) ([]rbacstore.Role, error)
-	ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error)
+	ListRolesPage(ctx context.Context, filter rbacstore.RoleFilter, window rbacstore.ListWindow) (rbacstore.RoleListResult, error)
+	ListPermissionsPage(ctx context.Context, filter rbacstore.PermissionFilter, window rbacstore.ListWindow) (rbacstore.PermissionListResult, error)
 	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error)
 	ListRoleIDsByUserID(ctx context.Context, userID uint64) ([]uint64, error)
 }
@@ -30,12 +30,20 @@ func (r managementReader) GetPermission(ctx context.Context, permissionID uint64
 	return getRBACRecordByID(ctx, r.rbac, permissionID, fmt.Sprintf("get permission by id %d", permissionID), rbacstore.Repository.GetPermissionByID)
 }
 
-func (r managementReader) ListRoles(ctx context.Context, filter rbacstore.RoleFilter) ([]rbacstore.Role, error) {
-	return listRBACRecords(ctx, r.rbac, filter, "list roles", rbacstore.Repository.ListRoles)
+func (r managementReader) ListRolesPage(ctx context.Context, filter rbacstore.RoleFilter, window rbacstore.ListWindow) (rbacstore.RoleListResult, error) {
+	repository, ok := r.rbac.(rbacstore.ManagementListRepository)
+	if !ok {
+		return rbacstore.RoleListResult{}, fmt.Errorf("list roles page: repository does not support paged management reads")
+	}
+	return repository.ListRolesPage(ctx, filter, window)
 }
 
-func (r managementReader) ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
-	return listRBACRecords(ctx, r.rbac, filter, "list permissions", rbacstore.Repository.ListPermissions)
+func (r managementReader) ListPermissionsPage(ctx context.Context, filter rbacstore.PermissionFilter, window rbacstore.ListWindow) (rbacstore.PermissionListResult, error) {
+	repository, ok := r.rbac.(rbacstore.ManagementListRepository)
+	if !ok {
+		return rbacstore.PermissionListResult{}, fmt.Errorf("list permissions page: repository does not support paged management reads")
+	}
+	return repository.ListPermissionsPage(ctx, filter, window)
 }
 
 func (r managementReader) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {

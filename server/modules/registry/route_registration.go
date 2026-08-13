@@ -2,6 +2,8 @@ package registry
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,8 +42,10 @@ func registerRegistryRoutes(ctx *module.Context, service *Service) error {
 	group.POST("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.CreatePermission, publisher), func(c *gin.Context) { handleCreateRepository(c, ctx, service) })
 	group.PUT("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.UpdatePermission, publisher), func(c *gin.Context) { handleUpdateRepository(c, ctx, service) })
 	group.DELETE("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.DeletePermission, publisher), func(c *gin.Context) { handleDeleteRepository(c, ctx, service) })
+	group.GET("/:connectionRef/repository-assignment-candidates", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleListAssignmentCandidates(c, ctx, service) })
 	group.GET("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleListAssignments(c, ctx, service) })
 	group.POST("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleGrantAssignment(c, ctx, service) })
+	group.PUT("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleReplaceAssignments(c, ctx, service) })
 	group.DELETE("/:connectionRef/repository-assignments/:userId", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleRevokeAssignment(c, ctx, service) })
 	return nil
 }
@@ -141,12 +145,50 @@ func handleCreateRepository(c *gin.Context, ctx *module.Context, service *Servic
 	if request.AllowPush != nil {
 		allowPush = *request.AllowPush
 	}
-	item, err := service.CreateRepository(c, c.Param("connectionRef"), registrystore.RepositoryInput{RepositoryRef: request.RepositoryRef, DisplayName: request.DisplayName, AllowPull: allowPull, AllowPush: allowPush}, registryActorID(c))
+	grantCreatorUse := true
+	if request.GrantCreatorUse != nil {
+		grantCreatorUse = *request.GrantCreatorUse
+	}
+	item, err := service.CreateRepository(c, c.Param("connectionRef"), registrystore.RepositoryInput{RepositoryRef: request.RepositoryRef, DisplayName: request.DisplayName, AllowPull: allowPull, AllowPush: allowPush, GrantCreatorUse: grantCreatorUse}, registryActorID(c))
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusCreated, mapRepository(item))
+}
+func handleReplaceAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+	var request openapigen.PutRegistryArtifactRepositoryAssignmentsJSONRequestBody
+	if c.ShouldBindJSON(&request) != nil {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	repositoryRef := registryRepositoryRef(c)
+	if repositoryRef == "" || len(request.UserIds) > 100 {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	userIDs := make([]uint64, len(request.UserIds))
+	seen := make(map[uint64]struct{}, len(request.UserIds))
+	for index, userID := range request.UserIds {
+		if userID < 1 {
+			invalidRegistryRequest(c, ctx)
+			return
+		}
+		value := uint64(userID)
+		if _, exists := seen[value]; exists {
+			invalidRegistryRequest(c, ctx)
+			return
+		}
+		seen[value] = struct{}{}
+		userIDs[index] = value
+	}
+	items, err := service.ReplaceAssignments(c, c.Param("connectionRef"), repositoryRef, userIDs, registryActorID(c))
+	if err != nil {
+		writeRegistryError(c, ctx, err)
+		return
+	}
+	limit := max(1, len(items))
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(len(items)), Limit: limit, Offset: 0})
 }
 func handleUpdateRepository(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PutRegistryArtifactRepositoryJSONRequestBody
@@ -191,6 +233,50 @@ func handleListAssignments(c *gin.Context, ctx *module.Context, service *Service
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(total), Limit: limit, Offset: offset})
+}
+
+func handleListAssignmentCandidates(c *gin.Context, ctx *module.Context, service *Service) {
+	rawRepositoryRefs := c.QueryArray("repository_ref")
+	if len(rawRepositoryRefs) == 0 || len(rawRepositoryRefs) > 100 {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	repositoryRefs := normalizeRepositoryRefs(rawRepositoryRefs)
+	if len(repositoryRefs) == 0 {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	limit, offset := parsePage(c)
+	items, total, err := service.ListAssignmentCandidates(c, c.Param("connectionRef"), repositoryRefs, c.Query("search"), limit, offset)
+	if err != nil {
+		writeRegistryError(c, ctx, err)
+		return
+	}
+	response := make([]openapigen.RegistryRepositoryAssignmentCandidate, 0, len(items))
+	for _, item := range items {
+		userID, err := toOpenAPIUserID(item.UserID)
+		if err != nil {
+			writeRegistryError(c, ctx, err)
+			return
+		}
+		response = append(response, openapigen.RegistryRepositoryAssignmentCandidate{
+			Id:                      userID,
+			Username:                item.Username,
+			Display:                 item.Display,
+			Status:                  item.Status,
+			AssignedRepositoryCount: item.AssignedRepositoryCount,
+			SelectedRepositoryCount: item.SelectedRepositoryCount,
+			AuthorizationState:      openapigen.RegistryRepositoryAssignmentCandidateAuthorizationState(item.AuthorizationState),
+		})
+	}
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryRepositoryAssignmentCandidateListResponse{Items: response, Total: int64(total), Limit: limit, Offset: offset})
+}
+
+func toOpenAPIUserID(userID uint64) (int64, error) {
+	if userID > math.MaxInt64 {
+		return 0, fmt.Errorf("registry assignment candidate user ID exceeds OpenAPI integer range")
+	}
+	return int64(userID), nil
 }
 func handleGrantAssignment(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentJSONRequestBody
@@ -252,6 +338,7 @@ func registryActorID(c *gin.Context) uint64 {
 func registryRepositoryRef(c *gin.Context) string {
 	return strings.TrimSpace(c.Query("repository_ref"))
 }
+
 func parsePage(c *gin.Context) (int, int) {
 	limit, offset := 20, 0
 	if raw := c.Query("limit"); raw != "" {

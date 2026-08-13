@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	usercontract "graft/server/modules/user/contract"
 	ent "graft/server/modules/user/ent"
+	"graft/server/modules/user/ent/predicate"
 	userent "graft/server/modules/user/ent/user"
 	userstore "graft/server/modules/user/store"
 )
@@ -106,6 +108,90 @@ func (r *userRepository) List(ctx context.Context) ([]userstore.User, error) {
 	}
 
 	return users, nil
+}
+
+// ListPage 在数据库侧应用用户管理筛选、总数统计和稳定分页。
+func (r *userRepository) ListPage(ctx context.Context, filter userstore.UserListFilter) ([]userstore.User, int, error) {
+	if filter.Limit <= 0 || filter.Offset < 0 {
+		return nil, 0, fmt.Errorf("invalid user page bounds")
+	}
+
+	predicates, empty, err := userListPredicates(filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	if empty {
+		return []userstore.User{}, 0, nil
+	}
+
+	query := r.client.User.Query().Where(predicates...)
+	total, err := query.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count paged users: %w", err)
+	}
+	records, err := query.Order(ent.Asc(userent.FieldID)).Offset(filter.Offset).Limit(filter.Limit).All(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list paged users: %w", err)
+	}
+	users := make([]userstore.User, 0, len(records))
+	for _, record := range records {
+		users = append(users, toStoreUser(record))
+	}
+	return users, total, nil
+}
+
+func userListPredicates(filter userstore.UserListFilter) ([]predicate.User, bool, error) {
+	predicates := []predicate.User{userent.DeletedAtEQ(0)}
+	if keyword := strings.TrimSpace(filter.Keyword); keyword != "" {
+		predicates = append(predicates, userent.Or(userent.UsernameContainsFold(keyword), userent.DisplayContainsFold(keyword)))
+	}
+	if status := strings.TrimSpace(filter.Status); status != "" {
+		predicates = append(predicates, userent.StatusEQ(status))
+	}
+	if filter.UserIDs == nil {
+		return predicates, false, nil
+	}
+	if len(filter.UserIDs) == 0 {
+		return nil, true, nil
+	}
+	ids := make([]int, 0, len(filter.UserIDs))
+	for _, userID := range filter.UserIDs {
+		id, err := toEntID(userID)
+		if err != nil {
+			return nil, false, fmt.Errorf("convert role-filter user id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return append(predicates, userent.IDIn(ids...)), false, nil
+}
+
+// ListCandidates 在数据库侧完成候选搜索与分页，避免跨模块调用读取完整用户列表后再过滤。
+func (r *userRepository) ListCandidates(ctx context.Context, query userstore.UserCandidateQuery) ([]userstore.User, int, error) {
+	if query.Limit <= 0 || query.Offset < 0 {
+		return nil, 0, fmt.Errorf("invalid user candidate page bounds")
+	}
+
+	predicates := []predicate.User{userent.DeletedAtEQ(0)}
+	if search := strings.TrimSpace(query.Search); search != "" {
+		predicates = append(predicates, userent.Or(userent.UsernameContainsFold(search), userent.DisplayContainsFold(search)))
+	}
+
+	users := r.client.User.Query().Where(predicates...)
+	total, err := users.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count user candidates: %w", err)
+	}
+	records, err := users.Order(ent.Asc(userent.FieldID)).Offset(query.Offset).Limit(query.Limit).
+		Select(userent.FieldID, userent.FieldUsername, userent.FieldDisplay, userent.FieldStatus).
+		All(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user candidates: %w", err)
+	}
+	items := make([]userstore.User, 0, len(records))
+	for _, record := range records {
+		items = append(items, userstore.User{ID: toStoreID(record.ID), Username: record.Username, Display: record.Display, Status: normalizeStoredUserStatus(record.Status)})
+	}
+	return items, total, nil
 }
 
 func (r *userRepository) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]userstore.User, error) {

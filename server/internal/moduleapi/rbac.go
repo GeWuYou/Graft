@@ -42,6 +42,8 @@ type RBACAccessService interface {
 	ListRoleNamesByUserID(ctx context.Context, userID uint64) ([]string, error)
 	ListPermissionCodesByUserID(ctx context.Context, userID uint64) ([]string, error)
 	ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error)
+	// ListUserIDsByRoleID 返回当前绑定到有效角色的稳定用户 ID，有序且不重复。
+	ListUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error)
 	ListRoleSummariesByUserIDs(ctx context.Context, userIDs []uint64) (map[uint64][]RoleSummary, error)
 }
 

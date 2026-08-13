@@ -760,7 +760,7 @@ describe('UserPage', () => {
     expect(wrapper.text()).toContain('Alice');
     expect(wrapper.text()).not.toContain('user.userList.assignRoles');
     expect(wrapper.find('.management-statistics-bar').text()).toContain('user.userList.statistics.total');
-    expect(wrapper.find('.management-statistics-bar').text()).toContain('🟢');
+    expect(wrapper.find('.management-statistics-bar').text()).not.toContain('🟢');
     expect(wrapper.find('[data-testid="user-detail"]').exists()).toBe(true);
   });
 

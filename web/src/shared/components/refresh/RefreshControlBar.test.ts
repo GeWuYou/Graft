@@ -179,16 +179,56 @@ describe('RefreshControlBar', () => {
     expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
   });
 
-  it('shows the pending message at zero and reserves its layout width', () => {
+  it('keeps the last positive countdown visible across the refresh deadline', async () => {
     const wrapper = mountBar({
-      countdownSeconds: 0,
+      countdownSeconds: 5,
       showCountdown: true,
       variant: 'page',
     });
 
-    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
+    await wrapper.setProps({ countdownSeconds: 1 });
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('1s 后刷新');
+
+    await wrapper.setProps({ countdownSeconds: 0 });
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('1s 后刷新');
+
+    await wrapper.setProps({ countdownSeconds: null });
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('1s 后刷新');
+
+    await wrapper.setProps({ countdownSeconds: 5 });
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s 后刷新');
     expect(wrapper.get('.refresh-control-bar__countdown-reserve').text()).toBe('等待下次刷新');
     expect(wrapper.get('.refresh-control-bar__countdown-reserve').attributes('aria-hidden')).toBe('true');
+  });
+
+  it('clears a retained countdown when automatic refresh stops', async () => {
+    const wrapper = mountBar({
+      countdownSeconds: 1,
+      showCountdown: true,
+      variant: 'page',
+    });
+
+    await wrapper.setProps({ countdownSeconds: 0, status: 'paused' });
+    await wrapper.setProps({ countdownSeconds: null, status: 'running' });
+
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
+  });
+
+  it('keeps the refresh button loading state visible long enough to avoid a deadline blink', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountBar({ refreshing: true });
+
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('true');
+
+    await wrapper.setProps({ refreshing: false });
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('true');
+
+    await vi.advanceTimersByTimeAsync(499);
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('true');
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('false');
+    vi.useRealTimers();
   });
 
   it('emits pause and resume based on status', async () => {

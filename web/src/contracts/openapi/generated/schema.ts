@@ -3853,9 +3853,27 @@ export interface paths {
     };
     /** List users assigned to an Artifact Repository */
     get: operations['getRegistryArtifactRepositoryAssignments'];
-    put?: never;
+    /** Replace all users assigned to an Artifact Repository */
+    put: operations['putRegistryArtifactRepositoryAssignments'];
     /** Grant a user use of an Artifact Repository */
     post: operations['postRegistryArtifactRepositoryAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/repository-assignment-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List user candidates for selected Artifact Repositories */
+    get: operations['getRegistryRepositoryAssignmentCandidates'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -5200,6 +5218,8 @@ export interface components {
     RegistryArtifactRepositoryUserAssignment: components['schemas']['registry-artifact-repository-user-assignment'];
     RegistryArtifactRepositoryUserAssignmentRequest: components['schemas']['registry-artifact-repository-user-assignment-request'];
     RegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
+    RegistryRepositoryAssignmentCandidate: components['schemas']['registry-repository-assignment-candidate'];
+    RegistryRepositoryAssignmentCandidateListResponse: components['schemas']['registry-repository-assignment-candidate-list-response'];
     RegistryAvailableDestination: components['schemas']['registry-available-destination'];
     RegistryAvailableDestinationListResponse: components['schemas']['registry-available-destination-list-response'];
     EnvelopedRegistryConnection: components['schemas']['enveloped-registry-connection'];
@@ -5209,6 +5229,7 @@ export interface components {
     EnvelopedRegistryArtifactRepositoryListResponse: components['schemas']['enveloped-registry-artifact-repository-list-response'];
     EnvelopedRegistryArtifactRepositoryUserAssignment: components['schemas']['enveloped-registry-artifact-repository-user-assignment'];
     EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['enveloped-registry-artifact-repository-user-assignment-list-response'];
+    EnvelopedRegistryRepositoryAssignmentCandidateListResponse: components['schemas']['enveloped-registry-repository-assignment-candidate-list-response'];
     EnvelopedRegistryAvailableDestinationListResponse: components['schemas']['enveloped-registry-available-destination-list-response'];
     'health-response': {
       /** @enum {string} */
@@ -5443,6 +5464,10 @@ export interface components {
     };
     'user-list-response': {
       items: components['schemas']['user-list-item'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-user-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['user-list-response'];
@@ -5532,6 +5557,10 @@ export interface components {
     };
     'role-list-response': {
       items: components['schemas']['role-list-item'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-role-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-response'];
@@ -5642,6 +5671,10 @@ export interface components {
     };
     'permission-list-response': {
       items: components['schemas']['permission-list-item'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-permission-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['permission-list-response'];
@@ -10123,6 +10156,11 @@ export interface components {
       allow_pull: boolean;
       /** @default true */
       allow_push: boolean;
+      /**
+       * @description Whether to grant the authenticated creator use of the new Artifact Repository.
+       * @default true
+       */
+      grant_creator_use: boolean;
     };
     'registry-artifact-repository-user-assignment': {
       connection_ref: string;
@@ -10144,12 +10182,37 @@ export interface components {
     'enveloped-registry-artifact-repository-user-assignment-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
     };
+    'registry-artifact-repository-user-assignment-replace-request': {
+      /** @description Complete set of users allowed to use the Artifact Repository. An empty array revokes all assignments. */
+      user_ids: number[];
+    };
     'registry-artifact-repository-user-assignment-request': {
       /** Format: int64 */
       user_id: number;
     };
     'enveloped-registry-artifact-repository-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-user-assignment'];
+    };
+    'registry-repository-assignment-candidate': {
+      /** Format: int64 */
+      id: number;
+      username: string;
+      display: string;
+      status: string;
+      assigned_repository_count: number;
+      selected_repository_count: number;
+      /** @enum {string} */
+      authorization_state: 'all' | 'partial' | 'none';
+    };
+    'registry-repository-assignment-candidate-list-response': {
+      items: components['schemas']['registry-repository-assignment-candidate'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-registry-repository-assignment-candidate-list-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['registry-repository-assignment-candidate-list-response'];
     };
     'application-import-validate-request': {
       workspace_path: string;
@@ -11339,6 +11402,10 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+    'rbac-list-limit': number;
+    /** @description Optional zero-based offset for RBAC records. */
+    'rbac-list-offset': number;
     /** @description Strong entity tag for the complete Module Config representation being replaced. */
     'if-match-header': string;
     /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
@@ -12116,7 +12183,13 @@ export interface operations {
   };
   getUsers: {
     parameters: {
-      query?: never;
+      query?: {
+        keyword?: string;
+        status?: 'enabled' | 'disabled';
+        role_id?: number;
+        limit?: number;
+        offset?: number;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -12827,6 +12900,10 @@ export interface operations {
         keyword?: string;
         builtin?: boolean;
         status?: 'enabled' | 'disabled';
+        /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['rbac-list-limit'];
+        /** @description Optional zero-based offset for RBAC records. */
+        offset?: components['parameters']['rbac-list-offset'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -13613,6 +13690,10 @@ export interface operations {
       query?: {
         keyword?: string;
         module?: string;
+        /** @description Optional maximum number of RBAC records to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['rbac-list-limit'];
+        /** @description Optional zero-based offset for RBAC records. */
+        offset?: components['parameters']['rbac-list-offset'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15048,6 +15129,9 @@ export interface operations {
         limit?: components['parameters']['scheduled-task-list-limit'];
         /** @description Optional zero-based offset for scheduled tasks. */
         offset?: components['parameters']['scheduled-task-list-offset'];
+        keyword?: string;
+        job_key?: string;
+        status?: 'enabled' | 'disabled';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -23121,6 +23205,49 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  putRegistryArtifactRepositoryAssignments: {
+    parameters: {
+      query: {
+        /** @description Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract. */
+        repository_ref: components['parameters']['registry-repository-ref-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-user-assignment-replace-request'];
+      };
+    };
+    responses: {
+      /** @description Complete active Artifact Repository user assignments after replacement. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-user-assignment-list-response'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postRegistryArtifactRepositoryAssignment: {
     parameters: {
       query: {
@@ -23162,6 +23289,47 @@ export interface operations {
       403: components['responses']['forbidden'];
       404: components['responses']['not-found'];
       409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRegistryRepositoryAssignmentCandidates: {
+    parameters: {
+      query: {
+        repository_ref: string[];
+        search?: string;
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Candidate users with authorization state aggregated over the selected repositories. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-repository-assignment-candidate-list-response'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };
