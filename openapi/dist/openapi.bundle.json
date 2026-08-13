@@ -20052,6 +20052,69 @@
         }
       }
     },
+    "/api/registries/{connectionRef}/repository-assignments/batch": {
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryArtifactRepositoryAssignmentsBatchAdd",
+        "summary": "Add users to Artifact Repositories in one transaction",
+        "description": "Validates all requested repositories and users before adding missing assignments. Existing active assignments are retained.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-add-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Missing Repository user assignments were added atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-assignment-batch-add-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/registries/{connectionRef}/repository-assignment-candidates": {
       "get": {
         "tags": [
@@ -20078,7 +20141,6 @@
             "schema": {
               "type": "array",
               "minItems": 1,
-              "maxItems": 100,
               "items": {
                 "type": "string",
                 "minLength": 1
@@ -25373,6 +25435,12 @@
       "RegistryArtifactRepositoryUserAssignmentRequest": {
         "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-request"
       },
+      "RegistryArtifactRepositoryAssignmentBatchAddRequest": {
+        "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-add-request"
+      },
+      "RegistryArtifactRepositoryAssignmentBatchAddResult": {
+        "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-add-result"
+      },
       "RegistryArtifactRepositoryUserAssignmentListResponse": {
         "$ref": "#/components/schemas/registry-artifact-repository-user-assignment-list-response"
       },
@@ -25408,6 +25476,9 @@
       },
       "EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse": {
         "$ref": "#/components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response"
+      },
+      "EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult": {
+        "$ref": "#/components/schemas/enveloped-registry-artifact-repository-assignment-batch-add-result"
       },
       "EnvelopedRegistryRepositoryAssignmentCandidateListResponse": {
         "$ref": "#/components/schemas/enveloped-registry-repository-assignment-candidate-list-response"
@@ -41227,7 +41298,6 @@
         "properties": {
           "user_ids": {
             "type": "array",
-            "maxItems": 100,
             "uniqueItems": true,
             "items": {
               "type": "integer",
@@ -41266,6 +41336,80 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/registry-artifact-repository-user-assignment"
+              }
+            }
+          }
+        ]
+      },
+      "registry-artifact-repository-assignment-batch-add-request": {
+        "type": "object",
+        "required": [
+          "repository_refs",
+          "user_ids"
+        ],
+        "properties": {
+          "repository_refs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "registry-artifact-repository-assignment-batch-add-result": {
+        "type": "object",
+        "required": [
+          "total",
+          "added_count",
+          "already_assigned_count"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested repository-user assignment pairs."
+          },
+          "added_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of missing assignments created by this request."
+          },
+          "already_assigned_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested assignments that were already active."
+          }
+        }
+      },
+      "enveloped-registry-artifact-repository-assignment-batch-add-result": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-add-result"
               }
             }
           }

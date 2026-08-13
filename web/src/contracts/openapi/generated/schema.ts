@@ -3863,6 +3863,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/registries/{connectionRef}/repository-assignments/batch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add users to Artifact Repositories in one transaction
+     * @description Validates all requested repositories and users before adding missing assignments. Existing active assignments are retained.
+     */
+    post: operations['postRegistryArtifactRepositoryAssignmentsBatchAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/registries/{connectionRef}/repository-assignment-candidates': {
     parameters: {
       query?: never;
@@ -5217,6 +5237,8 @@ export interface components {
     RegistryArtifactRepositoryListResponse: components['schemas']['registry-artifact-repository-list-response'];
     RegistryArtifactRepositoryUserAssignment: components['schemas']['registry-artifact-repository-user-assignment'];
     RegistryArtifactRepositoryUserAssignmentRequest: components['schemas']['registry-artifact-repository-user-assignment-request'];
+    RegistryArtifactRepositoryAssignmentBatchAddRequest: components['schemas']['registry-artifact-repository-assignment-batch-add-request'];
+    RegistryArtifactRepositoryAssignmentBatchAddResult: components['schemas']['registry-artifact-repository-assignment-batch-add-result'];
     RegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['registry-artifact-repository-user-assignment-list-response'];
     RegistryRepositoryAssignmentCandidate: components['schemas']['registry-repository-assignment-candidate'];
     RegistryRepositoryAssignmentCandidateListResponse: components['schemas']['registry-repository-assignment-candidate-list-response'];
@@ -5229,6 +5251,7 @@ export interface components {
     EnvelopedRegistryArtifactRepositoryListResponse: components['schemas']['enveloped-registry-artifact-repository-list-response'];
     EnvelopedRegistryArtifactRepositoryUserAssignment: components['schemas']['enveloped-registry-artifact-repository-user-assignment'];
     EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse: components['schemas']['enveloped-registry-artifact-repository-user-assignment-list-response'];
+    EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult: components['schemas']['enveloped-registry-artifact-repository-assignment-batch-add-result'];
     EnvelopedRegistryRepositoryAssignmentCandidateListResponse: components['schemas']['enveloped-registry-repository-assignment-candidate-list-response'];
     EnvelopedRegistryAvailableDestinationListResponse: components['schemas']['enveloped-registry-available-destination-list-response'];
     'health-response': {
@@ -10192,6 +10215,30 @@ export interface components {
     };
     'enveloped-registry-artifact-repository-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-user-assignment'];
+    };
+    'registry-artifact-repository-assignment-batch-add-request': {
+      repository_refs: string[];
+      user_ids: number[];
+    };
+    'registry-artifact-repository-assignment-batch-add-result': {
+      /**
+       * Format: int64
+       * @description Number of requested repository-user assignment pairs.
+       */
+      total: number;
+      /**
+       * Format: int64
+       * @description Number of missing assignments created by this request.
+       */
+      added_count: number;
+      /**
+       * Format: int64
+       * @description Number of requested assignments that were already active.
+       */
+      already_assigned_count: number;
+    };
+    'enveloped-registry-artifact-repository-assignment-batch-add-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['registry-artifact-repository-assignment-batch-add-result'];
     };
     'registry-repository-assignment-candidate': {
       /** Format: int64 */
@@ -23289,6 +23336,46 @@ export interface operations {
       403: components['responses']['forbidden'];
       404: components['responses']['not-found'];
       409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistryArtifactRepositoryAssignmentsBatchAdd: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-assignment-batch-add-request'];
+      };
+    };
+    responses: {
+      /** @description Missing Repository user assignments were added atomically. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-assignment-batch-add-result'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };

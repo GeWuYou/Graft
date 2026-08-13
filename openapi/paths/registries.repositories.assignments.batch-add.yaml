@@ -1,0 +1,26 @@
+post:
+  tags: [registry]
+  operationId: postRegistryArtifactRepositoryAssignmentsBatchAdd
+  summary: Add users to Artifact Repositories in one transaction
+  description: Validates all requested repositories and users before adding missing assignments. Existing active assignments are retained.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/registry-connection-ref-path.yaml
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-artifact-repository-assignment-batch-add-request.yaml}
+  responses:
+    '200':
+      description: Missing Repository user assignments were added atomically.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-registry-artifact-repository-assignment-batch-add-result.yaml}
+    '400': {$ref: ../components/responses/bad-request.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

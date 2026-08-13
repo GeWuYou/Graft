@@ -1,0 +1,18 @@
+type: object
+required: [total, added_count, already_assigned_count]
+properties:
+  total:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of requested repository-user assignment pairs.
+  added_count:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of missing assignments created by this request.
+  already_assigned_count:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of requested assignments that were already active.

@@ -46,8 +46,8 @@ vi.mock('../../api/registry', () => ({
   getRegistryRepositories: apiMocks.getRegistryRepositories,
   getRegistryRepositoryAssignmentCandidates: vi.fn(),
   getRegistryRepositoryAssignments: vi.fn(),
-  grantRegistryRepositoryAssignment: vi.fn(),
-  revokeRegistryRepositoryAssignment: vi.fn(),
+  replaceRegistryRepositoryAssignments: vi.fn(),
+  addRegistryRepositoryAssignments: vi.fn(),
   updateRegistry: apiMocks.updateRegistry,
   updateRegistryRepository: vi.fn(),
 }));
@@ -100,14 +100,18 @@ vi.mock('@/shared/components/responsive/ResponsiveDialog.vue', () => ({
     },
   }),
 }));
-vi.mock('@/shared/components/selection', () => ({
-  PagedMultiSelect: defineComponent({
-    setup:
-      (_props, { slots }) =>
-      () =>
-        h('div', slots.default?.()),
-  }),
-}));
+vi.mock('@/shared/components/selection', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/components/selection')>();
+  return {
+    ...actual,
+    PagedMultiSelect: defineComponent({
+      setup:
+        (_props, { slots }) =>
+        () =>
+          h('div', slots.default?.()),
+    }),
+  };
+});
 
 const connectionFormStub = defineComponent({
   name: 'RegistryConnectionForm',
@@ -341,11 +345,9 @@ describe('RegistryDetailPage assignment safety', () => {
     expect(pageSource).not.toContain('grantBatchAssignments');
   });
 
-  it('bounds batch mutation fan-out and loads all pages before revoking every assignment', () => {
-    expect(pageSource).toContain('const ASSIGNMENT_MUTATION_CONCURRENCY = 10;');
-    expect(pageSource).toContain('mutations.slice(index, index + ASSIGNMENT_MUTATION_CONCURRENCY)');
-    expect(pageSource).toContain('const userIds = await loadAllAssignmentUserIds();');
-    expect(pageSource).toContain('limit: ASSIGNMENT_PAGE_LIMIT');
-    expect(pageSource).toContain('offset,');
+  it('uses atomic additive batch submission and final-set replacement semantics', () => {
+    expect(pageSource).toContain('addRegistryRepositoryAssignments(connectionRef.value');
+    expect(pageSource).toContain('replaceRegistryRepositoryAssignments(connectionRef.value');
+    expect(pageSource).not.toContain('ASSIGNMENT_MUTATION_CONCURRENCY');
   });
 });

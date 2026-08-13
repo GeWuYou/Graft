@@ -175,89 +175,76 @@
       </t-form>
     </t-drawer>
 
-    <t-drawer
-      v-model:visible="batchRepositoryAssignmentDrawerVisible"
-      :header="t('registry.list.batchAuthorizeRepositoriesTitle')"
-      size="720px"
-      :footer="false"
+    <paged-multi-select
+      v-model:visible="batchRepositoryAssignmentDialogVisible"
+      v-model:current="candidatePagination.current"
+      v-model:keyword="candidateSearch"
+      v-model:page-size="candidatePagination.pageSize"
+      v-model:selection="batchAssignmentSelection"
+      :cancel-label="t('registry.list.cancel')"
+      :cell-slot-names="['authorizationState']"
+      :columns="candidateColumns"
+      :confirm-label="t('registry.list.batchAuthorizeRepositories')"
+      :confirm-loading="batchRepositoryAssignmentSaving"
+      :empty-description="t('registry.list.candidatesEmpty')"
+      :empty-title="t('registry.list.candidatesEmpty')"
+      :loading="candidateLoading"
+      row-key="id"
+      :rows="batchAssignmentCandidates"
+      :search="{
+        label: t('registry.list.candidateSearch'),
+        placeholder: t('registry.list.candidateSearchPlaceholder'),
+      }"
+      :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
+      :title="t('registry.list.batchAuthorizeRepositoriesTitle')"
+      :total="candidateTotal"
+      @cancel="closeBatchRepositoryAssignments"
+      @confirm="grantSelectedRepositoryAssignments"
+      @page-change="loadBatchAssignmentCandidates"
+      @search="searchBatchAssignmentCandidates"
     >
-      <paged-multi-select
-        v-model:current="candidatePagination.current"
-        v-model:keyword="candidateSearch"
-        v-model:page-size="candidatePagination.pageSize"
-        v-model:selected-keys="selectedCandidateUserIds"
-        :cancel-label="t('registry.list.cancel')"
-        :cell-slot-names="['authorizationState']"
-        :columns="candidateColumns"
-        :confirm-label="t('registry.list.batchAuthorizeRepositories')"
-        :confirm-loading="batchRepositoryAssignmentSaving"
-        :empty-description="t('registry.list.candidatesEmpty')"
-        :empty-title="t('registry.list.candidatesEmpty')"
-        :loading="candidateLoading"
-        row-key="id"
-        :rows="assignmentCandidates"
-        :search-label="t('registry.list.candidateSearch')"
-        :search-placeholder="t('registry.list.candidateSearchPlaceholder')"
-        :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
-        :total="candidateTotal"
-        @cancel="closeBatchRepositoryAssignments"
-        @confirm="grantSelectedRepositoryAssignments"
-        @page-change="loadAssignmentCandidates"
-        @search="searchAssignmentCandidates"
-      >
-        <template #authorizationState="{ row }">
-          <t-tag :theme="candidateAuthorizationTheme(row.authorization_state)" variant="light">
-            {{ candidateAuthorizationLabel(row.authorization_state) }}
-          </t-tag>
-        </template>
-      </paged-multi-select>
-    </t-drawer>
+      <template #authorizationState="{ row }">
+        <t-tag :theme="candidateAuthorizationTheme(row.authorization_state)" variant="light">
+          {{ candidateAuthorizationLabel(row.authorization_state) }}
+        </t-tag>
+      </template>
+    </paged-multi-select>
 
-    <t-drawer
-      v-model:visible="assignmentDrawerVisible"
-      :header="t('registry.list.assignments')"
-      size="480px"
-      :footer="false"
+    <paged-multi-select
+      v-model:visible="assignmentDialogVisible"
+      v-model:current="assignmentCandidatePagination.current"
+      v-model:keyword="assignmentCandidateSearch"
+      v-model:page-size="assignmentCandidatePagination.pageSize"
+      v-model:selection="assignmentSelection"
+      :cancel-label="t('registry.list.cancel')"
+      :cell-slot-names="['status']"
+      :columns="assignmentCandidateColumns"
+      :confirm-label="t('registry.list.save')"
+      :confirm-loading="assignmentSaving"
+      confirm-without-selection
+      :empty-description="t('registry.list.candidatesEmpty')"
+      :empty-title="t('registry.list.candidatesEmpty')"
+      :loading="assignmentCandidateLoading"
+      row-key="id"
+      :rows="assignmentCandidates"
+      :search="{
+        label: t('registry.list.candidateSearch'),
+        placeholder: t('registry.list.candidateSearchPlaceholder'),
+      }"
+      :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
+      :title="t('registry.list.authorizeRepositoryTitle')"
+      :total="assignmentCandidateTotal"
+      @cancel="closeAssignments"
+      @confirm="saveAssignments"
+      @page-change="loadRepositoryAssignmentCandidates"
+      @search="searchRepositoryAssignmentCandidates"
     >
-      <t-form :data="assignmentForm" label-align="top" @submit="grantAssignment">
-        <t-form-item :label="t('registry.list.form.userId')"
-          ><t-input-number v-model="assignmentForm.user_id" :min="1"
-        /></t-form-item>
-        <t-button theme="primary" type="submit" :loading="assignmentSaving">{{
-          t('registry.list.grantAssignment')
-        }}</t-button>
-        <t-button v-if="assignments.length" variant="outline" :loading="assignmentSaving" @click="revokeAllAssignments">
-          {{ t('registry.list.revokeAllAssignments') }}
-        </t-button>
-      </t-form>
-      <t-table
-        row-key="user_id"
-        :data="assignments"
-        :columns="assignmentColumns"
-        :loading="assignmentLoading"
-        :selected-row-keys="selectedAssignmentIds"
-        @select-change="handleAssignmentSelection"
-      >
-        <template #created_at="{ row }">{{ formatLocaleDateTime(row.created_at, locale) }}</template>
-        <template #assignmentActions="{ row }">
-          <t-popconfirm
-            :content="t('registry.list.revokeAssignmentConfirm', { userId: row.user_id })"
-            @confirm="revokeAssignment(row.user_id)"
-          >
-            <t-button theme="danger" variant="text">{{ t('registry.list.revokeAssignment') }}</t-button>
-          </t-popconfirm>
-        </template>
-      </t-table>
-      <t-button
-        v-if="selectedAssignmentIds.length"
-        theme="danger"
-        variant="outline"
-        :loading="assignmentSaving"
-        @click="revokeSelectedAssignments"
-      >
-        {{ t('registry.list.revokeBatchAssignment', { count: selectedAssignmentIds.length }) }}
-      </t-button>
-    </t-drawer>
+      <template #status="{ row }">
+        <t-tag :theme="row.status === 'enabled' ? 'success' : 'default'" variant="light">
+          {{ t(`registry.list.userStatus.${row.status}`) }}
+        </t-tag>
+      </template>
+    </paged-multi-select>
   </section>
 </template>
 <script setup lang="ts">
@@ -273,22 +260,21 @@ import { ManagementBatchBar, ManagementPageContent, ManagementPageHeader } from 
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
-import { PagedMultiSelect } from '@/shared/components/selection';
+import { createExplicitSelection, type ExplicitSelection, PagedMultiSelect } from '@/shared/components/selection';
 import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatLocaleDateTime } from '@/shared/observability';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { buildDetailTitleWithFallback } from '@/utils/route/title';
 
 import {
+  addRegistryRepositoryAssignments,
   createRegistryRepository,
   deleteRegistryRepository,
   getRegistry,
   getRegistryRepositories,
   getRegistryRepositoryAssignmentCandidates,
   getRegistryRepositoryAssignments,
-  grantRegistryRepositoryAssignment,
-  revokeRegistryRepositoryAssignment,
+  replaceRegistryRepositoryAssignments,
   updateRegistry,
   updateRegistryRepository,
 } from '../../api/registry';
@@ -298,15 +284,11 @@ import { REGISTRY_DETAIL_MODE, registryDetailPath } from '../../contract/paths';
 
 type RegistryConnection = components['schemas']['registry-connection'];
 type RegistryRepository = components['schemas']['registry-artifact-repository'];
-type RegistryAssignment = components['schemas']['registry-artifact-repository-user-assignment'];
 type RegistryAssignmentCandidate = components['schemas']['registry-repository-assignment-candidate'];
 
-const { locale, t } = useI18n();
+const { t } = useI18n();
 const viewportVariant = useViewportResponsiveVariant();
 const isCompactDensity = computed(() => viewportVariant.value.density === 'compact');
-const MAX_REPOSITORY_ASSIGNMENT_CANDIDATES = 100;
-const ASSIGNMENT_PAGE_LIMIT = 100;
-const ASSIGNMENT_MUTATION_CONCURRENCY = 10;
 const route = useRoute();
 const router = useRouter();
 const tabsRouterStore = useTabsRouterStore();
@@ -314,7 +296,6 @@ const connectionRef = computed(() => String(route.params.connectionRef || ''));
 const connectionEditVisible = computed(() => route.query.mode === REGISTRY_DETAIL_MODE.EDIT);
 const connection = ref<RegistryConnection | null>(null);
 const repositories = ref<RegistryRepository[]>([]);
-const assignments = ref<RegistryAssignment[]>([]);
 const loading = ref(false);
 const connectionSaving = ref(false);
 const connectionEditClosing = ref(false);
@@ -331,21 +312,26 @@ const repositoryLoading = ref(false);
 const repositorySaving = ref(false);
 const repositoryPagination = ref({ current: 1, pageSize: 20 });
 const repositoryTotal = ref(0);
-const assignmentLoading = ref(false);
 const assignmentSaving = ref(false);
 const batchRepositoryAssignmentSaving = ref(false);
 const candidateLoading = ref(false);
+const batchAssignmentCandidates = ref<RegistryAssignmentCandidate[]>([]);
 const assignmentCandidates = ref<RegistryAssignmentCandidate[]>([]);
 const candidateTotal = ref(0);
 const candidateSearch = ref('');
 const candidatePagination = ref({ current: 1, pageSize: 20 });
+const batchAssignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
+const assignmentCandidateLoading = ref(false);
+const assignmentCandidateTotal = ref(0);
+const assignmentCandidateSearch = ref('');
+const assignmentCandidatePagination = ref({ current: 1, pageSize: 20 });
+const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
+const initialAssignmentUserIds = ref(new Set<number>());
 const selectedRepositoryRefs = ref<Array<string | number>>([]);
-const selectedCandidateUserIds = ref<Array<string | number>>([]);
-const selectedAssignmentIds = ref<Array<string | number>>([]);
 const errorMessage = ref('');
 const repositoryDrawerVisible = ref(false);
-const assignmentDrawerVisible = ref(false);
-const batchRepositoryAssignmentDrawerVisible = ref(false);
+const assignmentDialogVisible = ref(false);
+const batchRepositoryAssignmentDialogVisible = ref(false);
 const editingRepositoryRef = ref('');
 const assignmentRepositoryRef = ref('');
 const repositoryForm = ref({
@@ -355,7 +341,6 @@ const repositoryForm = ref({
   allow_push: true,
   grant_creator_use: true,
 });
-const assignmentForm = ref({ user_id: undefined as number | undefined });
 
 const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
@@ -363,11 +348,11 @@ const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'display_name', title: t('registry.list.form.repositoryName'), minWidth: 160 },
   { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 280 },
 ]);
-const assignmentColumns = computed<TableProps['columns']>(() => [
+const assignmentCandidateColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'user_id', title: t('registry.list.form.userId'), width: 120 },
-  { colKey: 'created_at', title: t('registry.list.columns.assignmentCreatedAt'), minWidth: 180 },
-  { colKey: 'assignmentActions', title: t('registry.list.columns.actions'), width: 140 },
+  { colKey: 'display', title: t('registry.list.columns.candidateUser'), minWidth: 180 },
+  { colKey: 'username', title: t('registry.list.columns.candidateUsername'), minWidth: 150 },
+  { colKey: 'status', title: t('registry.list.columns.status'), width: 120 },
 ]);
 const candidateColumns = computed<TableProps['columns']>(() => [
   {
@@ -550,10 +535,6 @@ async function removeRepository(repositoryRef: string) {
 }
 
 function handleRepositorySelection(keys: Array<string | number>) {
-  if (keys.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
-    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
-    return;
-  }
   selectedRepositoryRefs.value = keys;
 }
 
@@ -574,40 +555,30 @@ async function removeSelectedRepositories() {
 }
 
 function openBatchRepositoryAssignments() {
-  if (selectedRepositoryRefs.value.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
-    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
-    return;
-  }
   candidateSearch.value = '';
   candidatePagination.value.current = 1;
-  selectedCandidateUserIds.value = [];
-  batchRepositoryAssignmentDrawerVisible.value = true;
-  void loadAssignmentCandidates();
+  batchAssignmentSelection.value = createExplicitSelection();
+  batchRepositoryAssignmentDialogVisible.value = true;
+  void loadBatchAssignmentCandidates();
 }
 
 function closeBatchRepositoryAssignments() {
   if (batchRepositoryAssignmentSaving.value) return;
-  batchRepositoryAssignmentDrawerVisible.value = false;
-  selectedCandidateUserIds.value = [];
+  batchRepositoryAssignmentDialogVisible.value = false;
+  batchAssignmentSelection.value = createExplicitSelection();
 }
 
 async function grantSelectedRepositoryAssignments() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
-  const userIds = [
-    ...new Set(selectedCandidateUserIds.value.map(Number).filter((id) => Number.isInteger(id) && id > 0)),
-  ];
+  const userIds = normalizeSelectedUserIds(batchAssignmentSelection.value);
   if (!userIds.length) return;
 
   batchRepositoryAssignmentSaving.value = true;
   try {
-    await runAssignmentMutations(
-      selectedRepositoryRefs.value.flatMap((repositoryRef) =>
-        userIds.map(
-          (userId) => () =>
-            grantRegistryRepositoryAssignment(connectionRef.value, String(repositoryRef), { user_id: userId }),
-        ),
-      ),
-    );
+    await addRegistryRepositoryAssignments(connectionRef.value, {
+      repository_refs: selectedRepositoryRefs.value.map(String),
+      user_ids: userIds,
+    });
     closeBatchRepositoryAssignments();
     selectedRepositoryRefs.value = [];
   } catch (error) {
@@ -617,12 +588,8 @@ async function grantSelectedRepositoryAssignments() {
   }
 }
 
-async function loadAssignmentCandidates() {
+async function loadBatchAssignmentCandidates() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
-  if (selectedRepositoryRefs.value.length > MAX_REPOSITORY_ASSIGNMENT_CANDIDATES) {
-    MessagePlugin.error(t('registry.list.repositorySelectionLimit', { count: MAX_REPOSITORY_ASSIGNMENT_CANDIDATES }));
-    return;
-  }
   candidateLoading.value = true;
   try {
     const response = await getRegistryRepositoryAssignmentCandidates(connectionRef.value, {
@@ -631,7 +598,7 @@ async function loadAssignmentCandidates() {
       limit: candidatePagination.value.pageSize,
       offset: (candidatePagination.value.current - 1) * candidatePagination.value.pageSize,
     });
-    assignmentCandidates.value = response.items ?? [];
+    batchAssignmentCandidates.value = response.items ?? [];
     candidateTotal.value = response.total ?? 0;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
@@ -640,9 +607,9 @@ async function loadAssignmentCandidates() {
   }
 }
 
-function searchAssignmentCandidates() {
+function searchBatchAssignmentCandidates() {
   candidatePagination.value.current = 1;
-  void loadAssignmentCandidates();
+  void loadBatchAssignmentCandidates();
 }
 
 function candidateAuthorizationLabel(state: RegistryAssignmentCandidate['authorization_state']) {
@@ -657,64 +624,62 @@ function candidateAuthorizationTheme(state: RegistryAssignmentCandidate['authori
 
 async function openAssignments(repositoryRef: string) {
   assignmentRepositoryRef.value = repositoryRef;
-  assignmentForm.value = { user_id: undefined };
-  assignmentDrawerVisible.value = true;
-  await loadAssignments();
+  assignmentCandidateSearch.value = '';
+  assignmentCandidatePagination.value.current = 1;
+  assignmentSelection.value = createExplicitSelection();
+  initialAssignmentUserIds.value = new Set();
+  assignmentDialogVisible.value = true;
+  await Promise.all([loadRepositoryAssignmentCandidates(), loadInitialAssignmentSelection()]);
 }
 
-async function loadAssignments() {
+function closeAssignments() {
+  if (assignmentSaving.value) return;
+  assignmentDialogVisible.value = false;
+  assignmentSelection.value = createExplicitSelection();
+  initialAssignmentUserIds.value = new Set();
+}
+
+async function loadInitialAssignmentSelection() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
-  assignmentLoading.value = true;
   try {
-    const response = await getRegistryRepositoryAssignments(connectionRef.value, {
-      repository_ref: assignmentRepositoryRef.value,
-      limit: ASSIGNMENT_PAGE_LIMIT,
-      offset: 0,
-    });
-    assignments.value = response.items ?? [];
-    selectedAssignmentIds.value = [];
+    const userIds: number[] = [];
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+    while (offset < total) {
+      const response = await getRegistryRepositoryAssignments(connectionRef.value, {
+        repository_ref: assignmentRepositoryRef.value,
+        limit: 100,
+        offset,
+      });
+      const page = response.items ?? [];
+      userIds.push(...page.map((item) => item.user_id));
+      total = response.total ?? offset + page.length;
+      offset += page.length;
+      if (page.length === 0) break;
+    }
+    const selection = createExplicitSelection(userIds);
+    initialAssignmentUserIds.value = new Set(selection.selectedIds);
+    assignmentSelection.value = selection;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
-  } finally {
-    assignmentLoading.value = false;
   }
 }
 
-function handleAssignmentSelection(keys: Array<string | number>) {
-  selectedAssignmentIds.value = keys;
-}
-
-async function revokeSelectedAssignments() {
-  if (!connectionRef.value || !assignmentRepositoryRef.value || !selectedAssignmentIds.value.length) return;
-  assignmentSaving.value = true;
-  try {
-    await runAssignmentMutations(
-      selectedAssignmentIds.value.map(
-        (userId) => () =>
-          revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, Number(userId)),
-      ),
-    );
-    await loadAssignments();
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
-  } finally {
-    assignmentSaving.value = false;
-  }
-}
-
-async function grantAssignment() {
+async function saveAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
-  if (!assignmentForm.value.user_id) {
-    MessagePlugin.error(t('registry.list.userIdRequired'));
+  const userIds = normalizeSelectedUserIds(assignmentSelection.value);
+  if (sameUserIDSet(initialAssignmentUserIds.value, userIds)) {
+    closeAssignments();
     return;
   }
+
   assignmentSaving.value = true;
   try {
-    await grantRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, {
-      user_id: assignmentForm.value.user_id,
+    await replaceRegistryRepositoryAssignments(connectionRef.value, assignmentRepositoryRef.value, {
+      user_ids: userIds,
     });
-    assignmentForm.value = { user_id: undefined };
-    await loadAssignments();
+    MessagePlugin.success(t('registry.list.assignmentSaveSuccess'));
+    closeAssignments();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
   } finally {
@@ -722,59 +687,38 @@ async function grantAssignment() {
   }
 }
 
-async function revokeAssignment(userId: number) {
+async function loadRepositoryAssignmentCandidates() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
+  assignmentCandidateLoading.value = true;
   try {
-    await revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, userId);
-    await loadAssignments();
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
-  }
-}
-
-async function revokeAllAssignments() {
-  if (!connectionRef.value || !assignmentRepositoryRef.value) return;
-  assignmentSaving.value = true;
-  try {
-    const userIds = await loadAllAssignmentUserIds();
-    await runAssignmentMutations(
-      userIds.map(
-        (userId) => () =>
-          revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, userId),
-      ),
-    );
-    await loadAssignments();
+    const response = await getRegistryRepositoryAssignmentCandidates(connectionRef.value, {
+      repository_ref: [assignmentRepositoryRef.value],
+      search: assignmentCandidateSearch.value.trim() || undefined,
+      limit: assignmentCandidatePagination.value.pageSize,
+      offset: (assignmentCandidatePagination.value.current - 1) * assignmentCandidatePagination.value.pageSize,
+    });
+    assignmentCandidates.value = response.items ?? [];
+    assignmentCandidateTotal.value = response.total ?? 0;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
   } finally {
-    assignmentSaving.value = false;
+    assignmentCandidateLoading.value = false;
   }
 }
 
-async function loadAllAssignmentUserIds() {
-  const userIds: number[] = [];
-  let offset = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const response = await getRegistryRepositoryAssignments(connectionRef.value, {
-      repository_ref: assignmentRepositoryRef.value,
-      limit: ASSIGNMENT_PAGE_LIMIT,
-      offset,
-    });
-    const page = response.items ?? [];
-    userIds.push(...page.map(({ user_id: userId }) => userId));
-    offset += page.length;
-    hasMore = page.length > 0 && offset < (response.total ?? offset);
-  }
-
-  return userIds;
+function searchRepositoryAssignmentCandidates() {
+  assignmentCandidatePagination.value.current = 1;
+  void loadRepositoryAssignmentCandidates();
 }
 
-async function runAssignmentMutations(mutations: Array<() => Promise<unknown>>) {
-  for (let index = 0; index < mutations.length; index += ASSIGNMENT_MUTATION_CONCURRENCY) {
-    await Promise.all(mutations.slice(index, index + ASSIGNMENT_MUTATION_CONCURRENCY).map((mutation) => mutation()));
-  }
+function normalizeSelectedUserIds(selection: ExplicitSelection) {
+  return Array.from(selection.selectedIds)
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function sameUserIDSet(initial: Set<number>, current: number[]) {
+  return initial.size === current.length && current.every((userID) => initial.has(userID));
 }
 </script>
 <style scoped lang="less">

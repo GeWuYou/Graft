@@ -339,7 +339,7 @@ func validateAssignmentCandidateQuery(service *Service, repositoryRefs []string,
 		return nil, errors.New("registry user candidate reader is unavailable")
 	}
 	repositoryRefs = normalizeRepositoryRefs(repositoryRefs)
-	if len(repositoryRefs) == 0 || len(repositoryRefs) > 100 {
+	if len(repositoryRefs) == 0 {
 		return nil, errors.New("invalid repository references")
 	}
 	if limit < 1 || limit > 100 || offset < 0 {
@@ -372,6 +372,15 @@ func (s *Service) ReplaceAssignments(ctx context.Context, connectionRef, reposit
 		return nil, err
 	}
 	return repository.ReplaceAssignments(ctx, connectionRef, repositoryRef, userIDs, actorID)
+}
+
+// AddAssignments 原子追加一组用户到一组 Repository，并保留既有有效授权。
+func (s *Service) AddAssignments(ctx context.Context, connectionRef string, input registrystore.AssignmentBatchAddInput, actorID uint64) (registrystore.AssignmentBatchAddResult, error) {
+	repository, err := s.managementRepository()
+	if err != nil {
+		return registrystore.AssignmentBatchAddResult{}, err
+	}
+	return repository.AddAssignments(ctx, connectionRef, input, actorID)
 }
 
 // GrantAssignment 原子授予单个用户使用 Repository 的权限。

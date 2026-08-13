@@ -37,8 +37,6 @@ vi.mock('../../api/registry', () => ({
   getRegistries: apiMocks.getRegistries,
   getRegistryRepositories: vi.fn(),
   getRegistryRepositoryAssignments: vi.fn(),
-  grantRegistryRepositoryAssignment: vi.fn(),
-  revokeRegistryRepositoryAssignment: vi.fn(),
   updateRegistry: vi.fn(),
   updateRegistryRepository: vi.fn(),
   verifyRegistry: apiMocks.verifyRegistry,
