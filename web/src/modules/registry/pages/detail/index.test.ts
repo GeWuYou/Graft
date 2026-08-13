@@ -84,6 +84,7 @@ vi.mock('@/shared/components/management', () => ({
 vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
   default: defineComponent({
     name: 'ManagementPagedTable',
+    emits: ['select-change'],
     setup(_props, { slots }) {
       return () => h('div', [slots.repositoryActions?.({ row: { repository_ref: 'repo-a' } }), slots.default?.()]);
     },
@@ -109,8 +110,8 @@ vi.mock('@/shared/components/selection', async (importOriginal) => {
     ...actual,
     PagedMultiSelect: defineComponent({
       name: 'PagedMultiSelect',
-      props: { loading: Boolean, visible: Boolean },
-      emits: ['cancel'],
+      props: { loading: Boolean, selection: { default: undefined, type: Object }, visible: Boolean },
+      emits: ['cancel', 'confirm', 'update:selection'],
       setup(props, { emit, slots }) {
         return () =>
           h(
@@ -367,11 +368,29 @@ describe('RegistryDetailPage assignment safety', () => {
     expect(pageSource).not.toContain('ASSIGNMENT_MUTATION_CONCURRENCY');
   });
 
-  it('bounds initial assignment loading and blocks replacement until the complete baseline is available', () => {
-    expect(pageSource).toContain('const MAX_INITIAL_ASSIGNMENT_PAGES = 20;');
-    expect(pageSource).toContain('while (offset < total && pageCount < MAX_INITIAL_ASSIGNMENT_PAGES)');
-    expect(pageSource).toContain("t('registry.list.assignmentInitialLoadIncomplete')");
-    expect(pageSource).toContain('if (!initialAssignmentSelectionComplete.value)');
+  it('blocks replacement when the initial assignment baseline exceeds the page limit', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockImplementation((_connectionRef, query) =>
+      Promise.resolve({
+        items: Array.from({ length: 100 }, (_, index) => ({ user_id: query.offset + index + 1 })),
+        total: 2_100,
+      }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.getRegistryRepositoryAssignments).toHaveBeenCalledTimes(20);
+    expect(apiMocks.replaceRegistryRepositoryAssignments).not.toHaveBeenCalled();
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentInitialLoadIncomplete');
   });
 
   it('clears the assignment dialog loading state when a stale session returns early', async () => {
@@ -392,8 +411,78 @@ describe('RegistryDetailPage assignment safety', () => {
     expect(assignmentDialog.props('loading')).toBe(false);
   });
 
-  it('provides success and localized error feedback for both assignment mutations', () => {
-    expect(pageSource).toContain("MessagePlugin.success(t('registry.list.batchAssignmentSaveSuccess'))");
-    expect(pageSource).toContain("t('registry.list.assignmentSaveFailed')");
+  it('submits batch assignments and reports success or failure', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.findComponent({ name: 'ManagementPagedTable' }).vm.$emit('select-change', ['repo-a', 'repo-b']);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.batchAuthorizeRepositories')
+      ?.trigger('click');
+    await flushPromises();
+    const batchDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+
+    await batchDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([7, 8]) });
+    await batchDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.addRegistryRepositoryAssignments).toHaveBeenCalledWith('registry-a', {
+      repository_refs: ['repo-a', 'repo-b'],
+      user_ids: [7, 8],
+    });
+    expect(messageMocks.success).toHaveBeenCalledWith('registry.list.batchAssignmentSaveSuccess');
+
+    apiMocks.addRegistryRepositoryAssignments.mockRejectedValueOnce(new Error('failed'));
+    await wrapper.findComponent({ name: 'ManagementPagedTable' }).vm.$emit('select-change', ['repo-a']);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.batchAuthorizeRepositories')
+      ?.trigger('click');
+    await flushPromises();
+    await batchDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([9]) });
+    await batchDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.addRegistryRepositoryAssignments).toHaveBeenLastCalledWith('registry-a', {
+      repository_refs: ['repo-a'],
+      user_ids: [9],
+    });
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentSaveFailed');
+  });
+
+  it('replaces repository assignments and reports success or failure', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockResolvedValue({ items: [{ user_id: 1 }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    await assignmentDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([2, 3]) });
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.replaceRegistryRepositoryAssignments).toHaveBeenCalledWith('registry-a', 'repo-a', {
+      user_ids: [2, 3],
+    });
+    expect(messageMocks.success).toHaveBeenCalledWith('registry.list.assignmentSaveSuccess');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    apiMocks.replaceRegistryRepositoryAssignments.mockRejectedValueOnce(new Error('failed'));
+    await assignmentDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([4]) });
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.replaceRegistryRepositoryAssignments).toHaveBeenLastCalledWith('registry-a', 'repo-a', {
+      user_ids: [4],
+    });
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentSaveFailed');
   });
 });
