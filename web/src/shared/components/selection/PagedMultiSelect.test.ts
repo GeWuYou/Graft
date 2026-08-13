@@ -50,7 +50,7 @@ const PagedTableStub = defineComponent({
   name: 'ManagementPagedTable',
   props: ['rows', 'selectedRowKeys'],
   emits: ['select-change', 'page-change'],
-  setup(_props, { emit }) {
+  setup(_props, { emit, slots }) {
     return () =>
       h('div', [
         h('button', { 'data-testid': 'select-page', onClick: () => emit('select-change', [2]) }, 'select'),
@@ -59,6 +59,7 @@ const PagedTableStub = defineComponent({
           { 'data-testid': 'change-page', onClick: () => emit('page-change', { current: 2, pageSize: 20 }) },
           'page',
         ),
+        slots.footer?.(),
       ]);
   },
 });
@@ -88,6 +89,8 @@ function mountSubject(search?: { label: string; placeholder: string }) {
         't-button': ButtonStub,
         't-dialog': DialogStub,
         't-input': InputStub,
+        't-empty': { template: '<div><slot name="action" /></div>' },
+        't-pagination': { template: '<div data-testid="pagination" />' },
         't-space': { template: '<div><slot /></div>' },
         ManagementPagedTable: PagedTableStub,
       },
@@ -154,6 +157,17 @@ describe('PagedMultiSelect', () => {
     expect(
       Array.from((wrapper.emitted('update:selection')?.[0]?.[0] as { selectedIds: Set<number> }).selectedIds),
     ).toEqual([1, 2]);
+  });
+
+  it('keeps the selection summary with pagination and rejects selections beyond an optional maximum', async () => {
+    const wrapper = mountSubject();
+    await wrapper.setProps({ maxSelection: 1 });
+
+    await wrapper.get('[data-testid="select-page"]').trigger('click');
+
+    expect(wrapper.emitted('update:selection')).toBeUndefined();
+    expect(wrapper.get('.paged-multi-select__data-footer').text()).toContain('1 selected');
+    expect(wrapper.findAll('[data-testid="pagination"]')).toHaveLength(1);
   });
 
   it('emits page changes and cancellation without taking ownership of the data request', async () => {

@@ -188,16 +188,20 @@
       :confirm-loading="batchRepositoryAssignmentSaving"
       :empty-description="t('registry.list.candidatesEmpty')"
       :empty-title="t('registry.list.candidatesEmpty')"
+      :error-message="batchCandidateErrorMessage"
       :loading="candidateLoading"
       row-key="id"
       :rows="batchAssignmentCandidates"
       :search="{
-        label: t('registry.list.candidateSearch'),
+        clearLabel: t('registry.list.clearSearch'),
         placeholder: t('registry.list.candidateSearchPlaceholder'),
       }"
       :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
-      :title="t('registry.list.batchAuthorizeRepositoriesTitle')"
+      :search-empty-description="t('registry.list.candidatesSearchEmptyDescription')"
+      :search-empty-title="t('registry.list.candidatesSearchEmpty')"
+      :title="t('registry.list.selectUsersTitle')"
       :total="candidateTotal"
+      :total-label="(count) => t('registry.list.candidateTotal', { count })"
       @cancel="closeBatchRepositoryAssignments"
       @confirm="grantSelectedRepositoryAssignments"
       @page-change="loadBatchAssignmentCandidates"
@@ -217,32 +221,37 @@
       v-model:page-size="assignmentCandidatePagination.pageSize"
       v-model:selection="assignmentSelection"
       :cancel-label="t('registry.list.cancel')"
-      :cell-slot-names="['status']"
+      :cell-slot-names="['assignmentState']"
       :columns="assignmentCandidateColumns"
-      :confirm-label="t('registry.list.save')"
+      :confirm-label="t('registry.list.confirmAuthorization')"
       :confirm-loading="assignmentSaving"
       confirm-without-selection
       :empty-description="t('registry.list.candidatesEmpty')"
       :empty-title="t('registry.list.candidatesEmpty')"
+      :error-message="assignmentCandidateErrorMessage"
       :loading="assignmentCandidateLoading"
       row-key="id"
       :rows="assignmentCandidates"
       :search="{
-        label: t('registry.list.candidateSearch'),
+        clearLabel: t('registry.list.clearSearch'),
         placeholder: t('registry.list.candidateSearchPlaceholder'),
       }"
       :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
-      :title="t('registry.list.authorizeRepositoryTitle')"
+      :search-empty-description="t('registry.list.candidatesSearchEmptyDescription')"
+      :search-empty-title="t('registry.list.candidatesSearchEmpty')"
+      :title="t('registry.list.selectAuthorizedUsersTitle')"
       :total="assignmentCandidateTotal"
+      :total-label="(count) => t('registry.list.candidateTotal', { count })"
       @cancel="closeAssignments"
       @confirm="saveAssignments"
       @page-change="loadRepositoryAssignmentCandidates"
       @search="searchRepositoryAssignmentCandidates"
     >
-      <template #status="{ row }">
-        <t-tag :theme="row.status === 'enabled' ? 'success' : 'default'" variant="light">
-          {{ t(`registry.list.userStatus.${row.status}`) }}
+      <template #assignmentState="{ row }">
+        <t-tag v-if="initialAssignmentUserIds.has(row.id)" theme="success" variant="light">
+          {{ t('registry.list.alreadyAuthorized') }}
         </t-tag>
+        <span v-else class="registry-detail__assignment-state-empty">-</span>
       </template>
     </paged-multi-select>
   </section>
@@ -327,6 +336,11 @@ const assignmentCandidateSearch = ref('');
 const assignmentCandidatePagination = ref({ current: 1, pageSize: 20 });
 const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const initialAssignmentUserIds = ref(new Set<number>());
+const batchCandidateErrorMessage = ref('');
+const assignmentCandidateErrorMessage = ref('');
+let batchCandidateRequestVersion = 0;
+let assignmentCandidateRequestVersion = 0;
+let assignmentDialogSessionVersion = 0;
 const selectedRepositoryRefs = ref<Array<string | number>>([]);
 const errorMessage = ref('');
 const repositoryDrawerVisible = ref(false);
@@ -352,7 +366,7 @@ const assignmentCandidateColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'display', title: t('registry.list.columns.candidateUser'), minWidth: 180 },
   { colKey: 'username', title: t('registry.list.columns.candidateUsername'), minWidth: 150 },
-  { colKey: 'status', title: t('registry.list.columns.status'), width: 120 },
+  { colKey: 'assignmentState', title: t('registry.list.columns.authorizationState'), width: 120 },
 ]);
 const candidateColumns = computed<TableProps['columns']>(() => [
   {
@@ -558,6 +572,7 @@ function openBatchRepositoryAssignments() {
   candidateSearch.value = '';
   candidatePagination.value.current = 1;
   batchAssignmentSelection.value = createExplicitSelection();
+  batchCandidateErrorMessage.value = '';
   batchRepositoryAssignmentDialogVisible.value = true;
   void loadBatchAssignmentCandidates();
 }
@@ -566,6 +581,7 @@ function closeBatchRepositoryAssignments() {
   if (batchRepositoryAssignmentSaving.value) return;
   batchRepositoryAssignmentDialogVisible.value = false;
   batchAssignmentSelection.value = createExplicitSelection();
+  batchCandidateRequestVersion += 1;
 }
 
 async function grantSelectedRepositoryAssignments() {
@@ -590,7 +606,9 @@ async function grantSelectedRepositoryAssignments() {
 
 async function loadBatchAssignmentCandidates() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
+  const requestVersion = ++batchCandidateRequestVersion;
   candidateLoading.value = true;
+  batchCandidateErrorMessage.value = '';
   try {
     const response = await getRegistryRepositoryAssignmentCandidates(connectionRef.value, {
       repository_ref: selectedRepositoryRefs.value.map(String),
@@ -598,12 +616,14 @@ async function loadBatchAssignmentCandidates() {
       limit: candidatePagination.value.pageSize,
       offset: (candidatePagination.value.current - 1) * candidatePagination.value.pageSize,
     });
+    if (requestVersion !== batchCandidateRequestVersion || !batchRepositoryAssignmentDialogVisible.value) return;
     batchAssignmentCandidates.value = response.items ?? [];
     candidateTotal.value = response.total ?? 0;
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    if (requestVersion !== batchCandidateRequestVersion || !batchRepositoryAssignmentDialogVisible.value) return;
+    batchCandidateErrorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.candidatesLoadFailed'));
   } finally {
-    candidateLoading.value = false;
+    if (requestVersion === batchCandidateRequestVersion) candidateLoading.value = false;
   }
 }
 
@@ -623,13 +643,18 @@ function candidateAuthorizationTheme(state: RegistryAssignmentCandidate['authori
 }
 
 async function openAssignments(repositoryRef: string) {
+  const sessionVersion = ++assignmentDialogSessionVersion;
   assignmentRepositoryRef.value = repositoryRef;
   assignmentCandidateSearch.value = '';
   assignmentCandidatePagination.value.current = 1;
   assignmentSelection.value = createExplicitSelection();
   initialAssignmentUserIds.value = new Set();
+  assignmentCandidateErrorMessage.value = '';
   assignmentDialogVisible.value = true;
-  await Promise.all([loadRepositoryAssignmentCandidates(), loadInitialAssignmentSelection()]);
+  assignmentCandidateLoading.value = true;
+  await loadInitialAssignmentSelection(sessionVersion);
+  if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
+  await loadRepositoryAssignmentCandidates();
 }
 
 function closeAssignments() {
@@ -637,9 +662,11 @@ function closeAssignments() {
   assignmentDialogVisible.value = false;
   assignmentSelection.value = createExplicitSelection();
   initialAssignmentUserIds.value = new Set();
+  assignmentDialogSessionVersion += 1;
+  assignmentCandidateRequestVersion += 1;
 }
 
-async function loadInitialAssignmentSelection() {
+async function loadInitialAssignmentSelection(sessionVersion: number) {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
   try {
     const userIds: number[] = [];
@@ -658,10 +685,16 @@ async function loadInitialAssignmentSelection() {
       if (page.length === 0) break;
     }
     const selection = createExplicitSelection(userIds);
+    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
     initialAssignmentUserIds.value = new Set(selection.selectedIds);
     assignmentSelection.value = selection;
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
+    assignmentCandidateErrorMessage.value = resolveLocalizedErrorMessage(
+      t,
+      error,
+      t('registry.list.candidatesLoadFailed'),
+    );
   }
 }
 
@@ -689,7 +722,9 @@ async function saveAssignments() {
 
 async function loadRepositoryAssignmentCandidates() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
+  const requestVersion = ++assignmentCandidateRequestVersion;
   assignmentCandidateLoading.value = true;
+  assignmentCandidateErrorMessage.value = '';
   try {
     const response = await getRegistryRepositoryAssignmentCandidates(connectionRef.value, {
       repository_ref: [assignmentRepositoryRef.value],
@@ -697,12 +732,18 @@ async function loadRepositoryAssignmentCandidates() {
       limit: assignmentCandidatePagination.value.pageSize,
       offset: (assignmentCandidatePagination.value.current - 1) * assignmentCandidatePagination.value.pageSize,
     });
+    if (requestVersion !== assignmentCandidateRequestVersion || !assignmentDialogVisible.value) return;
     assignmentCandidates.value = response.items ?? [];
     assignmentCandidateTotal.value = response.total ?? 0;
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    if (requestVersion !== assignmentCandidateRequestVersion || !assignmentDialogVisible.value) return;
+    assignmentCandidateErrorMessage.value = resolveLocalizedErrorMessage(
+      t,
+      error,
+      t('registry.list.candidatesLoadFailed'),
+    );
   } finally {
-    assignmentCandidateLoading.value = false;
+    if (requestVersion === assignmentCandidateRequestVersion) assignmentCandidateLoading.value = false;
   }
 }
 
@@ -755,5 +796,9 @@ function sameUserIDSet(initial: Set<number>, current: number[]) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.registry-detail__assignment-state-empty {
+  color: var(--td-text-color-placeholder);
 }
 </style>

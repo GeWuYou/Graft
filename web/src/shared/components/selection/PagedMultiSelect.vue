@@ -13,6 +13,8 @@
     @close="emit('cancel')"
   >
     <section class="paged-multi-select">
+      <p v-if="description" class="paged-multi-select__description">{{ description }}</p>
+
       <div v-if="search" class="paged-multi-select__toolbar">
         <t-input
           v-model="keyword"
@@ -22,22 +24,24 @@
           type="search"
           @clear="clearSearch"
           @enter="searchImmediately"
-        />
-        <t-button :loading="loading" theme="primary" variant="outline" @click="searchImmediately">
-          {{ search.label }}
-        </t-button>
+        >
+          <template #prefix-icon><t-icon name="search" /></template>
+        </t-input>
         <slot name="toolbar" />
       </div>
+
+      <t-alert v-if="errorMessage" class="paged-multi-select__feedback" theme="error" :message="errorMessage" />
 
       <management-paged-table
         v-model:current="current"
         v-model:page-size="pageSize"
         :cell-slot-names="cellSlotNames"
         :columns="columns"
-        :empty-description="emptyDescription"
-        :empty-title="emptyTitle"
+        :empty-description="resolvedEmptyDescription"
+        :empty-title="resolvedEmptyTitle"
         footer-summary=""
         :loading="loading"
+        :pagination-props="{ totalContent: false }"
         :row-class-name="rowClassName"
         :row-key="rowKey"
         :rows="rows"
@@ -50,11 +54,35 @@
           <slot :name="slotName" v-bind="slotProps" />
         </template>
         <template #feedback><slot name="feedback" /></template>
-        <template #empty><slot name="empty" /></template>
+        <template #empty>
+          <slot name="empty">
+            <t-empty :description="resolvedEmptyDescription" :title="resolvedEmptyTitle">
+              <template v-if="keyword && search?.clearLabel" #action>
+                <t-button variant="text" @click="clearSearch">{{ search.clearLabel }}</t-button>
+              </template>
+            </t-empty>
+          </slot>
+        </template>
+        <template #footer>
+          <div class="paged-multi-select__data-footer">
+            <div class="paged-multi-select__summary">
+              <span>{{ selectionSummary }}</span>
+              <span v-if="showTotal && totalLabel" class="paged-multi-select__total">{{ totalLabel(total) }}</span>
+            </div>
+            <t-pagination
+              v-model:current="current"
+              v-model:page-size="pageSize"
+              :disabled="loading"
+              :page-size-options="[10, 20, 50, 100]"
+              :total="total"
+              :total-content="false"
+              @change="emitPageChange"
+            />
+          </div>
+        </template>
       </management-paged-table>
 
-      <footer class="paged-multi-select__footer">
-        <span class="paged-multi-select__summary">{{ selectionSummary }}</span>
+      <footer class="paged-multi-select__actions">
         <t-space>
           <t-button :disabled="loading || confirmLoading" variant="outline" @click="emit('cancel')">
             {{ cancelLabel }}
@@ -82,8 +110,8 @@ import { type ExplicitSelection, replaceExplicitPageSelection, type SelectionId 
 
 /** PagedMultiSelectSearch 声明调用方已具备服务端关键词查询能力时显示的搜索文案。 */
 export type PagedMultiSelectSearch = {
-  label: string;
   placeholder: string;
+  clearLabel?: string;
 };
 
 const props = defineProps<{
@@ -93,16 +121,23 @@ const props = defineProps<{
   confirmLabel: string;
   confirmLoading?: boolean;
   confirmWithoutSelection?: boolean;
+  description?: string;
   emptyDescription: string;
   emptyTitle: string;
+  errorMessage?: string;
   loading?: boolean;
+  maxSelection?: number;
   rowClassName?: TdBaseTableProps['rowClassName'];
   rowKey: string;
   rows: TableRowData[];
   search?: PagedMultiSelectSearch;
+  searchEmptyDescription?: string;
+  searchEmptyTitle?: string;
   selectedCountLabel: (count: number) => string;
+  showTotal?: boolean;
   title?: string;
   total: number;
+  totalLabel?: (total: number) => string;
 }>();
 
 // 选择弹窗只管理交互状态，候选数据和服务端查询始终由调用模块拥有。
@@ -122,6 +157,14 @@ const visible = defineModel<boolean>('visible', { default: false });
 const cellSlotNames = computed(() => props.cellSlotNames ?? []);
 const selectedIds = computed(() => Array.from(selection.value.selectedIds));
 const selectionSummary = computed(() => props.selectedCountLabel(selectedIds.value.length));
+const showTotal = computed(() => props.showTotal ?? props.total > pageSize.value);
+const hasKeyword = computed(() => keyword.value.trim().length > 0);
+const resolvedEmptyTitle = computed(() =>
+  hasKeyword.value ? (props.searchEmptyTitle ?? props.emptyTitle) : props.emptyTitle,
+);
+const resolvedEmptyDescription = computed(() =>
+  hasKeyword.value ? (props.searchEmptyDescription ?? props.emptyDescription) : props.emptyDescription,
+);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let skipNextKeywordSearch = false;
 
@@ -165,14 +208,23 @@ function emitPageChange(pageInfo: PageInfo) {
 
 function updateSelection(currentPageKeys: SelectionId[]) {
   const pageKeys = props.rows.map((row) => row[props.rowKey] as SelectionId);
-  selection.value = replaceExplicitPageSelection(selection.value, pageKeys, currentPageKeys);
+  const nextSelection = replaceExplicitPageSelection(selection.value, pageKeys, currentPageKeys);
+  if (props.maxSelection === undefined || nextSelection.selectedIds.size <= props.maxSelection) {
+    selection.value = nextSelection;
+  }
 }
 </script>
 <style scoped lang="less">
 .paged-multi-select {
   display: grid;
-  gap: var(--td-comp-paddingTB-l);
+  gap: var(--graft-density-gap-12);
   max-block-size: min(70vh, 680px);
+}
+
+.paged-multi-select__description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: calc(var(--graft-density-gap-8) * -1) 0 0;
 }
 
 .paged-multi-select__toolbar {
@@ -183,31 +235,62 @@ function updateSelection(currentPageKeys: SelectionId[]) {
 }
 
 .paged-multi-select__toolbar :deep(.t-input) {
-  inline-size: min(420px, 100%);
+  inline-size: min(460px, 100%);
 }
 
-.paged-multi-select__footer {
+.paged-multi-select :deep(.management-table-card) {
+  min-block-size: 360px;
+}
+
+.paged-multi-select :deep(.management-paged-table__table-host) {
+  min-block-size: 260px;
+}
+
+.paged-multi-select__data-footer {
   align-items: center;
-  border-top: 1px solid var(--td-component-stroke);
   display: flex;
-  gap: var(--td-comp-margin-l);
+  gap: var(--graft-density-gap-16);
+  inline-size: 100%;
   justify-content: space-between;
-  padding-top: var(--td-comp-paddingTB-l);
+  min-block-size: 52px;
 }
 
 .paged-multi-select__summary {
   color: var(--td-text-color-secondary);
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--graft-density-gap-8);
+  white-space: nowrap;
+}
+
+.paged-multi-select__total::before {
+  content: '·';
+  margin-inline-end: var(--graft-density-gap-8);
+}
+
+.paged-multi-select__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.paged-multi-select__data-footer :deep(.t-pagination) {
+  margin-inline-start: auto;
 }
 
 @container (max-width: 480px) {
   .paged-multi-select__toolbar,
-  .paged-multi-select__footer {
+  .paged-multi-select__data-footer {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .paged-multi-select__footer :deep(.t-space) {
+  .paged-multi-select__data-footer :deep(.t-pagination),
+  .paged-multi-select__actions :deep(.t-space) {
     justify-content: flex-end;
+  }
+
+  .paged-multi-select__summary {
+    white-space: normal;
   }
 }
 </style>
