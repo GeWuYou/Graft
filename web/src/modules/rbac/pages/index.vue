@@ -648,8 +648,8 @@ import {
   localizedPermissionDisplay as localizePermissionDisplay,
 } from '../shared/permission-copy';
 import {
+  invalidateRolePermissionQueries,
   invalidateRolesQuery,
-  updateRoleListCache,
   usePermissionCatalogQuery,
   useRolesQuery,
 } from '../shared/rbac-queries';
@@ -1638,11 +1638,12 @@ async function handleRoleSubmit(ctx: SubmitContext) {
   submittingRole.value = true;
   try {
     if (roleDrawerMode.value === 'create') {
-      const created =
-        cloneSourceRoleID.value === null
-          ? await createRole(toCreateRolePayload(roleForm.value))
-          : await cloneRole(cloneSourceRoleID.value, toCloneRolePayload(roleForm.value));
-      updateRoleListCache((items) => [...items, created].sort((left, right) => left.id - right.id));
+      if (cloneSourceRoleID.value === null) {
+        await createRole(toCreateRolePayload(roleForm.value));
+      } else {
+        await cloneRole(cloneSourceRoleID.value, toCloneRolePayload(roleForm.value));
+      }
+      await invalidateRolesQuery();
       MessagePlugin.success(
         formatHintedMessage(
           cloneSourceRoleID.value !== null ? t('rbac.roleList.copySuccess') : t('rbac.roleList.createSuccess'),
@@ -1650,7 +1651,7 @@ async function handleRoleSubmit(ctx: SubmitContext) {
       );
     } else if (roleDrawerRole.value) {
       const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
-      updateRoleListCache((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+      await invalidateRolesQuery();
       roleDrawerRole.value = updated;
       MessagePlugin.success(formatHintedMessage(t('rbac.roleList.updateSuccess')));
     }
@@ -1895,7 +1896,7 @@ async function submitPermissionAssignment() {
 
     MessagePlugin.success(formatHintedMessage(t('rbac.roleList.assignSuccess')));
     closePermissionDrawer();
-    await invalidateRolesQuery();
+    await invalidateRolePermissionQueries();
   } catch (error) {
     if (isActivePermissionDrawerSession(session)) {
       if (isApiRequestError(error)) {
@@ -1948,7 +1949,7 @@ async function toggleRoleStatus(role: RoleStatusCompat) {
     const updated = await updateRoleStatus(role.id, {
       status: isRoleEnabled(role) ? 'disabled' : 'enabled',
     });
-    updateRoleListCache((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+    await invalidateRolesQuery();
     MessagePlugin.success(
       formatHintedMessage(
         isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
@@ -1984,7 +1985,7 @@ async function removeRole(role: RoleStatusCompat) {
 
   try {
     await deleteRole(role.id);
-    updateRoleListCache((items) => items.filter((item) => item.id !== role.id));
+    await invalidateRolesQuery();
     MessagePlugin.success(formatHintedMessage(t('rbac.roleList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete role', error);

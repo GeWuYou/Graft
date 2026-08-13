@@ -157,6 +157,7 @@ func bindGeneratedTaskListParams(ginCtx *gin.Context, ctx *module.Context) (sche
 	if raw := strings.TrimSpace(ginCtx.Query("status")); raw != "" {
 		status := scheduleropenapi.GetScheduledTasksParamsStatus(raw)
 		if !status.Valid() {
+			writeInvalidSchedulerQuery(ginCtx, ctx, "status")
 			return scheduleropenapi.GetScheduledTasksParams{}, false
 		}
 		params.Status = &status

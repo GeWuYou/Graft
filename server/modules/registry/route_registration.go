@@ -236,8 +236,13 @@ func handleListAssignments(c *gin.Context, ctx *module.Context, service *Service
 }
 
 func handleListAssignmentCandidates(c *gin.Context, ctx *module.Context, service *Service) {
-	repositoryRefs := registryRepositoryRefs(c)
-	if len(repositoryRefs) == 0 || len(repositoryRefs) > 100 {
+	rawRepositoryRefs := c.QueryArray("repository_ref")
+	if len(rawRepositoryRefs) == 0 || len(rawRepositoryRefs) > 100 {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	repositoryRefs := normalizeRepositoryRefs(rawRepositoryRefs)
+	if len(repositoryRefs) == 0 {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -334,23 +339,6 @@ func registryRepositoryRef(c *gin.Context) string {
 	return strings.TrimSpace(c.Query("repository_ref"))
 }
 
-func registryRepositoryRefs(c *gin.Context) []string {
-	values := append(c.QueryArray("repository_ref"), c.QueryArray("repository_ref[]")...)
-	seen := make(map[string]struct{}, len(values))
-	refs := make([]string, 0, len(values))
-	for _, value := range values {
-		ref := strings.TrimSpace(value)
-		if ref == "" {
-			continue
-		}
-		if _, exists := seen[ref]; exists {
-			continue
-		}
-		seen[ref] = struct{}{}
-		refs = append(refs, ref)
-	}
-	return refs
-}
 func parsePage(c *gin.Context) (int, int) {
 	limit, offset := 20, 0
 	if raw := c.Query("limit"); raw != "" {

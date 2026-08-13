@@ -934,6 +934,22 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 	assertScheduledTaskListItem(t, payload.Data.Items[0])
 }
 
+func TestScheduledTaskListRouteRejectsInvalidStatusWithLocalizedBadRequest(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	moduleInstance := NewModule()
+	moduleInstance.runtime = &schedulerAPIRuntime{}
+	registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+	recorder := performSchedulerRequest(engine, http.MethodGet, "/api/scheduled-tasks?status=invalid", "")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	payload := decodeSchedulerErrorPayload(t, recorder.Body.Bytes())
+	if payload.Success || payload.Data.Field != "status" {
+		t.Fatalf("unexpected invalid-status response: %#v", payload)
+	}
+}
+
 func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
 	ctx, engine := newModuleTestContextWithEngine()
 	moduleInstance := NewModule()

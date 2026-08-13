@@ -3,7 +3,6 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM artifact_repositories repository
-    JOIN registry_connections connection ON connection.id = repository.connection_id AND connection.deleted_at = 0
     WHERE repository.deleted_at = 0
     GROUP BY repository.connection_id, repository.display_name
     HAVING COUNT(*) > 1

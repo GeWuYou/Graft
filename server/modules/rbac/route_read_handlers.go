@@ -51,12 +51,12 @@ func handleListRoles(
 				filter.Builtin = params.Builtin
 			}
 
-			roles, err := reader.ListRoles(ginCtx.Request.Context(), filter)
+			result, err := reader.ListRolesPage(ginCtx.Request.Context(), filter, rbacstore.ListWindow{Limit: *params.Limit, Offset: *params.Offset})
 			if err != nil {
 				return generated.RoleListResponse{}, err
 			}
 
-			return toRoleListResponse(roles, *params.Limit, *params.Offset)
+			return toRoleListResponse(result, *params.Limit, *params.Offset)
 		},
 	)
 }
@@ -111,7 +111,7 @@ func handleListPermissions(
 			filter.Module = *params.Module
 		}
 
-		permissions, err := reader.ListPermissions(ginCtx.Request.Context(), filter)
+		result, err := reader.ListPermissionsPage(ginCtx.Request.Context(), filter, rbacstore.ListWindow{Limit: *params.Limit, Offset: *params.Offset})
 		if err != nil {
 			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, "list permissions failed", err,
 				logger.StringField("module", moduleName),
@@ -121,7 +121,7 @@ func handleListPermissions(
 			return
 		}
 
-		payload, mapErr := toPermissionListResponse(permissions, *params.Limit, *params.Offset)
+		payload, mapErr := toPermissionListResponse(result, *params.Limit, *params.Offset)
 		if mapErr != nil {
 			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, "map permissions response failed", mapErr,
 				logger.StringField("module", moduleName),

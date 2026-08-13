@@ -222,6 +222,36 @@ func TestRegistryAssignmentCandidatesRejectUnknownSelectedRepository(t *testing.
 	}
 }
 
+func TestRegistryAssignmentCandidatesRejectMoreThanContractMaximumRepositoryRefs(t *testing.T) {
+	engine := newRegistryRouteTestEngine(t, newRegistryRouteRepository(), &registryRouteAuthorizer{})
+	query := strings.Repeat("repository_ref=app&", 100) + "repository_ref=app"
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?"+query, "", "7"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegistryAssignmentCandidatesApplySearchBeforeAuthorizationAggregation(t *testing.T) {
+	engine := newRegistryRouteTestEngine(t, newRegistryRouteRepository(), &registryRouteAuthorizer{})
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app&search=registry-user", "", "7"))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"id":7`) || strings.Contains(response.Body.String(), `"id":9`) || !strings.Contains(response.Body.String(), `"total":1`) {
+		t.Fatalf("candidate search = %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegistryAssignmentListReturnsRequestedPagination(t *testing.T) {
+	repository := newRegistryRouteRepository()
+	repository.assignments["registry:primary/app"] = []registrystore.UserAssignment{{UserID: 7}, {UserID: 9}}
+	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, registryRouteRequest(http.MethodGet, "/api/registries/registry:primary/repository-assignments?repository_ref=app&limit=1&offset=1", "", "7"))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"user_id":9`) || !strings.Contains(response.Body.String(), `"total":2`) || !strings.Contains(response.Body.String(), `"limit":1`) || !strings.Contains(response.Body.String(), `"offset":1`) {
+		t.Fatalf("assignment pagination = %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestRegistrySystemManagedConnectionsCannotBeUpdatedOrDeleted(t *testing.T) {
 	repository := newRegistryRouteRepository()
 	repository.connection.SystemManaged = true
@@ -291,7 +321,9 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registerRegistryRoutes(ctx, NewService(repository, users)); err != nil {
+	service := NewService(repository)
+	service.bindUserCandidateReader(users)
+	if err := registerRegistryRoutes(ctx, service); err != nil {
 		t.Fatal(err)
 	}
 	return engine

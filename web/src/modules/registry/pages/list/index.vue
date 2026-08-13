@@ -145,7 +145,7 @@
   </section>
 </template>
 <script setup lang="ts">
-// Registry 管理页协调连接、仓库路径和用户授权；Build 仅通过受限目的地 API 消费这些事实。
+// Registry 列表页负责连接查询、创建和详情导航；仓库路径与使用授权由详情页管理。
 import type { PageInfo, TableProps, TableRowData } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';

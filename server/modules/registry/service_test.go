@@ -7,7 +7,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/mattn/go-sqlite3"
 	"graft/server/internal/moduleapi"
 	registrystore "graft/server/modules/registry/store"
@@ -51,6 +53,30 @@ func TestGrantAssignmentRejectsMissingUserBeforeWriting(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("assignment rows = %d, want 0", count)
+	}
+}
+
+func TestCreateRepositoryGrantsCreatorUseWhenRequested(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT EXISTS \(SELECT 1 FROM users WHERE id = \$1\)`).WithArgs(uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery(`INSERT INTO artifact_repositories`).WithArgs("registry:primary", "team/created", "Created", true, true, uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"id", "repository_ref", "display_name", "allow_pull", "allow_push", "created_at", "updated_at"}).AddRow(1, "team/created", "Created", true, true, time.Now(), time.Now()))
+	mock.ExpectExec(`INSERT INTO artifact_repository_user_assignments`).WithArgs(uint64(1), uint64(7)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	repository, err := registrystore.NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	if _, err := repository.CreateRepository(context.Background(), "registry:primary", registrystore.RepositoryInput{RepositoryRef: "team/created", DisplayName: "Created", AllowPull: true, AllowPush: true, GrantCreatorUse: true}, 7); err != nil {
+		t.Fatalf("create repository: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("creator grant transaction = %v", err)
 	}
 }
 
@@ -198,8 +224,8 @@ func openRegistryTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { _ = db.Close() })
 	for _, statement := range []string{
 		`CREATE TABLE users (id INTEGER PRIMARY KEY)`,
-		`CREATE TABLE registry_connections (id INTEGER PRIMARY KEY, connection_ref TEXT NOT NULL, endpoint TEXT NOT NULL, credential_ref TEXT NULL, availability BOOLEAN NOT NULL, enabled BOOLEAN NOT NULL, deleted_at INTEGER NOT NULL)`,
-		`CREATE TABLE artifact_repositories (id INTEGER PRIMARY KEY, connection_id INTEGER NOT NULL, repository_ref TEXT NOT NULL, allow_pull BOOLEAN NOT NULL, allow_push BOOLEAN NOT NULL, deleted_at INTEGER NOT NULL)`,
+		`CREATE TABLE registry_connections (id INTEGER PRIMARY KEY, connection_ref TEXT NOT NULL, display_name TEXT NOT NULL DEFAULT '', provider TEXT NOT NULL DEFAULT '', endpoint TEXT NOT NULL, credential_ref TEXT NULL, enabled BOOLEAN NOT NULL, insecure BOOLEAN NOT NULL DEFAULT false, description TEXT NOT NULL DEFAULT '', auth_mode TEXT NOT NULL DEFAULT '', availability BOOLEAN NOT NULL, verification_status TEXT NOT NULL DEFAULT '', last_verified_at TIMESTAMP NULL, last_verification_error_code TEXT NOT NULL DEFAULT '', system_managed BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL)`,
+		`CREATE TABLE artifact_repositories (id INTEGER PRIMARY KEY, connection_id INTEGER NOT NULL, repository_ref TEXT NOT NULL, display_name TEXT NOT NULL DEFAULT '', allow_pull BOOLEAN NOT NULL, allow_push BOOLEAN NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL)`,
 		`CREATE TABLE artifact_repository_user_assignments (repository_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE UNIQUE INDEX uq_registry_test_assignment ON artifact_repository_user_assignments (repository_id, user_id) WHERE deleted_at = 0`,
 	} {

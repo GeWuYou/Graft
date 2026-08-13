@@ -1,8 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, reactive } from 'vue';
 
 import RegistryDetailPage from './index.vue';
+
+const pageSource = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'index.vue'), 'utf8');
 
 const apiMocks = vi.hoisted(() => ({
   getRegistry: vi.fn(),
@@ -288,5 +294,21 @@ describe('RegistryDetailPage connection editing', () => {
     await flushPromises();
 
     expect(routerMocks.replace).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('RegistryDetailPage assignment safety', () => {
+  it('uses the candidate selector rather than a manually entered batch of user IDs', () => {
+    expect(pageSource).toContain('<paged-multi-select');
+    expect(pageSource).not.toContain('batchUserIds');
+    expect(pageSource).not.toContain('grantBatchAssignments');
+  });
+
+  it('bounds batch mutation fan-out and loads all pages before revoking every assignment', () => {
+    expect(pageSource).toContain('const ASSIGNMENT_MUTATION_CONCURRENCY = 10;');
+    expect(pageSource).toContain('mutations.slice(index, index + ASSIGNMENT_MUTATION_CONCURRENCY)');
+    expect(pageSource).toContain('const userIds = await loadAllAssignmentUserIds();');
+    expect(pageSource).toContain('limit: ASSIGNMENT_PAGE_LIMIT');
+    expect(pageSource).toContain('offset,');
   });
 });

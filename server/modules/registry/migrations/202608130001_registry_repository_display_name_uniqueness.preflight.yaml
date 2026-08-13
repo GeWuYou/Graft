@@ -39,3 +39,6 @@ retrieval_receipt:
     revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
   lesson_ids:
     - MIG-001
+unpublished_exception:
+  reason: The migration is part of the current unpublished Registry assignment branch; its duplicate scan must match the partial unique-index predicate before first deployment.
+  evidence: PR #275 review verification confirmed the initial scan excluded live repositories under deleted connections while the index does not.

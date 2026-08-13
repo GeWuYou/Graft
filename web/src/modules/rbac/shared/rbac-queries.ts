@@ -4,8 +4,8 @@ import { computed, type MaybeRef, toValue } from 'vue';
 import { queryClient } from '@/shared/query';
 
 import { getPermissions, getRoles } from '../api/rbac';
-import type { RoleListItem, RoleListResponse } from '../contract/role';
 import type { PermissionFilters } from '../types/permission';
+import type { PermissionListItem } from '../types/permission';
 
 const RBAC_QUERY_SCOPE = ['rbac'] as const;
 
@@ -85,11 +85,27 @@ export function usePermissionCatalogQuery(enabled: MaybeRef<boolean>) {
   return useQuery(
     {
       queryKey: rbacQueryKeys.permissionCatalog(),
-      queryFn: () => getPermissions({ limit: 100, offset: 0 }),
+      queryFn: getCompletePermissionCatalog,
       enabled: computed(() => toValue(enabled)),
     },
     queryClient,
   );
+}
+
+async function getCompletePermissionCatalog() {
+  const limit = 100;
+  let offset = 0;
+  let total = 0;
+  const items: PermissionListItem[] = [];
+
+  do {
+    const response = await getPermissions({ limit, offset });
+    items.push(...response.items);
+    total = response.total;
+    offset += response.items.length;
+  } while (offset < total && offset > 0);
+
+  return { items, total, limit, offset: 0 };
 }
 
 /** 权限列表按规范化服务器筛选条件缓存；分页和列显示保持页面本地。 */
@@ -103,17 +119,15 @@ export function usePermissionListQuery(filters: MaybeRef<PermissionFilters>) {
   );
 }
 
-/** 将确认后的角色 mutation 响应精确写回列表快照。 */
-export function updateRoleListCache(updateItems: (items: RoleListItem[]) => RoleListItem[]) {
-  queryClient.setQueriesData<RoleListResponse>({ queryKey: rbacQueryKeys.rolesScope() }, (current) =>
-    current ? { ...current, items: updateItems(current.items) } : current,
-  );
+/** 角色写入后只失效角色列表快照，避免跨分页直接修改可能不完整的缓存页。 */
+export function invalidateRolesQuery() {
+  return queryClient.invalidateQueries({ queryKey: rbacQueryKeys.rolesScope() });
 }
 
 /** 角色权限绑定会同时改变角色摘要和权限绑定计数，失效相关快照以恢复服务端权威数据。 */
-export function invalidateRolesQuery() {
+export function invalidateRolePermissionQueries() {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: rbacQueryKeys.rolesScope() }),
+    invalidateRolesQuery(),
     queryClient.invalidateQueries({ queryKey: rbacQueryKeys.permissionCatalog() }),
     queryClient.invalidateQueries({ queryKey: rbacQueryKeys.permissionListScope() }),
   ]);

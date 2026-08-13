@@ -36,7 +36,7 @@
       "assignments": "Access",
       "grantAssignment": "Grant Assignment",
       "revokeAssignment": "Revoke Assignment",
-      "grantBatchAssignment": "Grant in Batch",
+      "userIdRequired": "Enter a valid user ID.",
       "revokeBatchAssignment": "Revoke Selected ({count})",
       "batchDeleteRepositories": "Delete Repositories ({count})",
       "batchAuthorizeRepositories": "Grant in Batch",
@@ -81,9 +81,7 @@
         "allowPull": "Allow Pull",
         "allowPush": "Allow Push",
         "userId": "User ID",
-        "grantCreatorUse": "Grant Creator Use Access",
-        "batchUserIds": "Batch User IDs",
-        "batchUserIdsPlaceholder": "Enter user IDs separated by spaces or commas"
+        "grantCreatorUse": "Grant Creator Use Access"
       },
       "credential": { "configured": "Configured", "anonymous": "Anonymous" },
       "status": {

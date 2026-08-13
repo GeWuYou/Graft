@@ -18,12 +18,8 @@ type Service struct {
 }
 
 // NewService 创建 Registry 面向跨模块调用的有界服务。
-func NewService(repository registrystore.DestinationRepository, users ...moduleapi.UserCandidateReader) *Service {
-	service := &Service{repository: repository}
-	if len(users) > 0 {
-		service.users = users[0]
-	}
-	return service
+func NewService(repository registrystore.DestinationRepository) *Service {
+	return &Service{repository: repository}
 }
 
 // bindUserCandidateReader 在依赖模块的 Register 阶段完成后注入候选用户查询能力。

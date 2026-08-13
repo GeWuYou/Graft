@@ -277,6 +277,14 @@ func (r testRBACRepository) ListRoles(ctx context.Context, filter store.RoleFilt
 	return r.roles, nil
 }
 
+func (r testRBACRepository) ListRolesPage(ctx context.Context, filter store.RoleFilter, window store.ListWindow) (store.RoleListResult, error) {
+	items, err := r.ListRoles(ctx, filter)
+	if err != nil {
+		return store.RoleListResult{}, err
+	}
+	return store.RoleListResult{Items: pageTestRBACRecords(items, window), Total: len(items)}, nil
+}
+
 func (r testRBACRepository) ListPermissionsByUserID(_ context.Context, _ uint64) ([]store.Permission, error) {
 	if r.permissionsErr != nil {
 		return nil, r.permissionsErr
@@ -300,6 +308,22 @@ func (r testRBACRepository) ListPermissions(ctx context.Context, filter store.Pe
 		return nil, r.listPermissionsErr
 	}
 	return r.permissions, nil
+}
+
+func (r testRBACRepository) ListPermissionsPage(ctx context.Context, filter store.PermissionFilter, window store.ListWindow) (store.PermissionListResult, error) {
+	items, err := r.ListPermissions(ctx, filter)
+	if err != nil {
+		return store.PermissionListResult{}, err
+	}
+	return store.PermissionListResult{Items: pageTestRBACRecords(items, window), Total: len(items)}, nil
+}
+
+func pageTestRBACRecords[T any](items []T, window store.ListWindow) []T {
+	if window.Offset >= len(items) {
+		return []T{}
+	}
+	end := min(window.Offset+window.Limit, len(items))
+	return items[window.Offset:end]
 }
 
 func (r testRBACRepository) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]store.RolePermissionBinding, error) {

@@ -112,6 +112,10 @@ func (r accessServiceTestRepository) ListRoles(context.Context, rbacstore.RoleFi
 	return nil, nil
 }
 
+func (r accessServiceTestRepository) ListRolesPage(context.Context, rbacstore.RoleFilter, rbacstore.ListWindow) (rbacstore.RoleListResult, error) {
+	return rbacstore.RoleListResult{}, nil
+}
+
 func (r accessServiceTestRepository) ListPermissionsByUserID(context.Context, uint64) ([]rbacstore.Permission, error) {
 	return r.permissions, nil
 }
@@ -126,6 +130,10 @@ func (r accessServiceTestRepository) ListUserIDsByRoleID(context.Context, uint64
 
 func (r accessServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
+}
+
+func (r accessServiceTestRepository) ListPermissionsPage(context.Context, rbacstore.PermissionFilter, rbacstore.ListWindow) (rbacstore.PermissionListResult, error) {
+	return rbacstore.PermissionListResult{}, nil
 }
 
 func (r accessServiceTestRepository) ListRolePermissionBindings(context.Context, uint64) ([]rbacstore.RolePermissionBinding, error) {

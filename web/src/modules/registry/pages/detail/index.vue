@@ -229,12 +229,6 @@
         <t-button v-if="assignments.length" variant="outline" :loading="assignmentSaving" @click="revokeAllAssignments">
           {{ t('registry.list.revokeAllAssignments') }}
         </t-button>
-        <t-form-item :label="t('registry.list.form.batchUserIds')">
-          <t-input v-model="batchUserIds" :placeholder="t('registry.list.form.batchUserIdsPlaceholder')" />
-        </t-form-item>
-        <t-button variant="outline" :loading="assignmentSaving" @click="grantBatchAssignments">
-          {{ t('registry.list.grantBatchAssignment') }}
-        </t-button>
       </t-form>
       <t-table
         row-key="user_id"
@@ -308,6 +302,8 @@ const { locale, t } = useI18n();
 const viewportVariant = useViewportResponsiveVariant();
 const isCompactDensity = computed(() => viewportVariant.value.density === 'compact');
 const MAX_REPOSITORY_ASSIGNMENT_CANDIDATES = 100;
+const ASSIGNMENT_PAGE_LIMIT = 100;
+const ASSIGNMENT_MUTATION_CONCURRENCY = 10;
 const route = useRoute();
 const router = useRouter();
 const connectionRef = computed(() => String(route.params.connectionRef || ''));
@@ -342,7 +338,6 @@ const candidatePagination = ref({ current: 1, pageSize: 20 });
 const selectedRepositoryRefs = ref<Array<string | number>>([]);
 const selectedCandidateUserIds = ref<Array<string | number>>([]);
 const selectedAssignmentIds = ref<Array<string | number>>([]);
-const batchUserIds = ref('');
 const errorMessage = ref('');
 const repositoryDrawerVisible = ref(false);
 const assignmentDrawerVisible = ref(false);
@@ -392,7 +387,7 @@ watch(connectionEditVisible, (visible) => {
     return;
   }
 
-  if (visible && connection.value) hydrateConnectionForm(connection.value);
+  if (connection.value) hydrateConnectionForm(connection.value);
 });
 
 async function load() {
@@ -583,17 +578,6 @@ function closeBatchRepositoryAssignments() {
   selectedCandidateUserIds.value = [];
 }
 
-function parseUserIds(value: string) {
-  return [
-    ...new Set(
-      value
-        .split(/[,\s]+/)
-        .map((item) => Number(item.trim()))
-        .filter((item) => Number.isInteger(item) && item > 0),
-    ),
-  ];
-}
-
 async function grantSelectedRepositoryAssignments() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
   const userIds = [
@@ -603,10 +587,11 @@ async function grantSelectedRepositoryAssignments() {
 
   batchRepositoryAssignmentSaving.value = true;
   try {
-    await Promise.all(
+    await runAssignmentMutations(
       selectedRepositoryRefs.value.flatMap((repositoryRef) =>
-        userIds.map((userId) =>
-          grantRegistryRepositoryAssignment(connectionRef.value, String(repositoryRef), { user_id: userId }),
+        userIds.map(
+          (userId) => () =>
+            grantRegistryRepositoryAssignment(connectionRef.value, String(repositoryRef), { user_id: userId }),
         ),
       ),
     );
@@ -668,7 +653,11 @@ async function loadAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
   assignmentLoading.value = true;
   try {
-    const response = await getRegistryRepositoryAssignments(connectionRef.value, assignmentRepositoryRef.value);
+    const response = await getRegistryRepositoryAssignments(connectionRef.value, {
+      repository_ref: assignmentRepositoryRef.value,
+      limit: ASSIGNMENT_PAGE_LIMIT,
+      offset: 0,
+    });
     assignments.value = response.items ?? [];
     selectedAssignmentIds.value = [];
   } catch (error) {
@@ -682,37 +671,14 @@ function handleAssignmentSelection(keys: Array<string | number>) {
   selectedAssignmentIds.value = keys;
 }
 
-function parseBatchUserIds() {
-  return parseUserIds(batchUserIds.value);
-}
-
-async function grantBatchAssignments() {
-  if (!connectionRef.value || !assignmentRepositoryRef.value) return;
-  const userIds = parseBatchUserIds();
-  if (!userIds.length) return;
-  assignmentSaving.value = true;
-  try {
-    await Promise.all(
-      userIds.map((userId) =>
-        grantRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, { user_id: userId }),
-      ),
-    );
-    batchUserIds.value = '';
-    await loadAssignments();
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
-  } finally {
-    assignmentSaving.value = false;
-  }
-}
-
 async function revokeSelectedAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value || !selectedAssignmentIds.value.length) return;
   assignmentSaving.value = true;
   try {
-    await Promise.all(
-      selectedAssignmentIds.value.map((userId) =>
-        revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, Number(userId)),
+    await runAssignmentMutations(
+      selectedAssignmentIds.value.map(
+        (userId) => () =>
+          revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, Number(userId)),
       ),
     );
     await loadAssignments();
@@ -724,7 +690,11 @@ async function revokeSelectedAssignments() {
 }
 
 async function grantAssignment() {
-  if (!connectionRef.value || !assignmentRepositoryRef.value || !assignmentForm.value.user_id) return;
+  if (!connectionRef.value || !assignmentRepositoryRef.value) return;
+  if (!assignmentForm.value.user_id) {
+    MessagePlugin.error(t('registry.list.userIdRequired'));
+    return;
+  }
   assignmentSaving.value = true;
   try {
     await grantRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, {
@@ -753,9 +723,11 @@ async function revokeAllAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
   assignmentSaving.value = true;
   try {
-    await Promise.all(
-      assignments.value.map(({ user_id: userId }) =>
-        revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, userId),
+    const userIds = await loadAllAssignmentUserIds();
+    await runAssignmentMutations(
+      userIds.map(
+        (userId) => () =>
+          revokeRegistryRepositoryAssignment(connectionRef.value, assignmentRepositoryRef.value, userId),
       ),
     );
     await loadAssignments();
@@ -763,6 +735,32 @@ async function revokeAllAssignments() {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
   } finally {
     assignmentSaving.value = false;
+  }
+}
+
+async function loadAllAssignmentUserIds() {
+  const userIds: number[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await getRegistryRepositoryAssignments(connectionRef.value, {
+      repository_ref: assignmentRepositoryRef.value,
+      limit: ASSIGNMENT_PAGE_LIMIT,
+      offset,
+    });
+    const page = response.items ?? [];
+    userIds.push(...page.map(({ user_id: userId }) => userId));
+    offset += page.length;
+    hasMore = page.length > 0 && offset < (response.total ?? offset);
+  }
+
+  return userIds;
+}
+
+async function runAssignmentMutations(mutations: Array<() => Promise<unknown>>) {
+  for (let index = 0; index < mutations.length; index += ASSIGNMENT_MUTATION_CONCURRENCY) {
+    await Promise.all(mutations.slice(index, index + ASSIGNMENT_MUTATION_CONCURRENCY).map((mutation) => mutation()));
   }
 }
 </script>

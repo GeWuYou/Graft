@@ -173,19 +173,6 @@ func getRBACRecordByID[T any](
 	})
 }
 
-// action 参数用于包装查询错误时的操作名称，fetch 函数执行实际的检索操作。
-func listRBACRecords[Filter any, Record any](
-	ctx context.Context,
-	repository rbacstore.Repository,
-	filter Filter,
-	action string,
-	fetch func(rbacstore.Repository, context.Context, Filter) ([]Record, error),
-) ([]Record, error) {
-	return runNamedRBACQuery(repository, action, func(repo rbacstore.Repository) ([]Record, error) {
-		return fetch(repo, ctx, filter)
-	})
-}
-
 // roleName 返回角色名称。
 func roleName(role rbacstore.Role) string {
 	return role.Name

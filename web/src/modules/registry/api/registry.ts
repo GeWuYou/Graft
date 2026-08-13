@@ -94,10 +94,13 @@ export function deleteRegistryRepository(connectionRef: string, repositoryRef: s
   });
 }
 
-export function getRegistryRepositoryAssignments(connectionRef: string, repositoryRef: string) {
+export function getRegistryRepositoryAssignments(
+  connectionRef: string,
+  query: AssignmentListOperation['parameters']['query'],
+) {
   return request.get<NonNullable<AssignmentListOperation['responses'][200]['content']['application/json']['data']>>({
     url: buildOpenApiRuntimePath('getRegistryArtifactRepositoryAssignments', { connectionRef }),
-    params: { repository_ref: repositoryRef } satisfies AssignmentListOperation['parameters']['query'],
+    params: query,
   });
 }
 

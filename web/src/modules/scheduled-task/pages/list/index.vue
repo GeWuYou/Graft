@@ -1432,7 +1432,7 @@ const savedViews = useSavedQueryViews<ScheduledTaskSavedViewState, number>({
     const state = view.state.queryState;
     filters.keyword = state.keyword ?? '';
     filters.jobKey = state.jobKey ?? 'all';
-    filters.status = state.status ?? 'all';
+    filters.status = normalizeSavedViewStatus(state.status);
     applySavedQueryViewPresentation(view.state, {
       pagination,
       supportedColumns: columnSettingOptions.value.map((column) => column.value),
@@ -1820,6 +1820,10 @@ function handleFilterQuery() {
 
 function updateFilters(value: FilterModel) {
   Object.assign(filters, value);
+}
+
+function normalizeSavedViewStatus(status: unknown): FilterModel['status'] {
+  return status === 'enabled' || status === 'disabled' ? status : 'all';
 }
 
 function resetFilters() {
@@ -2370,7 +2374,7 @@ async function toggleTaskEnabled(task: ScheduledTaskItem) {
   lifecycleTaskKey.value = task.task_key;
   try {
     const updated = task.enabled ? await disableScheduledTask(task.task_key) : await enableScheduledTask(task.task_key);
-    syncTask(updated);
+    await refreshTasks();
     if (selectedTask.value?.task_key === updated.task_key) {
       selectedTask.value = updated;
     }
