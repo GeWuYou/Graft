@@ -50,7 +50,7 @@ const PagedTableStub = defineComponent({
   name: 'ManagementPagedTable',
   props: ['rows', 'selectedRowKeys'],
   emits: ['select-change', 'page-change'],
-  setup(_props, { emit, slots }) {
+  setup(props, { emit, slots }) {
     return () =>
       h('div', [
         h('button', { 'data-testid': 'select-page', onClick: () => emit('select-change', [2]) }, 'select'),
@@ -59,12 +59,13 @@ const PagedTableStub = defineComponent({
           { 'data-testid': 'change-page', onClick: () => emit('page-change', { current: 2, pageSize: 20 }) },
           'page',
         ),
+        props.rows.length === 0 ? slots.empty?.() : null,
         slots.footer?.(),
       ]);
   },
 });
 
-function mountSubject(search?: { label: string; placeholder: string }) {
+function mountSubject(search?: { clearLabel?: string; placeholder: string }) {
   return mount(PagedMultiSelect, {
     props: {
       cancelLabel: 'Cancel',
@@ -77,7 +78,7 @@ function mountSubject(search?: { label: string; placeholder: string }) {
       pageSize: 20,
       rowKey: 'id',
       rows: [{ id: 2 }],
-      search: search ?? { label: 'Search', placeholder: 'Search people' },
+      search: search ?? { clearLabel: 'Clear search', placeholder: 'Search people' },
       selectedCountLabel: (count) => `${count} selected`,
       selection: createExplicitSelection([1]),
       title: 'Select people',
@@ -89,7 +90,10 @@ function mountSubject(search?: { label: string; placeholder: string }) {
         't-button': ButtonStub,
         't-dialog': DialogStub,
         't-input': InputStub,
-        't-empty': { template: '<div><slot name="action" /></div>' },
+        't-empty': {
+          props: ['description', 'title'],
+          template: '<div><span>{{ title }}</span><span>{{ description }}</span><slot name="action" /></div>',
+        },
         't-pagination': { template: '<div data-testid="pagination" />' },
         't-space': { template: '<div><slot /></div>' },
         ManagementPagedTable: PagedTableStub,
@@ -100,7 +104,7 @@ function mountSubject(search?: { label: string; placeholder: string }) {
 
 describe('PagedMultiSelect', () => {
   it('does not render a search surface when no search capability is supplied', async () => {
-    const wrapper = mountSubject({ label: 'Search', placeholder: 'Search people' });
+    const wrapper = mountSubject({ clearLabel: 'Clear search', placeholder: 'Search people' });
     await wrapper.setProps({ search: undefined });
 
     expect(wrapper.findComponent(InputStub).exists()).toBe(false);
@@ -147,6 +151,34 @@ describe('PagedMultiSelect', () => {
     vi.useRealTimers();
   });
 
+  it('does not let a clear without a keyword suppress the next keyword search', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountSubject();
+
+    await wrapper.get('[data-testid="clear-search"]').trigger('click');
+    await wrapper.get('[data-testid="change-search"]').trigger('click');
+    vi.advanceTimersByTime(300);
+
+    expect(wrapper.emitted('search')).toEqual([[''], ['alpha']]);
+    vi.useRealTimers();
+  });
+
+  it('renders search-specific empty content and a clear action for a keyword query', async () => {
+    const wrapper = mountSubject();
+
+    await wrapper.setProps({
+      keyword: 'alpha',
+      rows: [],
+      searchEmptyDescription: 'No matching people',
+      searchEmptyTitle: 'No matches',
+      total: 0,
+    });
+
+    expect(wrapper.text()).toContain('No matches');
+    expect(wrapper.text()).toContain('No matching people');
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Clear search')).toBe(true);
+  });
+
   it('retains selections from previous pages while replacing the active page selection', async () => {
     const wrapper = mountSubject();
 
@@ -159,13 +191,14 @@ describe('PagedMultiSelect', () => {
     ).toEqual([1, 2]);
   });
 
-  it('keeps the selection summary with pagination and rejects selections beyond an optional maximum', async () => {
+  it('keeps the selection summary with pagination and reports selections beyond an optional maximum', async () => {
     const wrapper = mountSubject();
     await wrapper.setProps({ maxSelection: 1 });
 
     await wrapper.get('[data-testid="select-page"]').trigger('click');
 
     expect(wrapper.emitted('update:selection')).toBeUndefined();
+    expect(wrapper.emitted('selection-limit')).toEqual([[{ attemptedCount: 2, maxSelection: 1 }]]);
     expect(wrapper.get('.paged-multi-select__data-footer').text()).toContain('1 selected');
     expect(wrapper.findAll('[data-testid="pagination"]')).toHaveLength(1);
   });

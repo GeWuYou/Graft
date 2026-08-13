@@ -13,6 +13,10 @@ const pageSource = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'i
 const apiMocks = vi.hoisted(() => ({
   getRegistry: vi.fn(),
   getRegistryRepositories: vi.fn(),
+  getRegistryRepositoryAssignmentCandidates: vi.fn(),
+  getRegistryRepositoryAssignments: vi.fn(),
+  replaceRegistryRepositoryAssignments: vi.fn(),
+  addRegistryRepositoryAssignments: vi.fn(),
   updateRegistry: vi.fn(),
 }));
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
@@ -44,10 +48,10 @@ vi.mock('../../api/registry', () => ({
   deleteRegistryRepository: vi.fn(),
   getRegistry: apiMocks.getRegistry,
   getRegistryRepositories: apiMocks.getRegistryRepositories,
-  getRegistryRepositoryAssignmentCandidates: vi.fn(),
-  getRegistryRepositoryAssignments: vi.fn(),
-  replaceRegistryRepositoryAssignments: vi.fn(),
-  addRegistryRepositoryAssignments: vi.fn(),
+  getRegistryRepositoryAssignmentCandidates: apiMocks.getRegistryRepositoryAssignmentCandidates,
+  getRegistryRepositoryAssignments: apiMocks.getRegistryRepositoryAssignments,
+  replaceRegistryRepositoryAssignments: apiMocks.replaceRegistryRepositoryAssignments,
+  addRegistryRepositoryAssignments: apiMocks.addRegistryRepositoryAssignments,
   updateRegistry: apiMocks.updateRegistry,
   updateRegistryRepository: vi.fn(),
 }));
@@ -80,10 +84,9 @@ vi.mock('@/shared/components/management', () => ({
 vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
   default: defineComponent({
     name: 'ManagementPagedTable',
-    setup:
-      (_props, { slots }) =>
-      () =>
-        h('div', slots.default?.()),
+    setup(_props, { slots }) {
+      return () => h('div', [slots.repositoryActions?.({ row: { repository_ref: 'repo-a' } }), slots.default?.()]);
+    },
   }),
 }));
 vi.mock('@/shared/components/responsive/ResponsiveDialog.vue', () => ({
@@ -105,10 +108,21 @@ vi.mock('@/shared/components/selection', async (importOriginal) => {
   return {
     ...actual,
     PagedMultiSelect: defineComponent({
-      setup:
-        (_props, { slots }) =>
-        () =>
-          h('div', slots.default?.()),
+      name: 'PagedMultiSelect',
+      props: { loading: Boolean, visible: Boolean },
+      emits: ['cancel'],
+      setup(props, { emit, slots }) {
+        return () =>
+          h(
+            'div',
+            {
+              'data-loading': String(props.loading),
+              'data-visible': String(props.visible),
+              onClick: () => emit('cancel'),
+            },
+            [slots.default?.()],
+          );
+      },
     }),
   };
 });
@@ -205,6 +219,8 @@ describe('RegistryDetailPage connection editing', () => {
     routeState.query = { mode: 'edit', source: 'list' };
     apiMocks.getRegistry.mockResolvedValue(connection());
     apiMocks.getRegistryRepositories.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRegistryRepositoryAssignmentCandidates.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRegistryRepositoryAssignments.mockResolvedValue({ items: [], total: 0 });
     apiMocks.updateRegistry.mockResolvedValue(connection());
     formMocks.validate.mockResolvedValue(true);
   });
@@ -349,5 +365,35 @@ describe('RegistryDetailPage assignment safety', () => {
     expect(pageSource).toContain('addRegistryRepositoryAssignments(connectionRef.value');
     expect(pageSource).toContain('replaceRegistryRepositoryAssignments(connectionRef.value');
     expect(pageSource).not.toContain('ASSIGNMENT_MUTATION_CONCURRENCY');
+  });
+
+  it('bounds initial assignment loading and blocks replacement until the complete baseline is available', () => {
+    expect(pageSource).toContain('const MAX_INITIAL_ASSIGNMENT_PAGES = 20;');
+    expect(pageSource).toContain('while (offset < total && pageCount < MAX_INITIAL_ASSIGNMENT_PAGES)');
+    expect(pageSource).toContain("t('registry.list.assignmentInitialLoadIncomplete')");
+    expect(pageSource).toContain('if (!initialAssignmentSelectionComplete.value)');
+  });
+
+  it('clears the assignment dialog loading state when a stale session returns early', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockImplementation(() => new Promise(() => undefined));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+    expect(assignmentDialog.props('loading')).toBe(true);
+
+    await assignmentDialog.vm.$emit('cancel');
+    await flushPromises();
+
+    expect(assignmentDialog.props('loading')).toBe(false);
+  });
+
+  it('provides success and localized error feedback for both assignment mutations', () => {
+    expect(pageSource).toContain("MessagePlugin.success(t('registry.list.batchAssignmentSaveSuccess'))");
+    expect(pageSource).toContain("t('registry.list.assignmentSaveFailed')");
   });
 });

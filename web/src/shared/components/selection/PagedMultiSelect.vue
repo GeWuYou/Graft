@@ -102,7 +102,7 @@
 </template>
 <script setup lang="ts">
 import type { PageInfo, TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, watch } from 'vue';
 
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 
@@ -112,6 +112,11 @@ import { type ExplicitSelection, replaceExplicitPageSelection, type SelectionId 
 export type PagedMultiSelectSearch = {
   placeholder: string;
   clearLabel?: string;
+};
+
+export type PagedMultiSelectSelectionLimit = {
+  attemptedCount: number;
+  maxSelection: number;
 };
 
 const props = defineProps<{
@@ -146,6 +151,7 @@ const emit = defineEmits<{
   (event: 'confirm'): void;
   (event: 'search', keyword: string): void;
   (event: 'page-change', pageInfo: PageInfo): void;
+  (event: 'selection-limit', detail: PagedMultiSelectSelectionLimit): void;
 }>();
 
 const selection = defineModel<ExplicitSelection>('selection', { required: true });
@@ -166,14 +172,9 @@ const resolvedEmptyDescription = computed(() =>
   hasKeyword.value ? (props.searchEmptyDescription ?? props.emptyDescription) : props.emptyDescription,
 );
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
-let skipNextKeywordSearch = false;
 
 watch(keyword, () => {
   if (!props.search) return;
-  if (skipNextKeywordSearch) {
-    skipNextKeywordSearch = false;
-    return;
-  }
   cancelScheduledSearch();
   searchTimer = setTimeout(runSearch, 300);
 });
@@ -197,9 +198,8 @@ function searchImmediately() {
 }
 
 function clearSearch() {
-  // TInput 先同步 v-model，再异步派发 clear；跳过随后的同值防抖调度，避免重复查询。
-  skipNextKeywordSearch = true;
-  runSearch();
+  // 等待 v-model watcher 安排当前清空的防抖任务，再立即取消它，避免跨交互的跳过状态。
+  void nextTick(runSearch);
 }
 
 function emitPageChange(pageInfo: PageInfo) {
@@ -211,11 +211,14 @@ function updateSelection(currentPageKeys: SelectionId[]) {
   const nextSelection = replaceExplicitPageSelection(selection.value, pageKeys, currentPageKeys);
   if (props.maxSelection === undefined || nextSelection.selectedIds.size <= props.maxSelection) {
     selection.value = nextSelection;
+    return;
   }
+  emit('selection-limit', { attemptedCount: nextSelection.selectedIds.size, maxSelection: props.maxSelection });
 }
 </script>
 <style scoped lang="less">
 .paged-multi-select {
+  container-type: inline-size;
   display: grid;
   gap: var(--graft-density-gap-12);
   max-block-size: min(70vh, 680px);

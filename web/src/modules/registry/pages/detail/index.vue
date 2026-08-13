@@ -224,7 +224,7 @@
       :cell-slot-names="['assignmentState']"
       :columns="assignmentCandidateColumns"
       :confirm-label="t('registry.list.confirmAuthorization')"
-      :confirm-loading="assignmentSaving"
+      :confirm-loading="assignmentSaving || assignmentCandidateLoading"
       confirm-without-selection
       :empty-description="t('registry.list.candidatesEmpty')"
       :empty-title="t('registry.list.candidatesEmpty')"
@@ -336,11 +336,14 @@ const assignmentCandidateSearch = ref('');
 const assignmentCandidatePagination = ref({ current: 1, pageSize: 20 });
 const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const initialAssignmentUserIds = ref(new Set<number>());
+const initialAssignmentSelectionComplete = ref(false);
 const batchCandidateErrorMessage = ref('');
 const assignmentCandidateErrorMessage = ref('');
 let batchCandidateRequestVersion = 0;
 let assignmentCandidateRequestVersion = 0;
 let assignmentDialogSessionVersion = 0;
+const INITIAL_ASSIGNMENT_PAGE_SIZE = 100;
+const MAX_INITIAL_ASSIGNMENT_PAGES = 20;
 const selectedRepositoryRefs = ref<Array<string | number>>([]);
 const errorMessage = ref('');
 const repositoryDrawerVisible = ref(false);
@@ -595,10 +598,13 @@ async function grantSelectedRepositoryAssignments() {
       repository_refs: selectedRepositoryRefs.value.map(String),
       user_ids: userIds,
     });
+    MessagePlugin.success(t('registry.list.batchAssignmentSaveSuccess'));
     closeBatchRepositoryAssignments();
     selectedRepositoryRefs.value = [];
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    const message = resolveLocalizedErrorMessage(t, error, t('registry.list.assignmentSaveFailed'));
+    errorMessage.value = message;
+    MessagePlugin.error(message);
   } finally {
     batchRepositoryAssignmentSaving.value = false;
   }
@@ -649,12 +655,17 @@ async function openAssignments(repositoryRef: string) {
   assignmentCandidatePagination.value.current = 1;
   assignmentSelection.value = createExplicitSelection();
   initialAssignmentUserIds.value = new Set();
+  initialAssignmentSelectionComplete.value = false;
   assignmentCandidateErrorMessage.value = '';
   assignmentDialogVisible.value = true;
   assignmentCandidateLoading.value = true;
-  await loadInitialAssignmentSelection(sessionVersion);
-  if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
-  await loadRepositoryAssignmentCandidates();
+  try {
+    const selectionLoaded = await loadInitialAssignmentSelection(sessionVersion);
+    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value || !selectionLoaded) return;
+    await loadRepositoryAssignmentCandidates();
+  } finally {
+    if (sessionVersion === assignmentDialogSessionVersion) assignmentCandidateLoading.value = false;
+  }
 }
 
 function closeAssignments() {
@@ -662,44 +673,61 @@ function closeAssignments() {
   assignmentDialogVisible.value = false;
   assignmentSelection.value = createExplicitSelection();
   initialAssignmentUserIds.value = new Set();
+  initialAssignmentSelectionComplete.value = false;
+  assignmentCandidateLoading.value = false;
   assignmentDialogSessionVersion += 1;
   assignmentCandidateRequestVersion += 1;
 }
 
 async function loadInitialAssignmentSelection(sessionVersion: number) {
-  if (!connectionRef.value || !assignmentRepositoryRef.value) return;
+  if (!connectionRef.value || !assignmentRepositoryRef.value) return false;
   try {
     const userIds: number[] = [];
     let offset = 0;
     let total = Number.POSITIVE_INFINITY;
-    while (offset < total) {
+    let pageCount = 0;
+    while (offset < total && pageCount < MAX_INITIAL_ASSIGNMENT_PAGES) {
       const response = await getRegistryRepositoryAssignments(connectionRef.value, {
         repository_ref: assignmentRepositoryRef.value,
-        limit: 100,
+        limit: INITIAL_ASSIGNMENT_PAGE_SIZE,
         offset,
       });
       const page = response.items ?? [];
       userIds.push(...page.map((item) => item.user_id));
       total = response.total ?? offset + page.length;
       offset += page.length;
+      pageCount += 1;
       if (page.length === 0) break;
     }
+    if (offset < total) {
+      assignmentCandidateErrorMessage.value = t('registry.list.assignmentInitialLoadIncomplete');
+      return false;
+    }
     const selection = createExplicitSelection(userIds);
-    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
+    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return false;
     initialAssignmentUserIds.value = new Set(selection.selectedIds);
     assignmentSelection.value = selection;
+    initialAssignmentSelectionComplete.value = true;
+    return true;
   } catch (error) {
-    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return;
+    if (sessionVersion !== assignmentDialogSessionVersion || !assignmentDialogVisible.value) return false;
     assignmentCandidateErrorMessage.value = resolveLocalizedErrorMessage(
       t,
       error,
-      t('registry.list.candidatesLoadFailed'),
+      t('registry.list.assignmentInitialLoadIncomplete'),
     );
+    return false;
   }
 }
 
 async function saveAssignments() {
   if (!connectionRef.value || !assignmentRepositoryRef.value) return;
+  if (!initialAssignmentSelectionComplete.value) {
+    const message = t('registry.list.assignmentInitialLoadIncomplete');
+    assignmentCandidateErrorMessage.value = message;
+    MessagePlugin.error(message);
+    return;
+  }
   const userIds = normalizeSelectedUserIds(assignmentSelection.value);
   if (sameUserIDSet(initialAssignmentUserIds.value, userIds)) {
     closeAssignments();
@@ -714,7 +742,9 @@ async function saveAssignments() {
     MessagePlugin.success(t('registry.list.assignmentSaveSuccess'));
     closeAssignments();
   } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.loadFailed'));
+    const message = resolveLocalizedErrorMessage(t, error, t('registry.list.assignmentSaveFailed'));
+    errorMessage.value = message;
+    MessagePlugin.error(message);
   } finally {
     assignmentSaving.value = false;
   }
