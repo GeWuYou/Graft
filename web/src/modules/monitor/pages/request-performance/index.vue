@@ -666,15 +666,7 @@ function renderCharts() {
       ],
     },
   };
-  (Object.keys(definitions) as Array<keyof typeof definitions>).forEach((key) => {
-    const element = chartRefs.value[key];
-    if (!element) {
-      disposeChart(key);
-      return;
-    }
-    const instance = getChartInstance(key, element);
-    chartInstances.set(key, instance);
-    const definition = definitions[key];
+  renderChartDefinitions(definitions, (definition, instance) => {
     instance.setOption({
       color: definition.series.map((series) => series.color),
       tooltip: {
@@ -747,14 +739,7 @@ function renderHistogramCharts() {
       label: (lower: number, upper: number | null) => formatHistogramRange(lower, upper, formatByteBoundary),
     },
   };
-  (Object.keys(definitions) as Array<keyof typeof definitions>).forEach((key) => {
-    const element = chartRefs.value[key];
-    if (!element) {
-      disposeChart(key);
-      return;
-    }
-    const definition = definitions[key];
-    const instance = getChartInstance(key, element);
+  renderChartDefinitions(definitions, (definition, instance) => {
     instance.setOption({
       color: [definition.color],
       tooltip: {
@@ -786,6 +771,27 @@ function renderHistogramCharts() {
       ],
     });
   });
+}
+
+function renderChartDefinitions<T>(
+  definitions: Partial<Record<ChartKey, T>>,
+  render: (definition: T, instance: echarts.ECharts) => void,
+) {
+  (Object.keys(definitions) as ChartKey[]).forEach((key) => {
+    const definition = definitions[key];
+    const instance = resolveChartInstance(key);
+    if (!definition || !instance) return;
+    render(definition, instance);
+  });
+}
+
+function resolveChartInstance(key: ChartKey) {
+  const element = chartRefs.value[key];
+  if (!element) {
+    disposeChart(key);
+    return null;
+  }
+  return getChartInstance(key, element);
 }
 
 function getChartInstance(key: ChartKey, element: HTMLDivElement) {
