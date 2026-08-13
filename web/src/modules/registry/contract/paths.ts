@@ -11,6 +11,6 @@ export function registryDetailPath(
   connectionRef: string,
   options?: { mode?: (typeof REGISTRY_DETAIL_MODE)[keyof typeof REGISTRY_DETAIL_MODE] },
 ) {
-  const path = `/infrastructure/registries/${encodeURIComponent(connectionRef)}`;
+  const path = `${REGISTRY_ROUTE_PATH.LIST}/${encodeURIComponent(connectionRef)}`;
   return options?.mode ? `${path}?mode=${options.mode}` : path;
 }
