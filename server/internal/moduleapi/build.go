@@ -341,12 +341,33 @@ type CredentialInjectionTarget struct {
 	RepositoryRef string
 }
 
+// OCIRegistryVerificationRequest 描述一次由指定 Runtime Target 执行的非变更 OCI V2 认证探测。
+// 它只接受已知的私有执行 binding，不能作为 HTTP 或 Registry 管理输入使用。
+type OCIRegistryVerificationRequest struct {
+	RuntimeTargetID int64
+	CredentialRef   string
+	Endpoint        string
+	RepositoryRef   string
+	Operation       string
+}
+
+// OCIRegistryVerificationResult 记录认证探测的最小事实，不包含响应内容、认证头或凭据细节。
+// AuthenticationSucceeded 仅表示 V2 根端点接受了本次认证，绝不代表 Repository pull 或 push 已获授权。
+type OCIRegistryVerificationResult struct {
+	Reachable                bool
+	ProtocolCompatible       bool
+	AuthenticationChallenged bool
+	AuthenticationSucceeded  bool
+	ProviderScopeConforms    bool
+}
+
 // RuntimeExecutionAdapter 是 Runtime Target 唯一拥有的隔离 Registry 执行边界。
 // 调用方只提交非秘密 binding，adapter 自己申请、注入并清理 ephemeral session。
 type RuntimeExecutionAdapter interface {
 	PublishImage(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
 	PublishManifest(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
 	CopyOCIArtifact(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
+	VerifyOCIRegistry(context.Context, OCIRegistryVerificationRequest) (OCIRegistryVerificationResult, error)
 }
 
 // ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。

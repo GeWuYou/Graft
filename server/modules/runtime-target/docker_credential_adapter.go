@@ -32,12 +32,49 @@ type credentialPublicationClient interface {
 	PublishImageOnTarget(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error)
 	PublishOCIManifestOnTarget(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error)
 	CopyOCIArtifactOnTarget(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error)
+	VerifyOCIRegistryOnTarget(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error)
 }
 
 type publicationSession struct {
 	session   moduleapi.EphemeralCredentialSession
 	configDir string
 	cleanup   func() error
+}
+
+// VerifyOCIRegistry 在指定 Runtime Target 的隔离凭据上下文中探测 OCI V2 认证。
+// 它不请求任何 repository 资源，也不证明 pull 或 push 授权；Registry 以后只能作为该私有 seam 的消费者。
+func (a dockerCredentialExecutionAdapter) VerifyOCIRegistry(ctx context.Context, request moduleapi.OCIRegistryVerificationRequest) (result moduleapi.OCIRegistryVerificationResult, err error) {
+	if a.provider == nil || !validOCIRegistryVerificationRequest(request) {
+		return result, errors.New("OCI registry verification is unavailable")
+	}
+	eligibility, err := a.provider.Assess(ctx, moduleapi.CredentialEligibilityRequest{CredentialRef: request.CredentialRef, Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef, Operation: request.Operation})
+	if err != nil {
+		return result, fmt.Errorf("assess registry credential: %w", err)
+	}
+	if eligibility.Status != moduleapi.CredentialEligibilityEligible {
+		return result, nil
+	}
+	result.ProviderScopeConforms = true
+	session, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: request.CredentialRef, Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef, Operation: request.Operation, ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
+	if err != nil {
+		return result, fmt.Errorf("prepare registry credential: %w", err)
+	}
+	configDir, cleanup, err := isolatedDockerConfig(session)
+	if err != nil {
+		if revokeErr := a.provider.Revoke(context.WithoutCancel(ctx), session); revokeErr != nil {
+			return result, credentialCleanupFailure(err)
+		}
+		return result, err
+	}
+	defer func() {
+		err = finalizePublicationSession(ctx, a.provider, session, cleanup, err)
+	}()
+	if err := a.provider.Inject(ctx, session, moduleapi.CredentialInjectionTarget{ConfigDir: configDir, Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef}); err != nil {
+		return result, fmt.Errorf("inject registry credential: %w", err)
+	}
+	verified, err := a.client.VerifyOCIRegistryOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, configDir), request)
+	verified.ProviderScopeConforms = result.ProviderScopeConforms
+	return verified, err
 }
 
 func (a dockerCredentialExecutionAdapter) PublishImage(ctx context.Context, targetID int64, result moduleapi.DockerImageBuildResult, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (published moduleapi.DockerImageBuildResult, err error) {
@@ -171,6 +208,11 @@ func matchesPublicationResult(result moduleapi.DockerImageBuildResult, binding m
 func validArtifactCopyBinding(input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding) bool {
 	return validPublicationBinding(binding.Destination) && matchesPublicationDestination(input.Destination, binding.Destination) &&
 		binding.SourceAuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral && strings.TrimSpace(binding.SourceCredentialRef) != "" && strings.TrimSpace(binding.SourceEndpoint) != ""
+}
+
+func validOCIRegistryVerificationRequest(request moduleapi.OCIRegistryVerificationRequest) bool {
+	return request.RuntimeTargetID > 0 && strings.TrimSpace(request.CredentialRef) != "" && strings.TrimSpace(request.Endpoint) != "" && strings.TrimSpace(request.RepositoryRef) != "" && strings.TrimSpace(request.Operation) != "" &&
+		!strings.ContainsAny(request.CredentialRef+request.Endpoint+request.RepositoryRef+request.Operation, "\x00\r\n")
 }
 
 // credentialCleanupFailure 不泄漏本地临时目录、会话或底层凭据细节；Task Runtime

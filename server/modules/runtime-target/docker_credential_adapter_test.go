@@ -15,13 +15,21 @@ type recordingCredentialProvider struct {
 	session      moduleapi.EphemeralCredentialSession
 	injected     moduleapi.CredentialInjectionTarget
 	request      moduleapi.CredentialRequest
+	assessment   moduleapi.CredentialEligibilityRequest
+	assessments  int
+	eligibility  moduleapi.CredentialEligibility
 	revoked      int
 	revokeErr    error
 	prepareErrAt int
 	prepares     int
 }
 
-func (p *recordingCredentialProvider) Assess(context.Context, moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibility, error) {
+func (p *recordingCredentialProvider) Assess(_ context.Context, request moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibility, error) {
+	p.assessments++
+	p.assessment = request
+	if p.eligibility.Status != "" {
+		return p.eligibility, nil
+	}
 	return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityEligible}, nil
 }
 
@@ -58,6 +66,23 @@ func (failingCredentialPublicationClient) CopyOCIArtifactOnTarget(context.Contex
 	return moduleapi.OCIArtifactCopyResult{}, errors.New("provider failed")
 }
 
+func (failingCredentialPublicationClient) VerifyOCIRegistryOnTarget(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	return moduleapi.OCIRegistryVerificationResult{}, errors.New("provider failed")
+}
+
+type recordingOCIRegistryVerificationClient struct {
+	failingCredentialPublicationClient
+	request moduleapi.OCIRegistryVerificationRequest
+	result  moduleapi.OCIRegistryVerificationResult
+	config  string
+}
+
+func (c *recordingOCIRegistryVerificationClient) VerifyOCIRegistryOnTarget(ctx context.Context, request moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	c.request = request
+	c.config, _ = ctx.Value(dockerCredentialConfigContextKey{}).(string)
+	return c.result, nil
+}
+
 func testPublicationBinding() moduleapi.RegistryPublicationBinding {
 	// #nosec G101 -- 测试中的不透明凭据引用不包含认证材料。
 	const testCredentialRef = "credential:test"
@@ -87,6 +112,53 @@ func TestCredentialAdapterRevokesAndCleansAfterProviderFailure(t *testing.T) {
 		t.Fatalf("credential request = %#v", provider.request)
 	}
 	if _, statErr := os.Stat(provider.injected.ConfigDir); !os.IsNotExist(statErr) {
+		t.Fatalf("isolated credential directory still exists: stat error = %v", statErr)
+	}
+}
+
+func TestCredentialAdapterVerifiesScopedOCIRegistryAuthenticationWithoutRepositoryAuthorizationClaim(t *testing.T) {
+	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}}
+	client := &recordingOCIRegistryVerificationClient{result: moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: client}
+	request := testOCIRegistryVerificationRequest()
+
+	result, err := adapter.VerifyOCIRegistry(context.Background(), request)
+	if err != nil || result != client.result {
+		t.Fatalf("VerifyOCIRegistry() = %#v, %v", result, err)
+	}
+	assertOCIRegistryVerificationLifecycle(t, provider, client, request)
+}
+
+func TestCredentialAdapterStopsBeforePrepareWhenProviderScopeDoesNotConform(t *testing.T) {
+	provider := &recordingCredentialProvider{eligibility: moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityIneligible}}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
+	result, err := adapter.VerifyOCIRegistry(context.Background(), testOCIRegistryVerificationRequest())
+	if err != nil || result.ProviderScopeConforms || provider.prepares != 0 || provider.revoked != 0 {
+		t.Fatalf("VerifyOCIRegistry() = %#v, %v; provider=%#v", result, err, provider)
+	}
+}
+
+func testOCIRegistryVerificationRequest() moduleapi.OCIRegistryVerificationRequest {
+	// #nosec G101 -- opaque test reference, not credential material.
+	const testCredentialRef = "credential:test"
+	return moduleapi.OCIRegistryVerificationRequest{RuntimeTargetID: 7, CredentialRef: testCredentialRef, Endpoint: "https://registry.example", RepositoryRef: "team/api", Operation: "push"}
+}
+
+func assertOCIRegistryVerificationLifecycle(t *testing.T, provider *recordingCredentialProvider, client *recordingOCIRegistryVerificationClient, request moduleapi.OCIRegistryVerificationRequest) {
+	t.Helper()
+	if provider.assessments != 1 {
+		t.Fatalf("credential assessment count = %d", provider.assessments)
+	}
+	if provider.assessment.CredentialRef != request.CredentialRef || provider.assessment.Endpoint != request.Endpoint || provider.assessment.RepositoryRef != request.RepositoryRef || provider.assessment.Operation != request.Operation {
+		t.Fatalf("credential assessment = %#v", provider.assessment)
+	}
+	if provider.request.CredentialRef != request.CredentialRef || provider.request.Endpoint != request.Endpoint || provider.request.RepositoryRef != request.RepositoryRef || provider.request.Operation != request.Operation {
+		t.Fatalf("credential preparation = %#v", provider.request)
+	}
+	if client.request != request || client.config == "" || provider.revoked != 1 {
+		t.Fatalf("verification client request=%#v config=%q revoked=%d", client.request, client.config, provider.revoked)
+	}
+	if _, statErr := os.Stat(client.config); !os.IsNotExist(statErr) {
 		t.Fatalf("isolated credential directory still exists: stat error = %v", statErr)
 	}
 }
