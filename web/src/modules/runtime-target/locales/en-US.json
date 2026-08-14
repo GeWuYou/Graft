@@ -24,6 +24,10 @@
       "batchSelected": "{count} Runtime Targets Selected",
       "batchAuthorize": "Grant in Batch",
       "batchAuthorizeTitle": "Grant Runtime Target Access in Batch",
+      "batchRevoke": "Revoke in Batch",
+      "batchRevokeTitle": "Revoke Runtime Target Access in Batch",
+      "batchRevokeConfirmTitle": "Confirm Batch Revocation",
+      "batchRevokePartialWarning": "Some selected users are authorized only on part of the selected runtime targets. This action affects selected runtime targets only; other runtime targets remain unchanged.",
       "candidateSearchPlaceholder": "Search User Name or Account",
       "clearSearch": "Clear Search",
       "selectedUsers": "{count} Users Selected",
@@ -33,11 +37,14 @@
       "authorizationState": "Authorization Status",
       "alreadyAuthorized": "Fully Authorized",
       "partiallyAuthorized": "Partially Authorized",
+      "notAuthorized": "Not Authorized",
       "candidatesEmpty": "No Users Found",
       "cancel": "Cancel",
       "authorizationLoadError": "Unable to load batch authorization users.",
       "batchAuthorizeSuccess": "Runtime target access updated.",
-      "batchAuthorizeError": "Runtime target batch authorization failed."
+      "batchAuthorizeError": "Runtime target batch authorization failed.",
+      "batchRevokeSuccess": "Runtime target access revoked.",
+      "batchRevokeError": "Runtime target batch revocation failed."
     },
     "detail": {
       "title": "Runtime Target Detail",

@@ -24,6 +24,10 @@
       "batchSelected": "已选择 {count} 个运行目标",
       "batchAuthorize": "批量授权",
       "batchAuthorizeTitle": "批量授权运行目标",
+      "batchRevoke": "批量取消授权",
+      "batchRevokeTitle": "批量取消运行目标授权",
+      "batchRevokeConfirmTitle": "确认批量取消授权",
+      "batchRevokePartialWarning": "部分用户仅在所选运行目标中拥有授权。本次只取消所选运行目标的授权，其他未选运行目标不受影响。",
       "candidateSearchPlaceholder": "搜索用户名称或账号",
       "clearSearch": "清空搜索",
       "selectedUsers": "已选择 {count} 位用户",
@@ -33,11 +37,14 @@
       "authorizationState": "授权状态",
       "alreadyAuthorized": "已全部授权",
       "partiallyAuthorized": "部分授权",
+      "notAuthorized": "未授权",
       "candidatesEmpty": "未找到用户",
       "cancel": "取消",
       "authorizationLoadError": "无法加载批量授权用户。",
       "batchAuthorizeSuccess": "运行目标授权已更新。",
-      "batchAuthorizeError": "运行目标批量授权失败。"
+      "batchAuthorizeError": "运行目标批量授权失败。",
+      "batchRevokeSuccess": "运行目标授权已取消。",
+      "batchRevokeError": "运行目标批量取消授权失败。"
     },
     "detail": {
       "title": "运行目标详情",

@@ -77,6 +77,14 @@
               >
                 {{ t('runtimeTarget.list.batchAuthorize') }}
               </t-button>
+              <t-button
+                theme="danger"
+                variant="outline"
+                :loading="batchAuthorizationRevoking"
+                @click="openBatchAuthorizationRevocation"
+              >
+                {{ t('runtimeTarget.list.batchRevoke') }}
+              </t-button>
             </management-batch-bar>
           </template>
           <responsive-table entity-card-layout="adaptive" presentation="entity">
@@ -228,21 +236,54 @@
       @search="searchBatchCandidates"
     >
       <template #authorizationState="{ row }">
-        <t-tag v-if="row.authorization_state === 'all'" theme="success" variant="light">
-          {{ t('runtimeTarget.list.alreadyAuthorized') }}
+        <t-tag :theme="candidateAuthorizationTheme(row.authorization_state)" variant="light">
+          {{ candidateAuthorizationLabel(row.authorization_state) }}
         </t-tag>
-        <t-tag v-else-if="row.authorization_state === 'partial'" theme="warning" variant="light">
-          {{ t('runtimeTarget.list.partiallyAuthorized') }}
+      </template>
+    </paged-multi-select>
+    <paged-multi-select
+      v-model:visible="batchAuthorizationRevokeDialogVisible"
+      v-model:current="batchCandidatePagination.current"
+      v-model:keyword="batchCandidateSearch"
+      v-model:page-size="batchCandidatePagination.pageSize"
+      v-model:selection="batchRevokeUserSelection"
+      :cancel-label="t('runtimeTarget.list.cancel')"
+      :cell-slot-names="['authorizationState']"
+      :columns="batchRevokeCandidateColumns"
+      :confirm-label="t('runtimeTarget.list.batchRevoke')"
+      :confirm-loading="batchAuthorizationRevoking"
+      :empty-description="t('runtimeTarget.list.candidatesEmpty')"
+      :empty-title="t('runtimeTarget.list.candidatesEmpty')"
+      :error-message="batchAuthorizationError"
+      :loading="batchCandidatesLoading"
+      row-key="id"
+      :rows="batchCandidates"
+      :search="{
+        placeholder: t('runtimeTarget.list.candidateSearchPlaceholder'),
+        clearLabel: t('runtimeTarget.list.clearSearch'),
+      }"
+      :selected-count-label="(count) => t('runtimeTarget.list.selectedUsers', { count })"
+      :title="t('runtimeTarget.list.batchRevokeTitle')"
+      :total="batchCandidateTotal"
+      :total-label="(count) => t('runtimeTarget.list.candidateTotal', { count })"
+      @cancel="closeBatchAuthorizationRevocation"
+      @confirm="revokeBatchAuthorization"
+      @page-change="loadBatchCandidates"
+      @search="searchBatchCandidates"
+    >
+      <template #authorizationState="{ row }">
+        <t-tag :theme="candidateAuthorizationTheme(row.authorization_state)" variant="light">
+          {{ candidateAuthorizationLabel(row.authorization_state) }}
         </t-tag>
-        <span v-else>-</span>
       </template>
     </paged-multi-select>
   </div>
 </template>
 <script setup lang="ts">
-// 列表页负责发现/刷新运行时目标并维护列表请求状态，详情数据由详情路由独立加载。
+// 列表页负责运行目标的发现、列表状态与批量授权；详情数据和单目标授权由详情路由独立加载。
 import { SearchIcon } from 'tdesign-icons-vue-next';
-import type { PrimaryTableCol } from 'tdesign-vue-next';
+import type { PrimaryTableCol, TableProps } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import {
   computed,
@@ -317,16 +358,17 @@ const summary = ref({ total: 0, healthy: 0, unavailable: 0 });
 const pagination = reactive({ current: 1, pageSize: 10 });
 const selectedTargetIds = ref<number[]>([]);
 const batchAuthorizationDialogVisible = ref(false);
+const batchAuthorizationRevokeDialogVisible = ref(false);
 const batchAuthorizationLoading = ref(false);
+const batchAuthorizationRevoking = ref(false);
 const batchAuthorizationError = ref('');
 const batchCandidatesLoading = ref(false);
-const batchCandidates = ref<
-  Array<RuntimeTargetAssignmentCandidate & { authorization_state: 'all' | 'partial' | 'none' }>
->([]);
+const batchCandidates = ref<BatchAuthorizationCandidate[]>([]);
 const batchCandidateTotal = ref(0);
 const batchCandidateSearch = ref('');
 const batchCandidatePagination = reactive({ current: 1, pageSize: 20 });
 const batchUserSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
+const batchRevokeUserSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const batchTargetAssignments = ref<Map<number, Set<number>>>(new Map());
 const DEFAULT_VISIBLE_COLUMNS = ['displayName', 'provider', 'health', 'workloads', 'cpu', 'memory', 'storage'];
 type RuntimeTargetFilters = {
@@ -437,12 +479,25 @@ const columnOptions = computed(() => [
   { label: t('runtimeTarget.metrics.memory'), value: 'memory' },
   { label: t('runtimeTarget.metrics.storage'), value: 'storage' },
 ]);
-const batchCandidateColumns = computed(() => [
-  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'display', title: t('runtimeTarget.list.candidateUser'), minWidth: 180 },
-  { colKey: 'username', title: t('runtimeTarget.list.candidateUsername'), minWidth: 150 },
-  { colKey: 'authorizationState', title: t('runtimeTarget.list.authorizationState'), width: 130 },
-]);
+type BatchAuthorizationState = 'all' | 'partial' | 'none';
+type BatchAuthorizationCandidate = RuntimeTargetAssignmentCandidate & { authorization_state: BatchAuthorizationState };
+function buildBatchCandidateColumns(disabledState: BatchAuthorizationState) {
+  return [
+    {
+      colKey: 'row-select',
+      type: 'multiple' as const,
+      width: 48,
+      checkProps: ({ row }: { row: unknown }) => ({
+        disabled: (row as BatchAuthorizationCandidate).authorization_state === disabledState,
+      }),
+    },
+    { colKey: 'display', title: t('runtimeTarget.list.candidateUser'), minWidth: 180 },
+    { colKey: 'username', title: t('runtimeTarget.list.candidateUsername'), minWidth: 150 },
+    { colKey: 'authorizationState', title: t('runtimeTarget.list.authorizationState'), width: 130 },
+  ] satisfies TableProps['columns'];
+}
+const batchCandidateColumns = computed<TableProps['columns']>(() => buildBatchCandidateColumns('all'));
+const batchRevokeCandidateColumns = computed<TableProps['columns']>(() => buildBatchCandidateColumns('none'));
 const savedViews = useSavedQueryViews<RuntimeTargetSavedViewState, number>({
   adapter: {
     list: async () =>
@@ -703,6 +758,21 @@ function closeBatchAuthorization() {
   batchUserSelection.value = createExplicitSelection();
 }
 
+function openBatchAuthorizationRevocation() {
+  batchCandidateSearch.value = '';
+  batchCandidatePagination.current = 1;
+  batchRevokeUserSelection.value = createExplicitSelection();
+  batchAuthorizationError.value = '';
+  batchAuthorizationRevokeDialogVisible.value = true;
+  void loadBatchCandidates();
+}
+
+function closeBatchAuthorizationRevocation() {
+  if (batchAuthorizationRevoking.value) return;
+  batchAuthorizationRevokeDialogVisible.value = false;
+  batchRevokeUserSelection.value = createExplicitSelection();
+}
+
 async function loadBatchCandidates() {
   const targetIds = [...selectedTargetIds.value];
   if (!targetIds.length) return;
@@ -747,6 +817,7 @@ async function saveBatchAuthorization() {
   if (!targetIds.length || !userIds.length) return;
   batchAuthorizationLoading.value = true;
   batchAuthorizationError.value = '';
+  let saved = false;
   try {
     await Promise.all(
       targetIds.map((targetId) => {
@@ -755,13 +826,80 @@ async function saveBatchAuthorization() {
       }),
     );
     MessagePlugin.success(t('runtimeTarget.list.batchAuthorizeSuccess'));
-    closeBatchAuthorization();
-    selectedTargetIds.value = [];
+    saved = true;
   } catch {
     batchAuthorizationError.value = t('runtimeTarget.list.batchAuthorizeError');
   } finally {
     batchAuthorizationLoading.value = false;
+    if (saved) {
+      closeBatchAuthorization();
+      selectedTargetIds.value = [];
+    }
   }
+}
+
+async function revokeBatchAuthorization() {
+  const targetIds = [...selectedTargetIds.value];
+  const userIds = Array.from(batchRevokeUserSelection.value.selectedIds).map(Number);
+  if (!targetIds.length || !userIds.length) return;
+  const containsPartialAuthorization = batchCandidates.value.some(
+    (candidate) => userIds.includes(candidate.id) && candidate.authorization_state === 'partial',
+  );
+  const revoke = async () => {
+    batchAuthorizationRevoking.value = true;
+    batchAuthorizationError.value = '';
+    let revoked = false;
+    try {
+      await Promise.all(
+        targetIds.map((targetId) => {
+          const existing = batchTargetAssignments.value.get(targetId) ?? new Set<number>();
+          return replaceRuntimeTargetAssignments(
+            targetId,
+            [...existing].filter((userId) => !userIds.includes(userId)),
+          );
+        }),
+      );
+      MessagePlugin.success(t('runtimeTarget.list.batchRevokeSuccess'));
+      revoked = true;
+    } catch {
+      batchAuthorizationError.value = t('runtimeTarget.list.batchRevokeError');
+    } finally {
+      batchAuthorizationRevoking.value = false;
+      if (revoked) {
+        closeBatchAuthorizationRevocation();
+        selectedTargetIds.value = [];
+      }
+    }
+  };
+
+  if (!containsPartialAuthorization) {
+    await revoke();
+    return;
+  }
+
+  const dialog = DialogPlugin.confirm({
+    header: t('runtimeTarget.list.batchRevokeConfirmTitle'),
+    body: t('runtimeTarget.list.batchRevokePartialWarning'),
+    confirmBtn: t('runtimeTarget.list.batchRevoke'),
+    cancelBtn: t('runtimeTarget.list.cancel'),
+    onConfirm: () => {
+      dialog.destroy();
+      void revoke();
+    },
+    onCancel: () => dialog.destroy(),
+  });
+}
+
+function candidateAuthorizationLabel(state: BatchAuthorizationState) {
+  if (state === 'all') return t('runtimeTarget.list.alreadyAuthorized');
+  if (state === 'partial') return t('runtimeTarget.list.partiallyAuthorized');
+  return t('runtimeTarget.list.notAuthorized');
+}
+
+function candidateAuthorizationTheme(state: BatchAuthorizationState) {
+  if (state === 'all') return 'success';
+  if (state === 'partial') return 'warning';
+  return 'default';
 }
 
 function compare(previous: number, next: number): Change {
