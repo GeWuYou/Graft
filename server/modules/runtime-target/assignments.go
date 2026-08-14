@@ -44,6 +44,11 @@ type runtimeTargetAssignmentBatchRequestHTTP struct {
 	Action    string   `json:"action"`
 }
 
+type runtimeTargetAssignmentBatchResultHTTP struct {
+	Targets int `json:"targets"`
+	Users   int `json:"users"`
+}
+
 type runtimeTargetAssignmentCandidateHTTP struct {
 	ID       uint64 `json:"id"`
 	Username string `json:"username"`
@@ -187,20 +192,22 @@ func (m *Module) handleBatchAssignments(c *gin.Context) {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 		return
 	}
-	if _, ok := m.resolveAssignmentUserIDs(c, request.UserIDs); !ok {
+	targetIDs := uniqueAssignmentIDs(request.TargetIDs)
+	userIDs, ok := m.resolveAssignmentUserIDs(c, request.UserIDs)
+	if !ok {
 		return
 	}
 	action := store.AssignmentBatchAction(request.Action)
 	err := m.repository.RunInTransaction(c.Request.Context(), func(txCtx context.Context, tx *sql.Tx) error {
-		if err := m.repository.ApplyAssignmentBatch(txCtx, request.TargetIDs, request.UserIDs, action, actorID); err != nil {
+		if err := m.repository.ApplyAssignmentBatch(txCtx, targetIDs, userIDs, action, actorID); err != nil {
 			return err
 		}
-		for _, targetID := range request.TargetIDs {
+		for _, targetID := range targetIDs {
 			target, err := m.repository.Get(txCtx, targetID)
 			if err != nil {
 				return err
 			}
-			payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.assignment." + request.Action, ResourceType: "runtime_target", ResourceID: strconv.FormatUint(targetID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: true, Metadata: map[string]any{"user_count": len(request.UserIDs)}}
+			payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.assignment." + request.Action, ResourceType: "runtime_target", ResourceID: strconv.FormatUint(targetID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: true, Metadata: map[string]any{"user_count": len(userIDs)}}
 			envelope, err := httpx.NewAuditEvent(moduleID, payload)
 			if err != nil {
 				return err
@@ -215,7 +222,7 @@ func (m *Module) handleBatchAssignments(c *gin.Context) {
 		m.writeAssignmentReplaceError(c, err)
 		return
 	}
-	httpx.WriteSuccess[any](c, http.StatusOK, map[string]int{"targets": len(request.TargetIDs), "users": len(request.UserIDs)})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentBatchResultHTTP{Targets: len(targetIDs), Users: len(userIDs)})
 }
 
 func (m *Module) writeAssignmentReplaceError(c *gin.Context, err error) {
@@ -277,6 +284,19 @@ func (m *Module) resolveAssignmentUserIDs(c *gin.Context, requestedIDs []uint64)
 		userIDs = append(userIDs, userID)
 	}
 	return userIDs, true
+}
+
+func uniqueAssignmentIDs(ids []uint64) []uint64 {
+	seen := make(map[uint64]struct{}, len(ids))
+	uniqueIDs := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIDs = append(uniqueIDs, id)
+	}
+	return uniqueIDs
 }
 
 func (m *Module) replaceUserAssignments(ctx context.Context, target store.Target, userIDs []uint64, expectedRevision, actorID uint64) ([]store.UserAssignment, uint64, error) {

@@ -471,6 +471,42 @@ describe('RuntimeTargetListPage', () => {
     expect(grantDialog.props('visible')).toBe(false);
   });
 
+  it('does not let a closed batch dialog apply an in-flight candidate response', async () => {
+    let resolveCandidates: (value: {
+      items: Array<{ display: string; id: number; username: string }>;
+      total: number;
+    }) => void;
+    let resolveAssignments: (value: Map<number, Set<number>>) => void;
+    const staleCandidates = new Promise<{
+      items: Array<{ display: string; id: number; username: string }>;
+      total: number;
+    }>((resolve) => {
+      resolveCandidates = resolve;
+    });
+    const staleAssignments = new Promise<Map<number, Set<number>>>((resolve) => {
+      resolveAssignments = resolve;
+    });
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockReturnValueOnce(staleCandidates);
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockReturnValueOnce(staleAssignments);
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchAuthorize:')
+      ?.trigger('click');
+    await wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!.vm.$emit('cancel');
+
+    resolveCandidates!({ items: [{ display: 'Stale', id: 9, username: 'stale' }], total: 1 });
+    resolveAssignments!(new Map([[1, new Set([9])]]));
+    await flushPromises();
+
+    const grantDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+    expect(grantDialog.props('visible')).toBe(false);
+    expect(grantDialog.props('rows')).toEqual([]);
+  });
+
   it('disables unauthorized users in batch revoke and subtracts users from every selected target', async () => {
     apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({
       items: [

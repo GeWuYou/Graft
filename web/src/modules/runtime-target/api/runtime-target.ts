@@ -19,6 +19,9 @@ type RuntimeTargetDiscoverLocal = NonNullable<
 type RuntimeTargetAssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetAssignmentCandidates]['get'];
 type RuntimeTargetAssignmentsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetAssignments]['get'];
+type RuntimeTargetAssignmentsData = NonNullable<
+  RuntimeTargetAssignmentsOperation['responses'][200]['content']['application/json']['data']
+>;
 type RuntimeTargetAssignmentsReplaceOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRuntimeTargetAssignments]['put'];
 type RuntimeTargetAssignmentsBatchOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.postRuntimeTargetAssignmentsBatch]['post'];
@@ -110,13 +113,8 @@ export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRef
   return request.post<RuntimeTargetRefresh>({ url: buildOpenApiRuntimePath('postRuntimeTargetRefresh', { id }) });
 }
 
-export async function getRuntimeTargetAssignments(
-  id: number,
-): Promise<{ items: RuntimeTargetAssignment[]; revision: number }> {
-  type Response = NonNullable<
-    NonNullable<RuntimeTargetAssignmentsOperation['responses'][200]['content']['application/json']['data']>
-  >;
-  const response = await request.get<Response>({
+export async function getRuntimeTargetAssignments(id: number): Promise<RuntimeTargetAssignmentsData> {
+  const response = await request.get<RuntimeTargetAssignmentsData>({
     url: buildOpenApiRuntimePath('getRuntimeTargetAssignments', { id }),
   });
   runtimeTargetAssignmentRevisions.set(id, response.revision);

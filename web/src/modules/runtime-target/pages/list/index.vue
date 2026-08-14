@@ -367,6 +367,8 @@ const batchCandidates = ref<BatchAuthorizationCandidate[]>([]);
 const batchCandidateTotal = ref(0);
 const batchCandidateSearch = ref('');
 const batchCandidatePagination = reactive({ current: 1, pageSize: 20 });
+// 只允许当前对话框会话提交异步候选结果，关闭后使仍在途的请求失效。
+let batchCandidateRequestVersion = 0;
 const batchUserSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const batchRevokeUserSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const batchTargetAssignments = ref<Map<number, Set<number>>>(new Map());
@@ -754,6 +756,7 @@ function openBatchAuthorization() {
 
 function closeBatchAuthorization() {
   if (batchAuthorizationLoading.value) return;
+  batchCandidateRequestVersion += 1;
   batchAuthorizationDialogVisible.value = false;
   batchUserSelection.value = createExplicitSelection();
 }
@@ -769,6 +772,7 @@ function openBatchAuthorizationRevocation() {
 
 function closeBatchAuthorizationRevocation() {
   if (batchAuthorizationRevoking.value) return;
+  batchCandidateRequestVersion += 1;
   batchAuthorizationRevokeDialogVisible.value = false;
   batchRevokeUserSelection.value = createExplicitSelection();
 }
@@ -776,6 +780,7 @@ function closeBatchAuthorizationRevocation() {
 async function loadBatchCandidates() {
   const targetIds = [...selectedTargetIds.value];
   if (!targetIds.length) return;
+  const requestVersion = ++batchCandidateRequestVersion;
   batchCandidatesLoading.value = true;
   batchAuthorizationError.value = '';
   try {
@@ -787,6 +792,12 @@ async function loadBatchCandidates() {
       }),
       getRuntimeTargetAssignmentsForTargets(targetIds),
     ]);
+    if (
+      requestVersion !== batchCandidateRequestVersion ||
+      (!batchAuthorizationDialogVisible.value && !batchAuthorizationRevokeDialogVisible.value)
+    ) {
+      return;
+    }
     batchTargetAssignments.value = assignments;
     batchCandidates.value = candidatePage.items.map((candidate) => {
       const assignedCount = targetIds.reduce(
@@ -800,9 +811,13 @@ async function loadBatchCandidates() {
     });
     batchCandidateTotal.value = candidatePage.total;
   } catch {
-    batchAuthorizationError.value = t('runtimeTarget.list.authorizationLoadError');
+    if (requestVersion === batchCandidateRequestVersion) {
+      batchAuthorizationError.value = t('runtimeTarget.list.authorizationLoadError');
+    }
   } finally {
-    batchCandidatesLoading.value = false;
+    if (requestVersion === batchCandidateRequestVersion) {
+      batchCandidatesLoading.value = false;
+    }
   }
 }
 

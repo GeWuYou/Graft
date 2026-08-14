@@ -157,6 +157,44 @@ func TestSQLRepositoryReplaceUserAssignmentsUsesRevisionCAS(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryAssignmentMutationsAdvanceRevision(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_assignment_revisions (runtime_target_id INTEGER PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("create assignment revision table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'First', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0), (8, 'docker', 'Second', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0)`); err != nil {
+		t.Fatalf("seed targets: %v", err)
+	}
+	repository := NewSQLRepository(db)
+
+	if _, err := repository.GrantUserAssignment(context.Background(), 7, 11, 3); err != nil {
+		t.Fatalf("grant assignment: %v", err)
+	}
+	if revision, err := repository.UserAssignmentRevision(context.Background(), 7); err != nil || revision != 2 {
+		t.Fatalf("revision after grant = %d, %v; want 2", revision, err)
+	}
+	if _, _, err := repository.ReplaceUserAssignmentsTx(context.Background(), 7, []uint64{12}, 1, 3); !errors.Is(err, ErrAssignmentRevisionConflict) {
+		t.Fatalf("replacement after grant = %v, want revision conflict", err)
+	}
+	if err := repository.RevokeUserAssignment(context.Background(), 7, 11, 3); err != nil {
+		t.Fatalf("revoke assignment: %v", err)
+	}
+	if revision, err := repository.UserAssignmentRevision(context.Background(), 7); err != nil || revision != 3 {
+		t.Fatalf("revision after revoke = %d, %v; want 3", revision, err)
+	}
+	if err := repository.ApplyAssignmentBatch(context.Background(), []uint64{7, 8}, []uint64{13, 14}, AssignmentBatchGrant, 3); err != nil {
+		t.Fatalf("grant batch: %v", err)
+	}
+	for targetID, wantRevision := range map[uint64]uint64{7: 4, 8: 2} {
+		if revision, err := repository.UserAssignmentRevision(context.Background(), targetID); err != nil || revision != wantRevision {
+			t.Fatalf("revision after batch for target %d = %d, %v; want %d", targetID, revision, err, wantRevision)
+		}
+	}
+}
+
 func openRuntimeTargetTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", "file:"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared")
