@@ -166,11 +166,9 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "sleep infinity"
+                "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; cd \"${workspaceFolder}/web\" && exec bun run dev"
             ],
-            "preLaunchTask": "web: dev",
-            "console": "internalConsole",
-            "internalConsoleOptions": "neverOpen"
+            "console": "integratedTerminal"
         },
         {
             "name": "quality: eff-u-code server",

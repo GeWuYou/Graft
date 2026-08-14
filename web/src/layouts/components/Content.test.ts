@@ -218,6 +218,51 @@ describe('Content', () => {
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles::0');
   });
 
+  it('keeps an encoded resource detail instance when edit mode is removed', async () => {
+    routeState.path = '/infrastructure/registries/registry%3Aacceptance-ghcr';
+    routeState.fullPath = '/infrastructure/registries/registry%3Aacceptance-ghcr?mode=edit';
+    tabStoreState.activeTabKey = '/infrastructure/registries/registry%3Aacceptance-ghcr';
+    tabStoreState.refreshNonceByTabKey = {
+      '/infrastructure/registries/registry%3Aacceptance-ghcr': 0,
+    };
+    tabStoreState.tabRouters = [
+      {
+        fullPath: routeState.fullPath,
+        tabKey: routeState.path,
+        path: routeState.path,
+        isAlive: true,
+        meta: {},
+        name: 'RegistryConnectionDetailIndex',
+      },
+    ];
+
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" :route="route" />',
+            data() {
+              return { Component: RouteContentProbe, route: routeState };
+            },
+          },
+          transition: TransitionStub,
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+        },
+      },
+    });
+
+    routeState.fullPath = routeState.path;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe(
+      '/infrastructure/registries/registry%3Aacceptance-ghcr::0',
+    );
+  });
+
   it('does not restrict keep-alive by route name', () => {
     const wrapper = mount(Content, {
       global: {

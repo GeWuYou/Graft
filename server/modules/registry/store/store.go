@@ -81,6 +81,19 @@ type UserAssignment struct {
 	CreatedBy     uint64
 }
 
+// AssignmentBatchAddInput 描述一个连接内需要追加授权的 Repository 与用户集合。
+type AssignmentBatchAddInput struct {
+	RepositoryRefs []string
+	UserIDs        []uint64
+}
+
+// AssignmentBatchAddResult 汇总一次幂等批量追加授权的结果。
+type AssignmentBatchAddResult struct {
+	Total                int64
+	AddedCount           int64
+	AlreadyAssignedCount int64
+}
+
 // AssignmentCandidateState 是用户在所选 Repository 集合上的授权聚合状态。
 type AssignmentCandidateState string
 
@@ -149,6 +162,7 @@ type ManagementRepository interface {
 	GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (UserAssignment, error)
 	RevokeAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) error
 	ReplaceAssignments(ctx context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]UserAssignment, error)
+	AddAssignments(ctx context.Context, connectionRef string, input AssignmentBatchAddInput, actorID uint64) (AssignmentBatchAddResult, error)
 	ListAssignmentCandidates(ctx context.Context, connectionRef string, repositoryRefs []string, userIDs []uint64) (map[uint64]AssignmentCandidate, error)
 	ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]Destination, int, error)
 }
@@ -703,6 +717,89 @@ func (r *SQLRepository) ReplaceAssignments(ctx context.Context, connectionRef, r
 	}
 	items, _, err := r.ListAssignments(ctx, connectionRef, repositoryRef, int(^uint(0)>>1), 0)
 	return items, err
+}
+
+// AddAssignments 验证完整目标集合后，在一个事务内幂等地补齐缺失授权。
+func (r *SQLRepository) AddAssignments(ctx context.Context, connectionRef string, input AssignmentBatchAddInput, actorID uint64) (AssignmentBatchAddResult, error) {
+	connectionRef, input, err := validateAssignmentBatchAddInput(connectionRef, input)
+	if err != nil {
+		return AssignmentBatchAddResult{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("begin artifact repository assignment batch add: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var repositoryCount int
+	const countRepositories = `SELECT COUNT(*) FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0`
+	if err := tx.QueryRowContext(ctx, countRepositories, connectionRef, pgtype.FlatArray[string](input.RepositoryRefs)).Scan(&repositoryCount); err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("count batch assignment repositories: %w", err)
+	}
+	if repositoryCount != len(input.RepositoryRefs) {
+		return AssignmentBatchAddResult{}, ErrNotFound
+	}
+	var userCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE id = ANY($1)`, pgtype.FlatArray[uint64](input.UserIDs)).Scan(&userCount); err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("count batch assignment users: %w", err)
+	}
+	if userCount != len(input.UserIDs) {
+		return AssignmentBatchAddResult{}, ErrNotFound
+	}
+
+	const insertAssignments = `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
+SELECT r.id, u.user_id, $4, $4
+FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+CROSS JOIN UNNEST($3::BIGINT[]) AS u(user_id)
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0
+ON CONFLICT DO NOTHING`
+	result, err := tx.ExecContext(ctx, insertAssignments, connectionRef, pgtype.FlatArray[string](input.RepositoryRefs), pgtype.FlatArray[uint64](input.UserIDs), actorID)
+	if err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("add artifact repository assignments: %w", registryWriteError(err))
+	}
+	addedCount, err := result.RowsAffected()
+	if err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("count added artifact repository assignments: %w", err)
+	}
+	total := int64(len(input.RepositoryRefs)) * int64(len(input.UserIDs))
+	if err := tx.Commit(); err != nil {
+		return AssignmentBatchAddResult{}, fmt.Errorf("commit artifact repository assignment batch add: %w", err)
+	}
+	return AssignmentBatchAddResult{Total: total, AddedCount: addedCount, AlreadyAssignedCount: total - addedCount}, nil
+}
+
+func validateAssignmentBatchAddInput(connectionRef string, input AssignmentBatchAddInput) (string, AssignmentBatchAddInput, error) {
+	connectionRef = strings.TrimSpace(connectionRef)
+	if connectionRef == "" || len(input.RepositoryRefs) == 0 || len(input.UserIDs) == 0 {
+		return "", AssignmentBatchAddInput{}, errors.New("invalid batch assignment input")
+	}
+	repositoryRefs := make([]string, len(input.RepositoryRefs))
+	seenRefs := make(map[string]struct{}, len(input.RepositoryRefs))
+	for index, value := range input.RepositoryRefs {
+		ref := strings.TrimSpace(value)
+		if ref == "" {
+			return "", AssignmentBatchAddInput{}, errors.New("invalid batch assignment input")
+		}
+		if _, exists := seenRefs[ref]; exists {
+			return "", AssignmentBatchAddInput{}, errors.New("invalid batch assignment input")
+		}
+		seenRefs[ref] = struct{}{}
+		repositoryRefs[index] = ref
+	}
+	seenUsers := make(map[uint64]struct{}, len(input.UserIDs))
+	for _, userID := range input.UserIDs {
+		if userID == 0 {
+			return "", AssignmentBatchAddInput{}, errors.New("invalid batch assignment input")
+		}
+		if _, exists := seenUsers[userID]; exists {
+			return "", AssignmentBatchAddInput{}, errors.New("invalid batch assignment input")
+		}
+		seenUsers[userID] = struct{}{}
+	}
+	return connectionRef, AssignmentBatchAddInput{RepositoryRefs: repositoryRefs, UserIDs: append([]uint64(nil), input.UserIDs...)}, nil
 }
 
 func existingAssignmentUsers(ctx context.Context, tx *sql.Tx, userIDs []uint64) (map[uint64]struct{}, error) {

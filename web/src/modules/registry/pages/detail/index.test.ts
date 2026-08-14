@@ -13,12 +13,19 @@ const pageSource = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'i
 const apiMocks = vi.hoisted(() => ({
   getRegistry: vi.fn(),
   getRegistryRepositories: vi.fn(),
+  getRegistryRepositoryAssignmentCandidates: vi.fn(),
+  getRegistryRepositoryAssignments: vi.fn(),
+  replaceRegistryRepositoryAssignments: vi.fn(),
+  addRegistryRepositoryAssignments: vi.fn(),
   updateRegistry: vi.fn(),
 }));
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const routerMocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn().mockResolvedValue(undefined) }));
+const tabsRouterStoreMocks = vi.hoisted(() => ({ updateActiveTabTitle: vi.fn() }));
 const routeState = reactive({
+  name: 'RegistryConnectionDetailIndex',
   params: { connectionRef: 'registry-a' },
+  path: '/infrastructure/registries/registry-a',
   query: {} as Record<string, unknown>,
 });
 const formMocks = vi.hoisted(() => ({ validate: vi.fn() }));
@@ -27,15 +34,24 @@ vi.mock('vue-router', () => ({
   useRoute: () => routeState,
   useRouter: () => routerMocks,
 }));
+vi.mock('@/store/modules/tabs-router', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMocks,
+}));
+vi.mock('@/utils/route/title', () => ({
+  buildDetailTitleWithFallback: (_titleKey: string, name: string) => ({
+    'en-US': `Image Registry Detail - ${name}`,
+    'zh-CN': `镜像仓库详情 - ${name}`,
+  }),
+}));
 vi.mock('../../api/registry', () => ({
   createRegistryRepository: vi.fn(),
   deleteRegistryRepository: vi.fn(),
   getRegistry: apiMocks.getRegistry,
   getRegistryRepositories: apiMocks.getRegistryRepositories,
-  getRegistryRepositoryAssignmentCandidates: vi.fn(),
-  getRegistryRepositoryAssignments: vi.fn(),
-  grantRegistryRepositoryAssignment: vi.fn(),
-  revokeRegistryRepositoryAssignment: vi.fn(),
+  getRegistryRepositoryAssignmentCandidates: apiMocks.getRegistryRepositoryAssignmentCandidates,
+  getRegistryRepositoryAssignments: apiMocks.getRegistryRepositoryAssignments,
+  replaceRegistryRepositoryAssignments: apiMocks.replaceRegistryRepositoryAssignments,
+  addRegistryRepositoryAssignments: apiMocks.addRegistryRepositoryAssignments,
   updateRegistry: apiMocks.updateRegistry,
   updateRegistryRepository: vi.fn(),
 }));
@@ -68,10 +84,10 @@ vi.mock('@/shared/components/management', () => ({
 vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => ({
   default: defineComponent({
     name: 'ManagementPagedTable',
-    setup:
-      (_props, { slots }) =>
-      () =>
-        h('div', slots.default?.()),
+    emits: ['select-change'],
+    setup(_props, { slots }) {
+      return () => h('div', [slots.repositoryActions?.({ row: { repository_ref: 'repo-a' } }), slots.default?.()]);
+    },
   }),
 }));
 vi.mock('@/shared/components/responsive/ResponsiveDialog.vue', () => ({
@@ -88,14 +104,29 @@ vi.mock('@/shared/components/responsive/ResponsiveDialog.vue', () => ({
     },
   }),
 }));
-vi.mock('@/shared/components/selection', () => ({
-  PagedMultiSelect: defineComponent({
-    setup:
-      (_props, { slots }) =>
-      () =>
-        h('div', slots.default?.()),
-  }),
-}));
+vi.mock('@/shared/components/selection', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/components/selection')>();
+  return {
+    ...actual,
+    PagedMultiSelect: defineComponent({
+      name: 'PagedMultiSelect',
+      props: { loading: Boolean, selection: { default: undefined, type: Object }, visible: Boolean },
+      emits: ['cancel', 'confirm', 'update:selection'],
+      setup(props, { emit, slots }) {
+        return () =>
+          h(
+            'div',
+            {
+              'data-loading': String(props.loading),
+              'data-visible': String(props.visible),
+              onClick: () => emit('cancel'),
+            },
+            [slots.default?.()],
+          );
+      },
+    }),
+  };
+});
 
 const connectionFormStub = defineComponent({
   name: 'RegistryConnectionForm',
@@ -189,6 +220,8 @@ describe('RegistryDetailPage connection editing', () => {
     routeState.query = { mode: 'edit', source: 'list' };
     apiMocks.getRegistry.mockResolvedValue(connection());
     apiMocks.getRegistryRepositories.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRegistryRepositoryAssignmentCandidates.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRegistryRepositoryAssignments.mockResolvedValue({ items: [], total: 0 });
     apiMocks.updateRegistry.mockResolvedValue(connection());
     formMocks.validate.mockResolvedValue(true);
   });
@@ -209,7 +242,24 @@ describe('RegistryDetailPage connection editing', () => {
     expect(connectionDialog(refreshed).props('visible')).toBe(true);
   });
 
+  it('updates the active detail tab title with the loaded Connection name', async () => {
+    mountPage();
+    await flushPromises();
+
+    expect(tabsRouterStoreMocks.updateActiveTabTitle).toHaveBeenCalledWith(
+      'RegistryConnectionDetailIndex',
+      routeState,
+      {
+        'en-US': 'Image Registry Detail - Registry A',
+        'zh-CN': '镜像仓库详情 - Registry A',
+      },
+    );
+  });
+
   it('saves the editable fields, refreshes detail data, and restores the normal URL', async () => {
+    apiMocks.getRegistry
+      .mockResolvedValueOnce(connection())
+      .mockResolvedValueOnce(connection({ display_name: 'Updated Registry' }));
     const wrapper = mountPage();
     await flushPromises();
     wrapper.findComponent(connectionFormStub).vm.$emit('update:modelValue', {
@@ -236,6 +286,14 @@ describe('RegistryDetailPage connection editing', () => {
     expect(apiMocks.getRegistry).toHaveBeenCalledTimes(2);
     expect(apiMocks.getRegistryRepositories).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('registry.route.detail.connectionSaveSuccess');
+    expect(tabsRouterStoreMocks.updateActiveTabTitle).toHaveBeenLastCalledWith(
+      'RegistryConnectionDetailIndex',
+      routeState,
+      {
+        'en-US': 'Image Registry Detail - Updated Registry',
+        'zh-CN': '镜像仓库详情 - Updated Registry',
+      },
+    );
     expect(routerMocks.replace).toHaveBeenCalledWith({
       path: '/infrastructure/registries/registry-a',
       query: { source: 'list', mode: undefined },
@@ -304,11 +362,127 @@ describe('RegistryDetailPage assignment safety', () => {
     expect(pageSource).not.toContain('grantBatchAssignments');
   });
 
-  it('bounds batch mutation fan-out and loads all pages before revoking every assignment', () => {
-    expect(pageSource).toContain('const ASSIGNMENT_MUTATION_CONCURRENCY = 10;');
-    expect(pageSource).toContain('mutations.slice(index, index + ASSIGNMENT_MUTATION_CONCURRENCY)');
-    expect(pageSource).toContain('const userIds = await loadAllAssignmentUserIds();');
-    expect(pageSource).toContain('limit: ASSIGNMENT_PAGE_LIMIT');
-    expect(pageSource).toContain('offset,');
+  it('uses atomic additive batch submission and final-set replacement semantics', () => {
+    expect(pageSource).toContain('addRegistryRepositoryAssignments(connectionRef.value');
+    expect(pageSource).toContain('replaceRegistryRepositoryAssignments(connectionRef.value');
+    expect(pageSource).not.toContain('ASSIGNMENT_MUTATION_CONCURRENCY');
+  });
+
+  it('blocks replacement when the initial assignment baseline exceeds the page limit', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockImplementation((_connectionRef, query) =>
+      Promise.resolve({
+        items: Array.from({ length: 100 }, (_, index) => ({ user_id: query.offset + index + 1 })),
+        total: 2_100,
+      }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.getRegistryRepositoryAssignments).toHaveBeenCalledTimes(20);
+    expect(apiMocks.replaceRegistryRepositoryAssignments).not.toHaveBeenCalled();
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentInitialLoadIncomplete');
+  });
+
+  it('clears the assignment dialog loading state when a stale session returns early', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockImplementation(() => new Promise(() => undefined));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+    expect(assignmentDialog.props('loading')).toBe(true);
+
+    await assignmentDialog.vm.$emit('cancel');
+    await flushPromises();
+
+    expect(assignmentDialog.props('loading')).toBe(false);
+  });
+
+  it('submits batch assignments and reports success or failure', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.findComponent({ name: 'ManagementPagedTable' }).vm.$emit('select-change', ['repo-a', 'repo-b']);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.batchAuthorizeRepositories')
+      ?.trigger('click');
+    await flushPromises();
+    const batchDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+
+    await batchDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([7, 8]) });
+    await batchDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.addRegistryRepositoryAssignments).toHaveBeenCalledWith('registry-a', {
+      repository_refs: ['repo-a', 'repo-b'],
+      user_ids: [7, 8],
+    });
+    expect(messageMocks.success).toHaveBeenCalledWith('registry.list.batchAssignmentSaveSuccess');
+
+    apiMocks.addRegistryRepositoryAssignments.mockRejectedValueOnce(new Error('failed'));
+    await wrapper.findComponent({ name: 'ManagementPagedTable' }).vm.$emit('select-change', ['repo-a']);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.batchAuthorizeRepositories')
+      ?.trigger('click');
+    await flushPromises();
+    await batchDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([9]) });
+    await batchDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.addRegistryRepositoryAssignments).toHaveBeenLastCalledWith('registry-a', {
+      repository_refs: ['repo-a'],
+      user_ids: [9],
+    });
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentSaveFailed');
+  });
+
+  it('replaces repository assignments and reports success or failure', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockResolvedValue({ items: [{ user_id: 1 }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    await assignmentDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([2, 3]) });
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.replaceRegistryRepositoryAssignments).toHaveBeenCalledWith('registry-a', 'repo-a', {
+      user_ids: [2, 3],
+    });
+    expect(messageMocks.success).toHaveBeenCalledWith('registry.list.assignmentSaveSuccess');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    apiMocks.replaceRegistryRepositoryAssignments.mockRejectedValueOnce(new Error('failed'));
+    await assignmentDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([4]) });
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.replaceRegistryRepositoryAssignments).toHaveBeenLastCalledWith('registry-a', 'repo-a', {
+      user_ids: [4],
+    });
+    expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentSaveFailed');
   });
 });

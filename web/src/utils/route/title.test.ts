@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasUnresolvedRouteTitleKey, isRouteTitleKey, localizeRouteTitle } from './title';
+import { buildDetailTitleWithFallback, hasUnresolvedRouteTitleKey, isRouteTitleKey, localizeRouteTitle } from './title';
 
 describe('localizeRouteTitle', () => {
   it('prefers the bootstrap title_key when the frontend locale catalog defines it', () => {
@@ -38,6 +38,17 @@ describe('localizeRouteTitle', () => {
     expect(localizeRouteTitle('角色管理', 'menu.unknown.title')).toEqual({
       'zh-CN': '角色管理',
       'en-US': '角色管理',
+    });
+  });
+
+  it('builds object detail titles from a localized route title and name', () => {
+    expect(buildDetailTitleWithFallback('registry.route.detail.title', 'github仓库')).toEqual({
+      'zh-CN': '镜像仓库详情 - github仓库',
+      'en-US': 'Image Registry Detail - github仓库',
+    });
+    expect(buildDetailTitleWithFallback('registry.route.detail.title', '')).toEqual({
+      'zh-CN': '镜像仓库详情',
+      'en-US': 'Image Registry Detail',
     });
   });
 

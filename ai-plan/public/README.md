@@ -65,6 +65,9 @@ Overlay note:
 - `user-auth-transaction-ownership`
   - Recovery entry: `ai-plan/public/user-auth-transaction-ownership/README.md`
 
+- `runtime-composability-governance`
+  - Recovery entry: `ai-plan/public/runtime-composability-governance/README.md`
+
 - `theme-preset-governance-audit`
   - Recovery entry: `ai-plan/public/theme-preset-governance-audit/README.md`
 ## Archive Location

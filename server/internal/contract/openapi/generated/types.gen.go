@@ -11962,6 +11962,26 @@ type EnvelopedRegistryArtifactRepository struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult defines model for enveloped-registry-artifact-repository-assignment-batch-add-result.
+type EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult struct {
+	// Code Existing canonical response code.
+	Code string                                             `json:"code"`
+	Data RegistryArtifactRepositoryAssignmentBatchAddResult `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRegistryArtifactRepositoryListResponse defines model for enveloped-registry-artifact-repository-list-response.
 type EnvelopedRegistryArtifactRepositoryListResponse struct {
 	// Code Existing canonical response code.
@@ -13749,6 +13769,24 @@ type RegistryArtifactRepository struct {
 	RepositoryRef string    `json:"repository_ref"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	UpdatedBy     *int64    `json:"updated_by,omitempty"`
+}
+
+// RegistryArtifactRepositoryAssignmentBatchAddRequest defines model for registry-artifact-repository-assignment-batch-add-request.
+type RegistryArtifactRepositoryAssignmentBatchAddRequest struct {
+	RepositoryRefs []string `json:"repository_refs"`
+	UserIds        []int64  `json:"user_ids"`
+}
+
+// RegistryArtifactRepositoryAssignmentBatchAddResult defines model for registry-artifact-repository-assignment-batch-add-result.
+type RegistryArtifactRepositoryAssignmentBatchAddResult struct {
+	// AddedCount Number of missing assignments created by this request.
+	AddedCount int64 `json:"added_count"`
+
+	// AlreadyAssignedCount Number of requested assignments that were already active.
+	AlreadyAssignedCount int64 `json:"already_assigned_count"`
+
+	// Total Number of requested repository-user assignment pairs.
+	Total int64 `json:"total"`
 }
 
 // RegistryArtifactRepositoryCreateRequest defines model for registry-artifact-repository-create-request.
@@ -18213,6 +18251,16 @@ type PutRegistryArtifactRepositoryAssignmentsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostRegistryArtifactRepositoryAssignmentsBatchAddParams defines parameters for PostRegistryArtifactRepositoryAssignmentsBatchAdd.
+type PostRegistryArtifactRepositoryAssignmentsBatchAddParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteRegistryArtifactRepositoryAssignmentParams defines parameters for DeleteRegistryArtifactRepositoryAssignment.
 type DeleteRegistryArtifactRepositoryAssignmentParams struct {
 	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
@@ -19318,6 +19366,9 @@ type PostRegistryArtifactRepositoryAssignmentJSONRequestBody = RegistryArtifactR
 
 // PutRegistryArtifactRepositoryAssignmentsJSONRequestBody defines body for PutRegistryArtifactRepositoryAssignments for application/json ContentType.
 type PutRegistryArtifactRepositoryAssignmentsJSONRequestBody = RegistryArtifactRepositoryUserAssignmentReplaceRequest
+
+// PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignmentsBatchAdd for application/json ContentType.
+type PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody = RegistryArtifactRepositoryAssignmentBatchAddRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

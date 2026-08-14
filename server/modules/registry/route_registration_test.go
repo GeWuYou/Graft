@@ -41,6 +41,7 @@ func TestRegistryRoutesRequireExpectedPermissions(t *testing.T) {
 		{name: "connection delete", method: http.MethodDelete, path: "/api/registries/registry:primary", permission: registrycontract.DeletePermission},
 		{name: "connection verify", method: http.MethodPost, path: "/api/registries/registry:primary/verify", permission: registrycontract.VerifyPermission},
 		{name: "repository assignment", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignments?repository_ref=team/app", permission: registrycontract.AssignmentManagePermission},
+		{name: "batch repository assignment", method: http.MethodPost, path: "/api/registries/registry:primary/repository-assignments/batch", body: `{"repository_refs":["app"],"user_ids":[7]}`, permission: registrycontract.AssignmentManagePermission},
 		{name: "repository assignment candidates", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app", permission: registrycontract.AssignmentManagePermission},
 		{name: "available build destinations", method: http.MethodGet, path: "/api/registries/available-destinations", permission: buildcontract.BuildCreatePermission},
 	} {
@@ -119,7 +120,7 @@ func TestRegistryConnectionResponseDoesNotExposeCredentialReference(t *testing.T
 	}
 }
 
-func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T) {
+func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T) { //nolint:gocognit,gocyclo,cyclop // Covers the complete Registry mutation route matrix in one HTTP seam.
 	repository := newRegistryRouteRepository()
 	engine := newRegistryRouteTestEngine(t, repository, &registryRouteAuthorizer{})
 
@@ -157,6 +158,27 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 	engine.ServeHTTP(clear, registryRouteRequest(http.MethodPut, "/api/registries/registry:primary/repository-assignments?repository_ref=team/release", `{"user_ids":[]}`, "7"))
 	if clear.Code != http.StatusOK || !strings.Contains(clear.Body.String(), `"total":0`) || !strings.Contains(clear.Body.String(), `"limit":1`) {
 		t.Fatalf("clear assignments = %d: %s", clear.Code, clear.Body.String())
+	}
+
+	var userIDs strings.Builder
+	userIDs.WriteString(`{"user_ids":[`)
+	for userID := 1; userID <= 101; userID++ {
+		if userID > 1 {
+			userIDs.WriteByte(',')
+		}
+		userIDs.WriteString(strconv.Itoa(userID))
+	}
+	userIDs.WriteString(`]}`)
+	largeReplace := httptest.NewRecorder()
+	engine.ServeHTTP(largeReplace, registryRouteRequest(http.MethodPut, "/api/registries/registry:primary/repository-assignments?repository_ref=app", userIDs.String(), "7"))
+	if largeReplace.Code != http.StatusOK || !strings.Contains(largeReplace.Body.String(), `"total":101`) {
+		t.Fatalf("replace more than one hundred assignments = %d: %s", largeReplace.Code, largeReplace.Body.String())
+	}
+
+	batchAdd := httptest.NewRecorder()
+	engine.ServeHTTP(batchAdd, registryRouteRequest(http.MethodPost, "/api/registries/registry:primary/repository-assignments/batch", `{"repository_refs":["app","team/release"],"user_ids":[7,9]}`, "7"))
+	if batchAdd.Code != http.StatusOK || !strings.Contains(batchAdd.Body.String(), `"total":4`) || !strings.Contains(batchAdd.Body.String(), `"added_count":2`) || !strings.Contains(batchAdd.Body.String(), `"already_assigned_count":2`) {
+		t.Fatalf("batch add assignments = %d: %s", batchAdd.Code, batchAdd.Body.String())
 	}
 
 	deleteResponse := httptest.NewRecorder()
@@ -511,6 +533,37 @@ func (r *registryRouteRepository) ReplaceAssignments(_ context.Context, connecti
 	}
 	r.assignments[connectionRef+"/"+repositoryRef] = items
 	return append([]registrystore.UserAssignment(nil), items...), nil
+}
+
+func (r *registryRouteRepository) AddAssignments(_ context.Context, connectionRef string, input registrystore.AssignmentBatchAddInput, actorID uint64) (registrystore.AssignmentBatchAddResult, error) {
+	if connectionRef != r.connection.ConnectionRef || len(input.RepositoryRefs) == 0 || len(input.UserIDs) == 0 {
+		return registrystore.AssignmentBatchAddResult{}, registrystore.ErrNotFound
+	}
+	for _, repositoryRef := range input.RepositoryRefs {
+		if !r.repositoryExists(connectionRef, repositoryRef) {
+			return registrystore.AssignmentBatchAddResult{}, registrystore.ErrNotFound
+		}
+	}
+	result := registrystore.AssignmentBatchAddResult{Total: int64(len(input.RepositoryRefs) * len(input.UserIDs))}
+	for _, repositoryRef := range input.RepositoryRefs {
+		key := connectionRef + "/" + repositoryRef
+		for _, userID := range input.UserIDs {
+			assigned := false
+			for _, item := range r.assignments[key] {
+				if item.UserID == userID {
+					assigned = true
+					break
+				}
+			}
+			if assigned {
+				result.AlreadyAssignedCount++
+				continue
+			}
+			r.assignments[key] = append(r.assignments[key], registrystore.UserAssignment{ConnectionRef: connectionRef, RepositoryRef: repositoryRef, UserID: userID, CreatedAt: r.connection.CreatedAt, CreatedBy: actorID})
+			result.AddedCount++
+		}
+	}
+	return result, nil
 }
 
 func (r *registryRouteRepository) GrantAssignment(_ context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (registrystore.UserAssignment, error) {

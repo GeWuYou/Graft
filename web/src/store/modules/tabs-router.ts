@@ -114,6 +114,34 @@ function normalizeTabKey(value?: string) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+// 路由路径必须保持 Vue Router 使用的编码形态，避免 Tab key 与 route.path 比较时把同一页面误判为不同实例。
+function normalizeRoutePath(path?: string) {
+  if (typeof path !== 'string') {
+    return '';
+  }
+
+  return path
+    .trim()
+    .split('/')
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return segment;
+      }
+    })
+    .join('/');
+}
+
+function normalizeRouteFullPath(fullPath: string | undefined, path: string) {
+  if (!fullPath) {
+    return path;
+  }
+
+  const [rawPath, suffix = ''] = fullPath.split(/([?#].*)/, 2);
+  return `${normalizeRoutePath(rawPath)}${suffix}`;
+}
+
 /**
  * 获取标签页的唯一标识。
  *
@@ -200,13 +228,15 @@ function formatTabsSummary(routes: TRouterInfo[]) {
  * @returns 补充计算标签属性后的路由
  */
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
-  const tabKey = getTabKey(route);
+  const path = normalizeRoutePath(route.path) || route.path;
+  const tabKey = route.isDuplicate ? getTabKey(route) : path;
 
   return {
     ...route,
+    path,
     titleSource: route.titleSource ?? 'route',
     tabKey,
-    fullPath: route.fullPath || route.path,
+    fullPath: normalizeRouteFullPath(route.fullPath, path),
     isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
     isAlive: route.isHome ? true : shouldKeepTabAlive(route),
   };
@@ -282,6 +312,22 @@ function ensureSingleHomeTab(routes: TRouterInfo[]) {
   const canonicalHomeKey = getTabKey(homeRoute[0]);
   const retainedHome = homeTabs.find((route) => getTabKey(route) === canonicalHomeKey) ?? homeTabs[0];
   return routes.filter((route) => !route.isHome || route === retainedHome);
+}
+
+/**
+ * 保留每个资源键的首个标签，避免编码差异或旧持久化状态重复展示同一资源。
+ */
+function ensureUniqueTabKeys(routes: TRouterInfo[]) {
+  const tabKeys = new Set<string>();
+  return routes.filter((route) => {
+    const tabKey = getTabKey(route);
+    if (tabKeys.has(tabKey)) {
+      return false;
+    }
+
+    tabKeys.add(tabKey);
+    return true;
+  });
 }
 
 /**
@@ -415,8 +461,8 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureSingleHomeTab(
-        ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle)),
+      this.tabRouterList = ensureUniqueTabKeys(
+        ensureSingleHomeTab(ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle))),
       );
       this.closedTabStack = filterReopenableClosedTabs(removeLegacyTabs(this.closedTabStack), this.tabRouterList).map(
         cloneTab,
@@ -442,7 +488,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       );
       const nextTabs = this.tabRouters.filter(canKeepRoute).map(localizePersistedTabTitle);
 
-      this.tabRouterList = ensureSingleHomeTab(ensureNonEmptyTabs(nextTabs, pinnedKeys));
+      this.tabRouterList = ensureUniqueTabKeys(ensureSingleHomeTab(ensureNonEmptyTabs(nextTabs, pinnedKeys)));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -473,23 +519,27 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
       const normalized = normalizeRouteState(newRoute);
       if (!this.tabRouters.find((route: TRouterInfo) => getTabKey(route) === getTabKey(normalized))) {
-        this.tabRouterList = ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(normalized)));
+        this.tabRouterList = ensureUniqueTabKeys(ensureSingleHomeTab(sortTabs(this.tabRouterList.concat(normalized))));
       } else {
-        this.tabRouterList = ensureSingleHomeTab(
-          sortTabs(
-            this.tabRouterList.map((route) =>
-              getTabKey(route) === getTabKey(normalized)
-                ? {
-                    ...route,
-                    fullPath: normalized.fullPath,
-                    query: normalized.query,
-                    params: normalized.params,
-                    title: resolveNextTabTitle(route, normalized),
-                    name: normalized.name,
-                    meta: normalized.meta,
-                    isAlive: normalized.isAlive,
-                  }
-                : route,
+        this.tabRouterList = ensureUniqueTabKeys(
+          ensureSingleHomeTab(
+            sortTabs(
+              this.tabRouterList.map((route) =>
+                getTabKey(route) === getTabKey(normalized)
+                  ? {
+                      ...route,
+                      path: normalized.path,
+                      fullPath: normalized.fullPath,
+                      query: normalized.query,
+                      params: normalized.params,
+                      tabKey: normalized.tabKey,
+                      title: resolveNextTabTitle(route, normalized),
+                      name: normalized.name,
+                      meta: normalized.meta,
+                      isAlive: normalized.isAlive,
+                    }
+                  : route,
+              ),
             ),
           ),
         );

@@ -480,6 +480,8 @@ paths:
     $ref: ./paths/registries.repositories.collection.yaml
   /api/registries/{connectionRef}/repository-assignments:
     $ref: ./paths/registries.repositories.assignments.yaml
+  /api/registries/{connectionRef}/repository-assignments/batch:
+    $ref: ./paths/registries.repositories.assignments.batch-add.yaml
   /api/registries/{connectionRef}/repository-assignment-candidates:
     $ref: ./paths/registries.repository-assignment-candidates.yaml
   /api/registries/{connectionRef}/repository-assignments/{userId}:
@@ -1508,6 +1510,10 @@ components:
       $ref: ./components/schemas/registry-artifact-repository-user-assignment.yaml
     RegistryArtifactRepositoryUserAssignmentRequest:
       $ref: ./components/schemas/registry-artifact-repository-user-assignment-request.yaml
+    RegistryArtifactRepositoryAssignmentBatchAddRequest:
+      $ref: ./components/schemas/registry-artifact-repository-assignment-batch-add-request.yaml
+    RegistryArtifactRepositoryAssignmentBatchAddResult:
+      $ref: ./components/schemas/registry-artifact-repository-assignment-batch-add-result.yaml
     RegistryArtifactRepositoryUserAssignmentListResponse:
       $ref: ./components/schemas/registry-artifact-repository-user-assignment-list-response.yaml
     RegistryRepositoryAssignmentCandidate:
@@ -1532,6 +1538,8 @@ components:
       $ref: ./components/schemas/enveloped-registry-artifact-repository-user-assignment.yaml
     EnvelopedRegistryArtifactRepositoryUserAssignmentListResponse:
       $ref: ./components/schemas/enveloped-registry-artifact-repository-user-assignment-list-response.yaml
+    EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult:
+      $ref: ./components/schemas/enveloped-registry-artifact-repository-assignment-batch-add-result.yaml
     EnvelopedRegistryRepositoryAssignmentCandidateListResponse:
       $ref: ./components/schemas/enveloped-registry-repository-assignment-candidate-list-response.yaml
     EnvelopedRegistryAvailableDestinationListResponse:

@@ -12,11 +12,11 @@ type CreateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryA
 type UpdateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistryArtifactRepository]['put'];
 type DeleteRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.deleteRegistryArtifactRepository]['delete'];
 type AssignmentListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArtifactRepositoryAssignments]['get'];
-type GrantAssignmentOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignment]['post'];
-type RevokeAssignmentOperation =
-  paths[typeof OPENAPI_RUNTIME_PATH.deleteRegistryArtifactRepositoryAssignment]['delete'];
+type ReplaceAssignmentsOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistryArtifactRepositoryAssignments]['put'];
 type AssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
+type AddAssignmentsOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignmentsBatchAdd]['post'];
 
 export function getRegistries(query?: ListConnectionsOperation['parameters']['query']) {
   return request.get<NonNullable<ListConnectionsOperation['responses'][200]['content']['application/json']['data']>>({
@@ -116,21 +116,26 @@ export function getRegistryRepositoryAssignmentCandidates(
   });
 }
 
-export function grantRegistryRepositoryAssignment(
+export function replaceRegistryRepositoryAssignments(
   connectionRef: string,
   repositoryRef: string,
-  payload: GrantAssignmentOperation['requestBody']['content']['application/json'],
+  payload: ReplaceAssignmentsOperation['requestBody']['content']['application/json'],
 ) {
-  return request.post<NonNullable<GrantAssignmentOperation['responses'][201]['content']['application/json']['data']>>({
-    url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignment', { connectionRef }),
-    params: { repository_ref: repositoryRef } satisfies GrantAssignmentOperation['parameters']['query'],
-    data: payload,
-  });
+  return request.put<NonNullable<ReplaceAssignmentsOperation['responses'][200]['content']['application/json']['data']>>(
+    {
+      url: buildOpenApiRuntimePath('putRegistryArtifactRepositoryAssignments', { connectionRef }),
+      params: { repository_ref: repositoryRef } satisfies ReplaceAssignmentsOperation['parameters']['query'],
+      data: payload,
+    },
+  );
 }
 
-export function revokeRegistryRepositoryAssignment(connectionRef: string, repositoryRef: string, userId: number) {
-  return request.delete({
-    url: buildOpenApiRuntimePath('deleteRegistryArtifactRepositoryAssignment', { connectionRef, userId }),
-    params: { repository_ref: repositoryRef } satisfies RevokeAssignmentOperation['parameters']['query'],
+export function addRegistryRepositoryAssignments(
+  connectionRef: string,
+  payload: AddAssignmentsOperation['requestBody']['content']['application/json'],
+) {
+  return request.post<NonNullable<AddAssignmentsOperation['responses'][200]['content']['application/json']['data']>>({
+    url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignmentsBatchAdd', { connectionRef }),
+    data: payload,
   });
 }

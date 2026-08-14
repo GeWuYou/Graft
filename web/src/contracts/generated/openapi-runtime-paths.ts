@@ -251,6 +251,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postRegistry: '/api/registries',
   postRegistryArtifactRepository: '/api/registries/{connectionRef}/repositories',
   postRegistryArtifactRepositoryAssignment: '/api/registries/{connectionRef}/repository-assignments',
+  postRegistryArtifactRepositoryAssignmentsBatchAdd: '/api/registries/{connectionRef}/repository-assignments/batch',
   postRegistryVerify: '/api/registries/{connectionRef}/verify',
   postRoleClone: '/api/roles/{id}/clone',
   postRoleDelete: '/api/roles/{id}/delete',

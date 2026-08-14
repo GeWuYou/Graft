@@ -68,13 +68,14 @@ export function transformGlobalRegistrationsToRoutes(
   menus: BootstrapMenu[] = [],
 ): RouteRecordRaw[] {
   const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
-  return registrations.map((registration) =>
-    toRouteRecordRaw({
+  return registrations.map((registration) => {
+    const pageRouteName = registration.pageRouteName ?? `${registration.routeName}Index`;
+    return toRouteRecordRaw({
       path: registration.path,
       name: registration.routeName,
       component: LAYOUT,
       redirect: (to: RouteLocationNormalized) => ({
-        name: `${registration.routeName}Index`,
+        name: pageRouteName,
         params: to.params,
         query: to.query,
         hash: to.hash,
@@ -88,7 +89,7 @@ export function transformGlobalRegistrationsToRoutes(
       children: [
         toRouteRecordRaw({
           path: '',
-          name: `${registration.routeName}Index`,
+          name: pageRouteName,
           component: registration.loadPage,
           meta: {
             ...withNavigationContext(
@@ -102,8 +103,8 @@ export function transformGlobalRegistrationsToRoutes(
           },
         }),
       ],
-    }),
-  );
+    });
+  });
 }
 
 /**
