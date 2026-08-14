@@ -15,7 +15,7 @@ const ociRegistryDestinationKind = "oci_registry"
 type Service struct {
 	repository registrystore.DestinationRepository
 	users      moduleapi.UserCandidateReader
-	execution  moduleapi.RuntimeExecutionAdapter
+	execution  moduleapi.RuntimeOCIRegistryVerifier
 	targets    moduleapi.RuntimeTargetBuildAssignmentReader
 }
 
@@ -32,7 +32,7 @@ func (s *Service) bindUserCandidateReader(users moduleapi.UserCandidateReader) {
 }
 
 // bindRuntimeExecutionAdapter 注入 Runtime Target 拥有的私有 Registry 认证验证执行边界。
-func (s *Service) bindRuntimeExecutionAdapter(adapter moduleapi.RuntimeExecutionAdapter) {
+func (s *Service) bindRuntimeExecutionAdapter(adapter moduleapi.RuntimeOCIRegistryVerifier) {
 	if s != nil {
 		s.execution = adapter
 	}

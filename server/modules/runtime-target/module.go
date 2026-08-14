@@ -209,9 +209,13 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if credentialErr == nil && credentialProvider != nil {
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), func(_ containerdi.Resolver) (any, error) {
+		verificationAdapter := func(_ containerdi.Resolver) (any, error) {
 			return dockerCredentialExecutionAdapter{provider: credentialProvider, client: dockerTargetProvider{repository: m.repository}}, nil
-		}); err != nil {
+		}
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), verificationAdapter); err != nil {
+			return err
+		}
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verificationAdapter); err != nil {
 			return err
 		}
 	}

@@ -76,7 +76,7 @@ func TestRegistryModuleRegistersSharedResourceNavigation(t *testing.T) {
 	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
 		t.Fatal(err)
 	}
-	if err := services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
+	if err := services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
 		t.Fatal(err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationTargets{allowed: true}, nil }); err != nil {
@@ -376,7 +376,7 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
 		t.Fatal(err)
 	}
-	if err := services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
+	if err := services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
 		t.Fatal(err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationTargets{allowed: true}, nil }); err != nil {

@@ -274,6 +274,7 @@ function openAssignmentDialog() {
 function closeAssignmentDialog() {
   if (assignmentsSaving.value) return;
   assignmentDialogVisible.value = false;
+  assignmentSelection.value = createExplicitSelection([...initialAssignmentUserIds.value]);
 }
 async function loadCandidates() {
   if (!Number.isInteger(targetID.value) || targetID.value <= 0) return;

@@ -17,7 +17,10 @@ import (
 	store "graft/server/modules/runtime-target/store"
 )
 
-const defaultAssignmentCandidateLimit = 20
+const (
+	defaultAssignmentCandidateLimit    = 20
+	maxAssignmentCandidateSearchLength = 128
+)
 
 type runtimeTargetUserAssignmentHTTP struct {
 	TargetID  uint64 `json:"target_id"`
@@ -41,6 +44,17 @@ type runtimeTargetAssignmentCandidateHTTP struct {
 	Status   string `json:"status"`
 }
 
+type runtimeTargetAssignmentListHTTP struct {
+	Items []runtimeTargetUserAssignmentHTTP `json:"items"`
+}
+
+type runtimeTargetAssignmentCandidateListHTTP struct {
+	Items  []runtimeTargetAssignmentCandidateHTTP `json:"items"`
+	Total  int                                    `json:"total"`
+	Limit  int                                    `json:"limit"`
+	Offset int                                    `json:"offset"`
+}
+
 func (m *Module) handleListAssignments(c *gin.Context) {
 	target, ok := m.readTarget(c)
 	if !ok {
@@ -55,7 +69,7 @@ func (m *Module) handleListAssignments(c *gin.Context) {
 	for _, item := range items {
 		response = append(response, toAssignmentHTTP(item))
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": response})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response})
 }
 
 func (m *Module) handleGrantAssignment(c *gin.Context) {
@@ -110,7 +124,7 @@ func (m *Module) handleAssignmentCandidates(c *gin.Context) {
 	for _, item := range items {
 		response = append(response, runtimeTargetAssignmentCandidateHTTP{ID: item.ID, Username: item.Username, Display: item.Display, Status: item.Status})
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": response, "total": total, "limit": query.Limit, "offset": query.Offset})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentCandidateListHTTP{Items: response, Total: total, Limit: query.Limit, Offset: query.Offset})
 }
 
 func (m *Module) handleReplaceAssignments(c *gin.Context) {
@@ -145,11 +159,15 @@ func (m *Module) handleReplaceAssignments(c *gin.Context) {
 	for _, item := range items {
 		response = append(response, toAssignmentHTTP(item))
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": response})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response})
 }
 
 func (m *Module) assignmentCandidateQuery(c *gin.Context) (moduleapi.UserCandidateQuery, bool) {
 	query := moduleapi.UserCandidateQuery{Search: strings.TrimSpace(c.Query("search")), Limit: defaultAssignmentCandidateLimit}
+	if len(query.Search) > maxAssignmentCandidateSearchLength {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return moduleapi.UserCandidateQuery{}, false
+	}
 	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
 		limit, err := strconv.Atoi(raw)
 		if err != nil || limit < 1 || limit > 100 {

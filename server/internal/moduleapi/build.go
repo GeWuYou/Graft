@@ -361,13 +361,18 @@ type OCIRegistryVerificationResult struct {
 	ProviderScopeConforms    bool
 }
 
+// RuntimeOCIRegistryVerifier 是 Runtime Target 对 Registry 暴露的最小认证验证 capability。
+type RuntimeOCIRegistryVerifier interface {
+	VerifyOCIRegistry(context.Context, OCIRegistryVerificationRequest) (OCIRegistryVerificationResult, error)
+}
+
 // RuntimeExecutionAdapter 是 Runtime Target 唯一拥有的隔离 Registry 执行边界。
 // 调用方只提交非秘密 binding，adapter 自己申请、注入并清理 ephemeral session。
 type RuntimeExecutionAdapter interface {
 	PublishImage(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
 	PublishManifest(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
 	CopyOCIArtifact(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
-	VerifyOCIRegistry(context.Context, OCIRegistryVerificationRequest) (OCIRegistryVerificationResult, error)
+	RuntimeOCIRegistryVerifier
 }
 
 // ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。

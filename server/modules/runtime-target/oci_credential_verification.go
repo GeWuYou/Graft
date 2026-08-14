@@ -18,7 +18,10 @@ import (
 
 const ociRegistryVerificationTimeout = 10 * time.Second
 
-var ociRegistryVerificationHTTPClient = &http.Client{Timeout: ociRegistryVerificationTimeout}
+var ociRegistryVerificationHTTPClient = &http.Client{
+	Timeout:       ociRegistryVerificationTimeout,
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+}
 
 // VerifyOCIRegistryOnTarget probes only the OCI V2 root after Runtime Target resolves the explicit target.
 // The credential is read solely from the adapter-created temporary config and never enters the returned evidence.

@@ -15,23 +15,20 @@ import (
 	registrystore "graft/server/modules/registry/store"
 )
 
-type registryVerificationExecutionStub struct{ calls int }
+type registryVerificationExecutionStub struct {
+	calls   int
+	request moduleapi.OCIRegistryVerificationRequest
+	result  moduleapi.OCIRegistryVerificationResult
+	err     error
+}
 
-func (s *registryVerificationExecutionStub) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+func (s *registryVerificationExecutionStub) VerifyOCIRegistry(_ context.Context, request moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
 	s.calls++
-	return moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}, nil
-}
-
-func (*registryVerificationExecutionStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
-	return moduleapi.DockerImageBuildResult{}, nil
-}
-
-func (*registryVerificationExecutionStub) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
-	return moduleapi.OCIManifestPublicationResult{}, nil
-}
-
-func (*registryVerificationExecutionStub) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
-	return moduleapi.OCIArtifactCopyResult{}, nil
+	s.request = request
+	if s.result == (moduleapi.OCIRegistryVerificationResult{}) && s.err == nil {
+		s.result = moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}
+	}
+	return s.result, s.err
 }
 
 type registryVerificationTargetAssignments struct{ allowed bool }

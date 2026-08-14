@@ -660,8 +660,8 @@ function openBatchRepositoryRevocation() {
   void loadBatchAssignmentCandidates();
 }
 
-function closeBatchRepositoryRevocation() {
-  if (batchRepositoryAssignmentRevoking.value) return;
+function closeBatchRepositoryRevocation(force = false) {
+  if (batchRepositoryAssignmentRevoking.value && !force) return;
   batchRepositoryAssignmentRevokeDialogVisible.value = false;
   batchRevokeSelection.value = createExplicitSelection();
   batchCandidateRequestVersion += 1;
@@ -705,7 +705,7 @@ async function revokeSelectedRepositoryAssignments() {
         user_ids: userIds,
       });
       MessagePlugin.success(t('registry.list.batchRevokeSaveSuccess'));
-      closeBatchRepositoryRevocation();
+      closeBatchRepositoryRevocation(true);
       selectedRepositoryRefs.value = [];
       await load();
     } catch (error) {

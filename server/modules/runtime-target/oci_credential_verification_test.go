@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -38,6 +39,35 @@ func TestProbeOCIRegistryV2SeparatesChallengeFromAuthenticationSuccess(t *testin
 	}
 	if len(transport.requests) != 2 || transport.requests[0].Header.Get("Authorization") != "" || transport.requests[1].Header.Get("Authorization") != "Basic dXNlcjpwYXNz" {
 		t.Fatalf("verification requests = %#v", transport.requests)
+	}
+}
+
+func TestProbeOCIRegistryV2DoesNotFollowRedirects(t *testing.T) {
+	redirectTargetCalls := 0
+	redirectTarget := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		redirectTargetCalls++
+	}))
+	defer redirectTarget.Close()
+	redirectSource := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, redirectTarget.URL, http.StatusFound)
+	}))
+	defer redirectSource.Close()
+	previous := ociRegistryVerificationHTTPClient
+	ociRegistryVerificationHTTPClient = &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	t.Cleanup(func() { ociRegistryVerificationHTTPClient = previous })
+	endpoint, err := url.Parse(redirectSource.URL + "/v2/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := probeOCIRegistryV2(context.Background(), endpoint, "Basic dXNlcjpwYXNz")
+	if !result.Reachable || result.ProtocolCompatible || result.AuthenticationSucceeded {
+		t.Fatalf("verification result = %#v", result)
+	}
+	if redirectTargetCalls != 0 {
+		t.Fatalf("redirect target calls = %d, want 0", redirectTargetCalls)
 	}
 }
 

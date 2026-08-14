@@ -30,7 +30,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return fmt.Errorf("resolve user candidate reader: %w", err)
 	}
 	m.service.bindUserCandidateReader(users)
-	execution, executionErr := module.ResolveService[moduleapi.RuntimeExecutionAdapter](ctx.Services, (*moduleapi.RuntimeExecutionAdapter)(nil))
+	execution, executionErr := module.ResolveService[moduleapi.RuntimeOCIRegistryVerifier](ctx.Services, (*moduleapi.RuntimeOCIRegistryVerifier)(nil))
 	if executionErr != nil && !errors.Is(executionErr, containerdi.ErrServiceNotRegistered) {
 		return fmt.Errorf("resolve runtime registry verification adapter: %w", executionErr)
 	}

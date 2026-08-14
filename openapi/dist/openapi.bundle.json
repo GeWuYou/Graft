@@ -19267,6 +19267,9 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid limit, offset, search, or runtime target ID"
+          },
           "401": {
             "$ref": "#/components/responses/unauthorized"
           },

@@ -22931,6 +22931,13 @@ export interface operations {
           'application/json': components['schemas']['enveloped-runtime-target-assignment-candidate-list-response'];
         };
       };
+      /** @description Invalid limit, offset, search, or runtime target ID */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Runtime target not found */
