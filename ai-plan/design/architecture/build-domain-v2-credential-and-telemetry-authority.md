@@ -108,6 +108,20 @@ Agent control-plane state. Docker must create a per-operation isolated `DOCKER_C
 write its default credential store. Other providers use an equivalent short-lived token, restricted secret mount or
 workload identity.
 
+### Registry authentication verification projection
+
+Registry is the first consumer of the private Generic OCI authentication-verification seam. An operator selects only
+an existing Artifact Repository reference and a Runtime Target already authorized for the actor; Registry resolves the
+saved endpoint and opaque `credential_ref`, then asks `RuntimeExecutionAdapter` to perform the isolated verification.
+The selected repository constrains Credential Provider scope but does not request or prove repository pull or push
+authorization.
+
+Registry persists and projects only `verified` or `failed`, a completion time, and a stable sanitized failure code.
+`verified` requires V2 reachability, V2 compatibility, an authentication challenge, successful V2-root authentication,
+and Credential Provider scope conformance. The result never includes endpoint credentials, session data, headers,
+source paths, remote response content, or repository authorization claims. A target authorization denial fails before
+credential preparation or Runtime Target execution.
+
 ### Phase 1 deployment secret source
 
 Phase 1 supplies a core-owned, file-backed `CredentialProvider` for deployments that do not yet have a managed secret

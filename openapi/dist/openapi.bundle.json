@@ -19565,7 +19565,7 @@
         ],
         "operationId": "postRegistryVerify",
         "summary": "Verify a Registry Connection",
-        "description": "Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.",
+        "description": "Runs a bounded Generic OCI Registry V2 authentication verification through the selected Runtime Target. The caller can select only a Runtime Target and an existing Artifact Repository scope; endpoint and credential values remain server-owned.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -19582,6 +19582,16 @@
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-connection-verification-request"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Registry verification completed. Failure is represented by data.status instead of remote diagnostic details.",
@@ -25407,6 +25417,9 @@
       },
       "RegistryConnectionUpdateRequest": {
         "$ref": "#/components/schemas/registry-connection-update-request"
+      },
+      "RegistryConnectionVerificationRequest": {
+        "$ref": "#/components/schemas/registry-connection-verification-request"
       },
       "RegistryConnectionListResponse": {
         "$ref": "#/components/schemas/registry-connection-list-response"
@@ -40966,13 +40979,35 @@
         },
         "additionalProperties": false
       },
+      "registry-connection-verification-request": {
+        "type": "object",
+        "required": [
+          "runtime_target_id",
+          "repository_ref"
+        ],
+        "properties": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Explicit Runtime Target execution identity. It is used only for this verification attempt and is not stored on the Registry Connection."
+          },
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Existing Artifact Repository reference used only to constrain credential scope. It does not request or prove pull or push authorization."
+          }
+        },
+        "additionalProperties": false
+      },
       "registry-verification-result": {
         "type": "string",
         "enum": [
           "verified",
           "failed"
         ],
-        "description": "Terminal result of one Registry connection verification attempt."
+        "description": "Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization."
       },
       "registry-connection-verification": {
         "type": "object",
@@ -40989,7 +41024,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/registry-verification-result",
-            "description": "Verification outcome. Current values are verified and failed."
+            "description": "Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed."
           },
           "verified_at": {
             "type": "string",
@@ -40998,13 +41033,7 @@
           "error_code": {
             "type": "string",
             "nullable": true,
-            "description": "Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies."
-          },
-          "diagnostic": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 512,
-            "description": "Sanitized operator diagnostic. Consumers must not parse it for control flow."
+            "description": "Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims."
           }
         },
         "additionalProperties": false

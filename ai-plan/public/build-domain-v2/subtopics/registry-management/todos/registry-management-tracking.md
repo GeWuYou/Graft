@@ -37,11 +37,12 @@ Deliver a page-verifiable Generic OCI Registry management slice without adding a
 - [x] Keep the Runtime Target execution boundary fail-closed: Generic OCI publish, manifest publication and artifact copy now reject incomplete or mismatched Registry-owned destination bindings before `CredentialProvider.Prepare`.
 - [x] Add a CredentialProvider-owned, secret-free scoped eligibility projection. `Assess` accepts only a known opaque `credential_ref` plus endpoint/repository/operation scope and returns `eligible` or `ineligible`; Registry still cannot parse the deployment secret file or enumerate its entries.
 - [x] Add authenticated Generic OCI verification through an isolated Runtime Target execution seam. The private result separately records reachability, OCI V2 compatibility, authentication challenge, V2 authentication success and CredentialProvider scope conformance; it does not claim repository pull or push authorization.
+- [x] Make Registry the first consumer of that seam: the Verify API accepts only an existing `repository_ref` scope and an actor-authorized `runtime_target_id`; Registry resolves its private binding, records only a bounded authentication outcome, and Web never receives a secret or execution diagnostic.
 - [x] Assess Amazon ECR: no Build destination, Registry Connection, Repository or Credential model extension is justified. An ECR-aware CredentialProvider may later issue scoped, short-lived ECR credentials and conform to the existing Runtime Target adapter boundary.
 
 ## Phase 2 Authority Decision
 
-CredentialProvider now owns a provider-approved, secret-free eligibility result for a known opaque `credential_ref`. It does not own Runtime Target authorization and does not enumerate credentials; Registry remains only a future consumer. The next authority repair is an isolated Runtime Target verification session that prepares, injects and revokes an eligible scope without exposing secret material, source paths, credential expiry details, usernames or passwords.
+CredentialProvider owns a provider-approved, secret-free eligibility result for a known opaque `credential_ref`; Runtime Target owns target executability and actor-target authorization; Registry owns the persisted connection-level authentication outcome. Registry uses the selected Artifact Repository only as credential scope and never reinterprets the result as repository pull/push authorization.
 
 ## Validation Evidence
 
@@ -51,6 +52,6 @@ CredentialProvider now owns a provider-approved, secret-free eligibility result 
 - Browser: the primary-checkout runtime was verified at Web `127.0.0.1:3002` and server `127.0.0.1:8080`. The Registry Drawer opened under authenticated interaction; Connection `registry:phase1-ui-qa`, Repository `graft/phase1-ui-qa` and assignment to user `1` were created through the page, then deleted through the protected API in dependency order.
 - Browser verification note: `https://registry-1.docker.io` reached the managed verify route but the local server's direct outbound request failed with the sanitized `network_failed` status. The data was cleaned up. This environment cannot provide a successful public-registry verification sample, so the actor-authorized Build selector's successful live option population remains covered by the focused component test and route/service tests rather than a fabricated database availability state.
 
-## Next-Task Startup Prompt
+## Current Recovery Point
 
-`Read root AGENTS.md; task class: cross-boundary; recovery source: build-domain-v2/registry-management subtopic; owned scope: make Registry the first consumer of the existing private Runtime Target Generic OCI authentication-verification seam. Design the minimum Registry-owned verification outcome and its OpenAPI/Web projection without exposing endpoint credentials, session data, headers, source paths or repository authorization claims. Preserve the existing Registry Connection and Artifact Repository facts, Build v2 destination.connection_ref + repository_ref + reference, Runtime Target execution authority and CredentialProvider secret boundary. Do not add parallel ImageRegistry, RegistryRepository or Credential models, Build-side ECR branches, default Registry behavior, or pull/push authorization claims.`
+The Registry authentication-verification projection is implemented and awaits an operator-provisioned human acceptance run with a real CredentialProvider entry and actor-authorized Runtime Target. No further implementation batch is currently defined inside this subtopic.

@@ -13953,15 +13953,21 @@ type RegistryConnectionUpdateRequest struct {
 type RegistryConnectionVerification struct {
 	ConnectionRef string `json:"connection_ref"`
 
-	// Diagnostic Sanitized operator diagnostic. Consumers must not parse it for control flow.
-	Diagnostic *string `json:"diagnostic,omitempty"`
-
-	// ErrorCode Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies.
+	// ErrorCode Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims.
 	ErrorCode *string `json:"error_code,omitempty"`
 
-	// Status Verification outcome. Current values are verified and failed.
+	// Status Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed.
 	Status     RegistryVerificationResult `json:"status"`
 	VerifiedAt time.Time                  `json:"verified_at"`
+}
+
+// RegistryConnectionVerificationRequest defines model for registry-connection-verification-request.
+type RegistryConnectionVerificationRequest struct {
+	// RepositoryRef Existing Artifact Repository reference used only to constrain credential scope. It does not request or prove pull or push authorization.
+	RepositoryRef string `json:"repository_ref"`
+
+	// RuntimeTargetId Explicit Runtime Target execution identity. It is used only for this verification attempt and is not stored on the Registry Connection.
+	RuntimeTargetId int64 `json:"runtime_target_id"`
 }
 
 // RegistryRepositoryAssignmentCandidate defines model for registry-repository-assignment-candidate.
@@ -13986,7 +13992,7 @@ type RegistryRepositoryAssignmentCandidateListResponse struct {
 	Total  int64                                   `json:"total"`
 }
 
-// RegistryVerificationResult Terminal result of one Registry connection verification attempt.
+// RegistryVerificationResult Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization.
 type RegistryVerificationResult string
 
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
@@ -19369,6 +19375,9 @@ type PutRegistryArtifactRepositoryAssignmentsJSONRequestBody = RegistryArtifactR
 
 // PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignmentsBatchAdd for application/json ContentType.
 type PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody = RegistryArtifactRepositoryAssignmentBatchAddRequest
+
+// PostRegistryVerifyJSONRequestBody defines body for PostRegistryVerify for application/json ContentType.
+type PostRegistryVerifyJSONRequestBody = RegistryConnectionVerificationRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

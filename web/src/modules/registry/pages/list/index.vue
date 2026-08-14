@@ -132,6 +132,31 @@
       @confirm="confirmRemove"
     />
 
+    <t-dialog
+      v-model:visible="verifyDialogVisible"
+      :header="t('registry.list.verify')"
+      :cancel-btn="t('registry.list.cancel')"
+      :confirm-btn="{ content: t('registry.list.verify'), loading: verifying !== '' }"
+      @confirm="confirmVerify"
+    >
+      <t-form label-align="top">
+        <t-form-item :label="t('registry.list.verifyRepository')">
+          <t-select
+            v-model="verificationRepositoryRef"
+            :loading="verificationOptionsLoading"
+            :options="verificationRepositoryOptions"
+          />
+        </t-form-item>
+        <t-form-item :label="t('registry.list.verifyTarget')">
+          <t-select
+            v-model="verificationRuntimeTargetID"
+            :loading="verificationOptionsLoading"
+            :options="verificationTargetOptions"
+          />
+        </t-form-item>
+      </t-form>
+    </t-dialog>
+
     <t-drawer
       v-model:visible="drawerVisible"
       :header="t('registry.list.add')"
@@ -166,7 +191,14 @@ import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardLis
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
-import { createRegistry, deleteRegistry, getRegistries, verifyRegistry } from '../../api/registry';
+import {
+  createRegistry,
+  deleteRegistry,
+  getRegistries,
+  getRegistryRepositories,
+  getRegistryVerificationTargets,
+  verifyRegistry,
+} from '../../api/registry';
 import RegistryConnectionForm, { type RegistryConnectionFormData } from '../../components/RegistryConnectionForm.vue';
 import { REGISTRY_DETAIL_MODE, registryDetailPath } from '../../contract/paths';
 
@@ -186,6 +218,13 @@ const errorMessage = ref('');
 const drawerVisible = ref(false);
 const deleteDialogVisible = ref(false);
 const deleteTargetRef = ref('');
+const verifyDialogVisible = ref(false);
+const verificationConnectionRef = ref('');
+const verificationRepositoryRef = ref('');
+const verificationRuntimeTargetID = ref<number>();
+const verificationOptionsLoading = ref(false);
+const verificationRepositoryOptions = ref<Array<{ label: string; value: string }>>([]);
+const verificationTargetOptions = ref<Array<{ label: string; value: number }>>([]);
 const form = ref<RegistryConnectionFormData>({
   connection_ref: '',
   display_name: '',
@@ -303,7 +342,7 @@ function handleRegistryRowAction(action: string, row: RegistryConnection) {
     return;
   }
   if (action === 'verify') {
-    void verify(row.connection_ref);
+    void openVerify(row.connection_ref);
     return;
   }
   if (action === 'delete') {
@@ -340,16 +379,52 @@ async function save() {
     saving.value = false;
   }
 }
-async function verify(connectionRef: string) {
+async function openVerify(connectionRef: string) {
+  verificationConnectionRef.value = connectionRef;
+  verificationRepositoryRef.value = '';
+  verificationRuntimeTargetID.value = undefined;
+  verificationOptionsLoading.value = true;
+  try {
+    const [repositories, targets] = await Promise.all([
+      getRegistryRepositories(connectionRef, { limit: 100, offset: 0 }),
+      getRegistryVerificationTargets(),
+    ]);
+    verificationRepositoryOptions.value = (repositories.items ?? []).map((item) => ({
+      label: item.display_name || item.repository_ref,
+      value: item.repository_ref,
+    }));
+    verificationTargetOptions.value = (targets.items ?? []).map((item) => ({
+      label: item.display_name,
+      value: item.target_id,
+    }));
+    verificationRepositoryRef.value = verificationRepositoryOptions.value[0]?.value ?? '';
+    verificationRuntimeTargetID.value = verificationTargetOptions.value[0]?.value;
+    verifyDialogVisible.value = true;
+  } catch (error) {
+    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.verifyFailed'));
+  } finally {
+    verificationOptionsLoading.value = false;
+  }
+}
+async function confirmVerify() {
+  if (!verificationConnectionRef.value || !verificationRepositoryRef.value || !verificationRuntimeTargetID.value) {
+    errorMessage.value = t('registry.list.verifySelectionRequired');
+    return;
+  }
+  const connectionRef = verificationConnectionRef.value;
   verifying.value = connectionRef;
   try {
-    const result = await verifyRegistry(connectionRef);
+    const result = await verifyRegistry(connectionRef, {
+      repository_ref: verificationRepositoryRef.value,
+      runtime_target_id: verificationRuntimeTargetID.value,
+    });
     if (result.status === 'verified') {
       MessagePlugin.success(t('registry.list.verifySuccess'));
     } else {
       MessagePlugin.error(t('registry.list.verifyFailed'));
     }
     await load();
+    verifyDialogVisible.value = false;
   } catch (error) {
     const message = resolveLocalizedErrorMessage(t, error, t('registry.list.verifyFailed'));
     errorMessage.value = message;

@@ -2,12 +2,17 @@ post:
   tags: [registry]
   operationId: postRegistryVerify
   summary: Verify a Registry Connection
-  description: Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.
+  description: Runs a bounded Generic OCI Registry V2 authentication verification through the selected Runtime Target. The caller can select only a Runtime Target and an existing Artifact Repository scope; endpoint and credential values remain server-owned.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/registry-connection-ref-path.yaml
   security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/registry-connection-verification-request.yaml}
   responses:
     '200':
       description: Registry verification completed. Failure is represented by data.status instead of remote diagnostic details.

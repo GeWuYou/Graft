@@ -15,6 +15,55 @@ import (
 	registrystore "graft/server/modules/registry/store"
 )
 
+type registryVerificationExecutionStub struct{ calls int }
+
+func (s *registryVerificationExecutionStub) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	s.calls++
+	return moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}, nil
+}
+
+func (*registryVerificationExecutionStub) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	return moduleapi.DockerImageBuildResult{}, nil
+}
+
+func (*registryVerificationExecutionStub) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	return moduleapi.OCIManifestPublicationResult{}, nil
+}
+
+func (*registryVerificationExecutionStub) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return moduleapi.OCIArtifactCopyResult{}, nil
+}
+
+type registryVerificationTargetAssignments struct{ allowed bool }
+
+func (registryVerificationTargetAssignments) ListAssignedBuildTargets(context.Context, uint64) ([]moduleapi.BuildRuntimeTargetSummary, error) {
+	return nil, nil
+}
+
+func (s registryVerificationTargetAssignments) CanUseBuildTarget(context.Context, uint64, int64) (bool, error) {
+	return s.allowed, nil
+}
+
+func TestVerifyConnectionRejectsUnauthorizedRuntimeTargetBeforeAdapter(t *testing.T) {
+	db := openRegistryTestDB(t)
+	seedRegistryDestination(t, db, true, true, false, true)
+	repository, err := registrystore.NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	adapter := &registryVerificationExecutionStub{}
+	service := NewService(repository)
+	service.bindRuntimeExecutionAdapter(adapter)
+	service.bindRuntimeTargetBuildAssignments(registryVerificationTargetAssignments{allowed: false})
+
+	if _, err := service.VerifyConnection(context.Background(), "registry:primary", 9, VerificationInput{RuntimeTargetID: 1, RepositoryRef: "team/api"}); err == nil {
+		t.Fatal("unauthorized runtime target verification unexpectedly succeeded")
+	}
+	if adapter.calls != 0 {
+		t.Fatalf("verification adapter calls = %d, want 0", adapter.calls)
+	}
+}
+
 func TestResolveArtifactDestinationRequiresLiveAssignedPublishRepository(t *testing.T) {
 	db := openRegistryTestDB(t)
 	seedRegistryDestination(t, db, true, true, false, true)

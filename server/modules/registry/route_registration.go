@@ -108,7 +108,12 @@ func handleDeleteConnection(c *gin.Context, ctx *module.Context, service *Servic
 	httpx.WriteSuccess[any](c, http.StatusOK, nil)
 }
 func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Service) {
-	item, err := service.VerifyConnection(c, c.Param("connectionRef"), NewHTTPConnectionVerifier())
+	var request openapigen.PostRegistryVerifyJSONRequestBody
+	if c.ShouldBindJSON(&request) != nil {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	item, err := service.VerifyConnection(c, c.Param("connectionRef"), registryActorID(c), VerificationInput{RuntimeTargetID: request.RuntimeTargetId, RepositoryRef: request.RepositoryRef})
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return

@@ -3815,7 +3815,7 @@ export interface paths {
     put?: never;
     /**
      * Verify a Registry Connection
-     * @description Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.
+     * @description Runs a bounded Generic OCI Registry V2 authentication verification through the selected Runtime Target. The caller can select only a Runtime Target and an existing Artifact Repository scope; endpoint and credential values remain server-owned.
      */
     post: operations['postRegistryVerify'];
     delete?: never;
@@ -5228,6 +5228,7 @@ export interface components {
     RegistryConnection: components['schemas']['registry-connection'];
     RegistryConnectionCreateRequest: components['schemas']['registry-connection-create-request'];
     RegistryConnectionUpdateRequest: components['schemas']['registry-connection-update-request'];
+    RegistryConnectionVerificationRequest: components['schemas']['registry-connection-verification-request'];
     RegistryConnectionListResponse: components['schemas']['registry-connection-list-response'];
     RegistryConnectionVerification: components['schemas']['registry-connection-verification'];
     RegistryVerificationResult: components['schemas']['registry-verification-result'];
@@ -10118,21 +10119,28 @@ export interface components {
       insecure: boolean;
       description?: string | null;
     };
+    'registry-connection-verification-request': {
+      /**
+       * Format: int64
+       * @description Explicit Runtime Target execution identity. It is used only for this verification attempt and is not stored on the Registry Connection.
+       */
+      runtime_target_id: number;
+      /** @description Existing Artifact Repository reference used only to constrain credential scope. It does not request or prove pull or push authorization. */
+      repository_ref: string;
+    };
     /**
-     * @description Terminal result of one Registry connection verification attempt.
+     * @description Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization.
      * @enum {string}
      */
     'registry-verification-result': 'verified' | 'failed';
     'registry-connection-verification': {
       connection_ref: string;
-      /** @description Verification outcome. Current values are verified and failed. */
+      /** @description Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed. */
       status: components['schemas']['registry-verification-result'];
       /** Format: date-time */
       verified_at: string;
-      /** @description Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies. */
+      /** @description Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims. */
       error_code?: string | null;
-      /** @description Sanitized operator diagnostic. Consumers must not parse it for control flow. */
-      diagnostic?: string | null;
     };
     'enveloped-registry-connection-verification': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-connection-verification'];
@@ -23035,7 +23043,11 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-connection-verification-request'];
+      };
+    };
     responses: {
       /** @description Registry verification completed. Failure is represented by data.status instead of remote diagnostic details. */
       200: {

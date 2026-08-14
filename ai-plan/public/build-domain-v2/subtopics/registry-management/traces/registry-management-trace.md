@@ -33,3 +33,10 @@
 - The file-backed provider reloads and normalizes its deployment source for each assessment, applies the same scope rules as `Prepare`, and treats invalid scope or expiry as `ineligible`; source failures remain provider failures. `Prepare` remains the final signing boundary and repeats validation.
 - No Registry, Build, Runtime Target execution, OpenAPI, Web, persistence or configuration schema changed in this batch. Runtime Target authorization remains outside CredentialProvider.
 - Focused provider/runtime tests, the full server test suite, backend validation, the bounded ai-plan structure guard and diff whitespace validation passed. No live Registry authentication ran because this batch has no authenticated execution seam.
+
+## 2026-08-14: Registry Authentication Verification Projection
+
+- Registry now consumes the existing private Runtime Target Generic OCI verification seam. The verify request contains only an existing `repository_ref` and a Runtime Target identity; Registry resolves endpoint and opaque `credential_ref` from its own Connection/Repository facts and no secret or session crosses the HTTP boundary.
+- Registry reuses `RuntimeTargetBuildAssignmentReader` to reject an actor who cannot use the selected target before calling `RuntimeExecutionAdapter`. The repository reference constrains the Credential Provider scope only; neither a successful nor failed verification claims repository pull/push authorization.
+- The persisted and public result is restricted to `verified` / `failed`, time, and a stable sanitized error code. The OpenAPI `diagnostic` field was removed so headers, remote response text, source paths, endpoint credentials and session detail have no Registry verification projection path.
+- The Registry Web page loads only existing Repository options and actor-authorized Build Runtime Targets for the selected Connection, then sends those two non-secret identifiers. UI text now describes authentication verification rather than connection availability or publish authorization.

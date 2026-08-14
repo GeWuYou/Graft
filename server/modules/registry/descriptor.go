@@ -16,7 +16,7 @@ const moduleID = registrycontract.ModuleID
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "auth", "rbac"},
+		Dependencies:  []string{"user", "auth", "rbac", "runtime-target"},
 		MigrationPath: []string{"modules/registry/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

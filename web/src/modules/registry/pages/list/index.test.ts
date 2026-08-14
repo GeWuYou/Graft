@@ -10,6 +10,8 @@ import RegistryListPage from './index.vue';
 const apiMocks = vi.hoisted(() => ({
   deleteRegistry: vi.fn(),
   getRegistries: vi.fn(),
+  getRegistryRepositories: vi.fn(),
+  getRegistryVerificationTargets: vi.fn(),
   verifyRegistry: vi.fn(),
 }));
 const messageMocks = vi.hoisted(() => ({
@@ -35,7 +37,8 @@ vi.mock('../../api/registry', () => ({
   deleteRegistry: apiMocks.deleteRegistry,
   deleteRegistryRepository: vi.fn(),
   getRegistries: apiMocks.getRegistries,
-  getRegistryRepositories: vi.fn(),
+  getRegistryRepositories: apiMocks.getRegistryRepositories,
+  getRegistryVerificationTargets: apiMocks.getRegistryVerificationTargets,
   getRegistryRepositoryAssignments: vi.fn(),
   updateRegistry: vi.fn(),
   updateRegistryRepository: vi.fn(),
@@ -164,8 +167,9 @@ const dialogStub = defineComponent({
   name: 'TDialog',
   props: { visible: { type: Boolean, default: false } },
   emits: ['confirm'],
-  setup() {
-    return () => h('div');
+  setup(_props, { emit, slots }) {
+    return () =>
+      h('div', [slots.default?.(), h('button', { 'data-testid': 'dialog-confirm', onClick: () => emit('confirm') })]);
   },
 });
 
@@ -197,29 +201,43 @@ describe('RegistryListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.getRegistries.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRegistryRepositories.mockResolvedValue({
+      items: [{ repository_ref: 'team/app', display_name: 'App' }],
+    });
+    apiMocks.getRegistryVerificationTargets.mockResolvedValue({ items: [{ target_id: 7, display_name: 'Builder' }] });
   });
 
-  it('shows a success message after a verified connection test', async () => {
+  async function openAndConfirmVerification(wrapper: ReturnType<typeof mountPage>) {
+    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
+    await flushPromises();
+    const dialogs = wrapper.findAllComponents({ name: 'TDialog' });
+    dialogs.at(1)?.vm.$emit('confirm');
+    await flushPromises();
+  }
+
+  it('submits only a repository scope and authorized target for a verified connection', async () => {
     apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
     apiMocks.verifyRegistry.mockResolvedValue({ status: 'verified' });
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
-    await flushPromises();
+    await openAndConfirmVerification(wrapper);
 
+    expect(apiMocks.verifyRegistry).toHaveBeenCalledWith('registry-a', {
+      repository_ref: 'team/app',
+      runtime_target_id: 7,
+    });
     expect(messageMocks.success).toHaveBeenCalledWith('registry.list.verifySuccess');
     expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
-  it('shows an error message when a connection test reports failure', async () => {
+  it('shows an error message when authentication verification reports failure', async () => {
     apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
     apiMocks.verifyRegistry.mockResolvedValue({ status: 'failed' });
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
-    await flushPromises();
+    await openAndConfirmVerification(wrapper);
 
     expect(messageMocks.error).toHaveBeenCalledWith('registry.list.verifyFailed');
   });

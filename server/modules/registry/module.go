@@ -30,6 +30,16 @@ func (m *Module) Register(ctx *module.Context) error {
 		return fmt.Errorf("resolve user candidate reader: %w", err)
 	}
 	m.service.bindUserCandidateReader(users)
+	execution, executionErr := module.ResolveService[moduleapi.RuntimeExecutionAdapter](ctx.Services, (*moduleapi.RuntimeExecutionAdapter)(nil))
+	if executionErr != nil && !errors.Is(executionErr, containerdi.ErrServiceNotRegistered) {
+		return fmt.Errorf("resolve runtime registry verification adapter: %w", executionErr)
+	}
+	m.service.bindRuntimeExecutionAdapter(execution)
+	targets, err := module.ResolveService[moduleapi.RuntimeTargetBuildAssignmentReader](ctx.Services, (*moduleapi.RuntimeTargetBuildAssignmentReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve runtime target build assignments: %w", err)
+	}
+	m.service.bindRuntimeTargetBuildAssignments(targets)
 	for _, item := range []permission.Item{
 		{Code: registrycontract.ReadPermission, DisplayKey: "rbac.permissionCatalog.registryRead.display", DescriptionKey: "rbac.permissionCatalog.registryRead.description", Module: moduleID, Resource: "registry", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead},
 		{Code: registrycontract.CreatePermission, DisplayKey: "rbac.permissionCatalog.registryCreate.display", DescriptionKey: "rbac.permissionCatalog.registryCreate.description", Module: moduleID, Resource: "registry", Action: "create", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite},
