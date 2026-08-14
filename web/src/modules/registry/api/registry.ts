@@ -18,6 +18,8 @@ type AssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
 type AddAssignmentsOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignmentsBatchAdd]['post'];
+type RevokeAssignmentsOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignmentsBatchRevoke]['post'];
 
 export function getRegistries(query?: ListConnectionsOperation['parameters']['query']) {
   return request.get<NonNullable<ListConnectionsOperation['responses'][200]['content']['application/json']['data']>>({
@@ -152,4 +154,16 @@ export function addRegistryRepositoryAssignments(
     url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignmentsBatchAdd', { connectionRef }),
     data: payload,
   });
+}
+
+export function revokeRegistryRepositoryAssignments(
+  connectionRef: string,
+  payload: RevokeAssignmentsOperation['requestBody']['content']['application/json'],
+) {
+  return request.post<NonNullable<RevokeAssignmentsOperation['responses'][200]['content']['application/json']['data']>>(
+    {
+      url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignmentsBatchRevoke', { connectionRef }),
+      data: payload,
+    },
+  );
 }

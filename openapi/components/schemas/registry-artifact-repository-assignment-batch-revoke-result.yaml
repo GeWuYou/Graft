@@ -1,0 +1,18 @@
+type: object
+required: [total, revoked_count, not_assigned_count]
+properties:
+  total:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of requested repository-user assignment pairs.
+  revoked_count:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of active assignments soft-deleted by this request.
+  not_assigned_count:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Number of requested assignments that were not active.

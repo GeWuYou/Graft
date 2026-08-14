@@ -113,6 +113,14 @@
               >
                 {{ t('registry.list.batchAuthorizeRepositories') }}
               </t-button>
+              <t-button
+                theme="danger"
+                variant="outline"
+                :loading="batchRepositoryAssignmentRevoking"
+                @click="openBatchRepositoryRevocation"
+              >
+                {{ t('registry.list.batchRevokeRepositories') }}
+              </t-button>
               <t-popconfirm
                 theme="danger"
                 :content="t('registry.list.batchDeleteConfirm', { count: selectedRepositoryRefs.length })"
@@ -254,11 +262,51 @@
         <span v-else class="registry-detail__assignment-state-empty">-</span>
       </template>
     </paged-multi-select>
+
+    <paged-multi-select
+      v-model:visible="batchRepositoryAssignmentRevokeDialogVisible"
+      v-model:current="candidatePagination.current"
+      v-model:keyword="candidateSearch"
+      v-model:page-size="candidatePagination.pageSize"
+      v-model:selection="batchRevokeSelection"
+      :cancel-label="t('registry.list.cancel')"
+      :cell-slot-names="['authorizationState']"
+      :columns="revokeCandidateColumns"
+      :confirm-label="t('registry.list.batchRevokeRepositories')"
+      :confirm-loading="batchRepositoryAssignmentRevoking"
+      :empty-description="t('registry.list.candidatesEmpty')"
+      :empty-title="t('registry.list.candidatesEmpty')"
+      :error-message="batchCandidateErrorMessage"
+      :loading="candidateLoading"
+      row-key="id"
+      :rows="batchAssignmentCandidates"
+      :search="{
+        clearLabel: t('registry.list.clearSearch'),
+        placeholder: t('registry.list.candidateSearchPlaceholder'),
+      }"
+      :selected-count-label="(count) => t('registry.list.candidateSelected', { count })"
+      :search-empty-description="t('registry.list.candidatesSearchEmptyDescription')"
+      :search-empty-title="t('registry.list.candidatesSearchEmpty')"
+      :title="t('registry.list.selectRevokeUsersTitle')"
+      :total="candidateTotal"
+      :total-label="(count) => t('registry.list.candidateTotal', { count })"
+      @cancel="closeBatchRepositoryRevocation"
+      @confirm="revokeSelectedRepositoryAssignments"
+      @page-change="loadBatchAssignmentCandidates"
+      @search="searchBatchAssignmentCandidates"
+    >
+      <template #authorizationState="{ row }">
+        <t-tag :theme="candidateAuthorizationTheme(row.authorization_state)" variant="light">
+          {{ candidateAuthorizationLabel(row.authorization_state) }}
+        </t-tag>
+      </template>
+    </paged-multi-select>
   </section>
 </template>
 <script setup lang="ts">
 // Registry 详情页拥有仓库路径与使用授权操作；连接列表只负责导航和连接级操作。
 import type { FormInstanceFunctions, TableProps } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -284,6 +332,7 @@ import {
   getRegistryRepositoryAssignmentCandidates,
   getRegistryRepositoryAssignments,
   replaceRegistryRepositoryAssignments,
+  revokeRegistryRepositoryAssignments,
   updateRegistry,
   updateRegistryRepository,
 } from '../../api/registry';
@@ -323,6 +372,7 @@ const repositoryPagination = ref({ current: 1, pageSize: 20 });
 const repositoryTotal = ref(0);
 const assignmentSaving = ref(false);
 const batchRepositoryAssignmentSaving = ref(false);
+const batchRepositoryAssignmentRevoking = ref(false);
 const candidateLoading = ref(false);
 const batchAssignmentCandidates = ref<RegistryAssignmentCandidate[]>([]);
 const assignmentCandidates = ref<RegistryAssignmentCandidate[]>([]);
@@ -330,6 +380,7 @@ const candidateTotal = ref(0);
 const candidateSearch = ref('');
 const candidatePagination = ref({ current: 1, pageSize: 20 });
 const batchAssignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
+const batchRevokeSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const assignmentCandidateLoading = ref(false);
 const assignmentCandidateTotal = ref(0);
 const assignmentCandidateSearch = ref('');
@@ -349,6 +400,7 @@ const errorMessage = ref('');
 const repositoryDrawerVisible = ref(false);
 const assignmentDialogVisible = ref(false);
 const batchRepositoryAssignmentDialogVisible = ref(false);
+const batchRepositoryAssignmentRevokeDialogVisible = ref(false);
 const editingRepositoryRef = ref('');
 const assignmentRepositoryRef = ref('');
 const repositoryForm = ref({
@@ -365,25 +417,37 @@ const repositoryColumns = computed<TableProps['columns']>(() => [
   { colKey: 'display_name', title: t('registry.list.form.repositoryName'), minWidth: 160 },
   { colKey: 'repositoryActions', title: t('registry.list.columns.actions'), width: 280 },
 ]);
-const assignmentCandidateColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'display', title: t('registry.list.columns.candidateUser'), minWidth: 180 },
-  { colKey: 'username', title: t('registry.list.columns.candidateUsername'), minWidth: 150 },
-  { colKey: 'assignmentState', title: t('registry.list.columns.authorizationState'), width: 120 },
-]);
-const candidateColumns = computed<TableProps['columns']>(() => [
-  {
-    colKey: 'row-select',
-    type: 'multiple' as const,
-    width: 48,
-    checkProps: ({ row }) => ({
-      disabled: (row as RegistryAssignmentCandidate).authorization_state === 'all',
-    }),
-  },
-  { colKey: 'display', title: t('registry.list.columns.candidateUser'), minWidth: 180 },
-  { colKey: 'username', title: t('registry.list.columns.candidateUsername'), minWidth: 150 },
-  { colKey: 'authorizationState', title: t('registry.list.columns.authorizationState'), width: 130 },
-]);
+function buildAssignmentCandidateColumns(
+  disabledState: RegistryAssignmentCandidate['authorization_state'] | undefined,
+  stateColumn: 'assignmentState' | 'authorizationState',
+) {
+  return [
+    {
+      colKey: 'row-select',
+      type: 'multiple' as const,
+      width: 48,
+      ...(disabledState
+        ? {
+            checkProps: ({ row }: { row: unknown }) => ({
+              disabled: (row as RegistryAssignmentCandidate).authorization_state === disabledState,
+            }),
+          }
+        : {}),
+    },
+    { colKey: 'display', title: t('registry.list.columns.candidateUser'), minWidth: 180 },
+    { colKey: 'username', title: t('registry.list.columns.candidateUsername'), minWidth: 150 },
+    { colKey: stateColumn, title: t('registry.list.columns.authorizationState'), width: 130 },
+  ] satisfies TableProps['columns'];
+}
+const assignmentCandidateColumns = computed<TableProps['columns']>(() =>
+  buildAssignmentCandidateColumns(undefined, 'assignmentState'),
+);
+const candidateColumns = computed<TableProps['columns']>(() =>
+  buildAssignmentCandidateColumns('all', 'authorizationState'),
+);
+const revokeCandidateColumns = computed<TableProps['columns']>(() =>
+  buildAssignmentCandidateColumns('none', 'authorizationState'),
+);
 
 onMounted(() => void load());
 
@@ -587,6 +651,22 @@ function closeBatchRepositoryAssignments() {
   batchCandidateRequestVersion += 1;
 }
 
+function openBatchRepositoryRevocation() {
+  candidateSearch.value = '';
+  candidatePagination.value.current = 1;
+  batchRevokeSelection.value = createExplicitSelection();
+  batchCandidateErrorMessage.value = '';
+  batchRepositoryAssignmentRevokeDialogVisible.value = true;
+  void loadBatchAssignmentCandidates();
+}
+
+function closeBatchRepositoryRevocation() {
+  if (batchRepositoryAssignmentRevoking.value) return;
+  batchRepositoryAssignmentRevokeDialogVisible.value = false;
+  batchRevokeSelection.value = createExplicitSelection();
+  batchCandidateRequestVersion += 1;
+}
+
 async function grantSelectedRepositoryAssignments() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
   const userIds = normalizeSelectedUserIds(batchAssignmentSelection.value);
@@ -610,6 +690,49 @@ async function grantSelectedRepositoryAssignments() {
   }
 }
 
+async function revokeSelectedRepositoryAssignments() {
+  if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
+  const userIds = normalizeSelectedUserIds(batchRevokeSelection.value);
+  if (!userIds.length) return;
+  const partialCount = batchAssignmentCandidates.value.filter(
+    (candidate) => userIds.includes(candidate.id) && candidate.authorization_state === 'partial',
+  ).length;
+  const revoke = async () => {
+    batchRepositoryAssignmentRevoking.value = true;
+    try {
+      await revokeRegistryRepositoryAssignments(connectionRef.value!, {
+        repository_refs: selectedRepositoryRefs.value.map(String),
+        user_ids: userIds,
+      });
+      MessagePlugin.success(t('registry.list.batchRevokeSaveSuccess'));
+      closeBatchRepositoryRevocation();
+      selectedRepositoryRefs.value = [];
+      await load();
+    } catch (error) {
+      const message = resolveLocalizedErrorMessage(t, error, t('registry.list.assignmentSaveFailed'));
+      errorMessage.value = message;
+      MessagePlugin.error(message);
+    } finally {
+      batchRepositoryAssignmentRevoking.value = false;
+    }
+  };
+  if (partialCount > 0) {
+    const dialog = DialogPlugin.confirm({
+      header: t('registry.list.batchRevokeConfirmTitle'),
+      body: t('registry.list.batchRevokePartialWarning'),
+      confirmBtn: t('registry.list.batchRevokeRepositories'),
+      cancelBtn: t('registry.list.cancel'),
+      onConfirm: () => {
+        dialog.destroy();
+        void revoke();
+      },
+      onCancel: () => dialog.destroy(),
+    });
+    return;
+  }
+  await revoke();
+}
+
 async function loadBatchAssignmentCandidates() {
   if (!connectionRef.value || !selectedRepositoryRefs.value.length) return;
   const requestVersion = ++batchCandidateRequestVersion;
@@ -622,11 +745,19 @@ async function loadBatchAssignmentCandidates() {
       limit: candidatePagination.value.pageSize,
       offset: (candidatePagination.value.current - 1) * candidatePagination.value.pageSize,
     });
-    if (requestVersion !== batchCandidateRequestVersion || !batchRepositoryAssignmentDialogVisible.value) return;
+    if (
+      requestVersion !== batchCandidateRequestVersion ||
+      (!batchRepositoryAssignmentDialogVisible.value && !batchRepositoryAssignmentRevokeDialogVisible.value)
+    )
+      return;
     batchAssignmentCandidates.value = response.items ?? [];
     candidateTotal.value = response.total ?? 0;
   } catch (error) {
-    if (requestVersion !== batchCandidateRequestVersion || !batchRepositoryAssignmentDialogVisible.value) return;
+    if (
+      requestVersion !== batchCandidateRequestVersion ||
+      (!batchRepositoryAssignmentDialogVisible.value && !batchRepositoryAssignmentRevokeDialogVisible.value)
+    )
+      return;
     batchCandidateErrorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.candidatesLoadFailed'));
   } finally {
     if (requestVersion === batchCandidateRequestVersion) candidateLoading.value = false;

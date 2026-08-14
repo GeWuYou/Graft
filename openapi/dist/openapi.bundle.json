@@ -20261,6 +20261,69 @@
         }
       }
     },
+    "/api/registries/{connectionRef}/repository-assignments/batch-revoke": {
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryArtifactRepositoryAssignmentsBatchRevoke",
+        "summary": "Revoke users from Artifact Repositories in one transaction",
+        "description": "Validates all requested repositories and users before soft-deleting active assignments. Missing assignments are ignored.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-revoke-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Active Repository user assignments were revoked atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-assignment-batch-revoke-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/registries/{connectionRef}/repository-assignment-candidates": {
       "get": {
         "tags": [
@@ -41668,6 +41731,73 @@
             }
           }
         ]
+      },
+      "registry-artifact-repository-assignment-batch-revoke-request": {
+        "type": "object",
+        "required": [
+          "repository_refs",
+          "user_ids"
+        ],
+        "properties": {
+          "repository_refs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "registry-artifact-repository-assignment-batch-revoke-result": {
+        "type": "object",
+        "required": [
+          "total",
+          "revoked_count",
+          "not_assigned_count"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested repository-user assignment pairs."
+          },
+          "revoked_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of active assignments soft-deleted by this request."
+          },
+          "not_assigned_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested assignments that were not active."
+          }
+        }
+      },
+      "enveloped-registry-artifact-repository-assignment-batch-revoke-result": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-revoke-result"
+          }
+        }
       },
       "registry-repository-assignment-candidate": {
         "type": "object",

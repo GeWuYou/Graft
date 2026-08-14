@@ -317,6 +317,15 @@ func (s *Service) AddAssignments(ctx context.Context, connectionRef string, inpu
 	return repository.AddAssignments(ctx, connectionRef, input, actorID)
 }
 
+// RevokeAssignments 原子撤销一组用户在一组 Repository 上的有效授权。
+func (s *Service) RevokeAssignments(ctx context.Context, connectionRef string, input registrystore.AssignmentBatchRevokeInput, actorID uint64) (registrystore.AssignmentBatchRevokeResult, error) {
+	repository, err := s.managementRepository()
+	if err != nil {
+		return registrystore.AssignmentBatchRevokeResult{}, err
+	}
+	return repository.RevokeAssignments(ctx, connectionRef, input, actorID)
+}
+
 // GrantAssignment 原子授予单个用户使用 Repository 的权限。
 func (s *Service) GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (registrystore.UserAssignment, error) {
 	repository, err := s.managementRepository()

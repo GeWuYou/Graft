@@ -42,6 +42,7 @@ func TestRegistryRoutesRequireExpectedPermissions(t *testing.T) {
 		{name: "connection verify", method: http.MethodPost, path: "/api/registries/registry:primary/verify", body: `{"runtime_target_id":1,"repository_ref":"app"}`, permission: registrycontract.VerifyPermission},
 		{name: "repository assignment", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignments?repository_ref=team/app", permission: registrycontract.AssignmentManagePermission},
 		{name: "batch repository assignment", method: http.MethodPost, path: "/api/registries/registry:primary/repository-assignments/batch", body: `{"repository_refs":["app"],"user_ids":[7]}`, permission: registrycontract.AssignmentManagePermission},
+		{name: "batch repository assignment revoke", method: http.MethodPost, path: "/api/registries/registry:primary/repository-assignments/batch-revoke", body: `{"repository_refs":["app"],"user_ids":[7]}`, permission: registrycontract.AssignmentManagePermission},
 		{name: "repository assignment candidates", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app", permission: registrycontract.AssignmentManagePermission},
 		{name: "available build destinations", method: http.MethodGet, path: "/api/registries/available-destinations", permission: buildcontract.BuildCreatePermission},
 	} {
@@ -185,6 +186,12 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 	engine.ServeHTTP(batchAdd, registryRouteRequest(http.MethodPost, "/api/registries/registry:primary/repository-assignments/batch", `{"repository_refs":["app","team/release"],"user_ids":[7,9]}`, "7"))
 	if batchAdd.Code != http.StatusOK || !strings.Contains(batchAdd.Body.String(), `"total":4`) || !strings.Contains(batchAdd.Body.String(), `"added_count":2`) || !strings.Contains(batchAdd.Body.String(), `"already_assigned_count":2`) {
 		t.Fatalf("batch add assignments = %d: %s", batchAdd.Code, batchAdd.Body.String())
+	}
+
+	batchRevoke := httptest.NewRecorder()
+	engine.ServeHTTP(batchRevoke, registryRouteRequest(http.MethodPost, "/api/registries/registry:primary/repository-assignments/batch-revoke", `{"repository_refs":["app","team/release"],"user_ids":[7,9]}`, "7"))
+	if batchRevoke.Code != http.StatusOK || !strings.Contains(batchRevoke.Body.String(), `"total":4`) || !strings.Contains(batchRevoke.Body.String(), `"revoked_count":4`) || !strings.Contains(batchRevoke.Body.String(), `"not_assigned_count":0`) {
+		t.Fatalf("batch revoke assignments = %d: %s", batchRevoke.Code, batchRevoke.Body.String())
 	}
 
 	deleteResponse := httptest.NewRecorder()
@@ -612,6 +619,40 @@ func (r *registryRouteRepository) AddAssignments(_ context.Context, connectionRe
 			result.AddedCount++
 		}
 	}
+	return result, nil
+}
+
+//nolint:gocognit // 测试替身在一个方法内模拟完整的矩阵撤销行为。
+func (r *registryRouteRepository) RevokeAssignments(_ context.Context, connectionRef string, input registrystore.AssignmentBatchRevokeInput, _ uint64) (registrystore.AssignmentBatchRevokeResult, error) {
+	if connectionRef != r.connection.ConnectionRef || len(input.RepositoryRefs) == 0 || len(input.UserIDs) == 0 {
+		return registrystore.AssignmentBatchRevokeResult{}, registrystore.ErrNotFound
+	}
+	for _, repositoryRef := range input.RepositoryRefs {
+		if !r.repositoryExists(connectionRef, repositoryRef) {
+			return registrystore.AssignmentBatchRevokeResult{}, registrystore.ErrNotFound
+		}
+	}
+	result := registrystore.AssignmentBatchRevokeResult{Total: int64(len(input.RepositoryRefs) * len(input.UserIDs))}
+	for _, repositoryRef := range input.RepositoryRefs {
+		key := connectionRef + "/" + repositoryRef
+		remaining := r.assignments[key][:0]
+		for _, assignment := range r.assignments[key] {
+			matched := false
+			for _, userID := range input.UserIDs {
+				if assignment.UserID == userID {
+					matched = true
+					break
+				}
+			}
+			if matched {
+				result.RevokedCount++
+			} else {
+				remaining = append(remaining, assignment)
+			}
+		}
+		r.assignments[key] = remaining
+	}
+	result.NotAssignedCount = result.Total - result.RevokedCount
 	return result, nil
 }
 

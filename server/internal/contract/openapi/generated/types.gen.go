@@ -11982,6 +11982,11 @@ type EnvelopedRegistryArtifactRepositoryAssignmentBatchAddResult struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRegistryArtifactRepositoryAssignmentBatchRevokeResult defines model for enveloped-registry-artifact-repository-assignment-batch-revoke-result.
+type EnvelopedRegistryArtifactRepositoryAssignmentBatchRevokeResult struct {
+	Data RegistryArtifactRepositoryAssignmentBatchRevokeResult `json:"data"`
+}
+
 // EnvelopedRegistryArtifactRepositoryListResponse defines model for enveloped-registry-artifact-repository-list-response.
 type EnvelopedRegistryArtifactRepositoryListResponse struct {
 	// Code Existing canonical response code.
@@ -12227,6 +12232,26 @@ type EnvelopedRolePermissionBindingResponse struct {
 	// Code Existing canonical response code.
 	Code string                        `json:"code"`
 	Data RolePermissionBindingResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRuntimeTargetAssignmentCandidateListResponse defines model for enveloped-runtime-target-assignment-candidate-list-response.
+type EnvelopedRuntimeTargetAssignmentCandidateListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                       `json:"code"`
+	Data RuntimeTargetAssignmentCandidateListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -13789,6 +13814,24 @@ type RegistryArtifactRepositoryAssignmentBatchAddResult struct {
 	Total int64 `json:"total"`
 }
 
+// RegistryArtifactRepositoryAssignmentBatchRevokeRequest defines model for registry-artifact-repository-assignment-batch-revoke-request.
+type RegistryArtifactRepositoryAssignmentBatchRevokeRequest struct {
+	RepositoryRefs []string `json:"repository_refs"`
+	UserIds        []int64  `json:"user_ids"`
+}
+
+// RegistryArtifactRepositoryAssignmentBatchRevokeResult defines model for registry-artifact-repository-assignment-batch-revoke-result.
+type RegistryArtifactRepositoryAssignmentBatchRevokeResult struct {
+	// NotAssignedCount Number of requested assignments that were not active.
+	NotAssignedCount int64 `json:"not_assigned_count"`
+
+	// RevokedCount Number of active assignments soft-deleted by this request.
+	RevokedCount int64 `json:"revoked_count"`
+
+	// Total Number of requested repository-user assignment pairs.
+	Total int64 `json:"total"`
+}
+
 // RegistryArtifactRepositoryCreateRequest defines model for registry-artifact-repository-create-request.
 type RegistryArtifactRepositoryCreateRequest struct {
 	AllowPull   *bool  `json:"allow_pull,omitempty"`
@@ -14286,6 +14329,22 @@ type RuntimeTargetRuntimeProvider string
 // RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
 type RuntimeTargetRuntimeType string
 
+// RuntimeTargetAssignmentCandidate defines model for runtime-target-assignment-candidate.
+type RuntimeTargetAssignmentCandidate struct {
+	Display  string `json:"display"`
+	Id       int64  `json:"id"`
+	Status   string `json:"status"`
+	Username string `json:"username"`
+}
+
+// RuntimeTargetAssignmentCandidateListResponse defines model for runtime-target-assignment-candidate-list-response.
+type RuntimeTargetAssignmentCandidateListResponse struct {
+	Items  []RuntimeTargetAssignmentCandidate `json:"items"`
+	Limit  int                                `json:"limit"`
+	Offset int                                `json:"offset"`
+	Total  int                                `json:"total"`
+}
+
 // RuntimeTargetCountMetric defines model for runtime-target-count-metric.
 type RuntimeTargetCountMetric struct {
 	Active            int64  `json:"active"`
@@ -14386,6 +14445,11 @@ type RuntimeTargetUserAssignment struct {
 // RuntimeTargetUserAssignmentListResponse defines model for runtime-target-user-assignment-list-response.
 type RuntimeTargetUserAssignmentListResponse struct {
 	Items []RuntimeTargetUserAssignment `json:"items"`
+}
+
+// RuntimeTargetUserAssignmentReplaceRequest defines model for runtime-target-user-assignment-replace-request.
+type RuntimeTargetUserAssignmentReplaceRequest struct {
+	UserIds []int64 `json:"user_ids"`
 }
 
 // RuntimeTargetUserAssignmentRequest defines model for runtime-target-user-assignment-request.
@@ -18267,6 +18331,16 @@ type PostRegistryArtifactRepositoryAssignmentsBatchAddParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostRegistryArtifactRepositoryAssignmentsBatchRevokeParams defines parameters for PostRegistryArtifactRepositoryAssignmentsBatchRevoke.
+type PostRegistryArtifactRepositoryAssignmentsBatchRevokeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteRegistryArtifactRepositoryAssignmentParams defines parameters for DeleteRegistryArtifactRepositoryAssignment.
 type DeleteRegistryArtifactRepositoryAssignmentParams struct {
 	// RepositoryRef Registry-local Artifact Repository reference. It may contain slash-separated namespaces and is the repository_ref used by the Build destination contract.
@@ -18506,6 +18580,20 @@ type GetRuntimeTargetParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetRuntimeTargetAssignmentCandidatesParams defines parameters for GetRuntimeTargetAssignmentCandidates.
+type GetRuntimeTargetAssignmentCandidatesParams struct {
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetRuntimeTargetAssignmentsParams defines parameters for GetRuntimeTargetAssignments.
 type GetRuntimeTargetAssignmentsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -18518,6 +18606,16 @@ type GetRuntimeTargetAssignmentsParams struct {
 
 // PostRuntimeTargetAssignmentParams defines parameters for PostRuntimeTargetAssignment.
 type PostRuntimeTargetAssignmentParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutRuntimeTargetAssignmentsParams defines parameters for PutRuntimeTargetAssignments.
+type PutRuntimeTargetAssignmentsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19376,6 +19474,9 @@ type PutRegistryArtifactRepositoryAssignmentsJSONRequestBody = RegistryArtifactR
 // PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignmentsBatchAdd for application/json ContentType.
 type PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody = RegistryArtifactRepositoryAssignmentBatchAddRequest
 
+// PostRegistryArtifactRepositoryAssignmentsBatchRevokeJSONRequestBody defines body for PostRegistryArtifactRepositoryAssignmentsBatchRevoke for application/json ContentType.
+type PostRegistryArtifactRepositoryAssignmentsBatchRevokeJSONRequestBody = RegistryArtifactRepositoryAssignmentBatchRevokeRequest
+
 // PostRegistryVerifyJSONRequestBody defines body for PostRegistryVerify for application/json ContentType.
 type PostRegistryVerifyJSONRequestBody = RegistryConnectionVerificationRequest
 
@@ -19414,6 +19515,9 @@ type PutRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
 
 // PostRuntimeTargetAssignmentJSONRequestBody defines body for PostRuntimeTargetAssignment for application/json ContentType.
 type PostRuntimeTargetAssignmentJSONRequestBody = RuntimeTargetUserAssignmentRequest
+
+// PutRuntimeTargetAssignmentsJSONRequestBody defines body for PutRuntimeTargetAssignments for application/json ContentType.
+type PutRuntimeTargetAssignmentsJSONRequestBody = RuntimeTargetUserAssignmentReplaceRequest
 
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest

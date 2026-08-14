@@ -484,6 +484,8 @@ paths:
     $ref: ./paths/registries.repositories.assignments.yaml
   /api/registries/{connectionRef}/repository-assignments/batch:
     $ref: ./paths/registries.repositories.assignments.batch-add.yaml
+  /api/registries/{connectionRef}/repository-assignments/batch-revoke:
+    $ref: ./paths/registries.repositories.assignments.batch-revoke.yaml
   /api/registries/{connectionRef}/repository-assignment-candidates:
     $ref: ./paths/registries.repository-assignment-candidates.yaml
   /api/registries/{connectionRef}/repository-assignments/{userId}:
