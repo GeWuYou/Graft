@@ -150,10 +150,20 @@
         <t-form-item :label="t('registry.list.verifyTarget')">
           <t-select
             v-model="verificationRuntimeTargetID"
+            :disabled="!verificationTargetOptions.length"
             :loading="verificationOptionsLoading"
             :options="verificationTargetOptions"
           />
         </t-form-item>
+        <t-alert v-if="verificationTargetsLoaded && !verificationTargetOptions.length" theme="warning">
+          <template #message>{{ t('registry.list.noAuthorizedBuildTargets') }}</template>
+          <template #default>
+            <router-link v-if="canManageRuntimeTargetAssignments" to="/infrastructure/runtime-targets">
+              {{ t('registry.list.manageRuntimeTargetAccess') }}
+            </router-link>
+            <span v-else>{{ t('registry.list.contactAdministratorForRuntimeTargetAccess') }}</span>
+          </template>
+        </t-alert>
       </t-form>
     </t-dialog>
 
@@ -190,6 +200,7 @@ import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState }
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { getPermissionStore } from '@/store/modules/permission';
 
 import {
   createRegistry,
@@ -225,6 +236,10 @@ const verificationRuntimeTargetID = ref<number>();
 const verificationOptionsLoading = ref(false);
 const verificationRepositoryOptions = ref<Array<{ label: string; value: string }>>([]);
 const verificationTargetOptions = ref<Array<{ label: string; value: number }>>([]);
+const verificationTargetsLoaded = ref(false);
+const canManageRuntimeTargetAssignments = computed(() =>
+  getPermissionStore().hasPermission('runtime_target.assignment.manage'),
+);
 const form = ref<RegistryConnectionFormData>({
   connection_ref: '',
   display_name: '',
@@ -384,6 +399,7 @@ async function openVerify(connectionRef: string) {
   verificationRepositoryRef.value = '';
   verificationRuntimeTargetID.value = undefined;
   verificationOptionsLoading.value = true;
+  verificationTargetsLoaded.value = false;
   try {
     const [repositories, targets] = await Promise.all([
       getRegistryRepositories(connectionRef, { limit: 100, offset: 0 }),
@@ -399,6 +415,7 @@ async function openVerify(connectionRef: string) {
     }));
     verificationRepositoryRef.value = verificationRepositoryOptions.value[0]?.value ?? '';
     verificationRuntimeTargetID.value = verificationTargetOptions.value[0]?.value;
+    verificationTargetsLoaded.value = true;
     verifyDialogVisible.value = true;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('registry.list.verifyFailed'));
@@ -407,6 +424,10 @@ async function openVerify(connectionRef: string) {
   }
 }
 async function confirmVerify() {
+  if (!verificationTargetOptions.value.length) {
+    errorMessage.value = t('registry.list.noAuthorizedBuildTargets');
+    return;
+  }
   if (!verificationConnectionRef.value || !verificationRepositoryRef.value || !verificationRuntimeTargetID.value) {
     errorMessage.value = t('registry.list.verifySelectionRequired');
     return;

@@ -1,0 +1,7 @@
+type: object
+required: [user_ids]
+properties:
+  user_ids:
+    type: array
+    maxItems: 10000
+    items: {type: integer, format: int64, minimum: 1}

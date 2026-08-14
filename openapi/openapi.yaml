@@ -466,6 +466,8 @@ paths:
     $ref: ./paths/runtime-targets.refresh.yaml
   /api/runtime-targets/{id}/assignments:
     $ref: ./paths/runtime-targets.assignments.yaml
+  /api/runtime-targets/{id}/assignment-candidates:
+    $ref: ./paths/runtime-targets.assignment-candidates.yaml
   /api/runtime-targets/{id}/assignments/{userId}/delete:
     $ref: ./paths/runtime-targets.assignment-delete.yaml
   /api/registries:

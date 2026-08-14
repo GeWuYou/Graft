@@ -832,6 +832,25 @@ func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, user
 	return err
 }
 
+// ReplaceUserAssignmentsTx 在调用方事务中替换授权集合，并由调用方决定提交其它事实。
+func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID uint64, userIDs []uint64, actorID uint64) ([]UserAssignment, error) {
+	if r == nil || r.db == nil || targetID == 0 || actorID == 0 {
+		return nil, ErrNotFound
+	}
+	if _, err := r.Get(ctx, targetID); err != nil {
+		return nil, err
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint, deleted_by = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE runtime_target_id = $1 AND deleted_at = 0`, targetID, actorID); err != nil {
+		return nil, err
+	}
+	for _, userID := range userIDs {
+		if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID); err != nil {
+			return nil, err
+		}
+	}
+	return r.ListUserAssignments(ctx, targetID)
+}
+
 // UpsertLocalDocker 写入系统托管的本机 Docker 探测结果，并通过 provider 与 endpoint 的活跃记录唯一键更新已有记录。
 func (r *SQLRepository) UpsertLocalDocker(ctx context.Context, probe LocalDockerProbe) error {
 	if r == nil || r.db == nil {

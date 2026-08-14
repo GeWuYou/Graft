@@ -14,9 +14,10 @@ const (
 	AssignmentManagePermission = "runtime_target.assignment.manage"
 	RefreshPermission          = "runtime_target.refresh"
 	// SummaryTopic 是目标级资源快照使用的实时主题。
-	SummaryTopic          = "runtime-target.summary.list"
-	AssignmentsRoute      = "/runtime-targets/:id/assignments"
-	AssignmentDeleteRoute = "/runtime-targets/:id/assignments/:userId/delete"
+	SummaryTopic              = "runtime-target.summary.list"
+	AssignmentsRoute          = "/runtime-targets/:id/assignments"
+	AssignmentCandidatesRoute = "/runtime-targets/:id/assignment-candidates"
+	AssignmentDeleteRoute     = "/runtime-targets/:id/assignments/:userId/delete"
 )
 
 // AgentCertificateRevocationEventType 是撤销已签发 Agent 证书的 durable event 类型。

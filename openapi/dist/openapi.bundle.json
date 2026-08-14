@@ -19144,6 +19144,142 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "put": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Replace all users assigned to a runtime target",
+        "operationId": "putRuntimeTargetAssignments",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-user-assignment-replace-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete active assignments after atomic replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user IDs"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target or user not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/assignment-candidates": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List users eligible for runtime target assignment management",
+        "operationId": "getRuntimeTargetAssignmentCandidates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged user assignment candidates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-assignment-candidate-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/runtime-targets/{id}/assignments/{userId}/delete": {
@@ -40583,6 +40719,23 @@
           }
         ]
       },
+      "runtime-target-user-assignment-replace-request": {
+        "type": "object",
+        "required": [
+          "user_ids"
+        ],
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
       "runtime-target-user-assignment-request": {
         "type": "object",
         "required": [
@@ -40609,6 +40762,78 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/runtime-target-user-assignment"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-assignment-candidate": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "runtime-target-assignment-candidate-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target-assignment-candidate"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-runtime-target-assignment-candidate-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-assignment-candidate-list-response"
               }
             }
           }

@@ -1,0 +1,22 @@
+get:
+  tags: [runtime-target]
+  summary: List users eligible for runtime target assignment management
+  operationId: getRuntimeTargetAssignmentCandidates
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+    - {name: search, in: query, schema: {type: string, maxLength: 128}}
+    - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+  responses:
+    '200':
+      description: Paged user assignment candidates.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-runtime-target-assignment-candidate-list-response.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Runtime target not found}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

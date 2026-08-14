@@ -18,6 +18,8 @@ type RuntimeTargetDiscoverLocal = NonNullable<
 >;
 export type RuntimeTargetUsageMetric = components['schemas']['runtime-target-usage-metric'];
 export type RuntimeTargetPage = RuntimeTargetList;
+export type RuntimeTargetAssignment = components['schemas']['runtime-target-user-assignment'];
+export type RuntimeTargetAssignmentCandidate = components['schemas']['runtime-target-assignment-candidate'];
 type RuntimeTargetSavedViewsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetSavedViews]['get'];
 type RuntimeTargetSavedViewsData = NonNullable<
   RuntimeTargetSavedViewsOperation['responses'][200]['content']['application/json']['data']
@@ -99,4 +101,29 @@ export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail>
 
 export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh> {
   return request.post<RuntimeTargetRefresh>({ url: buildOpenApiRuntimePath('postRuntimeTargetRefresh', { id }) });
+}
+
+export async function getRuntimeTargetAssignments(id: number): Promise<RuntimeTargetAssignment[]> {
+  const response = await request.get<{ items: RuntimeTargetAssignment[] }>({
+    url: buildOpenApiRuntimePath('getRuntimeTargetAssignments', { id }),
+  });
+  return response.items;
+}
+
+export async function getRuntimeTargetAssignmentCandidates(
+  id: number,
+  params: { search?: string; limit?: number; offset?: number } = {},
+): Promise<{ items: RuntimeTargetAssignmentCandidate[]; total: number }> {
+  return request.get<{ items: RuntimeTargetAssignmentCandidate[]; total: number }>({
+    url: buildOpenApiRuntimePath('getRuntimeTargetAssignmentCandidates', { id }),
+    params,
+  });
+}
+
+export async function replaceRuntimeTargetAssignments(id: number, userIds: number[]) {
+  const response = await request.put<{ items: RuntimeTargetAssignment[] }>({
+    url: buildOpenApiRuntimePath('putRuntimeTargetAssignments', { id }),
+    data: { user_ids: userIds },
+  });
+  return response.items;
 }

@@ -3721,9 +3721,27 @@ export interface paths {
     };
     /** List deployment users assigned to a runtime target */
     get: operations['getRuntimeTargetAssignments'];
-    put?: never;
+    /** Replace all users assigned to a runtime target */
+    put: operations['putRuntimeTargetAssignments'];
     /** Grant a user deployment use of a runtime target */
     post: operations['postRuntimeTargetAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/assignment-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List users eligible for runtime target assignment management */
+    get: operations['getRuntimeTargetAssignmentCandidates'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -10009,12 +10027,31 @@ export interface components {
     'enveloped-runtime-target-user-assignment-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment-list-response'];
     };
+    'runtime-target-user-assignment-replace-request': {
+      user_ids: number[];
+    };
     'runtime-target-user-assignment-request': {
       /** Format: int64 */
       user_id: number;
     };
     'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment'];
+    };
+    'runtime-target-assignment-candidate': {
+      /** Format: int64 */
+      id: number;
+      username: string;
+      display: string;
+      status: string;
+    };
+    'runtime-target-assignment-candidate-list-response': {
+      items: components['schemas']['runtime-target-assignment-candidate'][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-runtime-target-assignment-candidate-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-assignment-candidate-list-response'];
     };
     'registry-connection': {
       /** @description Stable external Registry Connection reference used by Build destination contracts. */
@@ -22713,6 +22750,58 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  putRuntimeTargetAssignments: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-user-assignment-replace-request'];
+      };
+    };
+    responses: {
+      /** @description Complete active assignments after atomic replacement. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
+        };
+      };
+      /** @description Invalid user IDs */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target or user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postRuntimeTargetAssignment: {
     parameters: {
       query?: never;
@@ -22756,6 +22845,51 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Runtime target or user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargetAssignmentCandidates: {
+    parameters: {
+      query?: {
+        search?: string;
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Paged user assignment candidates. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-assignment-candidate-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
       404: {
         headers: {
           [name: string]: unknown;

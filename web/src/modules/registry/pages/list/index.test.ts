@@ -119,6 +119,9 @@ vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 vi.mock('@/shared/observability', () => ({ formatLocaleDateTime: () => '' }));
+vi.mock('@/store/modules/permission', () => ({
+  getPermissionStore: () => ({ hasPermission: () => false }),
+}));
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'zh-CN' }, t: (key: string) => key }),
 }));
@@ -240,6 +243,19 @@ describe('RegistryListPage', () => {
     await openAndConfirmVerification(wrapper);
 
     expect(messageMocks.error).toHaveBeenCalledWith('registry.list.verifyFailed');
+  });
+
+  it('explains that no authorized build target is available without treating it as a request failure', async () => {
+    apiMocks.getRegistries.mockResolvedValue({ items: [{ connection_ref: 'registry-a' }], total: 1 });
+    apiMocks.getRegistryVerificationTargets.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'TableActionMenu' }).vm.$emit('action', 'verify');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('registry.list.contactAdministratorForRuntimeTargetAccess');
+    expect(apiMocks.verifyRegistry).not.toHaveBeenCalled();
   });
 
   it('opens the Connection create drawer from the management action', async () => {
