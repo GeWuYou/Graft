@@ -157,6 +157,7 @@ func TestSQLRepositoryReplaceUserAssignmentsUsesRevisionCAS(t *testing.T) {
 	}
 }
 
+// TestSQLRepositoryAssignmentMutationsAdvanceRevision 确保单项和批量授权变更推进 revision，使 ReplaceUserAssignmentsTx 拒绝基于旧快照的覆盖写入。
 func TestSQLRepositoryAssignmentMutationsAdvanceRevision(t *testing.T) {
 	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
