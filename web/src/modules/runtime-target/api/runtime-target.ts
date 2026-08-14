@@ -127,3 +127,13 @@ export async function replaceRuntimeTargetAssignments(id: number, userIds: numbe
   });
   return response.items;
 }
+
+export async function getRuntimeTargetAssignmentsForTargets(targetIds: number[]): Promise<Map<number, Set<number>>> {
+  const entries = await Promise.all(
+    targetIds.map(async (targetId) => {
+      const assignments = await getRuntimeTargetAssignments(targetId);
+      return [targetId, new Set(assignments.map((item) => item.user_id))] as const;
+    }),
+  );
+  return new Map(entries);
+}

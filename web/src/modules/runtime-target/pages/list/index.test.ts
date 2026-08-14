@@ -6,6 +6,8 @@ import RuntimeTargetListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   discoverLocalDocker: vi.fn(),
+  getRuntimeTargetAssignmentCandidates: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+  getRuntimeTargetAssignmentsForTargets: vi.fn().mockResolvedValue(new Map()),
   deleteRuntimeTargetSavedView: vi.fn(),
   getRuntimeTargetSavedViews: vi.fn().mockResolvedValue([]),
   listRuntimeTargetPage: vi.fn(),
@@ -112,6 +114,10 @@ function mountPage() {
           template: '<div data-testid="pagination" :data-options="pageSizeOptions.join(\',\')" />',
         }),
         't-progress': defineComponent({ name: 'TProgress', template: '<div class="progress" />' }),
+        'paged-multi-select': defineComponent({
+          name: 'PagedMultiSelect',
+          template: '<div data-testid="runtime-target-batch-authorization" />',
+        }),
       },
     },
   });
@@ -137,6 +143,14 @@ describe('RuntimeTargetListPage', () => {
     wrapper = undefined;
     vi.clearAllMocks();
     vi.useRealTimers();
+  });
+
+  it('renders a single element root for the shell route transition', async () => {
+    wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.element).toBeInstanceOf(HTMLElement);
+    expect(wrapper.classes()).toContain('runtime-target-page-root');
   });
 
   it('loads paged target overview cards with the shared page-size choices', async () => {

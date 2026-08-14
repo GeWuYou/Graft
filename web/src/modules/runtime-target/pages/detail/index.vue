@@ -96,37 +96,71 @@
           class="runtime-target-section"
         >
           <t-alert v-if="assignmentError" theme="error" :message="assignmentError" class="runtime-target-feedback" />
-          <t-select
-            v-model="selectedUserIds"
-            multiple
-            filterable
-            clearable
-            :loading="assignmentsLoading || candidatesLoading"
-            :options="assignmentOptions"
-            :placeholder="t('runtimeTarget.detail.authorizedUsersPlaceholder')"
-            class="runtime-target-assignment-select"
-          />
           <div class="runtime-target-assignment-actions">
             <span>{{ t('runtimeTarget.detail.authorizedUsersHint') }}</span>
-            <t-button theme="primary" :loading="assignmentsSaving" @click="saveAssignments">
-              {{ t('runtimeTarget.detail.saveAuthorizedUsers') }}
+            <t-button
+              variant="outline"
+              :loading="assignmentsLoading || candidatesLoading || assignmentsSaving"
+              @click="openAssignmentDialog"
+            >
+              {{ t('runtimeTarget.detail.changeAuthorizedUsers') }}
             </t-button>
           </div>
         </t-card>
       </template>
       <t-empty v-else :title="t('runtimeTarget.detail.notFound')" />
     </management-page-content>
+    <paged-multi-select
+      v-model:visible="assignmentDialogVisible"
+      v-model:current="candidatePagination.current"
+      v-model:keyword="candidateSearch"
+      v-model:page-size="candidatePagination.pageSize"
+      v-model:selection="assignmentSelection"
+      :cancel-label="t('runtimeTarget.detail.cancel')"
+      :cell-slot-names="['authorizationState']"
+      :columns="candidateColumns"
+      :confirm-label="t('runtimeTarget.detail.saveAuthorizedUsers')"
+      :confirm-loading="assignmentsSaving || candidatesLoading"
+      confirm-without-selection
+      :empty-description="t('runtimeTarget.detail.candidatesEmpty')"
+      :empty-title="t('runtimeTarget.detail.candidatesEmpty')"
+      :error-message="assignmentError"
+      :loading="candidatesLoading"
+      row-key="id"
+      :rows="assignmentCandidates"
+      :search="{
+        placeholder: t('runtimeTarget.detail.candidateSearchPlaceholder'),
+        clearLabel: t('runtimeTarget.detail.clearSearch'),
+      }"
+      :selected-count-label="(count) => t('runtimeTarget.detail.selectedUsers', { count })"
+      :title="t('runtimeTarget.detail.selectAuthorizedUsersTitle')"
+      :total="candidateTotal"
+      :total-label="(count) => t('runtimeTarget.detail.candidateTotal', { count })"
+      @cancel="closeAssignmentDialog"
+      @confirm="saveAssignments"
+      @page-change="loadCandidates"
+      @search="searchCandidates"
+    >
+      <template #authorizationState="{ row }">
+        <t-tag v-if="initialAssignmentUserIds.has(Number(row.id))" theme="success" variant="light">
+          {{ t('runtimeTarget.detail.alreadyAuthorized') }}
+        </t-tag>
+        <span v-else class="runtime-target-assignment-state-empty">-</span>
+      </template>
+    </paged-multi-select>
   </div>
 </template>
 <script setup lang="ts">
 // 详情页展示 provider-owned 运行时投影；刷新只请求后端重新探测，不在前端改写运行时事实。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, defineComponent, h, onMounted, type PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { useLocale } from '@/locales/useLocale';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { createExplicitSelection, type ExplicitSelection, PagedMultiSelect } from '@/shared/components/selection';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { getPermissionStore } from '@/store/modules/permission';
 
@@ -150,12 +184,24 @@ const errorMessage = ref('');
 const targetID = computed(() => Number(route.params.id));
 const permissionStore = getPermissionStore();
 const canManageAssignments = computed(() => permissionStore.hasPermission('runtime_target.assignment.manage'));
-const assignmentOptions = ref<Array<{ label: string; value: number }>>([]);
-const selectedUserIds = ref<number[]>([]);
+type AssignmentCandidate = Awaited<ReturnType<typeof getRuntimeTargetAssignmentCandidates>>['items'][number];
+const assignmentCandidates = ref<AssignmentCandidate[]>([]);
+const candidateTotal = ref(0);
+const candidateSearch = ref('');
+const candidatePagination = ref({ current: 1, pageSize: 20 });
+const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
+const initialAssignmentUserIds = ref(new Set<number>());
+const assignmentDialogVisible = ref(false);
 const assignmentsLoading = ref(false);
 const candidatesLoading = ref(false);
 const assignmentsSaving = ref(false);
 const assignmentError = ref('');
+const candidateColumns = computed(() => [
+  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
+  { colKey: 'display', title: t('runtimeTarget.detail.candidateUser'), minWidth: 180 },
+  { colKey: 'username', title: t('runtimeTarget.detail.candidateUsername'), minWidth: 150 },
+  { colKey: 'authorizationState', title: t('runtimeTarget.detail.authorizationState'), width: 120 },
+]);
 type DockerProviderDetailsData = RuntimeTargetDetail['providerDetails']['docker'];
 
 const DockerProviderDetails = defineComponent({
@@ -209,25 +255,9 @@ async function loadAssignments() {
   candidatesLoading.value = true;
   assignmentError.value = '';
   try {
-    const [assignments, candidates] = await Promise.all([
-      getRuntimeTargetAssignments(targetID.value),
-      getRuntimeTargetAssignmentCandidates(targetID.value, { limit: 100, offset: 0 }),
-    ]);
-    const optionMap = new Map(candidates.items.map((item) => [item.id, item]));
-    assignments.forEach((item) => {
-      if (!optionMap.has(item.user_id))
-        optionMap.set(item.user_id, {
-          id: item.user_id,
-          username: String(item.user_id),
-          display: String(item.user_id),
-          status: 'active',
-        });
-    });
-    assignmentOptions.value = [...optionMap.values()].map((item) => ({
-      label: item.display || item.username,
-      value: item.id,
-    }));
-    selectedUserIds.value = assignments.map((item) => item.user_id);
+    const assignments = await getRuntimeTargetAssignments(targetID.value);
+    initialAssignmentUserIds.value = new Set(assignments.map((item) => item.user_id));
+    assignmentSelection.value = createExplicitSelection(assignments.map((item) => item.user_id));
   } catch {
     assignmentError.value = t('runtimeTarget.detail.authorizedUsersLoadError');
   } finally {
@@ -235,11 +265,53 @@ async function loadAssignments() {
     candidatesLoading.value = false;
   }
 }
-async function saveAssignments() {
-  assignmentsSaving.value = true;
-  assignmentError.value = '';
+function openAssignmentDialog() {
+  candidateSearch.value = '';
+  candidatePagination.value.current = 1;
+  assignmentDialogVisible.value = true;
+  void loadCandidates();
+}
+function closeAssignmentDialog() {
+  if (assignmentsSaving.value) return;
+  assignmentDialogVisible.value = false;
+}
+async function loadCandidates() {
+  if (!Number.isInteger(targetID.value) || targetID.value <= 0) return;
+  candidatesLoading.value = true;
   try {
-    await replaceRuntimeTargetAssignments(targetID.value, selectedUserIds.value);
+    const result = await getRuntimeTargetAssignmentCandidates(targetID.value, {
+      search: candidateSearch.value.trim() || undefined,
+      limit: candidatePagination.value.pageSize,
+      offset: (candidatePagination.value.current - 1) * candidatePagination.value.pageSize,
+    });
+    assignmentCandidates.value = result.items;
+    candidateTotal.value = result.total;
+  } catch {
+    assignmentError.value = t('runtimeTarget.detail.authorizedUsersLoadError');
+  } finally {
+    candidatesLoading.value = false;
+  }
+}
+function searchCandidates() {
+  candidatePagination.value.current = 1;
+  void loadCandidates();
+}
+async function saveAssignments() {
+  assignmentError.value = '';
+  const selectedUserIds = Array.from(assignmentSelection.value.selectedIds).map(Number);
+  if (
+    selectedUserIds.length === initialAssignmentUserIds.value.size &&
+    selectedUserIds.every((id) => initialAssignmentUserIds.value.has(id))
+  ) {
+    closeAssignmentDialog();
+    return;
+  }
+  assignmentsSaving.value = true;
+  try {
+    await replaceRuntimeTargetAssignments(targetID.value, selectedUserIds);
+    initialAssignmentUserIds.value = new Set(selectedUserIds);
+    MessagePlugin.success(t('runtimeTarget.detail.authorizedUsersSaveSuccess'));
+    closeAssignmentDialog();
   } catch {
     assignmentError.value = t('runtimeTarget.detail.authorizedUsersSaveError');
   } finally {
@@ -290,6 +362,10 @@ onMounted(() => void load());
 
 .runtime-target-assignment-actions span {
   color: var(--td-text-color-secondary);
+}
+
+.runtime-target-assignment-state-empty {
+  color: var(--td-text-color-placeholder);
 }
 
 @media (width <= 640px) {
