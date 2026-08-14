@@ -302,8 +302,33 @@ type CredentialRequest struct {
 	ExpiresAt     time.Time
 }
 
+// CredentialEligibilityRequest 描述一次不签发凭据的最小 scope 评估。
+// 它只允许消费者询问已知的 opaque reference，不能枚举 Provider 的凭据目录。
+type CredentialEligibilityRequest struct {
+	CredentialRef string
+	Endpoint      string
+	RepositoryRef string
+	Operation     string
+}
+
+// CredentialEligibilityStatus 是 Provider 对已知 scope 的非秘密结论。
+type CredentialEligibilityStatus string
+
+const (
+	// CredentialEligibilityEligible 表示 Provider 当前可为该 scope 签发短期会话。
+	CredentialEligibilityEligible CredentialEligibilityStatus = "eligible"
+	// CredentialEligibilityIneligible 表示 reference、scope 或有效期不满足签发条件。
+	CredentialEligibilityIneligible CredentialEligibilityStatus = "ineligible"
+)
+
+// CredentialEligibility 只返回当前 scope 是否可签发，不暴露 secret、来源、过期时间或 Provider 内部信息。
+type CredentialEligibility struct {
+	Status CredentialEligibilityStatus
+}
+
 // CredentialProvider 从 Secret authority 申请短期凭据，并负责终态撤销。
 type CredentialProvider interface {
+	Assess(context.Context, CredentialEligibilityRequest) (CredentialEligibility, error)
 	Prepare(context.Context, CredentialRequest) (EphemeralCredentialSession, error)
 	Inject(context.Context, EphemeralCredentialSession, CredentialInjectionTarget) error
 	Revoke(context.Context, EphemeralCredentialSession) error

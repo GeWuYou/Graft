@@ -32,8 +32,20 @@ Deliver a page-verifiable Generic OCI Registry management slice without adding a
 - [x] Run backend, OpenAPI and web verification.
 - [x] Verify the authenticated Infrastructure Registry page against the current primary-checkout runtime, including Connection creation, Repository creation, assignment, verify invocation and cleanup.
 
+## Phase 2 Assessment: Managed Credential Catalog And Authenticated Publication
+
+- [x] Keep the Runtime Target execution boundary fail-closed: Generic OCI publish, manifest publication and artifact copy now reject incomplete or mismatched Registry-owned destination bindings before `CredentialProvider.Prepare`.
+- [x] Add a CredentialProvider-owned, secret-free scoped eligibility projection. `Assess` accepts only a known opaque `credential_ref` plus endpoint/repository/operation scope and returns `eligible` or `ineligible`; Registry still cannot parse the deployment secret file or enumerate its entries.
+- [ ] Add authenticated Generic OCI verification through an isolated Runtime Target execution seam. The existing Registry V2 probe treats `401` as reachability only and therefore cannot claim credential validation.
+- [x] Assess Amazon ECR: no Build destination, Registry Connection, Repository or Credential model extension is justified. An ECR-aware CredentialProvider may later issue scoped, short-lived ECR credentials and conform to the existing Runtime Target adapter boundary.
+
+## Phase 2 Authority Decision
+
+CredentialProvider now owns a provider-approved, secret-free eligibility result for a known opaque `credential_ref`. It does not own Runtime Target authorization and does not enumerate credentials; Registry remains only a future consumer. The next authority repair is an isolated Runtime Target verification session that prepares, injects and revokes an eligible scope without exposing secret material, source paths, credential expiry details, usernames or passwords.
+
 ## Validation Evidence
 
+- Batch N CredentialProvider eligibility: `cd server && go test ./internal/credential ./internal/app ./modules/runtime-target`, `cd server && go test ./...`, `cd server && go run ./cmd/graft validate backend`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check` passed. The backend entrypoint emitted only its existing OpenAPI 3.1 and DTO-boundary warnings.
 - Backend: `cd server && go test ./modules/registry/... ./internal/moduleregistry/... ./modules/rbac/...`, `python3 scripts/validate_sql_migrations.py`, `just openapi-check`, and `go run ./cmd/graft validate backend` passed before Web integration.
 - Web: `cd web && bun run check` passed after the Registry management page and Build destination selector were added. The focused `src/modules/build/pages/create/index.test.ts` proves that Registry Connection and Repository options derive only from the actor-authorized destination list.
 - Browser: the primary-checkout runtime was verified at Web `127.0.0.1:3002` and server `127.0.0.1:8080`. The Registry Drawer opened under authenticated interaction; Connection `registry:phase1-ui-qa`, Repository `graft/phase1-ui-qa` and assignment to user `1` were created through the page, then deleted through the protected API in dependency order.
@@ -41,4 +53,4 @@ Deliver a page-verifiable Generic OCI Registry management slice without adding a
 
 ## Next-Task Startup Prompt
 
-`Read root AGENTS.md; task class: cross-boundary; recovery source: build-domain-v2/registry-management subtopic; owned scope: validate a successful Generic OCI verification and Build destination selection against a primary-checkout runtime that has approved outbound Registry access, then address only observed credential-provider or Build Runtime publication gaps. Preserve server/modules/registry and Build v2 destination contract as authority; do not add parallel Registry, Repository, or Credential models.`
+`Read root AGENTS.md; task class: server; recovery source: build-domain-v2/registry-management subtopic; owned scope: add an isolated authenticated Generic OCI verification seam to Runtime Target that consumes CredentialProvider.Assess, Prepare, Inject and Revoke for one explicit Runtime Target and known endpoint/repository/operation scope. Keep the result private and non-mutating: distinguish reachability, protocol compatibility, authentication challenge, authentication success and provider scope conformance, but do not claim real Registry pull/push authorization. Preserve Registry as a future consumer, Build v2 destination.connection_ref + repository_ref + reference, Runtime Target execution authority, and the CredentialProvider secret boundary. Do not add parallel ImageRegistry, RegistryRepository, Credential models, Registry/OpenAPI/Web changes, or Build-side ECR branches.`

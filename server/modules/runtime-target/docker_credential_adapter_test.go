@@ -14,14 +14,20 @@ import (
 type recordingCredentialProvider struct {
 	session      moduleapi.EphemeralCredentialSession
 	injected     moduleapi.CredentialInjectionTarget
+	request      moduleapi.CredentialRequest
 	revoked      int
 	revokeErr    error
 	prepareErrAt int
 	prepares     int
 }
 
-func (p *recordingCredentialProvider) Prepare(context.Context, moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
+func (p *recordingCredentialProvider) Assess(context.Context, moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibility, error) {
+	return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityEligible}, nil
+}
+
+func (p *recordingCredentialProvider) Prepare(_ context.Context, request moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
 	p.prepares++
+	p.request = request
 	if p.prepareErrAt == p.prepares {
 		return moduleapi.EphemeralCredentialSession{}, errors.New("prepare failed")
 	}
@@ -52,11 +58,22 @@ func (failingCredentialPublicationClient) CopyOCIArtifactOnTarget(context.Contex
 	return moduleapi.OCIArtifactCopyResult{}, errors.New("provider failed")
 }
 
+func testPublicationBinding() moduleapi.RegistryPublicationBinding {
+	// #nosec G101 -- 测试中的不透明凭据引用不包含认证材料。
+	const testCredentialRef = "credential:test"
+	return moduleapi.RegistryPublicationBinding{
+		Destination:   moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:test", RepositoryRef: "team/api", Reference: "v1"},
+		Endpoint:      "https://registry.example",
+		CredentialRef: testCredentialRef,
+		AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral},
+	}
+}
+
 func TestCredentialAdapterRevokesAndCleansAfterProviderFailure(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	credentialRef := "credential" + ":one"
-	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: credentialRef, AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil)
+	binding := testPublicationBinding()
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: binding.Destination.Reference}, binding, nil)
 	if err == nil || !strings.Contains(err.Error(), "provider failed") {
 		t.Fatalf("PublishImage() error = %v", err)
 	}
@@ -66,8 +83,24 @@ func TestCredentialAdapterRevokesAndCleansAfterProviderFailure(t *testing.T) {
 	if provider.injected.ConfigDir == "" {
 		t.Fatal("credential injection target was not provided")
 	}
+	if provider.request.CredentialRef != binding.CredentialRef || provider.request.Endpoint != binding.Endpoint || provider.request.RepositoryRef != binding.Destination.RepositoryRef || provider.request.Operation != "push" {
+		t.Fatalf("credential request = %#v", provider.request)
+	}
 	if _, statErr := os.Stat(provider.injected.ConfigDir); !os.IsNotExist(statErr) {
 		t.Fatalf("isolated credential directory still exists: stat error = %v", statErr)
+	}
+}
+
+func TestCredentialAdapterRejectsPublicationBindingMismatchBeforeCredentialPreparation(t *testing.T) {
+	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}}
+	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
+	binding := testPublicationBinding()
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: "other"}, binding, nil)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("PublishImage() error = %v", err)
+	}
+	if provider.prepares != 0 || provider.injected.ConfigDir != "" || provider.revoked != 0 {
+		t.Fatalf("credential provider was reached for mismatched binding: %#v", provider)
 	}
 }
 
@@ -77,7 +110,8 @@ func TestCredentialAdapterReturnsNeedsAttentionWhenCredentialCleanupCannotBeVeri
 		revokeErr: errors.New("session:session-1 revoke failed"),
 	}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: "credential:one", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil) //nolint:gosec // test-only opaque credential reference
+	binding := testPublicationBinding()
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: binding.Destination.Reference}, binding, nil)
 	var failure *moduleapi.ExecutionFailure
 	if !errors.As(err, &failure) {
 		t.Fatalf("PublishImage() error = %v, want structured failure", err)
@@ -93,8 +127,8 @@ func TestCredentialAdapterReturnsNeedsAttentionWhenCredentialCleanupCannotBeVeri
 func TestCredentialAdapterRejectsExpiredSessionWithoutInjection(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "expired", ExpiresAt: time.Now().UTC().Add(-time.Minute)}}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	credentialRef := "credential" + ":one"
-	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: credentialRef, AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil)
+	binding := testPublicationBinding()
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: binding.Destination.Reference}, binding, nil)
 	if err == nil || !strings.Contains(err.Error(), "session is invalid") {
 		t.Fatalf("PublishImage() error = %v", err)
 	}
@@ -106,7 +140,8 @@ func TestCredentialAdapterRejectsExpiredSessionWithoutInjection(t *testing.T) {
 func TestCredentialAdapterFailsClosedWhenEarlyRevokeCannotBeVerified(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "expired", ExpiresAt: time.Now().UTC().Add(-time.Minute)}, revokeErr: errors.New("revoke failed")}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: "credential:one", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}, nil) // #nosec G101 -- 测试用凭据引用不是认证秘密。
+	binding := testPublicationBinding()
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: binding.Destination.Reference}, binding, nil)
 	var failure *moduleapi.ExecutionFailure
 	if !errors.As(err, &failure) || failure.Code != credentialCleanupUnverifiedCode {
 		t.Fatalf("early cleanup error = %v, want %s", err, credentialCleanupUnverifiedCode)
@@ -116,8 +151,8 @@ func TestCredentialAdapterFailsClosedWhenEarlyRevokeCannotBeVerified(t *testing.
 func TestCredentialAdapterCopyFailsClosedWhenSourceRevokeCannotBeVerified(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}, prepareErrAt: 2, revokeErr: errors.New("revoke failed")}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{RepositoryRef: "team/source"}, Destination: moduleapi.AuthorizedArtifactDestination{RepositoryRef: "team/destination"}}
-	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
+	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{RepositoryRef: "team/source"}, Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "promoted"}}
+	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
 	_, err := adapter.CopyOCIArtifact(context.Background(), 1, input, binding, nil)
 	var failure *moduleapi.ExecutionFailure
 	if !errors.As(err, &failure) || failure.Code != credentialCleanupUnverifiedCode {
@@ -128,7 +163,9 @@ func TestCredentialAdapterCopyFailsClosedWhenSourceRevokeCannotBeVerified(t *tes
 func TestCredentialAdapterRejectsLegacyCredentialStore(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image"}, moduleapi.RegistryPublicationBinding{Endpoint: "https://registry.example", CredentialRef: "ref:one", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionDockerStore}}, nil)
+	binding := testPublicationBinding()
+	binding.AuthExecution.Mode = moduleapi.RegistryAuthExecutionDockerStore
+	_, err := adapter.PublishImage(context.Background(), 1, moduleapi.DockerImageBuildResult{ImageID: "image", Repository: binding.Destination.RepositoryRef, Tag: binding.Destination.Reference}, binding, nil)
 	if err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("PublishImage() error = %v", err)
 	}
@@ -140,8 +177,8 @@ func TestCredentialAdapterRejectsLegacyCredentialStore(t *testing.T) {
 func TestCredentialAdapterRevokesBothCopySessionsAfterProviderFailure(t *testing.T) {
 	provider := &recordingCredentialProvider{session: moduleapi.EphemeralCredentialSession{ID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Minute)}}
 	adapter := dockerCredentialExecutionAdapter{provider: provider, client: failingCredentialPublicationClient{}}
-	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{RepositoryRef: "team/source"}, Destination: moduleapi.AuthorizedArtifactDestination{RepositoryRef: "team/destination"}}
-	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
+	input := moduleapi.OCIArtifactCopyInput{Source: moduleapi.ArtifactPublicationSource{RepositoryRef: "team/source"}, Destination: moduleapi.AuthorizedArtifactDestination{Kind: "oci_registry", ConnectionRef: "registry:destination", RepositoryRef: "team/destination", Reference: "promoted"}}
+	binding := moduleapi.RegistryArtifactCopyBinding{SourceEndpoint: "https://source.example", SourceCredentialRef: "ref:source", SourceAuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}, Destination: moduleapi.RegistryPublicationBinding{Destination: input.Destination, Endpoint: "https://destination.example", CredentialRef: "ref:destination", AuthExecution: moduleapi.RegistryAuthExecution{Mode: moduleapi.RegistryAuthExecutionEphemeral}}}
 	_, err := adapter.CopyOCIArtifact(context.Background(), 1, input, binding, nil)
 	if err == nil || !strings.Contains(err.Error(), "provider failed") {
 		t.Fatalf("CopyOCIArtifact() error = %v", err)

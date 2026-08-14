@@ -41,6 +41,9 @@ type publicationSession struct {
 }
 
 func (a dockerCredentialExecutionAdapter) PublishImage(ctx context.Context, targetID int64, result moduleapi.DockerImageBuildResult, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (published moduleapi.DockerImageBuildResult, err error) {
+	if !matchesPublicationResult(result, binding) {
+		return result, errors.New("registry publication binding does not match image result")
+	}
 	prepared, err := a.preparePublicationSession(ctx, binding, "push")
 	if err != nil {
 		return result, err
@@ -55,6 +58,9 @@ func (a dockerCredentialExecutionAdapter) PublishImage(ctx context.Context, targ
 }
 
 func (a dockerCredentialExecutionAdapter) PublishManifest(ctx context.Context, targetID int64, input moduleapi.OCIManifestPublicationInput, binding moduleapi.RegistryPublicationBinding, sink moduleapi.DockerImageBuildLogSink) (published moduleapi.OCIManifestPublicationResult, err error) {
+	if !matchesPublicationDestination(input.Destination, binding) {
+		return moduleapi.OCIManifestPublicationResult{}, errors.New("registry publication binding does not match manifest destination")
+	}
 	prepared, err := a.preparePublicationSession(ctx, binding, "manifest-push")
 	if err != nil {
 		return moduleapi.OCIManifestPublicationResult{}, err
@@ -70,7 +76,7 @@ func (a dockerCredentialExecutionAdapter) PublishManifest(ctx context.Context, t
 
 //nolint:revive // 统一返回会话、隔离配置和清理函数，确保调用方建立同一终态清理边界。
 func (a dockerCredentialExecutionAdapter) preparePublicationSession(ctx context.Context, binding moduleapi.RegistryPublicationBinding, operation string) (publicationSession, error) {
-	if a.provider == nil || binding.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.CredentialRef) == "" || strings.TrimSpace(binding.Endpoint) == "" {
+	if a.provider == nil || !validPublicationBinding(binding) {
 		return publicationSession{}, errors.New("ephemeral registry credential provider is unavailable")
 	}
 	session, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.CredentialRef, Endpoint: binding.Endpoint, RepositoryRef: binding.Destination.RepositoryRef, Operation: operation, ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
@@ -100,7 +106,7 @@ func finalizePublicationSession(ctx context.Context, provider moduleapi.Credenti
 //
 //nolint:cyclop,gocyclo,gocognit // 双端凭据、隔离注入和全部终态撤销必须保持在同一安全边界内。
 func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (copied moduleapi.OCIArtifactCopyResult, err error) {
-	if a.provider == nil || binding.SourceAuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || binding.Destination.AuthExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral || strings.TrimSpace(binding.SourceCredentialRef) == "" || strings.TrimSpace(binding.SourceEndpoint) == "" || strings.TrimSpace(binding.Destination.CredentialRef) == "" || strings.TrimSpace(binding.Destination.Endpoint) == "" {
+	if a.provider == nil || !validArtifactCopyBinding(input, binding) {
 		return moduleapi.OCIArtifactCopyResult{}, errors.New("ephemeral registry credential provider is unavailable")
 	}
 	sourceSession, err := a.provider.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: binding.SourceCredentialRef, Endpoint: binding.SourceEndpoint, RepositoryRef: input.Source.RepositoryRef, Operation: "pull", ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
@@ -144,6 +150,27 @@ func (a dockerCredentialExecutionAdapter) CopyOCIArtifact(ctx context.Context, t
 		return moduleapi.OCIArtifactCopyResult{}, fmt.Errorf("inject destination registry credential: %w", err)
 	}
 	return a.client.CopyOCIArtifactOnTarget(context.WithValue(ctx, dockerCredentialConfigContextKey{}, configDir), targetID, input, binding, sink)
+}
+
+func validPublicationBinding(binding moduleapi.RegistryPublicationBinding) bool {
+	destination := binding.Destination
+	return destination.Kind == "oci_registry" && strings.TrimSpace(destination.ConnectionRef) != "" && strings.TrimSpace(destination.RepositoryRef) != "" && strings.TrimSpace(destination.Reference) != "" &&
+		!strings.ContainsAny(destination.ConnectionRef+destination.RepositoryRef+destination.Reference, "\x00\r\n") &&
+		binding.AuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral && strings.TrimSpace(binding.CredentialRef) != "" && strings.TrimSpace(binding.Endpoint) != ""
+}
+
+func matchesPublicationDestination(destination moduleapi.AuthorizedArtifactDestination, binding moduleapi.RegistryPublicationBinding) bool {
+	return binding.Destination == destination
+}
+
+func matchesPublicationResult(result moduleapi.DockerImageBuildResult, binding moduleapi.RegistryPublicationBinding) bool {
+	return strings.TrimSpace(result.ImageID) != "" &&
+		strings.TrimSpace(result.Repository) == binding.Destination.RepositoryRef && strings.TrimSpace(result.Tag) == binding.Destination.Reference
+}
+
+func validArtifactCopyBinding(input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding) bool {
+	return validPublicationBinding(binding.Destination) && matchesPublicationDestination(input.Destination, binding.Destination) &&
+		binding.SourceAuthExecution.Mode == moduleapi.RegistryAuthExecutionEphemeral && strings.TrimSpace(binding.SourceCredentialRef) != "" && strings.TrimSpace(binding.SourceEndpoint) != ""
 }
 
 // credentialCleanupFailure 不泄漏本地临时目录、会话或底层凭据细节；Task Runtime

@@ -37,6 +37,7 @@ type AgentCertificateIssuer interface {
 }
 
 type OperationCredentialIssuer interface {
+    Assess(context.Context, CredentialEligibilityRequest) (CredentialEligibility, error)
     Prepare(context.Context, CredentialRequest) (EphemeralCredentialSession, error)
     Inject(context.Context, EphemeralCredentialSession, CredentialInjectionTarget) error
     Revoke(context.Context, EphemeralCredentialSession) error

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,6 +112,49 @@ func TestFileProviderRejectsScopeMismatchWithoutSecretDisclosure(t *testing.T) {
 	_, err := provider.Prepare(context.Background(), moduleapi.CredentialRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "outside/api", Operation: "push", ExpiresAt: now.Add(5 * time.Minute)})
 	if err == nil || !strings.Contains(err.Error(), "scope is unavailable") || strings.Contains(err.Error(), testRegistrySecret) {
 		t.Fatalf("scope mismatch error = %v", err)
+	}
+}
+
+func TestFileProviderAssessesKnownScopeWithoutSecretDisclosure(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	provider := newTestFileProvider(t, now)
+
+	eligible, err := provider.Assess(context.Background(), moduleapi.CredentialEligibilityRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "team/api", Operation: "push"})
+	if err != nil || eligible.Status != moduleapi.CredentialEligibilityEligible {
+		t.Fatalf("eligible assessment = %#v, %v", eligible, err)
+	}
+	if text := fmt.Sprintf("%#v", eligible); strings.Contains(text, testRegistrySecret) || strings.Contains(text, "password") || strings.Contains(text, "expires") {
+		t.Fatalf("eligibility leaked secret-derived data: %s", text)
+	}
+
+	ineligible, err := provider.Assess(context.Background(), moduleapi.CredentialEligibilityRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "outside/api", Operation: "push"})
+	if err != nil || ineligible.Status != moduleapi.CredentialEligibilityIneligible {
+		t.Fatalf("ineligible assessment = %#v, %v", ineligible, err)
+	}
+}
+
+func TestFileProviderAssessmentReloadsSourceAndRejectsExpiredOrInvalidRequests(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	provider := newTestFileProvider(t, now)
+	request := moduleapi.CredentialEligibilityRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "team/api", Operation: "push"}
+	if eligibility, err := provider.Assess(context.Background(), request); err != nil || eligibility.Status != moduleapi.CredentialEligibilityEligible {
+		t.Fatalf("initial assessment = %#v, %v", eligibility, err)
+	}
+	contents := `{"version":1,"credentials":[{"credential_ref":"registry:release","endpoint":"https://registry.example","repositories":["team/*"],"operations":["push"],"username":"build","password":"` + testRegistrySecret + `","expires_at":"2026-08-07T11:59:00Z"}]}`
+	if err := os.WriteFile(provider.path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("replace credential source: %v", err)
+	}
+	if eligibility, err := provider.Assess(context.Background(), request); err != nil || eligibility.Status != moduleapi.CredentialEligibilityIneligible {
+		t.Fatalf("reloaded expired assessment = %#v, %v", eligibility, err)
+	}
+	if eligibility, err := provider.Assess(context.Background(), moduleapi.CredentialEligibilityRequest{CredentialRef: "registry:release", Endpoint: "http://registry.example", RepositoryRef: "team/api", Operation: "push"}); err != nil || eligibility.Status != moduleapi.CredentialEligibilityIneligible {
+		t.Fatalf("invalid assessment = %#v, %v", eligibility, err)
+	}
+	if err := os.WriteFile(provider.path, []byte(`{"version":1,"credentials":[]}`), 0o600); err != nil {
+		t.Fatalf("invalidate credential source: %v", err)
+	}
+	if _, err := provider.Assess(context.Background(), request); err == nil || strings.Contains(err.Error(), testRegistrySecret) {
+		t.Fatalf("invalid source assessment error = %v", err)
 	}
 }
 

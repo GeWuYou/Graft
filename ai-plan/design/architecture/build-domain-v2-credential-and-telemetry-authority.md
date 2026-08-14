@@ -120,7 +120,10 @@ ambient Docker or environment authentication.
 The file has version `1` and each entry contains only `credential_ref`, `endpoint`, `repositories`, `operations`,
 `username`, `password` and `expires_at`. Entries require an HTTPS endpoint, a non-empty expiring credential, exact
 operations and either an exact repository or a segment-safe `prefix/*` repository scope. The provider reloads the file
-for each `Prepare`, returns only an opaque session ID and expiry, keeps plaintext only until `Revoke`, and writes Docker
+for each secret-free scoped eligibility assessment and each `Prepare`. Assessment accepts only a known opaque reference
+plus endpoint/repository/operation scope and returns `eligible` or `ineligible`; it never lists entries or exposes
+expiry, source, username, password or other secret-derived data. `Prepare` repeats scope validation, returns only an
+opaque session ID and expiry, keeps plaintext only until `Revoke`, and writes Docker
 `config.json` only to the adapter-created `0700` directory. The file path and contents are excluded from snapshots,
 Task state, audit, logs, artifacts, publications and HTTP. A managed secret backend may replace this provider only by
 implementing the same scoped `CredentialProvider` contract; it must not add an ambient-auth compatibility path.

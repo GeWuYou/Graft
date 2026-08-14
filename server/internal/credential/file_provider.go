@@ -72,6 +72,34 @@ func NewFileProvider(path string) (*FileProvider, error) {
 	return provider, nil
 }
 
+// Assess 返回已知 Registry scope 的非秘密签发资格。它不创建会话，且不会列出其他凭据。
+func (p *FileProvider) Assess(ctx context.Context, request moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibility, error) {
+	if p == nil || p.now == nil {
+		return moduleapi.CredentialEligibility{}, errors.New("registry credential provider is unavailable")
+	}
+	if err := ctx.Err(); err != nil {
+		return moduleapi.CredentialEligibility{}, err
+	}
+	request, ok := normalizeEligibilityRequest(request)
+	if !ok {
+		return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityIneligible}, nil
+	}
+	credentials, err := p.loadCredentials()
+	if err != nil {
+		return moduleapi.CredentialEligibility{}, err
+	}
+	for _, candidate := range credentials {
+		if !credentialMatchesScope(candidate, request.CredentialRef, request.Endpoint, request.RepositoryRef, request.Operation) {
+			continue
+		}
+		if candidate.ExpiresAt.After(p.now().UTC()) {
+			return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityEligible}, nil
+		}
+		break
+	}
+	return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityIneligible}, nil
+}
+
 // Prepare 依据最新部署 Secret 校验请求，并且只返回不透明会话句柄。
 //
 //nolint:cyclop // 凭据作用域、时效和来源校验必须在同一签发边界内完成。
@@ -92,7 +120,7 @@ func (p *FileProvider) Prepare(ctx context.Context, request moduleapi.Credential
 		return moduleapi.EphemeralCredentialSession{}, err
 	}
 	for _, candidate := range credentials {
-		if candidate.CredentialRef != request.CredentialRef || candidate.Endpoint != request.Endpoint || !repositoryAllowed(candidate.Repositories, request.RepositoryRef) || !operationAllowed(candidate.Operations, request.Operation) {
+		if !credentialMatchesScope(candidate, request.CredentialRef, request.Endpoint, request.RepositoryRef, request.Operation) {
 			continue
 		}
 		if !candidate.ExpiresAt.After(now) {
@@ -208,15 +236,28 @@ func normalizeCredential(credential *fileCredential) error {
 }
 
 func normalizeRequest(request moduleapi.CredentialRequest, now time.Time) (moduleapi.CredentialRequest, error) {
+	normalized, ok := normalizeEligibilityRequest(moduleapi.CredentialEligibilityRequest{CredentialRef: request.CredentialRef, Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef, Operation: request.Operation})
+	request.CredentialRef = normalized.CredentialRef
+	request.Endpoint = normalized.Endpoint
+	request.RepositoryRef = normalized.RepositoryRef
+	request.Operation = normalized.Operation
+	if !ok || !request.ExpiresAt.After(now) || request.ExpiresAt.After(now.Add(maximumCredentialSessionTTL)) {
+		return moduleapi.CredentialRequest{}, errors.New("registry credential request is invalid")
+	}
+	return request, nil
+}
+
+func normalizeEligibilityRequest(request moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibilityRequest, bool) {
 	request.CredentialRef = strings.TrimSpace(request.CredentialRef)
 	endpoint, err := normalizeEndpoint(request.Endpoint)
 	request.Endpoint = endpoint
 	request.RepositoryRef = normalizeRepository(request.RepositoryRef)
 	request.Operation = strings.TrimSpace(request.Operation)
-	if request.CredentialRef == "" || err != nil || request.RepositoryRef == "" || request.Operation == "" || !request.ExpiresAt.After(now) || request.ExpiresAt.After(now.Add(maximumCredentialSessionTTL)) {
-		return moduleapi.CredentialRequest{}, errors.New("registry credential request is invalid")
-	}
-	return request, nil
+	return request, request.CredentialRef != "" && err == nil && request.RepositoryRef != "" && request.Operation != ""
+}
+
+func credentialMatchesScope(candidate fileCredential, credentialRef, endpoint, repository, operation string) bool {
+	return candidate.CredentialRef == credentialRef && candidate.Endpoint == endpoint && repositoryAllowed(candidate.Repositories, repository) && operationAllowed(candidate.Operations, operation)
 }
 
 func normalizeEndpoint(raw string) (string, error) {
