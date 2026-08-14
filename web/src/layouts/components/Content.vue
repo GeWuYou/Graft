@@ -2,7 +2,13 @@
   <div class="route-view-host route-loading-host" :aria-busy="isPageLoading">
     <div class="route-view-shell">
       <router-view v-if="!isFramePage" v-slot="{ Component }">
-        <transition name="fade" mode="out-in" @before-enter="handleBeforeEnter">
+        <transition
+          name="fade"
+          mode="out-in"
+          @after-enter="handleAfterEnter"
+          @after-leave="handleAfterLeave"
+          @before-enter="handleBeforeEnter"
+        >
           <keep-alive v-if="shouldKeepActiveViewAlive">
             <component :is="Component" :key="activeViewKey" />
           </keep-alive>
@@ -16,11 +22,12 @@
 <script setup lang="ts">
 import isBoolean from 'lodash/isBoolean';
 import isUndefined from 'lodash/isUndefined';
-import { computed, watch } from 'vue';
+import { computed, onErrorCaptured, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
 import { routeLoading } from '@/router/route-loading';
+import { createBehaviorInvestigation } from '@/shared/debug/behavior-investigation';
 import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
 import { formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
@@ -70,10 +77,54 @@ const isFramePage = computed(() => {
   return !!route.meta?.frameSrc;
 });
 
+// FRONTEND-INVESTIGATION-TEMP:route-transition-root-20260814 只记录路由过渡边界，定位白屏时的进入/离开顺序。
+const routeTransitionInvestigation = createBehaviorInvestigation({
+  investigationId: 'route-transition-root-20260814',
+  maxEvents: 120,
+  allowedSummaryKeys: ['isFramePage', 'keepAlive', 'viewKey'],
+});
+
+function emitRouteTransitionInvestigation(
+  event: string,
+  phase: 'LIFECYCLE' | 'ROUTE_NAVIGATION' | 'ERROR',
+  payloadSummary?: { errorCode: string; name: string },
+) {
+  routeTransitionInvestigation.emit({
+    asyncBoundary: 'sync',
+    component: 'RouteContentTransition',
+    event,
+    phase,
+    route: sanitizeDebugPath(route.path),
+    source: 'layouts/components/Content.vue',
+    stateSummary: {
+      isFramePage: isFramePage.value,
+      keepAlive: shouldKeepActiveViewAlive.value,
+      viewKey: sanitizeDebugPath(activeViewKey.value),
+    },
+    ...(payloadSummary ? { payloadSummary } : {}),
+  });
+}
+
 // 目标页面实际开始进入后再切换壳层表面，避免首次异步加载时让离场的宽表按表单宽度重排。
 const handleBeforeEnter = () => {
+  emitRouteTransitionInvestigation('transition.before-enter', 'ROUTE_NAVIGATION');
   emit('page-surface-ready', resolvePageSurfaceType(route.meta));
 };
+
+const handleAfterEnter = () => {
+  emitRouteTransitionInvestigation('transition.after-enter', 'LIFECYCLE');
+};
+
+const handleAfterLeave = () => {
+  emitRouteTransitionInvestigation('transition.after-leave', 'LIFECYCLE');
+};
+
+onErrorCaptured((error, _instance, info) => {
+  emitRouteTransitionInvestigation('route-component.error-captured', 'ERROR', {
+    errorCode: info,
+    name: error instanceof Error ? error.name : typeof error,
+  });
+});
 
 // 仅在 tabs.layout 调试开关开启时输出，定位动态路由与标签激活不同步导致的视图空白问题。
 watch(
