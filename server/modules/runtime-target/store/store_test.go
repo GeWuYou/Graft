@@ -81,6 +81,31 @@ func TestSQLRepositoryRunInTransactionReusesContextTransaction(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryApplyAssignmentBatchRollsBackAllTargetsOnFailure(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'First', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0), (8, 'docker', 'Second', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0)`); err != nil {
+		t.Fatalf("seed runtime targets: %v", err)
+	}
+
+	repository := NewSQLRepository(db)
+	err := repository.ApplyAssignmentBatch(context.Background(), []uint64{8, 7}, []uint64{11, 0}, AssignmentBatchGrant, 3)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ApplyAssignmentBatch error = %v, want invalid user error", err)
+	}
+	for _, targetID := range []uint64{7, 8} {
+		allowed, err := repository.HasActiveUserAssignment(context.Background(), targetID, 11)
+		if err != nil {
+			t.Fatalf("check target %d assignment: %v", targetID, err)
+		}
+		if allowed {
+			t.Fatalf("target %d retained a partial assignment after batch rollback", targetID)
+		}
+	}
+}
+
 func TestSQLRepositoryUserAssignmentsRestoreAndRestrictDeploymentCandidates(t *testing.T) {
 	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
