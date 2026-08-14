@@ -248,7 +248,7 @@
       @search="searchRepositoryAssignmentCandidates"
     >
       <template #assignmentState="{ row }">
-        <t-tag v-if="initialAssignmentUserIds.has(row.id)" theme="success" variant="light">
+        <t-tag v-if="row.authorization_state === 'all'" theme="success" variant="light">
           {{ t('registry.list.alreadyAuthorized') }}
         </t-tag>
         <span v-else class="registry-detail__assignment-state-empty">-</span>
@@ -740,7 +740,11 @@ async function saveAssignments() {
       user_ids: userIds,
     });
     MessagePlugin.success(t('registry.list.assignmentSaveSuccess'));
-    closeAssignments();
+    const sessionVersion = assignmentDialogSessionVersion;
+    const selectionLoaded = await loadInitialAssignmentSelection(sessionVersion);
+    if (selectionLoaded && sessionVersion === assignmentDialogSessionVersion && assignmentDialogVisible.value) {
+      await loadRepositoryAssignmentCandidates();
+    }
   } catch (error) {
     const message = resolveLocalizedErrorMessage(t, error, t('registry.list.assignmentSaveFailed'));
     errorMessage.value = message;

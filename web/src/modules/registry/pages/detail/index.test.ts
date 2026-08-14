@@ -110,7 +110,12 @@ vi.mock('@/shared/components/selection', async (importOriginal) => {
     ...actual,
     PagedMultiSelect: defineComponent({
       name: 'PagedMultiSelect',
-      props: { loading: Boolean, selection: { default: undefined, type: Object }, visible: Boolean },
+      props: {
+        loading: Boolean,
+        rows: { default: () => [], type: Array },
+        selection: { default: undefined, type: Object },
+        visible: Boolean,
+      },
       emits: ['cancel', 'confirm', 'update:selection'],
       setup(props, { emit, slots }) {
         return () =>
@@ -121,7 +126,7 @@ vi.mock('@/shared/components/selection', async (importOriginal) => {
               'data-visible': String(props.visible),
               onClick: () => emit('cancel'),
             },
-            [slots.default?.()],
+            [props.rows[0] ? slots.assignmentState?.({ row: props.rows[0] }) : null, slots.default?.()],
           );
       },
     }),
@@ -484,5 +489,40 @@ describe('RegistryDetailPage assignment safety', () => {
       user_ids: [4],
     });
     expect(messageMocks.error).toHaveBeenCalledWith('registry.list.assignmentSaveFailed');
+  });
+
+  it('refreshes authorization state from the server after replacing assignments', async () => {
+    apiMocks.getRegistryRepositoryAssignments.mockResolvedValue({ items: [{ user_id: 1 }], total: 1 });
+    apiMocks.getRegistryRepositoryAssignmentCandidates.mockReset();
+    apiMocks.getRegistryRepositoryAssignmentCandidates
+      .mockResolvedValueOnce({
+        items: [{ authorization_state: 'all', display: 'Graft Admin', id: 1, username: 'graft' }],
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [{ authorization_state: 'none', display: 'Graft Admin', id: 1, username: 'graft' }],
+        total: 1,
+      });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'registry.list.assignments')
+      ?.trigger('click');
+    await flushPromises();
+    const assignmentDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    expect(assignmentDialog.text()).toContain('registry.list.alreadyAuthorized');
+
+    await assignmentDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set() });
+    await assignmentDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.replaceRegistryRepositoryAssignments).toHaveBeenCalledWith('registry-a', 'repo-a', {
+      user_ids: [],
+    });
+    expect(apiMocks.getRegistryRepositoryAssignmentCandidates).toHaveBeenCalledTimes(2);
+    expect(assignmentDialog.text()).not.toContain('registry.list.alreadyAuthorized');
   });
 });
