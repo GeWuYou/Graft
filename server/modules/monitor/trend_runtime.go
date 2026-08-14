@@ -332,19 +332,7 @@ func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime,
 	if err != nil {
 		return generated.ServerStatusRuntime{}, err
 	}
-	hostMemoryTotalBytes, err := mustConvertGeneratedInt64(hostMemory.Total, "host memory total bytes")
-	if err != nil {
-		return generated.ServerStatusRuntime{}, err
-	}
-	hostMemoryUsedBytes, err := mustConvertGeneratedInt64(hostMemory.Used, "host memory used bytes")
-	if err != nil {
-		return generated.ServerStatusRuntime{}, err
-	}
-	hostMemoryFreeBytes, err := mustConvertGeneratedInt64(hostMemory.Free, "host memory free bytes")
-	if err != nil {
-		return generated.ServerStatusRuntime{}, err
-	}
-	hostMemoryUsedPercent, err := toGeneratedFloat32(roundUsagePercent(hostMemory.UsedPercent), "host memory used percent")
+	hostMemoryMetrics, err := mapHostMemoryMetrics(hostMemory)
 	if err != nil {
 		return generated.ServerStatusRuntime{}, err
 	}
@@ -361,10 +349,10 @@ func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime,
 		CpuCores:                 runtime.NumCPU(),
 		LoadAverage:              loadAverage,
 		DiskUsage:                diskUsage,
-		HostMemoryTotalBytes:     hostMemoryTotalBytes,
-		HostMemoryUsedBytes:      hostMemoryUsedBytes,
-		HostMemoryFreeBytes:      hostMemoryFreeBytes,
-		HostMemoryUsedPercent:    hostMemoryUsedPercent,
+		HostMemoryTotalBytes:     hostMemoryMetrics.totalBytes,
+		HostMemoryUsedBytes:      hostMemoryMetrics.usedBytes,
+		HostMemoryAvailableBytes: hostMemoryMetrics.availableBytes,
+		HostMemoryUsedPercent:    hostMemoryMetrics.usedPercent,
 		Goroutines:               runtime.NumGoroutine(),
 		RuntimeAllocBytes:        runtimeMetrics.allocBytes,
 		RuntimeHeapInUseBytes:    runtimeMetrics.heapInUseBytes,
@@ -377,6 +365,35 @@ func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime,
 		RuntimeHeapObjects:       runtimeMetrics.heapObjects,
 		RuntimeHeapReleasedBytes: runtimeMetrics.heapReleasedBytes,
 		RuntimeStackInUseBytes:   runtimeMetrics.stackInUseBytes,
+	}, nil
+}
+
+type hostMemoryMetrics struct {
+	totalBytes     int64
+	usedBytes      int64
+	availableBytes int64
+	usedPercent    float32
+}
+
+func mapHostMemoryMetrics(snapshot *mem.VirtualMemoryStat) (hostMemoryMetrics, error) {
+	totalBytes, err := mustConvertGeneratedInt64(snapshot.Total, "host memory total bytes")
+	if err != nil {
+		return hostMemoryMetrics{}, err
+	}
+	usedBytes, err := mustConvertGeneratedInt64(snapshot.Used, "host memory used bytes")
+	if err != nil {
+		return hostMemoryMetrics{}, err
+	}
+	availableBytes, err := mustConvertGeneratedInt64(snapshot.Available, "host memory available bytes")
+	if err != nil {
+		return hostMemoryMetrics{}, err
+	}
+	usedPercent, err := toGeneratedFloat32(roundUsagePercent(snapshot.UsedPercent), "host memory used percent")
+	if err != nil {
+		return hostMemoryMetrics{}, err
+	}
+	return hostMemoryMetrics{
+		totalBytes: totalBytes, usedBytes: usedBytes, availableBytes: availableBytes, usedPercent: usedPercent,
 	}, nil
 }
 

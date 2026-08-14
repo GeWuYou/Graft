@@ -9,7 +9,7 @@ required:
   - disk_usage
   - host_memory_total_bytes
   - host_memory_used_bytes
-  - host_memory_free_bytes
+  - host_memory_available_bytes
   - host_memory_used_percent
   - goroutines
   - runtime_alloc_bytes
@@ -41,14 +41,18 @@ properties:
   host_memory_total_bytes:
     type: integer
     format: int64
+    description: Total host memory in bytes.
   host_memory_used_bytes:
     type: integer
     format: int64
-  host_memory_free_bytes:
+    description: Host memory used by programs in bytes.
+  host_memory_available_bytes:
     type: integer
     format: int64
+    description: Host memory available for program allocation in bytes, including reclaimable cache when reported by the operating system.
   host_memory_used_percent:
     type: number
+    description: Percentage of host memory used by programs.
   goroutines:
     type: integer
   runtime_alloc_bytes:
@@ -110,7 +114,7 @@ example:
     used_percent: 36.69
   host_memory_total_bytes: 34359738368
   host_memory_used_bytes: 16819159040
-  host_memory_free_bytes: 17540579328
+  host_memory_available_bytes: 17540579328
   host_memory_used_percent: 48.95
   goroutines: 37
   runtime_alloc_bytes: 62914560

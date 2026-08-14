@@ -317,7 +317,7 @@ function createResponse() {
       },
       host_memory_total_bytes: 17179869184,
       host_memory_used_bytes: 8589934592,
-      host_memory_free_bytes: 8589934592,
+      host_memory_available_bytes: 8589934592,
       host_memory_used_percent: 50,
       goroutines: 37,
       runtime_alloc_bytes: 41943040,
