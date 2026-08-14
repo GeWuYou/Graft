@@ -18,6 +18,9 @@ import (
 // ErrNotFound 表示查询不到未软删除的运行时目标。
 var ErrNotFound = errors.New("runtime target not found")
 
+// ErrAssignmentRevisionConflict 表示授权替换使用了过期的读取版本。
+var ErrAssignmentRevisionConflict = errors.New("runtime target assignment revision conflict")
+
 // ErrUnavailable 表示目标记录存在但当前不可用于 provider 执行。
 var ErrUnavailable = errors.New("runtime target unavailable")
 
@@ -799,6 +802,22 @@ func (r *SQLRepository) ListUserAssignments(ctx context.Context, targetID uint64
 	return items, rows.Err()
 }
 
+// UserAssignmentRevision returns the current optimistic-concurrency revision for a target's assignments.
+func (r *SQLRepository) UserAssignmentRevision(ctx context.Context, targetID uint64) (uint64, error) {
+	if r == nil || r.db == nil || targetID == 0 {
+		return 0, ErrNotFound
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_assignment_revisions (runtime_target_id, revision) VALUES ($1, 1) ON CONFLICT (runtime_target_id) DO NOTHING`, targetID); err != nil {
+		return 0, err
+	}
+	var revision uint64
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT revision FROM runtime_target_assignment_revisions WHERE runtime_target_id = $1`, targetID).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return revision, err
+}
+
 // GrantUserAssignment 幂等恢复或创建部署使用授权。
 func (r *SQLRepository) GrantUserAssignment(ctx context.Context, targetID, userID, actorID uint64) (UserAssignment, error) {
 	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
@@ -833,22 +852,43 @@ func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, user
 }
 
 // ReplaceUserAssignmentsTx 在调用方事务中替换授权集合，并由调用方决定提交其它事实。
-func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID uint64, userIDs []uint64, actorID uint64) ([]UserAssignment, error) {
+func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID uint64, userIDs []uint64, expectedRevision, actorID uint64) ([]UserAssignment, uint64, error) {
 	if r == nil || r.db == nil || targetID == 0 || actorID == 0 {
-		return nil, ErrNotFound
+		return nil, 0, ErrNotFound
 	}
 	if _, err := r.Get(ctx, targetID); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint, deleted_by = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE runtime_target_id = $1 AND deleted_at = 0`, targetID, actorID); err != nil {
-		return nil, err
+	if err := r.advanceAssignmentRevision(ctx, targetID, expectedRevision); err != nil {
+		return nil, 0, err
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE runtime_target_id = $1 AND deleted_at = 0`, targetID, actorID, time.Now().UTC().Unix()); err != nil {
+		return nil, 0, err
 	}
 	for _, userID := range userIDs {
 		if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
-	return r.ListUserAssignments(ctx, targetID)
+	items, err := r.ListUserAssignments(ctx, targetID)
+	return items, expectedRevision + 1, err
+}
+
+func (r *SQLRepository) advanceAssignmentRevision(ctx context.Context, targetID, expectedRevision uint64) error {
+	if expectedRevision == 0 {
+		return ErrAssignmentRevisionConflict
+	}
+	if _, err := r.UserAssignmentRevision(ctx, targetID); err != nil {
+		return err
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_assignment_revisions SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $1 AND revision = $2`, targetID, expectedRevision)
+	if err != nil {
+		return err
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return ErrAssignmentRevisionConflict
+	}
+	return nil
 }
 
 // UpsertLocalDocker 写入系统托管的本机 Docker 探测结果，并通过 provider 与 endpoint 的活跃记录唯一键更新已有记录。

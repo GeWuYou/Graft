@@ -10042,12 +10042,22 @@ export interface components {
       created_by?: number;
     };
     'runtime-target-user-assignment-list-response': {
+      /**
+       * Format: int64
+       * @description Monotonic revision of the assignment collection.
+       */
+      revision: number;
       items: components['schemas']['runtime-target-user-assignment'][];
     };
     'enveloped-runtime-target-user-assignment-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment-list-response'];
     };
     'runtime-target-user-assignment-replace-request': {
+      /**
+       * Format: int64
+       * @description Assignment collection revision returned by the latest read.
+       */
+      revision: number;
       user_ids: number[];
     };
     'runtime-target-user-assignment-request': {
@@ -22895,6 +22905,7 @@ export interface operations {
         };
         content?: never;
       };
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };

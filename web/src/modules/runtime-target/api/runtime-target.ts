@@ -24,6 +24,7 @@ export type RuntimeTargetUsageMetric = components['schemas']['runtime-target-usa
 export type RuntimeTargetPage = RuntimeTargetList;
 export type RuntimeTargetAssignment = components['schemas']['runtime-target-user-assignment'];
 export type RuntimeTargetAssignmentCandidate = components['schemas']['runtime-target-assignment-candidate'];
+const runtimeTargetAssignmentRevisions = new Map<number, number>();
 type RuntimeTargetSavedViewsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetSavedViews]['get'];
 type RuntimeTargetSavedViewsData = NonNullable<
   RuntimeTargetSavedViewsOperation['responses'][200]['content']['application/json']['data']
@@ -107,14 +108,17 @@ export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRef
   return request.post<RuntimeTargetRefresh>({ url: buildOpenApiRuntimePath('postRuntimeTargetRefresh', { id }) });
 }
 
-export async function getRuntimeTargetAssignments(id: number): Promise<RuntimeTargetAssignment[]> {
+export async function getRuntimeTargetAssignments(
+  id: number,
+): Promise<{ items: RuntimeTargetAssignment[]; revision: number }> {
   type Response = NonNullable<
     NonNullable<RuntimeTargetAssignmentsOperation['responses'][200]['content']['application/json']['data']>
   >;
   const response = await request.get<Response>({
     url: buildOpenApiRuntimePath('getRuntimeTargetAssignments', { id }),
   });
-  return response.items;
+  runtimeTargetAssignmentRevisions.set(id, response.revision);
+  return response;
 }
 
 export async function getRuntimeTargetAssignmentCandidates(
@@ -131,23 +135,28 @@ export async function getRuntimeTargetAssignmentCandidates(
   });
 }
 
-export async function replaceRuntimeTargetAssignments(id: number, userIds: number[]) {
+export async function replaceRuntimeTargetAssignments(
+  id: number,
+  userIds: number[],
+  revision = runtimeTargetAssignmentRevisions.get(id) ?? 1,
+) {
   type Response = NonNullable<
     RuntimeTargetAssignmentsReplaceOperation['responses'][200]['content']['application/json']['data']
   >;
   type Request = NonNullable<RuntimeTargetAssignmentsReplaceOperation['requestBody']>['content']['application/json'];
   const response = await request.put<Response>({
     url: buildOpenApiRuntimePath('putRuntimeTargetAssignments', { id }),
-    data: { user_ids: userIds } satisfies Request,
+    data: { user_ids: userIds, revision } satisfies Request,
   });
-  return response.items;
+  runtimeTargetAssignmentRevisions.set(id, response.revision);
+  return response;
 }
 
 export async function getRuntimeTargetAssignmentsForTargets(targetIds: number[]): Promise<Map<number, Set<number>>> {
   const entries = await Promise.all(
     targetIds.map(async (targetId) => {
       const assignments = await getRuntimeTargetAssignments(targetId);
-      return [targetId, new Set(assignments.map((item) => item.user_id))] as const;
+      return [targetId, new Set(assignments.items.map((item) => item.user_id))] as const;
     }),
   );
   return new Map(entries);

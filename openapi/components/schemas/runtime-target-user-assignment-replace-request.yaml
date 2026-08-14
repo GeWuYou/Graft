@@ -1,6 +1,11 @@
 type: object
-required: [user_ids]
+required: [user_ids, revision]
 properties:
+  revision:
+    type: integer
+    format: int64
+    minimum: 1
+    description: Assignment collection revision returned by the latest read.
   user_ids:
     type: array
     maxItems: 10000

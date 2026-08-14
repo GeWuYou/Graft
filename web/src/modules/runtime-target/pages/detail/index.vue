@@ -191,6 +191,7 @@ const candidateSearch = ref('');
 const candidatePagination = ref({ current: 1, pageSize: 20 });
 const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
 const initialAssignmentUserIds = ref(new Set<number>());
+const assignmentRevision = ref(1);
 const assignmentDialogVisible = ref(false);
 const assignmentsLoading = ref(false);
 const candidatesLoading = ref(false);
@@ -256,8 +257,9 @@ async function loadAssignments() {
   assignmentError.value = '';
   try {
     const assignments = await getRuntimeTargetAssignments(targetID.value);
-    initialAssignmentUserIds.value = new Set(assignments.map((item) => item.user_id));
-    assignmentSelection.value = createExplicitSelection(assignments.map((item) => item.user_id));
+    assignmentRevision.value = assignments.revision;
+    initialAssignmentUserIds.value = new Set(assignments.items.map((item) => item.user_id));
+    assignmentSelection.value = createExplicitSelection(assignments.items.map((item) => item.user_id));
   } catch {
     assignmentError.value = t('runtimeTarget.detail.authorizedUsersLoadError');
   } finally {
@@ -309,7 +311,8 @@ async function saveAssignments() {
   }
   assignmentsSaving.value = true;
   try {
-    await replaceRuntimeTargetAssignments(targetID.value, selectedUserIds);
+    const result = await replaceRuntimeTargetAssignments(targetID.value, selectedUserIds, assignmentRevision.value);
+    assignmentRevision.value = result.revision;
     initialAssignmentUserIds.value = new Set(selectedUserIds);
     MessagePlugin.success(t('runtimeTarget.detail.authorizedUsersSaveSuccess'));
     closeAssignmentDialog();

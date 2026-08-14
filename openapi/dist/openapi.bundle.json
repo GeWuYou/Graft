@@ -19140,6 +19140,9 @@
           "404": {
             "description": "Runtime target or user not found"
           },
+          "409": {
+            "$ref": "#/components/responses/conflict"
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -40756,9 +40759,16 @@
       "runtime-target-user-assignment-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "revision"
         ],
         "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Monotonic revision of the assignment collection."
+          },
           "items": {
             "type": "array",
             "items": {
@@ -40788,9 +40798,16 @@
       "runtime-target-user-assignment-replace-request": {
         "type": "object",
         "required": [
-          "user_ids"
+          "user_ids",
+          "revision"
         ],
         "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Assignment collection revision returned by the latest read."
+          },
           "user_ids": {
             "type": "array",
             "maxItems": 10000,

@@ -1,0 +1,37 @@
+"migration":
+  path: server/modules/runtime-target/migrations/202608140001_runtime_target_assignment_revisions.sql
+  version: '202608140001'
+owner: runtime-target
+risk_level: L0
+affected_tables:
+  - runtime_target_assignment_revisions
+referenced_tables:
+  - runtime_targets
+operation_categories:
+  - additive-table
+  - foreign-key
+historical_data_assumptions:
+  - Existing runtime targets may have no assignment revision row; the repository creates the initial revision lazily at one.
+planned_upgrade_order:
+  - Create the revision table and foreign-key reference before deploying code that reads or increments assignment revisions.
+safety_strategy:
+  additive_only: Add one independent version row per runtime target without changing existing assignment rows.
+  initialization: Repository upserts revision one for existing targets on the first assignment read or replacement.
+  post_migration_invariant: Every revision row references one live or historical runtime target and has a positive revision.
+  recovery_or_retirement_rationale: No existing data is rewritten or retired; failed deployment can be retried forward.
+validation_scenarios:
+  - Existing targets can initialize revision one and read it through the assignment endpoint.
+  - A matching revision increments atomically while a stale revision is rejected without changing assignments.
+preflight_checks:
+  - name: runtime-target-table-present
+    query: >-
+      SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'runtime_targets'
+    must_equal: 1
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids: []

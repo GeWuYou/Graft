@@ -34,7 +34,8 @@ type runtimeTargetUserAssignmentRequestHTTP struct {
 }
 
 type runtimeTargetUserAssignmentReplaceRequestHTTP struct {
-	UserIDs []uint64 `json:"user_ids"`
+	UserIDs  []uint64 `json:"user_ids"`
+	Revision uint64   `json:"revision"`
 }
 
 type runtimeTargetAssignmentCandidateHTTP struct {
@@ -45,7 +46,8 @@ type runtimeTargetAssignmentCandidateHTTP struct {
 }
 
 type runtimeTargetAssignmentListHTTP struct {
-	Items []runtimeTargetUserAssignmentHTTP `json:"items"`
+	Items    []runtimeTargetUserAssignmentHTTP `json:"items"`
+	Revision uint64                            `json:"revision"`
 }
 
 type runtimeTargetAssignmentCandidateListHTTP struct {
@@ -65,11 +67,16 @@ func (m *Module) handleListAssignments(c *gin.Context) {
 		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return
 	}
+	revision, err := m.repository.UserAssignmentRevision(c.Request.Context(), target.ID)
+	if err != nil {
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		return
+	}
 	response := make([]runtimeTargetUserAssignmentHTTP, 0, len(items))
 	for _, item := range items {
 		response = append(response, toAssignmentHTTP(item))
 	}
-	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response, Revision: revision})
 }
 
 func (m *Module) handleGrantAssignment(c *gin.Context) {
@@ -133,7 +140,7 @@ func (m *Module) handleReplaceAssignments(c *gin.Context) {
 		return
 	}
 	var request runtimeTargetUserAssignmentReplaceRequestHTTP
-	if err := c.ShouldBindJSON(&request); err != nil || len(request.UserIDs) > 10000 {
+	if err := c.ShouldBindJSON(&request); err != nil || invalidAssignmentReplaceRequest(request) {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
@@ -146,20 +153,31 @@ func (m *Module) handleReplaceAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, err := m.replaceUserAssignments(c.Request.Context(), target, userIDs, actorID)
+	items, revision, err := m.replaceUserAssignments(c.Request.Context(), target, userIDs, request.Revision, actorID)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			httpx.AbortLocalizedError(c, m.i18n, http.StatusNotFound, "common.not_found", nil)
-			return
-		}
-		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		m.writeAssignmentReplaceError(c, err)
 		return
 	}
 	response := make([]runtimeTargetUserAssignmentHTTP, 0, len(items))
 	for _, item := range items {
 		response = append(response, toAssignmentHTTP(item))
 	}
-	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response})
+	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response, Revision: revision})
+}
+
+func invalidAssignmentReplaceRequest(request runtimeTargetUserAssignmentReplaceRequestHTTP) bool {
+	return len(request.UserIDs) > 10000 || request.Revision == 0
+}
+
+func (m *Module) writeAssignmentReplaceError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, store.ErrAssignmentRevisionConflict):
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusConflict, "common.conflict", nil)
+	case errors.Is(err, store.ErrNotFound):
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusNotFound, "common.not_found", nil)
+	default:
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+	}
 }
 
 func (m *Module) assignmentCandidateQuery(c *gin.Context) (moduleapi.UserCandidateQuery, bool) {
@@ -212,17 +230,18 @@ func (m *Module) resolveAssignmentUserIDs(c *gin.Context, requestedIDs []uint64)
 	return userIDs, true
 }
 
-func (m *Module) replaceUserAssignments(ctx context.Context, target store.Target, userIDs []uint64, actorID uint64) ([]store.UserAssignment, error) {
+func (m *Module) replaceUserAssignments(ctx context.Context, target store.Target, userIDs []uint64, expectedRevision, actorID uint64) ([]store.UserAssignment, uint64, error) {
 	var items []store.UserAssignment
+	var revision uint64
 	err := m.repository.RunInTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
 		var err error
-		items, err = m.repository.ReplaceUserAssignmentsTx(txCtx, target.ID, userIDs, actorID)
+		items, revision, err = m.repository.ReplaceUserAssignmentsTx(txCtx, target.ID, userIDs, expectedRevision, actorID)
 		if err != nil {
 			return err
 		}
 		return m.publishAssignmentReplacementAuditTx(txCtx, tx, target, len(items))
 	})
-	return items, err
+	return items, revision, err
 }
 
 func (m *Module) publishAssignmentReplacementAuditTx(ctx context.Context, tx *sql.Tx, target store.Target, assignmentCount int) error {

@@ -14445,11 +14445,16 @@ type RuntimeTargetUserAssignment struct {
 // RuntimeTargetUserAssignmentListResponse defines model for runtime-target-user-assignment-list-response.
 type RuntimeTargetUserAssignmentListResponse struct {
 	Items []RuntimeTargetUserAssignment `json:"items"`
+
+	// Revision Monotonic revision of the assignment collection.
+	Revision int64 `json:"revision"`
 }
 
 // RuntimeTargetUserAssignmentReplaceRequest defines model for runtime-target-user-assignment-replace-request.
 type RuntimeTargetUserAssignmentReplaceRequest struct {
-	UserIds []int64 `json:"user_ids"`
+	// Revision Assignment collection revision returned by the latest read.
+	Revision int64   `json:"revision"`
+	UserIds  []int64 `json:"user_ids"`
 }
 
 // RuntimeTargetUserAssignmentRequest defines model for runtime-target-user-assignment-request.
