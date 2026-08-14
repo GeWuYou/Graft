@@ -818,20 +818,37 @@ func (r *SQLRepository) UserAssignmentRevision(ctx context.Context, targetID uin
 	return revision, err
 }
 
+func (r *SQLRepository) lockAssignmentTarget(ctx context.Context, targetID uint64) error {
+	if targetID == 0 {
+		return ErrNotFound
+	}
+	if err := r.executor(ctx).QueryRowContext(ctx, `SELECT id FROM runtime_targets WHERE id = $1 AND deleted_at = 0 FOR UPDATE`, targetID).Scan(new(uint64)); err == nil {
+		return nil
+	} else if !strings.Contains(strings.ToLower(err.Error()), "syntax") {
+		return err
+	}
+	return r.executor(ctx).QueryRowContext(ctx, `SELECT id FROM runtime_targets WHERE id = $1 AND deleted_at = 0`, targetID).Scan(new(uint64))
+}
+
 // GrantUserAssignment 幂等恢复或创建部署使用授权。
 func (r *SQLRepository) GrantUserAssignment(ctx context.Context, targetID, userID, actorID uint64) (UserAssignment, error) {
 	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
 		return UserAssignment{}, ErrNotFound
 	}
-	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID)
-	if err != nil {
-		return UserAssignment{}, err
-	}
 	var item UserAssignment
-	err = r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID).Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy)
-	if errors.Is(err, sql.ErrNoRows) {
-		return UserAssignment{}, ErrNotFound
-	}
+	err := r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+			return err
+		}
+		if _, err := r.executor(txCtx).ExecContext(txCtx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID); err != nil {
+			return err
+		}
+		err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID).Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	})
 	return item, err
 }
 
@@ -840,15 +857,20 @@ func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, user
 	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
 		return ErrNotFound
 	}
-	active, err := r.HasActiveUserAssignment(ctx, targetID, userID)
-	if err != nil {
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+			return err
+		}
+		active, err := r.HasActiveUserAssignment(txCtx, targetID, userID)
+		if err != nil {
+			return err
+		}
+		if !active {
+			return ErrNotFound
+		}
+		_, err = r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $4 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, time.Now().UTC().Unix(), actorID)
 		return err
-	}
-	if !active {
-		return ErrNotFound
-	}
-	_, err = r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $4 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, time.Now().UTC().Unix(), actorID)
-	return err
+	})
 }
 
 // ReplaceUserAssignmentsTx 在调用方事务中替换授权集合，并由调用方决定提交其它事实。
@@ -857,6 +879,9 @@ func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID u
 		return nil, 0, ErrNotFound
 	}
 	if _, err := r.Get(ctx, targetID); err != nil {
+		return nil, 0, err
+	}
+	if err := r.lockAssignmentTarget(ctx, targetID); err != nil {
 		return nil, 0, err
 	}
 	if err := r.advanceAssignmentRevision(ctx, targetID, expectedRevision); err != nil {
