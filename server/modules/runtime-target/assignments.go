@@ -38,6 +38,12 @@ type runtimeTargetUserAssignmentReplaceRequestHTTP struct {
 	Revision uint64   `json:"revision"`
 }
 
+type runtimeTargetAssignmentBatchRequestHTTP struct {
+	TargetIDs []uint64 `json:"target_ids"`
+	UserIDs   []uint64 `json:"user_ids"`
+	Action    string   `json:"action"`
+}
+
 type runtimeTargetAssignmentCandidateHTTP struct {
 	ID       uint64 `json:"id"`
 	Username string `json:"username"`
@@ -167,6 +173,49 @@ func (m *Module) handleReplaceAssignments(c *gin.Context) {
 
 func invalidAssignmentReplaceRequest(request runtimeTargetUserAssignmentReplaceRequestHTTP) bool {
 	return len(request.UserIDs) > 10000 || request.Revision == 0
+}
+
+//nolint:cyclop,gocognit,gocyclo // validates one bounded request before entering the shared transaction.
+func (m *Module) handleBatchAssignments(c *gin.Context) {
+	var request runtimeTargetAssignmentBatchRequestHTTP
+	if err := c.ShouldBindJSON(&request); err != nil || len(request.TargetIDs) == 0 || len(request.TargetIDs) > 1000 || len(request.UserIDs) == 0 || len(request.UserIDs) > 10000 || (request.Action != string(store.AssignmentBatchGrant) && request.Action != string(store.AssignmentBatchRevoke)) {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	actorID, ok := assignmentActorID(c)
+	if !ok {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return
+	}
+	if _, ok := m.resolveAssignmentUserIDs(c, request.UserIDs); !ok {
+		return
+	}
+	action := store.AssignmentBatchAction(request.Action)
+	err := m.repository.RunInTransaction(c.Request.Context(), func(txCtx context.Context, tx *sql.Tx) error {
+		if err := m.repository.ApplyAssignmentBatch(txCtx, request.TargetIDs, request.UserIDs, action, actorID); err != nil {
+			return err
+		}
+		for _, targetID := range request.TargetIDs {
+			target, err := m.repository.Get(txCtx, targetID)
+			if err != nil {
+				return err
+			}
+			payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.assignment." + request.Action, ResourceType: "runtime_target", ResourceID: strconv.FormatUint(targetID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: true, Metadata: map[string]any{"user_count": len(request.UserIDs)}}
+			envelope, err := httpx.NewAuditEvent(moduleID, payload)
+			if err != nil {
+				return err
+			}
+			if _, err = m.events.PublishTx(txCtx, tx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		m.writeAssignmentReplaceError(c, err)
+		return
+	}
+	httpx.WriteSuccess[any](c, http.StatusOK, map[string]int{"targets": len(request.TargetIDs), "users": len(request.UserIDs)})
 }
 
 func (m *Module) writeAssignmentReplaceError(c *gin.Context, err error) {

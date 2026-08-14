@@ -1,0 +1,21 @@
+post:
+  tags: [runtime-target]
+  summary: Grant or revoke users across runtime targets atomically
+  operationId: postRuntimeTargetAssignmentsBatch
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/runtime-target-assignment-batch-request.yaml}
+  responses:
+    '200':
+      description: Batch assignment mutation completed atomically.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-runtime-target-assignment-batch-result.yaml}
+    '400': {$ref: ../components/responses/bad-request.yaml}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {$ref: ../components/responses/not-found.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

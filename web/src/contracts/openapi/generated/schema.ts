@@ -3731,6 +3731,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-target-assignments/batch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Grant or revoke users across runtime targets atomically */
+    post: operations['postRuntimeTargetAssignmentsBatch'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/runtime-targets/{id}/assignment-candidates': {
     parameters: {
       query?: never;
@@ -10066,6 +10083,21 @@ export interface components {
     };
     'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment'];
+    };
+    'runtime-target-assignment-batch-request': {
+      target_ids: number[];
+      user_ids: number[];
+      /** @enum {string} */
+      action: 'grant' | 'revoke';
+    };
+    'runtime-target-assignment-batch-result': {
+      /** Format: int64 */
+      targets: number;
+      /** Format: int64 */
+      users: number;
+    };
+    'enveloped-runtime-target-assignment-batch-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-assignment-batch-result'];
     };
     'runtime-target-assignment-candidate': {
       /** Format: int64 */
@@ -22906,6 +22938,35 @@ export interface operations {
         content?: never;
       };
       409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetAssignmentsBatch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-assignment-batch-request'];
+      };
+    };
+    responses: {
+      /** @description Batch assignment mutation completed atomically. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-assignment-batch-result'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
       500: components['responses']['internal-server-error'];
     };
   };

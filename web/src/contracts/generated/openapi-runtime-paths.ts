@@ -267,6 +267,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postRoleUpdate: '/api/roles/{id}/update',
   postRuntimeTargetAssignment: '/api/runtime-targets/{id}/assignments',
   postRuntimeTargetAssignmentDelete: '/api/runtime-targets/{id}/assignments/{userId}/delete',
+  postRuntimeTargetAssignmentsBatch: '/api/runtime-target-assignments/batch',
   postRuntimeTargetRefresh: '/api/runtime-targets/{id}/refresh',
   postRuntimeTargetSavedView: '/api/runtime-target-saved-views',
   postRuntimeTargetsDiscoverLocalDocker: '/api/runtime-targets/discover-local-docker',

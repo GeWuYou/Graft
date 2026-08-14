@@ -6,6 +6,7 @@ import RuntimeTargetListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   discoverLocalDocker: vi.fn(),
+  applyRuntimeTargetAssignmentBatch: vi.fn().mockResolvedValue(undefined),
   getRuntimeTargetAssignmentCandidates: vi.fn().mockResolvedValue({ items: [], total: 0 }),
   getRuntimeTargetAssignmentsForTargets: vi.fn().mockResolvedValue(new Map()),
   replaceRuntimeTargetAssignments: vi.fn().mockResolvedValue(undefined),
@@ -145,6 +146,7 @@ describe('RuntimeTargetListPage', () => {
     apiMocks.getRuntimeTargetSavedViews.mockResolvedValue([]);
     apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({ items: [], total: 0 });
     apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(new Map());
+    apiMocks.applyRuntimeTargetAssignmentBatch.mockResolvedValue(undefined);
     apiMocks.replaceRuntimeTargetAssignments.mockResolvedValue(undefined);
     apiMocks.listRuntimeTargetPage.mockResolvedValue({
       items: [],
@@ -464,8 +466,7 @@ describe('RuntimeTargetListPage', () => {
     await grantDialog.vm.$emit('confirm');
     await flushPromises();
 
-    expect(apiMocks.replaceRuntimeTargetAssignments).toHaveBeenCalledWith(1, [7, 8, 11, 9]);
-    expect(apiMocks.replaceRuntimeTargetAssignments).toHaveBeenCalledWith(2, [7, 12, 8, 9]);
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).toHaveBeenCalledWith([1, 2], [8, 9], 'grant');
     expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.batchAuthorizeSuccess:');
     expect(grantDialog.props('visible')).toBe(false);
   });
@@ -507,8 +508,7 @@ describe('RuntimeTargetListPage', () => {
     await revokeDialog.vm.$emit('confirm');
     await flushPromises();
 
-    expect(apiMocks.replaceRuntimeTargetAssignments).toHaveBeenCalledWith(1, [8, 11]);
-    expect(apiMocks.replaceRuntimeTargetAssignments).toHaveBeenCalledWith(2, [12]);
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).toHaveBeenCalledWith([1, 2], [7], 'revoke');
     expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.batchRevokeSuccess:');
     expect(revokeDialog.props('visible')).toBe(false);
   });
@@ -549,7 +549,7 @@ describe('RuntimeTargetListPage', () => {
     options.onCancel();
     await flushPromises();
 
-    expect(apiMocks.replaceRuntimeTargetAssignments).not.toHaveBeenCalled();
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).not.toHaveBeenCalled();
     expect(revokeDialog.props('visible')).toBe(true);
   });
 
@@ -559,7 +559,7 @@ describe('RuntimeTargetListPage', () => {
       total: 1,
     });
     apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(new Map([[1, new Set([7])]]));
-    apiMocks.replaceRuntimeTargetAssignments.mockRejectedValueOnce(new Error('failed'));
+    apiMocks.applyRuntimeTargetAssignmentBatch.mockRejectedValueOnce(new Error('failed'));
     wrapper = mountPage();
     await flushPromises();
 

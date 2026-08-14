@@ -230,6 +230,7 @@ func (m *Module) registerRoutes(ctx *module.Context, auth moduleapi.AuthService,
 	ctx.Router.PUT("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
 	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
+	ctx.Router.POST("/runtime-target-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleBatchAssignments)
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	ctx.Router.GET(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleListAssignments)

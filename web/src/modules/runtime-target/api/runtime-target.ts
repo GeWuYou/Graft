@@ -20,6 +20,8 @@ type RuntimeTargetAssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetAssignmentCandidates]['get'];
 type RuntimeTargetAssignmentsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargetAssignments]['get'];
 type RuntimeTargetAssignmentsReplaceOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRuntimeTargetAssignments]['put'];
+type RuntimeTargetAssignmentsBatchOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.postRuntimeTargetAssignmentsBatch]['post'];
 export type RuntimeTargetUsageMetric = components['schemas']['runtime-target-usage-metric'];
 export type RuntimeTargetPage = RuntimeTargetList;
 export type RuntimeTargetAssignment = components['schemas']['runtime-target-user-assignment'];
@@ -150,6 +152,21 @@ export async function replaceRuntimeTargetAssignments(
   });
   runtimeTargetAssignmentRevisions.set(id, response.revision);
   return response;
+}
+
+export async function applyRuntimeTargetAssignmentBatch(
+  targetIds: number[],
+  userIds: number[],
+  action: 'grant' | 'revoke',
+) {
+  type Request = NonNullable<RuntimeTargetAssignmentsBatchOperation['requestBody']>['content']['application/json'];
+  type Response = NonNullable<
+    RuntimeTargetAssignmentsBatchOperation['responses'][200]['content']['application/json']['data']
+  >;
+  return request.post<Response>({
+    url: OPENAPI_RUNTIME_PATH.postRuntimeTargetAssignmentsBatch,
+    data: { target_ids: targetIds, user_ids: userIds, action } satisfies Request,
+  });
 }
 
 export async function getRuntimeTargetAssignmentsForTargets(targetIds: number[]): Promise<Map<number, Set<number>>> {

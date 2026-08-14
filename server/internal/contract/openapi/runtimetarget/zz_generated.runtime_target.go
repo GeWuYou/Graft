@@ -7,6 +7,99 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for PostRuntimeTargetAssignmentsBatchJSONBodyAction.
+const (
+	Grant  PostRuntimeTargetAssignmentsBatchJSONBodyAction = "grant"
+	Revoke PostRuntimeTargetAssignmentsBatchJSONBodyAction = "revoke"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatchJSONBodyAction enum.
+func (e PostRuntimeTargetAssignmentsBatchJSONBodyAction) Valid() bool {
+	switch e {
+	case Grant:
+		return true
+	case Revoke:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccessFalse PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccessFalse PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccessFalse PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccessFalse PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccessFalse PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTargetsParamsLimit.
 const (
 	N10  GetRuntimeTargetsParamsLimit = 10
@@ -450,13 +543,13 @@ func (e PostRuntimeTargetRefresh403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostRuntimeTargetRefresh500JSONResponseBodySuccess.
 const (
-	False PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
+	PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh500JSONResponseBodySuccess enum.
 func (e PostRuntimeTargetRefresh500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -471,6 +564,31 @@ type personalAccessTokenAuthContextKey string
 
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
+
+// PostRuntimeTargetAssignmentsBatchJSONBody defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatchJSONBody struct {
+	Action    PostRuntimeTargetAssignmentsBatchJSONBodyAction `json:"action"`
+	TargetIds []int64                                         `json:"target_ids"`
+	UserIds   []int64                                         `json:"user_ids"`
+}
+
+// PostRuntimeTargetAssignmentsBatchJSONBodyAction defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatchJSONBodyAction string
+
+// PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatch400JSONResponseBodySuccess bool
+
+// PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatch401JSONResponseBodySuccess bool
+
+// PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatch403JSONResponseBodySuccess bool
+
+// PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatch404JSONResponseBodySuccess bool
+
+// PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess defines parameters for PostRuntimeTargetAssignmentsBatch.
+type PostRuntimeTargetAssignmentsBatch500JSONResponseBodySuccess bool
 
 // GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParams struct {
@@ -593,3 +711,6 @@ type PostRuntimeTargetRefresh403JSONResponseBodySuccess bool
 
 // PostRuntimeTargetRefresh500JSONResponseBodySuccess defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh500JSONResponseBodySuccess bool
+
+// PostRuntimeTargetAssignmentsBatchJSONRequestBody defines body for PostRuntimeTargetAssignmentsBatch for application/json ContentType.
+type PostRuntimeTargetAssignmentsBatchJSONRequestBody PostRuntimeTargetAssignmentsBatchJSONBody

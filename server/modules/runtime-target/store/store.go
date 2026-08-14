@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,16 @@ type LocalDockerProbe struct {
 
 // SQLRepository 持久化运行时目标记录，并将已软删除记录排除在公开查询之外。
 type SQLRepository struct{ db *sql.DB }
+
+// AssignmentBatchAction identifies an atomic assignment mutation.
+type AssignmentBatchAction string
+
+const (
+	// AssignmentBatchGrant adds active assignments.
+	AssignmentBatchGrant AssignmentBatchAction = "grant"
+	// AssignmentBatchRevoke removes active assignments.
+	AssignmentBatchRevoke AssignmentBatchAction = "revoke"
+)
 
 type transactionContextKey struct{}
 
@@ -873,7 +884,49 @@ func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, user
 	})
 }
 
+// ApplyAssignmentBatch atomically applies one grant or revoke action across all targets and users.
+func (r *SQLRepository) ApplyAssignmentBatch(ctx context.Context, targetIDs, userIDs []uint64, action AssignmentBatchAction, actorID uint64) error { //nolint:cyclop // one transaction owns validation, locking, mutation, and rollback.
+	if r == nil || r.db == nil || actorID == 0 || len(targetIDs) == 0 || len(userIDs) == 0 || (action != AssignmentBatchGrant && action != AssignmentBatchRevoke) {
+		return ErrNotFound
+	}
+	targets := append([]uint64(nil), targetIDs...)
+	sort.Slice(targets, func(i, j int) bool { return targets[i] < targets[j] })
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		for _, targetID := range targets {
+			if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+				return err
+			}
+		}
+		for _, targetID := range targets {
+			if err := r.applyAssignmentBatchTarget(txCtx, targetID, userIDs, action, actorID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *SQLRepository) applyAssignmentBatchTarget(ctx context.Context, targetID uint64, userIDs []uint64, action AssignmentBatchAction, actorID uint64) error {
+	for _, userID := range userIDs {
+		if userID == 0 {
+			return ErrNotFound
+		}
+		if action == AssignmentBatchGrant {
+			if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint, deleted_by = $3, updated_at = CURRENT_TIMESTAMP, updated_by = $3 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, actorID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ReplaceUserAssignmentsTx 在调用方事务中替换授权集合，并由调用方决定提交其它事实。
+//
+//nolint:cyclop // revision CAS and replacement sequencing are intentionally kept together.
 func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID uint64, userIDs []uint64, expectedRevision, actorID uint64) ([]UserAssignment, uint64, error) {
 	if r == nil || r.db == nil || targetID == 0 || actorID == 0 {
 		return nil, 0, ErrNotFound

@@ -327,6 +327,7 @@ import { formatBytes } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import {
+  applyRuntimeTargetAssignmentBatch,
   deleteRuntimeTargetSavedView,
   discoverLocalDocker,
   getRuntimeTargetAssignmentCandidates,
@@ -335,7 +336,6 @@ import {
   listRuntimeTargetPage,
   postRuntimeTargetSavedView,
   putRuntimeTargetSavedView,
-  replaceRuntimeTargetAssignments,
   type RuntimeTarget,
   type RuntimeTargetAssignmentCandidate,
   type RuntimeTargetUsageMetric,
@@ -819,12 +819,7 @@ async function saveBatchAuthorization() {
   batchAuthorizationError.value = '';
   let saved = false;
   try {
-    await Promise.all(
-      targetIds.map((targetId) => {
-        const existing = batchTargetAssignments.value.get(targetId) ?? new Set<number>();
-        return replaceRuntimeTargetAssignments(targetId, [...new Set([...existing, ...userIds])]);
-      }),
-    );
+    await applyRuntimeTargetAssignmentBatch(targetIds, userIds, 'grant');
     MessagePlugin.success(t('runtimeTarget.list.batchAuthorizeSuccess'));
     saved = true;
   } catch {
@@ -850,15 +845,7 @@ async function revokeBatchAuthorization() {
     batchAuthorizationError.value = '';
     let revoked = false;
     try {
-      await Promise.all(
-        targetIds.map((targetId) => {
-          const existing = batchTargetAssignments.value.get(targetId) ?? new Set<number>();
-          return replaceRuntimeTargetAssignments(
-            targetId,
-            [...existing].filter((userId) => !userIds.includes(userId)),
-          );
-        }),
-      );
+      await applyRuntimeTargetAssignmentBatch(targetIds, userIds, 'revoke');
       MessagePlugin.success(t('runtimeTarget.list.batchRevokeSuccess'));
       revoked = true;
     } catch {
