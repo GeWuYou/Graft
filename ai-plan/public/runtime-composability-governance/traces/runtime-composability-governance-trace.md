@@ -18,7 +18,7 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory"],
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup"],
   "pending_batches": [
     "phase-0-resource-inventory",
     "phase-1-lifecycle-cleanup",
@@ -26,8 +26,8 @@
     "phase-3-capability-composition-declarations",
     "phase-4-controlled-change-evaluation"
   ],
-  "current_batch": "phase-1-lifecycle-cleanup",
-  "next_batch": "phase-2-narrow-resource-scope",
+  "current_batch": "phase-2-narrow-resource-scope",
+  "next_batch": "phase-3-capability-composition-declarations",
   "closeout_status": "active"
 }
 ```
@@ -51,3 +51,10 @@
 5. 用测试/静态审计固化 `Register` 不启动长期资源、MemoryBus handler 不隐藏后台 goroutine、cron Registry 只登记声明。
 
 本批次没有证明需要通用共享 Resource Scope；继续保持 Phase 2 pending。设计文档补充了 durable Dispatcher 的 process-lifetime parent 与 MemoryBus application-lifetime owner 语义，避免把现有独立生命周期误判为 authority drift。
+
+## 2026-08-15 phase-1-lifecycle-cleanup
+
+- Task Runtime `Stop` 在入口归一化 nil context，新增 active-runtime `Stop(nil)` 回归测试；Task/Submission/Stage persistence authority 未改变。
+- durable Dispatcher 在 graceful/forced shutdown 后进入 terminal state：`Start` 拒绝复用，`Shutdown` 幂等，forced deadline 清除 started 状态并记录结构化 warning；handler 忽略 context 时仍可能在 deadline 后结束，durable store 保持恢复 authority。
+- Phase 1 focused validation：`cd server && go test ./modules/task ./internal/event` 通过；`git diff --check` 通过。
+- 本批次未新增 shared Scope、EventBus unsubscribe、Task state machine、外部 broker 或动态 module loader。

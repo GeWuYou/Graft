@@ -77,6 +77,8 @@ type Dispatcher struct {
 	handlerIDs map[string]struct{}
 	accepting  bool
 	started    bool
+	stopped    bool
+	forcedStop bool
 	cancel     context.CancelFunc
 	pollCancel context.CancelFunc
 	work       sync.WaitGroup
@@ -161,6 +163,9 @@ func (d *Dispatcher) Start(ctx context.Context) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.stopped {
+		return ErrDispatcherStopped
+	}
 	if d.started {
 		return nil
 	}
@@ -330,11 +335,16 @@ func (d *Dispatcher) Shutdown(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	d.mu.Lock()
+	if d.stopped {
+		d.mu.Unlock()
+		return nil
+	}
 	if !d.started {
 		d.mu.Unlock()
 		return nil
 	}
 	d.accepting = false
+	d.stopped = true
 	cancel := d.cancel
 	pollCancel := d.pollCancel
 	d.mu.Unlock()
@@ -352,10 +362,20 @@ func (d *Dispatcher) Shutdown(ctx context.Context) error {
 	case <-drained:
 		cancel()
 		d.workers.Wait()
+		d.mu.Lock()
+		d.started = false
+		d.mu.Unlock()
 		return nil
 	case <-ctx.Done():
 		// Handler 可能忽略 context；调用方 deadline 不能变成无限等待该 worker goroutine。
 		cancel()
+		d.mu.Lock()
+		d.started = false
+		d.forcedStop = true
+		d.mu.Unlock()
+		d.logger.Warn("event dispatcher shutdown exceeded deadline; dispatcher is terminal",
+			zap.Bool("forced_timeout", true),
+		)
 		return ctx.Err()
 	}
 }

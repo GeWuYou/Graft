@@ -932,6 +932,9 @@ func (r *Runtime) Stop(ctx context.Context) error {
 	if r == nil {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	r.mu.Lock()
 	cancel := r.cancel
 	r.cancel = nil

@@ -47,17 +47,18 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `phase-0-resource-inventory`.
+- Current batch: `phase-1-lifecycle-cleanup`.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
-- Next step: Phase 1 fixes the bounded P0 candidates, starting with Task Stop nil-context safety and durable Dispatcher timeout observability.
+- Phase 1 result: Task Runtime nil-context shutdown is safe; durable Dispatcher has terminal post-shutdown state and forced-timeout evidence.
+- Next step: Phase 2 re-evaluates whether repeated disposer patterns justify a narrow Resource Scope; default remains no new shared API.
 
 ## Task Checklist
 
 - [x] Work Intake, design, roadmap and active-topic bootstrap.
 - [x] Phase 0: inventory creators, owners and disposers for current long-lived resources; classify P0 lifecycle gaps.
-- [ ] Phase 1: unify lifecycle cleanup and shutdown evidence for P0 resources.
+- [x] Phase 1: unify lifecycle cleanup and shutdown evidence for P0 resources.
 - [ ] Phase 2: introduce a narrow Resource Scope only if duplicate ownership patterns prove it necessary.
 - [ ] Phase 3: add capability/composition declarations and capability-local health where justified.
 - [ ] Phase 4: evaluate controlled dynamic change only if isolation, state migration and rollback requirements are proven.
@@ -74,7 +75,7 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory"],
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup"],
   "pending_batches": [
     "phase-0-resource-inventory",
     "phase-1-lifecycle-cleanup",
@@ -82,11 +83,18 @@ closeout:
     "phase-3-capability-composition-declarations",
     "phase-4-controlled-change-evaluation"
   ],
-  "current_batch": "phase-1-lifecycle-cleanup",
-  "next_batch": "phase-2-narrow-resource-scope",
+  "current_batch": "phase-2-narrow-resource-scope",
+  "next_batch": "phase-3-capability-composition-declarations",
   "closeout_status": "active"
 }
 ```
+
+## Phase 1 Lifecycle Cleanup Result
+
+- `server/modules/task.Runtime.Stop` now normalizes a nil context to `context.Background()` before cancellation/wait, preventing an active-runtime nil dereference. Normal Module shutdown continues to provide the bounded Runtime shutdown context.
+- `server/internal/event.Dispatcher` now marks itself terminal on graceful or forced shutdown, rejects restart with `ErrDispatcherStopped`, resets `started`, keeps repeated `Shutdown` idempotent, and logs a structured forced-timeout warning. A handler that ignores context may still finish after the deadline; the dispatcher is intentionally not reusable.
+- Added focused regressions for `Stop(nil)` and forced Dispatcher shutdown state/restart/idempotence.
+- No Task/Submission, durable outbox, EventBus, Agent, Provider, Runner, or realtime authority changed. No shared Scope API was added.
 
 ## Phase 0 Resource Inventory
 
