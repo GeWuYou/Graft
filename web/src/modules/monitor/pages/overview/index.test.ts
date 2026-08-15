@@ -1,7 +1,7 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
 import type { ServerStatusResponse } from '../../types/server-status';
@@ -1479,6 +1479,42 @@ describe('MonitorPage', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     await nextTick();
     expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+  });
+
+  it('stops polling while kept alive but deactivated and restores one poller on activation', async () => {
+    vi.useFakeTimers();
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const active = ref(true);
+    const host = mountWithGlobalStubs(
+      defineComponent({
+        setup() {
+          return () => h(KeepAlive, {}, active.value ? [h(MonitorPage)] : []);
+        },
+      }),
+    );
+    mountedWrappers.push(host);
+    await flushPromises();
+    await nextTick();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    active.value = false;
+    await nextTick();
+    setVisibilityState('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(10000);
+    await flushPromises();
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    active.value = true;
+    await nextTick();
+    await flushPromises();
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(3);
   });
 
   it('treats a non-positive refresh interval as off and does not resume auto refresh from timers or visibility recovery', async () => {

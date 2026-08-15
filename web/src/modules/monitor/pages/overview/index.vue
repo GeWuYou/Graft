@@ -376,7 +376,17 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { InfoCircleIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
-import { type Component, computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  type Component,
+  computed,
+  nextTick,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -559,6 +569,7 @@ const activeTrendMode = computed<TrendMode>(() => (isCompactDashboard.value ? 'o
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+let isMounted = false;
 
 const trendChartRefs = ref<Partial<Record<TrendChartKey, HTMLDivElement | null>>>({});
 let refreshTickTimer: number | null = null;
@@ -1330,6 +1341,7 @@ const refreshControlStatus = computed(() => {
 
 function canRunAutoRefreshCycle() {
   return (
+    isMounted &&
     autoRefreshEnabled.value &&
     isPageVisible.value &&
     selectedRefreshInterval.value > 0 &&
@@ -1341,8 +1353,6 @@ function clearRefreshSchedule() {
   stopRefreshTick();
   remainingRefreshSeconds.value = null;
 }
-
-let isMounted = false;
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   if (!isMounted) return;
@@ -2345,22 +2355,43 @@ watch(
   },
 );
 
-onMounted(async () => {
+function activatePage() {
+  if (isMounted) {
+    return;
+  }
+
   isMounted = true;
-  await fetchServerStatus();
+  isPageVisible.value = document.visibilityState === 'visible';
+  document.addEventListener('visibilitychange', handleVisibilityChange, false);
+  void fetchServerStatus();
+}
+
+function deactivatePage() {
+  if (!isMounted) {
+    return;
+  }
+
+  isMounted = false;
+  clearRefreshSchedule();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+}
+
+onMounted(async () => {
+  activatePage();
   await nextTick();
   ensureTrendChartResizeObserver();
   reconnectTrendChartResizeObserver();
   syncTrendChart();
   window.addEventListener('resize', resizeTrendChart, false);
-  document.addEventListener('visibilitychange', handleVisibilityChange, false);
 });
 
+onActivated(activatePage);
+onDeactivated(deactivatePage);
+
 onUnmounted(() => {
-  isMounted = false;
+  deactivatePage();
   stopRefreshTick();
   window.removeEventListener('resize', resizeTrendChart);
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
   trendChartResizeObserver?.disconnect();
   trendChartResizeObserver = null;
   disposeTrendChart();
