@@ -58,3 +58,18 @@
 - durable Dispatcher 在 graceful/forced shutdown 后进入 terminal state：`Start` 拒绝复用，`Shutdown` 幂等，forced deadline 清除 started 状态并记录结构化 warning；handler 忽略 context 时仍可能在 deadline 后结束，durable store 保持恢复 authority。
 - Phase 1 focused validation：`cd server && go test ./modules/task ./internal/event` 通过；`git diff --check` 通过。
 - 本批次未新增 shared Scope、EventBus unsubscribe、Task state machine、外部 broker 或动态 module loader。
+
+## 2026-08-16 phase-2-narrow-resource-scope
+
+- Startup receipt: governance source `AGENTS.md`; task class `cross-boundary`; recovery source parent topic
+  `runtime-composability-governance`; owned scope remained runtime lifecycle and topic tracking/trace only.
+- Re-evaluated the Phase 0 inventory after Phase 1 cleanup. The repeated pairs found are already owned by one clear
+  lifecycle authority: Task Runtime owns worker/ticker cancellation, realtime stream or Service owns observer/stream
+  cleanup, and Runtime owns core listener/dispatcher shutdown. Provider operations and independent Agents likewise
+  retain their operation/process owners.
+- No case proved both required conditions for a new scope: at least two resources needing joint cancellation/release,
+  and an existing Module, Task, subscription or Agent owner unable to express that relationship.
+- Decision: Phase 2 completes with no Resource Scope API. `module.Context`, Task/Submission, Agent, Provider, Runner and
+  realtime authority remain unchanged; no dynamic loader, second DI/scheduler, or Task state machine was introduced.
+- Minimal docs validation is recorded at closeout: `git diff --check` and
+  `python3 scripts/validate_ai_plan_structure.py`.
