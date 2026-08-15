@@ -1175,11 +1175,17 @@ func TestMapHostMemoryMetricsUsesAvailableMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("map host memory metrics: %v", err)
 	}
-	assertEqual(t, "host memory total bytes", got.totalBytes, int64(snapshot.Total))
-	assertEqual(t, "host memory used bytes", got.usedBytes, int64(snapshot.Used))
-	assertEqual(t, "host memory available bytes", got.availableBytes, int64(snapshot.Available))
+	const (
+		expectedTotalBytes     int64 = 32 * 1024 * 1024 * 1024
+		expectedUsedBytes      int64 = 12 * 1024 * 1024 * 1024
+		expectedAvailableBytes int64 = 20 * 1024 * 1024 * 1024
+		expectedFreeBytes      int64 = 2 * 1024 * 1024 * 1024
+	)
+	assertEqual(t, "host memory total bytes", got.totalBytes, expectedTotalBytes)
+	assertEqual(t, "host memory used bytes", got.usedBytes, expectedUsedBytes)
+	assertEqual(t, "host memory available bytes", got.availableBytes, expectedAvailableBytes)
 	assertEqual(t, "host memory used percent", got.usedPercent, float32(snapshot.UsedPercent))
-	if got.availableBytes == int64(snapshot.Free) {
+	if got.availableBytes == expectedFreeBytes {
 		t.Fatalf("expected available memory mapping to differ from raw free memory")
 	}
 }
