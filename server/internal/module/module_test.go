@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -9,6 +10,14 @@ import (
 )
 
 type testModule struct{}
+
+type testRequiredCapability interface {
+	Run(context.Context) error
+}
+
+type testExposedCapability interface {
+	Read(context.Context) error
+}
 
 func (m testModule) Register(_ *Context) error { return nil }
 
@@ -143,11 +152,36 @@ func TestSpecBuildWrapsCanonicalMetadata(t *testing.T) {
 	}
 }
 
+func TestSpecValidatesTypedCompositionDeclarations(t *testing.T) {
+	descriptor := Spec{
+		ID:                   "runtime-target",
+		RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}},
+		ExposedCapabilities:  []CapabilityDeclaration{{Key: TypedCapability[testExposedCapability]()}},
+		ConfigurationOwner:   "runtime-target",
+		Resources: []ResourceDeclaration{{
+			Name: "summary collector", Owner: "runtime-target", Cleanup: "Service.Close",
+		}},
+		Builder: BuilderFunc(func(BuildContext) (Module, error) { return testModule{}, nil }),
+	}
+
+	if err := descriptor.Validate(); err != nil {
+		t.Fatalf("validate composition declaration: %v", err)
+	}
+
+	if err := (Spec{
+		ID:                   "duplicate",
+		RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}, {Key: TypedCapability[testRequiredCapability]()}},
+		Builder:              descriptor.Builder,
+	}).Validate(); err == nil {
+		t.Fatal("expected duplicate capability declaration error")
+	}
+}
+
 func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	metadata := NewRuntimeMetadata([]Spec{
 		{ID: "audit"},
 		{ID: "user"},
-		{ID: "rbac", Dependencies: []string{"user"}},
+		{ID: "rbac", Dependencies: []string{"user"}, ConfigurationOwner: "rbac", RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}, Resources: []ResourceDeclaration{{Name: "role cache", Owner: "rbac", Cleanup: "Close"}}},
 	}, buildinfo.Info{
 		Version:      "0.1.0",
 		GitCommit:    "abc1234",
@@ -159,7 +193,7 @@ func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	expected := []DescriptorSnapshot{
 		{Name: "audit"},
 		{Name: "user"},
-		{Name: "rbac", DependsOn: []string{"user"}},
+		{Name: "rbac", DependsOn: []string{"user"}, ConfigurationOwner: "rbac", RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}, Resources: []ResourceDeclaration{{Name: "role cache", Owner: "rbac", Cleanup: "Close"}}},
 	}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected %v, got %v", expected, got)

@@ -66,7 +66,8 @@ func TestRuntimeStopAcceptsNilContext(t *testing.T) {
 	if err := runtime.Start(context.Background()); err != nil {
 		t.Fatalf("start runtime: %v", err)
 	}
-	if err := runtime.Stop(nil); err != nil {
+	var shutdownContext context.Context
+	if err := runtime.Stop(shutdownContext); err != nil {
 		t.Fatalf("stop runtime with nil context: %v", err)
 	}
 }
