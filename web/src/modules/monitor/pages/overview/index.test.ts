@@ -634,7 +634,7 @@ function createServerStatusResponse(): ServerStatusResponse {
       },
       host_memory_total_bytes: 34359738368,
       host_memory_used_bytes: 16234976358,
-      host_memory_free_bytes: 18124762010,
+      host_memory_available_bytes: 18124762010,
       host_memory_used_percent: 47.25,
       goroutines: 32,
       runtime_alloc_bytes: 104857600,

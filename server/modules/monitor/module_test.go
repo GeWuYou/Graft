@@ -14,6 +14,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -1071,8 +1072,8 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerSt
 	if response.Runtime.HostMemoryUsedBytes > response.Runtime.HostMemoryTotalBytes {
 		t.Fatalf("expected host memory used bytes to be within total bytes")
 	}
-	if response.Runtime.HostMemoryFreeBytes > response.Runtime.HostMemoryTotalBytes {
-		t.Fatalf("expected host memory free bytes to be within total bytes")
+	if response.Runtime.HostMemoryAvailableBytes > response.Runtime.HostMemoryTotalBytes {
+		t.Fatalf("expected host memory available bytes to be within total bytes")
 	}
 	if response.Runtime.HostMemoryUsedPercent < 0 {
 		t.Fatalf("expected host memory used percent to be non-negative")
@@ -1156,6 +1157,36 @@ func TestRuntimeLastGCDetails(t *testing.T) {
 				t.Fatalf("runtimeLastGCDetails() pause = %v, want %v", gotPauseNs, tt.wantPauseNs)
 			}
 		})
+	}
+}
+
+func TestMapHostMemoryMetricsUsesAvailableMemory(t *testing.T) {
+	t.Parallel()
+
+	snapshot := &mem.VirtualMemoryStat{
+		Total:       32 * 1024 * 1024 * 1024,
+		Used:        12 * 1024 * 1024 * 1024,
+		Available:   20 * 1024 * 1024 * 1024,
+		Free:        2 * 1024 * 1024 * 1024,
+		UsedPercent: 37.5,
+	}
+
+	got, err := mapHostMemoryMetrics(snapshot)
+	if err != nil {
+		t.Fatalf("map host memory metrics: %v", err)
+	}
+	const (
+		expectedTotalBytes     int64 = 32 * 1024 * 1024 * 1024
+		expectedUsedBytes      int64 = 12 * 1024 * 1024 * 1024
+		expectedAvailableBytes int64 = 20 * 1024 * 1024 * 1024
+		expectedFreeBytes      int64 = 2 * 1024 * 1024 * 1024
+	)
+	assertEqual(t, "host memory total bytes", got.totalBytes, expectedTotalBytes)
+	assertEqual(t, "host memory used bytes", got.usedBytes, expectedUsedBytes)
+	assertEqual(t, "host memory available bytes", got.availableBytes, expectedAvailableBytes)
+	assertEqual(t, "host memory used percent", got.usedPercent, float32(snapshot.UsedPercent))
+	if got.availableBytes == expectedFreeBytes {
+		t.Fatalf("expected available memory mapping to differ from raw free memory")
 	}
 }
 
@@ -1292,7 +1323,7 @@ func stableRuntimeSnapshot() generated.ServerStatusRuntime {
 		},
 		HostMemoryTotalBytes:     32 * 1024 * 1024 * 1024,
 		HostMemoryUsedBytes:      12 * 1024 * 1024 * 1024,
-		HostMemoryFreeBytes:      20 * 1024 * 1024 * 1024,
+		HostMemoryAvailableBytes: 20 * 1024 * 1024 * 1024,
 		HostMemoryUsedPercent:    37.5,
 		Goroutines:               12,
 		RuntimeAllocBytes:        48 * 1024 * 1024,

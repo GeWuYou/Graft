@@ -66,7 +66,7 @@ get:
                       used_percent: 36.69
                     host_memory_total_bytes: 34359738368
                     host_memory_used_bytes: 16819159040
-                    host_memory_free_bytes: 17540579328
+                    host_memory_available_bytes: 17540579328
                     host_memory_used_percent: 48.95
                     goroutines: 37
                     runtime_alloc_bytes: 62914560

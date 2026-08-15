@@ -4709,6 +4709,24 @@ func (e RuntimeTargetRuntimeType) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeTargetAssignmentBatchRequestAction.
+const (
+	Grant  RuntimeTargetAssignmentBatchRequestAction = "grant"
+	Revoke RuntimeTargetAssignmentBatchRequestAction = "revoke"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAssignmentBatchRequestAction enum.
+func (e RuntimeTargetAssignmentBatchRequestAction) Valid() bool {
+	switch e {
+	case Grant:
+		return true
+	case Revoke:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeTargetSummaryConnectionKind.
 const (
 	RuntimeTargetSummaryConnectionKindUnixSocket RuntimeTargetSummaryConnectionKind = "unix_socket"
@@ -12247,6 +12265,26 @@ type EnvelopedRolePermissionBindingResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRuntimeTargetAssignmentBatchResult defines model for enveloped-runtime-target-assignment-batch-result.
+type EnvelopedRuntimeTargetAssignmentBatchResult struct {
+	// Code Existing canonical response code.
+	Code string                             `json:"code"`
+	Data RuntimeTargetAssignmentBatchResult `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRuntimeTargetAssignmentCandidateListResponse defines model for enveloped-runtime-target-assignment-candidate-list-response.
 type EnvelopedRuntimeTargetAssignmentCandidateListResponse struct {
 	// Code Existing canonical response code.
@@ -14329,6 +14367,22 @@ type RuntimeTargetRuntimeProvider string
 // RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
 type RuntimeTargetRuntimeType string
 
+// RuntimeTargetAssignmentBatchRequest defines model for runtime-target-assignment-batch-request.
+type RuntimeTargetAssignmentBatchRequest struct {
+	Action    RuntimeTargetAssignmentBatchRequestAction `json:"action"`
+	TargetIds []int64                                   `json:"target_ids"`
+	UserIds   []int64                                   `json:"user_ids"`
+}
+
+// RuntimeTargetAssignmentBatchRequestAction defines model for RuntimeTargetAssignmentBatchRequest.Action.
+type RuntimeTargetAssignmentBatchRequestAction string
+
+// RuntimeTargetAssignmentBatchResult defines model for runtime-target-assignment-batch-result.
+type RuntimeTargetAssignmentBatchResult struct {
+	Targets int64 `json:"targets"`
+	Users   int64 `json:"users"`
+}
+
 // RuntimeTargetAssignmentCandidate defines model for runtime-target-assignment-candidate.
 type RuntimeTargetAssignmentCandidate struct {
 	Display  string `json:"display"`
@@ -15147,14 +15201,22 @@ type ServerStatusResponse struct {
 
 // ServerStatusRuntime defines model for server-status-runtime.
 type ServerStatusRuntime struct {
-	Architecture          string                  `json:"architecture"`
-	CpuCores              int                     `json:"cpu_cores"`
-	DiskUsage             ServerStatusDiskUsage   `json:"disk_usage"`
-	GoVersion             string                  `json:"go_version"`
-	Goroutines            int                     `json:"goroutines"`
-	HostMemoryFreeBytes   int64                   `json:"host_memory_free_bytes"`
-	HostMemoryTotalBytes  int64                   `json:"host_memory_total_bytes"`
-	HostMemoryUsedBytes   int64                   `json:"host_memory_used_bytes"`
+	Architecture string                `json:"architecture"`
+	CpuCores     int                   `json:"cpu_cores"`
+	DiskUsage    ServerStatusDiskUsage `json:"disk_usage"`
+	GoVersion    string                `json:"go_version"`
+	Goroutines   int                   `json:"goroutines"`
+
+	// HostMemoryAvailableBytes Host memory available for program allocation in bytes, including reclaimable cache when reported by the operating system.
+	HostMemoryAvailableBytes int64 `json:"host_memory_available_bytes"`
+
+	// HostMemoryTotalBytes Total host memory in bytes.
+	HostMemoryTotalBytes int64 `json:"host_memory_total_bytes"`
+
+	// HostMemoryUsedBytes Host memory used by programs in bytes.
+	HostMemoryUsedBytes int64 `json:"host_memory_used_bytes"`
+
+	// HostMemoryUsedPercent Percentage of host memory used by programs.
 	HostMemoryUsedPercent float32                 `json:"host_memory_used_percent"`
 	HostName              string                  `json:"host_name"`
 	LoadAverage           ServerStatusLoadAverage `json:"load_average"`
@@ -19511,6 +19573,9 @@ type PostRoleStatusJSONRequestBody = UpdateRoleStatusRequest
 
 // PostRoleUpdateJSONRequestBody defines body for PostRoleUpdate for application/json ContentType.
 type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
+
+// PostRuntimeTargetAssignmentsBatchJSONRequestBody defines body for PostRuntimeTargetAssignmentsBatch for application/json ContentType.
+type PostRuntimeTargetAssignmentsBatchJSONRequestBody = RuntimeTargetAssignmentBatchRequest
 
 // PostRuntimeTargetSavedViewJSONRequestBody defines body for PostRuntimeTargetSavedView for application/json ContentType.
 type PostRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest

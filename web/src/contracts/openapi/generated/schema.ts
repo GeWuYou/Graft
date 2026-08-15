@@ -6259,7 +6259,7 @@ export interface components {
      *       },
      *       "host_memory_total_bytes": 34359738368,
      *       "host_memory_used_bytes": 16819159040,
-     *       "host_memory_free_bytes": 17540579328,
+     *       "host_memory_available_bytes": 17540579328,
      *       "host_memory_used_percent": 48.95,
      *       "goroutines": 37,
      *       "runtime_alloc_bytes": 62914560,
@@ -6283,12 +6283,22 @@ export interface components {
       cpu_cores: number;
       load_average: components['schemas']['server-status-load-average'];
       disk_usage: components['schemas']['server-status-disk-usage'];
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Total host memory in bytes.
+       */
       host_memory_total_bytes: number;
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Host memory used by programs in bytes.
+       */
       host_memory_used_bytes: number;
-      /** Format: int64 */
-      host_memory_free_bytes: number;
+      /**
+       * Format: int64
+       * @description Host memory available for program allocation in bytes, including reclaimable cache when reported by the operating system.
+       */
+      host_memory_available_bytes: number;
+      /** @description Percentage of host memory used by programs. */
       host_memory_used_percent: number;
       goroutines: number;
       /** Format: int64 */

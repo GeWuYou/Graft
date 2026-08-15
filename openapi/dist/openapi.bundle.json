@@ -6881,7 +6881,7 @@
                           },
                           "host_memory_total_bytes": 34359738368,
                           "host_memory_used_bytes": 16819159040,
-                          "host_memory_free_bytes": 17540579328,
+                          "host_memory_available_bytes": 17540579328,
                           "host_memory_used_percent": 48.95,
                           "goroutines": 37,
                           "runtime_alloc_bytes": 62914560,
@@ -28744,7 +28744,7 @@
           "disk_usage",
           "host_memory_total_bytes",
           "host_memory_used_bytes",
-          "host_memory_free_bytes",
+          "host_memory_available_bytes",
           "host_memory_used_percent",
           "goroutines",
           "runtime_alloc_bytes",
@@ -28783,18 +28783,22 @@
           },
           "host_memory_total_bytes": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total host memory in bytes."
           },
           "host_memory_used_bytes": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Host memory used by programs in bytes."
           },
-          "host_memory_free_bytes": {
+          "host_memory_available_bytes": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Host memory available for program allocation in bytes, including reclaimable cache when reported by the operating system."
           },
           "host_memory_used_percent": {
-            "type": "number"
+            "type": "number",
+            "description": "Percentage of host memory used by programs."
           },
           "goroutines": {
             "type": "integer"
@@ -28872,7 +28876,7 @@
           },
           "host_memory_total_bytes": 34359738368,
           "host_memory_used_bytes": 16819159040,
-          "host_memory_free_bytes": 17540579328,
+          "host_memory_available_bytes": 17540579328,
           "host_memory_used_percent": 48.95,
           "goroutines": 37,
           "runtime_alloc_bytes": 62914560,
@@ -40913,6 +40917,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 1000,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -40923,6 +40928,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 10000,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",

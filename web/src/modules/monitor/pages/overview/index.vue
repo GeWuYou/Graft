@@ -1230,7 +1230,7 @@ const metricCards = computed<MetricCard[]>(() => {
         total: formatBytes(response.runtime.host_memory_total_bytes),
       }),
       meta: t('monitor.serverStatus.metricMemoryMeta', {
-        available: formatBytes(response.runtime.host_memory_free_bytes),
+        available: formatBytes(response.runtime.host_memory_available_bytes),
       }),
       ...memoryStatus,
       usage: buildMetricUsage({
