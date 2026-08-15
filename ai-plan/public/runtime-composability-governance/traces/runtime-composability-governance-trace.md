@@ -73,3 +73,12 @@
   realtime authority remain unchanged; no dynamic loader, second DI/scheduler, or Task state machine was introduced.
 - Minimal docs validation is recorded at closeout: `git diff --check` and
   `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-16 phase-3-capability-composition-declarations
+
+- Startup receipt: governance source `AGENTS.md`; task class `cross-boundary`; recovery source parent topic `runtime-composability-governance`; owned scope runtime composition declarations and topic tracking/trace.
+- Authority discovery confirmed `module.Spec` is the compile-time module metadata owner and existing `moduleapi` interfaces are the typed capability contract owner. The container remains an explicit construction/resolve boundary, not a metadata authority.
+- Added typed `required`/`exposed` capability declarations via `module.TypedCapability[T]()` plus configuration-owner and resource/disposer metadata. `RuntimeMetadata` returns defensive snapshots for diagnostics and conformance.
+- Added capability-local health vocabulary (`Ready`, `Degraded`, `Unavailable`) without a global registry. Provider/Agent/Runner/Task/realtime facts and lifecycle owners remain unchanged.
+- Explicitly rejected string service lookup, runtime dependency solving, `module.Context` expansion, a second DI/scheduler/Task state machine, dynamic Plugin Loader, and HMR.
+- Validation: `gofmt`, focused `go test ./modules/task ./internal/module`, `go run ./cmd/graft validate backend --stage lint`, and `go build ./cmd/graft`; docs validation `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.

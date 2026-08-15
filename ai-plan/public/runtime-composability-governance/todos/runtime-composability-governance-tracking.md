@@ -54,8 +54,7 @@ closeout:
 - Phase 1 result: Task Runtime nil-context shutdown is safe; durable Dispatcher has terminal post-shutdown state and forced-timeout evidence.
 - Phase 2 result: no repeated cross-owner cancellation/cleanup pattern was found that existing Module, Task Runtime,
   realtime subscription, Agent, Provider or Runner owners cannot express. No Resource Scope API is introduced.
-- Next step: Phase 3 evaluates required/exposed capability and composition metadata without expanding `module.Context`
-  or changing Task/Submission, Agent, Provider, Runner or realtime authority.
+- Next step: Phase 4 evaluates controlled dynamic change only if isolation, state migration and rollback requirements are proven.
 
 ## Task Checklist
 
@@ -63,7 +62,7 @@ closeout:
 - [x] Phase 0: inventory creators, owners and disposers for current long-lived resources; classify P0 lifecycle gaps.
 - [x] Phase 1: unify lifecycle cleanup and shutdown evidence for P0 resources.
 - [x] Phase 2: evaluate duplicate ownership patterns; retain explicit local lifecycle ownership and introduce no Scope API.
-- [ ] Phase 3: add capability/composition declarations and capability-local health where justified.
+- [x] Phase 3: add typed capability/composition declarations and capability-local health vocabulary where justified.
 - [ ] Phase 4: evaluate controlled dynamic change only if isolation, state migration and rollback requirements are proven.
 
 ## Acceptance Conditions
@@ -78,9 +77,9 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope"],
-  "pending_batches": ["phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation"],
-  "current_batch": "phase-3-capability-composition-declarations",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations"],
+  "pending_batches": ["phase-4-controlled-change-evaluation"],
+  "current_batch": "phase-4-controlled-change-evaluation",
   "next_batch": "phase-4-controlled-change-evaluation",
   "closeout_status": "active"
 }
@@ -92,6 +91,13 @@ closeout:
 - `server/internal/event.Dispatcher` now marks itself terminal on graceful or forced shutdown, rejects restart with `ErrDispatcherStopped`, resets `started`, keeps repeated `Shutdown` idempotent, and logs a structured forced-timeout warning. A handler that ignores context may still finish after the deadline; the dispatcher is intentionally not reusable.
 - Added focused regressions for `Stop(nil)` and forced Dispatcher shutdown state/restart/idempotence.
 - No Task/Submission, durable outbox, EventBus, Agent, Provider, Runner, or realtime authority changed. No shared Scope API was added.
+
+## Phase 3 Capability/Composition Declaration Result
+
+- `module.Spec` now declares required/exposed capabilities through `TypedCapability[T]()` keys, plus configuration owner and long-lived resource/disposer metadata.
+- `RuntimeMetadata` exposes an immutable descriptor snapshot for those declarations; it does not resolve services or own cleanup.
+- `CapabilityHealth` is limited to capability-local `Ready`, `Degraded`, and `Unavailable` vocabulary. No global health registry, dynamic dependency solver, second DI, scheduler, Task state machine, or plugin loader was introduced.
+- Existing `moduleapi` interfaces remain the typed contract authority; `module.Context` and Task/Submission, Agent, Provider, Runner and realtime authorities are unchanged.
 
 ## Phase 0 Resource Inventory
 

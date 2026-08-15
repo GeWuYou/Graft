@@ -10,8 +10,7 @@
   - `ai-plan/design/architecture/运行时组合与资源治理设计.md`
   - `ai-plan/design/architecture/项目设计.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
-- Completed so far: Work Intake, design, roadmap and topic bootstrap.
-- Not started yet: Phase 0 runtime resource inventory.
+- Completed so far: Work Intake, design, roadmap, topic bootstrap, lifecycle inventory/cleanup, narrow-scope evaluation, and Phase 3 typed composition declarations.
 
 ## Recovery Receipt
 
