@@ -47,14 +47,15 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `phase-3-capability-composition-declarations`.
+- Current batch: `phase-5-remaining-p0-lifecycle-evidence`.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
 - Phase 1 result: Task Runtime nil-context shutdown is safe; durable Dispatcher has terminal post-shutdown state and forced-timeout evidence.
 - Phase 2 result: no repeated cross-owner cancellation/cleanup pattern was found that existing Module, Task Runtime,
   realtime subscription, Agent, Provider or Runner owners cannot express. No Resource Scope API is introduced.
-- Next step: Phase 4 evaluates controlled dynamic change only if isolation, state migration and rollback requirements are proven.
+- Archive readiness found three P0 evidence gaps. Next step: complete `phase-5-remaining-p0-lifecycle-evidence`
+  before another archive-readiness check.
 
 ## Task Checklist
 
@@ -63,7 +64,10 @@ closeout:
 - [x] Phase 1: unify lifecycle cleanup and shutdown evidence for P0 resources.
 - [x] Phase 2: evaluate duplicate ownership patterns; retain explicit local lifecycle ownership and introduce no Scope API.
 - [x] Phase 3: add typed capability/composition declarations and capability-local health vocabulary where justified.
-- [ ] Phase 4: evaluate controlled dynamic change only if isolation, state migration and rollback requirements are proven.
+- [x] Phase 4: evaluate controlled dynamic change; the required isolation, state migration, drain/rollback and operational gates are not proven, so runtime enable/disable is not approved.
+- [x] Phase 5: close the remaining P0 lifecycle evidence gaps before archive readiness:
+  project/container detached-context shutdown paths; RuntimeTarget and Agent/collector failure observability; and
+  lifecycle conformance checks for Register, MemoryBus and cron Registry boundaries.
 
 ## Acceptance Conditions
 
@@ -77,13 +81,21 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations"],
-  "pending_batches": ["phase-4-controlled-change-evaluation"],
-  "current_batch": "phase-4-controlled-change-evaluation",
-  "next_batch": "phase-4-controlled-change-evaluation",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
   "closeout_status": "active"
 }
 ```
+
+## Phase 5 Remaining P0 Lifecycle Evidence Result
+
+- Project/container realtime streamers derive run contexts from the owning Service lifecycle context; publish queries inherit cancellation, and bounded close failures retain stream ownership for retry.
+- RuntimeTarget summary collection preserves repository errors, records capability-local diagnostics, and emits structured warnings. Agent listeners log Serve failures and forced-close warnings, force `Close` after shutdown deadline/cancellation, and preserve joined errors.
+- Conformance tests prove registration does not invoke module lifecycle methods, MemoryBus remains synchronous, and cronx Registry is declaration-only.
+- Focused validation passed for internal/module, internal/eventbus, internal/cronx, internal/httpx, modules/project, modules/container, and modules/runtime-target; conformance race tests, git diff --check, and the AI-plan structure guard also passed.
+- Phase 5 evidence is complete; topic remains active until normal task-closeout/archive review.
 
 ## Phase 1 Lifecycle Cleanup Result
 
@@ -98,6 +110,25 @@ closeout:
 - `RuntimeMetadata` exposes an immutable descriptor snapshot for those declarations; it does not resolve services or own cleanup.
 - `CapabilityHealth` is limited to capability-local `Ready`, `Degraded`, and `Unavailable` vocabulary. No global health registry, dynamic dependency solver, second DI, scheduler, Task state machine, or plugin loader was introduced.
 - Existing `moduleapi` interfaces remain the typed contract authority; `module.Context` and Task/Submission, Agent, Provider, Runner and realtime authorities are unchanged.
+
+## Phase 4 Controlled Change Evaluation Result
+
+Decision: do not implement runtime Module/Provider enable/disable, runtime dependency re-computation, hot unload, or
+HMR. The default remains process restart, config reconcile, or Agent reconnect.
+
+| Gate | Evidence | Decision |
+| --- | --- | --- |
+| Isolation | Modules, routes, permissions, capability metadata and the explicit container share one process/runtime; no per-module isolation boundary or independently disposable topology exists. | Not proven |
+| Persistent state migration | TaskPlan/Stage bindings are frozen for in-flight work and RuntimeTarget/Agent facts are durable, but there is no versioned migration authority for changing the module/provider topology itself. | Not proven |
+| Drain and rollback | Runtime shutdown, dispatcher terminal state, Task recovery and Agent reconnect provide local drain/recovery behavior; there is no atomic topology change, admission drain, or rollback snapshot spanning routes, permissions, capabilities and external resources. | Not proven |
+| Fact authority | Task/Submission, Agent ledger and RuntimeTarget persistence remain valid authorities for their domains. No canonical persisted Module activation fact exists, and Phase 3 metadata is diagnostic rather than a mutating registry. | Existing facts only; insufficient |
+| Operations entry | Explicit restart, configuration reconciliation and Agent reconnect paths exist. No protected, audited runtime Module/Provider toggle entry with authorization, preview, status and recovery semantics exists. | Not proven |
+
+The evidence therefore fails the all-gates requirement in the design and roadmap. Capability-local `Unavailable` or
+`Degraded` remains the failure vocabulary; it must not be converted into a topology mutation or hidden reload. Any
+future reconsideration must first define a canonical activation fact, versioned migration, admission/drain protocol,
+rollback receipt, authorization/audit entry and conformance evidence without adding a dynamic Plugin Loader, second DI,
+scheduler or Task state machine.
 
 ## Phase 0 Resource Inventory
 

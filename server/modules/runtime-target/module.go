@@ -353,7 +353,7 @@ func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Aut
 	m.authorizer = authorizer
 	m.realtimeTickets = realtimeTickets
 	m.topicIssuers = topicIssuers
-	m.collector = newRuntimeTargetSummaryCollector(hub, m.collectRealtimeSummaries)
+	m.collector = newRuntimeTargetSummaryCollector(hub, m.runtimeLogger, m.collectRealtimeSummaries)
 	return m.topicIssuers.Register(contract.SummaryTopic, m)
 }
 

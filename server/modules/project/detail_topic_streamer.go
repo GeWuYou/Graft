@@ -166,7 +166,7 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 		return
 	}
 	// runID 防止旧一轮协程在取消后覆盖新一轮主题状态。
-	runCtx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(s.service.realtimeStreamContext())
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++
@@ -177,7 +177,7 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 
 	go func() {
 		defer markProjectRuntimeTopicStreamDone(done)
-		s.publish(topic, projectID)
+		s.publish(runCtx, topic, projectID)
 		ticker := time.NewTicker(projectDetailTopicRefreshInterval)
 		defer ticker.Stop()
 		for {
@@ -186,17 +186,17 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 				s.clearRun(topic, runID)
 				return
 			case <-ticker.C:
-				s.publish(topic, projectID)
+				s.publish(runCtx, topic, projectID)
 			}
 		}
 	}()
 }
 
-func (s *projectRuntimeTopicStreamer) publish(topic string, projectID uint64) {
+func (s *projectRuntimeTopicStreamer) publish(parent context.Context, topic string, projectID uint64) {
 	if s == nil || s.service == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), projectDetailTopicRefreshInterval)
+	ctx, cancel := context.WithTimeout(parent, projectDetailTopicRefreshInterval)
 	defer cancel()
 	payload, err := s.service.buildProjectRuntimeRealtimePayload(ctx, topic, projectID)
 	if err != nil {

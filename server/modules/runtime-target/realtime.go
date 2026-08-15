@@ -6,7 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 	contract "graft/server/modules/runtime-target/contract"
 )
@@ -20,19 +23,31 @@ type runtimeTargetSummaryPublished struct {
 
 // runtimeTargetSummaryCollector 仅在主题存在订阅者时发布最新目标快照。
 type runtimeTargetSummaryCollector struct {
-	collect func(context.Context) []generated.RuntimeTargetSummary
+	collect func(context.Context) ([]generated.RuntimeTargetSummary, error)
 	hub     realtime.Hub
+	logger  *zap.Logger
 
-	mu       sync.Mutex
-	cancel   context.CancelFunc
-	done     chan struct{}
-	active   bool
-	observer func()
+	mu          sync.Mutex
+	cancel      context.CancelFunc
+	done        chan struct{}
+	active      bool
+	observer    func()
+	diagnostics runtimeTargetSummaryCollectorDiagnostics
+}
+
+// runtimeTargetSummaryCollectorDiagnostics 是 collector 自有的退化证据，不改变 Runtime Target 的持久化 authority。
+type runtimeTargetSummaryCollectorDiagnostics struct {
+	CollectFailures int64
+	LastError       string
+	LastCollectedAt time.Time
 }
 
 // newRuntimeTargetSummaryCollector 创建运行时目标摘要收集器，并配置其实时发布中心和摘要收集函数。
-func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Context) []generated.RuntimeTargetSummary) *runtimeTargetSummaryCollector {
-	return &runtimeTargetSummaryCollector{hub: hub, collect: collect}
+func newRuntimeTargetSummaryCollector(hub realtime.Hub, logger *zap.Logger, collect func(context.Context) ([]generated.RuntimeTargetSummary, error)) *runtimeTargetSummaryCollector {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	return &runtimeTargetSummaryCollector{hub: hub, logger: logger, collect: collect}
 }
 
 // Start 启动摘要采集协程；支持主题观察时仅在存在订阅者期间采集，否则保持兼容性地持续采集。
@@ -124,7 +139,13 @@ func (c *runtimeTargetSummaryCollector) run(ctx context.Context, done chan struc
 			if !active {
 				continue
 			}
-			items := c.collect(ctx)
+			items, err := c.collect(ctx)
+			if err != nil {
+				c.recordCollectFailure(err)
+				logsafe.Warn(c.logger, "collect runtime target realtime summaries failed", zap.Error(err))
+				continue
+			}
+			c.recordCollectSuccess()
 			if len(items) > 0 {
 				c.hub.Publish(contract.SummaryTopic, runtimeTargetSummaryPublished{Topic: contract.SummaryTopic, Items: items})
 			}
@@ -132,19 +153,41 @@ func (c *runtimeTargetSummaryCollector) run(ctx context.Context, done chan struc
 	}
 }
 
-func (m *Module) collectRealtimeSummaries(ctx context.Context) []generated.RuntimeTargetSummary {
+func (c *runtimeTargetSummaryCollector) Diagnostics() runtimeTargetSummaryCollectorDiagnostics {
+	if c == nil {
+		return runtimeTargetSummaryCollectorDiagnostics{}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.diagnostics
+}
+
+func (c *runtimeTargetSummaryCollector) recordCollectFailure(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.diagnostics.CollectFailures++
+	c.diagnostics.LastError = err.Error()
+}
+
+func (c *runtimeTargetSummaryCollector) recordCollectSuccess() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.diagnostics.LastCollectedAt = time.Now().UTC()
+}
+
+func (m *Module) collectRealtimeSummaries(ctx context.Context) ([]generated.RuntimeTargetSummary, error) {
 	if m == nil || m.repository == nil {
-		return nil
+		return nil, nil
 	}
 	items, err := m.repository.List(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	mapped := make([]generated.RuntimeTargetSummary, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, m.toHTTPSummary(ctx, item))
 	}
-	return mapped
+	return mapped, nil
 }
 
 // IssueSubscription 校验权限并为目标摘要更新签发 websocket 票据。

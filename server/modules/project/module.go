@@ -168,6 +168,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil {
 		return nil
 	}
+	m.service.SetLifecycleContext(ctx.LifecycleContext)
 	if err := m.service.BackfillRuntimeTargets(ctx.LifecycleContext); err != nil {
 		return err
 	}

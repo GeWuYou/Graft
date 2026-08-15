@@ -21,6 +21,7 @@ import (
 	"graft/server/internal/contract/errorcode"
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/moduleapi"
 )
 
@@ -108,6 +109,7 @@ func (s *AgentBootstrapServer) Start(addr string) (<-chan error, error) {
 		defer s.clearRunningServer(server)
 		err := server.Serve(listener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logsafe.Error(s.logger, "agent bootstrap listener serve failed", zap.Error(err))
 			errCh <- fmt.Errorf("serve agent bootstrap TLS: %w", err)
 		}
 		close(errCh)
@@ -124,7 +126,7 @@ func (s *AgentBootstrapServer) Shutdown(ctx context.Context) error {
 	if server == nil {
 		return nil
 	}
-	return server.Shutdown(ctx)
+	return shutdownHTTPServer(ctx, server, s.logger, "agent bootstrap listener")
 }
 
 func (s *AgentBootstrapServer) bindRunningServer(server *http.Server) error {

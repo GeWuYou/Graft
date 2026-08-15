@@ -82,3 +82,37 @@
 - Added capability-local health vocabulary (`Ready`, `Degraded`, `Unavailable`) without a global registry. Provider/Agent/Runner/Task/realtime facts and lifecycle owners remain unchanged.
 - Explicitly rejected string service lookup, runtime dependency solving, `module.Context` expansion, a second DI/scheduler/Task state machine, dynamic Plugin Loader, and HMR.
 - Validation: `gofmt`, focused `go test ./modules/task ./internal/module`, `go run ./cmd/graft validate backend --stage lint`, and `go build ./cmd/graft`; docs validation `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-16 phase-4-controlled-change-evaluation
+
+- Startup receipt: governance source `AGENTS.md`; task class `cross-boundary`; recovery source parent topic
+  `runtime-composability-governance`; owned scope controlled Runtime/Module/Provider/Agent/Runner/Task/realtime change
+  evaluation and topic tracking/trace.
+- Evaluated the required gates for runtime enable/disable: isolation, versioned persistent topology migration,
+  admission drain and rollback, canonical persisted fact authority, and a protected operational entry point.
+- Existing evidence is intentionally local: compile-time module composition shares one process/runtime; TaskPlan and
+  RuntimeTarget/Agent persistence protect domain facts but do not migrate topology; Runtime shutdown/dispatcher
+  terminal state and Agent reconnect provide local recovery but not an atomic topology rollback; restart, config
+  reconcile and reconnect are explicit operations but no audited runtime toggle exists.
+- Decision: gates are not proven. Keep runtime enable/disable, Module/Provider HMR, dynamic dependency solving and
+  loader/discovery out of implementation. Continue with process restart, config reconcile or Agent reconnect, and keep
+  capability failures capability-local (`Ready`/`Degraded`/`Unavailable`).
+- Batch transition: `phase-4-controlled-change-evaluation` complete; no pending implementation batch. Topic remains
+  active until the normal closeout/archive decision.
+- Documentation validation: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` passed.
+
+## 2026-08-16 topic-closeout-and-archive-readiness
+
+- Archive readiness is not approved. Rechecking the Phase 0 P0 inventory found no completion evidence for candidates
+  3 through 5: project/container detached-context shutdown paths; RuntimeTarget and Agent/collector failure
+  observability; and lifecycle conformance checks for Register, MemoryBus and cron Registry boundaries.
+- Restored the topic to `active` and added `phase-5-remaining-p0-lifecycle-evidence`; Phase 4's intentional rejection
+  of runtime enable/disable remains complete and unchanged.
+- Added the missing active-topic startup prompt. Experience capture remains none because the governing recovery-entry
+  rule already exists in `ai-plan` guidance.
+
+## 2026-08-16 phase-5-remaining-p0-lifecycle-evidence
+
+- Phase 5 implementation evidence is complete for project/container stream lifecycle ownership, RuntimeTarget and Agent/collector observability, and Register/MemoryBus/cron Registry conformance.
+- Focused backend tests and conformance race tests passed; `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` passed.
+- No Resource Scope API, second scheduler, hidden worker, dynamic loader, or compatibility bridge was introduced. Topic remains active pending normal closeout/archive review.

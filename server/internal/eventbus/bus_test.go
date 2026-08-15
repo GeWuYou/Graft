@@ -61,6 +61,49 @@ func TestPublishDeliversEventToSubscribers(t *testing.T) {
 	assertReceivedPayloadAndTimestamp(t, received, "payload", before, after)
 }
 
+// TestPublishWaitsForHandlerCompletion 验证 MemoryBus 不会把同步处理器偷偷转交
+// 给后台 goroutine；发布调用必须等处理器返回后才完成，生命周期也因此仍由
+// 调用方和进程级总线边界显式拥有。
+func TestPublishWaitsForHandlerCompletion(t *testing.T) {
+	bus := New(zap.NewNop())
+	started := make(chan struct{})
+	release := make(chan struct{})
+	completed := make(chan error, 1)
+
+	if err := bus.Subscribe("lifecycle.probe", func(_ context.Context, _ Event) error {
+		close(started)
+		<-release
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe handler: %v", err)
+	}
+
+	go func() {
+		completed <- bus.Publish(context.Background(), Event{Name: "lifecycle.probe"})
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for synchronous handler to start")
+	}
+	select {
+	case err := <-completed:
+		t.Fatalf("publish returned before handler completion: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case err := <-completed:
+		if err != nil {
+			t.Fatalf("publish event: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for publish completion")
+	}
+}
+
 // TestPublishAggregatesHandlerFailures 验证单个处理器失败或 panic 时，
 // 总线仍会继续调用其余处理器并返回聚合错误。
 func TestPublishAggregatesHandlerFailures(t *testing.T) {

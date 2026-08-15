@@ -2,6 +2,7 @@ package runtimetarget
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,9 +36,9 @@ func (h *runtimeTargetRealtimeHubStub) RegisterTopicObserver(_ string, onActive 
 func TestRuntimeTargetSummaryCollectorPublishesOnlyAfterTopicActivation(t *testing.T) {
 	hub := &runtimeTargetRealtimeHubStub{published: make(chan realtime.Event, 1)}
 	var calls atomic.Int32
-	collector := newRuntimeTargetSummaryCollector(hub, func(context.Context) []generated.RuntimeTargetSummary {
+	collector := newRuntimeTargetSummaryCollector(hub, nil, func(context.Context) ([]generated.RuntimeTargetSummary, error) {
 		calls.Add(1)
-		return []generated.RuntimeTargetSummary{{Id: 7}}
+		return []generated.RuntimeTargetSummary{{Id: 7}}, nil
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -60,6 +61,37 @@ func TestRuntimeTargetSummaryCollectorPublishesOnlyAfterTopicActivation(t *testi
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("collector did not publish an active snapshot")
+	}
+	if err := collector.Stop(context.Background()); err != nil {
+		t.Fatalf("stop collector: %v", err)
+	}
+}
+
+func TestRuntimeTargetSummaryCollectorRecordsCollectFailure(t *testing.T) {
+	hub := &runtimeTargetRealtimeHubStub{published: make(chan realtime.Event, 1)}
+	collector := newRuntimeTargetSummaryCollector(hub, nil, func(context.Context) ([]generated.RuntimeTargetSummary, error) {
+		return nil, errors.New("repository unavailable")
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := collector.Start(ctx); err != nil {
+		t.Fatalf("start collector: %v", err)
+	}
+	hub.onActive(contract.SummaryTopic)
+	deadline := time.After(2 * time.Second)
+	for {
+		diagnostics := collector.Diagnostics()
+		if diagnostics.CollectFailures > 0 {
+			if diagnostics.LastError != "repository unavailable" {
+				t.Fatalf("last error = %q", diagnostics.LastError)
+			}
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("collector did not record the repository failure")
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 	if err := collector.Stop(context.Background()); err != nil {
 		t.Fatalf("stop collector: %v", err)

@@ -13,13 +13,21 @@ import (
 )
 
 type logTopicStreamer struct {
-	hub           realtime.Hub
-	monitor       realtime.TopicSubscriptionMonitor
-	logger        *zap.Logger
-	runtimeLoader func() (Runtime, error)
+	hub              realtime.Hub
+	monitor          realtime.TopicSubscriptionMonitor
+	logger           *zap.Logger
+	runtimeLoader    func() (Runtime, error)
+	lifecycleContext context.Context
 
 	mu      sync.Mutex
 	streams map[string]*logTopicStream
+}
+
+func (s *logTopicStreamer) streamContext() context.Context {
+	if s != nil && s.lifecycleContext != nil {
+		return s.lifecycleContext
+	}
+	return context.Background()
 }
 
 type logTopicStream struct {
@@ -141,8 +149,10 @@ func (s *logTopicStreamer) Close(ctx context.Context) error {
 
 	var closeErr error
 	for _, topic := range topics {
-		if err := s.stop(ctx, topic); err != nil {
-			closeErr = errors.Join(closeErr, err)
+		stopErr := s.stop(ctx, topic)
+		closeErr = errors.Join(closeErr, stopErr)
+		if stopErr != nil {
+			continue
 		}
 		s.mu.Lock()
 		stream := s.streams[topic]
@@ -162,7 +172,7 @@ func (s *logTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
-	runCtx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(s.streamContext())
 	stream.cancel = cancel
 	stream.done = make(chan struct{})
 	stream.runID++
@@ -263,6 +273,7 @@ func (s *service) ensureLogTopicStreaming(ctx context.Context, topic string, ref
 			return err
 		}
 		s.logTopicStreamer = streamer
+		streamer.lifecycleContext = s.lifecycleContext
 	}
 	s.logTopicStreamerMu.Unlock()
 	return streamer.EnsureTopic(ctx, topic, ref, query)

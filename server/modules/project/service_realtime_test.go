@@ -149,7 +149,7 @@ func TestProjectListTopicStreamerPublishesWithoutRequestAuthContext(t *testing.T
 	if err != nil {
 		t.Fatalf("new list topic streamer: %v", err)
 	}
-	streamer.publish(projectcontract.ApplicationListSummaryTopic)
+	streamer.publish(context.Background(), projectcontract.ApplicationListSummaryTopic)
 
 	select {
 	case event := <-events:

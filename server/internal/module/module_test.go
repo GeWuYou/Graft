@@ -4,12 +4,34 @@ import (
 	"context"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"graft/server/internal/buildinfo"
 )
 
 type testModule struct{}
+
+type lifecycleCallRecorder struct {
+	register atomic.Int32
+	boot     atomic.Int32
+	shutdown atomic.Int32
+}
+
+func (r *lifecycleCallRecorder) Register(_ *Context) error {
+	r.register.Add(1)
+	return nil
+}
+
+func (r *lifecycleCallRecorder) Boot(_ *Context) error {
+	r.boot.Add(1)
+	return nil
+}
+
+func (r *lifecycleCallRecorder) Shutdown(_ *Context) error {
+	r.shutdown.Add(1)
+	return nil
+}
 
 type testRequiredCapability interface {
 	Run(context.Context) error
@@ -24,6 +46,40 @@ func (m testModule) Register(_ *Context) error { return nil }
 func (m testModule) Boot(_ *Context) error { return nil }
 
 func (m testModule) Shutdown(_ *Context) error { return nil }
+
+// TestManagerRegistrationDoesNotInvokeModuleLifecycle 验证模块登记与描述符构造
+// 只建立运行时元数据，不提前执行 Register、Boot 或 Shutdown，长期资源只能由
+// Runtime 的显式生命周期阶段拥有。
+func TestManagerRegistrationDoesNotInvokeModuleLifecycle(t *testing.T) {
+	recorder := &lifecycleCallRecorder{}
+	runtimeModule, err := (Spec{
+		ID: "lifecycle-recorder",
+		Builder: BuilderFunc(func(BuildContext) (Module, error) {
+			return recorder, nil
+		}),
+	}).Build(BuildContext{})
+	if err != nil {
+		t.Fatalf("build module: %v", err)
+	}
+
+	manager := NewManager()
+	if err := manager.RegisterModule(runtimeModule); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+	if _, err := manager.Ordered(); err != nil {
+		t.Fatalf("order modules: %v", err)
+	}
+
+	if got := recorder.register.Load(); got != 0 {
+		t.Fatalf("expected Register to remain untouched during registration, got %d calls", got)
+	}
+	if got := recorder.boot.Load(); got != 0 {
+		t.Fatalf("expected Boot to remain untouched during registration, got %d calls", got)
+	}
+	if got := recorder.shutdown.Load(); got != 0 {
+		t.Fatalf("expected Shutdown to remain untouched during registration, got %d calls", got)
+	}
+}
 
 // TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak 验证同一批模块在
 // 不同注册顺序下仍会按依赖和字母序得到稳定的运行时顺序。

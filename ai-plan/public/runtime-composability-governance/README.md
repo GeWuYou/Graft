@@ -10,7 +10,8 @@
   - `ai-plan/design/architecture/运行时组合与资源治理设计.md`
   - `ai-plan/design/architecture/项目设计.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
-- Completed so far: Work Intake, design, roadmap, topic bootstrap, lifecycle inventory/cleanup, narrow-scope evaluation, and Phase 3 typed composition declarations.
+- Completed: Work Intake, design, roadmap, topic bootstrap, lifecycle inventory/cleanup, narrow-scope evaluation,
+  Phase 3 typed composition declarations, Phase 4 controlled-change evaluation, and Phase 5 remaining P0 lifecycle evidence.
 
 ## Recovery Receipt
 
@@ -38,7 +39,15 @@ Out of scope:
 ## Current Recovery Point
 
 - Design authority is fixed for Graft's runtime composition model.
-- Next step: Phase 0 inventory and classify existing long-lived resources by creator, owner and disposer.
+- Phase 4 controlled-change evaluation is complete: runtime Module/Provider enable/disable remains unapproved.
+- Default operational paths remain process restart, config reconcile, or Agent reconnect.
+
+## Archive Readiness
+
+- Decision: archive is not yet approved.
+- The Phase 0 P0 inventory still lacks completion evidence for the project/container detached-context shutdown paths,
+  RuntimeTarget and Agent/collector failure observability, and lifecycle conformance checks. These require a bounded
+  follow-up before archive readiness can be accepted.
 
 ## Work Intake
 
