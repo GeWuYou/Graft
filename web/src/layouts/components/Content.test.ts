@@ -321,7 +321,7 @@ describe('Content', () => {
     });
 
     const transition = wrapper.findComponent(DeferredTransitionStub);
-    expect(transition.props('onAfterLeave')).toBeUndefined();
+    expect(transition.props('onAfterLeave')).toBeTypeOf('function');
     expect(wrapper.emitted('page-surface-ready')).toBeUndefined();
 
     const beforeEnter = transition.props('onBeforeEnter') as (() => void) | undefined;

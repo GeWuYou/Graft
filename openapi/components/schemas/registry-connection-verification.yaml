@@ -7,17 +7,12 @@ properties:
     maxLength: 128
   status:
     $ref: ./registry-verification-result.yaml
-    description: Verification outcome. Current values are verified and failed.
+    description: Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed.
   verified_at:
     type: string
     format: date-time
   error_code:
     type: string
     nullable: true
-    description: Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies.
-  diagnostic:
-    type: string
-    nullable: true
-    maxLength: 512
-    description: Sanitized operator diagnostic. Consumers must not parse it for control flow.
+    description: Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims.
 additionalProperties: false

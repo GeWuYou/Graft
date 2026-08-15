@@ -6,6 +6,10 @@ import RuntimeTargetListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   discoverLocalDocker: vi.fn(),
+  applyRuntimeTargetAssignmentBatch: vi.fn().mockResolvedValue(undefined),
+  getRuntimeTargetAssignmentCandidates: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+  getRuntimeTargetAssignmentsForTargets: vi.fn().mockResolvedValue(new Map()),
+  replaceRuntimeTargetAssignments: vi.fn().mockResolvedValue(undefined),
   deleteRuntimeTargetSavedView: vi.fn(),
   getRuntimeTargetSavedViews: vi.fn().mockResolvedValue([]),
   listRuntimeTargetPage: vi.fn(),
@@ -14,6 +18,9 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+const dialogMocks = vi.hoisted(() => ({
+  confirm: vi.fn<(options: { onCancel: () => void }) => { destroy: () => void }>(() => ({ destroy: vi.fn() })),
+}));
 const realtimeMocks = vi.hoisted(() => ({
   openRealtimeTopicSocket: vi.fn<
     (options: { topic: string; onMessage: (payload: { topic: string; items: unknown[] }) => void }) => {
@@ -25,6 +32,7 @@ const realtimeMocks = vi.hoisted(() => ({
 const routerMocks = vi.hoisted(() => ({ replace: vi.fn(), route: { query: {} as Record<string, string> } }));
 
 vi.mock('../../api/runtime-target', () => apiMocks);
+vi.mock('tdesign-vue-next/es/dialog', () => ({ DialogPlugin: dialogMocks }));
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
 vi.mock('@/shared/realtime', () => ({
   isRealtimePayloadObject: (value: unknown) => Boolean(value && typeof value === 'object' && !Array.isArray(value)),
@@ -112,6 +120,19 @@ function mountPage() {
           template: '<div data-testid="pagination" :data-options="pageSizeOptions.join(\',\')" />',
         }),
         't-progress': defineComponent({ name: 'TProgress', template: '<div class="progress" />' }),
+        'paged-multi-select': defineComponent({
+          name: 'PagedMultiSelect',
+          props: {
+            columns: { type: Array, default: () => [] },
+            errorMessage: { type: String, default: '' },
+            loading: { type: Boolean, default: false },
+            rows: { type: Array, default: () => [] },
+            selection: { type: Object, default: undefined },
+            visible: { type: Boolean, default: false },
+          },
+          emits: ['cancel', 'confirm', 'update:selection'],
+          template: '<div data-testid="runtime-target-batch-authorization" :data-visible="String(visible)" />',
+        }),
       },
     },
   });
@@ -123,6 +144,10 @@ describe('RuntimeTargetListPage', () => {
   beforeEach(() => {
     routerMocks.route.query = {};
     apiMocks.getRuntimeTargetSavedViews.mockResolvedValue([]);
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({ items: [], total: 0 });
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(new Map());
+    apiMocks.applyRuntimeTargetAssignmentBatch.mockResolvedValue(undefined);
+    apiMocks.replaceRuntimeTargetAssignments.mockResolvedValue(undefined);
     apiMocks.listRuntimeTargetPage.mockResolvedValue({
       items: [],
       total: 0,
@@ -137,6 +162,14 @@ describe('RuntimeTargetListPage', () => {
     wrapper = undefined;
     vi.clearAllMocks();
     vi.useRealTimers();
+  });
+
+  it('renders a single element root for the shell route transition', async () => {
+    wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.element).toBeInstanceOf(HTMLElement);
+    expect(wrapper.classes()).toContain('runtime-target-page-root');
   });
 
   it('loads paged target overview cards with the shared page-size choices', async () => {
@@ -394,5 +427,191 @@ describe('RuntimeTargetListPage', () => {
       isDefault: false,
     });
     expect(apiMocks.postRuntimeTargetSavedView.mock.calls[0]?.[0].queryState).not.toHaveProperty('page');
+  });
+
+  it('disables fully authorized users in batch grant while preserving each target assignment set', async () => {
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({
+      items: [
+        { display: 'All authorized', id: 7, username: 'all' },
+        { display: 'Partially authorized', id: 8, username: 'partial' },
+        { display: 'Not authorized', id: 9, username: 'none' },
+      ],
+      total: 3,
+    });
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(
+      new Map([
+        [1, new Set([7, 8, 11])],
+        [2, new Set([7, 12])],
+      ]),
+    );
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1, 2]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchAuthorize:')
+      ?.trigger('click');
+    await flushPromises();
+
+    const grantDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+    const selectColumn = grantDialog.props('columns')[0] as {
+      checkProps: ({ row }: { row: { authorization_state: string } }) => { disabled: boolean };
+    };
+    expect(selectColumn.checkProps({ row: { authorization_state: 'all' } })).toEqual({ disabled: true });
+    expect(selectColumn.checkProps({ row: { authorization_state: 'partial' } })).toEqual({ disabled: false });
+    expect(selectColumn.checkProps({ row: { authorization_state: 'none' } })).toEqual({ disabled: false });
+
+    await grantDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([8, 9]) });
+    await grantDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).toHaveBeenCalledWith([1, 2], [8, 9], 'grant');
+    expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.batchAuthorizeSuccess:');
+    expect(grantDialog.props('visible')).toBe(false);
+  });
+
+  it('does not let a closed batch dialog apply an in-flight candidate response', async () => {
+    let resolveCandidates: (value: {
+      items: Array<{ display: string; id: number; username: string }>;
+      total: number;
+    }) => void;
+    let resolveAssignments: (value: Map<number, Set<number>>) => void;
+    const staleCandidates = new Promise<{
+      items: Array<{ display: string; id: number; username: string }>;
+      total: number;
+    }>((resolve) => {
+      resolveCandidates = resolve;
+    });
+    const staleAssignments = new Promise<Map<number, Set<number>>>((resolve) => {
+      resolveAssignments = resolve;
+    });
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockReturnValueOnce(staleCandidates);
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockReturnValueOnce(staleAssignments);
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchAuthorize:')
+      ?.trigger('click');
+    await wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!.vm.$emit('cancel');
+
+    resolveCandidates!({ items: [{ display: 'Stale', id: 9, username: 'stale' }], total: 1 });
+    resolveAssignments!(new Map([[1, new Set([9])]]));
+    await flushPromises();
+
+    const grantDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+    expect(grantDialog.props('visible')).toBe(false);
+    expect(grantDialog.props('rows')).toEqual([]);
+  });
+
+  it('disables unauthorized users in batch revoke and subtracts users from every selected target', async () => {
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({
+      items: [
+        { display: 'All authorized', id: 7, username: 'all' },
+        { display: 'Partially authorized', id: 8, username: 'partial' },
+        { display: 'Not authorized', id: 9, username: 'none' },
+      ],
+      total: 3,
+    });
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(
+      new Map([
+        [1, new Set([7, 8, 11])],
+        [2, new Set([7, 12])],
+      ]),
+    );
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1, 2]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchRevoke:')
+      ?.trigger('click');
+    await flushPromises();
+
+    const revokeDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+    const selectColumn = revokeDialog.props('columns')[0] as {
+      checkProps: ({ row }: { row: { authorization_state: string } }) => { disabled: boolean };
+    };
+    expect(selectColumn.checkProps({ row: { authorization_state: 'all' } })).toEqual({ disabled: false });
+    expect(selectColumn.checkProps({ row: { authorization_state: 'partial' } })).toEqual({ disabled: false });
+    expect(selectColumn.checkProps({ row: { authorization_state: 'none' } })).toEqual({ disabled: true });
+
+    await revokeDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([7]) });
+    await revokeDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).toHaveBeenCalledWith([1, 2], [7], 'revoke');
+    expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.batchRevokeSuccess:');
+    expect(revokeDialog.props('visible')).toBe(false);
+  });
+
+  it('requires confirmation before partially authorized users are revoked and leaves assignments unchanged on cancel', async () => {
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({
+      items: [{ display: 'Partially authorized', id: 8, username: 'partial' }],
+      total: 1,
+    });
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(
+      new Map([
+        [1, new Set([8, 11])],
+        [2, new Set([12])],
+      ]),
+    );
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1, 2]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchRevoke:')
+      ?.trigger('click');
+    await flushPromises();
+    const revokeDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[1]!;
+
+    await revokeDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([8]) });
+    await revokeDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: 'runtimeTarget.list.batchRevokeConfirmTitle:',
+        body: 'runtimeTarget.list.batchRevokePartialWarning:',
+      }),
+    );
+    const options = dialogMocks.confirm.mock.calls[0]?.[0] as { onCancel: () => void };
+    options.onCancel();
+    await flushPromises();
+
+    expect(apiMocks.applyRuntimeTargetAssignmentBatch).not.toHaveBeenCalled();
+    expect(revokeDialog.props('visible')).toBe(true);
+  });
+
+  it('keeps the grant dialog open and exposes its error when assignment replacement fails', async () => {
+    apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({
+      items: [{ display: 'Not authorized', id: 9, username: 'none' }],
+      total: 1,
+    });
+    apiMocks.getRuntimeTargetAssignmentsForTargets.mockResolvedValue(new Map([[1, new Set([7])]]));
+    apiMocks.applyRuntimeTargetAssignmentBatch.mockRejectedValueOnce(new Error('failed'));
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findComponent({ name: 'TTable' }).vm.$emit('select-change', [1]);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.batchAuthorize:')
+      ?.trigger('click');
+    await flushPromises();
+    const grantDialog = wrapper.findAllComponents({ name: 'PagedMultiSelect' })[0]!;
+
+    await grantDialog.vm.$emit('update:selection', { mode: 'explicit', selectedIds: new Set([9]) });
+    await grantDialog.vm.$emit('confirm');
+    await flushPromises();
+
+    expect(grantDialog.props('visible')).toBe(true);
+    expect(grantDialog.props('errorMessage')).toBe('runtimeTarget.list.batchAuthorizeError:');
   });
 });

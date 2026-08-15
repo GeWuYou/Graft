@@ -15,6 +15,52 @@ import (
 	registrystore "graft/server/modules/registry/store"
 )
 
+type registryVerificationExecutionStub struct {
+	calls   int
+	request moduleapi.OCIRegistryVerificationRequest
+	result  moduleapi.OCIRegistryVerificationResult
+	err     error
+}
+
+func (s *registryVerificationExecutionStub) VerifyOCIRegistry(_ context.Context, request moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	s.calls++
+	s.request = request
+	if s.result == (moduleapi.OCIRegistryVerificationResult{}) && s.err == nil {
+		s.result = moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}
+	}
+	return s.result, s.err
+}
+
+type registryVerificationTargetAssignments struct{ allowed bool }
+
+func (registryVerificationTargetAssignments) ListAssignedBuildTargets(context.Context, uint64) ([]moduleapi.BuildRuntimeTargetSummary, error) {
+	return nil, nil
+}
+
+func (s registryVerificationTargetAssignments) CanUseBuildTarget(context.Context, uint64, int64) (bool, error) {
+	return s.allowed, nil
+}
+
+func TestVerifyConnectionRejectsUnauthorizedRuntimeTargetBeforeAdapter(t *testing.T) {
+	db := openRegistryTestDB(t)
+	seedRegistryDestination(t, db, true, true, false, true)
+	repository, err := registrystore.NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	adapter := &registryVerificationExecutionStub{}
+	service := NewService(repository)
+	service.bindRuntimeExecutionAdapter(adapter)
+	service.bindRuntimeTargetBuildAssignments(registryVerificationTargetAssignments{allowed: false})
+
+	if _, err := service.VerifyConnection(context.Background(), "registry:primary", 9, VerificationInput{RuntimeTargetID: 1, RepositoryRef: "team/api"}); err == nil {
+		t.Fatal("unauthorized runtime target verification unexpectedly succeeded")
+	}
+	if adapter.calls != 0 {
+		t.Fatalf("verification adapter calls = %d, want 0", adapter.calls)
+	}
+}
+
 func TestResolveArtifactDestinationRequiresLiveAssignedPublishRepository(t *testing.T) {
 	db := openRegistryTestDB(t)
 	seedRegistryDestination(t, db, true, true, false, true)

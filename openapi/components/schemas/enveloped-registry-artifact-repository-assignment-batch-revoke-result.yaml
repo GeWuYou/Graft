@@ -1,0 +1,5 @@
+type: object
+required: [data]
+properties:
+  data:
+    $ref: ./registry-artifact-repository-assignment-batch-revoke-result.yaml

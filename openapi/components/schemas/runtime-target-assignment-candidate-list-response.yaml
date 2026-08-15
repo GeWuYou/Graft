@@ -1,0 +1,9 @@
+type: object
+required: [items, total, limit, offset]
+properties:
+  items:
+    type: array
+    items: {$ref: ./runtime-target-assignment-candidate.yaml}
+  total: {type: integer, minimum: 0}
+  limit: {type: integer, minimum: 1}
+  offset: {type: integer, minimum: 0}

@@ -3721,9 +3721,44 @@ export interface paths {
     };
     /** List deployment users assigned to a runtime target */
     get: operations['getRuntimeTargetAssignments'];
-    put?: never;
+    /** Replace all users assigned to a runtime target */
+    put: operations['putRuntimeTargetAssignments'];
     /** Grant a user deployment use of a runtime target */
     post: operations['postRuntimeTargetAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-target-assignments/batch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Grant or revoke users across runtime targets atomically */
+    post: operations['postRuntimeTargetAssignmentsBatch'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/assignment-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List users eligible for runtime target assignment management */
+    get: operations['getRuntimeTargetAssignmentCandidates'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3815,7 +3850,7 @@ export interface paths {
     put?: never;
     /**
      * Verify a Registry Connection
-     * @description Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.
+     * @description Runs a bounded Generic OCI Registry V2 authentication verification through the selected Runtime Target. The caller can select only a Runtime Target and an existing Artifact Repository scope; endpoint and credential values remain server-owned.
      */
     post: operations['postRegistryVerify'];
     delete?: never;
@@ -3877,6 +3912,26 @@ export interface paths {
      * @description Validates all requested repositories and users before adding missing assignments. Existing active assignments are retained.
      */
     post: operations['postRegistryArtifactRepositoryAssignmentsBatchAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/registries/{connectionRef}/repository-assignments/batch-revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke users from Artifact Repositories in one transaction
+     * @description Validates all requested repositories and users before soft-deleting active assignments. Missing assignments are ignored.
+     */
+    post: operations['postRegistryArtifactRepositoryAssignmentsBatchRevoke'];
     delete?: never;
     options?: never;
     head?: never;
@@ -5228,6 +5283,7 @@ export interface components {
     RegistryConnection: components['schemas']['registry-connection'];
     RegistryConnectionCreateRequest: components['schemas']['registry-connection-create-request'];
     RegistryConnectionUpdateRequest: components['schemas']['registry-connection-update-request'];
+    RegistryConnectionVerificationRequest: components['schemas']['registry-connection-verification-request'];
     RegistryConnectionListResponse: components['schemas']['registry-connection-list-response'];
     RegistryConnectionVerification: components['schemas']['registry-connection-verification'];
     RegistryVerificationResult: components['schemas']['registry-verification-result'];
@@ -10003,10 +10059,23 @@ export interface components {
       created_by?: number;
     };
     'runtime-target-user-assignment-list-response': {
+      /**
+       * Format: int64
+       * @description Monotonic revision of the assignment collection.
+       */
+      revision: number;
       items: components['schemas']['runtime-target-user-assignment'][];
     };
     'enveloped-runtime-target-user-assignment-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment-list-response'];
+    };
+    'runtime-target-user-assignment-replace-request': {
+      /**
+       * Format: int64
+       * @description Assignment collection revision returned by the latest read.
+       */
+      revision: number;
+      user_ids: number[];
     };
     'runtime-target-user-assignment-request': {
       /** Format: int64 */
@@ -10014,6 +10083,37 @@ export interface components {
     };
     'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-user-assignment'];
+    };
+    'runtime-target-assignment-batch-request': {
+      target_ids: number[];
+      user_ids: number[];
+      /** @enum {string} */
+      action: 'grant' | 'revoke';
+    };
+    'runtime-target-assignment-batch-result': {
+      /** Format: int64 */
+      targets: number;
+      /** Format: int64 */
+      users: number;
+    };
+    'enveloped-runtime-target-assignment-batch-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-assignment-batch-result'];
+    };
+    'runtime-target-assignment-candidate': {
+      /** Format: int64 */
+      id: number;
+      username: string;
+      display: string;
+      status: string;
+    };
+    'runtime-target-assignment-candidate-list-response': {
+      items: components['schemas']['runtime-target-assignment-candidate'][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-runtime-target-assignment-candidate-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-assignment-candidate-list-response'];
     };
     'registry-connection': {
       /** @description Stable external Registry Connection reference used by Build destination contracts. */
@@ -10118,21 +10218,28 @@ export interface components {
       insecure: boolean;
       description?: string | null;
     };
+    'registry-connection-verification-request': {
+      /**
+       * Format: int64
+       * @description Explicit Runtime Target execution identity. It is used only for this verification attempt and is not stored on the Registry Connection.
+       */
+      runtime_target_id: number;
+      /** @description Existing Artifact Repository reference used only to constrain credential scope. It does not request or prove pull or push authorization. */
+      repository_ref: string;
+    };
     /**
-     * @description Terminal result of one Registry connection verification attempt.
+     * @description Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization.
      * @enum {string}
      */
     'registry-verification-result': 'verified' | 'failed';
     'registry-connection-verification': {
       connection_ref: string;
-      /** @description Verification outcome. Current values are verified and failed. */
+      /** @description Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed. */
       status: components['schemas']['registry-verification-result'];
       /** Format: date-time */
       verified_at: string;
-      /** @description Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies. */
+      /** @description Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims. */
       error_code?: string | null;
-      /** @description Sanitized operator diagnostic. Consumers must not parse it for control flow. */
-      diagnostic?: string | null;
     };
     'enveloped-registry-connection-verification': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-connection-verification'];
@@ -10239,6 +10346,30 @@ export interface components {
     };
     'enveloped-registry-artifact-repository-assignment-batch-add-result': components['schemas']['api-envelope'] & {
       data: components['schemas']['registry-artifact-repository-assignment-batch-add-result'];
+    };
+    'registry-artifact-repository-assignment-batch-revoke-request': {
+      repository_refs: string[];
+      user_ids: number[];
+    };
+    'registry-artifact-repository-assignment-batch-revoke-result': {
+      /**
+       * Format: int64
+       * @description Number of requested repository-user assignment pairs.
+       */
+      total: number;
+      /**
+       * Format: int64
+       * @description Number of active assignments soft-deleted by this request.
+       */
+      revoked_count: number;
+      /**
+       * Format: int64
+       * @description Number of requested assignments that were not active.
+       */
+      not_assigned_count: number;
+    };
+    'enveloped-registry-artifact-repository-assignment-batch-revoke-result': {
+      data: components['schemas']['registry-artifact-repository-assignment-batch-revoke-result'];
     };
     'registry-repository-assignment-candidate': {
       /** Format: int64 */
@@ -22705,6 +22836,58 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  putRuntimeTargetAssignments: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-user-assignment-replace-request'];
+      };
+    };
+    responses: {
+      /** @description Complete active assignments after atomic replacement. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
+        };
+      };
+      /** @description Invalid user IDs */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target or user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postRuntimeTargetAssignment: {
     parameters: {
       query?: never;
@@ -22748,6 +22931,88 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Runtime target or user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      409: components['responses']['conflict'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetAssignmentsBatch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-assignment-batch-request'];
+      };
+    };
+    responses: {
+      /** @description Batch assignment mutation completed atomically. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-assignment-batch-result'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargetAssignmentCandidates: {
+    parameters: {
+      query?: {
+        search?: string;
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Paged user assignment candidates. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-assignment-candidate-list-response'];
+        };
+      };
+      /** @description Invalid limit, offset, search, or runtime target ID */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
       404: {
         headers: {
           [name: string]: unknown;
@@ -23035,7 +23300,11 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-connection-verification-request'];
+      };
+    };
     responses: {
       /** @description Registry verification completed. Failure is represented by data.status instead of remote diagnostic details. */
       200: {
@@ -23370,6 +23639,46 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-registry-artifact-repository-assignment-batch-add-result'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRegistryArtifactRepositoryAssignmentsBatchRevoke: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable Registry Connection reference. It is the connection_ref used by the Build destination contract. */
+        connectionRef: components['parameters']['registry-connection-ref-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['registry-artifact-repository-assignment-batch-revoke-request'];
+      };
+    };
+    responses: {
+      /** @description Active Repository user assignments were revoked atomically. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-registry-artifact-repository-assignment-batch-revoke-result'];
         };
       };
       400: components['responses']['bad-request'];

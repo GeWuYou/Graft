@@ -77,6 +77,7 @@ func TestReplaceAssignmentsRejectsInvalidUserInLargeSetBeforeClearingAssignments
 	}
 }
 
+//nolint:dupl // 批量追加与撤销都必须验证 SQL 事务调用序列，测试故意保持对称。
 func TestAddAssignmentsAddsOnlyMissingPairsAfterValidatingAllTargets(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.ValueConverterOption(registrySQLValueConverter{}))
 	if err != nil {
@@ -108,6 +109,79 @@ WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0`
 	}
 	if result != (AssignmentBatchAddResult{Total: 4, AddedCount: 3, AlreadyAssignedCount: 1}) {
 		t.Fatalf("batch result = %#v", result)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected database operation: %v", err)
+	}
+}
+
+//nolint:dupl // 批量追加与撤销都必须验证 SQL 事务调用序列，测试故意保持对称。
+func TestRevokeAssignmentsValidatesTargetsBeforeSoftDeletingMatrix(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.ValueConverterOption(registrySQLValueConverter{}))
+	if err != nil {
+		t.Fatalf("create sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0`)).
+		WithArgs("registry:primary", "registry-string-array").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM users WHERE id = ANY($1)`)).
+		WithArgs("registry-uint64-array").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE artifact_repository_user_assignments a
+SET deleted_at = EXTRACT(EPOCH FROM NOW())::BIGINT, deleted_by = $4, updated_at = NOW(), updated_by = $4
+FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE a.repository_id = r.id AND c.connection_ref = $1 AND r.repository_ref = ANY($2)
+  AND a.user_id = ANY($3) AND r.deleted_at = 0 AND a.deleted_at = 0`)).
+		WithArgs("registry:primary", "registry-string-array", "registry-uint64-array", uint64(7)).
+		WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	result, err := repository.RevokeAssignments(context.Background(), "registry:primary", AssignmentBatchRevokeInput{RepositoryRefs: []string{"app", "team/app"}, UserIDs: []uint64{7, 9}}, 7)
+	if err != nil {
+		t.Fatalf("revoke assignments: %v", err)
+	}
+	if result != (AssignmentBatchRevokeResult{Total: 4, RevokedCount: 3, NotAssignedCount: 1}) {
+		t.Fatalf("batch result = %#v", result)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected database operation: %v", err)
+	}
+}
+
+func TestRevokeAssignmentsRollsBackWhenUserValidationFails(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.ValueConverterOption(registrySQLValueConverter{}))
+	if err != nil {
+		t.Fatalf("create sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0`)).
+		WithArgs("registry:primary", "registry-string-array").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM users WHERE id = ANY($1)`)).
+		WithArgs("registry-uint64-array").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectRollback()
+
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	_, err = repository.RevokeAssignments(context.Background(), "registry:primary", AssignmentBatchRevokeInput{RepositoryRefs: []string{"app"}, UserIDs: []uint64{99}}, 7)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("revoke assignments error = %v, want ErrNotFound", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unexpected database operation: %v", err)

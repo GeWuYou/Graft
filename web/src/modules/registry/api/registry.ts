@@ -7,6 +7,7 @@ type CreateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistry]
 type UpdateConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistry]['put'];
 type GetConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistry]['get'];
 type VerifyConnectionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryVerify]['post'];
+type BuildRuntimeTargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets]['get'];
 type RepositoryListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryArtifactRepositories]['get'];
 type CreateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepository]['post'];
 type UpdateRepositoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRegistryArtifactRepository]['put'];
@@ -17,6 +18,8 @@ type AssignmentCandidatesOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.getRegistryRepositoryAssignmentCandidates]['get'];
 type AddAssignmentsOperation =
   paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignmentsBatchAdd]['post'];
+type RevokeAssignmentsOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.postRegistryArtifactRepositoryAssignmentsBatchRevoke]['post'];
 
 export function getRegistries(query?: ListConnectionsOperation['parameters']['query']) {
   return request.get<NonNullable<ListConnectionsOperation['responses'][200]['content']['application/json']['data']>>({
@@ -52,9 +55,22 @@ export function deleteRegistry(connectionRef: string) {
   return request.delete({ url: buildOpenApiRuntimePath('deleteRegistry', { connectionRef }) });
 }
 
-export function verifyRegistry(connectionRef: string) {
+export function verifyRegistry(
+  connectionRef: string,
+  payload: VerifyConnectionOperation['requestBody']['content']['application/json'],
+) {
   return request.post<NonNullable<VerifyConnectionOperation['responses'][200]['content']['application/json']['data']>>({
     url: buildOpenApiRuntimePath('postRegistryVerify', { connectionRef }),
+    data: payload,
+  });
+}
+
+// getRegistryVerificationTargets 只返回当前操作者已获授权的 Runtime Target 摘要。
+export function getRegistryVerificationTargets() {
+  return request.get<
+    NonNullable<BuildRuntimeTargetListOperation['responses'][200]['content']['application/json']['data']>
+  >({
+    url: OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets,
   });
 }
 
@@ -138,4 +154,16 @@ export function addRegistryRepositoryAssignments(
     url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignmentsBatchAdd', { connectionRef }),
     data: payload,
   });
+}
+
+export function revokeRegistryRepositoryAssignments(
+  connectionRef: string,
+  payload: RevokeAssignmentsOperation['requestBody']['content']['application/json'],
+) {
+  return request.post<NonNullable<RevokeAssignmentsOperation['responses'][200]['content']['application/json']['data']>>(
+    {
+      url: buildOpenApiRuntimePath('postRegistryArtifactRepositoryAssignmentsBatchRevoke', { connectionRef }),
+      data: payload,
+    },
+  );
 }

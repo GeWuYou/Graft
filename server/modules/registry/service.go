@@ -15,6 +15,8 @@ const ociRegistryDestinationKind = "oci_registry"
 type Service struct {
 	repository registrystore.DestinationRepository
 	users      moduleapi.UserCandidateReader
+	execution  moduleapi.RuntimeOCIRegistryVerifier
+	targets    moduleapi.RuntimeTargetBuildAssignmentReader
 }
 
 // NewService 创建 Registry 面向跨模块调用的有界服务。
@@ -26,6 +28,20 @@ func NewService(repository registrystore.DestinationRepository) *Service {
 func (s *Service) bindUserCandidateReader(users moduleapi.UserCandidateReader) {
 	if s != nil {
 		s.users = users
+	}
+}
+
+// bindRuntimeExecutionAdapter 注入 Runtime Target 拥有的私有 Registry 认证验证执行边界。
+func (s *Service) bindRuntimeExecutionAdapter(adapter moduleapi.RuntimeOCIRegistryVerifier) {
+	if s != nil {
+		s.execution = adapter
+	}
+}
+
+// bindRuntimeTargetBuildAssignments 注入 Runtime Target 拥有的目标执行授权复核边界。
+func (s *Service) bindRuntimeTargetBuildAssignments(targets moduleapi.RuntimeTargetBuildAssignmentReader) {
+	if s != nil {
+		s.targets = targets
 	}
 }
 

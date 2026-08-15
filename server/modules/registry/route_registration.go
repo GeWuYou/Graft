@@ -47,6 +47,7 @@ func registerRegistryRoutes(ctx *module.Context, service *Service) error {
 	group.POST("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleGrantAssignment(c, ctx, service) })
 	group.PUT("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleReplaceAssignments(c, ctx, service) })
 	group.POST("/:connectionRef/repository-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleAddAssignments(c, ctx, service) })
+	group.POST("/:connectionRef/repository-assignments/batch-revoke", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleRevokeAssignments(c, ctx, service) })
 	group.DELETE("/:connectionRef/repository-assignments/:userId", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleRevokeAssignment(c, ctx, service) })
 	return nil
 }
@@ -108,7 +109,12 @@ func handleDeleteConnection(c *gin.Context, ctx *module.Context, service *Servic
 	httpx.WriteSuccess[any](c, http.StatusOK, nil)
 }
 func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Service) {
-	item, err := service.VerifyConnection(c, c.Param("connectionRef"), NewHTTPConnectionVerifier())
+	var request openapigen.PostRegistryVerifyJSONRequestBody
+	if c.ShouldBindJSON(&request) != nil {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	item, err := service.VerifyConnection(c, c.Param("connectionRef"), registryActorID(c), VerificationInput{RuntimeTargetID: request.RuntimeTargetId, RepositoryRef: request.RepositoryRef})
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
@@ -191,6 +197,8 @@ func handleReplaceAssignments(c *gin.Context, ctx *module.Context, service *Serv
 	limit := max(1, len(items))
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(len(items)), Limit: limit, Offset: 0})
 }
+
+//nolint:dupl // 批量追加与撤销共享请求校验边界，但分别绑定不同的 OpenAPI DTO 和持久化结果。
 func handleAddAssignments(c *gin.Context, ctx *module.Context, service *Service) {
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody
 	if c.ShouldBindJSON(&request) != nil {
@@ -209,6 +217,27 @@ func handleAddAssignments(c *gin.Context, ctx *module.Context, service *Service)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryAssignmentBatchAddResult{Total: result.Total, AddedCount: result.AddedCount, AlreadyAssignedCount: result.AlreadyAssignedCount})
+}
+
+//nolint:dupl // 批量追加与撤销共享请求校验边界，但分别绑定不同的 OpenAPI DTO 和持久化结果。
+func handleRevokeAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+	var request openapigen.PostRegistryArtifactRepositoryAssignmentsBatchRevokeJSONRequestBody
+	if c.ShouldBindJSON(&request) != nil {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	repositoryRefs, ok := uniqueRepositoryRefs(request.RepositoryRefs)
+	userIDs, usersOK := uniqueAssignmentUserIDs(request.UserIds)
+	if !ok || !usersOK {
+		invalidRegistryRequest(c, ctx)
+		return
+	}
+	result, err := service.RevokeAssignments(c, c.Param("connectionRef"), registrystore.AssignmentBatchRevokeInput{RepositoryRefs: repositoryRefs, UserIDs: userIDs}, registryActorID(c))
+	if err != nil {
+		writeRegistryError(c, ctx, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryAssignmentBatchRevokeResult{Total: result.Total, RevokedCount: result.RevokedCount, NotAssignedCount: result.NotAssignedCount})
 }
 
 func uniqueRepositoryRefs(values []string) ([]string, bool) {

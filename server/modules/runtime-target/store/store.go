@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,9 @@ import (
 
 // ErrNotFound 表示查询不到未软删除的运行时目标。
 var ErrNotFound = errors.New("runtime target not found")
+
+// ErrAssignmentRevisionConflict 表示授权替换使用了过期的读取版本。
+var ErrAssignmentRevisionConflict = errors.New("runtime target assignment revision conflict")
 
 // ErrUnavailable 表示目标记录存在但当前不可用于 provider 执行。
 var ErrUnavailable = errors.New("runtime target unavailable")
@@ -40,6 +44,16 @@ type LocalDockerProbe struct {
 
 // SQLRepository 持久化运行时目标记录，并将已软删除记录排除在公开查询之外。
 type SQLRepository struct{ db *sql.DB }
+
+// AssignmentBatchAction identifies an atomic assignment mutation.
+type AssignmentBatchAction string
+
+const (
+	// AssignmentBatchGrant adds active assignments.
+	AssignmentBatchGrant AssignmentBatchAction = "grant"
+	// AssignmentBatchRevoke removes active assignments.
+	AssignmentBatchRevoke AssignmentBatchAction = "revoke"
+)
 
 type transactionContextKey struct{}
 
@@ -799,20 +813,59 @@ func (r *SQLRepository) ListUserAssignments(ctx context.Context, targetID uint64
 	return items, rows.Err()
 }
 
+// UserAssignmentRevision returns the current optimistic-concurrency revision for a target's assignments.
+func (r *SQLRepository) UserAssignmentRevision(ctx context.Context, targetID uint64) (uint64, error) {
+	if r == nil || r.db == nil || targetID == 0 {
+		return 0, ErrNotFound
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_assignment_revisions (runtime_target_id, revision) VALUES ($1, 1) ON CONFLICT (runtime_target_id) DO NOTHING`, targetID); err != nil {
+		return 0, err
+	}
+	var revision uint64
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT revision FROM runtime_target_assignment_revisions WHERE runtime_target_id = $1`, targetID).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return revision, err
+}
+
+func (r *SQLRepository) lockAssignmentTarget(ctx context.Context, targetID uint64) error {
+	if targetID == 0 {
+		return ErrNotFound
+	}
+	if err := r.executor(ctx).QueryRowContext(ctx, `SELECT id FROM runtime_targets WHERE id = $1 AND deleted_at = 0 FOR UPDATE`, targetID).Scan(new(uint64)); err == nil {
+		return nil
+	} else if !strings.Contains(strings.ToLower(err.Error()), "syntax") {
+		return err
+	}
+	return r.executor(ctx).QueryRowContext(ctx, `SELECT id FROM runtime_targets WHERE id = $1 AND deleted_at = 0`, targetID).Scan(new(uint64))
+}
+
 // GrantUserAssignment 幂等恢复或创建部署使用授权。
 func (r *SQLRepository) GrantUserAssignment(ctx context.Context, targetID, userID, actorID uint64) (UserAssignment, error) {
 	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
 		return UserAssignment{}, ErrNotFound
 	}
-	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID)
-	if err != nil {
-		return UserAssignment{}, err
-	}
 	var item UserAssignment
-	err = r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID).Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy)
-	if errors.Is(err, sql.ErrNoRows) {
-		return UserAssignment{}, ErrNotFound
-	}
+	err := r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+			return err
+		}
+		result, err := r.executor(txCtx).ExecContext(txCtx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by WHERE runtime_target_user_assignments.deleted_at <> 0`, targetID, userID, actorID)
+		if err != nil {
+			return err
+		}
+		if changed, _ := result.RowsAffected(); changed > 0 {
+			if err := r.incrementAssignmentRevision(txCtx, targetID); err != nil {
+				return err
+			}
+		}
+		err = r.executor(txCtx).QueryRowContext(txCtx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID).Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	})
 	return item, err
 }
 
@@ -821,14 +874,127 @@ func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, user
 	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
 		return ErrNotFound
 	}
-	active, err := r.HasActiveUserAssignment(ctx, targetID, userID)
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+			return err
+		}
+		active, err := r.HasActiveUserAssignment(txCtx, targetID, userID)
+		if err != nil {
+			return err
+		}
+		if !active {
+			return ErrNotFound
+		}
+		if _, err = r.executor(txCtx).ExecContext(txCtx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $4 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, time.Now().UTC().Unix(), actorID); err != nil {
+			return err
+		}
+		return r.incrementAssignmentRevision(txCtx, targetID)
+	})
+}
+
+// ApplyAssignmentBatch 在一个事务中对所有运行目标执行授权或撤销，避免审计与 revision 同授权事实脱节。
+func (r *SQLRepository) ApplyAssignmentBatch(ctx context.Context, targetIDs, userIDs []uint64, action AssignmentBatchAction, actorID uint64) error { //nolint:cyclop,gocognit // 同一事务负责校验、锁定、变更、revision 推进和回滚。
+	if r == nil || r.db == nil || actorID == 0 || len(targetIDs) == 0 || len(userIDs) == 0 || (action != AssignmentBatchGrant && action != AssignmentBatchRevoke) {
+		return ErrNotFound
+	}
+	targets := append([]uint64(nil), targetIDs...)
+	sort.Slice(targets, func(i, j int) bool { return targets[i] < targets[j] })
+	return r.RunInTransaction(ctx, func(txCtx context.Context, _ *sql.Tx) error {
+		for _, targetID := range targets {
+			if err := r.lockAssignmentTarget(txCtx, targetID); err != nil {
+				return err
+			}
+		}
+		for _, targetID := range targets {
+			changed, err := r.applyAssignmentBatchTarget(txCtx, targetID, userIDs, action, actorID)
+			if err != nil {
+				return err
+			}
+			if changed {
+				if err := r.incrementAssignmentRevision(txCtx, targetID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func (r *SQLRepository) applyAssignmentBatchTarget(ctx context.Context, targetID uint64, userIDs []uint64, action AssignmentBatchAction, actorID uint64) (bool, error) {
+	changed := false
+	for _, userID := range userIDs {
+		if userID == 0 {
+			return false, ErrNotFound
+		}
+		if action == AssignmentBatchGrant {
+			result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by WHERE runtime_target_user_assignments.deleted_at <> 0`, targetID, userID, actorID)
+			if err != nil {
+				return false, err
+			}
+			affected, _ := result.RowsAffected()
+			changed = changed || affected > 0
+			continue
+		}
+		result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint, deleted_by = $3, updated_at = CURRENT_TIMESTAMP, updated_by = $3 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, actorID)
+		if err != nil {
+			return false, err
+		}
+		affected, _ := result.RowsAffected()
+		changed = changed || affected > 0
+	}
+	return changed, nil
+}
+
+// ReplaceUserAssignmentsTx 在调用方事务中替换授权集合，并由调用方决定提交其它事实。
+//
+//nolint:cyclop // revision CAS and replacement sequencing are intentionally kept together.
+func (r *SQLRepository) ReplaceUserAssignmentsTx(ctx context.Context, targetID uint64, userIDs []uint64, expectedRevision, actorID uint64) ([]UserAssignment, uint64, error) {
+	if r == nil || r.db == nil || targetID == 0 || actorID == 0 {
+		return nil, 0, ErrNotFound
+	}
+	if _, err := r.Get(ctx, targetID); err != nil {
+		return nil, 0, err
+	}
+	if err := r.lockAssignmentTarget(ctx, targetID); err != nil {
+		return nil, 0, err
+	}
+	if err := r.advanceAssignmentRevision(ctx, targetID, expectedRevision); err != nil {
+		return nil, 0, err
+	}
+	if _, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE runtime_target_id = $1 AND deleted_at = 0`, targetID, actorID, time.Now().UTC().Unix()); err != nil {
+		return nil, 0, err
+	}
+	for _, userID := range userIDs {
+		if _, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID); err != nil {
+			return nil, 0, err
+		}
+	}
+	items, err := r.ListUserAssignments(ctx, targetID)
+	return items, expectedRevision + 1, err
+}
+
+func (r *SQLRepository) advanceAssignmentRevision(ctx context.Context, targetID, expectedRevision uint64) error {
+	if expectedRevision == 0 {
+		return ErrAssignmentRevisionConflict
+	}
+	if _, err := r.UserAssignmentRevision(ctx, targetID); err != nil {
+		return err
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_assignment_revisions SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $1 AND revision = $2`, targetID, expectedRevision)
 	if err != nil {
 		return err
 	}
-	if !active {
-		return ErrNotFound
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return ErrAssignmentRevisionConflict
 	}
-	_, err = r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $4 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, time.Now().UTC().Unix(), actorID)
+	return nil
+}
+
+func (r *SQLRepository) incrementAssignmentRevision(ctx context.Context, targetID uint64) error {
+	if _, err := r.UserAssignmentRevision(ctx, targetID); err != nil {
+		return err
+	}
+	_, err := r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_assignment_revisions SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE runtime_target_id = $1`, targetID)
 	return err
 }
 

@@ -466,6 +466,10 @@ paths:
     $ref: ./paths/runtime-targets.refresh.yaml
   /api/runtime-targets/{id}/assignments:
     $ref: ./paths/runtime-targets.assignments.yaml
+  /api/runtime-target-assignments/batch:
+    $ref: ./paths/runtime-targets.assignments.batch.yaml
+  /api/runtime-targets/{id}/assignment-candidates:
+    $ref: ./paths/runtime-targets.assignment-candidates.yaml
   /api/runtime-targets/{id}/assignments/{userId}/delete:
     $ref: ./paths/runtime-targets.assignment-delete.yaml
   /api/registries:
@@ -482,6 +486,8 @@ paths:
     $ref: ./paths/registries.repositories.assignments.yaml
   /api/registries/{connectionRef}/repository-assignments/batch:
     $ref: ./paths/registries.repositories.assignments.batch-add.yaml
+  /api/registries/{connectionRef}/repository-assignments/batch-revoke:
+    $ref: ./paths/registries.repositories.assignments.batch-revoke.yaml
   /api/registries/{connectionRef}/repository-assignment-candidates:
     $ref: ./paths/registries.repository-assignment-candidates.yaml
   /api/registries/{connectionRef}/repository-assignments/{userId}:
@@ -1492,6 +1498,8 @@ components:
       $ref: ./components/schemas/registry-connection-create-request.yaml
     RegistryConnectionUpdateRequest:
       $ref: ./components/schemas/registry-connection-update-request.yaml
+    RegistryConnectionVerificationRequest:
+      $ref: ./components/schemas/registry-connection-verification-request.yaml
     RegistryConnectionListResponse:
       $ref: ./components/schemas/registry-connection-list-response.yaml
     RegistryConnectionVerification:

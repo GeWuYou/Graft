@@ -1,6 +1,11 @@
 type: object
-required: [items]
+required: [items, revision]
 properties:
+  revision:
+    type: integer
+    format: int64
+    minimum: 1
+    description: Monotonic revision of the assignment collection.
   items:
     type: array
     items:

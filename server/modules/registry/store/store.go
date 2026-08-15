@@ -94,6 +94,19 @@ type AssignmentBatchAddResult struct {
 	AlreadyAssignedCount int64
 }
 
+// AssignmentBatchRevokeInput 描述一个连接内需要撤销授权的 Repository 与用户集合。
+type AssignmentBatchRevokeInput struct {
+	RepositoryRefs []string
+	UserIDs        []uint64
+}
+
+// AssignmentBatchRevokeResult 汇总一次幂等批量撤销授权的结果。
+type AssignmentBatchRevokeResult struct {
+	Total            int64
+	RevokedCount     int64
+	NotAssignedCount int64
+}
+
 // AssignmentCandidateState 是用户在所选 Repository 集合上的授权聚合状态。
 type AssignmentCandidateState string
 
@@ -163,6 +176,7 @@ type ManagementRepository interface {
 	RevokeAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) error
 	ReplaceAssignments(ctx context.Context, connectionRef, repositoryRef string, userIDs []uint64, actorID uint64) ([]UserAssignment, error)
 	AddAssignments(ctx context.Context, connectionRef string, input AssignmentBatchAddInput, actorID uint64) (AssignmentBatchAddResult, error)
+	RevokeAssignments(ctx context.Context, connectionRef string, input AssignmentBatchRevokeInput, actorID uint64) (AssignmentBatchRevokeResult, error)
 	ListAssignmentCandidates(ctx context.Context, connectionRef string, repositoryRefs []string, userIDs []uint64) (map[uint64]AssignmentCandidate, error)
 	ListAvailableDestinations(ctx context.Context, actorID uint64, limit, offset int) ([]Destination, int, error)
 }
@@ -769,6 +783,90 @@ ON CONFLICT DO NOTHING`
 		return AssignmentBatchAddResult{}, fmt.Errorf("commit artifact repository assignment batch add: %w", err)
 	}
 	return AssignmentBatchAddResult{Total: total, AddedCount: addedCount, AlreadyAssignedCount: total - addedCount}, nil
+}
+
+// RevokeAssignments 校验全部目标后，在一个事务内软删除有效矩阵授权。
+//
+//nolint:cyclop // 保持批量撤销的校验、事务和计数边界在同一持久化操作内。
+func (r *SQLRepository) RevokeAssignments(ctx context.Context, connectionRef string, input AssignmentBatchRevokeInput, actorID uint64) (AssignmentBatchRevokeResult, error) {
+	connectionRef = strings.TrimSpace(connectionRef)
+	input, err := validateAssignmentBatchRevokeInput(input)
+	if err != nil || connectionRef == "" {
+		return AssignmentBatchRevokeResult{}, errors.New("invalid batch assignment input")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("begin artifact repository assignment batch revoke: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var repositoryCount int
+	const countRepositories = `SELECT COUNT(*) FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE c.connection_ref = $1 AND r.repository_ref = ANY($2) AND r.deleted_at = 0`
+	if err := tx.QueryRowContext(ctx, countRepositories, connectionRef, pgtype.FlatArray[string](input.RepositoryRefs)).Scan(&repositoryCount); err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("count batch assignment repositories: %w", err)
+	}
+	if repositoryCount != len(input.RepositoryRefs) {
+		return AssignmentBatchRevokeResult{}, ErrNotFound
+	}
+	var userCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE id = ANY($1)`, pgtype.FlatArray[uint64](input.UserIDs)).Scan(&userCount); err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("count batch assignment users: %w", err)
+	}
+	if userCount != len(input.UserIDs) {
+		return AssignmentBatchRevokeResult{}, ErrNotFound
+	}
+
+	const revokeAssignments = `UPDATE artifact_repository_user_assignments a
+SET deleted_at = EXTRACT(EPOCH FROM NOW())::BIGINT, deleted_by = $4, updated_at = NOW(), updated_by = $4
+FROM artifact_repositories r
+JOIN registry_connections c ON c.id = r.connection_id AND c.deleted_at = 0
+WHERE a.repository_id = r.id AND c.connection_ref = $1 AND r.repository_ref = ANY($2)
+  AND a.user_id = ANY($3) AND r.deleted_at = 0 AND a.deleted_at = 0`
+	result, err := tx.ExecContext(ctx, revokeAssignments, connectionRef, pgtype.FlatArray[string](input.RepositoryRefs), pgtype.FlatArray[uint64](input.UserIDs), actorID)
+	if err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("revoke artifact repository assignments: %w", registryWriteError(err))
+	}
+	revokedCount, err := result.RowsAffected()
+	if err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("count revoked artifact repository assignments: %w", err)
+	}
+	total := int64(len(input.RepositoryRefs)) * int64(len(input.UserIDs))
+	if err := tx.Commit(); err != nil {
+		return AssignmentBatchRevokeResult{}, fmt.Errorf("commit artifact repository assignment batch revoke: %w", err)
+	}
+	return AssignmentBatchRevokeResult{Total: total, RevokedCount: revokedCount, NotAssignedCount: total - revokedCount}, nil
+}
+
+func validateAssignmentBatchRevokeInput(input AssignmentBatchRevokeInput) (AssignmentBatchRevokeInput, error) {
+	if len(input.RepositoryRefs) == 0 || len(input.UserIDs) == 0 {
+		return AssignmentBatchRevokeInput{}, errors.New("invalid batch assignment input")
+	}
+	repositoryRefs := make([]string, len(input.RepositoryRefs))
+	seenRefs := make(map[string]struct{}, len(input.RepositoryRefs))
+	for index, value := range input.RepositoryRefs {
+		ref := strings.TrimSpace(value)
+		if ref == "" {
+			return AssignmentBatchRevokeInput{}, errors.New("invalid batch assignment input")
+		}
+		if _, exists := seenRefs[ref]; exists {
+			return AssignmentBatchRevokeInput{}, errors.New("invalid batch assignment input")
+		}
+		seenRefs[ref] = struct{}{}
+		repositoryRefs[index] = ref
+	}
+	seenUsers := make(map[uint64]struct{}, len(input.UserIDs))
+	for _, userID := range input.UserIDs {
+		if userID == 0 {
+			return AssignmentBatchRevokeInput{}, errors.New("invalid batch assignment input")
+		}
+		if _, exists := seenUsers[userID]; exists {
+			return AssignmentBatchRevokeInput{}, errors.New("invalid batch assignment input")
+		}
+		seenUsers[userID] = struct{}{}
+	}
+	return AssignmentBatchRevokeInput{RepositoryRefs: repositoryRefs, UserIDs: append([]uint64(nil), input.UserIDs...)}, nil
 }
 
 func validateAssignmentBatchAddInput(connectionRef string, input AssignmentBatchAddInput) (string, AssignmentBatchAddInput, error) {

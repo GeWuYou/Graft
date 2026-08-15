@@ -302,8 +302,33 @@ type CredentialRequest struct {
 	ExpiresAt     time.Time
 }
 
+// CredentialEligibilityRequest 描述一次不签发凭据的最小 scope 评估。
+// 它只允许消费者询问已知的 opaque reference，不能枚举 Provider 的凭据目录。
+type CredentialEligibilityRequest struct {
+	CredentialRef string
+	Endpoint      string
+	RepositoryRef string
+	Operation     string
+}
+
+// CredentialEligibilityStatus 是 Provider 对已知 scope 的非秘密结论。
+type CredentialEligibilityStatus string
+
+const (
+	// CredentialEligibilityEligible 表示 Provider 当前可为该 scope 签发短期会话。
+	CredentialEligibilityEligible CredentialEligibilityStatus = "eligible"
+	// CredentialEligibilityIneligible 表示 reference、scope 或有效期不满足签发条件。
+	CredentialEligibilityIneligible CredentialEligibilityStatus = "ineligible"
+)
+
+// CredentialEligibility 只返回当前 scope 是否可签发，不暴露 secret、来源、过期时间或 Provider 内部信息。
+type CredentialEligibility struct {
+	Status CredentialEligibilityStatus
+}
+
 // CredentialProvider 从 Secret authority 申请短期凭据，并负责终态撤销。
 type CredentialProvider interface {
+	Assess(context.Context, CredentialEligibilityRequest) (CredentialEligibility, error)
 	Prepare(context.Context, CredentialRequest) (EphemeralCredentialSession, error)
 	Inject(context.Context, EphemeralCredentialSession, CredentialInjectionTarget) error
 	Revoke(context.Context, EphemeralCredentialSession) error
@@ -316,12 +341,38 @@ type CredentialInjectionTarget struct {
 	RepositoryRef string
 }
 
+// OCIRegistryVerificationRequest 描述一次由指定 Runtime Target 执行的非变更 OCI V2 认证探测。
+// 它只接受已知的私有执行 binding，不能作为 HTTP 或 Registry 管理输入使用。
+type OCIRegistryVerificationRequest struct {
+	RuntimeTargetID int64
+	CredentialRef   string
+	Endpoint        string
+	RepositoryRef   string
+	Operation       string
+}
+
+// OCIRegistryVerificationResult 记录认证探测的最小事实，不包含响应内容、认证头或凭据细节。
+// AuthenticationSucceeded 仅表示 V2 根端点接受了本次认证，绝不代表 Repository pull 或 push 已获授权。
+type OCIRegistryVerificationResult struct {
+	Reachable                bool
+	ProtocolCompatible       bool
+	AuthenticationChallenged bool
+	AuthenticationSucceeded  bool
+	ProviderScopeConforms    bool
+}
+
+// RuntimeOCIRegistryVerifier 是 Runtime Target 对 Registry 暴露的最小认证验证 capability。
+type RuntimeOCIRegistryVerifier interface {
+	VerifyOCIRegistry(context.Context, OCIRegistryVerificationRequest) (OCIRegistryVerificationResult, error)
+}
+
 // RuntimeExecutionAdapter 是 Runtime Target 唯一拥有的隔离 Registry 执行边界。
 // 调用方只提交非秘密 binding，adapter 自己申请、注入并清理 ephemeral session。
 type RuntimeExecutionAdapter interface {
 	PublishImage(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
 	PublishManifest(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
 	CopyOCIArtifact(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
+	RuntimeOCIRegistryVerifier
 }
 
 // ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。

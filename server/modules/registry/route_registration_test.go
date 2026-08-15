@@ -39,9 +39,10 @@ func TestRegistryRoutesRequireExpectedPermissions(t *testing.T) {
 		{name: "connection create", method: http.MethodPost, path: "/api/registries", body: `{"connection_ref":"registry:new","display_name":"New","provider":"generic_oci","endpoint":"https://new.example"}`, permission: registrycontract.CreatePermission},
 		{name: "connection update", method: http.MethodPut, path: "/api/registries/registry:primary", body: `{"display_name":"Primary","endpoint":"https://registry.example","enabled":true,"insecure":false}`, permission: registrycontract.UpdatePermission},
 		{name: "connection delete", method: http.MethodDelete, path: "/api/registries/registry:primary", permission: registrycontract.DeletePermission},
-		{name: "connection verify", method: http.MethodPost, path: "/api/registries/registry:primary/verify", permission: registrycontract.VerifyPermission},
+		{name: "connection verify", method: http.MethodPost, path: "/api/registries/registry:primary/verify", body: `{"runtime_target_id":1,"repository_ref":"app"}`, permission: registrycontract.VerifyPermission},
 		{name: "repository assignment", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignments?repository_ref=team/app", permission: registrycontract.AssignmentManagePermission},
 		{name: "batch repository assignment", method: http.MethodPost, path: "/api/registries/registry:primary/repository-assignments/batch", body: `{"repository_refs":["app"],"user_ids":[7]}`, permission: registrycontract.AssignmentManagePermission},
+		{name: "batch repository assignment revoke", method: http.MethodPost, path: "/api/registries/registry:primary/repository-assignments/batch-revoke", body: `{"repository_refs":["app"],"user_ids":[7]}`, permission: registrycontract.AssignmentManagePermission},
 		{name: "repository assignment candidates", method: http.MethodGet, path: "/api/registries/registry:primary/repository-assignment-candidates?repository_ref=app", permission: registrycontract.AssignmentManagePermission},
 		{name: "available build destinations", method: http.MethodGet, path: "/api/registries/available-destinations", permission: buildcontract.BuildCreatePermission},
 	} {
@@ -73,6 +74,12 @@ func TestRegistryModuleRegistersSharedResourceNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationTargets{allowed: true}, nil }); err != nil {
 		t.Fatal(err)
 	}
 	menuRegistry := menu.NewRegistry()
@@ -179,6 +186,12 @@ func TestRegistryRepositoryAndAssignmentRoutesMutateOwnedResources(t *testing.T)
 	engine.ServeHTTP(batchAdd, registryRouteRequest(http.MethodPost, "/api/registries/registry:primary/repository-assignments/batch", `{"repository_refs":["app","team/release"],"user_ids":[7,9]}`, "7"))
 	if batchAdd.Code != http.StatusOK || !strings.Contains(batchAdd.Body.String(), `"total":4`) || !strings.Contains(batchAdd.Body.String(), `"added_count":2`) || !strings.Contains(batchAdd.Body.String(), `"already_assigned_count":2`) {
 		t.Fatalf("batch add assignments = %d: %s", batchAdd.Code, batchAdd.Body.String())
+	}
+
+	batchRevoke := httptest.NewRecorder()
+	engine.ServeHTTP(batchRevoke, registryRouteRequest(http.MethodPost, "/api/registries/registry:primary/repository-assignments/batch-revoke", `{"repository_refs":["app","team/release"],"user_ids":[7,9]}`, "7"))
+	if batchRevoke.Code != http.StatusOK || !strings.Contains(batchRevoke.Body.String(), `"total":4`) || !strings.Contains(batchRevoke.Body.String(), `"revoked_count":4`) || !strings.Contains(batchRevoke.Body.String(), `"not_assigned_count":0`) {
+		t.Fatalf("batch revoke assignments = %d: %s", batchRevoke.Code, batchRevoke.Body.String())
 	}
 
 	deleteResponse := httptest.NewRecorder()
@@ -324,6 +337,31 @@ func (a *registryRouteAuthorizer) Authorize(_ context.Context, _ moduleapi.Reque
 
 func (a *registryRouteAuthorizer) reset() { a.permissions = nil }
 
+type registryVerificationAdapter struct{}
+
+func (registryVerificationAdapter) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	return moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}, nil
+}
+func (registryVerificationAdapter) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
+	return moduleapi.DockerImageBuildResult{}, nil
+}
+func (registryVerificationAdapter) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
+	return moduleapi.OCIManifestPublicationResult{}, nil
+}
+func (registryVerificationAdapter) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
+	return moduleapi.OCIArtifactCopyResult{}, nil
+}
+
+type registryVerificationTargets struct{ allowed bool }
+
+func (registryVerificationTargets) ListAssignedBuildTargets(context.Context, uint64) ([]moduleapi.BuildRuntimeTargetSummary, error) {
+	return nil, nil
+}
+
+func (targets registryVerificationTargets) CanUseBuildTarget(context.Context, uint64, int64) (bool, error) {
+	return targets.allowed, nil
+}
+
 func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepository, authorizer *registryRouteAuthorizer) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -338,6 +376,12 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	if err := services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(containerdi.Resolver) (any, error) { return registryRouteUserCandidateReader{}, nil }); err != nil {
 		t.Fatal(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationAdapter{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.RuntimeTargetBuildAssignmentReader)(nil), func(containerdi.Resolver) (any, error) { return registryVerificationTargets{allowed: true}, nil }); err != nil {
+		t.Fatal(err)
+	}
 	ctx := &module.Context{Router: engine.Group("/api"), Services: services, EventBus: eventbus.New(zap.NewNop()), I18n: i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})}
 	users, err := module.ResolveService[moduleapi.UserCandidateReader](services, (*moduleapi.UserCandidateReader)(nil))
 	if err != nil {
@@ -345,6 +389,8 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	}
 	service := NewService(repository)
 	service.bindUserCandidateReader(users)
+	service.bindRuntimeExecutionAdapter(registryVerificationAdapter{})
+	service.bindRuntimeTargetBuildAssignments(registryVerificationTargets{allowed: true})
 	if err := registerRegistryRoutes(ctx, service); err != nil {
 		t.Fatal(err)
 	}
@@ -394,8 +440,10 @@ type registryRouteRepository struct {
 
 func newRegistryRouteRepository() *registryRouteRepository {
 	now := time.Date(2026, time.August, 11, 0, 0, 0, 0, time.UTC)
+	// #nosec G101 -- 测试使用 opaque credential reference，不包含凭据材料。
+	const testCredentialRef = "credential:primary"
 	return &registryRouteRepository{
-		connection:          registrystore.Connection{ConnectionRef: "registry:primary", DisplayName: "Primary", Provider: registryProviderGenericOCI, Endpoint: "https://registry.example", Enabled: true, Availability: true, VerificationStatus: verificationSucceeded, CreatedAt: now, UpdatedAt: now},
+		connection:          registrystore.Connection{ConnectionRef: "registry:primary", DisplayName: "Primary", Provider: registryProviderGenericOCI, Endpoint: "https://registry.example", CredentialRef: testCredentialRef, Enabled: true, Availability: true, VerificationStatus: verificationSucceeded, CreatedAt: now, UpdatedAt: now},
 		repositories:        []registrystore.Repository{{ConnectionRef: "registry:primary", RepositoryRef: "app", DisplayName: "Application", AllowPull: true, AllowPush: true, CreatedAt: now, UpdatedAt: now}},
 		assignments:         map[string][]registrystore.UserAssignment{},
 		destinationsByActor: make(map[uint64][]registrystore.Destination),
@@ -410,7 +458,15 @@ func (r *registryRouteRepository) ResolveAuthorizedCopySource(context.Context, u
 	return registrystore.AuthorizedRepository{}, registrystore.ErrNotFound
 }
 
-func (r *registryRouteRepository) ResolveRepositoryBinding(context.Context, string, string) (registrystore.AuthorizedRepository, error) {
+func (r *registryRouteRepository) ResolveRepositoryBinding(_ context.Context, connectionRef, repositoryRef string) (registrystore.AuthorizedRepository, error) {
+	if connectionRef != r.connection.ConnectionRef || !r.connection.Enabled || repositoryRef == "" {
+		return registrystore.AuthorizedRepository{}, registrystore.ErrNotFound
+	}
+	for _, item := range r.repositories {
+		if item.RepositoryRef == repositoryRef {
+			return registrystore.AuthorizedRepository{ConnectionRef: connectionRef, RepositoryRef: repositoryRef, ConnectionAvailable: r.connection.Availability, AllowPull: item.AllowPull, AllowPush: item.AllowPush, Endpoint: r.connection.Endpoint, CredentialRef: r.connection.CredentialRef}, nil
+		}
+	}
 	return registrystore.AuthorizedRepository{}, registrystore.ErrNotFound
 }
 
@@ -563,6 +619,40 @@ func (r *registryRouteRepository) AddAssignments(_ context.Context, connectionRe
 			result.AddedCount++
 		}
 	}
+	return result, nil
+}
+
+//nolint:gocognit // 测试替身在一个方法内模拟完整的矩阵撤销行为。
+func (r *registryRouteRepository) RevokeAssignments(_ context.Context, connectionRef string, input registrystore.AssignmentBatchRevokeInput, _ uint64) (registrystore.AssignmentBatchRevokeResult, error) {
+	if connectionRef != r.connection.ConnectionRef || len(input.RepositoryRefs) == 0 || len(input.UserIDs) == 0 {
+		return registrystore.AssignmentBatchRevokeResult{}, registrystore.ErrNotFound
+	}
+	for _, repositoryRef := range input.RepositoryRefs {
+		if !r.repositoryExists(connectionRef, repositoryRef) {
+			return registrystore.AssignmentBatchRevokeResult{}, registrystore.ErrNotFound
+		}
+	}
+	result := registrystore.AssignmentBatchRevokeResult{Total: int64(len(input.RepositoryRefs) * len(input.UserIDs))}
+	for _, repositoryRef := range input.RepositoryRefs {
+		key := connectionRef + "/" + repositoryRef
+		remaining := r.assignments[key][:0]
+		for _, assignment := range r.assignments[key] {
+			matched := false
+			for _, userID := range input.UserIDs {
+				if assignment.UserID == userID {
+					matched = true
+					break
+				}
+			}
+			if matched {
+				result.RevokedCount++
+			} else {
+				remaining = append(remaining, assignment)
+			}
+		}
+		r.assignments[key] = remaining
+	}
+	result.NotAssignedCount = result.Total - result.RevokedCount
 	return result, nil
 }
 

@@ -1,0 +1,5 @@
+type: object
+required: [targets, users]
+properties:
+  targets: {type: integer, format: int64}
+  users: {type: integer, format: int64}

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -80,10 +81,38 @@ func TestSQLRepositoryRunInTransactionReusesContextTransaction(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryApplyAssignmentBatchRollsBackAllTargetsOnFailure(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'First', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0), (8, 'docker', 'Second', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0)`); err != nil {
+		t.Fatalf("seed runtime targets: %v", err)
+	}
+
+	repository := NewSQLRepository(db)
+	err := repository.ApplyAssignmentBatch(context.Background(), []uint64{8, 7}, []uint64{11, 0}, AssignmentBatchGrant, 3)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ApplyAssignmentBatch error = %v, want invalid user error", err)
+	}
+	for _, targetID := range []uint64{7, 8} {
+		allowed, err := repository.HasActiveUserAssignment(context.Background(), targetID, 11)
+		if err != nil {
+			t.Fatalf("check target %d assignment: %v", targetID, err)
+		}
+		if allowed {
+			t.Fatalf("target %d retained a partial assignment after batch rollback", targetID)
+		}
+	}
+}
+
 func TestSQLRepositoryUserAssignmentsRestoreAndRestrictDeploymentCandidates(t *testing.T) {
 	db := openRuntimeTargetTestDB(t)
 	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
 		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_assignment_revisions (runtime_target_id INTEGER PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("create assignment revision table: %v", err)
 	}
 	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'Assigned', 'unix:///var/run/docker.sock', 'unix_socket', '["compose_execution","workspace_access"]', true, '', 0), (8, 'docker', 'Other', 'unix:///var/run/docker.sock', 'unix_socket', '["compose_execution","workspace_access"]', true, '', 0)`); err != nil {
 		t.Fatalf("seed runtime targets: %v", err)
@@ -104,6 +133,66 @@ func TestSQLRepositoryUserAssignmentsRestoreAndRestrictDeploymentCandidates(t *t
 	candidates, err := repository.ListAssignedComposeTargets(context.Background(), 11)
 	if err != nil || len(candidates) != 1 || candidates[0].ID != 7 {
 		t.Fatalf("assigned candidates = %#v, %v", candidates, err)
+	}
+}
+
+func TestSQLRepositoryReplaceUserAssignmentsUsesRevisionCAS(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_assignment_revisions (runtime_target_id INTEGER PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("create assignment revision table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'Assigned', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0)`); err != nil {
+		t.Fatalf("seed target: %v", err)
+	}
+	repository := NewSQLRepository(db)
+	items, revision, err := repository.ReplaceUserAssignmentsTx(context.Background(), 7, []uint64{11}, 1, 3)
+	if err != nil || revision != 2 || len(items) != 1 || items[0].UserID != 11 {
+		t.Fatalf("first replacement = %#v revision=%d err=%v", items, revision, err)
+	}
+	if _, _, err := repository.ReplaceUserAssignmentsTx(context.Background(), 7, []uint64{12}, 1, 3); !errors.Is(err, ErrAssignmentRevisionConflict) {
+		t.Fatalf("stale replacement error = %v, want revision conflict", err)
+	}
+}
+
+// TestSQLRepositoryAssignmentMutationsAdvanceRevision 确保单项和批量授权变更推进 revision，使 ReplaceUserAssignmentsTx 拒绝基于旧快照的覆盖写入。
+func TestSQLRepositoryAssignmentMutationsAdvanceRevision(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE runtime_target_assignment_revisions (runtime_target_id INTEGER PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("create assignment revision table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'First', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0), (8, 'docker', 'Second', 'unix:///var/run/docker.sock', 'unix_socket', '[]', true, '', 0)`); err != nil {
+		t.Fatalf("seed targets: %v", err)
+	}
+	repository := NewSQLRepository(db)
+
+	if _, err := repository.GrantUserAssignment(context.Background(), 7, 11, 3); err != nil {
+		t.Fatalf("grant assignment: %v", err)
+	}
+	if revision, err := repository.UserAssignmentRevision(context.Background(), 7); err != nil || revision != 2 {
+		t.Fatalf("revision after grant = %d, %v; want 2", revision, err)
+	}
+	if _, _, err := repository.ReplaceUserAssignmentsTx(context.Background(), 7, []uint64{12}, 1, 3); !errors.Is(err, ErrAssignmentRevisionConflict) {
+		t.Fatalf("replacement after grant = %v, want revision conflict", err)
+	}
+	if err := repository.RevokeUserAssignment(context.Background(), 7, 11, 3); err != nil {
+		t.Fatalf("revoke assignment: %v", err)
+	}
+	if revision, err := repository.UserAssignmentRevision(context.Background(), 7); err != nil || revision != 3 {
+		t.Fatalf("revision after revoke = %d, %v; want 3", revision, err)
+	}
+	if err := repository.ApplyAssignmentBatch(context.Background(), []uint64{7, 8}, []uint64{13, 14}, AssignmentBatchGrant, 3); err != nil {
+		t.Fatalf("grant batch: %v", err)
+	}
+	for targetID, wantRevision := range map[uint64]uint64{7: 4, 8: 2} {
+		if revision, err := repository.UserAssignmentRevision(context.Background(), targetID); err != nil || revision != wantRevision {
+			t.Fatalf("revision after batch for target %d = %d, %v; want %d", targetID, revision, err, wantRevision)
+		}
 	}
 }
 

@@ -44,4 +44,30 @@ post:
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
     '404': {description: Runtime target or user not found}
+    '409': {$ref: ../components/responses/conflict.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+put:
+  tags: [runtime-target]
+  summary: Replace all users assigned to a runtime target
+  operationId: putRuntimeTargetAssignments
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../components/schemas/runtime-target-user-assignment-replace-request.yaml}
+  responses:
+    '200':
+      description: Complete active assignments after atomic replacement.
+      content:
+        application/json:
+          schema: {$ref: ../components/schemas/enveloped-runtime-target-user-assignment-list-response.yaml}
+    '400': {description: Invalid user IDs}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Runtime target or user not found}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

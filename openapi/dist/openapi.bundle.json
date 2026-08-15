@@ -19140,6 +19140,199 @@
           "404": {
             "description": "Runtime target or user not found"
           },
+          "409": {
+            "$ref": "#/components/responses/conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Replace all users assigned to a runtime target",
+        "operationId": "putRuntimeTargetAssignments",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-user-assignment-replace-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete active assignments after atomic replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user IDs"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target or user not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-target-assignments/batch": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Grant or revoke users across runtime targets atomically",
+        "operationId": "postRuntimeTargetAssignmentsBatch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-assignment-batch-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch assignment mutation completed atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-assignment-batch-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/assignment-candidates": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List users eligible for runtime target assignment management",
+        "operationId": "getRuntimeTargetAssignmentCandidates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged user assignment candidates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-assignment-candidate-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid limit, offset, search, or runtime target ID"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -19565,7 +19758,7 @@
         ],
         "operationId": "postRegistryVerify",
         "summary": "Verify a Registry Connection",
-        "description": "Runs a bounded Generic OCI Registry V2 connection verification using the saved connection and managed credential reference. The caller cannot supply an endpoint or credential with this request.",
+        "description": "Runs a bounded Generic OCI Registry V2 authentication verification through the selected Runtime Target. The caller can select only a Runtime Target and an existing Artifact Repository scope; endpoint and credential values remain server-owned.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -19582,6 +19775,16 @@
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-connection-verification-request"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Registry verification completed. Failure is represented by data.status instead of remote diagnostic details.",
@@ -20093,6 +20296,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-registry-artifact-repository-assignment-batch-add-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/not-found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/registries/{connectionRef}/repository-assignments/batch-revoke": {
+      "post": {
+        "tags": [
+          "registry"
+        ],
+        "operationId": "postRegistryArtifactRepositoryAssignmentsBatchRevoke",
+        "summary": "Revoke users from Artifact Repositories in one transaction",
+        "description": "Validates all requested repositories and users before soft-deleting active assignments. Missing assignments are ignored.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/registry-connection-ref-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-revoke-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Active Repository user assignments were revoked atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-registry-artifact-repository-assignment-batch-revoke-result"
                 }
               }
             }
@@ -25407,6 +25673,9 @@
       },
       "RegistryConnectionUpdateRequest": {
         "$ref": "#/components/schemas/registry-connection-update-request"
+      },
+      "RegistryConnectionVerificationRequest": {
+        "$ref": "#/components/schemas/registry-connection-verification-request"
       },
       "RegistryConnectionListResponse": {
         "$ref": "#/components/schemas/registry-connection-list-response"
@@ -40541,9 +40810,16 @@
       "runtime-target-user-assignment-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "revision"
         ],
         "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Monotonic revision of the assignment collection."
+          },
           "items": {
             "type": "array",
             "items": {
@@ -40569,6 +40845,30 @@
             }
           }
         ]
+      },
+      "runtime-target-user-assignment-replace-request": {
+        "type": "object",
+        "required": [
+          "user_ids",
+          "revision"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Assignment collection revision returned by the latest read."
+          },
+          "user_ids": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
       },
       "runtime-target-user-assignment-request": {
         "type": "object",
@@ -40596,6 +40896,150 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/runtime-target-user-assignment"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-assignment-batch-request": {
+        "type": "object",
+        "required": [
+          "target_ids",
+          "user_ids",
+          "action"
+        ],
+        "properties": {
+          "target_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10000,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "grant",
+              "revoke"
+            ]
+          }
+        }
+      },
+      "runtime-target-assignment-batch-result": {
+        "type": "object",
+        "required": [
+          "targets",
+          "users"
+        ],
+        "properties": {
+          "targets": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "enveloped-runtime-target-assignment-batch-result": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-assignment-batch-result"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-assignment-candidate": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "runtime-target-assignment-candidate-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target-assignment-candidate"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-runtime-target-assignment-candidate-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-assignment-candidate-list-response"
               }
             }
           }
@@ -40966,13 +41410,35 @@
         },
         "additionalProperties": false
       },
+      "registry-connection-verification-request": {
+        "type": "object",
+        "required": [
+          "runtime_target_id",
+          "repository_ref"
+        ],
+        "properties": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Explicit Runtime Target execution identity. It is used only for this verification attempt and is not stored on the Registry Connection."
+          },
+          "repository_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Existing Artifact Repository reference used only to constrain credential scope. It does not request or prove pull or push authorization."
+          }
+        },
+        "additionalProperties": false
+      },
       "registry-verification-result": {
         "type": "string",
         "enum": [
           "verified",
           "failed"
         ],
-        "description": "Terminal result of one Registry connection verification attempt."
+        "description": "Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization."
       },
       "registry-connection-verification": {
         "type": "object",
@@ -40989,7 +41455,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/registry-verification-result",
-            "description": "Verification outcome. Current values are verified and failed."
+            "description": "Registry-owned authentication verification outcome. verified requires all private Runtime Target verification stages to succeed."
           },
           "verified_at": {
             "type": "string",
@@ -40998,13 +41464,7 @@
           "error_code": {
             "type": "string",
             "nullable": true,
-            "description": "Stable sanitized failure classification. It never includes endpoint credentials, challenge data, or remote response bodies."
-          },
-          "diagnostic": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 512,
-            "description": "Sanitized operator diagnostic. Consumers must not parse it for control flow."
+            "description": "Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims."
           }
         },
         "additionalProperties": false
@@ -41414,6 +41874,73 @@
             }
           }
         ]
+      },
+      "registry-artifact-repository-assignment-batch-revoke-request": {
+        "type": "object",
+        "required": [
+          "repository_refs",
+          "user_ids"
+        ],
+        "properties": {
+          "repository_refs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "registry-artifact-repository-assignment-batch-revoke-result": {
+        "type": "object",
+        "required": [
+          "total",
+          "revoked_count",
+          "not_assigned_count"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested repository-user assignment pairs."
+          },
+          "revoked_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of active assignments soft-deleted by this request."
+          },
+          "not_assigned_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Number of requested assignments that were not active."
+          }
+        }
+      },
+      "enveloped-registry-artifact-repository-assignment-batch-revoke-result": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/registry-artifact-repository-assignment-batch-revoke-result"
+          }
+        }
       },
       "registry-repository-assignment-candidate": {
         "type": "object",

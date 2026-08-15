@@ -49,6 +49,7 @@ type Module struct {
 	events          event.TransactionalPublisher
 	savedViews      moduleapi.SavedViewService
 	users           moduleapi.UserIdentityProvider
+	candidates      moduleapi.UserCandidateReader
 }
 
 // NewModule 构造 runtime-target 模块实例。省略 pepper 时，Agent Bootstrap authority 保持未配置并拒绝引导请求。
@@ -81,6 +82,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	m.users = services.users
+	m.candidates = services.candidates
 	m.savedViews = services.savedViews
 	if err := m.configureRealtime(ctx, services.authorizer); err != nil {
 		return err
@@ -96,6 +98,7 @@ type registrationServices struct {
 	auth       moduleapi.AuthService
 	authorizer moduleapi.Authorizer
 	users      moduleapi.UserIdentityProvider
+	candidates moduleapi.UserCandidateReader
 	savedViews moduleapi.SavedViewService
 }
 
@@ -112,11 +115,15 @@ func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationS
 	if err != nil {
 		return registrationServices{}, err
 	}
+	candidates, err := module.ResolveService[moduleapi.UserCandidateReader](ctx.Services, (*moduleapi.UserCandidateReader)(nil))
+	if err != nil {
+		return registrationServices{}, err
+	}
 	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
 	if err != nil {
 		return registrationServices{}, err
 	}
-	return registrationServices{auth: auth, authorizer: authorizer, users: users, savedViews: savedViews}, nil
+	return registrationServices{auth: auth, authorizer: authorizer, users: users, candidates: candidates, savedViews: savedViews}, nil
 }
 
 //nolint:cyclop,gocyclo,gocognit // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。
@@ -202,9 +209,13 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if credentialErr == nil && credentialProvider != nil {
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), func(_ containerdi.Resolver) (any, error) {
+		verificationAdapter := func(_ containerdi.Resolver) (any, error) {
 			return dockerCredentialExecutionAdapter{provider: credentialProvider, client: dockerTargetProvider{repository: m.repository}}, nil
-		}); err != nil {
+		}
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), verificationAdapter); err != nil {
+			return err
+		}
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verificationAdapter); err != nil {
 			return err
 		}
 	}
@@ -219,10 +230,13 @@ func (m *Module) registerRoutes(ctx *module.Context, auth moduleapi.AuthService,
 	ctx.Router.PUT("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
 	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
+	ctx.Router.POST("/runtime-target-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleBatchAssignments)
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	ctx.Router.GET(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleListAssignments)
 	ctx.Router.POST(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleGrantAssignment)
+	ctx.Router.PUT(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleReplaceAssignments)
+	ctx.Router.GET(contract.AssignmentCandidatesRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleAssignmentCandidates)
 	ctx.Router.POST(contract.AssignmentDeleteRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleRevokeAssignment)
 }
 

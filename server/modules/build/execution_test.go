@@ -517,6 +517,10 @@ func (*manifestExecutionAdapterStub) CopyOCIArtifact(context.Context, int64, mod
 	return moduleapi.OCIArtifactCopyResult{}, errors.New("not implemented")
 }
 
+func (*manifestExecutionAdapterStub) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	return moduleapi.OCIRegistryVerificationResult{}, errors.New("not implemented")
+}
+
 func (s promotionExecutionAdapterStub) CopyOCIArtifact(ctx context.Context, targetID int64, input moduleapi.OCIArtifactCopyInput, binding moduleapi.RegistryArtifactCopyBinding, sink moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
 	return s.copy(ctx, targetID, input, binding, sink)
 }
@@ -527,6 +531,10 @@ func (promotionExecutionAdapterStub) PublishImage(context.Context, int64, module
 
 func (promotionExecutionAdapterStub) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
 	return moduleapi.OCIManifestPublicationResult{}, errors.New("not implemented")
+}
+
+func (promotionExecutionAdapterStub) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
+	return moduleapi.OCIRegistryVerificationResult{}, errors.New("not implemented")
 }
 
 func TestArtifactPromotionExecutorCopiesFrozenDigestThenSettles(t *testing.T) {

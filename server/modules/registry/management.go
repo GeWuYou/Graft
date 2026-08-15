@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
@@ -23,132 +20,9 @@ const (
 	verificationSucceeded      = "verified"
 	verificationFailed         = "failed"
 	registryVerifyTimeout      = 12 * time.Second
-	registryHTTPTimeout        = 10 * time.Second
-	registryDialTimeout        = 5 * time.Second
 )
 
 var repositoryReferencePattern = regexp.MustCompile(`^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)*$`)
-
-// ConnectionVerifier probes a saved non-secret endpoint and returns only stable outcome codes.
-type ConnectionVerifier interface {
-	Verify(context.Context, registrystore.Connection) error
-}
-
-// HTTPConnectionVerifier 只探测已保存的公共 Registry endpoint，并在每次拨号前复验 DNS 结果。
-// 这使管理 API 不会把任意保存地址变成访问内网的 SSRF 入口。
-type HTTPConnectionVerifier struct{ resolver registryEndpointResolver }
-
-type registryEndpointResolver interface {
-	LookupNetIP(context.Context, string, string) ([]netip.Addr, error)
-}
-
-// NewHTTPConnectionVerifier 创建只允许公共网络地址的 V2 探测器。
-func NewHTTPConnectionVerifier() *HTTPConnectionVerifier {
-	return &HTTPConnectionVerifier{resolver: net.DefaultResolver}
-}
-
-// Verify 探测保存的 endpoint；401 仅证明 V2 challenge 可达，不声称凭据已验证。
-//
-//nolint:cyclop // 协议状态与脱敏错误分类共同构成调用方可见的探测边界。
-func (v *HTTPConnectionVerifier) Verify(ctx context.Context, connection registrystore.Connection) error {
-	if v == nil || v.resolver == nil {
-		return errors.New("registry verifier is unavailable")
-	}
-	endpoint, err := registryVerificationEndpoint(connection.Endpoint, connection.Insecure)
-	if err != nil {
-		return err
-	}
-	if _, err := resolvePublicRegistryEndpoint(ctx, v.resolver, endpoint.Hostname()); err != nil {
-		return err
-	}
-	client := newRegistryVerificationClient(endpoint, v.resolver)
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(endpoint.String(), "/")+"/v2/", nil)
-	if err != nil {
-		return errors.New("registry_v2_unsupported")
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return errors.New("timeout")
-		}
-		var urlError *url.Error
-		if errors.As(err, &urlError) && strings.Contains(strings.ToLower(urlError.Err.Error()), "certificate") {
-			return errors.New("tls_untrusted")
-		}
-		return errors.New("network_failed")
-	}
-	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusUnauthorized {
-		return nil
-	}
-	if response.StatusCode == http.StatusForbidden {
-		return errors.New("authorization_denied")
-	}
-	return errors.New("registry_v2_unsupported")
-}
-
-//nolint:cyclop // URL 拒绝条件是同一 SSRF 信任边界，拆开会弱化审计性。
-func registryVerificationEndpoint(raw string, insecure bool) (*url.URL, error) {
-	endpoint, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || endpoint == nil || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Hostname() == "" {
-		return nil, errors.New("registry_v2_unsupported")
-	}
-	if (insecure && endpoint.Scheme != "http") || (!insecure && endpoint.Scheme != "https") {
-		return nil, errors.New("http_disallowed")
-	}
-	return endpoint, nil
-}
-
-func resolvePublicRegistryEndpoint(ctx context.Context, resolver registryEndpointResolver, host string) ([]netip.Addr, error) {
-	if address, err := netip.ParseAddr(host); err == nil {
-		if !isPublicRegistryAddress(address) {
-			return nil, errors.New("network_denied")
-		}
-		return []netip.Addr{address}, nil
-	}
-	addresses, err := resolver.LookupNetIP(ctx, "ip", host)
-	if err != nil || len(addresses) == 0 {
-		return nil, errors.New("dns_failed")
-	}
-	for _, address := range addresses {
-		if !isPublicRegistryAddress(address) {
-			return nil, errors.New("network_denied")
-		}
-	}
-	return addresses, nil
-}
-
-func newRegistryVerificationClient(endpoint *url.URL, resolver registryEndpointResolver) *http.Client {
-	expectedHost := endpoint.Hostname()
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil || !strings.EqualFold(strings.TrimSuffix(host, "."), strings.TrimSuffix(expectedHost, ".")) {
-			return nil, errors.New("registry verification dial target is not allowed")
-		}
-		addresses, err := resolvePublicRegistryEndpoint(ctx, resolver, expectedHost)
-		if err != nil {
-			return nil, err
-		}
-		dialer := &net.Dialer{Timeout: registryDialTimeout}
-		var lastErr error
-		for _, candidate := range addresses {
-			connection, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(candidate.String(), port))
-			if dialErr == nil {
-				return connection, nil
-			}
-			lastErr = dialErr
-		}
-		return nil, lastErr
-	}
-	return &http.Client{Transport: transport, Timeout: registryHTTPTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-}
-
-func isPublicRegistryAddress(address netip.Addr) bool {
-	address = address.Unmap()
-	return address.IsValid() && address.IsGlobalUnicast() && !address.IsPrivate() && !address.IsLoopback() && !address.IsLinkLocalUnicast() && !address.IsMulticast() && !address.IsUnspecified()
-}
 
 // CreateConnection validates management input before Registry persistence receives it.
 func (s *Service) CreateConnection(ctx context.Context, input registrystore.ConnectionInput, actorID uint64) (registrystore.Connection, error) {
@@ -215,8 +89,14 @@ func (s *Service) DeleteConnection(ctx context.Context, connectionRef string, ac
 	return repository.DeleteConnection(ctx, connectionRef, actorID)
 }
 
-// VerifyConnection 持久化保存连接的脱敏 V2 探测结果。
-func (s *Service) VerifyConnection(ctx context.Context, connectionRef string, verifier ConnectionVerifier) (registrystore.Connection, error) {
+// VerificationInput 是一次认证验证的瞬时非秘密选择；它不成为连接或 Build 目的地事实。
+type VerificationInput struct {
+	RuntimeTargetID int64
+	RepositoryRef   string
+}
+
+// VerifyConnection 通过 Runtime Target 的隔离凭据执行边界验证保存的连接，并持久化 Registry-owned 的脱敏结果。
+func (s *Service) VerifyConnection(ctx context.Context, connectionRef string, actorID uint64, input VerificationInput) (registrystore.Connection, error) {
 	repository, err := s.managementRepository()
 	if err != nil {
 		return registrystore.Connection{}, err
@@ -228,15 +108,69 @@ func (s *Service) VerifyConnection(ctx context.Context, connectionRef string, ve
 	if !connection.Enabled {
 		return repository.SetVerification(ctx, connectionRef, false, verificationFailed, "connection_disabled")
 	}
-	if verifier == nil {
-		return registrystore.Connection{}, errors.New("registry verifier is unavailable")
+	binding, errorCode, err := s.prepareConnectionVerification(ctx, connectionRef, actorID, input)
+	if err != nil {
+		return registrystore.Connection{}, err
 	}
+	if errorCode != "" {
+		return repository.SetVerification(ctx, connectionRef, false, verificationFailed, errorCode)
+	}
+	return s.executeConnectionVerification(ctx, repository, connectionRef, input.RuntimeTargetID, binding)
+}
+
+func (s *Service) prepareConnectionVerification(ctx context.Context, connectionRef string, actorID uint64, input VerificationInput) (registrystore.AuthorizedRepository, string, error) {
+	input.RepositoryRef = strings.TrimSpace(input.RepositoryRef)
+	if err := s.authorizeVerificationTarget(ctx, actorID, input.RuntimeTargetID); err != nil {
+		return registrystore.AuthorizedRepository{}, "", err
+	}
+	binding, err := s.repository.ResolveRepositoryBinding(ctx, connectionRef, input.RepositoryRef)
+	if err != nil {
+		return registrystore.AuthorizedRepository{}, "", err
+	}
+	if binding.ConnectionRef != connectionRef || binding.RepositoryRef != input.RepositoryRef || strings.TrimSpace(binding.Endpoint) == "" || strings.TrimSpace(binding.CredentialRef) == "" {
+		return registrystore.AuthorizedRepository{}, "credential_not_configured", nil
+	}
+	if s.execution == nil {
+		return registrystore.AuthorizedRepository{}, "verification_unavailable", nil
+	}
+	return binding, "", nil
+}
+
+func (s *Service) authorizeVerificationTarget(ctx context.Context, actorID uint64, targetID int64) error {
+	if targetID < 1 {
+		return errors.New("invalid registry verification input")
+	}
+	if actorID == 0 || s.targets == nil {
+		return errors.New("registry verification target authorization is unavailable")
+	}
+	allowed, err := s.targets.CanUseBuildTarget(ctx, actorID, targetID)
+	if err != nil {
+		return fmt.Errorf("authorize registry verification target: %w", err)
+	}
+	if !allowed {
+		return errors.New("registry verification target is not authorized")
+	}
+	return nil
+}
+
+func (s *Service) executeConnectionVerification(ctx context.Context, repository registrystore.ManagementRepository, connectionRef string, targetID int64, binding registrystore.AuthorizedRepository) (registrystore.Connection, error) {
 	verifyCtx, cancel := context.WithTimeout(ctx, registryVerifyTimeout)
 	defer cancel()
-	if err := verifier.Verify(verifyCtx, connection); err != nil {
-		return repository.SetVerification(ctx, connectionRef, false, verificationFailed, verificationErrorCode(err))
+	result, err := s.execution.VerifyOCIRegistry(verifyCtx, moduleapi.OCIRegistryVerificationRequest{
+		RuntimeTargetID: targetID,
+		CredentialRef:   binding.CredentialRef,
+		Endpoint:        binding.Endpoint,
+		RepositoryRef:   binding.RepositoryRef,
+		Operation:       "push",
+	})
+	if err != nil || !verifiedOCIRegistryAuthentication(result) {
+		return repository.SetVerification(ctx, connectionRef, false, verificationFailed, "verification_failed")
 	}
 	return repository.SetVerification(ctx, connectionRef, true, verificationSucceeded, "")
+}
+
+func verifiedOCIRegistryAuthentication(result moduleapi.OCIRegistryVerificationResult) bool {
+	return result.Reachable && result.ProtocolCompatible && result.AuthenticationChallenged && result.AuthenticationSucceeded && result.ProviderScopeConforms
 }
 
 // ListRepositories 返回连接下的受管 Repository。
@@ -383,6 +317,15 @@ func (s *Service) AddAssignments(ctx context.Context, connectionRef string, inpu
 	return repository.AddAssignments(ctx, connectionRef, input, actorID)
 }
 
+// RevokeAssignments 原子撤销一组用户在一组 Repository 上的有效授权。
+func (s *Service) RevokeAssignments(ctx context.Context, connectionRef string, input registrystore.AssignmentBatchRevokeInput, actorID uint64) (registrystore.AssignmentBatchRevokeResult, error) {
+	repository, err := s.managementRepository()
+	if err != nil {
+		return registrystore.AssignmentBatchRevokeResult{}, err
+	}
+	return repository.RevokeAssignments(ctx, connectionRef, input, actorID)
+}
+
 // GrantAssignment 原子授予单个用户使用 Repository 的权限。
 func (s *Service) GrantAssignment(ctx context.Context, connectionRef, repositoryRef string, userID, actorID uint64) (registrystore.UserAssignment, error) {
 	repository, err := s.managementRepository()
@@ -477,12 +420,4 @@ func normalizeRepositoryInput(input registrystore.RepositoryInput) (registrystor
 		return registrystore.RepositoryInput{}, errors.New("invalid artifact repository")
 	}
 	return input, nil
-}
-
-func verificationErrorCode(err error) string {
-	code := strings.TrimSpace(err.Error())
-	if code == "timeout" || code == "authorization_denied" || code == "registry_v2_unsupported" || code == "network_failed" || code == "dns_failed" || code == "network_denied" || code == "tls_untrusted" || code == "http_disallowed" {
-		return code
-	}
-	return "verification_failed"
 }

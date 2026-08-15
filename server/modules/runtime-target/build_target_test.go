@@ -20,6 +20,10 @@ import (
 
 type moduleCredentialProvider struct{}
 
+func (moduleCredentialProvider) Assess(context.Context, moduleapi.CredentialEligibilityRequest) (moduleapi.CredentialEligibility, error) {
+	return moduleapi.CredentialEligibility{Status: moduleapi.CredentialEligibilityEligible}, nil
+}
+
 func (moduleCredentialProvider) Prepare(context.Context, moduleapi.CredentialRequest) (moduleapi.EphemeralCredentialSession, error) {
 	return moduleapi.EphemeralCredentialSession{}, nil
 }
