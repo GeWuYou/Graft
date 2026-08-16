@@ -172,7 +172,8 @@ function assertPresentationEvidence(item: PresentationItem) {
 
   if (
     item.status === PRESENTATION_STATUS.UNKNOWN &&
-    ![EVIDENCE_STATE.MISSING, EVIDENCE_STATE.SOURCE_FAILED].includes(item.evidenceState)
+    item.evidenceState !== EVIDENCE_STATE.MISSING &&
+    item.evidenceState !== EVIDENCE_STATE.SOURCE_FAILED
   ) {
     throw new Error(`Presentation item ${item.id} requires missing evidence for unknown status`);
   }
