@@ -137,7 +137,11 @@ func (s *projectListTopicStreamer) Close(ctx context.Context) error {
 	var closeErr error
 	// 先请求停止并等待协程，再注销观察器，避免关闭后仍有发布回调访问状态。
 	for _, topic := range topics {
-		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
+		stopErr := s.stop(ctx, topic)
+		closeErr = errors.Join(closeErr, stopErr)
+		if stopErr != nil {
+			continue
+		}
 		s.mu.Lock()
 		stream := s.streams[topic]
 		s.streams = omitProjectListTopicStream(s.streams, topic)
@@ -157,7 +161,12 @@ func (s *projectListTopicStreamer) start(topic string) {
 		return
 	}
 	// 每个主题最多保留一个运行实例；runID 用于防止旧协程清理新一轮运行状态。
-	runCtx, cancel := context.WithCancel(context.Background())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++
@@ -167,7 +176,7 @@ func (s *projectListTopicStreamer) start(topic string) {
 
 	go func() {
 		defer markProjectListTopicStreamDone(done)
-		s.publish(topic)
+		s.publish(runCtx, topic)
 		ticker := time.NewTicker(projectDetailTopicRefreshInterval)
 		defer ticker.Stop()
 		for {
@@ -176,17 +185,17 @@ func (s *projectListTopicStreamer) start(topic string) {
 				s.clearRun(topic, runID)
 				return
 			case <-ticker.C:
-				s.publish(topic)
+				s.publish(runCtx, topic)
 			}
 		}
 	}()
 }
 
-func (s *projectListTopicStreamer) publish(topic string) {
+func (s *projectListTopicStreamer) publish(parent context.Context, topic string) {
 	if s == nil || s.service == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), projectDetailTopicRefreshInterval)
+	ctx, cancel := context.WithTimeout(parent, projectDetailTopicRefreshInterval)
 	defer cancel()
 	payload, err := s.service.buildProjectListSummaryRealtimePayload(ctx, topic)
 	if err != nil {

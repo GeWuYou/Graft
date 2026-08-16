@@ -1,8 +1,10 @@
 package module
 
 import (
+	"context"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"graft/server/internal/buildinfo"
@@ -10,11 +12,74 @@ import (
 
 type testModule struct{}
 
+type lifecycleCallRecorder struct {
+	register atomic.Int32
+	boot     atomic.Int32
+	shutdown atomic.Int32
+}
+
+func (r *lifecycleCallRecorder) Register(_ *Context) error {
+	r.register.Add(1)
+	return nil
+}
+
+func (r *lifecycleCallRecorder) Boot(_ *Context) error {
+	r.boot.Add(1)
+	return nil
+}
+
+func (r *lifecycleCallRecorder) Shutdown(_ *Context) error {
+	r.shutdown.Add(1)
+	return nil
+}
+
+type testRequiredCapability interface {
+	Run(context.Context) error
+}
+
+type testExposedCapability interface {
+	Read(context.Context) error
+}
+
 func (m testModule) Register(_ *Context) error { return nil }
 
 func (m testModule) Boot(_ *Context) error { return nil }
 
 func (m testModule) Shutdown(_ *Context) error { return nil }
+
+// TestManagerRegistrationDoesNotInvokeModuleLifecycle 验证模块登记与描述符构造
+// 只建立运行时元数据，不提前执行 Register、Boot 或 Shutdown，长期资源只能由
+// Runtime 的显式生命周期阶段拥有。
+func TestManagerRegistrationDoesNotInvokeModuleLifecycle(t *testing.T) {
+	recorder := &lifecycleCallRecorder{}
+	runtimeModule, err := (Spec{
+		ID: "lifecycle-recorder",
+		Builder: BuilderFunc(func(BuildContext) (Module, error) {
+			return recorder, nil
+		}),
+	}).Build(BuildContext{})
+	if err != nil {
+		t.Fatalf("build module: %v", err)
+	}
+
+	manager := NewManager()
+	if err := manager.RegisterModule(runtimeModule); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+	if _, err := manager.Ordered(); err != nil {
+		t.Fatalf("order modules: %v", err)
+	}
+
+	if got := recorder.register.Load(); got != 0 {
+		t.Fatalf("expected Register to remain untouched during registration, got %d calls", got)
+	}
+	if got := recorder.boot.Load(); got != 0 {
+		t.Fatalf("expected Boot to remain untouched during registration, got %d calls", got)
+	}
+	if got := recorder.shutdown.Load(); got != 0 {
+		t.Fatalf("expected Shutdown to remain untouched during registration, got %d calls", got)
+	}
+}
 
 // TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak 验证同一批模块在
 // 不同注册顺序下仍会按依赖和字母序得到稳定的运行时顺序。
@@ -119,6 +184,35 @@ func TestOrderSpecsIsIndependentFromInputOrder(t *testing.T) {
 	}
 }
 
+func TestOrderSpecsClonesDeclarationSlices(t *testing.T) {
+	required := []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}
+	exposed := []CapabilityDeclaration{{Key: TypedCapability[testExposedCapability]()}}
+	resources := []ResourceDeclaration{{Name: "summary collector", Owner: "runtime-target", Cleanup: "Service.Close"}}
+	input := []Spec{{
+		ID:                   "runtime-target",
+		RequiredCapabilities: required,
+		ExposedCapabilities:  exposed,
+		Resources:            resources,
+		Builder:               BuilderFunc(func(BuildContext) (Module, error) { return testModule{}, nil }),
+	}}
+
+	ordered, err := OrderSpecs(input)
+	if err != nil {
+		t.Fatalf("order module specs: %v", err)
+	}
+	required[0] = CapabilityDeclaration{}
+	exposed[0] = CapabilityDeclaration{}
+	resources[0] = ResourceDeclaration{}
+
+	if !reflect.DeepEqual(ordered[0].RequiredCapabilities[0], CapabilityDeclaration{Key: TypedCapability[testRequiredCapability]()}) ||
+		!reflect.DeepEqual(ordered[0].ExposedCapabilities[0], CapabilityDeclaration{Key: TypedCapability[testExposedCapability]()}) {
+		t.Fatal("ordered declaration capabilities alias input slices")
+	}
+	if ordered[0].Resources[0].Name != "summary collector" {
+		t.Fatalf("ordered resources alias input slice: %+v", ordered[0].Resources)
+	}
+}
+
 // TestSpecBuildWrapsCanonicalMetadata 验证模块定义构造出的运行时模块以
 // 模块定义元数据为 canonical truth。
 func TestSpecBuildWrapsCanonicalMetadata(t *testing.T) {
@@ -143,11 +237,47 @@ func TestSpecBuildWrapsCanonicalMetadata(t *testing.T) {
 	}
 }
 
+func TestSpecValidatesTypedCompositionDeclarations(t *testing.T) {
+	descriptor := Spec{
+		ID:                   "runtime-target",
+		RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}},
+		ExposedCapabilities:  []CapabilityDeclaration{{Key: TypedCapability[testExposedCapability]()}},
+		ConfigurationOwner:   "runtime-target",
+		Resources: []ResourceDeclaration{{
+			Name: "summary collector", Owner: "runtime-target", Cleanup: "Service.Close",
+		}},
+		Builder: BuilderFunc(func(BuildContext) (Module, error) { return testModule{}, nil }),
+	}
+
+	if err := descriptor.Validate(); err != nil {
+		t.Fatalf("validate composition declaration: %v", err)
+	}
+
+	if err := (Spec{
+		ID:                   "duplicate",
+		RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}, {Key: TypedCapability[testRequiredCapability]()}},
+		Builder:              descriptor.Builder,
+	}).Validate(); err == nil {
+		t.Fatal("expected duplicate capability declaration error")
+	}
+
+	for _, resource := range []ResourceDeclaration{
+		{Owner: "runtime-target", Cleanup: "Service.Close"},
+		{Name: "summary collector", Cleanup: "Service.Close"},
+		{Name: "summary collector", Owner: "runtime-target"},
+	} {
+		descriptor.Resources = []ResourceDeclaration{resource}
+		if err := descriptor.Validate(); err == nil {
+			t.Fatalf("expected incomplete resource declaration error for %#v", resource)
+		}
+	}
+}
+
 func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	metadata := NewRuntimeMetadata([]Spec{
 		{ID: "audit"},
 		{ID: "user"},
-		{ID: "rbac", Dependencies: []string{"user"}},
+		{ID: "rbac", Dependencies: []string{"user"}, ConfigurationOwner: "rbac", RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}, Resources: []ResourceDeclaration{{Name: "role cache", Owner: "rbac", Cleanup: "Close"}}},
 	}, buildinfo.Info{
 		Version:      "0.1.0",
 		GitCommit:    "abc1234",
@@ -159,7 +289,7 @@ func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	expected := []DescriptorSnapshot{
 		{Name: "audit"},
 		{Name: "user"},
-		{Name: "rbac", DependsOn: []string{"user"}},
+		{Name: "rbac", DependsOn: []string{"user"}, ConfigurationOwner: "rbac", RequiredCapabilities: []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}, Resources: []ResourceDeclaration{{Name: "role cache", Owner: "rbac", Cleanup: "Close"}}},
 	}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected %v, got %v", expected, got)

@@ -60,6 +60,7 @@ type service struct {
 	logTopicStreamerMu      sync.Mutex
 	logTopicStreamer        *logTopicStreamer
 	logTopicStreamerFactory func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
+	lifecycleContext        context.Context
 }
 
 type containerServiceOptions struct {
@@ -257,6 +258,9 @@ func (s *service) Close(ctx context.Context) error {
 	if err := s.closeRuntimeEventManager(ctx); err != nil {
 		closeErr = errors.Join(closeErr, err)
 	}
+	if closeErr != nil {
+		return closeErr
+	}
 	if err := s.closeRuntime(); err != nil {
 		closeErr = errors.Join(closeErr, err)
 	}
@@ -266,10 +270,17 @@ func (s *service) Close(ctx context.Context) error {
 func (s *service) closeLogTopicStreamer(ctx context.Context) error {
 	s.logTopicStreamerMu.Lock()
 	logTopicStreamer := s.logTopicStreamer
-	s.logTopicStreamer = nil
 	s.logTopicStreamerMu.Unlock()
 	if logTopicStreamer != nil {
-		return logTopicStreamer.Close(ctx)
+		err := logTopicStreamer.Close(ctx)
+		if err == nil {
+			s.logTopicStreamerMu.Lock()
+			if s.logTopicStreamer == logTopicStreamer {
+				s.logTopicStreamer = nil
+			}
+			s.logTopicStreamerMu.Unlock()
+		}
+		return err
 	}
 	return nil
 }
@@ -277,7 +288,9 @@ func (s *service) closeLogTopicStreamer(ctx context.Context) error {
 func (s *service) closeStatsCollector(ctx context.Context) error {
 	if s.statsCollector != nil {
 		err := s.statsCollector.Stop(ctx)
-		s.statsCollector = nil
+		if err == nil {
+			s.statsCollector = nil
+		}
 		return err
 	}
 	return nil
@@ -286,10 +299,17 @@ func (s *service) closeStatsCollector(ctx context.Context) error {
 func (s *service) closeRuntimeEventManager(ctx context.Context) error {
 	s.runtimeEventManagerMu.Lock()
 	runtimeEventManager := s.runtimeEventManager
-	s.runtimeEventManager = nil
 	s.runtimeEventManagerMu.Unlock()
 	if runtimeEventManager != nil {
-		return runtimeEventManager.Stop(ctx)
+		err := runtimeEventManager.Stop(ctx)
+		if err == nil {
+			s.runtimeEventManagerMu.Lock()
+			if s.runtimeEventManager == runtimeEventManager {
+				s.runtimeEventManager = nil
+			}
+			s.runtimeEventManagerMu.Unlock()
+		}
+		return err
 	}
 	return nil
 }

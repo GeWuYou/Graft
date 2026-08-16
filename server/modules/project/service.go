@@ -454,6 +454,8 @@ type Service struct {
 	realtimeHub                  realtime.Hub
 	topicIssuers                 realtime.TopicIssuerRegistry
 	streamersMu                  sync.Mutex
+	lifecycleMu                  sync.RWMutex
+	lifecycleContext             context.Context
 	workspaceMutationMu          sync.Mutex
 	applicationNameMu            sync.Mutex
 	listTopicStreamer            *projectListTopicStreamer
@@ -467,6 +469,26 @@ type Service struct {
 	moduleName                   string
 	taskService                  moduleapi.TaskService
 	debugConfig                  config.ProjectConfig
+}
+
+// SetLifecycleContext 绑定模块生命周期上下文，使订阅驱动的实时流不会脱离 Module 的关闭边界。
+func (s *Service) SetLifecycleContext(ctx context.Context) {
+	if s == nil {
+		return
+	}
+	s.lifecycleMu.Lock()
+	s.lifecycleContext = ctx
+	s.lifecycleMu.Unlock()
+}
+
+func (s *Service) realtimeStreamContext() context.Context {
+	if s == nil {
+		return nil
+	}
+	s.lifecycleMu.RLock()
+	ctx := s.lifecycleContext
+	s.lifecycleMu.RUnlock()
+	return ctx
 }
 
 // SetTaskService 配置平台拥有的 Task Runtime 提交边界。

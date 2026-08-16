@@ -165,9 +165,13 @@ func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, e
 
 // Boot 启动项目模块的运行时工作；当前后台实时流按订阅懒启动，因此这里无需创建 goroutine。
 func (m *Module) Boot(ctx *module.Context) error {
-	if m == nil || m.service == nil || ctx == nil {
+	if m == nil || m.service == nil {
 		return nil
 	}
+	if ctx == nil || ctx.LifecycleContext == nil {
+		return errors.New("project lifecycle context is required")
+	}
+	m.service.SetLifecycleContext(ctx.LifecycleContext)
 	if err := m.service.BackfillRuntimeTargets(ctx.LifecycleContext); err != nil {
 		return err
 	}

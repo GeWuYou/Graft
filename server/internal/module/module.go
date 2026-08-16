@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -109,10 +110,14 @@ func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
 // Spec 是生成式 module registry 的稳定输入。它收敛模块名、版本、
 // 依赖与迁移目录等最小元数据，并把真正的运行时实例化动作交给 Builder。
 type Spec struct {
-	ID            string
-	Dependencies  []string
-	MigrationPath []string
-	Builder       Builder
+	ID                   string
+	Dependencies         []string
+	MigrationPath        []string
+	RequiredCapabilities []CapabilityDeclaration
+	ExposedCapabilities  []CapabilityDeclaration
+	ConfigurationOwner   string
+	Resources            []ResourceDeclaration
+	Builder              Builder
 }
 
 // Name 返回模块定义的稳定模块标识。
@@ -141,7 +146,45 @@ func (d Spec) Validate() error {
 	if _, err := normalizeDependencies(d.Name(), d.DependsOn()); err != nil {
 		return err
 	}
+	if err := validateCapabilityDeclarations(d.Name(), d.RequiredCapabilities, "required"); err != nil {
+		return err
+	}
+	if err := validateCapabilityDeclarations(d.Name(), d.ExposedCapabilities, "exposed"); err != nil {
+		return err
+	}
+	if err := validateResourceDeclarations(d.Name(), d.Resources); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func validateResourceDeclarations(moduleName string, declarations []ResourceDeclaration) error {
+	for _, declaration := range declarations {
+		if strings.TrimSpace(declaration.Name) == "" {
+			return fmt.Errorf("module spec %s has resource with missing name", moduleName)
+		}
+		if strings.TrimSpace(declaration.Owner) == "" {
+			return fmt.Errorf("module spec %s resource %s has missing owner", moduleName, declaration.Name)
+		}
+		if strings.TrimSpace(declaration.Cleanup) == "" {
+			return fmt.Errorf("module spec %s resource %s has missing cleanup", moduleName, declaration.Name)
+		}
+	}
+	return nil
+}
+
+func validateCapabilityDeclarations(moduleName string, declarations []CapabilityDeclaration, kind string) error {
+	seen := make(map[reflect.Type]struct{}, len(declarations))
+	for _, declaration := range declarations {
+		if declaration.Key.Type == nil {
+			return fmt.Errorf("module spec %s has %s capability with missing typed contract", moduleName, kind)
+		}
+		if _, exists := seen[declaration.Key.Type]; exists {
+			return fmt.Errorf("module spec %s has duplicate %s capability %s", moduleName, kind, declaration.Key.Type)
+		}
+		seen[declaration.Key.Type] = struct{}{}
+	}
 	return nil
 }
 
@@ -271,6 +314,9 @@ func OrderSpecs(specs []Spec) ([]Spec, error) {
 		cloned := spec
 		cloned.Dependencies = append([]string(nil), spec.Dependencies...)
 		cloned.MigrationPath = append([]string(nil), spec.MigrationPath...)
+		cloned.RequiredCapabilities = append([]CapabilityDeclaration(nil), spec.RequiredCapabilities...)
+		cloned.ExposedCapabilities = append([]CapabilityDeclaration(nil), spec.ExposedCapabilities...)
+		cloned.Resources = append([]ResourceDeclaration(nil), spec.Resources...)
 		if err := cloned.Validate(); err != nil {
 			return nil, err
 		}

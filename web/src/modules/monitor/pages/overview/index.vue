@@ -376,7 +376,17 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { InfoCircleIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
-import { type Component, computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  type Component,
+  computed,
+  nextTick,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -559,6 +569,7 @@ const activeTrendMode = computed<TrendMode>(() => (isCompactDashboard.value ? 'o
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+const isMounted = ref(false);
 
 const trendChartRefs = ref<Partial<Record<TrendChartKey, HTMLDivElement | null>>>({});
 let refreshTickTimer: number | null = null;
@@ -1330,6 +1341,7 @@ const refreshControlStatus = computed(() => {
 
 function canRunAutoRefreshCycle() {
   return (
+    isMounted.value &&
     autoRefreshEnabled.value &&
     isPageVisible.value &&
     selectedRefreshInterval.value > 0 &&
@@ -1342,13 +1354,11 @@ function clearRefreshSchedule() {
   remainingRefreshSeconds.value = null;
 }
 
-let isMounted = false;
-
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
-  if (!isMounted) return;
+  if (!isMounted.value) return;
   stopRefreshTick();
   const result = await refetchOverview();
-  if (!isMounted) return;
+  if (!isMounted.value) return;
   if (!result.error) {
     consecutiveFailures.value = 0;
   } else {
@@ -2345,22 +2355,44 @@ watch(
   },
 );
 
+// KeepAlive 页面由此处成对管理可见性监听与轮询；停用时必须释放两者，避免缓存页面继续请求。
+function activatePage() {
+  if (isMounted.value) {
+    return;
+  }
+
+  isMounted.value = true;
+  isPageVisible.value = document.visibilityState === 'visible';
+  document.addEventListener('visibilitychange', handleVisibilityChange, false);
+  void fetchServerStatus();
+}
+
+function deactivatePage() {
+  if (!isMounted.value) {
+    return;
+  }
+
+  isMounted.value = false;
+  clearRefreshSchedule();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+}
+
 onMounted(async () => {
-  isMounted = true;
-  await fetchServerStatus();
+  activatePage();
   await nextTick();
   ensureTrendChartResizeObserver();
   reconnectTrendChartResizeObserver();
   syncTrendChart();
   window.addEventListener('resize', resizeTrendChart, false);
-  document.addEventListener('visibilitychange', handleVisibilityChange, false);
 });
 
+onActivated(activatePage);
+onDeactivated(deactivatePage);
+
 onUnmounted(() => {
-  isMounted = false;
+  deactivatePage();
   stopRefreshTick();
   window.removeEventListener('resize', resizeTrendChart);
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
   trendChartResizeObserver?.disconnect();
   trendChartResizeObserver = null;
   disposeTrendChart();

@@ -137,7 +137,11 @@ func (s *projectLogTopicStreamer) Close(ctx context.Context) error {
 	var closeErr error
 	// 先取消并等待日志读取，再注销观察器，保证外部运行时句柄不会在关闭后继续被使用。
 	for _, topic := range topics {
-		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
+		stopErr := s.stop(ctx, topic)
+		closeErr = errors.Join(closeErr, stopErr)
+		if stopErr != nil {
+			continue
+		}
 		s.mu.Lock()
 		stream := s.streams[topic]
 		s.streams = omitProjectLogTopicStream(s.streams, topic)
@@ -156,7 +160,12 @@ func (s *projectLogTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
-	runCtx, cancel := context.WithCancel(context.Background())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++

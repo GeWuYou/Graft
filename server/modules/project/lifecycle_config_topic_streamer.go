@@ -171,7 +171,12 @@ func (s *projectLifecycleConfigTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
-	runCtx, cancel := context.WithCancel(context.Background())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++
@@ -182,7 +187,7 @@ func (s *projectLifecycleConfigTopicStreamer) start(topic string) {
 
 	go func() {
 		defer markProjectLifecycleConfigTopicStreamDone(done)
-		s.publish(topic, projectID)
+		s.publish(runCtx, topic, projectID)
 		ticker := time.NewTicker(projectDetailTopicRefreshInterval)
 		defer ticker.Stop()
 		for {
@@ -191,17 +196,17 @@ func (s *projectLifecycleConfigTopicStreamer) start(topic string) {
 				s.clearRun(topic, runID)
 				return
 			case <-ticker.C:
-				s.publish(topic, projectID)
+				s.publish(runCtx, topic, projectID)
 			}
 		}
 	}()
 }
 
-func (s *projectLifecycleConfigTopicStreamer) publish(topic string, projectID uint64) {
+func (s *projectLifecycleConfigTopicStreamer) publish(parent context.Context, topic string, projectID uint64) {
 	if s == nil || s.service == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), projectDetailTopicRefreshInterval)
+	ctx, cancel := context.WithTimeout(parent, projectDetailTopicRefreshInterval)
 	defer cancel()
 	payload, err := s.service.buildProjectLifecycleConfigRealtimePayload(ctx, topic, projectID)
 	if err != nil {

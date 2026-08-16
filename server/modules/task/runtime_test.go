@@ -60,6 +60,18 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	}
 }
 
+func TestRuntimeStopAcceptsNilContext(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	if err := runtime.Start(context.Background()); err != nil {
+		t.Fatalf("start runtime: %v", err)
+	}
+	var shutdownContext context.Context
+	if err := runtime.Stop(shutdownContext); err != nil {
+		t.Fatalf("stop runtime with nil context: %v", err)
+	}
+}
+
 func TestRepositoryClaimsCoordinatedLegsWithoutSerialBlocking(t *testing.T) {
 	t.Parallel()
 	_, repository := newRuntimeForTest(t)

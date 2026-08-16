@@ -589,6 +589,18 @@ func TestDispatcherShutdownReturnsAtDeadlineWhenHandlerBlocks(t *testing.T) {
 	if err := dispatcher.Shutdown(ctx); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("shutdown error: got %v want deadline exceeded", err)
 	}
+	dispatcher.mu.RLock()
+	stopped, stateStarted, accepting, forcedStop := dispatcher.stopped, dispatcher.started, dispatcher.accepting, dispatcher.forcedStop
+	dispatcher.mu.RUnlock()
+	if !stopped || stateStarted || accepting || !forcedStop {
+		t.Fatalf("dispatcher state after forced shutdown: stopped=%v started=%v accepting=%v forcedStop=%v", stopped, stateStarted, accepting, forcedStop)
+	}
+	if err := dispatcher.Start(context.Background()); !errors.Is(err, ErrDispatcherStopped) {
+		t.Fatalf("expected terminal dispatcher to reject restart, got %v", err)
+	}
+	if err := dispatcher.Shutdown(context.Background()); err != nil {
+		t.Fatalf("expected repeated shutdown to be idempotent, got %v", err)
+	}
 	close(blocked)
 }
 

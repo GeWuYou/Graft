@@ -7,8 +7,12 @@ import "graft/server/internal/buildinfo"
 // 它只包含模块运行期观测需要的 canonical metadata，避免模块直接依赖
 // compile-time registry 或构造器内部实现。
 type DescriptorSnapshot struct {
-	Name      string
-	DependsOn []string
+	Name                 string
+	DependsOn            []string
+	RequiredCapabilities []CapabilityDeclaration
+	ExposedCapabilities  []CapabilityDeclaration
+	ConfigurationOwner   string
+	Resources            []ResourceDeclaration
 }
 
 // RuntimeMetadata 暴露 core 运行时编排后可安全共享给模块的元数据表面。
@@ -24,8 +28,9 @@ type RuntimeMetadata struct {
 // descriptors 提供模块定义；currentBuildInfo 提供当前构建信息。
 func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) RuntimeMetadata {
 	return RuntimeMetadata{
-		orderedModuleDescriptors: collectDescriptorSnapshots(descriptors, func(descriptor Spec) (string, []string) {
-			return descriptor.Name(), descriptor.DependsOn()
+		orderedModuleDescriptors: collectDescriptorSnapshots(descriptors, func(descriptor Spec) DescriptorSnapshot {
+			return newDescriptorSnapshot(descriptor.Name(), descriptor.DependsOn(), descriptor.RequiredCapabilities,
+				descriptor.ExposedCapabilities, descriptor.ConfigurationOwner, descriptor.Resources)
 		}),
 		buildInfo: buildinfo.Normalize(currentBuildInfo),
 	}
@@ -33,8 +38,9 @@ func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) Run
 
 // OrderedModuleDescriptors 返回运行时可见的 canonical 有序描述符快照。
 func (m RuntimeMetadata) OrderedModuleDescriptors() []DescriptorSnapshot {
-	return collectDescriptorSnapshots(m.orderedModuleDescriptors, func(descriptor DescriptorSnapshot) (string, []string) {
-		return descriptor.Name, descriptor.DependsOn
+	return collectDescriptorSnapshots(m.orderedModuleDescriptors, func(descriptor DescriptorSnapshot) DescriptorSnapshot {
+		return newDescriptorSnapshot(descriptor.Name, descriptor.DependsOn, descriptor.RequiredCapabilities,
+			descriptor.ExposedCapabilities, descriptor.ConfigurationOwner, descriptor.Resources)
 	})
 }
 
@@ -43,23 +49,26 @@ func (m RuntimeMetadata) BuildInfo() buildinfo.Info {
 	return buildinfo.Normalize(m.buildInfo)
 }
 
-// newDescriptorSnapshot 创建一个 DescriptorSnapshot，并复制依赖项列表以避免共享底层数组。
-func newDescriptorSnapshot(name string, dependsOn []string) DescriptorSnapshot {
+// newDescriptorSnapshot 创建一个 DescriptorSnapshot，并复制切片字段以避免共享底层数组。
+func newDescriptorSnapshot(name string, dependsOn []string, required, exposed []CapabilityDeclaration, configurationOwner string, resources []ResourceDeclaration) DescriptorSnapshot {
 	return DescriptorSnapshot{
-		Name:      name,
-		DependsOn: append([]string(nil), dependsOn...),
+		Name:                 name,
+		DependsOn:            append([]string(nil), dependsOn...),
+		RequiredCapabilities: append([]CapabilityDeclaration(nil), required...),
+		ExposedCapabilities:  append([]CapabilityDeclaration(nil), exposed...),
+		ConfigurationOwner:   configurationOwner,
+		Resources:            append([]ResourceDeclaration(nil), resources...),
 	}
 }
 
 // project 用于从每个输入对象提取名称和依赖项。
 func collectDescriptorSnapshots[T any](
 	descriptors []T,
-	project func(T) (string, []string),
+	project func(T) DescriptorSnapshot,
 ) []DescriptorSnapshot {
 	snapshots := make([]DescriptorSnapshot, 0, len(descriptors))
 	for _, descriptor := range descriptors {
-		name, dependsOn := project(descriptor)
-		snapshots = append(snapshots, newDescriptorSnapshot(name, dependsOn))
+		snapshots = append(snapshots, project(descriptor))
 	}
 	return snapshots
 }

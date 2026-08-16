@@ -70,6 +70,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if ctx == nil || ctx.LifecycleContext == nil {
 		return errors.New("container lifecycle context is required")
 	}
+	m.service.lifecycleContext = ctx.LifecycleContext
 	if err := m.service.startStatsCollector(ctx.LifecycleContext); err != nil {
 		return err
 	}

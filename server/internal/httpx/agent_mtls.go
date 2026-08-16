@@ -224,6 +224,7 @@ func (s *AgentServer) StartListener(listener net.Listener) (<-chan error, error)
 		defer s.clearRunningServer(server)
 		err := server.Serve(tlsListener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logsafe.Error(s.logger, "agent mTLS listener serve failed", zap.Error(err))
 			errCh <- fmt.Errorf("serve agent mTLS: %w", err)
 		}
 		close(errCh)
@@ -240,7 +241,7 @@ func (s *AgentServer) Shutdown(ctx context.Context) error {
 	if server == nil {
 		return nil
 	}
-	return server.Shutdown(ctx)
+	return shutdownHTTPServer(ctx, server, s.logger, "agent mTLS listener")
 }
 
 func (s *AgentServer) bindRunningServer(server *http.Server) error {

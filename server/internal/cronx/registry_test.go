@@ -2,8 +2,46 @@ package cronx
 
 import (
 	"context"
+	"reflect"
+	"sync/atomic"
 	"testing"
 )
+
+// TestRegistryIsDeclarationOnly 验证 Registry 只保存 Job Definition 声明，不执行
+// handler、启动 scheduler 或取得长期资源；调度器仍由独立 runtime owner 装配。
+func TestRegistryIsDeclarationOnly(t *testing.T) {
+	var runs atomic.Int32
+	job := validTestJob()
+	job.Run = func(context.Context) error {
+		runs.Add(1)
+		return nil
+	}
+
+	registry := NewRegistry()
+	registry.Register(job)
+	if got := runs.Load(); got != 0 {
+		t.Fatalf("expected registration not to execute job, got %d runs", got)
+	}
+
+	items := registry.Items()
+	if len(items) != 1 || items[0].RuntimeKey() != job.RuntimeKey() {
+		t.Fatalf("expected registered declaration snapshot, got %#v", items)
+	}
+	items[0].Key = "mutated"
+	if got := registry.Items()[0].RuntimeKey(); got != job.RuntimeKey() {
+		t.Fatalf("expected registry declaration to remain isolated from item mutation, got %q", got)
+	}
+
+	if _, err := job.Invoke(context.Background(), "{}"); err != nil {
+		t.Fatalf("invoke job explicitly: %v", err)
+	}
+	if got := runs.Load(); got != 1 {
+		t.Fatalf("expected explicit invocation to execute job once, got %d runs", got)
+	}
+	if !reflect.DeepEqual(registry.Items()[0].Actions, job.Actions) {
+		t.Fatal("expected registry to preserve declaration actions")
+	}
+}
 
 func TestJobRuntimeTitleDoesNotUseMessageKeyAsDisplayText(t *testing.T) {
 	job := Job{
