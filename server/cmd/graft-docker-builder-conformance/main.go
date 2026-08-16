@@ -74,6 +74,11 @@ func run(ctx context.Context, args []string, output *os.File) error {
 	if err != nil {
 		return err
 	}
+	if phase == "verify-restart" {
+		if err := validateRestartEvidence(baseline, evidence); err != nil {
+			return err
+		}
+	}
 	if err := writeVerificationBaseline(envOr("GRAFT_CONFORMANCE_EVIDENCE_FILE", "/conformance/agent-config/conformance-evidence.json"), evidence); err != nil {
 		return err
 	}
@@ -100,13 +105,16 @@ func newDriver(db *sql.DB, cfg *config.Config) (*runtimetarget.DockerBuilderAgen
 }
 
 type verificationBaseline struct {
-	targetID         int64
-	identityID       string
-	agentID          string
-	generation       int64
-	receiptCount     int64
-	requestedAgentID string
-	agentIDExplicit  bool
+	targetID          int64
+	identityID        string
+	agentID           string
+	generation        int64
+	receiptCount      int64
+	builderScope      string
+	capabilityProfile string
+	capabilityVersion string
+	requestedAgentID  string
+	agentIDExplicit   bool
 }
 
 func parseArguments(args []string) (string, runtimetarget.DockerBuilderAgentFixtureScenario, verificationBaseline, error) {
@@ -183,7 +191,17 @@ func readVerificationBaseline(path string) (verificationBaseline, error) {
 	if evidence.TargetID < 1 || strings.TrimSpace(evidence.IdentityID) == "" || strings.TrimSpace(evidence.AgentID) == "" || evidence.Generation < 1 || strings.TrimSpace(evidence.ProviderID) != "docker" || strings.TrimSpace(evidence.BuilderScope) == "" || strings.TrimSpace(evidence.CapabilityProfile) == "" || strings.TrimSpace(evidence.CapabilityVersion) == "" || evidence.LedgerProvenance != "runtime-target-controlled-execution-ledger" || evidence.LedgerReceiptCount < 0 {
 		return verificationBaseline{}, errors.New("conformance baseline is invalid")
 	}
-	return verificationBaseline{targetID: evidence.TargetID, identityID: evidence.IdentityID, agentID: strings.TrimSpace(evidence.AgentID), generation: evidence.Generation, receiptCount: evidence.LedgerReceiptCount}, nil
+	return verificationBaseline{targetID: evidence.TargetID, identityID: evidence.IdentityID, agentID: strings.TrimSpace(evidence.AgentID), generation: evidence.Generation, receiptCount: evidence.LedgerReceiptCount, builderScope: strings.TrimSpace(evidence.BuilderScope), capabilityProfile: strings.TrimSpace(evidence.CapabilityProfile), capabilityVersion: strings.TrimSpace(evidence.CapabilityVersion)}, nil
+}
+
+func validateRestartEvidence(baseline verificationBaseline, evidence runtimetarget.DockerBuilderAgentConformanceEvidence) error {
+	if strings.TrimSpace(evidence.BuilderScope) == "" || strings.TrimSpace(evidence.CapabilityProfile) == "" || strings.TrimSpace(evidence.CapabilityVersion) == "" {
+		return errors.New("restart conformance evidence is missing builder capability metadata")
+	}
+	if evidence.BuilderScope != baseline.builderScope || evidence.CapabilityProfile != baseline.capabilityProfile || evidence.CapabilityVersion != baseline.capabilityVersion {
+		return errors.New("restart conformance evidence does not match bootstrap builder capability metadata")
+	}
+	return nil
 }
 
 func writeVerificationBaseline(path string, evidence runtimetarget.DockerBuilderAgentConformanceEvidence) error {

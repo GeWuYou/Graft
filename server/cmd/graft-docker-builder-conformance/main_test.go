@@ -26,8 +26,16 @@ func TestVerificationBaselineRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read baseline: %v", err)
 	}
-	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount {
+	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount || got.builderScope != want.BuilderScope || got.capabilityProfile != want.CapabilityProfile || got.capabilityVersion != want.CapabilityVersion {
 		t.Fatalf("baseline = %#v", got)
+	}
+}
+
+func TestValidateRestartEvidenceRejectsChangedBuilderCapabilityMetadata(t *testing.T) {
+	baseline := verificationBaseline{builderScope: "scope", capabilityProfile: "oci-build", capabilityVersion: "docker/v1"}
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{BuilderScope: "other-scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1"}
+	if err := validateRestartEvidence(baseline, evidence); err == nil {
+		t.Fatal("restart evidence with changed builder scope was accepted")
 	}
 }
 

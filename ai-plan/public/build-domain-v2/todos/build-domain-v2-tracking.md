@@ -254,7 +254,8 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-4-capability-intent-and-frozen-negotiation",
     "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
-    "phase-4-provider-admission-and-dynamic-retry"
+    "phase-4-provider-admission-and-dynamic-retry",
+    "phase-7-driver-owned-oci-manifest-api-release-gate"
   ],
   "pending_batches": [],
   "current_batch": null,
