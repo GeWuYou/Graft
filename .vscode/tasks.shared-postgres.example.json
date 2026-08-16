@@ -4,7 +4,7 @@
         {
             "label": "agent: prepare Docker Builder development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent prepare",
+            "command": "go run ./cmd/graft dev docker-builder-agent prepare --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },
@@ -13,7 +13,7 @@
         {
             "label": "agent: deliver Docker Builder development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent deliver",
+            "command": "go run ./cmd/graft dev docker-builder-agent deliver --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },
@@ -23,7 +23,7 @@
         {
             "label": "agent: deliver prepared Docker Builder development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent deliver --prepared",
+            "command": "go run ./cmd/graft dev docker-builder-agent deliver --prepared --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },

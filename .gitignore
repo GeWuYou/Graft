@@ -36,7 +36,9 @@ server/.env.docker-builder-agent
 .idea
 .vscode/*
 !.vscode/launch.json
-!.vscode/tasks.json
+!.vscode/README.md
+!.vscode/tasks.shared-postgres.example.json
+!.vscode/tasks.isolated-postgres.example.json
 .run/
 .run
 # project
