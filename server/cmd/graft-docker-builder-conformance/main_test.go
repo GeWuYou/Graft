@@ -18,7 +18,7 @@ func TestParseArgumentsRequiresPhaseSpecificEvidence(t *testing.T) {
 
 func TestVerificationBaselineRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
-	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, LedgerReceiptCount: 2}
+	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, ProviderID: "docker", BuilderScope: "scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", LedgerProvenance: "runtime-target-controlled-execution-ledger", LedgerReceiptCount: 2}
 	if err := writeVerificationBaseline(path, want); err != nil {
 		t.Fatalf("write baseline: %v", err)
 	}
@@ -28,6 +28,17 @@ func TestVerificationBaselineRoundTrip(t *testing.T) {
 	}
 	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount {
 		t.Fatalf("baseline = %#v", got)
+	}
+}
+
+func TestVerificationBaselineRejectsUnboundLedgerEvidence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, ProviderID: "docker", BuilderScope: "scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", LedgerReceiptCount: 1}
+	if err := writeVerificationBaseline(path, evidence); err != nil {
+		t.Fatalf("write baseline: %v", err)
+	}
+	if _, err := readVerificationBaseline(path); err == nil {
+		t.Fatal("baseline without controlled-ledger provenance was accepted")
 	}
 }
 

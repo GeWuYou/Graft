@@ -180,7 +180,7 @@ func readVerificationBaseline(path string) (verificationBaseline, error) {
 	if err := json.Unmarshal(contents, &evidence); err != nil {
 		return verificationBaseline{}, errors.New("decode conformance baseline")
 	}
-	if evidence.TargetID < 1 || strings.TrimSpace(evidence.IdentityID) == "" || strings.TrimSpace(evidence.AgentID) == "" || evidence.Generation < 1 || evidence.LedgerReceiptCount < 0 {
+	if evidence.TargetID < 1 || strings.TrimSpace(evidence.IdentityID) == "" || strings.TrimSpace(evidence.AgentID) == "" || evidence.Generation < 1 || strings.TrimSpace(evidence.ProviderID) != "docker" || strings.TrimSpace(evidence.BuilderScope) == "" || strings.TrimSpace(evidence.CapabilityProfile) == "" || strings.TrimSpace(evidence.CapabilityVersion) == "" || evidence.LedgerProvenance != "runtime-target-controlled-execution-ledger" || evidence.LedgerReceiptCount < 0 {
 		return verificationBaseline{}, errors.New("conformance baseline is invalid")
 	}
 	return verificationBaseline{targetID: evidence.TargetID, identityID: evidence.IdentityID, agentID: strings.TrimSpace(evidence.AgentID), generation: evidence.Generation, receiptCount: evidence.LedgerReceiptCount}, nil

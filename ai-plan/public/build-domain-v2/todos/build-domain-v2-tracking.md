@@ -89,6 +89,11 @@ closeout:
   secrets nor owns Runtime Target membership. No independent automation PKI, unsupported provider implementation,
   menu, API or placeholder is authorized. Operator and Agent operations remain unpublished until the end-to-end
   conformance gate passes.
+- Docker Builder Agent admission (2026-08-16): the Docker-only fixture now persists and verifies non-secret evidence
+  that every accepted ledger receipt belongs to the Runtime Target-bound Docker provider, Builder scope, capability
+  profile/version, and `runtime-target-controlled-execution-ledger` provenance. Existing focused ledger tests prove
+  replay, certificate mismatch and revocation fail closed. This is an admission-evidence closure only: it does not make
+  dynamic policies executable; the remaining Provider admission and dynamic retry/recovery batch owns that decision.
 
 ## Historical Implementation Evidence
 

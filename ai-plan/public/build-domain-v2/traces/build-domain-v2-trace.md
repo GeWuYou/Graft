@@ -656,6 +656,18 @@
   topic tracking repository-truth list. Recovery sessions implementing the Docker Builder Agent protocol must read
   both documents before changing trust, enrollment, credential delivery, telemetry, or revocation behavior.
 
+## 2026-08-16 phase-4-docker-builder-agent-admission
+
+- Docker Builder Agent conformance evidence now freezes the active Runtime Target Agent binding's Docker Provider ID,
+  Builder scope, capability profile/version, and explicit `runtime-target-controlled-execution-ledger` provenance.
+  The fixture rejects stale or incomplete evidence before it can serve as a restart baseline.
+- The receipt count remains Runtime Target ledger evidence, not Docker/host metrics, Task JSON, Monitor data, or a UI
+  projection. Existing repository tests cover exact-retry idempotency, changed-receipt rejection, certificate mismatch
+  and revoked-generation rejection.
+- This validates Docker-only controlled-ledger admission evidence without registering another Provider, public API,
+  queue, task state machine, event store or global health registry. Dynamic policy remains non-executable pending the
+  following Provider admission and dynamic retry/recovery batch.
+
 ## Loop Batch State
 
 ```json

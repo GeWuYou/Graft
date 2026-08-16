@@ -60,6 +60,11 @@ validate_evidence() {
     (.agent_id | type == "string" and length > 0) and
     (.identity_id | type == "string" and length > 0) and
     (.generation | type == "number" and . > 0) and
+    (.provider_id == "docker") and
+    (.builder_scope | type == "string" and length > 0) and
+    (.capability_profile | type == "string" and length > 0) and
+    (.capability_version | type == "string" and length > 0) and
+    (.ledger_provenance == "runtime-target-controlled-execution-ledger") and
     (.ledger_receipt_count | type == "number" and . >= 0)
   ' "$1" >/dev/null
 }
@@ -124,6 +129,8 @@ run_driver \
     (.target_id | type == "number" and . > 0) and
     (.identity_id | type == "string" and length > 0) and
     (.generation | type == "number" and . > 0) and
+    (.provider_id == "docker") and
+    (.ledger_provenance == "runtime-target-controlled-execution-ledger") and
     (.ledger_receipt_count | type == "number" and . >= 2)
   ' >/dev/null
 
