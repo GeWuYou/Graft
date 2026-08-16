@@ -107,6 +107,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 
 ### 4.1 Adopted
 
+以下五项是项目正式采纳的开发期 MCP；仍按最小权限、用户级配置、非运行时依赖和非完成门禁执行。
+
 - `codegraph`
   - 等级：`L0`
   - 用途：符号定位、调用链、影响面、模块入口探索。
@@ -118,7 +120,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
   - 规范：`ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
   - 约束：只作为前端组件知识源。
 
-### 4.2 Pilot
+### 4.2 Adopted（受限权限）
 
 - `context7`
   - 等级：`L1`
@@ -163,6 +165,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     编号 agent worktree 禁止使用 Playwright MCP 或 browser agent，也不得启动服务来获得浏览器证据；浏览器 QA 只允许
     在经用户或开发者许可、且已确认服务待验收分支和 HEAD 的主检出区执行。工作树只记录该主检出区 follow-up，不把它
     作为 scoped commit 的阻塞条件。
+### 4.3 Optional Pilot
+
 - `headroom`
   - 等级：`L1` 默认；启用 memory / learn 的受控本地试点时仍不得越过本节目录隔离和人工确认边界。
   - 定位：optional / local / user-level / MCP-based AI context compression tool。
@@ -185,7 +189,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     - Headroom memory 仅允许作为受控本地试点写入 `.ai/headroom/memory/**`，该目录必须由 `.gitignore` 排除，且不得替代 `ai-plan/public/**` 的 topic recovery 真值。
     - `headroom learn` 仅允许作为候选 lesson 生成器试点写入 `.ai/headroom/learn/**`，该目录必须由 `.gitignore` 排除；learn 输出不能直接写入 `AGENTS.md`、设计文档或 `ai-plan/lessons/**`，必须人工 review 后再走 `graft-lessons-learned` 或对应治理路径。
 
-### 4.3 Rejected By Default
+### 4.4 Rejected By Default
 
 - `filesystem` / `git` MCP
   - 原因：Codex 已有本地文件和 Git CLI 能力；重复能力会增加权限面。

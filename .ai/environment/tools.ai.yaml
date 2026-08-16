@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-07-06T02:45:56Z"
+generated_at_utc: "2026-08-16T15:18:07Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -12,27 +12,27 @@ repository:
   web_scaffolded: true
   web_bun_lock: true
 capabilities:
-  go: true
+  go: false
   python: true
-  node: true
-  npm: true
-  bun: true
+  node: false
+  npm: false
+  bun: false
   docker: true
-  gh: true
-  gh_authenticated: true
-  ai_headroom: true
+  gh: false
+  gh_authenticated: false
+  ai_headroom: false
   mcp_codegraph: true
   mcp_tdesign: true
   mcp_context7: true
   mcp_github: true
   mcp_playwright: true
-  mcp_headroom: true
+  mcp_headroom: false
   fast_search: true
   json_cli: true
   ai_browser: false
-  ai_headroom_mcp: true
-  playwright_python: true
-  playwright_browsers: true
+  ai_headroom_mcp: false
+  playwright_python: false
+  playwright_browsers: false
   playwright_system_deps: false
   server_scaffolded: true
   web_scaffolded: true
@@ -50,7 +50,7 @@ tool_selection:
     fallback: "sh"
     use_for: "Repository shell scripts and command execution."
   github_cli:
-    preferred: "gh"
+    preferred: "environment token"
     fallback: "environment token"
     use_for: "GitHub API authentication and PR-related local automation."
   scripting:
@@ -62,10 +62,10 @@ tool_selection:
     fallback: "unavailable"
     use_for: "AI-assisted local web UI screenshots and simple browser interactions."
   context_compression:
-    preferred: "headroom mcp"
+    preferred: "unavailable"
     fallback: "unavailable"
     use_for: "Optional local MCP compression, retrieval, and stats for AI-assisted context management."
-    mcp_command: ".ai/venv/bin/headroom mcp serve"
+    mcp_command: "unavailable"
     allowed_controlled_local:
       - "headroom memory"
       - "headroom learn"
@@ -76,19 +76,19 @@ tool_selection:
       - "rtk instruction injection"
       - "automatic instructions write"
   web_package_manager:
-    preferred: "bun"
+    preferred: "unavailable"
     fallback: "unavailable"
     use_for: "Installing and validating the web toolchain."
   server_build_and_test:
-    preferred: "go"
+    preferred: "unavailable"
     fallback: "unavailable"
     use_for: "Server build and test workflows once server/go.mod exists."
 ai_tools:
   headroom:
-    installed: true
+    installed: false
     risk_level: "L1"
     use_for: "Optional local user-level MCP-based AI context compression tool."
-    default_command: ".ai/venv/bin/headroom mcp serve"
+    default_command: "unavailable"
     memory_status: "controlled-local-only"
     memory_dir: ".ai/headroom/memory"
     learn_status: "controlled-local-only"
@@ -98,35 +98,41 @@ ai_tools:
 mcp_servers:
   codegraph:
     configured: true
+    adoption: "adopted"
     risk_level: "L0"
     use_for: "Local source navigation and impact discovery."
   tdesign:
     configured: true
+    adoption: "adopted"
     risk_level: "L0"
     use_for: "TDesign Vue Next component API, DOM, and changelog lookup."
   context7:
     configured: true
+    adoption: "adopted"
     risk_level: "L1"
     use_for: "Current third-party library documentation lookup."
   github:
     configured: true
+    adoption: "adopted"
     risk_level: "L1"
     access_policy: "read-only default; write actions require repository skill ownership."
     use_for: "GitHub PR, Actions, and repository context lookup for review workflows."
   playwright:
     configured: true
+    adoption: "adopted"
     risk_level: "L1"
     use_for: "Exploratory browser interaction before graft-web-browser-agent evidence capture."
   headroom:
-    configured: true
+    configured: false
+    adoption: "optional-pilot"
     risk_level: "L1"
     use_for: "On-demand local compression, retrieval, and stats for AI-assisted context management."
     access_policy: "Compression, retrieval, and stats only by default; memory and learn are controlled-local-only under .ai/headroom/**, and automatic instructions writes are disabled."
 python:
   available: true
   venv_available: true
-  project_venv_present: true
-  playwright_browsers_present: true
+  project_venv_present: false
+  playwright_browsers_present: false
   playwright_system_deps_available: false
   helper_packages:
     requests: true
@@ -136,7 +142,7 @@ python:
     pydantic: false
     pytest: false
     pyyaml: true
-    playwright: true
+    playwright: false
 preferences:
   prefer_project_listed_tools: true
   prefer_python_for_non_trivial_automation: true

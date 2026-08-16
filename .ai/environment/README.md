@@ -49,8 +49,9 @@ The environment inventory records whether these user-level Codex MCP servers are
 - `playwright`
 - `headroom`
 
-These entries are generated local capability facts. They do not make MCP a repository runtime dependency, CI gate, hook,
-or required contributor setup.
+`codegraph`、`tdesign`、`context7`、`github` 和 `playwright` 是项目正式采纳的开发期 MCP；`headroom` 保持可选试点。
+清单中的 `adoption` 表示项目采纳状态，`configured` 表示当前机器的实测用户级配置状态。两者均不使 MCP 成为仓库运行时
+依赖、CI gate、hook 或贡献者必装项。
 
 ## Headroom
 
