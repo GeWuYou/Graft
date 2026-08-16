@@ -171,6 +171,109 @@
         "label": "Visible Widgets"
       }
     },
+    "workbench": {
+      "routeTitle": "Workbench Design Preview",
+      "eyebrow": "Operations Workbench · Design Preview",
+      "title": "What Needs Attention Today?",
+      "description": "Review items that need confirmation, system health, and recent results. This page uses fixed design-validation data.",
+      "updatedAt": "Data Time: {time}",
+      "refresh": "Refresh Preview",
+      "status": {
+        "error": "Error",
+        "warning": "Warning",
+        "unknown": "Unknown",
+        "info": "Info",
+        "healthy": "Healthy"
+      },
+      "operational": {
+        "title": "Operational Status",
+        "eyebrow": "Operational Status",
+        "needsReview": "{count} Items Need Confirmation",
+        "distribution": "{warning} Warning · {unknown} Unknown",
+        "modules": "Enabled Modules",
+        "failedTasks": "Failed Tasks",
+        "highRiskEvents": "High-risk Events"
+      },
+      "attention": {
+        "title": "Needs Confirmation",
+        "description": "Confirmed degradation and states still waiting for reliable evidence.",
+        "count": "{count} Items",
+        "accessLog": {
+          "title": "Access Log Data Temporarily Unavailable",
+          "description": "The access-log observation source failed to load, so request trends are unavailable. This does not mean request handling has failed.",
+          "action": "Retry Loading"
+        },
+        "outbound": {
+          "title": "Outbound Network Has Not Been Checked",
+          "description": "No reliable connectivity result is available yet. Run the first check before deciding whether action is needed.",
+          "action": "Start Check"
+        }
+      },
+      "health": {
+        "title": "System Health",
+        "description": "Verified dependencies are intentionally shown with low visual weight.",
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "Database connectivity check passed"
+        },
+        "redis": {
+          "title": "Redis",
+          "description": "Cache connectivity check passed"
+        }
+      },
+      "activity": {
+        "title": "Recent Runs",
+        "description": "Recently completed tasks and automation results.",
+        "view": "View Record",
+        "build": {
+          "title": "Build Completed",
+          "description": "Graft-web · main · Finished in 2m 18s"
+        },
+        "scheduledTask": {
+          "title": "Scheduled Backup Completed",
+          "description": "Database backup · Result verified"
+        }
+      },
+      "resources": {
+        "title": "Resources",
+        "description": "Container and runtime resource summary.",
+        "noSample": {
+          "title": "No Resource Sample Yet",
+          "description": "Waiting for the next collection. Missing samples are not treated as resource failures.",
+          "action": "View Observability"
+        }
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "description": "Frequently used task entries",
+        "viewAll": "All",
+        "drawerTitle": "All Quick Actions",
+        "createBuild": {
+          "title": "Create Build",
+          "description": "Create and submit a new build job"
+        },
+        "observability": {
+          "title": "Observability Overview",
+          "description": "Review service and request runtime status"
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "Review recent security and operation records"
+        },
+        "artifacts": {
+          "title": "Build Artifacts",
+          "description": "Manage recently generated deliverables"
+        },
+        "scheduledTasks": {
+          "title": "Scheduled Tasks",
+          "description": "Review automation schedules and run history"
+        },
+        "accessLogs": {
+          "title": "Access Logs",
+          "description": "Review request details and diagnostics"
+        }
+      }
+    },
     "widget": {
       "accessLogRequestAttention": {
         "description": "Recent error and slow HTTP requests.",

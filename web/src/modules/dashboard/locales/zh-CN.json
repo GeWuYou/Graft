@@ -171,6 +171,109 @@
         "label": "可见组件"
       }
     },
+    "workbench": {
+      "routeTitle": "工作台设计预览",
+      "eyebrow": "运维工作台 · 设计预览",
+      "title": "今天需要处理什么？",
+      "description": "集中查看需要确认的事项、系统健康和近期运行结果。当前内容为固定设计验证数据。",
+      "updatedAt": "数据时间：{time}",
+      "refresh": "刷新预览",
+      "status": {
+        "error": "错误",
+        "warning": "警告",
+        "unknown": "未知",
+        "info": "信息",
+        "healthy": "正常"
+      },
+      "operational": {
+        "title": "运行状态",
+        "eyebrow": "运行状态",
+        "needsReview": "{count} 项需要确认",
+        "distribution": "{warning} 项警告 · {unknown} 项未知",
+        "modules": "启用模块",
+        "failedTasks": "失败任务",
+        "highRiskEvents": "高风险事件"
+      },
+      "attention": {
+        "title": "需要确认",
+        "description": "仅汇总已确认的降级和仍待检测的状态。",
+        "count": "{count} 项",
+        "accessLog": {
+          "title": "访问日志数据暂不可用",
+          "description": "访问日志观测源加载失败，当前无法提供请求趋势；这不代表请求处理服务已故障。",
+          "action": "重试加载"
+        },
+        "outbound": {
+          "title": "出站网络尚未完成检测",
+          "description": "尚无可信的连通性结果。完成首次检测后再判断是否需要处理。",
+          "action": "开始检测"
+        }
+      },
+      "health": {
+        "title": "系统健康",
+        "description": "已验证正常的基础依赖保持低权重展示。",
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "数据库连通性检查通过"
+        },
+        "redis": {
+          "title": "Redis",
+          "description": "缓存连通性检查通过"
+        }
+      },
+      "activity": {
+        "title": "近期运行",
+        "description": "最近完成的任务和自动化结果。",
+        "view": "查看记录",
+        "build": {
+          "title": "构建任务已完成",
+          "description": "graft-web · main · 用时 2 分 18 秒"
+        },
+        "scheduledTask": {
+          "title": "定时备份已完成",
+          "description": "数据库备份 · 执行结果正常"
+        }
+      },
+      "resources": {
+        "title": "资源",
+        "description": "容器和运行时资源摘要。",
+        "noSample": {
+          "title": "暂时没有资源采样",
+          "description": "等待下一次采集，不将缺少样本解释为资源异常。",
+          "action": "查看观测"
+        }
+      },
+      "quickActions": {
+        "title": "快捷操作",
+        "description": "常用任务入口",
+        "viewAll": "全部",
+        "drawerTitle": "全部快捷操作",
+        "createBuild": {
+          "title": "新建构建",
+          "description": "创建并提交新的构建任务"
+        },
+        "observability": {
+          "title": "观测概览",
+          "description": "查看服务和请求运行状态"
+        },
+        "audit": {
+          "title": "审计日志",
+          "description": "复核近期安全与操作记录"
+        },
+        "artifacts": {
+          "title": "构建产物",
+          "description": "管理最近生成的交付物"
+        },
+        "scheduledTasks": {
+          "title": "定时任务",
+          "description": "检查自动化计划和运行历史"
+        },
+        "accessLogs": {
+          "title": "访问日志",
+          "description": "查看请求明细与诊断信息"
+        }
+      }
+    },
     "widget": {
       "accessLogRequestAttention": {
         "description": "最近错误请求和慢请求。",
