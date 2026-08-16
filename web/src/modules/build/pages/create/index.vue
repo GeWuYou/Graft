@@ -39,7 +39,9 @@
       ><t-form-item name="template_ref" :label="t('build.jobs.create.template')"
         ><t-input v-model="form.template_ref" disabled /></t-form-item
       ><t-form-item name="driver" :label="t('build.jobs.create.driver')"
-        ><t-input v-model="form.driver" disabled /></t-form-item
+        ><t-select v-model="form.driver" :options="driverOptions" /></t-form-item
+      ><t-form-item name="platforms" :label="t('build.jobs.create.platforms')"
+        ><t-checkbox-group v-model="form.platforms" :options="platformOptions" /></t-form-item
       ><t-form-item name="destination.connection_ref" :label="t('build.jobs.create.registry')"
         ><t-select
           v-model="form.destination.connection_ref"
@@ -97,7 +99,12 @@ import {
 } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildBuilderPool } from '../../types/build';
-import { BUILD_DRIVER_REF, BUILD_TEMPLATE_REF } from '../../types/build';
+import {
+  BUILD_DRIVER_REF,
+  BUILD_MULTI_PLATFORM_DRIVER_REF,
+  BUILD_PLATFORM_OPTIONS,
+  BUILD_TEMPLATE_REF,
+} from '../../types/build';
 const { locale, t } = useI18n();
 const router = useRouter();
 const submitting = ref(false);
@@ -115,6 +122,13 @@ const form = ref<BuildJobForm>({
 });
 type SelectorOption = { label: string; value: string | number };
 type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
+const driverOptions = computed(() => [
+  { label: t('build.jobs.create.driverOptions.dockerEngine'), value: BUILD_DRIVER_REF },
+  { label: t('build.jobs.create.driverOptions.dockerBuildx'), value: BUILD_MULTI_PLATFORM_DRIVER_REF },
+]);
+const platformOptions = computed(() =>
+  BUILD_PLATFORM_OPTIONS.map((platform) => ({ label: platform, value: platform })),
+);
 const workspaceOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
 const builderPools = ref<BuildBuilderPool[]>([]);
@@ -209,6 +223,16 @@ watch(selectionMode, (mode) => {
   }
 });
 watch(
+  () => form.value.platforms,
+  (platforms) => {
+    if ((platforms?.length ?? 0) > 1) {
+      form.value.driver = BUILD_MULTI_PLATFORM_DRIVER_REF;
+      selectionMode.value = 'pool';
+    }
+  },
+  { deep: true },
+);
+watch(
   () => form.value.destination.connection_ref,
   () => {
     form.value.destination.repository_ref = '';
@@ -226,6 +250,14 @@ const rules = computed(() => ({
       : [],
   builder_pool_id:
     selectionMode.value === 'pool' ? [{ required: true, message: t('build.jobs.create.builderPoolRequired') }] : [],
+  platforms: [
+    { required: true, min: 1, message: t('build.jobs.create.platformsRequired') },
+    {
+      validator: (platforms: unknown) =>
+        !Array.isArray(platforms) || platforms.length < 2 || form.value.driver === BUILD_MULTI_PLATFORM_DRIVER_REF,
+      message: t('build.jobs.create.multiPlatformDriverRequired'),
+    },
+  ],
   'destination.connection_ref': [{ required: true, message: t('build.jobs.create.registryRequired') }],
   'destination.repository_ref': [{ required: true, message: t('build.jobs.create.repositoryRequired') }],
   'destination.reference': [{ required: true, message: t('build.jobs.create.tagRequired') }],

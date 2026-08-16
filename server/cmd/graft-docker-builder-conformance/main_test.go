@@ -18,7 +18,7 @@ func TestParseArgumentsRequiresPhaseSpecificEvidence(t *testing.T) {
 
 func TestVerificationBaselineRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
-	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, LedgerReceiptCount: 2}
+	want := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, ProviderID: "docker", BuilderScope: "scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", LedgerProvenance: "runtime-target-controlled-execution-ledger", LedgerReceiptCount: 2}
 	if err := writeVerificationBaseline(path, want); err != nil {
 		t.Fatalf("write baseline: %v", err)
 	}
@@ -26,8 +26,35 @@ func TestVerificationBaselineRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read baseline: %v", err)
 	}
-	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount {
+	if got.targetID != want.TargetID || got.identityID != want.IdentityID || got.agentID != want.AgentID || got.generation != want.Generation || got.receiptCount != want.LedgerReceiptCount || got.builderScope != want.BuilderScope || got.capabilityProfile != want.CapabilityProfile || got.capabilityVersion != want.CapabilityVersion {
 		t.Fatalf("baseline = %#v", got)
+	}
+}
+
+func TestValidateRestartEvidenceRejectsChangedBuilderCapabilityMetadata(t *testing.T) {
+	baseline := verificationBaseline{builderScope: "scope", capabilityProfile: "oci-build", capabilityVersion: "docker/v1"}
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{BuilderScope: "other-scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1"}
+	if err := validateRestartEvidence(baseline, evidence); err == nil {
+		t.Fatal("restart evidence with changed builder scope was accepted")
+	}
+}
+
+func TestValidateRestartEvidenceNormalizesBuilderCapabilityMetadata(t *testing.T) {
+	baseline := verificationBaseline{builderScope: "scope", capabilityProfile: "oci-build", capabilityVersion: "docker/v1"}
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{BuilderScope: " scope ", CapabilityProfile: " oci-build ", CapabilityVersion: " docker/v1 "}
+	if err := validateRestartEvidence(baseline, evidence); err != nil {
+		t.Fatalf("restart evidence with equivalent builder capability metadata was rejected: %v", err)
+	}
+}
+
+func TestVerificationBaselineRejectsUnboundLedgerEvidence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, ProviderID: "docker", BuilderScope: "scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", LedgerReceiptCount: 1}
+	if err := writeVerificationBaseline(path, evidence); err != nil {
+		t.Fatalf("write baseline: %v", err)
+	}
+	if _, err := readVerificationBaseline(path); err == nil {
+		t.Fatal("baseline without controlled-ledger provenance was accepted")
 	}
 }
 

@@ -60,6 +60,11 @@ validate_evidence() {
     (.agent_id | type == "string" and length > 0) and
     (.identity_id | type == "string" and length > 0) and
     (.generation | type == "number" and . > 0) and
+    (.provider_id == "docker") and
+    (.builder_scope | type == "string" and length > 0) and
+    (.capability_profile | type == "string" and length > 0) and
+    (.capability_version | type == "string" and length > 0) and
+    (.ledger_provenance == "runtime-target-controlled-execution-ledger") and
     (.ledger_receipt_count | type == "number" and . >= 0)
   ' "$1" >/dev/null
 }
@@ -120,10 +125,15 @@ run_driver \
   --target-id "$(jq -r '.target_id' "$bootstrap_evidence")" \
   --identity-id "$(jq -r '.identity_id' "$bootstrap_evidence")" \
   --generation "$(jq -r '.generation' "$bootstrap_evidence")" \
-  --receipt-count "$(jq -r '.ledger_receipt_count' "$bootstrap_evidence")" | jq -e '
+  --receipt-count "$(jq -r '.ledger_receipt_count' "$bootstrap_evidence")" | jq -e --slurpfile bootstrap "$bootstrap_evidence" '
     (.target_id | type == "number" and . > 0) and
     (.identity_id | type == "string" and length > 0) and
     (.generation | type == "number" and . > 0) and
+    (.provider_id == "docker") and
+    (.builder_scope | type == "string" and length > 0 and . == $bootstrap[0].builder_scope) and
+    (.capability_profile | type == "string" and length > 0 and . == $bootstrap[0].capability_profile) and
+    (.capability_version | type == "string" and length > 0 and . == $bootstrap[0].capability_version) and
+    (.ledger_provenance == "runtime-target-controlled-execution-ledger") and
     (.ledger_receipt_count | type == "number" and . >= 2)
   ' >/dev/null
 

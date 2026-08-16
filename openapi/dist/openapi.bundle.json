@@ -38316,13 +38316,16 @@
           "driver": {
             "type": "string",
             "enum": [
-              "docker-engine@v1"
-            ]
+              "docker-engine@v1",
+              "docker-buildx@v1"
+            ],
+            "description": "docker-buildx@v1 is required when platforms contains more than one platform."
           },
           "platforms": {
             "type": "array",
             "minItems": 1,
             "maxItems": 8,
+            "description": "A multi-platform request requires docker-buildx@v1 and a Builder Pool so Build can freeze one placement per platform.",
             "items": {
               "type": "string",
               "pattern": "^linux/[a-z0-9]+(?:/[a-z0-9]+)?$"

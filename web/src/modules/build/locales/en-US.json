@@ -128,6 +128,13 @@
         "selectorsEmpty": "No authorized Build workspace and builder options are available.",
         "template": "Build template",
         "driver": "Build driver",
+        "driverOptions": {
+          "dockerEngine": "Docker Engine",
+          "dockerBuildx": "Docker Buildx"
+        },
+        "platforms": "Target platforms",
+        "platformsRequired": "Select at least one target platform.",
+        "multiPlatformDriverRequired": "Multi-platform builds require the Docker Buildx driver.",
         "contextPath": "Build context path",
         "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",

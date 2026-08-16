@@ -89,6 +89,18 @@ closeout:
   secrets nor owns Runtime Target membership. No independent automation PKI, unsupported provider implementation,
   menu, API or placeholder is authorized. Operator and Agent operations remain unpublished until the end-to-end
   conformance gate passes.
+- Docker Builder Agent admission (2026-08-16): the Docker-only fixture now persists and verifies non-secret evidence
+  that every accepted ledger receipt belongs to the Runtime Target-bound Docker provider, Builder scope, capability
+  profile/version, and `runtime-target-controlled-execution-ledger` provenance. Existing focused ledger tests prove
+  replay, certificate mismatch and revocation fail closed. This is an admission-evidence closure only: it does not make
+  dynamic policies executable; the remaining Provider admission and dynamic retry/recovery batch owns that decision.
+- Provider admission and dynamic retry/recovery (2026-08-16): Runtime Target now projects dynamic telemetry only from
+  a fresh, consumed mTLS ledger receipt of the exact active Docker Agent generation. The projection rejects revoked,
+  expired, unavailable or diagnostic-bearing generations and exposes no Docker/host metrics, Task JSON, UI or Monitor
+  input. Build's existing dynamic selection and retry reconfirmation consume this narrow projection and retain the
+  frozen target, capability negotiation, telemetry observation and Reservation fence; they never reselect a Pool
+  member. Dynamic policies therefore remain fail-closed for every target without that complete evidence, while a
+  conformant Docker target can be admitted without a second queue, Task state machine, event store or public surface.
 
 ## Historical Implementation Evidence
 
@@ -138,24 +150,26 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.
 - [x] Phase 6 foundation: multi-instance untracked coordinated-leg cancellation and restart cancellation recovery.
 - [x] Phase 6 foundation: Build-owned per-platform immutable Artifact persistence with non-overwriting leg settlement.
-- [ ] Phase 7: Driver-owned OCI Manifest publication capability and multi-platform API release gate.
+- [x] Phase 7: Driver-owned OCI Manifest publication capability and multi-platform API release gate. The canonical
+  Build Job request exposes `docker-buildx@v1`; multi-platform requests require that Driver and a Builder Pool, while
+  Task Runtime retains coordinated legs and the final aggregate publication stage.
 - [x] Phase 7 foundation: complete-platform Artifact validation and Driver publication input contract.
 - [x] Phase 7 foundation: final OCI Manifest Artifact and Publication settlement after Driver-proven digest result.
 - [x] Phase 7 foundation: Container Buildx provider adapter with target-declared `docker-buildx` capability gate.
 - [x] Phase 7 execution slice: coordinated Build legs only build and publish per-platform immutable digests. Task
   Runtime then claims one final aggregate stage after every leg succeeds; that stage performs provider-owned OCI
   Manifest publication and Build-owned settlement exactly once.
-- [ ] Phase 4: provider-conformant dynamic placement and Task Runtime-owned distributed Build; existing dynamic policy
-  literals remain disabled until this release gate.
+- [x] Phase 4: Docker-only provider-conformant dynamic placement and Task Runtime-owned distributed Build. Dynamic
+  policies admit only a target with active-generation, fresh controlled-ledger evidence and otherwise fail closed.
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
   by coordinated Task legs and the Build executor; targets must declare `build-snapshot` locality.
 - [x] Phase 8 foundation: deterministic `labels` Pool selection freezes validated selector evidence in each Placement.
-- [ ] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority for fresh capacity, queue, region and affinity evidence.
+- [x] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority now projects fresh Docker Builder Agent controlled-ledger
+  capacity and queue evidence; unsupported dimensions continue to fail closed.
 - [x] Historical telemetry read contract: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define a
   narrow facade only. The RFC retains the facade but requires a real `BuilderTelemetryProvider` before dynamic policy.
-- [ ] Phase 8B: Builder Capacity And Telemetry Source Authority. Runtime/Infrastructure must provide a real,
-  restart-safe target telemetry source; Build must add atomic Instance reservations and Task lifecycle reconciliation
-  before dynamic policies can be enabled.
+- [x] Phase 8B: Docker's restart-safe target telemetry source and Build's atomic slot-aware Instance reservations are
+  reconciled through Task lifecycle evidence before a dynamic Placement can be admitted.
 - [x] Phase 9: Provider-backed Snapshot delivery and Remote Builder execution (Docker provider slice).
 - [x] Phase 9 foundation: Runtime Target exposes Snapshot delivery modes and providers require an explicit delivery
   capability for the selected target.
@@ -238,14 +252,14 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-4-mandatory-capability-matching",
     "phase-4-slot-aware-reservation",
     "phase-4-capability-intent-and-frozen-negotiation",
-    "phase-4-resolved-policy-freezing"
-  ],
-  "pending_batches": [
+    "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
-    "phase-4-provider-admission-and-dynamic-retry"
+    "phase-4-provider-admission-and-dynamic-retry",
+    "phase-7-driver-owned-oci-manifest-api-release-gate"
   ],
-  "current_batch": "phase-4-docker-builder-agent-admission",
-  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
-  "closeout_status": "active-incomplete"
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "scope-complete-topic-active"
 }
 ```

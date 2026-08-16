@@ -275,6 +275,21 @@ func TestSubmitExecutionPlanRejectsUnassignedOrIncompatibleTarget(t *testing.T) 
 	}
 }
 
+func TestSubmitExecutionPlanRejectsMultiPlatformRequestWithoutBuildxDriver(t *testing.T) {
+	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service.ConfigureV2Submission(
+		v2SnapshotResolver{snapshot: moduleapi.WorkspaceSnapshot{ID: "snapshot", ContentDigest: "sha256:source", MaterializedRoot: "/workspace/app"}},
+		v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, SupportedDrivers: []string{"docker-engine", "docker-buildx"}, SupportedPlatforms: []string{"linux/amd64", "linux/arm64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}},
+		v2TargetAssignments{allowed: true},
+		v2RegistryResolver{},
+	)
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	_, err := service.SubmitExecutionPlan(ctx, ExecutionPlanRequest{WorkspaceID: "workspace_app", BuilderPoolID: "pool:default", TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Platforms: []string{"linux/amd64", "linux/arm64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}, IdempotencyKey: "multi-platform-engine"})
+	if err == nil || !strings.Contains(err.Error(), "docker-buildx") {
+		t.Fatalf("error = %v, want docker-buildx rejection", err)
+	}
+}
+
 func TestFreezeExecutionPlanRecordsPoolAndInstanceSelection(t *testing.T) {
 	snapshot := moduleapi.WorkspaceSnapshot{ID: "snapshot", ContentDigest: "sha256:source", MaterializedRoot: "/managed/snapshot"}
 	request := ExecutionPlanRequest{WorkspaceID: "workspace_app", BuilderPoolID: "pool:default", RuntimeTargetID: 4, BuilderPlacements: []moduleapi.BuilderPlacement{{Platform: "linux/amd64", BuilderInstanceID: "instance:docker-a", RuntimeTargetID: 4, SchedulingPolicy: "round_robin"}}, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Platforms: []string{"linux/amd64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}

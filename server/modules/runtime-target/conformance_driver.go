@@ -88,6 +88,11 @@ type DockerBuilderAgentConformanceEvidence struct {
 	Generation           int64  `json:"generation"`
 	CertificateSerial    string `json:"certificate_serial"`
 	PublicKeyFingerprint string `json:"public_key_fingerprint"`
+	ProviderID           string `json:"provider_id"`
+	BuilderScope         string `json:"builder_scope"`
+	CapabilityProfile    string `json:"capability_profile"`
+	CapabilityVersion    string `json:"capability_version"`
+	LedgerProvenance     string `json:"ledger_provenance"`
 	LedgerReceiptCount   int64  `json:"ledger_receipt_count"`
 }
 
@@ -207,7 +212,13 @@ func (d *DockerBuilderAgentConformanceDriver) readActiveEvidence(ctx context.Con
 }
 
 func conformanceEvidence(binding moduleapi.RuntimeTargetAgentBinding, receiptCount int64) DockerBuilderAgentConformanceEvidence {
-	return DockerBuilderAgentConformanceEvidence{IdentityID: binding.IdentityID, TargetID: binding.TargetID, AgentID: binding.AgentID, Generation: binding.Generation, CertificateSerial: binding.CertificateSerial, PublicKeyFingerprint: binding.PublicKeyFingerprint, LedgerReceiptCount: receiptCount}
+	return DockerBuilderAgentConformanceEvidence{
+		IdentityID: binding.IdentityID, TargetID: binding.TargetID, AgentID: binding.AgentID, Generation: binding.Generation,
+		CertificateSerial: binding.CertificateSerial, PublicKeyFingerprint: binding.PublicKeyFingerprint,
+		ProviderID: binding.ProviderID, BuilderScope: binding.BuilderScope, CapabilityProfile: binding.CapabilityProfile,
+		CapabilityVersion: binding.CapabilityVersion, LedgerProvenance: "runtime-target-controlled-execution-ledger",
+		LedgerReceiptCount: receiptCount,
+	}
 }
 
 func validDockerBuilderAgentFixtureScenario(s DockerBuilderAgentFixtureScenario) bool {

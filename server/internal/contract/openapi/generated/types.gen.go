@@ -1915,12 +1915,15 @@ func (e BuildJobCreateRequestDestinationKind) Valid() bool {
 
 // Defines values for BuildJobCreateRequestDriver.
 const (
+	DockerBuildxV1 BuildJobCreateRequestDriver = "docker-buildx@v1"
 	DockerEngineV1 BuildJobCreateRequestDriver = "docker-engine@v1"
 )
 
 // Valid indicates whether the value is a known member of the BuildJobCreateRequestDriver enum.
 func (e BuildJobCreateRequestDriver) Valid() bool {
 	switch e {
+	case DockerBuildxV1:
+		return true
 	case DockerEngineV1:
 		return true
 	default:
@@ -8573,8 +8576,12 @@ type BuildJobCreateRequest struct {
 		Reference     string                               `json:"reference"`
 		RepositoryRef string                               `json:"repository_ref"`
 	} `json:"destination"`
-	Driver    BuildJobCreateRequestDriver `json:"driver"`
-	Platforms *[]string                   `json:"platforms,omitempty"`
+
+	// Driver docker-buildx@v1 is required when platforms contains more than one platform.
+	Driver BuildJobCreateRequestDriver `json:"driver"`
+
+	// Platforms A multi-platform request requires docker-buildx@v1 and a Builder Pool so Build can freeze one placement per platform.
+	Platforms *[]string `json:"platforms,omitempty"`
 
 	// RuntimeTargetId Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
 	RuntimeTargetId *int64                           `json:"runtime_target_id,omitempty"`
@@ -8585,7 +8592,7 @@ type BuildJobCreateRequest struct {
 // BuildJobCreateRequestDestinationKind defines model for BuildJobCreateRequest.Destination.Kind.
 type BuildJobCreateRequestDestinationKind string
 
-// BuildJobCreateRequestDriver defines model for BuildJobCreateRequest.Driver.
+// BuildJobCreateRequestDriver docker-buildx@v1 is required when platforms contains more than one platform.
 type BuildJobCreateRequestDriver string
 
 // BuildJobCreateRequestTemplateRef defines model for BuildJobCreateRequest.TemplateRef.
