@@ -37,6 +37,7 @@ export type ThemeWorkbenchStylePatch = Partial<
   Pick<
     SettingStyleConfig,
     | 'layout'
+    | 'sideMode'
     | 'splitMenu'
     | 'isSidebarFixed'
     | 'isUseTabsRouter'

@@ -957,6 +957,8 @@ describe('setting store theme authority', () => {
     store.selectThemePreset('industrial-yellow', 'complete');
 
     expect(store.selectedThemePresetId).toBe('industrial-yellow');
+    expect(store.mode).toBe('light');
+    expect(store.sideMode).toBe('light');
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
     expect(store.shadowIntensity).toBe('standard');
@@ -1005,6 +1007,26 @@ describe('setting store theme authority', () => {
     expect(
       THEME_PRESET_DEFINITIONS.every((preset) => (preset.authorityPatch?.shadowIntensity ?? 'standard') === 'standard'),
     ).toBe(true);
+  });
+
+  it.each(THEME_PRESET_DEFINITIONS)('aligns the $id complete preset sidebar with its fixed theme mode', (preset) => {
+    if (preset.mode !== 'light' && preset.mode !== 'dark') {
+      throw new Error(`Built-in preset ${preset.id} must declare a fixed theme mode`);
+    }
+
+    const store = useSettingStore();
+    const oppositeMode = preset.mode === 'light' ? 'dark' : 'light';
+    store.updateConfig({ sideMode: oppositeMode });
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset(preset.id, 'complete');
+
+    expect(store.mode).toBe(preset.mode);
+    expect(store.sideMode).toBe(preset.mode);
+    expect(document.documentElement.setAttribute).toHaveBeenLastCalledWith(
+      'side-mode',
+      preset.mode === 'dark' ? 'dark' : '',
+    );
   });
 
   it('resolves scrollbar tracks and hover states from the selected theme preset', () => {
@@ -1158,7 +1180,7 @@ describe('setting store theme authority', () => {
   it('preserves personalization while applying a preset palette by default', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side', sideMode: 'light' });
     store.updateThemeDraftAppearance({ fontSizePreset: 'large', densityPreset: 'compact', shadowIntensity: 'strong' });
     store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
 
@@ -1170,6 +1192,7 @@ describe('setting store theme authority', () => {
     expect(store.densityPreset).toBe('compact');
     expect(store.shadowIntensity).toBe('strong');
     expect(store.layout).toBe('side');
+    expect(store.sideMode).toBe('light');
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBeUndefined();
@@ -1178,7 +1201,7 @@ describe('setting store theme authority', () => {
   it('applies the complete preset package into editable authority and token state', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side', sideMode: 'light' });
     store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
     store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
 
@@ -1188,6 +1211,7 @@ describe('setting store theme authority', () => {
     expect(store.densityPreset).toBe('comfortable');
     expect(store.shadowIntensity).toBe('standard');
     expect(store.layout).toBe('mix');
+    expect(store.sideMode).toBe('dark');
     expect(store.isAcrylicEnabled).toBe(true);
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('30px');
     expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
@@ -1250,7 +1274,7 @@ describe('setting store theme authority', () => {
   it('resets to the complete default configuration', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
-    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side', sideMode: 'light' });
     store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
     store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
 
@@ -1260,6 +1284,7 @@ describe('setting store theme authority', () => {
     expect(store.mode).toBe('dark');
     expect(store.fontSizePreset).toBe('standard');
     expect(store.layout).toBe('mix');
+    expect(store.sideMode).toBe('dark');
     expect(store.isAcrylicEnabled).toBe(true);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#E6EAF0');
   });

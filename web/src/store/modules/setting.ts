@@ -134,6 +134,16 @@ function createInitialSettingState(): SettingState {
 export type TState = SettingState;
 export type TStateKey = keyof SettingState;
 
+function createCompletePresetStylePatch(
+  preset: ThemePresetDefinition,
+  resolvedMode: ModeType,
+): ThemeWorkbenchStylePatch {
+  return {
+    ...preset.stylePatch,
+    sideMode: preset.stylePatch?.sideMode ?? resolvedMode,
+  };
+}
+
 export const useSettingStore = defineStore('setting', {
   state: createInitialSettingState,
   getters: {
@@ -431,7 +441,8 @@ export const useSettingStore = defineStore('setting', {
         return;
       }
       resetThemeWorkbenchDraftToDefault(this, defaultPreset, options);
-      this.updateConfig(defaultPreset.stylePatch ?? {});
+      const resetMode = (this.themeDraft?.mode ?? defaultPreset.mode ?? this.mode) as ModeType | 'auto';
+      this.updateConfig(createCompletePresetStylePatch(defaultPreset, this.getDisplayModeByInput(resetMode)));
     },
     async resetDefaultThemeWithFeedback() {
       const feedbackKey = this.themeResetFeedbackKey + 1;
@@ -467,8 +478,8 @@ export const useSettingStore = defineStore('setting', {
         currentPreset,
       );
       this.updateThemeDraft(nextState);
-      if (scope === 'complete' && preset.stylePatch) {
-        this.updateConfig(preset.stylePatch);
+      if (scope === 'complete') {
+        this.updateConfig(createCompletePresetStylePatch(preset, this.getDisplayModeByInput(nextState.mode)));
       }
     },
     applyWorkbenchQuickAppearance(patch: ThemeWorkbenchAuthorityPatch) {
