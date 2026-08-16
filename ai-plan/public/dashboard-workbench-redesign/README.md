@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: redesign the global dashboard into a stable operational workbench without letting module count control page geometry.
-- Current status: `active`
+- Current status: `active · preview-ready-for-acceptance`
 - Task class: `cross-boundary`
 - Intake summary: a long-running feature with repository-wide design truth, active recovery material, and a topic-local roadmap.
 - Canonical authority:
@@ -49,7 +49,7 @@ Out of scope:
 
 - Work Intake bootstrap and design authority are established.
 - The production homepage and APIs remain unchanged.
-- Next step: capture and inspect `/mock/dashboard-preview` browser evidence against the clean implementation HEAD.
+- Next step: obtain human visual acceptance for `/mock/dashboard-preview` before production Web adoption.
 
 ## Work Intake
 

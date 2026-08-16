@@ -55,7 +55,8 @@ closeout:
 - Authority discovery and status-semantics decisions are complete.
 - Work Intake and design documents are bootstrapped.
 - The deterministic preview, development route, locales, and focused tests are implemented.
-- Current next step: commit the validated preview slice so browser evidence can be captured against a clean primary-checkout HEAD.
+- Browser evidence and one visual refinement pass are complete against clean primary-checkout HEAD `c07f5fa3`.
+- Current next step: collect human visual acceptance before starting production homepage adoption.
 
 ## Task Checklist
 
@@ -65,7 +66,7 @@ closeout:
 - [x] Add focused model, route, and page tests.
 - [x] Run focused Web validation and ai-plan structural validation.
 - [ ] Clear or disposition the existing repository-wide typecheck blocker before claiming full `bun run check` completion.
-- [ ] Capture desktop and full-page browser artifacts; iterate at least once.
+- [x] Capture desktop and full-page browser artifacts; iterate at least once.
 - [ ] Record human acceptance result before production adoption.
 - [ ] Implement production Web adoption and later typed attention contract in separate batches.
 
@@ -75,6 +76,12 @@ closeout:
 - Scoped ESLint, i18n governance, stylelint/hygiene stages, `git diff --check`, and `validate_ai_plan_structure.py` passed.
 - `bun run check` reaches the existing unrelated typecheck failure in `ResourceQueryPanel.vue`: the current HEAD does not export `AdvancedQueryFilterBuilderFrameState` from `AdvancedQueryFilterBuilderFrame.vue`.
 - Independent read-only review found no blocker or P1. Its four P2 findings were resolved by adding an explicit presentation region, enforcing evidence invariants, using the shared `access-log` icon key, and removing the mobile orphan metric row.
+- Browser inspection used the existing signed-in external browser after the reproducible WSL browser agent was blocked by missing Chromium system libraries. The real shell, status copy, quick-action Drawer, and fixed scenario were visible and interactive.
+- Responsive checks at 1440, 1200, 992, and 768 viewport widths reported no horizontal overflow and preserved Attention → Health → Activity → Resources order.
+- The visual refinement removed duplicate Attention icons and prevented the neutral Resources surface from stretching into a large empty card.
+- Retained artifacts:
+  - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
+  - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
 
 ## Acceptance Conditions
 
@@ -88,14 +95,16 @@ closeout:
 
 ```json
 {
-  "completed_batches": ["authority-discovery-and-design"],
+  "completed_batches": [
+    "authority-discovery-and-design",
+    "development-preview-and-browser-evidence"
+  ],
   "pending_batches": [
-    "development-preview-and-browser-evidence",
     "production-web-adoption",
     "typed-attention-contract"
   ],
-  "current_batch": "development-preview-and-browser-evidence",
+  "current_batch": null,
   "next_batch": "production-web-adoption",
-  "closeout_status": "in-progress"
+  "closeout_status": "preview-ready-for-acceptance"
 }
 ```

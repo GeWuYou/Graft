@@ -23,18 +23,28 @@
 - Ran independent read-only change review. No blocker or P1 was found; all four P2 findings were repaired and revalidated.
 - Full `bun run check` is currently blocked by a pre-existing export error in shared query-list code outside this topic's owned scope.
 
+## 2026-08-17 Browser Inspection And Refinement
+
+- Verified the development route in the real authenticated Graft shell at 1920 × 1080.
+- Verified the “全部快捷操作” Drawer exposes all six shared-icon actions.
+- Checked 1440, 1200, 992, and 768 viewport widths; none produced horizontal overflow, and narrow layouts retained the intended semantic order.
+- Completed one screenshot-driven visual refinement: removed repeated status icons, kept health quiet, and stopped the missing-resource note from becoming an oversized empty surface.
+- Captured and retained the required desktop and full-page PNG artifacts under `.ai/artifacts/browser/dashboard-workbench-redesign/`.
+
 ## Batch State
 
 ```json
 {
-  "completed_batches": ["authority-discovery-and-design"],
+  "completed_batches": [
+    "authority-discovery-and-design",
+    "development-preview-and-browser-evidence"
+  ],
   "pending_batches": [
-    "development-preview-and-browser-evidence",
     "production-web-adoption",
     "typed-attention-contract"
   ],
-  "current_batch": "development-preview-and-browser-evidence",
+  "current_batch": null,
   "next_batch": "production-web-adoption",
-  "closeout_status": "in-progress"
+  "closeout_status": "preview-ready-for-acceptance"
 }
 ```

@@ -259,6 +259,7 @@ import { formatLocaleDateTime, MEDIUM_DATE_TIME_FORMAT_OPTIONS } from '@/shared/
 import WorkbenchStatusIndicator from '../../components/workbench/WorkbenchStatusIndicator.vue';
 import { DASHBOARD_PREVIEW_PRESENTATION, type PresentationItem } from '../../presentation/workbench';
 
+// 开发预览只消费 dashboard 模块内固定 presentation model，不调用生产 API，也不反推旧 widget 状态。
 defineOptions({ name: 'DashboardWorkbenchPreviewPage' });
 
 const router = useRouter();

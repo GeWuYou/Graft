@@ -2,7 +2,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
-// 开发构建才装配此路由，隔离本地更新中心预览与正式用户路由树。
+// 开发构建才装配此路由文件，隔离本地设计预览与正式用户路由树。
 export const developmentRouterList: RouteRecordRaw[] = [
   {
     path: '/mock/dashboard-preview',
