@@ -13,7 +13,7 @@ import {
   withSorterFieldFromInput,
 } from '@/shared/observability/sorters';
 
-import type { AdvancedQueryFilterBuilderFrameState } from './AdvancedQueryFilterBuilderFrame.vue';
+import type { AdvancedQueryFilterBuilderFrameState } from './advanced-query-filter-builder-frame';
 import type {
   AdvancedQueryFilterFieldDefinition,
   AdvancedQueryFilterPreset,

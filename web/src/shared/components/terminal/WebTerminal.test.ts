@@ -68,6 +68,23 @@ class ResizeObserverMock {
   disconnect = vi.fn();
 }
 
+class WebSocketMock {
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+
+  readyState = WebSocketMock.OPEN;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+
+  close() {
+    this.readyState = WebSocketMock.CLOSING;
+  }
+
+  send = vi.fn();
+}
+
 describe('WebTerminal', () => {
   const connector: TerminalSessionConnector = {
     open: vi.fn(),
@@ -81,6 +98,7 @@ describe('WebTerminal', () => {
       callback(0);
       return 1;
     });
+    vi.stubGlobal('WebSocket', WebSocketMock);
   });
 
   afterEach(() => {
@@ -149,6 +167,7 @@ describe('WebTerminal', () => {
 
     expect(terminalReset).toHaveBeenCalledTimes(2);
     expect(terminalClear).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 
   it('keeps wheel events inside a scrollable terminal viewport', async () => {

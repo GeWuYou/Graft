@@ -53,6 +53,7 @@ export default mergeConfig(
       },
       environment: 'jsdom',
       exclude: ['ai-libs/**', 'coverage/**', 'dist/**', 'mock/**', 'node_modules/**'],
+      maxWorkers: 4,
       setupFiles: ['./src/test/setup.ts'],
     },
   }),

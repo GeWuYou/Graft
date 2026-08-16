@@ -23,14 +23,9 @@
     </div>
   </section>
 </template>
-<script lang="ts">
-export type ManagementStatisticItem = {
-  label: string;
-  marker?: string;
-  value: number | string;
-};
-</script>
 <script setup lang="ts">
+import type { ManagementStatisticItem } from './statistics';
+
 // 统计条只统一行内聚合信息的布局，资源统计口径和状态语义始终由所属页面提供。
 withDefaults(
   defineProps<{

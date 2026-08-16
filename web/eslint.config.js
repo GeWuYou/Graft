@@ -3,7 +3,6 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import unusedImports from 'eslint-plugin-unused-imports';
 import vue from 'eslint-plugin-vue';
-import vueScopedCss from 'eslint-plugin-vue-scoped-css';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import vueParser from 'vue-eslint-parser';
@@ -26,7 +25,6 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...vue.configs['flat/recommended'],
-  ...vueScopedCss.configs['flat/recommended'],
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,tsx,vue}'],
     languageOptions: {
@@ -108,14 +106,12 @@ export default tseslint.config(
       'vue/no-reserved-props': 'off',
       'vue/no-v-html': 'off',
       'vue/padding-line-between-blocks': ['error', 'never'],
-      'vue-scoped-css/enforce-style-type': [
+      'vue/enforce-style-attribute': [
         'error',
         {
-          allows: ['scoped'],
+          allow: ['scoped'],
         },
       ],
-      'vue-scoped-css/no-parsing-error': 'off',
-      'vue-scoped-css/no-unused-selector': 'off',
     },
   },
   {
@@ -130,6 +126,12 @@ export default tseslint.config(
     files: ['src/utils/logger/transports/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    files: ['src/layouts/components/Header.vue'],
+    rules: {
+      'vue/enforce-style-attribute': ['error', { allow: ['plain', 'scoped'] }],
     },
   },
   eslintConfigPrettier,
