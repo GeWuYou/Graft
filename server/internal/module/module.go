@@ -314,6 +314,9 @@ func OrderSpecs(specs []Spec) ([]Spec, error) {
 		cloned := spec
 		cloned.Dependencies = append([]string(nil), spec.Dependencies...)
 		cloned.MigrationPath = append([]string(nil), spec.MigrationPath...)
+		cloned.RequiredCapabilities = append([]CapabilityDeclaration(nil), spec.RequiredCapabilities...)
+		cloned.ExposedCapabilities = append([]CapabilityDeclaration(nil), spec.ExposedCapabilities...)
+		cloned.Resources = append([]ResourceDeclaration(nil), spec.Resources...)
 		if err := cloned.Validate(); err != nil {
 			return nil, err
 		}

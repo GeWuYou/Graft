@@ -184,6 +184,35 @@ func TestOrderSpecsIsIndependentFromInputOrder(t *testing.T) {
 	}
 }
 
+func TestOrderSpecsClonesDeclarationSlices(t *testing.T) {
+	required := []CapabilityDeclaration{{Key: TypedCapability[testRequiredCapability]()}}
+	exposed := []CapabilityDeclaration{{Key: TypedCapability[testExposedCapability]()}}
+	resources := []ResourceDeclaration{{Name: "summary collector", Owner: "runtime-target", Cleanup: "Service.Close"}}
+	input := []Spec{{
+		ID:                   "runtime-target",
+		RequiredCapabilities: required,
+		ExposedCapabilities:  exposed,
+		Resources:            resources,
+		Builder:               BuilderFunc(func(BuildContext) (Module, error) { return testModule{}, nil }),
+	}}
+
+	ordered, err := OrderSpecs(input)
+	if err != nil {
+		t.Fatalf("order module specs: %v", err)
+	}
+	required[0] = CapabilityDeclaration{}
+	exposed[0] = CapabilityDeclaration{}
+	resources[0] = ResourceDeclaration{}
+
+	if !reflect.DeepEqual(ordered[0].RequiredCapabilities[0], CapabilityDeclaration{Key: TypedCapability[testRequiredCapability]()}) ||
+		!reflect.DeepEqual(ordered[0].ExposedCapabilities[0], CapabilityDeclaration{Key: TypedCapability[testExposedCapability]()}) {
+		t.Fatal("ordered declaration capabilities alias input slices")
+	}
+	if ordered[0].Resources[0].Name != "summary collector" {
+		t.Fatalf("ordered resources alias input slice: %+v", ordered[0].Resources)
+	}
+}
+
 // TestSpecBuildWrapsCanonicalMetadata 验证模块定义构造出的运行时模块以
 // 模块定义元数据为 canonical truth。
 func TestSpecBuildWrapsCanonicalMetadata(t *testing.T) {
