@@ -483,14 +483,11 @@ func (s *Service) SetLifecycleContext(ctx context.Context) {
 
 func (s *Service) realtimeStreamContext() context.Context {
 	if s == nil {
-		return context.Background()
+		return nil
 	}
 	s.lifecycleMu.RLock()
 	ctx := s.lifecycleContext
 	s.lifecycleMu.RUnlock()
-	if ctx == nil {
-		return context.Background()
-	}
 	return ctx
 }
 

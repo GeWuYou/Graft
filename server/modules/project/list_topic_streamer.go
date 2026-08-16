@@ -161,7 +161,12 @@ func (s *projectListTopicStreamer) start(topic string) {
 		return
 	}
 	// 每个主题最多保留一个运行实例；runID 用于防止旧协程清理新一轮运行状态。
-	runCtx, cancel := context.WithCancel(s.service.realtimeStreamContext())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++

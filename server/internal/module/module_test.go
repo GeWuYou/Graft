@@ -231,6 +231,17 @@ func TestSpecValidatesTypedCompositionDeclarations(t *testing.T) {
 	}).Validate(); err == nil {
 		t.Fatal("expected duplicate capability declaration error")
 	}
+
+	for _, resource := range []ResourceDeclaration{
+		{Owner: "runtime-target", Cleanup: "Service.Close"},
+		{Name: "summary collector", Cleanup: "Service.Close"},
+		{Name: "summary collector", Owner: "runtime-target"},
+	} {
+		descriptor.Resources = []ResourceDeclaration{resource}
+		if err := descriptor.Validate(); err == nil {
+			t.Fatalf("expected incomplete resource declaration error for %#v", resource)
+		}
+	}
 }
 
 func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {

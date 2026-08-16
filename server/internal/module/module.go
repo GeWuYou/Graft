@@ -152,7 +152,25 @@ func (d Spec) Validate() error {
 	if err := validateCapabilityDeclarations(d.Name(), d.ExposedCapabilities, "exposed"); err != nil {
 		return err
 	}
+	if err := validateResourceDeclarations(d.Name(), d.Resources); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func validateResourceDeclarations(moduleName string, declarations []ResourceDeclaration) error {
+	for _, declaration := range declarations {
+		if strings.TrimSpace(declaration.Name) == "" {
+			return fmt.Errorf("module spec %s has resource with missing name", moduleName)
+		}
+		if strings.TrimSpace(declaration.Owner) == "" {
+			return fmt.Errorf("module spec %s resource %s has missing owner", moduleName, declaration.Name)
+		}
+		if strings.TrimSpace(declaration.Cleanup) == "" {
+			return fmt.Errorf("module spec %s resource %s has missing cleanup", moduleName, declaration.Name)
+		}
+	}
 	return nil
 }
 

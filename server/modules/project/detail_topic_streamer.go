@@ -166,7 +166,12 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 		return
 	}
 	// runID 防止旧一轮协程在取消后覆盖新一轮主题状态。
-	runCtx, cancel := context.WithCancel(s.service.realtimeStreamContext())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++

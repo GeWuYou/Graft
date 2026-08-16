@@ -160,7 +160,12 @@ func (s *projectLogTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
-	runCtx, cancel := context.WithCancel(s.service.realtimeStreamContext())
+	parent := s.service.realtimeStreamContext()
+	if parent == nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(parent)
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)
 	stream.runID++

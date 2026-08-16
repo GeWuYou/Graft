@@ -3,6 +3,7 @@ package runtimetarget
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -181,7 +182,7 @@ func (m *Module) collectRealtimeSummaries(ctx context.Context) ([]generated.Runt
 	}
 	items, err := m.repository.List(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list runtime target realtime summaries: %w", err)
 	}
 	mapped := make([]generated.RuntimeTargetSummary, 0, len(items))
 	for _, item := range items {

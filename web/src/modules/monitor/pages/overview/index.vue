@@ -569,7 +569,7 @@ const activeTrendMode = computed<TrendMode>(() => (isCompactDashboard.value ? 'o
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
-let isMounted = false;
+const isMounted = ref(false);
 
 const trendChartRefs = ref<Partial<Record<TrendChartKey, HTMLDivElement | null>>>({});
 let refreshTickTimer: number | null = null;
@@ -1341,7 +1341,7 @@ const refreshControlStatus = computed(() => {
 
 function canRunAutoRefreshCycle() {
   return (
-    isMounted &&
+    isMounted.value &&
     autoRefreshEnabled.value &&
     isPageVisible.value &&
     selectedRefreshInterval.value > 0 &&
@@ -1355,10 +1355,10 @@ function clearRefreshSchedule() {
 }
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
-  if (!isMounted) return;
+  if (!isMounted.value) return;
   stopRefreshTick();
   const result = await refetchOverview();
-  if (!isMounted) return;
+  if (!isMounted.value) return;
   if (!result.error) {
     consecutiveFailures.value = 0;
   } else {
@@ -2355,23 +2355,24 @@ watch(
   },
 );
 
+// KeepAlive 页面由此处成对管理可见性监听与轮询；停用时必须释放两者，避免缓存页面继续请求。
 function activatePage() {
-  if (isMounted) {
+  if (isMounted.value) {
     return;
   }
 
-  isMounted = true;
+  isMounted.value = true;
   isPageVisible.value = document.visibilityState === 'visible';
   document.addEventListener('visibilitychange', handleVisibilityChange, false);
   void fetchServerStatus();
 }
 
 function deactivatePage() {
-  if (!isMounted) {
+  if (!isMounted.value) {
     return;
   }
 
-  isMounted = false;
+  isMounted.value = false;
   clearRefreshSchedule();
   document.removeEventListener('visibilitychange', handleVisibilityChange);
 }

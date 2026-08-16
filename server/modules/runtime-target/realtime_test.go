@@ -62,6 +62,9 @@ func TestRuntimeTargetSummaryCollectorPublishesOnlyAfterTopicActivation(t *testi
 	case <-time.After(2 * time.Second):
 		t.Fatal("collector did not publish an active snapshot")
 	}
+	if diagnostics := collector.Diagnostics(); diagnostics.LastCollectedAt.IsZero() {
+		t.Fatal("collector did not record the successful collection")
+	}
 	if err := collector.Stop(context.Background()); err != nil {
 		t.Fatalf("stop collector: %v", err)
 	}
