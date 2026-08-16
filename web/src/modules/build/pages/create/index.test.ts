@@ -107,6 +107,32 @@ const RadioGroupStub = defineComponent({
       );
   },
 });
+const CheckboxGroupStub = defineComponent({
+  props: { modelValue: { type: Array, default: () => [] }, options: { type: Array, default: () => [] } },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    return () =>
+      h(
+        'div',
+        (props.options as Array<{ label: string; value: string }>).map((option) =>
+          h(
+            'button',
+            {
+              type: 'button',
+              'data-platform': option.value,
+              onClick: () => {
+                const selected = new Set(props.modelValue as string[]);
+                if (selected.has(option.value)) selected.delete(option.value);
+                else selected.add(option.value);
+                emit('update:modelValue', [...selected]);
+              },
+            },
+            option.label,
+          ),
+        ),
+      );
+  },
+});
 const ButtonStub = defineComponent({
   props: { type: { type: String, default: 'button' } },
   emits: ['click'],
@@ -121,6 +147,7 @@ function mountPage() {
       stubs: {
         't-alert': WrapperStub,
         't-button': ButtonStub,
+        't-checkbox-group': CheckboxGroupStub,
         't-form': FormStub,
         't-form-item': WrapperStub,
         't-input': InputStub,
@@ -269,6 +296,32 @@ describe('BuildCreatePage', () => {
       'Capacity Pool (zh-CN:build.jobs.create.builderPoolPolicy.capacity)',
       'Affinity Pool (zh-CN:build.jobs.create.builderPoolPolicy.affinity)',
     ]);
+  });
+
+  it('moves a multi-platform submission to Buildx and a Builder Pool', async () => {
+    mocks.createBuildJob.mockResolvedValue({});
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('button[data-platform="linux/arm64"]').trigger('click');
+    await nextTick();
+
+    const poolSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('pool:default'));
+    expect(poolSelect).toBeDefined();
+    await poolSelect?.setValue('pool:default');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.createBuildJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        builder_pool_id: 'pool:default',
+        driver: 'docker-buildx@v1',
+        platforms: ['linux/amd64', 'linux/arm64'],
+      }),
+      expect.any(String),
+    );
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {

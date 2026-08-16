@@ -150,7 +150,9 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 6 foundation: coordinated Stage group/leg persistence, parallel-safe claim eligibility and multi-stage runtime tracking.
 - [x] Phase 6 foundation: multi-instance untracked coordinated-leg cancellation and restart cancellation recovery.
 - [x] Phase 6 foundation: Build-owned per-platform immutable Artifact persistence with non-overwriting leg settlement.
-- [ ] Phase 7: Driver-owned OCI Manifest publication capability and multi-platform API release gate.
+- [x] Phase 7: Driver-owned OCI Manifest publication capability and multi-platform API release gate. The canonical
+  Build Job request exposes `docker-buildx@v1`; multi-platform requests require that Driver and a Builder Pool, while
+  Task Runtime retains coordinated legs and the final aggregate publication stage.
 - [x] Phase 7 foundation: complete-platform Artifact validation and Driver publication input contract.
 - [x] Phase 7 foundation: final OCI Manifest Artifact and Publication settlement after Driver-proven digest result.
 - [x] Phase 7 foundation: Container Buildx provider adapter with target-declared `docker-buildx` capability gate.

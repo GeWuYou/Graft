@@ -23,8 +23,9 @@ Deployable Agent trust and wire semantics follow
 ## Current Decision
 
 - Docker-only Phase 4 dynamic admission is complete. A target remains fail-closed unless its active Agent generation
-  supplies fresh controlled-ledger evidence; the topic remains active for the separate Phase 7 multi-platform API
-  release gate.
+  supplies fresh controlled-ledger evidence. The Phase 7 multi-platform API release gate is complete: Buildx is the
+  only public multi-platform Driver, Build freezes per-platform Pool placements, and Task Runtime owns final manifest
+  aggregation.
 - New Build execution must not use `docker-runtime-store`, a default Docker credential store or environment-default
   Registry authentication. Historical records remain readable only.
 - Builder/Registry-local failure is a local Build capability failure. It cannot alter `PlatformAvailabilityStore` or
@@ -54,10 +55,9 @@ Task Runtime, Scheduler, Registry resource model, event store, evidence database
 
 ## Pending Direction
 
-1. Complete the separate Phase 7 Driver-owned OCI Manifest multi-platform API release gate.
-2. Preserve Docker-only Provider admission: every dynamic Placement must retain active-generation and fresh
+1. Preserve Docker-only Provider admission: every dynamic Placement must retain active-generation and fresh
    controlled-ledger evidence, and all incomplete evidence must fail closed.
-3. Keep BuildKit, Kaniko and Kubernetes as future extensions until their independent conformance gates pass.
+2. Keep BuildKit, Kaniko and Kubernetes as future extensions until their independent conformance gates pass.
 
 ## Validation Targets
 

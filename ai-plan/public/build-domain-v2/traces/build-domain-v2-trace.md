@@ -691,6 +691,17 @@
 - The topic is not archive-ready. The unchecked Phase 7 Driver-owned OCI Manifest multi-platform API release gate is
   outside this Phase 4 Agent-admission scope, so no additional implementation batch is dispatched here.
 
+## 2026-08-16 phase-7-driver-owned-oci-manifest-api-release-gate
+
+- The canonical Build Job OpenAPI contract now exposes `docker-buildx@v1` alongside the single-platform Docker Engine
+  Driver. A multi-platform request is rejected unless it selects Buildx and a Builder Pool, so Build can freeze one
+  supported Placement per platform rather than treating a direct Runtime Target as a distributed scheduler.
+- The Build create form uses the generated request type, makes platform selection explicit, and moves a multi-platform
+  selection to Buildx plus the existing Builder Pool boundary. It does not infer Provider capability, connection,
+  endpoint or credential state in the browser; Build continues to authorize and match the final request.
+- The release gate reuses the existing Task Runtime coordinated legs and serial aggregate stage. Only that aggregate
+  stage invokes Driver-owned OCI Manifest publication and Build-owned Artifact/Publication settlement.
+
 ## Loop Batch State
 
 ```json
@@ -719,7 +730,8 @@
     "phase-4-capability-intent-and-frozen-negotiation",
     "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
-    "phase-4-provider-admission-and-dynamic-retry"
+    "phase-4-provider-admission-and-dynamic-retry",
+    "phase-7-driver-owned-oci-manifest-api-release-gate"
   ],
   "pending_batches": [],
   "current_batch": null,

@@ -17,3 +17,5 @@ export type BuildBuilderPool = components['schemas']['build-builder-pool'];
 // 这些引用由 OpenAPI enum 派生，避免创建表单与提交契约各自维护一份可发布意图。
 export const BUILD_TEMPLATE_REF = 'oci-dockerfile/default@v1' satisfies BuildTemplateRef;
 export const BUILD_DRIVER_REF = 'docker-engine@v1' satisfies BuildDriverRef;
+export const BUILD_MULTI_PLATFORM_DRIVER_REF = 'docker-buildx@v1' satisfies BuildDriverRef;
+export const BUILD_PLATFORM_OPTIONS = ['linux/amd64', 'linux/arm64'] as const;
