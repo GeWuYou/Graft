@@ -77,11 +77,6 @@
             :data-evidence="item.evidenceState"
           >
             <div class="workbench-row">
-              <workbench-status-indicator
-                :status="item.status"
-                :label="t(`dashboard.workbench.status.${item.status}`)"
-                :show-label="false"
-              />
               <div class="workbench-row__copy">
                 <div class="workbench-row__title-line">
                   <strong>{{ t(item.titleKey) }}</strong>
@@ -401,6 +396,8 @@ function handleAction(item: PresentationItem) {
 .workbench-surface {
   .graft-card-surface();
 
+  align-self: start;
+  box-shadow: none;
   min-width: 0;
 }
 
@@ -467,6 +464,7 @@ function handleAction(item: PresentationItem) {
 }
 
 .workbench-row__copy {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
