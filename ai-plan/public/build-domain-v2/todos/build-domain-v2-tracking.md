@@ -94,6 +94,13 @@ closeout:
   profile/version, and `runtime-target-controlled-execution-ledger` provenance. Existing focused ledger tests prove
   replay, certificate mismatch and revocation fail closed. This is an admission-evidence closure only: it does not make
   dynamic policies executable; the remaining Provider admission and dynamic retry/recovery batch owns that decision.
+- Provider admission and dynamic retry/recovery (2026-08-16): Runtime Target now projects dynamic telemetry only from
+  a fresh, consumed mTLS ledger receipt of the exact active Docker Agent generation. The projection rejects revoked,
+  expired, unavailable or diagnostic-bearing generations and exposes no Docker/host metrics, Task JSON, UI or Monitor
+  input. Build's existing dynamic selection and retry reconfirmation consume this narrow projection and retain the
+  frozen target, capability negotiation, telemetry observation and Reservation fence; they never reselect a Pool
+  member. Dynamic policies therefore remain fail-closed for every target without that complete evidence, while a
+  conformant Docker target can be admitted without a second queue, Task state machine, event store or public surface.
 
 ## Historical Implementation Evidence
 

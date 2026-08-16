@@ -668,6 +668,20 @@
   queue, task state machine, event store or global health registry. Dynamic policy remains non-executable pending the
   following Provider admission and dynamic retry/recovery batch.
 
+## 2026-08-16 phase-4-provider-admission-and-dynamic-retry
+
+- Runtime Target now admits Builder telemetry only by projecting a current active Docker Agent generation's consumed,
+  unexpired mTLS ledger receipt. The projection carries the ledger snapshot's controlled running/queued/slot facts and
+  target-bound capability evidence, and rejects revoked, expired, unavailable or diagnostic-bearing receipts before
+  Build can observe them. It neither reads Docker/host metrics nor imports Task JSON, UI or Monitor data.
+- Build dynamic placement and its retry reconfirmation continue to use only the Runtime Target facade. A retry checks
+  the frozen Runtime Target, profile/version, capability negotiation and fresh ledger observation; it cannot re-read a
+  Pool or silently select another target. Reservation capacity remains tied to the frozen observation and new retry
+  fence.
+- Docker remains the sole MVP Provider. No Agent/operator public API, menu, alternate Provider, compatibility path,
+  queue, Task state machine, event store or global health registry was added. Dynamic policies fail closed unless the
+  complete active-generation and fresh-ledger evidence exists for the selected target.
+
 ## Loop Batch State
 
 ```json
