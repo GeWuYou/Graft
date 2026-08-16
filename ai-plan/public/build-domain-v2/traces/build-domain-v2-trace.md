@@ -682,6 +682,15 @@
   queue, Task state machine, event store or global health registry was added. Dynamic policies fail closed unless the
   complete active-generation and fresh-ledger evidence exists for the selected target.
 
+## 2026-08-16 Phase 4 Controller Archive Check
+
+- The controller accepted `phase-4-docker-builder-agent-admission` (`7ea08486a`) and
+  `phase-4-provider-admission-and-dynamic-retry` (`3095d05ce`). Docker-only Phase 4, Phase 8A and Phase 8B gates are
+  complete: Runtime Target admits only active-generation controlled-ledger evidence, while Task Runtime remains the
+  execution, retry and recovery authority.
+- The topic is not archive-ready. The unchecked Phase 7 Driver-owned OCI Manifest multi-platform API release gate is
+  outside this Phase 4 Agent-admission scope, so no additional implementation batch is dispatched here.
+
 ## Loop Batch State
 
 ```json
@@ -708,14 +717,13 @@
     "phase-4-mandatory-capability-matching",
     "phase-4-slot-aware-reservation",
     "phase-4-capability-intent-and-frozen-negotiation",
-    "phase-4-resolved-policy-freezing"
-  ],
-  "pending_batches": [
+    "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
     "phase-4-provider-admission-and-dynamic-retry"
   ],
-  "current_batch": "phase-4-docker-builder-agent-admission",
-  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
-  "closeout_status": "active-incomplete"
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "scope-complete-topic-active"
 }
 ```

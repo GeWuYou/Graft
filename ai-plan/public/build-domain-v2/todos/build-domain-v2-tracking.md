@@ -157,17 +157,17 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 7 execution slice: coordinated Build legs only build and publish per-platform immutable digests. Task
   Runtime then claims one final aggregate stage after every leg succeeds; that stage performs provider-owned OCI
   Manifest publication and Build-owned settlement exactly once.
-- [ ] Phase 4: provider-conformant dynamic placement and Task Runtime-owned distributed Build; existing dynamic policy
-  literals remain disabled until this release gate.
+- [x] Phase 4: Docker-only provider-conformant dynamic placement and Task Runtime-owned distributed Build. Dynamic
+  policies admit only a target with active-generation, fresh controlled-ledger evidence and otherwise fail closed.
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
   by coordinated Task legs and the Build executor; targets must declare `build-snapshot` locality.
 - [x] Phase 8 foundation: deterministic `labels` Pool selection freezes validated selector evidence in each Placement.
-- [ ] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority for fresh capacity, queue, region and affinity evidence.
+- [x] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority now projects fresh Docker Builder Agent controlled-ledger
+  capacity and queue evidence; unsupported dimensions continue to fail closed.
 - [x] Historical telemetry read contract: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define a
   narrow facade only. The RFC retains the facade but requires a real `BuilderTelemetryProvider` before dynamic policy.
-- [ ] Phase 8B: Builder Capacity And Telemetry Source Authority. Runtime/Infrastructure must provide a real,
-  restart-safe target telemetry source; Build must add atomic Instance reservations and Task lifecycle reconciliation
-  before dynamic policies can be enabled.
+- [x] Phase 8B: Docker's restart-safe target telemetry source and Build's atomic slot-aware Instance reservations are
+  reconciled through Task lifecycle evidence before a dynamic Placement can be admitted.
 - [x] Phase 9: Provider-backed Snapshot delivery and Remote Builder execution (Docker provider slice).
 - [x] Phase 9 foundation: Runtime Target exposes Snapshot delivery modes and providers require an explicit delivery
   capability for the selected target.
@@ -250,14 +250,13 @@ state below. A historical item may support an RFC phase but cannot independently
     "phase-4-mandatory-capability-matching",
     "phase-4-slot-aware-reservation",
     "phase-4-capability-intent-and-frozen-negotiation",
-    "phase-4-resolved-policy-freezing"
-  ],
-  "pending_batches": [
+    "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
     "phase-4-provider-admission-and-dynamic-retry"
   ],
-  "current_batch": "phase-4-docker-builder-agent-admission",
-  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
-  "closeout_status": "active-incomplete"
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "scope-complete-topic-active"
 }
 ```
