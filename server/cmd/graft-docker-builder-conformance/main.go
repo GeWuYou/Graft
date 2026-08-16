@@ -195,10 +195,13 @@ func readVerificationBaseline(path string) (verificationBaseline, error) {
 }
 
 func validateRestartEvidence(baseline verificationBaseline, evidence runtimetarget.DockerBuilderAgentConformanceEvidence) error {
-	if strings.TrimSpace(evidence.BuilderScope) == "" || strings.TrimSpace(evidence.CapabilityProfile) == "" || strings.TrimSpace(evidence.CapabilityVersion) == "" {
+	builderScope := strings.TrimSpace(evidence.BuilderScope)
+	capabilityProfile := strings.TrimSpace(evidence.CapabilityProfile)
+	capabilityVersion := strings.TrimSpace(evidence.CapabilityVersion)
+	if builderScope == "" || capabilityProfile == "" || capabilityVersion == "" {
 		return errors.New("restart conformance evidence is missing builder capability metadata")
 	}
-	if evidence.BuilderScope != baseline.builderScope || evidence.CapabilityProfile != baseline.capabilityProfile || evidence.CapabilityVersion != baseline.capabilityVersion {
+	if builderScope != baseline.builderScope || capabilityProfile != baseline.capabilityProfile || capabilityVersion != baseline.capabilityVersion {
 		return errors.New("restart conformance evidence does not match bootstrap builder capability metadata")
 	}
 	return nil

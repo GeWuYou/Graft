@@ -39,6 +39,14 @@ func TestValidateRestartEvidenceRejectsChangedBuilderCapabilityMetadata(t *testi
 	}
 }
 
+func TestValidateRestartEvidenceNormalizesBuilderCapabilityMetadata(t *testing.T) {
+	baseline := verificationBaseline{builderScope: "scope", capabilityProfile: "oci-build", capabilityVersion: "docker/v1"}
+	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{BuilderScope: " scope ", CapabilityProfile: " oci-build ", CapabilityVersion: " docker/v1 "}
+	if err := validateRestartEvidence(baseline, evidence); err != nil {
+		t.Fatalf("restart evidence with equivalent builder capability metadata was rejected: %v", err)
+	}
+}
+
 func TestVerificationBaselineRejectsUnboundLedgerEvidence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "conformance-evidence.json")
 	evidence := runtimetarget.DockerBuilderAgentConformanceEvidence{TargetID: 7, IdentityID: "identity", AgentID: "builder", Generation: 1, ProviderID: "docker", BuilderScope: "scope", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", LedgerReceiptCount: 1}
