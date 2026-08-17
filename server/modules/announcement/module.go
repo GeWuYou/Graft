@@ -34,6 +34,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerAnnouncementMenu(ctx.MenuRegistry, moduleID); err != nil {
 		return err
 	}
+	if err := registerAnnouncementDashboardWidget(ctx, m.service); err != nil {
+		return err
+	}
 	if ctx.Router == nil {
 		return nil
 	}

@@ -71,6 +71,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerModuleMetadata(ctx, moduleID); err != nil {
 		return err
 	}
+	if err := registerRuntimeTargetDashboardWidget(ctx, m.repository); err != nil {
+		return err
+	}
 	m.runtimeLogger = ctx.Logger
 	m.i18n = ctx.I18n
 	if ctx.EventTxPublisher == nil {

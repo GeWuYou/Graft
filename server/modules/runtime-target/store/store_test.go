@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -47,6 +48,26 @@ func TestSQLRepositoryListReturnsEveryLiveTargetWhileListPageRemainsBounded(t *t
 	}
 	if page.Summary != (Summary{Total: 101, Healthy: 100, Unavailable: 1}) {
 		t.Fatalf("ListPage summary = %+v, want total=101 healthy=100 unavailable=1", page.Summary)
+	}
+}
+
+func TestSQLRepositoryReadSummaryUsesSingleAggregateQuery(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	mock.ExpectQuery(regexp.QuoteMeta(readRuntimeTargetSummarySQL)).WillReturnRows(sqlmock.NewRows([]string{"total", "healthy", "unavailable"}).AddRow(12, 8, 4))
+
+	summary, err := NewSQLRepository(db).ReadSummary(context.Background())
+	if err != nil {
+		t.Fatalf("read dashboard summary: %v", err)
+	}
+	if summary != (Summary{Total: 12, Healthy: 8, Unavailable: 4}) {
+		t.Fatalf("unexpected dashboard summary: %#v", summary)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("dashboard summary should use one aggregate query: %v", err)
 	}
 }
 

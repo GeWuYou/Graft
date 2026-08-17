@@ -261,10 +261,24 @@
         "description": "Issues and pending checks that need attention.",
         "empty": "No items currently need attention."
       },
+      "expand": {
+        "attention": "Show {count} more attention items",
+        "health": "Show {count} more health items",
+        "contextLinks": "Show {count} more actions"
+      },
       "health": {
         "title": "System Health",
         "description": "Critical infrastructure services are operating normally.",
         "empty": "No infrastructure health data is available."
+      },
+      "moduleCoverage": {
+        "title": "Module Coverage",
+        "description": "Registered modules and visible contribution sources.",
+        "registered": "Registered",
+        "enabled": "Enabled",
+        "degraded": "Degraded",
+        "normalSources": "Normal Sources",
+        "failedSources": "Failed Sources"
       },
       "activity": {
         "title": "Recent Runs",
@@ -288,6 +302,22 @@
           "title": "{count} containers running",
           "description": "CPU total {cpu}% · {abnormal} abnormal containers"
         },
+        "overview": {
+          "running": "Running Containers",
+          "abnormal": "Abnormal Containers",
+          "cpu": "Total CPU",
+          "memory": "Total Memory"
+        },
+        "topCpu": "Top CPU",
+        "topMemory": "Top Memory",
+        "anomalies": "Container Anomalies",
+        "noHotspots": "No resource hotspots in the current sample.",
+        "noAnomalies": "No container anomalies in the current sample.",
+        "notCollected": "Not collected",
+        "memoryUsage": "{usage} / {limit} · {percent}",
+        "hotspotMemory": "{usage} · {percent}",
+        "restartCount": "{count} restarts",
+        "unknownAnomaly": "Container state needs attention",
         "noSample": {
           "title": "No Resource Sample Yet",
           "description": "Waiting for the next resource collection.",
@@ -318,6 +348,12 @@
         "slow": "Slow HTTP request",
         "title": "Access Request Attention"
       },
+      "announcementTimeline": {
+        "title": "Latest Announcements",
+        "description": "Latest announcements visible to the current user.",
+        "action": "View All Announcements",
+        "empty": "No announcements are currently visible."
+      },
       "auditRiskEvents": {
         "description": "Recent high-risk audit and security events.",
         "empty": "No audit risk events in the last 24 hours",
@@ -336,12 +372,48 @@
           "title": "High-risk Audit Events"
         },
         "permissionDenials": {
-          "description": "Permission denials in the last 24 hours"
+          "description": "Permission denials in the last 24 hours",
+          "action": "View Permission Denials"
+        },
+        "sensitiveOperations": {
+          "title": "Sensitive Operations",
+          "description": "Review recently executed sensitive operations.",
+          "action": "View Sensitive Operations"
         },
         "recent": {
           "title": "Recent Risk Event"
         },
         "title": "Audit Risk Events"
+      },
+      "backupHealth": {
+        "title": "Latest Backup",
+        "description": "Availability of the latest backup record; this does not assert complete disaster-recovery protection.",
+        "action": "View Backups",
+        "available": {
+          "summary": "Latest backup available",
+          "label": "Backup available",
+          "description": "The latest backup record remains within its retention period."
+        },
+        "expired": {
+          "summary": "Latest backup expired",
+          "label": "Backup expired",
+          "description": "The latest backup record is beyond its retention period."
+        },
+        "restored": {
+          "summary": "Restore result recorded",
+          "label": "Restore result recorded",
+          "description": "Restore evidence exists, but this does not mean a usable backup is currently available."
+        },
+        "none": {
+          "summary": "No backup record",
+          "label": "No backup record",
+          "description": "No record is available for determining the current backup state."
+        },
+        "unknown": {
+          "summary": "Backup status unknown",
+          "label": "Backup status unknown",
+          "description": "The latest backup record uses an unknown status."
+        }
       },
       "disabledDescription": "This widget is currently unavailable.",
       "empty": "No Widget Data",
@@ -351,9 +423,14 @@
       "monitorSystemHealth": {
         "anomalies": "Active anomalies",
         "anomaliesDescription": "Active anomalies in the current monitor window.",
-        "description": "Active anomalies in the current monitor window.",
+        "description": "Host resources, module health, sampling, and current active anomalies.",
+        "hostResources": "Host Resources",
+        "hostResourcesDescription": "Server CPU, memory, and disk resource status.",
         "moduleHealth": "Module Health",
+        "moduleHealthDescription": "Current runtime health of registered modules.",
         "noData": "No Data",
+        "observability": "Host Sampling",
+        "observabilityDescription": "Host trend and extended observability sampling state.",
         "summary": "System Health Summary",
         "title": "System Health"
       },
@@ -375,6 +452,17 @@
         "redisHealthyDescription": "Redis connectivity check passed",
         "redisUnknownDescription": "Redis status is unknown",
         "title": "Platform Capabilities"
+      },
+      "runtimeTargetSummary": {
+        "title": "Runtime Targets",
+        "description": "Current availability summary for registered runtime targets.",
+        "action": "View Runtime Targets",
+        "total": "Total Targets",
+        "totalDescription": "Total runtime targets that have not been deleted.",
+        "healthy": "Healthy Targets",
+        "healthyDescription": "Runtime targets marked available by their latest check.",
+        "unavailable": "Unavailable Targets",
+        "unavailableDescription": "Runtime targets marked unavailable by their latest check."
       },
       "moduleRuntimeHealth": {
         "description": "Current module runtime health.",

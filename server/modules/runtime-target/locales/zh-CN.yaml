@@ -1,1 +1,10 @@
 menu.runtimeTargets.title: 运行目标
+dashboard.widget.runtimeTargetSummary.title: 运行目标
+dashboard.widget.runtimeTargetSummary.description: 已登记运行目标的当前可用性摘要。
+dashboard.widget.runtimeTargetSummary.action: 查看运行目标
+dashboard.widget.runtimeTargetSummary.total: 目标总数
+dashboard.widget.runtimeTargetSummary.totalDescription: 当前未删除的运行目标总数。
+dashboard.widget.runtimeTargetSummary.healthy: 健康目标
+dashboard.widget.runtimeTargetSummary.healthyDescription: 最近一次检查标记为可用的运行目标。
+dashboard.widget.runtimeTargetSummary.unavailable: 不可用目标
+dashboard.widget.runtimeTargetSummary.unavailableDescription: 最近一次检查标记为不可用的运行目标。

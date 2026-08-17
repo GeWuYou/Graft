@@ -23,6 +23,7 @@ const (
 	errorCodePanic         = "DASHBOARD_WIDGET_PANIC"
 	errorCodeTimeout       = "DASHBOARD_WIDGET_TIMEOUT"
 	defaultWidgetActionKey = "dashboard.actions.details"
+	widgetLoadConcurrency  = 4
 )
 
 // ModuleRuntimeSummaryProvider 返回当前模块运行时汇总，供 dashboard 生成系统摘要。
@@ -93,16 +94,41 @@ func (s *Service) visibleWidgets(
 	requestAuth moduleapi.RequestAuthContext,
 	definitions []WidgetDefinition,
 ) []generated.DashboardWidget {
-	widgets := make([]generated.DashboardWidget, 0, len(definitions))
+	visibleDefinitions := make([]WidgetDefinition, 0, len(definitions))
 	for _, definition := range definitions {
 		if !s.canReadWidget(ctx, requestAuth, definition) {
 			continue
 		}
-		widget := s.loadWidget(ctx, requestAuth, definition)
-		if !widget.Visible {
-			continue
+		visibleDefinitions = append(visibleDefinitions, definition)
+	}
+	if len(visibleDefinitions) == 0 {
+		return []generated.DashboardWidget{}
+	}
+
+	// 权限过滤先于并发调度，确保未授权贡献源的 loader 不会被调用。
+	// 固定 worker 预算允许慢贡献源并行，又不会按注册数量创建无界 goroutine。
+	jobs := make(chan WidgetDefinition, len(visibleDefinitions))
+	results := make(chan generated.DashboardWidget, len(visibleDefinitions))
+	for _, definition := range visibleDefinitions {
+		jobs <- definition
+	}
+	close(jobs)
+
+	workerCount := min(widgetLoadConcurrency, len(visibleDefinitions))
+	for range workerCount {
+		go func() {
+			for definition := range jobs {
+				results <- s.loadWidget(ctx, requestAuth, definition)
+			}
+		}()
+	}
+
+	widgets := make([]generated.DashboardWidget, 0, len(visibleDefinitions))
+	for range visibleDefinitions {
+		widget := <-results
+		if widget.Visible {
+			widgets = append(widgets, widget)
 		}
-		widgets = append(widgets, widget)
 	}
 	sortLoadedWidgets(widgets)
 	return widgets

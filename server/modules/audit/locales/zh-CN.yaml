@@ -16,8 +16,14 @@ dashboard.widget.auditRiskEvents.failedOperations.description: 查看最近失�
 dashboard.widget.auditRiskEvents.failedOperations.action: 查看失败记录
 dashboard.widget.auditRiskEvents.authFailures.description: 查看最近的认证失败事件。
 dashboard.widget.auditRiskEvents.authFailures.action: 查看认证失败
+dashboard.widget.auditRiskEvents.permissionDenials.description: 查看最近被权限策略拒绝的操作。
+dashboard.widget.auditRiskEvents.permissionDenials.action: 查看权限拒绝
+dashboard.widget.auditRiskEvents.sensitiveOperations.title: 敏感操作
+dashboard.widget.auditRiskEvents.sensitiveOperations.description: 查看最近执行的敏感操作。
+dashboard.widget.auditRiskEvents.sensitiveOperations.action: 查看敏感操作
 dashboard.widget.auditRiskEvents.empty: 最近 24 小时内没有审计风险事件。
 audit.overview.riskGroups.authFailures: 认证失败
+audit.overview.riskGroups.permissionDenials: 权限拒绝
 audit.visibilityCatalog.auth.tokenExpired.description: 访问令牌已过期的安全事件。
 audit.visibilityCatalog.auth.tokenInvalid.description: 访问令牌无效的安全事件。
 audit.visibilityCatalog.auth.tokenMissing.description: 缺少访问令牌的安全事件。

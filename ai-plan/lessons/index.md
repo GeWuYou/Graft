@@ -18,6 +18,7 @@
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001        | 信息密度切换必须治理 token 消费面              | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-EMPTY-STATE-001          | 表格空状态不应做成小灰色卡片                   | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/graft-design-system/list-form-detail.md` |
+| LESSON-WEB-UI-HOMEPAGE-AUTHORITY-001   | 首页内容扩充必须落在首页权威链路               | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | `ai-plan/design/architecture/首页工作台与Dashboard贡献设计.md`           |
 | LESSON-WEB-UI-LOCALE-TIME-001          | 可见时间不能依赖宿主默认语言环境               | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/architecture/前端架构设计.md`            |
 | LESSON-WEB-UI-LOG-AUDIT-001            | 高级查询列表页必须优先抽通用查询结构           | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-MONACO-WORKER-001        | Monaco YAML worker 故障要先区分两层兼容问题    | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |

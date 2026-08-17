@@ -72,7 +72,7 @@ describe('container bootstrap route registrations', () => {
   });
 
   it('registers the detail page as a menu-hidden global route', () => {
-    expect(containerGlobalRouteRegistrations).toHaveLength(3);
+    expect(containerGlobalRouteRegistrations).toHaveLength(2);
     const detailRoute = containerGlobalRouteRegistrations.find((route) => route.routeName === 'ContainerDetail');
     expect(detailRoute).toMatchObject({
       path: '/infrastructure/docker/containers/:id',

@@ -3,10 +3,13 @@ package backup
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
+	"time"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -69,6 +72,89 @@ func TestRegisterMenuGroupsBackupUnderPlatformMaintenance(t *testing.T) {
 	if backup.ParentCode != "platform-maintenance" || backup.Path != backupcontract.BackupMenuPath || backup.Permission != backupcontract.BackupReadPermission || backup.Icon != "backup" {
 		t.Fatalf("unexpected backup menu: %#v", backup)
 	}
+}
+
+func TestBackupDashboardWidgetDeclaresPermissionAndLoadsLatestSummary(t *testing.T) {
+	repository := &backupDashboardRepository{items: []moduleapi.BackupSummary{{
+		ID: 7, Status: moduleapi.BackupStatusAvailable, RetainUntil: time.Now().UTC().Add(time.Hour),
+	}}}
+	service := NewService(repository)
+	registry := dashboard.NewRegistry()
+	if err := registerBackupDashboardWidget(&module.Context{DashboardRegistry: registry}, service); err != nil {
+		t.Fatalf("register backup dashboard widget: %v", err)
+	}
+	definition, ok := registry.Get(backupHealthWidgetID)
+	if !ok || definition.Type != dashboard.WidgetTypeHealth || definition.RouteLocation != backupcontract.BackupMenuPath || len(definition.RequiredPermissions) != 1 || definition.RequiredPermissions[0] != backupcontract.BackupReadPermission {
+		t.Fatalf("unexpected backup dashboard definition: %#v", definition)
+	}
+	payload, err := definition.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load backup dashboard widget: %v", err)
+	}
+	summary := payload["summary"].(dashboard.HealthSummaryItem)
+	if summary.Status != dashboard.HealthStatusHealthy || repository.calls != 1 || repository.limit != 1 || repository.offset != 0 {
+		t.Fatalf("unexpected backup dashboard load: summary=%#v repository=%#v", summary, repository)
+	}
+}
+
+func TestBackupDashboardWidgetDistinguishesLifecycleFacts(t *testing.T) {
+	now := time.Date(2026, time.August, 17, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name   string
+		items  []moduleapi.BackupSummary
+		status dashboard.HealthStatus
+		key    string
+	}{
+		{name: "available", items: []moduleapi.BackupSummary{{Status: moduleapi.BackupStatusAvailable, RetainUntil: now.Add(time.Hour)}}, status: dashboard.HealthStatusHealthy, key: "dashboard.widget.backupHealth.available.summary"},
+		{name: "available without retention evidence", items: []moduleapi.BackupSummary{{Status: moduleapi.BackupStatusAvailable}}, status: dashboard.HealthStatusUnknown, key: "dashboard.widget.backupHealth.unknown.summary"},
+		{name: "elapsed retention", items: []moduleapi.BackupSummary{{Status: moduleapi.BackupStatusAvailable, RetainUntil: now.Add(-time.Second)}}, status: dashboard.HealthStatusDegraded, key: "dashboard.widget.backupHealth.expired.summary"},
+		{name: "expired", items: []moduleapi.BackupSummary{{Status: moduleapi.BackupStatusExpired}}, status: dashboard.HealthStatusDegraded, key: "dashboard.widget.backupHealth.expired.summary"},
+		{name: "restored evidence", items: []moduleapi.BackupSummary{{Status: moduleapi.BackupStatusRestored}}, status: dashboard.HealthStatusUnknown, key: "dashboard.widget.backupHealth.restored.summary"},
+		{name: "none", status: dashboard.HealthStatusUnknown, key: "dashboard.widget.backupHealth.none.summary"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := backupHealthPayload(test.items, now)
+			summary := payload["summary"].(dashboard.HealthSummaryItem)
+			if summary.Status != test.status || summary.LabelKey != test.key {
+				t.Fatalf("unexpected lifecycle payload: %#v", payload)
+			}
+		})
+	}
+}
+
+func TestBackupDashboardWidgetPropagatesReadAndRegistrationErrors(t *testing.T) {
+	loadErr := errors.New("backup read failed")
+	service := NewService(&backupDashboardRepository{err: loadErr})
+	if _, err := loadBackupHealthWidget(context.Background(), service, time.Now().UTC()); !errors.Is(err, loadErr) {
+		t.Fatalf("expected backup read error, got %v", err)
+	}
+	ctx := &module.Context{DashboardRegistry: dashboard.NewRegistry()}
+	if err := registerBackupDashboardWidget(ctx, service); err != nil {
+		t.Fatalf("register first backup widget: %v", err)
+	}
+	if err := registerBackupDashboardWidget(ctx, service); err == nil {
+		t.Fatal("expected duplicate backup widget registration error")
+	}
+}
+
+type backupDashboardRepository struct {
+	serviceTestRepository
+	items  []moduleapi.BackupSummary
+	err    error
+	calls  int
+	limit  int
+	offset int
+}
+
+func (r *backupDashboardRepository) ListSummaries(_ context.Context, limit, offset int) ([]moduleapi.BackupSummary, int64, error) {
+	r.calls++
+	r.limit = limit
+	r.offset = offset
+	if r.err != nil {
+		return nil, 0, r.err
+	}
+	return r.items, int64(len(r.items)), nil
 }
 
 type backupTaskRuntimeStub struct {

@@ -29,4 +29,6 @@ const (
 
 	// AnnouncementMenuPath 标识公告管理菜单的规范路径。
 	AnnouncementMenuPath = "/platform/announcements"
+	// MyAnnouncementMenuPath 标识当前用户公告列表的规范前端路径。
+	MyAnnouncementMenuPath = "/my-announcements"
 )

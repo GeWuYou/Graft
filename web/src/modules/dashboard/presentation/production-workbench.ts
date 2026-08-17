@@ -1,9 +1,20 @@
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
 
-import { asAlertListPayload, asHealthPayload, asTimelinePayload } from '../components/widgets/payload';
+import {
+  asAlertListPayload,
+  asHealthPayload,
+  asLinkListPayload,
+  asStatGroupPayload,
+  asTimelinePayload,
+} from '../components/widgets/payload';
 import type { DashboardQuickActionLink } from '../contract/quick-action-links';
 import type { DashboardQuickActionConfig } from '../contract/quick-actions';
-import type { DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
+import type {
+  DashboardLinkListPayload,
+  DashboardStatGroupPayload,
+  DashboardSummaryResponse,
+  DashboardWidget,
+} from '../types/dashboard';
 import {
   EVIDENCE_STATE,
   PRESENTATION_STATUS,
@@ -12,7 +23,12 @@ import {
   presentationStatusFromHealthStatus,
   projectWorkbenchScenario,
   type QuickAction,
+  type WorkbenchAction,
+  type WorkbenchContextLinkGroup,
+  type WorkbenchMetricGroup,
+  type WorkbenchModuleCoverage,
   type WorkbenchPresentation,
+  type WorkbenchResourceSummary,
 } from './workbench';
 
 export type DashboardResourceLoadState = 'hidden' | 'loading' | 'failed' | 'loaded';
@@ -31,10 +47,17 @@ export type ProductionWorkbenchInput = {
   summary: DashboardSummaryResponse;
 };
 
+export type DashboardWidgetProjection = {
+  items: PresentationItem[];
+  metricGroups: WorkbenchMetricGroup[];
+  contextLinkGroups: WorkbenchContextLinkGroup[];
+};
+
 const DETAILS_ACTION_KEY = 'dashboard.actions.details';
 
 export function projectDashboardSummaryToWorkbench(input: ProductionWorkbenchInput): WorkbenchPresentation {
-  const items = input.summary.widgets.flatMap(projectWidget);
+  const widgetProjections = input.summary.widgets.map(projectWidget);
+  const items = widgetProjections.flatMap((projection) => projection.items);
   items.push(...projectResources(input.resources));
 
   return projectWorkbenchScenario({
@@ -46,30 +69,53 @@ export function projectDashboardSummaryToWorkbench(input: ProductionWorkbenchInp
     },
     items,
     quickActions: projectQuickActions(input.rankedQuickLinks, input.quickActionConfig),
+    moduleCoverage: projectModuleCoverage(input.summary),
+    metricGroups: widgetProjections.flatMap((projection) => projection.metricGroups),
+    contextLinkGroups: widgetProjections.flatMap((projection) => projection.contextLinkGroups),
+    resourceSummary: projectResourceSummary(input.resources),
   });
 }
 
-export function projectWidget(widget: DashboardWidget): PresentationItem[] {
+export function projectWidget(widget: DashboardWidget): DashboardWidgetProjection {
   if (widget.status === 'error') {
-    return [projectWidgetLoadFailure(widget)];
+    return widgetProjection({ items: [projectWidgetLoadFailure(widget)] });
   }
   if (widget.status === 'disabled') {
-    return [];
+    return widgetProjection();
   }
 
   switch (widget.type) {
     case 'alert-list':
-      return projectAlertWidget(widget);
+      return widgetProjection({ items: projectAlertWidget(widget) });
     case 'health':
-      return projectHealthWidget(widget);
+      return widgetProjection({ items: projectHealthWidget(widget) });
     case 'timeline':
-      return projectTimelineWidget(widget);
-    case 'link-list':
-    case 'stat-group':
-      return [];
+      return widgetProjection({ items: projectTimelineWidget(widget) });
+    case 'link-list': {
+      const group = projectContextLinkGroup(widget);
+      return group
+        ? widgetProjection({ contextLinkGroups: [group] })
+        : widgetProjection({ items: [projectInvalidWidgetPayload(widget)] });
+    }
+    case 'stat-group': {
+      const group = projectMetricGroup(widget);
+      return group
+        ? widgetProjection({ metricGroups: [group] })
+        : widgetProjection({ items: [projectInvalidWidgetPayload(widget)] });
+    }
     default:
-      return [];
+      return widgetProjection();
   }
+}
+
+export function projectModuleCoverage(summary: DashboardSummaryResponse): WorkbenchModuleCoverage {
+  return {
+    registeredModules: summary.system_summary.modules.total_modules,
+    enabledModules: summary.system_summary.modules.enabled_modules,
+    degradedModules: summary.system_summary.modules.degraded_modules,
+    normalContributionSources: summary.widgets.filter((widget) => widget.status === 'normal').length,
+    failedContributionSources: summary.widgets.filter((widget) => widget.status === 'error').length,
+  };
 }
 
 export function projectQuickActions(
@@ -165,6 +211,144 @@ export function projectResources(resources: DashboardResourceProjection): Presen
       action,
     },
   ];
+}
+
+export function projectResourceSummary(resources: DashboardResourceProjection): WorkbenchResourceSummary {
+  const emptySummary = {
+    route: resources.route,
+    topCpu: [],
+    topMemory: [],
+    anomalies: [],
+  } satisfies Omit<WorkbenchResourceSummary, 'state'>;
+
+  if (resources.state !== 'loaded') {
+    return { ...emptySummary, state: resources.state };
+  }
+
+  const summary = resources.summary;
+  if (!summary?.overview.collectedAt) {
+    return { ...emptySummary, state: 'no-sample' };
+  }
+
+  return {
+    state: 'loaded',
+    route: resources.route,
+    overview: {
+      ...summary.overview,
+      collectedAt: summary.overview.collectedAt,
+    },
+    topCpu: summary.hotspots.cpu.slice(0, 3).map((item) => ({ ...item })),
+    topMemory: summary.hotspots.memory.slice(0, 3).map((item) => ({ ...item })),
+    anomalies: summary.anomalies.slice(0, 5).map((item) => ({ ...item })),
+  };
+}
+
+function widgetProjection(overrides: Partial<DashboardWidgetProjection> = {}): DashboardWidgetProjection {
+  return {
+    items: [],
+    metricGroups: [],
+    contextLinkGroups: [],
+    ...overrides,
+  };
+}
+
+function projectWidgetGroupMetadata(widget: DashboardWidget) {
+  return {
+    titleKey: widget.title_key || '',
+    titleFallback: widget.title,
+    descriptionKey: widget.description_key,
+    descriptionFallback: widget.description,
+    action: projectWidgetNavigationAction(widget),
+    sourceWidgetId: widget.id,
+  };
+}
+
+function projectMetricGroup(widget: DashboardWidget): WorkbenchMetricGroup | null {
+  const payload = asStatGroupPayload(widget.payload);
+  if (!payload || !payload.items.every(hasValidStatGroupOptionalFields)) {
+    return null;
+  }
+
+  return {
+    id: `metric-group:${widget.module_key}:${widget.id}`,
+    ...projectWidgetGroupMetadata(widget),
+    metrics: payload.items.map((item) => ({
+      key: item.key,
+      labelKey: item.label_key,
+      labelFallback: item.label,
+      value: item.value,
+      unitKey: item.unit_key,
+      unitFallback: item.unit,
+      descriptionKey: item.description_key,
+      descriptionFallback: item.description,
+      tone: item.tone ?? 'normal',
+      route: item.route_location,
+    })),
+  };
+}
+
+function projectContextLinkGroup(widget: DashboardWidget): WorkbenchContextLinkGroup | null {
+  const payload = asLinkListPayload(widget.payload);
+  if (!payload || !payload.items.every(hasValidLinkListOptionalFields)) {
+    return null;
+  }
+
+  return {
+    id: `context-link-group:${widget.module_key}:${widget.id}`,
+    ...projectWidgetGroupMetadata(widget),
+    links: payload.items.map((item) => ({
+      key: item.key,
+      labelKey: item.label_key,
+      labelFallback: item.label,
+      descriptionKey: item.description_key,
+      descriptionFallback: item.description,
+      route: item.route_location,
+      iconKey: item.icon,
+      badgeKey: item.badge_key,
+      badgeFallback: item.badge,
+      disabled: item.disabled ?? false,
+    })),
+  };
+}
+
+function projectWidgetNavigationAction(widget: DashboardWidget): WorkbenchAction | undefined {
+  if (widget.action) {
+    return {
+      kind: 'navigate',
+      labelKey: widget.action.label_key,
+      labelFallback: widget.action.label,
+      route: widget.action.route,
+    };
+  }
+  if (widget.route_location) {
+    return { kind: 'navigate', labelKey: DETAILS_ACTION_KEY, route: widget.route_location };
+  }
+  return undefined;
+}
+
+function hasValidStatGroupOptionalFields(item: DashboardStatGroupPayload['items'][number]) {
+  return (
+    isOptionalString(item.unit_key) &&
+    isOptionalString(item.unit) &&
+    isOptionalString(item.description_key) &&
+    isOptionalString(item.description) &&
+    isOptionalString(item.route_location)
+  );
+}
+
+function hasValidLinkListOptionalFields(item: DashboardLinkListPayload['items'][number]) {
+  return (
+    isOptionalString(item.description_key) &&
+    isOptionalString(item.description) &&
+    isOptionalString(item.icon) &&
+    isOptionalString(item.badge_key) &&
+    isOptionalString(item.badge) &&
+    (item.disabled === undefined || typeof item.disabled === 'boolean')
+  );
+}
+
+function isOptionalString(value: unknown) {
+  return value === undefined || typeof value === 'string';
 }
 
 function projectWidgetLoadFailure(widget: DashboardWidget): PresentationItem {

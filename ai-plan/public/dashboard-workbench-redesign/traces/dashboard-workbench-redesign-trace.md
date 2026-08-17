@@ -155,3 +155,52 @@
   "closeout_status": "awaiting-human-visual-acceptance"
 }
 ```
+
+## 2026-08-17 Existing-Contract Authority And Content Expansion
+
+- Completed the Phase 2.1 cross-boundary expansion without changing Dashboard HTTP/OpenAPI shape, permissions,
+  dependencies, or cache policy. Monitor and Audit enrich existing contributions; Announcement adds a current-user
+  timeline capped at five real records; Backup adds latest-record health; Runtime Target adds total, healthy, and
+  unavailable counts through one module-owned aggregate query.
+- Dashboard aggregation now loads permission-filtered contributions with at most four workers, the request deadline,
+  isolated source failures, and deterministic `priority -> order -> id` output. Runtime fact loaders remain uncached.
+- Production presentation now consumes `stat-group` and `link-list`, derives module coverage only from `system_summary`,
+  derives source coverage only after authorization, keeps Attention/Health/contextual-link budgets at 5/3/6, and hides
+  Recent Activity when no real timeline exists.
+- Expanded container presentation remains bounded to overview, Top 3 CPU, Top 3 memory, and at most five anomalies.
+  `/infrastructure/docker/containers/resources` was deleted without alias, redirect, compatibility menu, or replacement
+  aggregate page; actions use canonical container list and detail routes.
+- Synchronized normal, abnormal, permission-limited, no-sample, and long-list preview scenarios. TDesign Vue Next
+  preflight documented Card, List, Collapse, and Tag usage against the existing component baseline.
+- `cd server && go run ./cmd/graft validate backend` passed. `cd web && bun run check` passed with 305 test files and
+  2119 tests, the release build, and all frontend governance stages.
+- `just openapi-check` could not invoke because `just` is absent. Its four exact commands all passed individually:
+  `cd server && go run ./cmd/graft validate openapi`, `node scripts/openapi-runtime-paths.mjs --check`,
+  `cd web && bun run openapi:types:check`, and
+  `cd server && go run ./internal/contract/projection/cmd/projectiongen --check`.
+- CodeGraph synchronized 53 changed files and reported an up-to-date index with 3,446 files, 56,526 nodes, and 170,066
+  edges. The developer-local index did not enter dependencies, CI, hooks, or runtime.
+- The ai-plan structure guard and diff check passed. This batch claims no new browser evidence; formal-homepage
+  browser/human acceptance and preview deletion remain pending.
+
+## Batch State After Phase 2.1
+
+```json
+{
+  "completed_batches": [
+    "authority-discovery-and-design",
+    "development-preview-and-browser-evidence",
+    "production-web-adoption",
+    "homepage-acceptance-corrective-repair",
+    "existing-contract-authority-and-content-expansion"
+  ],
+  "pending_batches": [
+    "formal-homepage-browser-acceptance",
+    "preview-removal-after-acceptance",
+    "typed-attention-contract"
+  ],
+  "current_batch": "formal-homepage-browser-acceptance",
+  "next_batch": "formal-homepage-browser-acceptance",
+  "closeout_status": "awaiting-human-visual-acceptance"
+}
+```

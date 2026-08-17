@@ -627,6 +627,29 @@ func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load audit risk events widget: %v", err)
 	}
+	items, itemsByID := auditDashboardItemsByID(t, payload)
+	assertAuditDashboardFields(t, itemsByID, []auditDashboardFieldExpectation{
+		{id: "audit.high-risk", field: "route_location", expected: "/security/audit?preset=last_24h&risk_levels=HIGH%2CCRITICAL"},
+		{id: "audit.failed-operations", field: "route_location", expected: "/security/audit?preset=last_24h&results=FAILED%2CDENIED%2CERROR"},
+		{id: "audit.failed-auth", field: "route_location", expected: "/security/audit?business_category=auth_failures&preset=last_24h"},
+		{id: "audit.permission-denied", field: "route_location", expected: "/security/audit?business_category=permission_denials&preset=last_24h"},
+		{id: "audit.sensitive-operations", field: "route_location", expected: "/security/audit?business_category=sensitive_operations&preset=last_24h"},
+		{id: "audit.high-risk", field: "count", expected: 2},
+		{id: "audit.failed-operations", field: "count", expected: 1},
+		{id: "audit.failed-auth", field: "count", expected: 4},
+		{id: "audit.permission-denied", field: "count", expected: 3},
+		{id: "audit.sensitive-operations", field: "count", expected: 1},
+	})
+	if len(items) != auditRiskEventsItemCap {
+		t.Fatalf("expected dashboard attention list to respect cap %d, got %#v", auditRiskEventsItemCap, items)
+	}
+	if len(itemsByID) != len(items) {
+		t.Fatalf("dashboard attention list must not contain duplicate item IDs: %#v", items)
+	}
+}
+
+func auditDashboardItemsByID(t *testing.T, payload dashboard.WidgetPayload) ([]map[string]any, map[string]map[string]any) {
+	t.Helper()
 	items, ok := payload["items"].([]map[string]any)
 	if !ok {
 		t.Fatalf("expected alert-list items payload, got %#v", payload["items"])
@@ -639,26 +662,21 @@ func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
 		id, _ := item["id"].(string)
 		itemsByID[id] = item
 	}
-	if itemsByID["audit.high-risk"]["route_location"] != "/security/audit?preset=last_24h&risk_levels=HIGH%2CCRITICAL" {
-		t.Fatalf("expected high risk item to drill into audit logs, got %#v", itemsByID["audit.high-risk"])
-	}
-	if itemsByID["audit.failed-operations"]["route_location"] != "/security/audit?preset=last_24h&results=FAILED%2CDENIED%2CERROR" {
-		t.Fatalf("expected failed operations item to drill into audit logs, got %#v", itemsByID["audit.failed-operations"])
-	}
-	if itemsByID["audit.failed-auth"]["route_location"] != "/security/audit?business_category=auth_failures&preset=last_24h" {
-		t.Fatalf("expected failed auth item to drill into audit scope, got %#v", itemsByID["audit.failed-auth"])
-	}
-	if itemsByID["audit.high-risk"]["count"] != 2 {
-		t.Fatalf("expected high risk count to come from overview summary, got %#v", itemsByID["audit.high-risk"])
-	}
-	if itemsByID["audit.failed-operations"]["count"] != 1 {
-		t.Fatalf("expected failed operations count to come from overview summary, got %#v", itemsByID["audit.failed-operations"])
-	}
-	if itemsByID["audit.failed-auth"]["count"] != 4 {
-		t.Fatalf("expected failed auth count to come from risk group count, got %#v", itemsByID["audit.failed-auth"])
-	}
-	if _, ok := itemsByID["audit.permission-denied"]; ok {
-		t.Fatalf("permission denied is no longer a dashboard security entry, got %#v", itemsByID["audit.permission-denied"])
+	return items, itemsByID
+}
+
+type auditDashboardFieldExpectation struct {
+	id       string
+	field    string
+	expected any
+}
+
+func assertAuditDashboardFields(t *testing.T, itemsByID map[string]map[string]any, expectations []auditDashboardFieldExpectation) {
+	t.Helper()
+	for _, expectation := range expectations {
+		if actual := itemsByID[expectation.id][expectation.field]; actual != expectation.expected {
+			t.Fatalf("expected %s.%s to be %#v, got %#v", expectation.id, expectation.field, expectation.expected, actual)
+		}
 	}
 }
 
@@ -681,6 +699,34 @@ func TestAuditRiskEventsDashboardWidgetDoesNotFallbackPermissionDenialsToAuthFai
 		if item["id"] == "audit.permission-denied" {
 			t.Fatalf("permission denial item must not be synthesized from auth failures: %#v", item)
 		}
+	}
+}
+
+type emptyOverviewRepository struct {
+	memoryAuditRepository
+}
+
+func (r *emptyOverviewRepository) ReadAuditOverview(_ context.Context, window store.AuditTimePreset) (store.AuditOverview, error) {
+	return store.AuditOverview{TimePreset: window}, nil
+}
+
+func TestAuditRiskEventsDashboardWidgetHidesEmptyOverview(t *testing.T) {
+	ctx, _, _ := newModuleTestContext(t, &emptyOverviewRepository{})
+	widget, ok := ctx.DashboardRegistry.Get(auditRiskEventsWidgetID)
+	if !ok {
+		t.Fatalf("expected audit risk events dashboard widget to be registered")
+	}
+
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load empty audit risk events widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok || len(items) != 0 {
+		t.Fatalf("expected no attention items for empty overview, got %#v", payload["items"])
+	}
+	if payload["visible"] != false || payload["state"] != string(dashboard.WidgetStateHidden) {
+		t.Fatalf("expected empty overview to stay hidden, got %#v", payload)
 	}
 }
 

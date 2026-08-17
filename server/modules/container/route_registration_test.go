@@ -48,6 +48,63 @@ func TestBindGetDockerVolumesParamsIncludesSortContract(t *testing.T) {
 	}
 }
 
+func TestBindDockerResourceListLimitDefaultsAndPreservesExplicitValue(t *testing.T) {
+	t.Parallel()
+
+	resources := []struct {
+		name       string
+		path       string
+		readLimits func(*testing.T, *gin.Context) (int, int)
+	}{
+		{name: "volumes", path: "/api/ops/docker/volumes", readLimits: dockerVolumeListLimits},
+		{name: "networks", path: "/api/ops/docker/networks", readLimits: dockerNetworkListLimits},
+	}
+	limits := []struct {
+		name, query string
+		expected    int
+	}{
+		{name: "default", expected: defaultContainerListLimit},
+		{name: "explicit", query: "?limit=7", expected: 7},
+	}
+	for _, resource := range resources {
+		t.Run(resource.name, func(t *testing.T) {
+			for _, limit := range limits {
+				t.Run(limit.name, func(t *testing.T) {
+					request := httptest.NewRequest(http.MethodGet, resource.path+limit.query, nil)
+					response := httptest.NewRecorder()
+					ginCtx, _ := gin.CreateTestContext(response)
+					ginCtx.Request = request
+
+					resultLimit, responseLimit := resource.readLimits(t, ginCtx)
+					if resultLimit != limit.expected || responseLimit != limit.expected {
+						t.Fatalf("expected response limit %d, got result=%d response=%d", limit.expected, resultLimit, responseLimit)
+					}
+				})
+			}
+		})
+	}
+}
+
+func dockerVolumeListLimits(t *testing.T, ginCtx *gin.Context) (int, int) {
+	t.Helper()
+	params, ok := bindGetDockerVolumesParams(ginCtx, nil)
+	if !ok {
+		t.Fatal("expected valid Docker volume list params")
+	}
+	result := listDockerVolumes(nil, dockerVolumeListQueryFromParams(params))
+	return result.Limit, toDockerVolumeList(result).Limit
+}
+
+func dockerNetworkListLimits(t *testing.T, ginCtx *gin.Context) (int, int) {
+	t.Helper()
+	params, ok := bindGetDockerNetworksParams(ginCtx, nil)
+	if !ok {
+		t.Fatal("expected valid Docker network list params")
+	}
+	result := listDockerNetworks(nil, dockerNetworkListQueryFromParams(params))
+	return result.Limit, toDockerNetworkList(result).Limit
+}
+
 type pullErrorRuntime struct {
 	fakeRuntime
 }

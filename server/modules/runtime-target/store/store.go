@@ -323,6 +323,30 @@ type Summary struct {
 	Unavailable int64
 }
 
+const readRuntimeTargetSummarySQL = `SELECT
+COUNT(*),
+COUNT(*) FILTER (WHERE availability = true),
+COUNT(*) FILTER (WHERE availability = false)
+FROM runtime_targets
+WHERE deleted_at = 0`
+
+// ReadSummary 返回未软删除运行目标的目录健康聚合；查询不访问远端 provider。
+func (r *SQLRepository) ReadSummary(ctx context.Context) (Summary, error) {
+	if r == nil || r.db == nil {
+		return Summary{}, errors.New("runtime target repository is unavailable")
+	}
+	var summary Summary
+	err := r.executor(ctx).QueryRowContext(ctx, readRuntimeTargetSummarySQL).Scan(
+		&summary.Total,
+		&summary.Healthy,
+		&summary.Unavailable,
+	)
+	if err != nil {
+		return Summary{}, fmt.Errorf("summarize runtime targets: %w", err)
+	}
+	return summary, nil
+}
+
 // List 返回全部未软删除的运行时目标，并按 provider、显示名称和 ID 排序以保证跨请求顺序稳定。
 func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	if r == nil || r.db == nil {
@@ -345,8 +369,8 @@ func (r *SQLRepository) ListQueryPage(ctx context.Context, query ListQuery) (Pag
 	if r == nil || r.db == nil {
 		return Page{Items: []Target{}}, nil
 	}
-	var summary Summary
-	if err := r.executor(ctx).QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE availability = true), COUNT(*) FILTER (WHERE availability = false) FROM runtime_targets WHERE deleted_at = 0`).Scan(&summary.Total, &summary.Healthy, &summary.Unavailable); err != nil {
+	summary, err := r.ReadSummary(ctx)
+	if err != nil {
 		return Page{}, err
 	}
 	where, args := targetListFilters(query)

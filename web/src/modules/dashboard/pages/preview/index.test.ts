@@ -74,7 +74,9 @@ vi.mock('@/locales', () => ({
 
 vi.mock('@/shared/observability', () => ({
   MEDIUM_DATE_TIME_FORMAT_OPTIONS: {},
+  formatBytes: (value: number | null) => (value === null ? '-' : `${value} B`),
   formatLocaleDateTime: (value: string) => `formatted:${value}`,
+  formatPercent: (value: number | null) => (value === null ? '-' : `${value.toFixed(1)}%`),
 }));
 
 vi.mock('@/shared/components/page', () => ({
@@ -164,10 +166,13 @@ function mountPreview() {
       stubs: {
         TButton: buttonStub,
         TCard: surfaceStub,
+        TCollapse: surfaceStub,
+        TCollapsePanel: surfaceStub,
         TDrawer: surfaceStub,
         TInput: inputStub,
         TList: surfaceStub,
         TListItem: surfaceStub,
+        TTag: surfaceStub,
       },
     },
   });
@@ -190,22 +195,23 @@ describe('DashboardWorkbenchPreviewPage', () => {
     expect(outbound.classes()).not.toContain('attention-row--warning');
     expect(outbound.classes()).not.toContain('attention-row--error');
     expect(wrapper.text()).toContain('Needs Attention');
-    expect(wrapper.text()).toContain('2 Items');
-    expect(wrapper.text()).toContain('1 warning, 1 unknown');
+    expect(wrapper.text()).toContain('6 Items');
+    expect(wrapper.text()).toContain('3 warning, 3 unknown');
     expect(wrapper.text()).toContain('Attention');
     expect(wrapper.text()).not.toContain('items need confirmation');
     expect(accessLog.findAll('.workbench-status')).toHaveLength(1);
     expect(outbound.findAll('.workbench-status')).toHaveLength(1);
   });
 
-  it('keeps healthy dependencies quiet and represents missing resources as a neutral note', () => {
+  it('keeps healthy dependencies quiet and renders the loaded resource detail scenario', () => {
     const wrapper = mountPreview();
 
     expect(wrapper.get('[data-health-id="health-postgresql"]').attributes('data-status')).toBe('healthy');
     expect(wrapper.get('[data-health-id="health-redis"]').attributes('data-status')).toBe('healthy');
-    expect(wrapper.get('.resource-note[data-evidence="missing"]').attributes('data-evidence')).toBe('missing');
-    expect(wrapper.find('.t-tag').exists()).toBe(false);
+    expect(wrapper.get('[data-resource-state="loaded"]').attributes('data-resource-state')).toBe('loaded');
+    expect(wrapper.findAll('[data-resource-group]')).toHaveLength(3);
     expect(wrapper.find('.health-row--emphasized').exists()).toBe(false);
+    expect(wrapper.find('[data-secondary-region="activity"]').exists()).toBe(false);
   });
 
   it('uses configurable home actions and the shared responsive overlay for all entries', () => {

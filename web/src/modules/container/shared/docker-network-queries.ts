@@ -4,14 +4,14 @@ import { computed, type MaybeRef, toValue } from 'vue';
 import { queryClient } from '@/shared/query';
 
 import { type DockerNetworkListQuery, getDockerNetwork, getDockerNetworks } from '../api/container';
-import { containerResourceQueryKeys } from './container-resource-queries';
 
+const dockerNetworkQueryScope = ['container', 'resources', 'networks'] as const;
 const dockerNetworkQueryKeys = {
-  list: containerResourceQueryKeys.networks,
-  detail: (networkId: string) => ['container', 'resources', 'networks', 'detail', networkId] as const,
+  list: () => [...dockerNetworkQueryScope] as const,
+  detail: (networkId: string) => [...dockerNetworkQueryScope, 'detail', networkId] as const,
 };
 
-/** 网络详情独立缓存，列表仍复用 Docker 资源页的网络快照。 */
+/** 网络列表与详情由网络查询边界统一拥有；列表 key 保持既有 tuple 以维持缓存与失效一致性。 */
 export function useDockerNetworkListQuery(query: MaybeRef<DockerNetworkListQuery>) {
   return useQuery(
     {

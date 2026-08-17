@@ -16,8 +16,14 @@ dashboard.widget.auditRiskEvents.failedOperations.description: Review recent fai
 dashboard.widget.auditRiskEvents.failedOperations.action: View Failures
 dashboard.widget.auditRiskEvents.authFailures.description: Review recent authentication failures.
 dashboard.widget.auditRiskEvents.authFailures.action: View Authentication Failures
+dashboard.widget.auditRiskEvents.permissionDenials.description: Review recent operations denied by permission policy.
+dashboard.widget.auditRiskEvents.permissionDenials.action: View Permission Denials
+dashboard.widget.auditRiskEvents.sensitiveOperations.title: Sensitive Operations
+dashboard.widget.auditRiskEvents.sensitiveOperations.description: Review recently executed sensitive operations.
+dashboard.widget.auditRiskEvents.sensitiveOperations.action: View Sensitive Operations
 dashboard.widget.auditRiskEvents.empty: No audit risk events in the last 24 hours.
 audit.overview.riskGroups.authFailures: Authentication Failures
+audit.overview.riskGroups.permissionDenials: Permission Denials
 audit.visibilityCatalog.auth.tokenExpired.description: Access token expired security event.
 audit.visibilityCatalog.auth.tokenInvalid.description: Access token invalid security event.
 audit.visibilityCatalog.auth.tokenMissing.description: Access token missing security event.

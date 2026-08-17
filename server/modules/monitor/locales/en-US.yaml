@@ -13,7 +13,13 @@ monitor.serverStatus.anomaly.runtimeGoroutinePressure: "Goroutine count reached 
 monitor.serverStatus.anomaly.runtimeHeapPressure: "Runtime heap usage reached {bytes} bytes."
 monitor.serverStatus.anomaly.systemLoadPressure: "1-minute load average reached {load} against {cores} CPU cores."
 dashboard.widget.monitorSystemHealth.title: System Health
-dashboard.widget.monitorSystemHealth.description: Active anomalies in the current monitor window.
+dashboard.widget.monitorSystemHealth.description: Host resources, module health, sampling, and current active anomalies.
+dashboard.widget.monitorSystemHealth.hostResources: Host Resources
+dashboard.widget.monitorSystemHealth.hostResourcesDescription: Server CPU, memory, and disk resource status.
+dashboard.widget.monitorSystemHealth.moduleHealth: Module Health
+dashboard.widget.monitorSystemHealth.moduleHealthDescription: Current runtime health of registered modules.
 dashboard.widget.monitorSystemHealth.anomalies: Active anomalies
 dashboard.widget.monitorSystemHealth.anomaliesDescription: Active anomalies in the monitor window.
+dashboard.widget.monitorSystemHealth.observability: Host Sampling
+dashboard.widget.monitorSystemHealth.observabilityDescription: Host trend and extended observability sampling state.
 dashboard.widget.monitorSystemHealth.summary: System health

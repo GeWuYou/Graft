@@ -1,2 +1,6 @@
 menu.announcement.title: Announcements
 announcement.published_delete_forbidden: Archive the published announcement before deleting it
+dashboard.widget.announcementTimeline.title: Latest Announcements
+dashboard.widget.announcementTimeline.description: Latest announcements visible to the current user.
+dashboard.widget.announcementTimeline.action: View All Announcements
+dashboard.widget.announcementTimeline.empty: No announcements are currently visible.

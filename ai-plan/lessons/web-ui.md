@@ -446,3 +446,39 @@
   - `web/src/permission.test.ts`
 - Updated at:
   2026-08-17
+
+## LESSON-WEB-UI-HOMEPAGE-AUTHORITY-001：首页内容扩充必须落在首页权威链路
+
+- Status: active
+- Level: L2
+- Applies to:
+  - 首页、Dashboard 和全局工作台的内容扩充
+  - 通过 registry 聚合多个模块事实的页面
+  - 首页到管理列表、对象详情和隐藏旧路由的 drill-down 关系
+- Source:
+  - 用户明确纠正：扩建一个进入后仍然稀疏的 Docker 资源聚合页，不等于丰富首页；其初衷是让首页展示更多真实内容，必要时可以修改后端事实贡献
+- Problem:
+  首页内容不足时，如果把工作转向一个无稳定导航身份的隐藏聚合页，或者只展示“注册了多少模块”而没有展示模块拥有的运行事实，
+  最终交付会偏离用户正在评价的首页。canonical 管理页能够承接下钻，不代表它可以替代首页内容；模块数量也只能说明覆盖面，
+  不能回答首页应回答的当前状态、关注事项、健康与近期活动。
+- Correct pattern:
+  先确认实际首页路由、产品定位、Dashboard Registry 和 presentation composition 的权威，再由相关模块提供真实、权限过滤、
+  数量有界的 owner-owned contribution，由首页统一编排首屏层级、展开预算和证据状态。管理列表与对象详情继续作为
+  canonical navigation target，只承接查看和处置；它们不能替代首页事实，也不能为了填充首页而复活隐藏聚合页。
+- Anti-pattern:
+  - 新建或扩充一个稀疏、隐藏、无稳定管理对象的下游聚合页，并把它当作首页扩充结果
+  - 只统计已注册模块、菜单或入口数量，却没有把模块拥有的真实状态贡献到首页
+  - 在管理页展示大量原始表格，再用一个首页链接宣称已经补足首页信息
+  - 只验收新页面截图，不打开实际首页检查 DOM、内容层级和 drill-down 路由
+- Enforcement:
+  实施前用设计与规格 review 明确首页 authority、模块事实 owner、展示预算和 canonical drill-down；实现后必须在实际首页路由
+  获取浏览器 DOM 与截图证据，并逐一验证首页动作进入预期管理页或对象详情。若变更涉及隐藏旧页或迁移路径，使用 old-path grep
+  检查旧路由、旧菜单和旧页面引用已按设计删除，例如执行
+  `rg -n '/infrastructure/docker/containers/resources' server web openapi` 复核生产引用，并确认首页没有通过旧路径获取或替代内容。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes (`ai-plan/design/architecture/首页工作台与Dashboard贡献设计.md`，已有权威设计)
+- Related:
+  - `ai-plan/design/architecture/首页工作台与Dashboard贡献设计.md`
+- Updated at:
+  2026-08-17

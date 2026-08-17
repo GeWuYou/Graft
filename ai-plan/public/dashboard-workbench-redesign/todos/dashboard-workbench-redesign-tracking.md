@@ -44,10 +44,13 @@ closeout:
 ## Semantic Review Selection
 
 - `graft-platform-architecture-review`: fixes presentation ownership above direct widget-card geometry.
-- `graft-cross-boundary-review`: preserves server/OpenAPI fact authority while keeping the prototype Web-only.
-- `graft-module-architecture-review`: keeps the presentation mapper private to the dashboard module.
+- `graft-cross-boundary-review`: preserves module-owned server facts, Dashboard Registry authorization/aggregation,
+  generated payload consumption, and dashboard-owned presentation across the completed authority expansion.
+- `graft-module-architecture-review`: keeps runtime facts in their owning modules, aggregation in the Dashboard
+  Registry/service boundary, and presentation policy private to the dashboard Web module.
 - `graft-typescript-dx-audit`: governs the closed presentation/evidence unions and caller inference.
-- `graft-test-seam-review`: tests the pure presentation model and development route seam.
+- `graft-test-seam-review`: covers module registration/loaders, the Runtime Target aggregate store seam, Dashboard
+  aggregation/projection, development scenarios, and formal homepage component behavior.
 - `graft-consistency-review` and `graft-delete-review`: avoid a parallel UI baseline, duplicate sorting authority, and speculative shared helpers.
 - `graft-openapi-contract-review` and `graft-api-dx-review`: correct alert fallback optionality at the wire authority without a compatibility DTO.
 - `graft-localization-governance`: keep platform capability display key-first and owner-local in both locale catalogs.
@@ -63,6 +66,13 @@ closeout:
 - Production `/` now renders the shared workbench over the existing summary response; the preview remains available for final comparison and deletion approval.
 - Formal-homepage acceptance reproduced invalid-payload warnings for key-first audit/access items and duplicate Monitor/CapabilityCoordinator PostgreSQL/Redis rows.
 - The corrective batch has synchronized OpenAPI/Web alert optionality, removed duplicate health authority, localized CapabilityCoordinator facts, and passed full cross-boundary validation.
+- Phase 2.1 now expands the existing authority chain end to end: Monitor/Audit enrich existing facts; Announcement,
+  Backup, and Runtime Target register bounded module-owned contributions; Dashboard loads them with permission filtering,
+  a four-worker request budget, isolated failures, deterministic ordering, and no runtime-fact cache; Web projects the
+  enriched widgets, module/source coverage, bounded container resources, contextual links, and quick actions into the
+  fixed workbench surfaces.
+- The hidden `/infrastructure/docker/containers/resources` page and route are deleted without alias, redirect,
+  compatibility menu, or replacement aggregate page. Canonical container list/detail routes remain drill-down targets.
 - PR review cleanup now keeps contextual Attention/Resources navigation out of quick-entry ranking, sorts activity by
   parsed instants, names attention-only counts explicitly, removes test type escapes, and isolates the fixed preview
   scenario plus copy behind one deletion boundary.
@@ -91,6 +101,8 @@ closeout:
 - [x] Remove Monitor's duplicate database/Redis homepage projection and localize CapabilityCoordinator rows.
 - [x] Pass focused and full cross-boundary validation.
 - [x] Resolve the bounded Dashboard/topic PR review findings without changing TDesign component usage or wire contracts.
+- [x] Complete Phase 2.1 existing-contract authority and content expansion across server facts, Dashboard aggregation,
+  Web presentation, bounded resources, preview scenarios, and hidden-route deletion.
 - [ ] Manually refresh the open formal homepage, repeat browser inspection, and record human acceptance.
 - [ ] Record human acceptance of the formal homepage and delete the preview.
 - [ ] Implement the additive typed attention contract in a later batch.
@@ -99,7 +111,7 @@ closeout:
 
 - Focused Vitest for the second round: 4 files, 20 tests passed.
 - Full `bun run check` after production adoption passed: 305 test files and 2099 tests, plus typecheck, TS7 check, release build, format, lint, i18n, style, density, hygiene, responsive, pagination, and OpenAPI frontend governance stages.
-- Focused backend package validation passed: `go test ./internal/httpx -count=1`, including the 4xx/5xx/slow severity assertions. The repository backend completion entrypoint could not finish because the environment does not contain the pinned `golangci-lint v2.12.2` binary.
+- The current repository backend completion entrypoint passed: `cd server && go run ./cmd/graft validate backend`.
 - `python3 scripts/validate_ai_plan_structure.py` and `git diff --check` passed after the recovery documents were updated.
 - Independent read-only review found no blocker or P1. Its four P2 findings were resolved by adding an explicit presentation region, enforcing evidence invariants, using the shared `access-log` icon key, and removing the mobile orphan metric row.
 - Browser inspection used the existing signed-in external browser after the reproducible WSL browser agent was blocked by missing Chromium system libraries. The real shell, status copy, quick-action Drawer, and fixed scenario were visible and interactive.
@@ -131,6 +143,20 @@ closeout:
 - The follow-up Monaco diagnosis passed 20 isolated lifecycle repetitions and 10 joint Monaco/WebTerminal repetitions;
   the single-test body completed in about 1.4-1.8 seconds locally while Monaco import and CSS evaluation dominated the
   process wall time, supporting a test-local timeout repair instead of a global runner change.
+- Phase 2.1 full Web validation passed through `cd web && bun run check`: 305 test files and 2119 tests, the release
+  build, and all frontend governance stages passed.
+- The `Justfile` `openapi-check` wrapper could not run because `just` is absent. Its four authoritative commands all
+  passed individually: `cd server && go run ./cmd/graft validate openapi`,
+  `node scripts/openapi-runtime-paths.mjs --check`, `cd web && bun run openapi:types:check`, and
+  `cd server && go run ./internal/contract/projection/cmd/projectiongen --check`.
+- CodeGraph synchronized 53 changed files and reported the index up to date at 3,446 files, 56,526 nodes, and 170,066
+  edges. It remained developer-local and introduced no repository dependency.
+- TDesign Vue Next preflight evidence for the workbench surfaces documented Card, List, Collapse, and Tag usage against
+  the existing component baseline; no second UI library or arbitrary module-owned Vue widget was introduced.
+- Runtime facts remain `no cache`; the Dashboard Registry definitions remain startup-immutable. The ai-plan structure
+  guard and scoped diff check passed.
+- No browser evidence is claimed for the newly expanded runtime. Formal-homepage browser/human acceptance and preview
+  deletion remain pending.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
@@ -151,7 +177,8 @@ closeout:
     "authority-discovery-and-design",
     "development-preview-and-browser-evidence",
     "production-web-adoption",
-    "homepage-acceptance-corrective-repair"
+    "homepage-acceptance-corrective-repair",
+    "existing-contract-authority-and-content-expansion"
   ],
   "pending_batches": [
     "formal-homepage-browser-acceptance",
