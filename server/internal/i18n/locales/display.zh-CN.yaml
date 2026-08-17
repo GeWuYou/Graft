@@ -3,6 +3,23 @@ menu.logCenter.title: 日志中心
 menu.accessLog.title: 访问日志
 menu.appLog.title: 应用日志
 dashboard.actions.details: 查看详情
+dashboard.widget.platformCapabilityHealth.title: 平台能力
+dashboard.widget.platformCapabilityHealth.description: 当前平台能力健康快照。
+dashboard.widget.platformCapabilityHealth.postgresql: PostgreSQL
+dashboard.widget.platformCapabilityHealth.postgresqlHealthyDescription: PostgreSQL 连通性检查通过
+dashboard.widget.platformCapabilityHealth.postgresqlDegradedDescription: PostgreSQL 连通性需要关注
+dashboard.widget.platformCapabilityHealth.postgresqlDisabledDescription: PostgreSQL 检查已停用
+dashboard.widget.platformCapabilityHealth.postgresqlUnknownDescription: PostgreSQL 状态未知
+dashboard.widget.platformCapabilityHealth.redis: Redis
+dashboard.widget.platformCapabilityHealth.redisHealthyDescription: Redis 连通性检查通过
+dashboard.widget.platformCapabilityHealth.redisDegradedDescription: Redis 连通性需要关注
+dashboard.widget.platformCapabilityHealth.redisDisabledDescription: Redis 检查已停用
+dashboard.widget.platformCapabilityHealth.redisUnknownDescription: Redis 状态未知
+dashboard.widget.platformCapabilityHealth.outboundNetwork: 出站网络
+dashboard.widget.platformCapabilityHealth.outboundNetworkHealthyDescription: 出站网络连通性检查通过
+dashboard.widget.platformCapabilityHealth.outboundNetworkDegradedDescription: 出站网络连通性需要关注
+dashboard.widget.platformCapabilityHealth.outboundNetworkDisabledDescription: 出站网络检查已停用
+dashboard.widget.platformCapabilityHealth.outboundNetworkUnknownDescription: 出站网络状态未知
 dashboard.widget.moduleRuntimeHealth.title: 模块运行时
 dashboard.widget.moduleRuntimeHealth.description: 当前模块运行时健康状态。
 dashboard.widget.moduleRuntimeHealth.summary: 模块健康

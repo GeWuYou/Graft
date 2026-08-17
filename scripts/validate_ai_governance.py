@@ -258,6 +258,10 @@ def validate_ai_tooling_doc() -> list[Finding]:
     for disallowed in ("headroom wrap codex", "headroom proxy"):
         if disallowed in text:
             findings.append(Finding(AI_TOOLING_DOC, f"Headroom governance should keep only MCP entry content, found {disallowed!r}"))
+    if "codex mcp add github -- wsl.exe -- bash -lc" not in text:
+        findings.append(Finding(AI_TOOLING_DOC, "GitHub MCP guidance must use the default portable WSL launcher"))
+    if re.search(r"\bwsl\.exe\s+(?:-d|--distribution)\s+\S+", text):
+        findings.append(Finding(AI_TOOLING_DOC, "shared GitHub MCP guidance must not hard-code a WSL distro"))
     return findings
 
 
@@ -341,7 +345,6 @@ def validate_environment_inventory() -> list[Finding]:
     text = read_text(TOOLS_AI)
     findings: list[Finding] = []
     exact_terms = (
-        "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
         "rtk instruction injection",
@@ -355,8 +358,8 @@ def validate_environment_inventory() -> list[Finding]:
             TOOLS_AI,
             "AI environment inventory",
             (
-                ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
-                ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
+                ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*(true|false)", r"ai_headroom_mcp:\s*(true|false)")),
+                ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"(headroom mcp|unavailable)\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
                 ("Headroom AI tool record", (r"ai_tools:", r"headroom:", r"instructions_auto_write:\s+\"disabled\"")),
@@ -364,6 +367,20 @@ def validate_environment_inventory() -> list[Finding]:
             ),
         )
     )
+    mcp_section = text[text.find("mcp_servers:") :]
+    for server_name in ("codegraph", "tdesign", "context7", "github", "playwright"):
+        record_match = re.search(
+            rf"(?ms)^  {re.escape(server_name)}:\n(?P<record>(?:    .*\n)+)",
+            mcp_section,
+        )
+        if record_match is None or 'adoption: "adopted"' not in record_match.group("record"):
+            findings.append(Finding(TOOLS_AI, f"formally adopted MCP server {server_name!r} is missing adoption status"))
+    headroom_match = re.search(
+        r"(?ms)^  headroom:\n(?P<record>(?:    .*\n)+)",
+        mcp_section,
+    )
+    if headroom_match is None or 'adoption: "optional-pilot"' not in headroom_match.group("record"):
+        findings.append(Finding(TOOLS_AI, "Headroom MCP server is missing optional-pilot adoption status"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

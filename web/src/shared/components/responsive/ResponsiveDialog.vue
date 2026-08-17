@@ -72,6 +72,7 @@ const dialogSizeToken = computed<ResponsiveStyleToken>(() => {
   return RESPONSIVE_STYLE_TOKENS.dialogMediumMax;
 });
 const dialogBindings = computed(() => ({
+  attach: 'body',
   closeOnEscKeydown,
   closeOnOverlayClick,
   destroyOnClose: true,
@@ -84,6 +85,7 @@ const dialogBindings = computed(() => ({
 }));
 const drawerBindings = computed(() => {
   const shared = {
+    attach: 'body',
     closeOnEscKeydown,
     closeOnOverlayClick,
     destroyOnClose: true,
@@ -138,7 +140,8 @@ function emitVisible(nextVisible: boolean) {
 }
 </script>
 <style scoped lang="less">
-.responsive-dialog {
+/* stylelint-disable selector-pseudo-class-no-unknown -- Vue 的 :global() 用于命中 render function 与 Teleport 生成的节点。 */
+:global(.responsive-dialog) {
   block-size: 100%;
   box-sizing: border-box;
   container-type: inline-size;
@@ -150,17 +153,17 @@ function emitVisible(nextVisible: boolean) {
   min-width: 0;
 }
 
-.responsive-dialog--sheet,
-.responsive-dialog--fullscreen {
+:global(.responsive-dialog--sheet),
+:global(.responsive-dialog--fullscreen) {
   inline-size: 100%;
   max-inline-size: none;
 }
 
-.responsive-dialog__header:empty {
+:global(.responsive-dialog__header:empty) {
   display: none;
 }
 
-.responsive-dialog__header--fullscreen {
+:global(.responsive-dialog__header--fullscreen) {
   align-items: center;
   border-bottom: 1px solid var(--td-component-stroke);
   display: flex;
@@ -169,7 +172,7 @@ function emitVisible(nextVisible: boolean) {
   padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-l);
 }
 
-.responsive-dialog__header--fullscreen h1 {
+:global(.responsive-dialog__header--fullscreen h1) {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-medium);
   margin: 0;
@@ -177,19 +180,24 @@ function emitVisible(nextVisible: boolean) {
   overflow-wrap: anywhere;
 }
 
-.responsive-dialog__body {
+:global(.responsive-dialog__body) {
   flex: 1 1 auto;
   min-block-size: 0;
   overflow: auto;
 }
 
-.responsive-dialog__footer {
+:global(.responsive-dialog__footer) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
 }
 
-:deep(.responsive-dialog__fullscreen-overlay .t-dialog) {
+/* TDesign 将 Dialog 传送到调用方作用域之外，全屏尺寸必须由稳定包装类在全局命中。 */
+:global(.responsive-dialog__fullscreen-overlay .t-dialog__position.t-dialog--top) {
+  padding: 0;
+}
+
+:global(.responsive-dialog__fullscreen-overlay .t-dialog) {
   block-size: 100dvh;
   border-radius: 0;
   margin: 0;
@@ -198,7 +206,7 @@ function emitVisible(nextVisible: boolean) {
   padding: 0;
 }
 
-:deep(.responsive-dialog__fullscreen-overlay .t-dialog__body) {
+:global(.responsive-dialog__fullscreen-overlay .t-dialog__body) {
   block-size: 100%;
   padding: 0;
 }

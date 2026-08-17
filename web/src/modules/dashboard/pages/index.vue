@@ -1,80 +1,23 @@
 <template>
-  <section class="dashboard-page" data-page-type="overview-dashboard">
-    <page-header
-      title-key="dashboard.page.title"
-      :title-fallback="t('dashboard.page.title')"
-      description-key="dashboard.page.description"
-      :description-fallback="t('dashboard.page.description')"
-      :source="{
-        labelKey: 'dashboard.page.eyebrow',
-        fallback: t('dashboard.page.eyebrow'),
-        color: 'var(--td-brand-color-6)',
-      }"
-    >
-      <template #actions>
-        <div class="dashboard-page__header-actions">
-          <span v-if="lastUpdatedAt" class="dashboard-page__updated-at">
-            {{ t('dashboard.page.lastUpdated', { time: lastUpdatedLabel }) }}
-          </span>
-          <t-button theme="primary" :loading="loading" @click="loadSummary">
-            {{ t('dashboard.actions.refresh') }}
-          </t-button>
-        </div>
-      </template>
-    </page-header>
-
-    <t-loading :loading="loading && Boolean(summary)" size="large" :text="t('dashboard.loading')">
-      <t-alert v-if="errorMessage" theme="error" :title="t('dashboard.error.title')" :message="errorMessage">
-        <template #operation>
-          <t-button variant="text" theme="primary" size="small" @click="loadSummary">
-            {{ t('dashboard.actions.retry') }}
-          </t-button>
-        </template>
-      </t-alert>
-
-      <template v-if="summary || loading">
-        <section class="dashboard-page__summary" :aria-label="t('dashboard.systemSummary.title')">
-          <header class="dashboard-page__summary-header">
-            <span>{{ t('dashboard.systemSummary.eyebrow') }}</span>
-            <h2>{{ t('dashboard.systemSummary.title') }}</h2>
-          </header>
-          <div class="dashboard-page__summary-grid">
-            <div v-for="item in systemSummaryItems" :key="item.key" class="dashboard-page__summary-item">
-              <template v-if="loading && !summary">
-                <t-skeleton animation="gradient" :row-col="summarySkeletonRowCol" />
-              </template>
-              <template v-else>
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-                <p>{{ item.description }}</p>
-              </template>
-            </div>
-          </div>
-        </section>
-
-        <dashboard-quick-actions v-if="summary" :links="quickLinks" :config="quickActionConfig" />
-
-        <dashboard-container-resources
-          v-if="canViewContainerOverview"
-          :summary="containerDashboardSummary"
-          :loading="containerResourcesLoading"
-        />
-
-        <dashboard-renderer
-          :widgets="widgets"
-          :refreshing-widget-id="refreshingWidgetId"
-          :loading="loading && !summary"
-          @refresh-widget="refreshWidget"
-        />
-      </template>
-
-      <t-empty v-else-if="!loading" size="large" :description="t('dashboard.empty')" />
-    </t-loading>
-  </section>
+  <dashboard-workbench
+    :error-message="errorMessage"
+    :generated-at="lastUpdatedAt || initialTimestamp"
+    :loading="loading"
+    :navigation-links="quickLinks"
+    :presentation="presentation"
+    :quick-actions-enabled="quickActionConfig.enabled"
+    :ready="Boolean(summary)"
+    :refreshing="loading && Boolean(summary)"
+    :retrying-id="retryingPresentationItemId"
+    @navigate="navigate"
+    @refresh="loadSummary"
+    @retry-item="retryItem"
+  />
 </template>
 <script setup lang="ts">
-// 首页汇总服务端摘要、widget 和壳层快捷入口；各 widget 的 payload 校验留在 widget 边界内。
+// 正式首页把注册表事实投影为工作台语义；loader 状态、业务状态与页面展示分别处理。
 import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { API_CODE } from '@/contracts/api/codes';
 import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
@@ -82,6 +25,7 @@ import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
 import { containerModuleFacades } from '@/modules/container';
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import {
   acquireContainerDashboardSummarySubscription,
   clearContainerDashboardSummary,
@@ -89,107 +33,81 @@ import {
   seedContainerDashboardSummary,
   selectContainerDashboardSummaryView,
 } from '@/modules/container/shared/stats-manager';
-import { PageHeader } from '@/shared/components/page';
-import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
 import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
 import { getDashboardSystemConfigs } from '../api/quick-actions-config';
-import DashboardContainerResources from '../components/DashboardContainerResources.vue';
-import DashboardQuickActions from '../components/DashboardQuickActions.vue';
-import DashboardRenderer from '../components/DashboardRenderer.vue';
+import DashboardWorkbench from '../components/workbench/DashboardWorkbench.vue';
+import { useDashboardQuickActions } from '../composables/use-dashboard-quick-actions';
 import {
   type DashboardQuickActionConfig,
   DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG,
   resolveDashboardQuickActionConfig,
 } from '../contract/quick-actions';
 import { buildDashboardQuickActionLinks } from '../contract/sidebar-quick-actions';
-import type { DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
+import {
+  type DashboardResourceLoadState,
+  projectDashboardSummaryToWorkbench,
+} from '../presentation/production-workbench';
+import {
+  type PresentationItem,
+  projectWorkbenchScenario,
+  type WorkbenchNavigationSource,
+} from '../presentation/workbench';
+import type { DashboardSummaryResponse } from '../types/dashboard';
 
-defineOptions({
-  name: 'DashboardHomePage',
-});
+defineOptions({ name: 'DashboardHomePage' });
 
 const logger = createLogger('dashboard.home');
+const router = useRouter();
 const permissionStore = usePermissionStore();
+const initialTimestamp = new Date().toISOString();
 const loading = ref(false);
-const refreshingWidgetId = ref('');
 const errorMessage = ref('');
 const summary = ref<DashboardSummaryResponse | null>(null);
-const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
+const retryingPresentationItemId = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
-const containerResourcesLoading = ref(false);
+const containerResourceState = ref<DashboardResourceLoadState>('hidden');
 const dashboardPageActive = ref(false);
 let dashboardContainerRealtimeSubscribed = false;
-const summarySkeletonRowCol = [
-  { width: '52%', height: '14px' },
-  { width: '36%', height: '28px' },
-  { width: '80%', height: '14px' },
-];
 
-const systemSummaryItems = computed(() => {
-  const systemSummary = summary.value?.system_summary;
-  if (!systemSummary) {
-    return [
-      { key: 'modules', label: '', value: '', description: '' },
-      { key: 'abnormal-services', label: '', value: '', description: '' },
-      { key: 'failed-tasks', label: '', value: '', description: '' },
-      { key: 'high-risk-events', label: '', value: '', description: '' },
-    ];
-  }
-
-  return [
-    {
-      key: 'modules',
-      label: t('dashboard.systemSummary.modules.label'),
-      value: t('dashboard.systemSummary.modules.value', {
-        count: systemSummary.modules.enabled_modules,
-      }),
-      description: t('dashboard.systemSummary.modules.description', {
-        total: systemSummary.modules.total_modules,
-        degraded: systemSummary.modules.degraded_modules,
-      }),
-    },
-    {
-      key: 'abnormal-services',
-      label: t('dashboard.systemSummary.abnormalServices.label'),
-      value: t('dashboard.systemSummary.abnormalServices.value', {
-        count: systemSummary.abnormal_services,
-      }),
-      description: t('dashboard.systemSummary.abnormalServices.description'),
-    },
-    {
-      key: 'failed-tasks',
-      label: t('dashboard.systemSummary.failedTasks.label'),
-      value: t('dashboard.systemSummary.failedTasks.value', {
-        count: systemSummary.failed_tasks,
-      }),
-      description: t('dashboard.systemSummary.failedTasks.description'),
-    },
-    {
-      key: 'high-risk-events',
-      label: t('dashboard.systemSummary.highRiskEvents.label'),
-      value: t('dashboard.systemSummary.highRiskEvents.value', {
-        count: systemSummary.high_risk_events,
-      }),
-      description: t('dashboard.systemSummary.highRiskEvents.description'),
-    },
-  ];
+const emptyPresentation = projectWorkbenchScenario({
+  generatedAt: initialTimestamp,
+  operational: { enabledModules: 0, failedTasks: 0, highRiskEvents: 0 },
+  items: [],
+  quickActions: [],
 });
-
-const lastUpdatedLabel = computed(() =>
-  formatLocaleDateTime(lastUpdatedAt.value, currentLocale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS),
-);
 const quickLinks = computed(() =>
   buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
+);
+const { rankedLinks, recordAccess } = useDashboardQuickActions(
+  () => quickLinks.value,
+  () => quickActionConfig.value,
 );
 const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
 const containerDashboardSummary = computed<ContainerDashboardSummary>(
   () => selectContainerDashboardSummaryView() ?? emptyContainerDashboardSummary(),
 );
+const presentation = computed(() => {
+  if (!summary.value) {
+    return emptyPresentation;
+  }
+
+  return projectDashboardSummaryToWorkbench({
+    generatedAt: lastUpdatedAt.value || initialTimestamp,
+    quickActionConfig: quickActionConfig.value,
+    rankedQuickLinks: rankedLinks.value,
+    resources: {
+      route: CONTAINER_ROUTE_PATH.RESOURCES,
+      state: canViewContainerOverview.value ? containerResourceState.value : 'hidden',
+      summary: containerDashboardSummary.value,
+    },
+    summary: summary.value,
+  });
+});
 
 onMounted(() => {
   dashboardPageActive.value = true;
@@ -212,6 +130,9 @@ onDeactivated(() => {
 });
 
 async function loadSummary() {
+  if (loading.value) {
+    return;
+  }
   loading.value = true;
   errorMessage.value = '';
 
@@ -222,7 +143,6 @@ async function loadSummary() {
       loadDashboardContainerResources(),
     ]);
     summary.value = response;
-    widgets.value = response.widgets;
     lastUpdatedAt.value = new Date().toISOString();
   } catch (error) {
     logger.error('dashboard summary request failed', error);
@@ -248,24 +168,25 @@ async function loadQuickActionConfig() {
 
 async function loadDashboardContainerResources() {
   if (!canViewContainerOverview.value) {
+    containerResourceState.value = 'hidden';
     releaseDashboardContainerRealtimeSubscription();
     clearContainerDashboardSummary();
     return;
   }
 
-  containerResourcesLoading.value = true;
+  containerResourceState.value = 'loading';
   try {
     const nextSummary = await containerModuleFacades.getContainerDashboardSummary();
     seedContainerDashboardSummary(nextSummary);
+    containerResourceState.value = 'loaded';
     acquireDashboardContainerRealtimeSubscription();
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
+    containerResourceState.value = 'failed';
     if (shouldResetContainerRealtimeState(error)) {
       releaseDashboardContainerRealtimeSubscription();
     }
     clearContainerDashboardSummary();
-  } finally {
-    containerResourcesLoading.value = false;
   }
 }
 
@@ -280,10 +201,7 @@ function emptyContainerDashboardSummary(): ContainerDashboardSummary {
       memoryTotalUsageBytes: null,
       runningContainers: 0,
     },
-    hotspots: {
-      cpu: [],
-      memory: [],
-    },
+    hotspots: { cpu: [], memory: [] },
     anomalies: [],
   };
 }
@@ -309,32 +227,49 @@ function releaseDashboardContainerRealtimeSubscription() {
   releaseContainerDashboardSummarySubscription();
 }
 
-async function refreshWidget(widgetId: string) {
-  if (refreshingWidgetId.value) {
+function navigate(route: string, source: WorkbenchNavigationSource) {
+  if (source === 'quick-entry') {
+    recordAccess(route);
+  }
+  void router.push(route);
+}
+
+async function retryItem(item: PresentationItem) {
+  if (!item.sourceWidgetId || retryingPresentationItemId.value) {
     return;
   }
 
-  refreshingWidgetId.value = widgetId;
+  retryingPresentationItemId.value = item.id;
   try {
-    const widget = await getDashboardWidget(widgetId);
-    widgets.value = widgets.value.map((item) => (item.id === widgetId ? widget : item));
+    const widget = await getDashboardWidget(item.sourceWidgetId);
+    if (summary.value) {
+      summary.value = {
+        ...summary.value,
+        widgets: summary.value.widgets.map((current) => (current.id === widget.id ? widget : current)),
+      };
+    }
   } catch (error) {
     logger.error('dashboard widget refresh failed', error);
-    widgets.value = widgets.value.map((item) =>
-      item.id === widgetId
-        ? {
-            ...item,
-            status: 'error',
-            error: {
-              code: requestErrorCode(error),
-              message_key: requestErrorMessageKey(error),
-              message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
-            },
-          }
-        : item,
-    );
+    if (summary.value) {
+      summary.value = {
+        ...summary.value,
+        widgets: summary.value.widgets.map((current) =>
+          current.id === item.sourceWidgetId
+            ? {
+                ...current,
+                status: 'error',
+                error: {
+                  code: requestErrorCode(error),
+                  message_key: requestErrorMessageKey(error),
+                  message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
+                },
+              }
+            : current,
+        ),
+      };
+    }
   } finally {
-    refreshingWidgetId.value = '';
+    retryingPresentationItemId.value = '';
   }
 }
 
@@ -350,10 +285,8 @@ function requestErrorMessage(error: unknown, fallback: string) {
         return translated;
       }
     }
-
     return error.message || fallback;
   }
-
   return error instanceof Error ? error.message : fallback;
 }
 
@@ -369,7 +302,6 @@ function shouldResetContainerRealtimeState(error: unknown) {
   if (!isApiRequestError(error)) {
     return false;
   }
-
   return (
     error.status === 401 ||
     error.status === 403 ||
@@ -378,116 +310,3 @@ function shouldResetContainerRealtimeState(error: unknown) {
   );
 }
 </script>
-<style lang="less" scoped>
-@import '@/shared/components/card-surface.less';
-
-:deep(.app-shell[data-acrylic-glass='true']) .dashboard-page__summary {
-  .graft-glass-surface();
-}
-
-:deep(.app-shell[data-acrylic-glass='true']) .dashboard-page__summary-item {
-  .graft-glass-content-surface(var(--graft-card-bg-hover));
-}
-</style>
-<style lang="less" scoped>
-.dashboard-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-comp-margin-xl);
-  min-width: 0;
-}
-
-.dashboard-page__header-actions {
-  align-items: center;
-  display: flex;
-  gap: var(--td-comp-margin-s);
-}
-
-.dashboard-page__updated-at {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  white-space: nowrap;
-}
-
-.dashboard-page__summary {
-  background-color: var(--td-bg-color-container);
-  border-radius: var(--td-radius-medium);
-  box-shadow: inset 0 0 0 1px var(--td-border-level-1-color);
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-comp-margin-m);
-  padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl);
-}
-
-.dashboard-page__summary-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-comp-margin-xxs);
-}
-
-.dashboard-page__summary-header span {
-  color: var(--td-brand-color);
-  font: var(--td-font-body-small);
-}
-
-.dashboard-page__summary-header h2 {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-large);
-  margin: 0;
-}
-
-.dashboard-page__summary-grid {
-  display: grid;
-  gap: var(--td-comp-margin-m);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.dashboard-page__summary-item {
-  background: var(--td-bg-color-container-hover);
-  border-color: var(--td-border-level-1-color);
-  border-radius: var(--td-radius-medium);
-  border-style: solid;
-  border-width: 1px;
-  display: grid;
-  gap: var(--td-comp-margin-xs);
-  min-width: 0;
-  overflow: hidden;
-  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
-}
-
-.dashboard-page__summary-item span {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.dashboard-page__summary-item strong {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-headline-small);
-  overflow-wrap: anywhere;
-}
-
-.dashboard-page__summary-item p {
-  color: var(--td-text-color-placeholder);
-  font: var(--td-font-body-small);
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-@media (width <= 1200px) {
-  .dashboard-page__summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (width <= 768px) {
-  .dashboard-page__header-actions {
-    align-items: flex-end;
-    flex-direction: column;
-    gap: var(--td-comp-margin-xs);
-  }
-
-  .dashboard-page__summary-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-</style>

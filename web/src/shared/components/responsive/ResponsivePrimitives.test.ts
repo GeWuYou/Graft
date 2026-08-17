@@ -12,6 +12,7 @@ import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
 import responsiveContentSource from './ResponsiveContent.vue?raw';
 import ResponsiveDialog from './ResponsiveDialog.vue';
+import responsiveDialogSource from './ResponsiveDialog.vue?raw';
 import ResponsiveEmpty from './ResponsiveEmpty.vue';
 import ResponsiveFilterPanel from './ResponsiveFilterPanel.vue';
 import ResponsiveForm from './ResponsiveForm.vue';
@@ -260,6 +261,12 @@ describe('responsive primitives', () => {
     await nextTick();
 
     expect(wrapper.get('button').attributes('aria-label')).toBe('Close editor');
+    expect(responsiveDialogSource).toContain("attach: 'body'");
+    expect(responsiveDialogSource).toContain('<style scoped lang="less">');
+    expect(responsiveDialogSource).toContain(
+      ':global(.responsive-dialog__fullscreen-overlay .t-dialog__position.t-dialog--top)',
+    );
+    expect(responsiveDialogSource).toContain(':global(.responsive-dialog__fullscreen-overlay .t-dialog)');
   });
 
   it('uses a fullscreen detail surface below the compact breakpoint without an empty actions region', async () => {

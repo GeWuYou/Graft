@@ -107,6 +107,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 
 ### 4.1 Adopted
 
+以下五项是项目正式采纳的开发期 MCP；仍按最小权限、用户级配置、非运行时依赖和非完成门禁执行。
+
 - `codegraph`
   - 等级：`L0`
   - 用途：符号定位、调用链、影响面、模块入口探索。
@@ -118,7 +120,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
   - 规范：`ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
   - 约束：只作为前端组件知识源。
 
-### 4.2 Pilot
+### 4.2 Adopted（受限权限）
 
 - `context7`
   - 等级：`L1`
@@ -134,11 +136,21 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 - `github`
   - 等级：`L1` 默认；开启评论或 PR 修改时视为 `L2`
   - 用途：读取当前 PR、review thread、Actions check 和失败日志，补强 `graft-pr-review`。
-  - 接入方式：用户级 Codex MCP 配置，默认只读和最小 toolsets：
+  - 接入方式：用户级 Codex MCP 配置，默认只读；复用当前 WSL 用户的 `gh` 登录，不把 token 写入
+    `config.toml`：
 
     ```bash
-    codex mcp add github -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS="context,repos,pull_requests,actions" -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
+    codex mcp add github -- wsl.exe -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS=default,actions -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
     ```
+
+  - `default` 保留 `get_me`、repository、pull request 等标准读取面，`actions` 追加 workflow/check 上下文；
+    不要用无持久凭据的 Docker OAuth callback 配置替代这条非交互启动链。
+  - Windows Codex host 与 WSL CLI 共享配置时，command 使用两侧 `PATH` 都可解析的 `wsl.exe`，并让它进入
+    当前用户的默认 WSL distro；仓库共享文档不得写死某台机器的 distro 名、WindowsApps 内部绝对路径或仅
+    Linux host 可解析的 `bash` command。若工具只安装在非默认 distro，用户应先通过 `wsl.exe --list --quiet`
+    确认本机名称，再仅在个人 Codex 配置中追加 `--distribution <name>`。
+  - 修改 GitHub MCP 配置后必须重启当前 Codex host，再用 `get_me` 和一个 repository-scoped 读取调用验证；
+    `context canceled` 只说明当前 server 会话已取消，不能作为认证成功证据。
 
   - 采用条件：PR 审查或 CI 排障需要 GitHub 实时状态。
   - 约束：写操作必须通过 `graft-pr-review`、`graft-pr-create` 或后续专门 skill 的显式流程。
@@ -163,6 +175,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     编号 agent worktree 禁止使用 Playwright MCP 或 browser agent，也不得启动服务来获得浏览器证据；浏览器 QA 只允许
     在经用户或开发者许可、且已确认服务待验收分支和 HEAD 的主检出区执行。工作树只记录该主检出区 follow-up，不把它
     作为 scoped commit 的阻塞条件。
+### 4.3 Optional Pilot
+
 - `headroom`
   - 等级：`L1` 默认；启用 memory / learn 的受控本地试点时仍不得越过本节目录隔离和人工确认边界。
   - 定位：optional / local / user-level / MCP-based AI context compression tool。
@@ -185,7 +199,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     - Headroom memory 仅允许作为受控本地试点写入 `.ai/headroom/memory/**`，该目录必须由 `.gitignore` 排除，且不得替代 `ai-plan/public/**` 的 topic recovery 真值。
     - `headroom learn` 仅允许作为候选 lesson 生成器试点写入 `.ai/headroom/learn/**`，该目录必须由 `.gitignore` 排除；learn 输出不能直接写入 `AGENTS.md`、设计文档或 `ai-plan/lessons/**`，必须人工 review 后再走 `graft-lessons-learned` 或对应治理路径。
 
-### 4.3 Rejected By Default
+### 4.4 Rejected By Default
 
 - `filesystem` / `git` MCP
   - 原因：Codex 已有本地文件和 Git CLI 能力；重复能力会增加权限面。

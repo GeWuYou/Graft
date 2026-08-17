@@ -1,7 +1,30 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-// 开发构建才装配此路由，隔离本地更新中心预览与正式用户路由树。
+import { localizeRouteTitleKey } from '@/utils/route/title';
+
+// 开发构建才装配此路由文件，隔离本地设计预览与正式用户路由树。
 export const developmentRouterList: RouteRecordRaw[] = [
+  {
+    path: '/mock/dashboard-preview',
+    name: 'DevelopmentDashboardWorkbenchPreviewShell',
+    component: () => import('@/layouts/index.vue'),
+    meta: { hidden: true },
+    children: [
+      {
+        path: '',
+        name: 'DevelopmentDashboardWorkbenchPreview',
+        component: () => import('@/modules/dashboard/pages/preview/index.vue'),
+        meta: {
+          hidden: true,
+          hiddenBreadcrumb: true,
+          keepAlive: false,
+          pageKind: 'overview',
+          semanticTitle: localizeRouteTitleKey('dashboard.workbench.routeTitle'),
+          tabTitle: localizeRouteTitleKey('dashboard.workbench.routeTitle'),
+        },
+      },
+    ],
+  },
   {
     path: '/mock',
     name: 'DevelopmentUpdatePreviewShell',

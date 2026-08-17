@@ -2,6 +2,7 @@
 set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"
+line_ending_checker="$repo_root/scripts/check_line_endings.py"
 scanner="$repo_root/scripts/magic_value/check_magic_values.py"
 python_runner="$repo_root/scripts/run_python.sh"
 migration_version_checker="$repo_root/scripts/check_migration_versions.py"
@@ -10,6 +11,15 @@ run_lint_staged=0
 run_i18n_lint=0
 
 changed_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ ! -f "$line_ending_checker" ]; then
+  echo "line ending gate: missing checker $line_ending_checker" >&2
+  exit 1
+fi
+
+cd "$repo_root"
+sh "$python_runner" "$line_ending_checker"
+
 while IFS= read -r path; do
   case "$path" in
     web/*.js|web/*.mjs|web/*.cjs|web/*.jsx|web/*.ts|web/*.mts|web/*.cts|web/*.tsx|web/*.vue|web/*.html|web/*.css|web/*.sass|web/*.less|web/*.md|web/*.json|web/*.yml|web/*.yaml)

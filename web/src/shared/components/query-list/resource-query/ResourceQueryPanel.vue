@@ -115,9 +115,8 @@ import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
 
-import AdvancedQueryFilterBuilderFrame, {
-  type AdvancedQueryFilterBuilderFrameState,
-} from '../AdvancedQueryFilterBuilderFrame.vue';
+import type { AdvancedQueryFilterBuilderFrameState } from '../advanced-query-filter-builder-frame';
+import AdvancedQueryFilterBuilderFrame from '../AdvancedQueryFilterBuilderFrame.vue';
 import type { QueryLayoutItem } from './layout-engine';
 import type {
   ResourceQueryConfig,

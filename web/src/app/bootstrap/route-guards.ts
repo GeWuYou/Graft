@@ -111,17 +111,18 @@ export function registerRouteGuards(targetRouter: Router = router) {
 
     const permissionStore = getPermissionStore();
     const { whiteListRouters } = permissionStore;
+    const userStore = useAuthSessionStore();
 
-    // 预览路由只在 Vite 开发构建注册，并在进入认证流程前短路，避免本地 UI 验收依赖后端会话。
+    // 未登录时仍允许直接检查开发预览；已有会话则复用正式 bootstrap，让壳层菜单与生产首页保持一致。
     if (
       import.meta.env.DEV &&
-      (to.path === DEVELOPMENT_PREVIEW_PATH || to.path.startsWith(DEVELOPMENT_PREVIEW_PATH_PREFIX))
+      (to.path === DEVELOPMENT_PREVIEW_PATH || to.path.startsWith(DEVELOPMENT_PREVIEW_PATH_PREFIX)) &&
+      !userStore.token
     ) {
       next();
       return;
     }
 
-    const userStore = useAuthSessionStore();
     emitDebugLog('navigation', 'guard-enter', {
       fromName: String(from.name ?? ''),
       fromPath: from.path,

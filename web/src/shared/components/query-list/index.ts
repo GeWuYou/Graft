@@ -1,6 +1,6 @@
+export type { AdvancedQueryFilterBuilderFrameState } from './advanced-query-filter-builder-frame';
 export { default as AdvancedQueryColumnDrawer } from './AdvancedQueryColumnDrawer.vue';
 export { default as AdvancedQueryFilterBuilder } from './AdvancedQueryFilterBuilder.vue';
-export type { AdvancedQueryFilterBuilderFrameState } from './AdvancedQueryFilterBuilderFrame.vue';
 export { default as AdvancedQueryFilterBuilderFrame } from './AdvancedQueryFilterBuilderFrame.vue';
 export { default as AdvancedQueryListPage } from './AdvancedQueryListPage.vue';
 export { default as AdvancedQueryPagedTable } from './AdvancedQueryPagedTable.vue';

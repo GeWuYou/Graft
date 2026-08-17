@@ -79,7 +79,7 @@ function mountSubject(search?: { clearLabel?: string; placeholder: string }) {
       rowKey: 'id',
       rows: [{ id: 2 }],
       search: search ?? { clearLabel: 'Clear search', placeholder: 'Search people' },
-      selectedCountLabel: (count) => `${count} selected`,
+      selectedCountLabel: (count: number) => `${count} selected`,
       selection: createExplicitSelection([1]),
       title: 'Select people',
       total: 2,

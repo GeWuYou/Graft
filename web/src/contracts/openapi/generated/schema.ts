@@ -11337,8 +11337,10 @@ export interface components {
         id: string;
         /** @enum {string} */
         level: 'info' | 'warning' | 'error';
+        /** @description Authoritative stable localization key for the alert title. */
         title_key: string;
-        title: string;
+        /** @description Optional fallback title used only when the client cannot resolve title_key. */
+        title?: string;
         description_key?: string;
         description?: string;
         count?: number;

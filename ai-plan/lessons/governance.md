@@ -1,5 +1,37 @@
 # Governance Lessons
 
+## LESSON-GOVERNANCE-PORTABLE-WSL-MCP-001：共享 MCP 指引不得固化本机 WSL 发行版
+
+- Status: active
+- Level: L2
+- Applies to:
+  - Windows Codex host 通过 WSL 启动用户级 MCP Server 的共享安装指引
+  - `.ai/environment/**` 之外的仓库级工具配置示例
+- Source:
+  - PR #284 的 GitHub MCP 启动命令可移植性审查
+- Problem:
+  共享文档若写死 `Ubuntu-24.04` 或另一台机器的 distro 名，会把本机环境事实伪装成团队前提；使用其它默认
+  distro 的贡献者会在 MCP 启动前失败，即使所需工具已经安装。
+- Correct pattern:
+  共享示例通过 `wsl.exe -- <command>` 进入当前用户的默认 distro。只有工具确实位于非默认 distro 时，用户才在
+  个人 Codex 配置中根据 `wsl.exe --list --quiet` 的结果设置 `--distribution <name>`；该名称不回写仓库共享文档。
+- Anti-pattern:
+  - 在共享 MCP 命令中固定 `wsl.exe -d Ubuntu-24.04` 或其它设备专属 distro
+  - 把 WindowsApps 绝对路径、用户名或个人客户端配置提交为仓库真值
+  - 为了兼容单台机器而维护多份平行启动命令
+- Enforcement:
+  `scripts/validate_ai_governance.py` 要求 GitHub MCP 示例使用默认 WSL launcher，并拒绝共享命令中的硬编码
+  distro；对应单元测试必须覆盖一个固定 distro 的负向样例。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
+  - `scripts/validate_ai_governance.py`
+  - `scripts/test_validate_ai_governance.py`
+- Updated at:
+  2026-08-17
+
 ## LESSON-GOVERNANCE-COMMENT-VALUE-001：代码注释必须记录无法从实现推导的决策
 
 - Status: active

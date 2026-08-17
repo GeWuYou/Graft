@@ -140,6 +140,12 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_mcp_github = optional_bool_value(raw, False, "mcp_servers", "github", "configured")
     has_mcp_playwright = optional_bool_value(raw, False, "mcp_servers", "playwright", "configured")
     has_mcp_headroom = optional_bool_value(raw, False, "mcp_servers", "headroom", "configured")
+    codegraph_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "codegraph", "adoption")
+    tdesign_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "tdesign", "adoption")
+    context7_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "context7", "adoption")
+    github_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "github", "adoption")
+    playwright_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "playwright", "adoption")
+    headroom_adoption = optional_string_value(raw, "unlisted", "mcp_servers", "headroom", "adoption")
     has_python_venv = optional_bool_value(raw, False, "python_environment", "venv", "available")
     has_project_venv = optional_bool_value(raw, False, "python_environment", "project_venv", "present")
     has_playwright = optional_bool_value(raw, False, "python_packages", "playwright", "installed")
@@ -292,32 +298,38 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
         "mcp_servers": {
             "codegraph": {
                 "configured": has_mcp_codegraph,
+                "adoption": codegraph_adoption,
                 "risk_level": "L0",
                 "use_for": "Local source navigation and impact discovery.",
             },
             "tdesign": {
                 "configured": has_mcp_tdesign,
+                "adoption": tdesign_adoption,
                 "risk_level": "L0",
                 "use_for": "TDesign Vue Next component API, DOM, and changelog lookup.",
             },
             "context7": {
                 "configured": has_mcp_context7,
+                "adoption": context7_adoption,
                 "risk_level": "L1",
                 "use_for": "Current third-party library documentation lookup.",
             },
             "github": {
                 "configured": has_mcp_github,
+                "adoption": github_adoption,
                 "risk_level": "L1",
                 "access_policy": "read-only default; write actions require repository skill ownership.",
                 "use_for": "GitHub PR, Actions, and repository context lookup for review workflows.",
             },
             "playwright": {
                 "configured": has_mcp_playwright,
+                "adoption": playwright_adoption,
                 "risk_level": "L1",
                 "use_for": "Exploratory browser interaction before graft-web-browser-agent evidence capture.",
             },
             "headroom": {
                 "configured": has_mcp_headroom,
+                "adoption": headroom_adoption,
                 "risk_level": "L1",
                 "use_for": "On-demand local compression, retrieval, and stats for AI-assisted context management.",
                 "access_policy": "Compression, retrieval, and stats only by default; memory and learn are controlled-local-only under .ai/headroom/**, and automatic instructions writes are disabled.",

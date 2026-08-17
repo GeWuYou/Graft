@@ -70,6 +70,9 @@ Overlay note:
 
 - `theme-preset-governance-audit`
   - Recovery entry: `ai-plan/public/theme-preset-governance-audit/README.md`
+
+- `dashboard-workbench-redesign`
+  - Recovery entry: `ai-plan/public/dashboard-workbench-redesign/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.

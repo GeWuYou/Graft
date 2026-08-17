@@ -5,6 +5,9 @@ export type DashboardQuickActionLink = {
   title?: string;
   group_key?: string;
   group?: string;
+  section_key?: string;
+  section?: string;
+  section_order?: number;
   full_label_key?: string;
   full_label?: string;
   description_key?: string;

@@ -628,6 +628,17 @@ Local browser interaction is opt-in: it requires a task-local user or developer 
 contract; this does not authorize local agent browser interaction. Screenshots and browser artifacts are inspection
 evidence, never standalone acceptance proof.
 
+### 10.6 Line Ending Governance
+
+Repository-maintained text files must use LF line endings.
+
+- `.gitattributes` is the repository normalization authority and must keep text files on `eol=lf`.
+- `.editorconfig` provides the matching editor default; it does not replace Git or CI enforcement.
+- `scripts/check_line_endings.py` validates the Git index, runs from `.husky/pre-commit`, and is a blocking job in the
+  pull-request validation workflow.
+- Contributors on Windows and WSL should use `core.autocrlf=input`, `core.eol=lf`, and `core.safecrlf=true`; repository
+  attributes and the blocking validator remain authoritative when personal Git configuration differs.
+
 ## 11. Git Workflow Rules
 
 For repository work:

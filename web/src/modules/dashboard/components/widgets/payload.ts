@@ -31,13 +31,19 @@ function hasValidItems<T>(value: unknown, isValidItem: (item: unknown) => item i
 }
 
 function isStatGroupItem(value: unknown): value is DashboardStatGroupPayload['items'][number] {
-  return isRecord(value) && hasRequiredStrings(value, ['key', 'label_key', 'label', 'value']);
+  return (
+    isRecord(value) &&
+    hasRequiredStrings(value, ['key', 'label_key', 'label', 'value']) &&
+    (value.tone === undefined ||
+      (isString(value.tone) && ['normal', 'success', 'warning', 'error', 'info'].includes(value.tone)))
+  );
 }
 
 function isAlertListItem(value: unknown): value is DashboardAlertListPayload['items'][number] {
   return (
     isRecord(value) &&
-    hasRequiredStrings(value, ['id', 'level', 'title_key', 'title']) &&
+    hasRequiredStrings(value, ['id', 'level', 'title_key']) &&
+    (value.title === undefined || isString(value.title)) &&
     isAlertLevel(value.level) &&
     isOptionalPositiveNumber(value.count)
   );
@@ -48,7 +54,12 @@ function isLinkListItem(value: unknown): value is DashboardLinkListPayload['item
 }
 
 function isTimelineItem(value: unknown): value is DashboardTimelinePayload['items'][number] {
-  return isRecord(value) && hasRequiredStrings(value, ['id', 'title_key', 'title', 'occurred_at']);
+  return (
+    isRecord(value) &&
+    hasRequiredStrings(value, ['id', 'title_key', 'title', 'occurred_at']) &&
+    (value.status === undefined ||
+      (isString(value.status) && ['normal', 'success', 'warning', 'error'].includes(value.status)))
+  );
 }
 
 function isHealthStatus(value: unknown): value is DashboardHealthPayload['summary']['status'] {

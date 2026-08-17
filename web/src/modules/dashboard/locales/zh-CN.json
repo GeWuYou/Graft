@@ -120,10 +120,10 @@
     },
     "loading": "正在加载 Dashboard",
     "page": {
-      "description": "查看系统摘要和已授权模块贡献的工作台组件。",
-      "eyebrow": "工作台",
-      "lastUpdated": "最后更新时间：{time}",
-      "title": "工作台"
+      "description": "查看需要关注的事项和近期运行情况。",
+      "eyebrow": "运维工作台",
+      "lastUpdated": "最近刷新：{time}",
+      "title": "今天需要处理什么？"
     },
     "quickActions": {
       "description": "当前权限可用入口",
@@ -171,6 +171,145 @@
         "label": "可见组件"
       }
     },
+    "previewWorkbench": {
+      "routeTitle": "工作台设计预览",
+      "eyebrow": "运维工作台 · 设计预览",
+      "title": "今天需要处理什么？",
+      "description": "查看需要关注的事项和近期运行情况。",
+      "updatedAt": "示例数据 · 数据时间：{time}",
+      "refresh": "刷新数据",
+      "attention": {
+        "accessLog": {
+          "title": "访问日志数据暂不可用",
+          "description": "访问日志数据源暂不可用，暂时无法查看请求趋势。",
+          "action": "重试加载"
+        },
+        "outbound": {
+          "title": "出站网络尚未完成检测",
+          "description": "尚未获取连通性检测结果。",
+          "action": "开始检测"
+        }
+      },
+      "health": {
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "数据库连通性检查通过"
+        },
+        "redis": {
+          "title": "Redis",
+          "description": "缓存连通性检查通过"
+        }
+      },
+      "activity": {
+        "build": {
+          "title": "构建任务已完成",
+          "description": "graft-web · main · 用时 2 分 18 秒"
+        },
+        "scheduledTask": {
+          "title": "定时备份已完成",
+          "description": "数据库备份 · 执行结果正常"
+        }
+      },
+      "quickActions": {
+        "createBuild": {
+          "title": "新建构建",
+          "description": "创建并提交新的构建任务"
+        },
+        "observability": {
+          "title": "观测概览",
+          "description": "查看服务和请求运行状态"
+        },
+        "audit": {
+          "title": "审计日志",
+          "description": "复核近期安全与操作记录"
+        },
+        "artifacts": {
+          "title": "构建产物",
+          "description": "管理最近生成的交付物"
+        },
+        "scheduledTasks": {
+          "title": "定时任务",
+          "description": "检查自动化计划和运行历史"
+        },
+        "accessLogs": {
+          "title": "访问日志",
+          "description": "查看请求明细与诊断信息"
+        }
+      }
+    },
+    "workbench": {
+      "status": {
+        "error": "错误",
+        "warning": "警告",
+        "unknown": "未知",
+        "info": "信息",
+        "healthy": "正常"
+      },
+      "operational": {
+        "title": "运行状态",
+        "eyebrow": "运行状态",
+        "needsAttention": "需要关注",
+        "itemCount": "{count} 项",
+        "distribution": "{warning} 项警告 · {unknown} 项未知",
+        "distributionWithError": "{error} 项错误 · {warning} 项警告 · {unknown} 项未知",
+        "modules": "启用模块",
+        "failedTasks": "失败任务",
+        "highRiskEvents": "高风险事件"
+      },
+      "attention": {
+        "title": "关注事项",
+        "description": "需要关注的异常和待确认事项。",
+        "empty": "当前没有需要处理的事项。"
+      },
+      "health": {
+        "title": "系统健康",
+        "description": "关键基础服务运行正常。",
+        "empty": "暂无基础服务健康数据。"
+      },
+      "activity": {
+        "title": "近期运行",
+        "description": "最近完成的任务和运行结果。",
+        "empty": "暂无近期运行记录。",
+        "view": "查看记录"
+      },
+      "resources": {
+        "title": "资源",
+        "description": "容器与运行资源概况。",
+        "empty": "暂无可用资源信息。",
+        "loading": {
+          "title": "正在获取资源信息",
+          "description": "请稍候。"
+        },
+        "unavailable": {
+          "title": "资源数据暂不可用",
+          "description": "暂时无法获取容器资源信息。"
+        },
+        "sample": {
+          "title": "{count} 个容器正在运行",
+          "description": "CPU 总占用 {cpu}% · {abnormal} 个异常容器"
+        },
+        "noSample": {
+          "title": "暂时没有资源采样",
+          "description": "等待下一次资源采集。",
+          "action": "查看观测"
+        }
+      },
+      "sourceUnavailable": {
+        "title": "部分数据暂不可用",
+        "description": "该数据源暂时无法加载，请稍后重试。"
+      },
+      "quickActions": {
+        "title": "快捷操作",
+        "description": "常用功能入口",
+        "viewAll": "全部",
+        "drawerTitle": "全部入口",
+        "closeDrawer": "关闭全部入口",
+        "searchPlaceholder": "搜索功能、页面或操作",
+        "frequent": "常用",
+        "allEntries": "全部功能",
+        "noResults": "没有匹配的入口"
+      }
+    },
     "widget": {
       "accessLogRequestAttention": {
         "description": "最近错误请求和慢请求。",
@@ -210,28 +349,31 @@
       "errorTitle": "组件加载失败",
       "invalidPayload": "组件数据格式不可用",
       "monitorSystemHealth": {
-        "anomalies": "异常",
-        "anomaliesDescription": "监控窗口内暂无活跃异常",
-        "database": "数据库",
-        "databaseDegradedDescription": "数据库检查需要关注",
-        "databaseDisabledDescription": "数据库检查已停用",
-        "databaseHealthyDescription": "数据库连通性检查通过",
-        "databaseUnknownDescription": "数据库状态未知",
-        "databasePingSucceeded": "数据库连通性检查通过",
-        "description": "数据库、缓存和系统异常健康状态。",
+        "anomalies": "活跃异常",
+        "anomaliesDescription": "当前监控窗口内的活跃异常数量。",
+        "description": "当前监控窗口内的活跃异常。",
         "moduleHealth": "模块健康",
         "noData": "暂无数据",
-        "redis": "Redis",
-        "redisDegradedDescription": "Redis 检查需要关注",
-        "redisDisabledDescription": "Redis 检查已停用",
-        "redisHealthyDescription": "Redis 连通性检查通过",
-        "redisUnknownDescription": "Redis 状态未知",
-        "redisPingSucceeded": "Redis 连通性检查通过",
         "summary": "系统健康摘要",
         "title": "系统健康"
       },
       "platformCapabilityHealth": {
         "description": "当前平台能力健康快照。",
+        "outboundNetwork": "出站网络",
+        "outboundNetworkDegradedDescription": "出站网络连通性需要关注",
+        "outboundNetworkDisabledDescription": "出站网络检查已停用",
+        "outboundNetworkHealthyDescription": "出站网络连通性检查通过",
+        "outboundNetworkUnknownDescription": "出站网络状态未知",
+        "postgresql": "PostgreSQL",
+        "postgresqlDegradedDescription": "PostgreSQL 连通性需要关注",
+        "postgresqlDisabledDescription": "PostgreSQL 检查已停用",
+        "postgresqlHealthyDescription": "PostgreSQL 连通性检查通过",
+        "postgresqlUnknownDescription": "PostgreSQL 状态未知",
+        "redis": "Redis",
+        "redisDegradedDescription": "Redis 连通性需要关注",
+        "redisDisabledDescription": "Redis 检查已停用",
+        "redisHealthyDescription": "Redis 连通性检查通过",
+        "redisUnknownDescription": "Redis 状态未知",
         "title": "平台能力"
       },
       "moduleRuntimeHealth": {

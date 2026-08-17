@@ -1,4 +1,4 @@
-export type { PagedMultiSelectSearch } from './PagedMultiSelect.vue';
+export type { PagedMultiSelectSearch } from './paged-multi-select';
 export { default as PagedMultiSelect } from './PagedMultiSelect.vue';
 export type {
   AllMatchingSelection,

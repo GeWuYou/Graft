@@ -1,14 +1,14 @@
 schema_version: 1
-generated_at_utc: "2026-06-26T02:43:26Z"
+generated_at_utc: "2026-08-17T06:43:26Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
   os: "Linux"
   distro: "Ubuntu 24.04.4 LTS"
   version: "24.04"
-  kernel: "5.15.167.4-microsoft-standard-WSL2"
+  kernel: "6.18.33.2-microsoft-standard-WSL2"
   wsl: true
-  wsl_version: "2.4.13"
+  wsl_version: "2.7.11.0"
   shell: "bash"
 
 repository:
@@ -28,8 +28,8 @@ repository:
 required_runtimes:
   go:
     installed: true
-    version: "go version go1.26.1 linux/amd64"
-    path: "/usr/local/bin/go"
+    version: "go version go1.26.4 linux/amd64"
+    path: "/usr/local/go/bin/go"
     purpose: "Builds and tests the Graft server once server/go.mod exists."
   python3:
     installed: true
@@ -38,18 +38,18 @@ required_runtimes:
     purpose: "Runs local automation and environment collection scripts."
   node:
     installed: true
-    version: "v22.23.0"
-    path: "/root/.nvm/versions/node/v22.23.0/bin/node"
+    version: "v24.19.0"
+    path: "/home/gewuyou/.nvm/versions/node/v24.19.0/bin/node"
     purpose: "Provides the JavaScript runtime used by the web toolchain."
   npm:
     installed: true
-    version: "10.9.8"
-    path: "/root/.nvm/versions/node/v22.23.0/bin/npm"
+    version: "11.17.0"
+    path: "/home/gewuyou/.nvm/versions/node/v24.19.0/bin/npm"
     purpose: "Fallback package manager for the web toolchain."
   bun:
     installed: true
     version: "1.3.14"
-    path: "/root/.bun/bin/bun"
+    path: "/home/gewuyou/.bun/bin/bun"
     purpose: "Preferred package manager when web/bun.lock is present."
 
 required_tools:
@@ -65,8 +65,8 @@ required_tools:
     purpose: "Executes repository scripts and shell automation."
   rg:
     installed: true
-    version: "ripgrep 15.1.0 (rev af60c2de9d)"
-    path: "/root/.bun/install/global/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path/rg"
+    version: "unknown"
+    path: "/mnt/c/Program Files/WindowsApps/OpenAI.Codex_26.810.7004.0_x64__2p2nqsd0c76g0/app/resources/rg"
     purpose: "Fast text search across the repository."
   jq:
     installed: true
@@ -77,23 +77,23 @@ required_tools:
 project_tools:
   docker:
     installed: true
-    version: "Docker version 29.2.1, build a5c7197"
+    version: "Docker version 29.7.2, build a7dcaa6"
     path: "/usr/bin/docker"
     purpose: "Optional container runtime for local services or future automation."
   gh:
     installed: true
     authenticated: true
-    version: "gh version 2.92.0 (2026-04-28)"
+    version: "gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)"
     path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 ai_tools:
   headroom:
-    installed: true
-    version: "headroom, version 0.24.0"
-    path: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/.ai/venv/bin/headroom"
+    installed: false
+    version: "not-installed"
+    path: ""
     purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
-    mcp_command: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/.ai/venv/bin/headroom mcp serve"
+    mcp_command: "unavailable"
     memory_status: "controlled-local-only"
     memory_dir: ".ai/headroom/memory"
     learn_status: "controlled-local-only"
@@ -103,21 +103,27 @@ ai_tools:
 mcp_servers:
   codegraph:
     configured: true
+    adoption: "adopted"
     purpose: "Local code graph navigation for AI-assisted source discovery."
   tdesign:
     configured: true
+    adoption: "adopted"
     purpose: "TDesign Vue Next component documentation and DOM knowledge source."
   context7:
     configured: true
+    adoption: "adopted"
     purpose: "Current third-party library documentation lookup for AI-assisted implementation."
   github:
     configured: true
+    adoption: "adopted"
     purpose: "GitHub PR, Actions, and repository context lookup for AI-assisted review workflows."
   playwright:
     configured: true
+    adoption: "adopted"
     purpose: "Exploratory browser interaction aid for graft-web-browser-agent workflows."
   headroom:
-    configured: true
+    configured: false
+    adoption: "optional-pilot"
     purpose: "Optional local MCP compression, retrieval, and stats tools for AI-assisted context management."
 
 python_packages:
@@ -156,7 +162,7 @@ python_packages:
 
 python_environment:
   system_pip:
-    available: false
+    available: true
     purpose: "System Python pip availability; project automation should prefer .ai/venv when available."
   venv:
     available: true

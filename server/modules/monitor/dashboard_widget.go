@@ -50,74 +50,45 @@ func registerMonitorDashboardWidget(moduleCtx *module.Context, instance *Module)
 
 	return nil
 }
-// loadMonitorSystemHealthWidget 构造包含依赖健康状态和异常数量的仪表盘 widget 数据。
+
+// loadMonitorSystemHealthWidget 构造由活跃异常聚合的仪表盘 widget 数据。
 func loadMonitorSystemHealthWidget(ctx context.Context, moduleCtx *module.Context, instance *Module) (dashboard.WidgetPayload, error) {
 	response, err := buildServerStatusResponse(ctx, moduleCtx, instance, monitorcontract.TrendRange10Minutes)
 	if err != nil {
 		return nil, err
 	}
 
+	anomalyCount := len(response.Anomalies)
 	items := []dashboard.HealthItem{
-		{
-			Key:            "database",
-			LabelKey:       "dashboard.widget.monitorSystemHealth.database",
-			Label:          "",
-			Status:         dashboard.HealthStatus(response.Dependencies.Database.Status),
-			DescriptionKey: "dashboard.widget.monitorSystemHealth.database" + dashboardStatusDescriptionSuffix(response.Dependencies.Database.Status),
-			Description:    response.Dependencies.Database.Detail,
-			RouteLocation:  monitorcontract.ServerStatusDependenciesMenuPath,
-		},
-		{
-			Key:            "redis",
-			LabelKey:       "dashboard.widget.monitorSystemHealth.redis",
-			Label:          "",
-			Status:         dashboard.HealthStatus(response.Dependencies.Redis.Status),
-			DescriptionKey: "dashboard.widget.monitorSystemHealth.redis" + dashboardStatusDescriptionSuffix(response.Dependencies.Redis.Status),
-			Description:    response.Dependencies.Redis.Detail,
-			RouteLocation:  monitorcontract.ServerStatusDependenciesMenuPath,
-		},
 		{
 			Key:            "anomalies",
 			LabelKey:       "dashboard.widget.monitorSystemHealth.anomalies",
 			Label:          "",
-			Status:         monitorHealthStatusForAnomalies(len(response.Anomalies)),
+			Status:         monitorHealthStatusForAnomalies(anomalyCount),
 			DescriptionKey: "dashboard.widget.monitorSystemHealth.anomaliesDescription",
-			Description:    strconv.Itoa(len(response.Anomalies)) + " active anomalies in the monitor window.",
+			Description:    strconv.Itoa(anomalyCount) + " active anomalies in the monitor window.",
 			RouteLocation:  monitorcontract.ServerStatusOverviewMenuPath,
 		},
 	}
 
 	state := dashboard.WidgetStateNormal
 	priority := dashboard.WidgetPriorityNormal
-	if response.Status != "healthy" || len(response.Anomalies) > 0 {
+	if anomalyCount > 0 {
 		state = dashboard.WidgetStateWarning
 		priority = dashboard.WidgetPriorityWarning
 	}
 
 	return dashboard.WidgetPayload{
 		"summary": dashboard.HealthSummaryItem{
-			Status:   dashboard.HealthStatus(response.Status),
+			Status:   monitorHealthStatusForAnomalies(anomalyCount),
 			LabelKey: "dashboard.widget.monitorSystemHealth.summary",
 			Label:    "",
 		},
 		"items":             items,
-		"abnormal_services": len(response.Anomalies),
+		"abnormal_services": anomalyCount,
 		"state":             string(state),
 		"priority":          string(priority),
 	}, nil
-}
-
-func dashboardStatusDescriptionSuffix(status string) string {
-	switch status {
-	case "healthy":
-		return "HealthyDescription"
-	case "degraded":
-		return "DegradedDescription"
-	case "disabled":
-		return "DisabledDescription"
-	default:
-		return "UnknownDescription"
-	}
 }
 
 func monitorHealthStatusForAnomalies(count int) dashboard.HealthStatus {

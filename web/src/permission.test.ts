@@ -133,6 +133,7 @@ describe('permission restricted session guard', () => {
     finishRouteLoadingAfterRender.mockReset();
     hideRouteLoading.mockReset();
     messageError.mockReset();
+    storeState.userStore.token = 'restricted-token';
     storeState.userStore.mustChangePassword = true;
     storeState.userStore.pendingRestrictedRedirect = '';
     storeState.userStore.ensureBootstrap.mockReset();
@@ -294,6 +295,48 @@ describe('permission restricted session guard', () => {
 
     expect(storeState.userStore.refreshToken).not.toHaveBeenCalled();
     expect(storeState.userStore.ensureBootstrap).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('keeps anonymous development previews independent from session bootstrap', async () => {
+    storeState.userStore.token = '';
+    const { beforeEach } = await loadPermissionGuards();
+    const next = vi.fn();
+
+    await beforeEach(
+      {
+        path: '/mock/dashboard-preview',
+        fullPath: '/mock/dashboard-preview',
+        name: 'DevelopmentDashboardWorkbenchPreview',
+        query: {},
+      },
+      { path: '/', fullPath: '/', query: {} },
+      next,
+    );
+
+    expect(storeState.userStore.ensureBootstrap).not.toHaveBeenCalled();
+    expect(storeState.userStore.refreshToken).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('reuses authenticated bootstrap navigation for the development preview shell', async () => {
+    storeState.userStore.mustChangePassword = false;
+    const { beforeEach } = await loadPermissionGuards();
+    const next = vi.fn();
+
+    await beforeEach(
+      {
+        path: '/mock/dashboard-preview',
+        fullPath: '/mock/dashboard-preview',
+        name: 'DevelopmentDashboardWorkbenchPreview',
+        query: {},
+      },
+      { path: '/', fullPath: '/', query: {} },
+      next,
+    );
+
+    expect(storeState.userStore.ensureBootstrap).toHaveBeenCalledTimes(1);
+    expect(storeState.permissionStore.setBootstrapSnapshot).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith();
   });
 

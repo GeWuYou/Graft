@@ -120,10 +120,10 @@
     },
     "loading": "Loading Dashboard",
     "page": {
-      "description": "Review the system summary and authorized module-contributed workspace widgets.",
-      "eyebrow": "Workspace",
-      "lastUpdated": "Last Updated: {time}",
-      "title": "Workspace"
+      "description": "Review items that need attention and recent activity.",
+      "eyebrow": "Operations Workbench",
+      "lastUpdated": "Last refreshed: {time}",
+      "title": "What Needs Attention Today?"
     },
     "quickActions": {
       "description": "Entries available to current permissions",
@@ -171,6 +171,145 @@
         "label": "Visible Widgets"
       }
     },
+    "previewWorkbench": {
+      "routeTitle": "Workbench Design Preview",
+      "eyebrow": "Operations Workbench · Design Preview",
+      "title": "What Needs Attention Today?",
+      "description": "Review items that need attention and recent activity.",
+      "updatedAt": "Sample data · Data time: {time}",
+      "refresh": "Refresh Data",
+      "attention": {
+        "accessLog": {
+          "title": "Access Log Data Temporarily Unavailable",
+          "description": "Access log data is temporarily unavailable, so request trends cannot be viewed.",
+          "action": "Retry Loading"
+        },
+        "outbound": {
+          "title": "Outbound Network Has Not Been Checked",
+          "description": "No connectivity check result is available yet.",
+          "action": "Start Check"
+        }
+      },
+      "health": {
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "Database connectivity check passed"
+        },
+        "redis": {
+          "title": "Redis",
+          "description": "Cache connectivity check passed"
+        }
+      },
+      "activity": {
+        "build": {
+          "title": "Build Completed",
+          "description": "Graft-web · main · Finished in 2m 18s"
+        },
+        "scheduledTask": {
+          "title": "Scheduled Backup Completed",
+          "description": "Database backup · Result verified"
+        }
+      },
+      "quickActions": {
+        "createBuild": {
+          "title": "Create Build",
+          "description": "Create and submit a new build job"
+        },
+        "observability": {
+          "title": "Observability Overview",
+          "description": "Review service and request runtime status"
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "Review recent security and operation records"
+        },
+        "artifacts": {
+          "title": "Build Artifacts",
+          "description": "Manage recently generated deliverables"
+        },
+        "scheduledTasks": {
+          "title": "Scheduled Tasks",
+          "description": "Review automation schedules and run history"
+        },
+        "accessLogs": {
+          "title": "Access Logs",
+          "description": "Review request details and diagnostics"
+        }
+      }
+    },
+    "workbench": {
+      "status": {
+        "error": "Error",
+        "warning": "Warning",
+        "unknown": "Unknown",
+        "info": "Info",
+        "healthy": "Healthy"
+      },
+      "operational": {
+        "title": "Operational Status",
+        "eyebrow": "Operational Status",
+        "needsAttention": "Needs Attention",
+        "itemCount": "{count} Items",
+        "distribution": "{warning} Warning · {unknown} Unknown",
+        "distributionWithError": "{error} Error · {warning} Warning · {unknown} Unknown",
+        "modules": "Enabled Modules",
+        "failedTasks": "Failed Tasks",
+        "highRiskEvents": "High-risk Events"
+      },
+      "attention": {
+        "title": "Attention",
+        "description": "Issues and pending checks that need attention.",
+        "empty": "No items currently need attention."
+      },
+      "health": {
+        "title": "System Health",
+        "description": "Critical infrastructure services are operating normally.",
+        "empty": "No infrastructure health data is available."
+      },
+      "activity": {
+        "title": "Recent Runs",
+        "description": "Recently completed tasks and run results.",
+        "empty": "No recent runs.",
+        "view": "View Record"
+      },
+      "resources": {
+        "title": "Resources",
+        "description": "Container and runtime resource usage.",
+        "empty": "No resource information is available.",
+        "loading": {
+          "title": "Loading resource data",
+          "description": "Please wait."
+        },
+        "unavailable": {
+          "title": "Resource data is unavailable",
+          "description": "Container resource data could not be loaded."
+        },
+        "sample": {
+          "title": "{count} containers running",
+          "description": "CPU total {cpu}% · {abnormal} abnormal containers"
+        },
+        "noSample": {
+          "title": "No Resource Sample Yet",
+          "description": "Waiting for the next resource collection.",
+          "action": "View Observability"
+        }
+      },
+      "sourceUnavailable": {
+        "title": "Some data is unavailable",
+        "description": "This data source could not be loaded. Try again later."
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "description": "Frequently used features",
+        "viewAll": "All",
+        "drawerTitle": "All Entries",
+        "closeDrawer": "Close all entries",
+        "searchPlaceholder": "Search features, pages, or actions",
+        "frequent": "Frequent",
+        "allEntries": "All features",
+        "noResults": "No matching entries"
+      }
+    },
     "widget": {
       "accessLogRequestAttention": {
         "description": "Recent error and slow HTTP requests.",
@@ -210,28 +349,31 @@
       "errorTitle": "Widget Load Failed",
       "invalidPayload": "Widget data is unavailable",
       "monitorSystemHealth": {
-        "anomalies": "Anomalies",
-        "anomaliesDescription": "No active anomalies in the monitor window",
-        "database": "Database",
-        "databaseDegradedDescription": "Database checks need attention",
-        "databaseDisabledDescription": "Database checks are disabled",
-        "databaseHealthyDescription": "Database ping succeeded",
-        "databaseUnknownDescription": "Database status is unknown",
-        "databasePingSucceeded": "Database ping succeeded",
-        "description": "Database, cache, and system anomaly health.",
+        "anomalies": "Active anomalies",
+        "anomaliesDescription": "Active anomalies in the current monitor window.",
+        "description": "Active anomalies in the current monitor window.",
         "moduleHealth": "Module Health",
         "noData": "No Data",
-        "redis": "Redis",
-        "redisDegradedDescription": "Redis checks need attention",
-        "redisDisabledDescription": "Redis checks are disabled",
-        "redisHealthyDescription": "Redis ping succeeded",
-        "redisUnknownDescription": "Redis status is unknown",
-        "redisPingSucceeded": "Redis ping succeeded",
         "summary": "System Health Summary",
         "title": "System Health"
       },
       "platformCapabilityHealth": {
         "description": "Current platform capability health snapshot.",
+        "outboundNetwork": "Outbound Network",
+        "outboundNetworkDegradedDescription": "Outbound network connectivity needs attention",
+        "outboundNetworkDisabledDescription": "Outbound network checks are disabled",
+        "outboundNetworkHealthyDescription": "Outbound network connectivity check passed",
+        "outboundNetworkUnknownDescription": "Outbound network status is unknown",
+        "postgresql": "PostgreSQL",
+        "postgresqlDegradedDescription": "PostgreSQL connectivity needs attention",
+        "postgresqlDisabledDescription": "PostgreSQL checks are disabled",
+        "postgresqlHealthyDescription": "PostgreSQL connectivity check passed",
+        "postgresqlUnknownDescription": "PostgreSQL status is unknown",
+        "redis": "Redis",
+        "redisDegradedDescription": "Redis connectivity needs attention",
+        "redisDisabledDescription": "Redis checks are disabled",
+        "redisHealthyDescription": "Redis connectivity check passed",
+        "redisUnknownDescription": "Redis status is unknown",
         "title": "Platform Capabilities"
       },
       "moduleRuntimeHealth": {

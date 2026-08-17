@@ -12,12 +12,12 @@ const (
 	// AccessLogDashboardWidgetID identifies the core-owned access-log dashboard insight.
 	AccessLogDashboardWidgetID = "core.httpx.access-log.request-attention"
 	// AccessLogDashboardWidgetOrder keeps access-log attention after module health widgets.
-	AccessLogDashboardWidgetOrder = 130
-	accessLogSlowRequestThresholdMS  = int64(1000)
-	accessLogWidgetRecentLimit       = 2
-	accessLogWidgetSourceCount       = 3
-	accessLogQueryStatusGroup        = "status_group"
-	accessLogQueryDurationMinMS      = "duration_min_ms"
+	AccessLogDashboardWidgetOrder   = 130
+	accessLogSlowRequestThresholdMS = int64(1000)
+	accessLogWidgetRecentLimit      = 2
+	accessLogWidgetSourceCount      = 3
+	accessLogQueryStatusGroup       = "status_group"
+	accessLogQueryDurationMinMS     = "duration_min_ms"
 )
 
 // AccessLogDashboardModuleKey returns the core system-capability owner for access-log dashboard data.
@@ -102,10 +102,14 @@ func appendAccessLogStatusGroupItem(
 		return items
 	}
 	record := result.Items[0]
+	level := "warning"
+	if statusGroup == AccessLogStatusGroup5xx {
+		level = "error"
+	}
 	return append(items, accessLogAlertItem(accessLogAlertItemDefinition{
 		count:         int(result.Total),
 		id:            id,
-		level:         "error",
+		level:         level,
 		record:        record,
 		routeLocation: accessLogDashboardRouteLocation(url.Values{accessLogQueryStatusGroup: []string{string(statusGroup)}}),
 		TitleKey:      "dashboard.widget.accessLogRequestAttention.error",

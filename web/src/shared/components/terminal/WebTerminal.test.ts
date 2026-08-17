@@ -68,6 +68,41 @@ class ResizeObserverMock {
   disconnect = vi.fn();
 }
 
+class WebSocketMock {
+  static instances: WebSocketMock[] = [];
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readyState = WebSocketMock.CONNECTING;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+
+  constructor() {
+    WebSocketMock.instances.push(this);
+  }
+
+  close() {
+    this.readyState = WebSocketMock.CLOSING;
+    queueMicrotask(() => this.emitClose());
+  }
+
+  emitOpen() {
+    this.readyState = WebSocketMock.OPEN;
+    this.onopen?.(new Event('open'));
+  }
+
+  emitClose() {
+    this.readyState = WebSocketMock.CLOSED;
+    this.onclose?.(new CloseEvent('close'));
+  }
+
+  send = vi.fn();
+}
+
 describe('WebTerminal', () => {
   const connector: TerminalSessionConnector = {
     open: vi.fn(),
@@ -76,11 +111,13 @@ describe('WebTerminal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    WebSocketMock.instances = [];
     vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
     });
+    vi.stubGlobal('WebSocket', WebSocketMock);
   });
 
   afterEach(() => {
@@ -149,6 +186,32 @@ describe('WebTerminal', () => {
 
     expect(terminalReset).toHaveBeenCalledTimes(2);
     expect(terminalClear).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
+  it('does not send resize messages before the websocket opens', async () => {
+    const successfulConnector: TerminalSessionConnector = {
+      open: vi.fn().mockResolvedValue({ url: 'ws://localhost/terminal' }),
+    };
+    const wrapper = mount(WebTerminal, {
+      props: {
+        connector: successfulConnector,
+        modelValue: true,
+      },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    const socket = WebSocketMock.instances[0];
+
+    expect(socket.readyState).toBe(WebSocketMock.CONNECTING);
+    (wrapper.vm as unknown as { fit: () => void }).fit();
+    expect(socket.send).not.toHaveBeenCalled();
+
+    socket.emitOpen();
+    expect(socket.send).toHaveBeenCalledTimes(1);
+    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'resize', cols: 120, rows: 32 }));
+    wrapper.unmount();
   });
 
   it('keeps wheel events inside a scrollable terminal viewport', async () => {

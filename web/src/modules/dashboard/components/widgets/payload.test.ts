@@ -48,9 +48,40 @@ describe('dashboard widget payload guards', () => {
     ).toBeNull();
   });
 
+  it('accepts key-first alerts without fallback titles and rejects malformed optional titles', () => {
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            id: 'audit.high-risk',
+            level: 'error',
+            title_key: 'dashboard.widget.auditRiskEvents.highRisk.title',
+          },
+        ],
+      }),
+    ).not.toBeNull();
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            id: 'error.5xx',
+            level: 'error',
+            title: 500,
+            title_key: 'dashboard.widget.accessLogRequestAttention.error',
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   it('rejects malformed minimal item shapes', () => {
     expect(
       asStatGroupPayload({ items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled' }] }),
+    ).toBeNull();
+    expect(
+      asStatGroupPayload({
+        items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled', value: '1', tone: 'critical' }],
+      }),
     ).toBeNull();
     expect(
       asAlertListPayload({ items: [{ id: 'risk-1', level: 'critical', title_key: 'dashboard.risk', title: 'Risk' }] }),
@@ -61,6 +92,19 @@ describe('dashboard widget payload guards', () => {
       }),
     ).toBeNull();
     expect(asTimelinePayload({ items: [{ id: 'event-1', title_key: 'dashboard.event', title: 'Event' }] })).toBeNull();
+    expect(
+      asTimelinePayload({
+        items: [
+          {
+            id: 'event-1',
+            title_key: 'dashboard.event',
+            title: 'Event',
+            occurred_at: '2026-08-17T03:20:00Z',
+            status: 'critical',
+          },
+        ],
+      }),
+    ).toBeNull();
     expect(
       asHealthPayload({
         summary: { status: 'offline' },

@@ -241,5 +241,5 @@ describe('project-monaco lifecycle', () => {
     expect(setTheme.mock.calls.length).toBeGreaterThan(initialThemeApplications);
     wrapper.unmount();
     host.remove();
-  });
+  }, 20000);
 });

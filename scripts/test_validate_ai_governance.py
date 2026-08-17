@@ -201,6 +201,20 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
+    def test_environment_inventory_rejects_headroom_without_optional_pilot_adoption(self) -> None:
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(MODULE.TOOLS_AI)
+        mutated_text = current_text.replace('adoption: "optional-pilot"', 'adoption: "adopted"', 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == MODULE.TOOLS_AI else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any("missing optional-pilot adoption status" in finding.message for finding in findings))
+
 
 class PersonalSkillReferenceTests(unittest.TestCase):
     def test_personal_skill_references_are_absent_from_repository_guidance(self) -> None:
@@ -265,6 +279,20 @@ class AiToolingDocTests(unittest.TestCase):
             findings = MODULE.validate_ai_tooling_doc()
 
         self.assertTrue(any("missing AI tooling governance term 'headroom_stats'" == finding.message for finding in findings))
+
+    def test_ai_tooling_doc_rejects_hard_coded_wsl_distro(self) -> None:
+        current_text = MODULE.read_text(MODULE.AI_TOOLING_DOC)
+        mutated_text = current_text.replace(
+            "codex mcp add github -- wsl.exe -- bash -lc",
+            "codex mcp add github -- wsl.exe -d Ubuntu-24.04 -- bash -lc",
+            1,
+        )
+        self.assertNotEqual(current_text, mutated_text)
+
+        with mock.patch.object(MODULE, "read_text", return_value=mutated_text):
+            findings = MODULE.validate_ai_tooling_doc()
+
+        self.assertTrue(any("must not hard-code a WSL distro" in finding.message for finding in findings))
 
 
 class PushBranchGovernanceTests(unittest.TestCase):

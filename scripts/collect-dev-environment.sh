@@ -124,6 +124,22 @@ headroom_version() {
     "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
 }
 
+headroom_mcp_command() {
+    local binary
+
+    if [[ $# -gt 0 ]]; then
+        binary="$1"
+    else
+        binary="$(headroom_path)"
+    fi
+    if [[ -z "${binary}" ]]; then
+        printf '%s' "unavailable"
+        return
+    fi
+
+    printf '%s mcp serve' "${binary}"
+}
+
 gh_authenticated() {
     if ! command -v gh >/dev/null 2>&1; then
         printf 'false'
@@ -139,17 +155,31 @@ gh_authenticated() {
 
 codex_mcp_configured() {
     local server_name="$1"
+    local config_path="${HOME}/.codex/config.toml"
 
-    if ! command -v codex >/dev/null 2>&1; then
-        printf 'false'
+    if [[ -f "${config_path}" ]] && grep -Fqx "[mcp_servers.${server_name}]" "${config_path}"; then
+        printf 'true'
         return
     fi
 
-    if codex mcp get "${server_name}" >/dev/null 2>&1; then
+    if command -v codex >/dev/null 2>&1 && codex mcp get "${server_name}" >/dev/null 2>&1; then
         printf 'true'
-    else
-        printf 'false'
+        return
     fi
+
+    # Codex Desktop stores its user configuration on the Windows host even
+    # when this collector is running in WSL.
+    if command -v cmd.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+        local windows_profile
+        windows_profile="$(cmd.exe /c echo %USERPROFILE% 2>/dev/null | tr -d '\r')"
+        config_path="$(wslpath "${windows_profile}" 2>/dev/null)/.codex/config.toml"
+        if [[ -f "${config_path}" ]] && grep -Fqx "[mcp_servers.${server_name}]" "${config_path}"; then
+            printf 'true'
+            return
+        fi
+    fi
+
+    printf 'false'
 }
 
 python_package_version() {
@@ -258,14 +288,22 @@ playwright_browsers_present() {
 
 read_os_release() {
     local key="$1"
+    local os_release_path="${2:-/etc/os-release}"
 
-    python3 - "$key" <<'PY'
+    python3 - "$key" "$os_release_path" <<'PY'
 import pathlib
 import sys
 
 target_key = sys.argv[1]
+os_release_path = pathlib.Path(sys.argv[2])
 values = {}
-for line in pathlib.Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
+try:
+    lines = os_release_path.read_text(encoding="utf-8").splitlines()
+except OSError:
+    print("unknown")
+    raise SystemExit
+
+for line in lines:
     if "=" not in line:
         continue
     key, value = line.split("=", 1)
@@ -404,7 +442,7 @@ ai_tools:
     version: "$(headroom_version)"
     path: "$(headroom_path)"
     purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
-    mcp_command: "$(headroom_path) mcp serve"
+    mcp_command: "$(headroom_mcp_command)"
     memory_status: "controlled-local-only"
     memory_dir: ".ai/headroom/memory"
     learn_status: "controlled-local-only"
@@ -414,21 +452,27 @@ ai_tools:
 mcp_servers:
   codegraph:
     configured: $(codex_mcp_configured codegraph)
+    adoption: "adopted"
     purpose: "Local code graph navigation for AI-assisted source discovery."
   tdesign:
     configured: $(codex_mcp_configured tdesign)
+    adoption: "adopted"
     purpose: "TDesign Vue Next component documentation and DOM knowledge source."
   context7:
     configured: $(codex_mcp_configured context7)
+    adoption: "adopted"
     purpose: "Current third-party library documentation lookup for AI-assisted implementation."
   github:
     configured: $(codex_mcp_configured github)
+    adoption: "adopted"
     purpose: "GitHub PR, Actions, and repository context lookup for AI-assisted review workflows."
   playwright:
     configured: $(codex_mcp_configured playwright)
+    adoption: "adopted"
     purpose: "Exploratory browser interaction aid for graft-web-browser-agent workflows."
   headroom:
     configured: $(codex_mcp_configured headroom)
+    adoption: "optional-pilot"
     purpose: "Optional local MCP compression, retrieval, and stats tools for AI-assisted context management."
 
 python_packages:
@@ -486,12 +530,18 @@ python_environment:
 EOF
 }
 
-ensure_supported_mode
+main() {
+    ensure_supported_mode
 
-if [[ "${MODE}" == "--write" ]]; then
-    mkdir -p "$(dirname "${OUTPUT_PATH}")"
-    collect_inventory > "${OUTPUT_PATH}"
-    printf 'Wrote %s\n' "${OUTPUT_PATH}"
-else
-    collect_inventory
+    if [[ "${MODE}" == "--write" ]]; then
+        mkdir -p "$(dirname "${OUTPUT_PATH}")"
+        collect_inventory > "${OUTPUT_PATH}"
+        printf 'Wrote %s\n' "${OUTPUT_PATH}"
+    else
+        collect_inventory
+    fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main
 fi

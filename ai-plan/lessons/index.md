@@ -13,6 +13,7 @@
 | LESSON-BACKEND-SAVED-VIEW-001          | 分页保存视图必须分离通用存储与消费页面语义     | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/domains/compose/Compose项目管理设计.md`                  |
 | LESSON-GOVERNANCE-BROWSER-BACKEND-001  | 浏览器验收需要真实后端时不要停在 mock 登录页   | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-COMMENT-VALUE-001    | 代码注释必须记录无法从实现推导的决策           | governance |    L3 | active | `ai-plan/lessons/governance.md` | `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md`                         |
+| LESSON-GOVERNANCE-PORTABLE-WSL-MCP-001 | 共享 MCP 指引不得固化本机 WSL 发行版            | governance |    L2 | active | `ai-plan/lessons/governance.md` | `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`                 |
 | LESSON-GOVERNANCE-RELEASE-LINT-001     | Release tag checkout 不应 prune lint 基准分支  | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001        | 信息密度切换必须治理 token 消费面              | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
@@ -21,6 +22,7 @@
 | LESSON-WEB-UI-LOG-AUDIT-001            | 高级查询列表页必须优先抽通用查询结构           | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-MONACO-WORKER-001        | Monaco YAML worker 故障要先区分两层兼容问题    | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-PAGE-CONTAINER-001       | 后台页面容器应统一复用共享容器与宽度变量策略   | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | `ai-plan/design/governance/frontend/前端视觉设计规范.md`                  |
+| LESSON-WEB-UI-PREVIEW-SHELL-001        | 设计预览应区分匿名直达与已登录真实壳层         | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-SEMANTIC-PORT-001        | 从工作树移植功能时保留当前页面骨架             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-PROTECTED-STATE-001      | 系统保护状态不应伪装成错误告警                 | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-ROUTE-LOADING-001        | 路由切换不能让主内容区短暂卸载为空             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
