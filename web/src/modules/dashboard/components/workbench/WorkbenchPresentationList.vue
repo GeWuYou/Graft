@@ -70,7 +70,7 @@
           </template>
         </t-button>
       </template>
-      <div :id="panelContentId">
+      <div :id="panelContentId" class="workbench-collapse__content" :data-collapse-content="panelValue">
         <t-list class="workbench-list" :class="{ 'workbench-list--quiet': variant === 'health' }" split>
           <t-list-item
             v-for="item in remainingItems"
@@ -216,7 +216,17 @@ function actionLabel(item: PresentationItem) {
 }
 
 .workbench-collapse {
+  background: transparent;
   margin-top: var(--graft-density-gap-8);
+}
+
+.workbench-collapse :deep(.t-collapse-panel__body) {
+  background: transparent;
+}
+
+.workbench-collapse :deep(.t-collapse-panel__content) {
+  color: inherit;
+  padding: 0;
 }
 
 .attention-row {

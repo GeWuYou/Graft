@@ -27,7 +27,12 @@
           </template>
         </t-button>
       </template>
-      <div :id="panelContentId" class="context-links" role="list">
+      <div
+        :id="panelContentId"
+        class="context-links workbench-collapse__content"
+        role="list"
+        :data-collapse-content="panelValue"
+      >
         <context-link-row
           v-for="entry in remainingLinks"
           :key="entry.key"
@@ -148,7 +153,18 @@ const ContextLinkRow = defineComponent({
 </script>
 <style scoped lang="less">
 .workbench-collapse {
-  margin-top: var(--graft-density-gap-8);
+  background-color: transparent;
+  margin: var(--graft-density-gap-8) 0 0;
+}
+
+.workbench-collapse :deep(.t-collapse-panel__body),
+.workbench-collapse :deep(.t-collapse-panel__content) {
+  background-color: transparent;
+}
+
+.workbench-collapse :deep(.t-collapse-panel__content) {
+  color: inherit;
+  padding: 0;
 }
 
 .context-links {

@@ -116,7 +116,11 @@ const collapsePanelStub = defineComponent({
     return () =>
       h('section', [
         h('div', { class: 't-collapse-panel__header' }, slots.header?.()),
-        collapse?.isOpen(props.value) ? h('div', { class: 'collapse-content' }, slots.default?.()) : null,
+        collapse?.isOpen(props.value)
+          ? h('div', { class: 't-collapse-panel__body' }, [
+              h('div', { class: 't-collapse-panel__content' }, slots.default?.()),
+            ])
+          : null,
       ]);
   },
 });
@@ -210,6 +214,10 @@ describe('DashboardWorkbench', () => {
     await nextTick();
     expect(attentionTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-attention-id]')).toHaveLength(6);
+    const attentionContent = wrapper.get('[data-collapse-content="attention-more"]');
+    expect(attentionContent.classes()).toContain('workbench-collapse__content');
+    expect(attentionContent.element.parentElement?.classList.contains('t-collapse-panel__content')).toBe(true);
+    expect(attentionContent.get('.workbench-list').classes()).toContain('workbench-list');
 
     await attentionTrigger.trigger('keydown', { key: 'Enter' });
     await nextTick();
@@ -221,6 +229,7 @@ describe('DashboardWorkbench', () => {
     await nextTick();
     expect(healthTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-health-id]')).toHaveLength(5);
+    expect(wrapper.get('[data-collapse-content="health-more"] .workbench-list').classes()).toContain('workbench-list');
 
     const contextTrigger = wrapper.get('.workbench-surface--context-links [data-collapse-trigger]');
     expect(contextTrigger.attributes('aria-expanded')).toBe('false');
@@ -229,6 +238,10 @@ describe('DashboardWorkbench', () => {
     await nextTick();
     expect(contextTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-context-link-key]')).toHaveLength(8);
+    const contextContent = wrapper.get('[data-collapse-content^="context-more:"]');
+    expect(contextContent.classes()).toEqual(expect.arrayContaining(['context-links', 'workbench-collapse__content']));
+    expect(contextContent.attributes('role')).toBe('list');
+    expect(contextContent.element.parentElement?.classList.contains('t-collapse-panel__content')).toBe(true);
   });
 
   it('keeps contextual routes separate from quick-entry ranking events', async () => {
