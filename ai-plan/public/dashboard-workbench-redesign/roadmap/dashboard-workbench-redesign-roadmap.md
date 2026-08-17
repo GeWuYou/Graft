@@ -34,6 +34,9 @@
 - [x] Hide Recent Activity when no real timeline contribution exists; do not fabricate activity from other summaries.
 - [x] Synchronize deterministic preview scenarios for normal, abnormal, permission-limited, no-sample, and long-list
   states; verify desktop 8/4, narrow-screen single-column order, themes, i18n, and keyboard expansion.
+- [x] Complete formal-homepage machine browser inspection in the current dark/brand theme at 1920 × 1080,
+  768 × 1024, and 390 × 844; repair Collapse keyboard focus/activation and expanded-list alignment, then re-run the
+  validation justified for each repair (full Web after keyboard; focused Web after alignment).
 - [ ] After focused/full Web validation and formal-homepage human acceptance, delete the development route,
   `pages/preview/**`, `presentation/preview-workbench.ts`, and the `dashboard.previewWorkbench.*` locale namespace
   together.

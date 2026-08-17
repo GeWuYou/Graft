@@ -82,7 +82,10 @@ closeout:
 - A follow-up PR review found no new runtime or contract defect; it corrected one compound modifier in this recovery
   record, then gave the CI-sensitive Monaco KeepAlive lifecycle test a local 20-second budget after the same five-second
   timeout reproduced remotely while focused and joint local repetitions remained green.
-- Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
+- Commits `d47ffa1e` (main authority/content expansion), `48611b0b` (Collapse keyboard repair), and `13247b96`
+  (expanded-list alignment repair) now back the clean formal-homepage browser runtime. Machine browser acceptance is
+  complete in the current dark/brand theme; human subjective acceptance remains explicitly pending before preview
+  deletion.
 
 ## Task Checklist
 
@@ -103,8 +106,11 @@ closeout:
 - [x] Resolve the bounded Dashboard/topic PR review findings without changing TDesign component usage or wire contracts.
 - [x] Complete Phase 2.1 existing-contract authority and content expansion across server facts, Dashboard aggregation,
   Web presentation, bounded resources, preview scenarios, and hidden-route deletion.
-- [ ] Manually refresh the open formal homepage, repeat browser inspection, and record human acceptance.
-- [ ] Record human acceptance of the formal homepage and delete the preview.
+- [x] Complete formal-homepage machine browser inspection at desktop/tablet/mobile widths and repair the discovered
+  Collapse keyboard accessibility and expanded-list alignment defects.
+- [ ] Record human subjective acceptance of the formal homepage.
+- [ ] After human acceptance, delete the development preview route, presentation, page, tests, and dedicated locale
+  namespace together.
 - [ ] Implement the additive typed attention contract in a later batch.
 
 ## Validation Evidence
@@ -155,8 +161,35 @@ closeout:
   the existing component baseline; no second UI library or arbitrary module-owned Vue widget was introduced.
 - Runtime facts remain `no cache`; the Dashboard Registry definitions remain startup-immutable. The ai-plan structure
   guard and scoped diff check passed.
-- No browser evidence is claimed for the newly expanded runtime. Formal-homepage browser/human acceptance and preview
-  deletion remain pending.
+- At the Phase 2.1 checkpoint no browser evidence was claimed for the newly expanded runtime; the following evidence
+  records the later formal-homepage machine browser acceptance.
+- Formal-homepage machine browser evidence was collected after commits `d47ffa1e`, `48611b0b`, and `13247b96` from a
+  clean committed runtime before restoring these topic-document drafts. Vite ran from repository `web/` on port 3002;
+  the same checkout served the backend through air/`tmp/graft` on port 8080.
+- In the current dark/brand theme at 1920 × 1080, the real `/` page displayed the four first-screen regions and real
+  module, monitor, audit, scheduler, runtime-target, and container facts. No claim is made for light theme or other
+  brand themes in this browser round; automated tests continue to cover theme governance.
+- The Resources action navigated to `/infrastructure/docker/containers`. The removed hidden resources route remained
+  absent from production registration, and Recent Activity stayed hidden because no real timeline records existed.
+- Responsive measurements found no horizontal overflow: document client/scroll width was 768/768 at 768 × 1024 and
+  390/390 at 390 × 844.
+- The first real keyboard pass found the default Collapse header was not focusable. Commit `48611b0b` repaired the
+  semantic trigger: Enter expands Attention, Space expands Health, `aria-expanded` changes from `false` to `true`, and
+  `aria-controls` points to stable panel IDs.
+- The first expanded-content pass then found its rows horizontally offset from the summary rows. Commit `13247b96`
+  removed the TDesign Collapse body background and left/right content padding. At 1920 × 1080 with both sections
+  expanded and `aria-expanded=true`, Attention summary/detail rectangles matched exactly at left 258.390625, right
+  1159.671875, width 901.28125; Health matched at left 1224.359375, right 1651.609375, width 427.25. Computed Collapse
+  content padding was `0px` and background was transparent (`rgba(0, 0, 0, 0)`).
+- After the alignment repair, two focused Vitest files with 10 tests, typecheck, scoped lint/style/format, duplicate-code
+  detection, and diff check passed. The full `bun run check` result with 305 test files, 2119 tests, the release build,
+  and all frontend governance stages was captured after the keyboard repair and before the alignment repair; it is not
+  claimed as a post-alignment full run.
+- The post-alignment responsive recheck again found document client/scroll widths of 768/768 at 768 × 1024 and 390/390
+  at 390 × 844. The temporary screenshot is named `graft-dashboard-expanded-aligned-1920x1080.png`; it is not promoted
+  to a repository artifact.
+- This evidence completes formal-homepage machine browser acceptance only. Human subjective acceptance and the
+  subsequent preview deletion remain unchecked.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
@@ -167,7 +200,8 @@ closeout:
 - Unknown, warning, info, healthy, and error remain semantically distinct.
 - The fixed scenario contains no fabricated error state.
 - The formal homepage uses the accepted workbench; the Dashboard Registry shape remains unchanged, while OpenAPI correctly treats key-first alert fallback `title` as optional.
-- Automated validation passes; browser artifacts remain inspection evidence rather than acceptance proof.
+- Automated validation and formal machine browser acceptance pass; human subjective acceptance remains a separate,
+  explicit gate before preview deletion.
 
 ## Batch State
 
@@ -178,15 +212,16 @@ closeout:
     "development-preview-and-browser-evidence",
     "production-web-adoption",
     "homepage-acceptance-corrective-repair",
-    "existing-contract-authority-and-content-expansion"
+    "existing-contract-authority-and-content-expansion",
+    "formal-homepage-browser-machine-acceptance"
   ],
   "pending_batches": [
-    "formal-homepage-browser-acceptance",
+    "formal-homepage-human-acceptance",
     "preview-removal-after-acceptance",
     "typed-attention-contract"
   ],
-  "current_batch": "formal-homepage-browser-acceptance",
-  "next_batch": "formal-homepage-browser-acceptance",
-  "closeout_status": "awaiting-human-visual-acceptance"
+  "current_batch": "formal-homepage-human-acceptance",
+  "next_batch": "formal-homepage-human-acceptance",
+  "closeout_status": "awaiting-human-subjective-acceptance"
 }
 ```
