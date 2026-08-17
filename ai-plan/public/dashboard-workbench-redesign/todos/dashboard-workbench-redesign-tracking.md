@@ -66,6 +66,9 @@ closeout:
 - PR review cleanup now keeps contextual Attention/Resources navigation out of quick-entry ranking, sorts activity by
   parsed instants, names attention-only counts explicitly, removes test type escapes, and isolates the fixed preview
   scenario plus copy behind one deletion boundary.
+- The latest PR review inventory is fully reconciled: the portable GitHub MCP launcher, exclusive workbench action
+  variants, and exact terminal resize-send regression are repaired; previously addressed threads, the one-off Monaco
+  timeout, and the external docstring-coverage target are classified from current repository evidence.
 - Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
 
 ## Task Checklist
@@ -118,6 +121,10 @@ closeout:
   assumed.
 - The integrated PR review cleanup passed the full `bun run check` entrypoint with 306 test files and 2107 tests,
   release build, type checks, formatting, lint, i18n, style, pagination, and hygiene governance.
+- The latest PR review repair passed 45 focused AI-governance helper tests, both AI governance structure validators,
+  Dashboard focused Vitest (3 files, 26 tests), WebTerminal/Monaco focused Vitest (2 files, 20 tests), repeated Monaco
+  isolation and pressure runs, and TypeScript typecheck. The integrated `bun run check` then passed with 306 test
+  files and 2109 tests plus the release build and every frontend governance stage.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`

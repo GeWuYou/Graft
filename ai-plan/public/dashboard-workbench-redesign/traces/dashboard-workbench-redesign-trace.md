@@ -105,6 +105,22 @@
   integrated `bun run check` also passed with 306 test files and 2107 tests plus the release build and all governance
   stages.
 
+## 2026-08-17 PR Review Remediation Round 2
+
+- Rebuilt the exhaustive PR #284 inventory before editing: 3 inline findings, 1 folded nitpick, 9 still-open review
+  threads, 1 Web CI timeout, and 1 CodeRabbit docstring warning; folded-section declared and parsed counts matched.
+- Replaced the shared GitHub MCP example's machine-specific WSL distro with the default-distro launcher and added a
+  governance regression check. Current-head fixes for environment fail-fast behavior, absent Headroom projection, and
+  `optional-pilot` validation were preserved.
+- Tightened `WorkbenchAction` into exclusive navigate/retry variants and added compile-time regression assertions.
+  Confirmed the older quick-entry ranking and WebSocket lifecycle findings were already repaired on the current head.
+- Added an exact one-send terminal assertion. The Monaco KeepAlive timeout did not reproduce across isolated,
+  four-worker pressure, or joint-suite repetitions, so no global timeout or runner configuration was changed.
+- Focused AI-governance tests and validators, Dashboard and terminal/Monaco Vitest, TypeScript typecheck, formatting,
+  and diff checks passed. The main closeout then passed the full `bun run check` entrypoint with 306 test files and
+  2109 tests, including the previously timed-out Monaco KeepAlive case, plus the release build and all frontend
+  governance stages.
+
 ## Batch State
 
 ```json
