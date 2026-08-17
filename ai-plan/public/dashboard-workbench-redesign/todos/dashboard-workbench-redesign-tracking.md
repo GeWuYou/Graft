@@ -67,10 +67,11 @@ closeout:
   parsed instants, names attention-only counts explicitly, removes test type escapes, and isolates the fixed preview
   scenario plus copy behind one deletion boundary.
 - The latest PR review inventory is fully reconciled: the portable GitHub MCP launcher, exclusive workbench action
-  variants, and exact terminal resize-send regression are repaired; previously addressed threads, the one-off Monaco
-  timeout, and the external docstring-coverage target are classified from current repository evidence.
+  variants, and exact terminal resize-send regression are repaired; previously addressed threads, the earlier Monaco
+  timeout evidence, and the external docstring-coverage target are classified from current repository evidence.
 - A follow-up PR review found no new runtime or contract defect; it corrected one compound modifier in this recovery
-  record and preserved all prior finding dispositions.
+  record, then gave the CI-sensitive Monaco KeepAlive lifecycle test a local 20-second budget after the same five-second
+  timeout reproduced remotely while focused and joint local repetitions remained green.
 - Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
 
 ## Task Checklist
@@ -127,6 +128,9 @@ closeout:
   Dashboard focused Vitest (3 files, 26 tests), WebTerminal/Monaco-focused Vitest (2 files, 20 tests), repeated Monaco
   isolation and pressure runs, and TypeScript typecheck. The integrated `bun run check` then passed with 306 test
   files and 2109 tests plus the release build and every frontend governance stage.
+- The follow-up Monaco diagnosis passed 20 isolated lifecycle repetitions and 10 joint Monaco/WebTerminal repetitions;
+  the single-test body completed in about 1.4-1.8 seconds locally while Monaco import and CSS evaluation dominated the
+  process wall time, supporting a test-local timeout repair instead of a global runner change.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`

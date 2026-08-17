@@ -129,6 +129,11 @@
   the only new actionable item was a compound-modifier correction in the tracking validation evidence.
 - Kept the existing CodeRabbit docstring-coverage warning as accepted repository-policy evidence because Graft forbids
   percentage-based comment coverage and instead governs comment value at handwritten code boundaries.
+- After publication, Web Check reproduced the previously non-reproducible five-second Monaco KeepAlive lifecycle
+  timeout. Twenty isolated and ten joint Monaco/WebTerminal repetitions passed locally, with the test body completing
+  well below five seconds while heavyweight Monaco import/CSS work dominated process time.
+- Added a 20-second timeout only to that lifecycle test, matching the neighboring heavyweight Monaco test budget;
+  assertions, production behavior, worker count, and the global Vitest timeout remain unchanged.
 
 ## Batch State
 
