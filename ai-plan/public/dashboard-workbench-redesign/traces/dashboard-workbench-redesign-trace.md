@@ -73,6 +73,22 @@
 - Passed `go test ./internal/httpx -count=1`; the full backend completion entrypoint remains environment-blocked because pinned `golangci-lint v2.12.2` is unavailable.
 - Passed the ai-plan structure guard and `git diff --check` after recording the production recovery point.
 
+## 2026-08-17 Formal Homepage Acceptance Diagnosis
+
+- Reproduced two `widget-payload:*` attention rows for audit risk and access-request widgets; their loaders succeeded, but the Web guard rejected server-shaped key-first payloads without fallback `title`.
+- Located the drift in the OpenAPI alert-list schema, which incorrectly requires both `title_key` and `title`; classified the repair as a backward-compatible response relaxation with generated consumer synchronization.
+- Confirmed duplicate database/Redis health rows come from Monitor and CapabilityCoordinator. CapabilityCoordinator remains the platform health fact authority; Monitor will retain only active anomalies in its homepage contribution.
+- Opened the formal homepage in the authorized in-app browser for annotation. Started a disjoint multi-agent batch for OpenAPI/Web and server-health implementation, with main-agent integration and validation ownership.
+
+## 2026-08-17 Corrective Repair And Validation
+
+- Made alert fallback `title` optional at the OpenAPI authority, documented `title_key` precedence, regenerated the bundle and Go/TypeScript projections, and taught the Web guard/projector to accept real key-first audit/access alerts.
+- Removed Monitor's duplicate PostgreSQL/Redis homepage rows and derived its summary, state, and priority only from active anomalies.
+- Kept PostgreSQL, Redis, and outbound-network status facts under CapabilityCoordinator with explicit key-first labels and state descriptions. Moved their server copy into core display locales and added a physical-ownership regression test.
+- Passed the OpenAPI freshness recipe, `cd server && go run ./cmd/graft validate backend`, and `cd web && bun run check` with 305 test files and 2101 tests plus the release build and all governance stages.
+- Passed ai-plan structure validation and independent semantic review with no remaining blocking, high, or medium findings. Existing OpenAPI 3.1/oapi-codegen and DTO-boundary warnings remain repository-known and introduced no violation.
+- Kept the authorized in-app browser open and handed off for annotation. Its local-address security policy rejected automated refresh, so final visual inspection remains an explicit human acceptance step rather than inferred proof.
+
 ## Batch State
 
 ```json
@@ -80,14 +96,16 @@
   "completed_batches": [
     "authority-discovery-and-design",
     "development-preview-and-browser-evidence",
-    "production-web-adoption"
+    "production-web-adoption",
+    "homepage-acceptance-corrective-repair"
   ],
   "pending_batches": [
+    "formal-homepage-browser-acceptance",
     "preview-removal-after-acceptance",
     "typed-attention-contract"
   ],
-  "current_batch": null,
-  "next_batch": "preview-removal-after-acceptance",
-  "closeout_status": "production-web-adoption-implemented"
+  "current_batch": "formal-homepage-browser-acceptance",
+  "next_batch": "formal-homepage-browser-acceptance",
+  "closeout_status": "awaiting-human-visual-acceptance"
 }
 ```

@@ -112,6 +112,111 @@ func TestCapabilityDashboardDoesNotDegradeForDisabledRedis(t *testing.T) {
 	if !ok || summary.Status != dashboard.HealthStatusHealthy {
 		t.Fatalf("disabled Redis must preserve a healthy summary, got %#v", payload["summary"])
 	}
+	items, ok := payload["items"].([]dashboard.HealthItem)
+	if !ok || len(items) != 1 {
+		t.Fatalf("expected one Redis capability item, got %#v", payload["items"])
+	}
+	if items[0].LabelKey != "dashboard.widget.platformCapabilityHealth.redis" ||
+		items[0].DescriptionKey != "dashboard.widget.platformCapabilityHealth.redisDisabledDescription" {
+		t.Fatalf("expected stable disabled Redis localization keys, got %#v", items[0])
+	}
+}
+
+func TestCapabilityDashboardUsesUniqueStableLocalizationKeys(t *testing.T) {
+	entries := []capability.Entry{
+		{
+			Descriptor: moduleapi.CapabilityDescriptor{Key: "postgresql", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactPlatform},
+			Provider: capabilityProvider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+				return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusHealthy, Summary: "database fallback"}, nil
+			}),
+		},
+		{
+			Descriptor: moduleapi.CapabilityDescriptor{Key: "redis", Category: moduleapi.CapabilityCategoryInfrastructure, Impact: moduleapi.CapabilityImpactFeature},
+			Provider: capabilityProvider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+				return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusDegraded, Summary: "redis fallback"}, nil
+			}),
+		},
+		{
+			Descriptor: moduleapi.CapabilityDescriptor{Key: "outbound-network", Category: moduleapi.CapabilityCategoryIntegration, Impact: moduleapi.CapabilityImpactFeature},
+			Provider: capabilityProvider(func(context.Context) (moduleapi.CapabilityObservation, error) {
+				return moduleapi.CapabilityObservation{Status: moduleapi.CapabilityStatusUnsupported, Summary: "network fallback"}, nil
+			}),
+		},
+	}
+	runtime, items := loadCapabilityDashboardItems(t, entries)
+
+	expected := map[string]capabilityDashboardItemExpectation{
+		"postgresql":       {labelKey: "dashboard.widget.platformCapabilityHealth.postgresql", descriptionKey: "dashboard.widget.platformCapabilityHealth.postgresqlHealthyDescription", fallback: "database fallback"},
+		"redis":            {labelKey: "dashboard.widget.platformCapabilityHealth.redis", descriptionKey: "dashboard.widget.platformCapabilityHealth.redisDegradedDescription", fallback: "redis fallback"},
+		"outbound-network": {labelKey: "dashboard.widget.platformCapabilityHealth.outboundNetwork", descriptionKey: "dashboard.widget.platformCapabilityHealth.outboundNetworkUnknownDescription", fallback: "network fallback"},
+	}
+	if len(items) != len(expected) {
+		t.Fatalf("expected %d capability items, got %#v", len(expected), items)
+	}
+	for _, item := range items {
+		assertCapabilityDashboardItem(t, item, expected)
+	}
+
+	assertRuntimeLocalizedMessage(t, runtime.i18n, i18n.LocaleZHCN, "dashboard.widget.platformCapabilityHealth.postgresql", "PostgreSQL")
+	assertRuntimeLocalizedMessage(t, runtime.i18n, i18n.LocaleZHCN, "dashboard.widget.platformCapabilityHealth.outboundNetwork", "出站网络")
+	assertRuntimeLocalizedMessage(t, runtime.i18n, i18n.LocaleENUS, "dashboard.widget.platformCapabilityHealth.postgresql", "PostgreSQL")
+	assertRuntimeLocalizedMessage(t, runtime.i18n, i18n.LocaleENUS, "dashboard.widget.platformCapabilityHealth.outboundNetwork", "Outbound Network")
+}
+
+type capabilityDashboardItemExpectation struct {
+	labelKey       string
+	descriptionKey string
+	fallback       string
+}
+
+func loadCapabilityDashboardItems(t *testing.T, entries []capability.Entry) (*Runtime, []dashboard.HealthItem) {
+	t.Helper()
+
+	registry, err := capability.NewRegistry(entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &Runtime{dashboardRegistry: dashboard.NewRegistry(), capabilityCoordinator: capability.NewCoordinator(registry), i18n: mustNewRuntimeTestLocalizer(t)}
+	if err := runtime.registerCoreCapabilityDashboard(); err != nil {
+		t.Fatalf("register capability dashboard: %v", err)
+	}
+	widget, ok := runtime.dashboardRegistry.Get("core.platform-capability-health")
+	if !ok {
+		t.Fatal("expected capability dashboard widget")
+	}
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load capability dashboard: %v", err)
+	}
+	items, ok := payload["items"].([]dashboard.HealthItem)
+	if !ok || len(items) != len(entries) {
+		t.Fatalf("expected %d capability items, got %#v", len(entries), payload["items"])
+	}
+	return runtime, items
+}
+
+func assertCapabilityDashboardItem(t *testing.T, item dashboard.HealthItem, expected map[string]capabilityDashboardItemExpectation) {
+	t.Helper()
+
+	want, exists := expected[item.Key]
+	if !exists {
+		t.Fatalf("unexpected capability item %#v", item)
+	}
+	if item.LabelKey != want.labelKey || item.DescriptionKey != want.descriptionKey {
+		t.Fatalf("unexpected localization keys for %q: %#v", item.Key, item)
+	}
+	if item.Label != item.Key || item.Description != want.fallback {
+		t.Fatalf("expected technical fallbacks for %q, got %#v", item.Key, item)
+	}
+}
+
+func assertRuntimeLocalizedMessage(t *testing.T, service *i18n.Service, locale i18n.LocaleTag, key, want string) {
+	t.Helper()
+
+	resources := service.RegisteredMessageResources(locale, i18n.MessageKey(key))
+	if len(resources) != 1 || resources[0].Text != want {
+		t.Fatalf("localized capability label %s/%s = %#v, want %q", locale, key, resources, want)
+	}
 }
 
 type capabilityProvider func(context.Context) (moduleapi.CapabilityObservation, error)

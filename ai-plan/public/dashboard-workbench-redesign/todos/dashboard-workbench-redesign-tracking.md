@@ -49,6 +49,9 @@ closeout:
 - `graft-typescript-dx-audit`: governs the closed presentation/evidence unions and caller inference.
 - `graft-test-seam-review`: tests the pure presentation model and development route seam.
 - `graft-consistency-review` and `graft-delete-review`: avoid a parallel UI baseline, duplicate sorting authority, and speculative shared helpers.
+- `graft-openapi-contract-review` and `graft-api-dx-review`: correct alert fallback optionality at the wire authority without a compatibility DTO.
+- `graft-localization-governance`: keep platform capability display key-first and owner-local in both locale catalogs.
+- `graft-cache-governance`: classify this live status read as `no cache`; the defect is contract/authority drift rather than read amplification.
 
 ## Current Recovery Point
 
@@ -58,7 +61,9 @@ closeout:
 - Browser evidence and two visual refinement passes are complete; preview v2 now reuses authenticated bootstrap navigation in the real shell and exposes a responsive searchable “全部入口” workspace.
 - Preview copy now uses concise production-console language; design rationale and validation disclaimers were removed from user-facing descriptions, with “示例数据” retained only beside the data time.
 - Production `/` now renders the shared workbench over the existing summary response; the preview remains available for final comparison and deletion approval.
-- Current next step: collect formal-homepage acceptance, then delete the preview before the typed attention contract batch.
+- Formal-homepage acceptance reproduced invalid-payload warnings for key-first audit/access items and duplicate Monitor/CapabilityCoordinator PostgreSQL/Redis rows.
+- The corrective batch has synchronized OpenAPI/Web alert optionality, removed duplicate health authority, localized CapabilityCoordinator facts, and passed full cross-boundary validation.
+- Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
 
 ## Task Checklist
 
@@ -73,6 +78,10 @@ closeout:
 - [x] Record human acceptance of the preview before production adoption.
 - [x] Implement production Web adoption over the existing typed payloads.
 - [x] Repair access-log 4xx/5xx severity at the server fact authority without changing OpenAPI shape.
+- [x] Make alert fallback `title` optional at OpenAPI authority and synchronize generated/Web consumers.
+- [x] Remove Monitor's duplicate database/Redis homepage projection and localize CapabilityCoordinator rows.
+- [x] Pass focused and full cross-boundary validation.
+- [ ] Manually refresh the open formal homepage, repeat browser inspection, and record human acceptance.
 - [ ] Record human acceptance of the formal homepage and delete the preview.
 - [ ] Implement the additive typed attention contract in a later batch.
 
@@ -96,6 +105,9 @@ closeout:
 - Quick Actions use all authorized menu leaves, existing usage ranking, and configured `maxItems`; browser checks confirmed six-item projection tests and the full responsive “全部入口” navigation are independent.
 - Access-log authority now emits 4xx warning, 5xx error, and slow warning; the warning-only case keeps widget state and priority at warning.
 - Browser inspection of formal `/` covered 1920 × 1080, 768 × 1024, and 390 × 844. No horizontal overflow occurred; the 390 workspace is fullscreen, and compact healthy rows reduced real-data column-height imbalance without reducing typography.
+- The corrective batch passed all four OpenAPI freshness checks, the full backend completion entrypoint, and the full Web completion entrypoint with 305 test files and 2101 tests plus the release build and governance stages.
+- Independent read-only review found no remaining blocking, high, or medium issue after OpenAPI fallback semantics and core display-locale ownership were clarified.
+- The in-app browser tab remains open and handed off for annotation. Browser security policy blocked automated refresh of the local address, so the corrected runtime view is intentionally not claimed as automated acceptance evidence.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
@@ -105,7 +117,7 @@ closeout:
 - The preview is reachable only in development at `/mock/dashboard-preview`.
 - Unknown, warning, info, healthy, and error remain semantically distinct.
 - The fixed scenario contains no fabricated error state.
-- The formal homepage uses the accepted workbench; OpenAPI and Dashboard Registry shapes remain unchanged.
+- The formal homepage uses the accepted workbench; the Dashboard Registry shape remains unchanged, while OpenAPI correctly treats key-first alert fallback `title` as optional.
 - Automated validation passes; browser artifacts remain inspection evidence rather than acceptance proof.
 
 ## Batch State
@@ -115,14 +127,16 @@ closeout:
   "completed_batches": [
     "authority-discovery-and-design",
     "development-preview-and-browser-evidence",
-    "production-web-adoption"
+    "production-web-adoption",
+    "homepage-acceptance-corrective-repair"
   ],
   "pending_batches": [
+    "formal-homepage-browser-acceptance",
     "preview-removal-after-acceptance",
     "typed-attention-contract"
   ],
-  "current_batch": null,
-  "next_batch": "preview-removal-after-acceptance",
-  "closeout_status": "production-web-adoption-implemented"
+  "current_batch": "formal-homepage-browser-acceptance",
+  "next_batch": "formal-homepage-browser-acceptance",
+  "closeout_status": "awaiting-human-visual-acceptance"
 }
 ```

@@ -45992,8 +45992,7 @@
               "required": [
                 "id",
                 "level",
-                "title_key",
-                "title"
+                "title_key"
               ],
               "properties": {
                 "id": {
@@ -46008,10 +46007,12 @@
                   ]
                 },
                 "title_key": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Authoritative stable localization key for the alert title."
                 },
                 "title": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Optional fallback title used only when the client cannot resolve title_key."
                 },
                 "description_key": {
                   "type": "string"

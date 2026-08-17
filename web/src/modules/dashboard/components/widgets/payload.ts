@@ -42,7 +42,8 @@ function isStatGroupItem(value: unknown): value is DashboardStatGroupPayload['it
 function isAlertListItem(value: unknown): value is DashboardAlertListPayload['items'][number] {
   return (
     isRecord(value) &&
-    hasRequiredStrings(value, ['id', 'level', 'title_key', 'title']) &&
+    hasRequiredStrings(value, ['id', 'level', 'title_key']) &&
+    (value.title === undefined || isString(value.title)) &&
     isAlertLevel(value.level) &&
     isOptionalPositiveNumber(value.count)
   );

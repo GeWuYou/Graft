@@ -63,7 +63,14 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 					abnormal++
 					summaryStatus = dashboard.HealthStatusDegraded
 				}
-				items = append(items, dashboard.HealthItem{Key: entry.Descriptor.Key, Label: entry.Descriptor.Key, Status: status, Description: observation.Summary})
+				items = append(items, dashboard.HealthItem{
+					Key:            entry.Descriptor.Key,
+					LabelKey:       dashboardCapabilityLabelKey(entry.Descriptor.Key),
+					Label:          entry.Descriptor.Key,
+					Status:         status,
+					DescriptionKey: dashboardCapabilityDescriptionKey(entry.Descriptor.Key, status),
+					Description:    observation.Summary,
+				})
 			}
 			state := dashboard.WidgetStateNormal
 			priority := dashboard.WidgetPriorityInfo
@@ -74,6 +81,38 @@ func (r *Runtime) registerCoreCapabilityDashboard() error {
 			return dashboard.WidgetPayload{"summary": dashboard.HealthSummaryItem{Status: summaryStatus, Label: string(summaryStatus)}, "items": items, "abnormal_services": abnormal, "state": string(state), "priority": string(priority)}, nil
 		}),
 	})
+}
+
+func dashboardCapabilityLabelKey(key string) string {
+	switch key {
+	case "postgresql":
+		return "dashboard.widget.platformCapabilityHealth.postgresql"
+	case "redis":
+		return "dashboard.widget.platformCapabilityHealth.redis"
+	case "outbound-network":
+		return "dashboard.widget.platformCapabilityHealth.outboundNetwork"
+	default:
+		return ""
+	}
+}
+
+func dashboardCapabilityDescriptionKey(key string, status dashboard.HealthStatus) string {
+	baseKey := dashboardCapabilityLabelKey(key)
+	if baseKey == "" {
+		return ""
+	}
+
+	suffix := "UnknownDescription"
+	switch status {
+	case dashboard.HealthStatusHealthy:
+		suffix = "HealthyDescription"
+	case dashboard.HealthStatusDegraded:
+		suffix = "DegradedDescription"
+	case dashboard.HealthStatusDisabled:
+		suffix = "DisabledDescription"
+	}
+
+	return baseKey + suffix
 }
 
 // dashboardHealthStatusForCapability 将完整 capability 状态投影到 Dashboard 现有的稳定四态契约。

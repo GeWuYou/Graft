@@ -395,6 +395,29 @@ func TestEmbeddedLocaleResourcesIncludePhase4DisplayKeys(t *testing.T) {
 	}
 }
 
+func TestEmbeddedCoreDisplayOwnsPlatformCapabilityHealthMessages(t *testing.T) {
+	service := newTestService()
+
+	tests := []struct {
+		locale   LocaleTag
+		key      MessageKey
+		expected string
+	}{
+		{locale: LocaleZHCN, key: "dashboard.widget.platformCapabilityHealth.title", expected: "平台能力"},
+		{locale: LocaleENUS, key: "dashboard.widget.platformCapabilityHealth.title", expected: "Platform Capabilities"},
+		{locale: LocaleZHCN, key: "dashboard.widget.platformCapabilityHealth.postgresql", expected: "PostgreSQL"},
+		{locale: LocaleENUS, key: "dashboard.widget.platformCapabilityHealth.postgresql", expected: "PostgreSQL"},
+		{locale: LocaleZHCN, key: "dashboard.widget.platformCapabilityHealth.outboundNetwork", expected: "出站网络"},
+		{locale: LocaleENUS, key: "dashboard.widget.platformCapabilityHealth.outboundNetwork", expected: "Outbound Network"},
+	}
+	for _, test := range tests {
+		matches := service.RegisteredMessageResources(test.locale, test.key)
+		if len(matches) != 1 || matches[0].Key != MessageKey("display."+string(test.key)) || matches[0].Text != test.expected {
+			t.Fatalf("expected core display message %s/%s=%q, got %#v", test.locale, test.key, test.expected, matches)
+		}
+	}
+}
+
 func TestEmbeddedLocaleResourcesIncludeAuditTargetLabelKeys(t *testing.T) {
 	service := newTestServiceWithModuleLocales(t)
 

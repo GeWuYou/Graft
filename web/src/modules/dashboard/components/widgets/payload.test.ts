@@ -48,6 +48,32 @@ describe('dashboard widget payload guards', () => {
     ).toBeNull();
   });
 
+  it('accepts key-first alerts without fallback titles and rejects malformed optional titles', () => {
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            id: 'audit.high-risk',
+            level: 'error',
+            title_key: 'dashboard.widget.auditRiskEvents.highRisk.title',
+          },
+        ],
+      }),
+    ).not.toBeNull();
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            id: 'error.5xx',
+            level: 'error',
+            title: 500,
+            title_key: 'dashboard.widget.accessLogRequestAttention.error',
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   it('rejects malformed minimal item shapes', () => {
     expect(
       asStatGroupPayload({ items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled' }] }),

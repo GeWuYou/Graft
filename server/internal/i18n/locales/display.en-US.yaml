@@ -3,6 +3,23 @@ menu.logCenter.title: Log Center
 menu.accessLog.title: Access Logs
 menu.appLog.title: App Logs
 dashboard.actions.details: View Details
+dashboard.widget.platformCapabilityHealth.title: Platform Capabilities
+dashboard.widget.platformCapabilityHealth.description: Current platform capability health snapshot.
+dashboard.widget.platformCapabilityHealth.postgresql: PostgreSQL
+dashboard.widget.platformCapabilityHealth.postgresqlHealthyDescription: PostgreSQL connectivity check passed
+dashboard.widget.platformCapabilityHealth.postgresqlDegradedDescription: PostgreSQL connectivity needs attention
+dashboard.widget.platformCapabilityHealth.postgresqlDisabledDescription: PostgreSQL checks are disabled
+dashboard.widget.platformCapabilityHealth.postgresqlUnknownDescription: PostgreSQL status is unknown
+dashboard.widget.platformCapabilityHealth.redis: Redis
+dashboard.widget.platformCapabilityHealth.redisHealthyDescription: Redis connectivity check passed
+dashboard.widget.platformCapabilityHealth.redisDegradedDescription: Redis connectivity needs attention
+dashboard.widget.platformCapabilityHealth.redisDisabledDescription: Redis checks are disabled
+dashboard.widget.platformCapabilityHealth.redisUnknownDescription: Redis status is unknown
+dashboard.widget.platformCapabilityHealth.outboundNetwork: Outbound Network
+dashboard.widget.platformCapabilityHealth.outboundNetworkHealthyDescription: Outbound network connectivity check passed
+dashboard.widget.platformCapabilityHealth.outboundNetworkDegradedDescription: Outbound network connectivity needs attention
+dashboard.widget.platformCapabilityHealth.outboundNetworkDisabledDescription: Outbound network checks are disabled
+dashboard.widget.platformCapabilityHealth.outboundNetworkUnknownDescription: Outbound network status is unknown
 dashboard.widget.moduleRuntimeHealth.title: Module Runtime
 dashboard.widget.moduleRuntimeHealth.description: Current module runtime health.
 dashboard.widget.moduleRuntimeHealth.summary: Module Health

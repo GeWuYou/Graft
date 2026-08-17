@@ -349,8 +349,25 @@ func TestMonitorSystemHealthDashboardWidgetLoadsHealthPayload(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected health items payload, got %#v", payload["items"])
 	}
-	if len(items) != 3 {
-		t.Fatalf("expected database, redis, and anomalies health items, got %d", len(items))
+	if len(items) != 1 || items[0].Key != "anomalies" {
+		t.Fatalf("expected monitor dashboard to expose only active anomalies, got %#v", items)
+	}
+	anomalyCount, ok := payload["abnormal_services"].(int)
+	if !ok {
+		t.Fatalf("expected abnormal service count, got %#v", payload["abnormal_services"])
+	}
+	expectedStatus := monitorHealthStatusForAnomalies(anomalyCount)
+	if summary.Status != expectedStatus {
+		t.Fatalf("expected summary status %q for %d anomalies, got %q", expectedStatus, anomalyCount, summary.Status)
+	}
+	expectedState := dashboard.WidgetStateNormal
+	expectedPriority := dashboard.WidgetPriorityNormal
+	if anomalyCount > 0 {
+		expectedState = dashboard.WidgetStateWarning
+		expectedPriority = dashboard.WidgetPriorityWarning
+	}
+	if payload["state"] != string(expectedState) || payload["priority"] != string(expectedPriority) {
+		t.Fatalf("expected anomaly-owned state %q/%q, got %#v/%#v", expectedState, expectedPriority, payload["state"], payload["priority"])
 	}
 }
 

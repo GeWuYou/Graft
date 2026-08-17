@@ -109,6 +109,58 @@ describe('production workbench projection', () => {
     expect(error?.status).toBe('error');
   });
 
+  it('projects real key-first audit and access-log alerts as confirmed facts', () => {
+    const [audit] = projectWidget(
+      widget({
+        id: 'audit.risk-events',
+        module_key: 'audit',
+        type: 'alert-list',
+        payload: {
+          items: [
+            {
+              count: 2,
+              id: 'audit.high-risk',
+              level: 'error',
+              title_key: 'dashboard.widget.auditRiskEvents.highRisk.title',
+            },
+          ],
+        },
+      }),
+    );
+    const [accessLog] = projectWidget(
+      widget({
+        id: 'core.httpx.access-log.request-attention',
+        module_key: 'core.httpx',
+        type: 'alert-list',
+        payload: {
+          items: [
+            {
+              count: 1,
+              id: 'error.5xx',
+              level: 'error',
+              title_key: 'dashboard.widget.accessLogRequestAttention.error',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(audit).toMatchObject({
+      id: 'alert:audit:audit.risk-events:audit.high-risk',
+      evidenceState: 'confirmed',
+      sourceWidgetId: 'audit.risk-events',
+      titleKey: 'dashboard.widget.auditRiskEvents.highRisk.title',
+    });
+    expect(accessLog).toMatchObject({
+      id: 'alert:core.httpx:core.httpx.access-log.request-attention:error.5xx',
+      evidenceState: 'confirmed',
+      sourceWidgetId: 'core.httpx.access-log.request-attention',
+      titleKey: 'dashboard.widget.accessLogRequestAttention.error',
+    });
+    expect(audit?.id).not.toContain('widget-payload:');
+    expect(accessLog?.id).not.toContain('widget-payload:');
+  });
+
   it('routes only typed timeline failures to Attention and keeps successful activity neutral', () => {
     const items = projectWidget(
       widget({

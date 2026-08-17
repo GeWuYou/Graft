@@ -5,7 +5,7 @@ properties:
     type: array
     items:
       type: object
-      required: [id, level, title_key, title]
+      required: [id, level, title_key]
       properties:
         id:
           type: string
@@ -14,8 +14,10 @@ properties:
           enum: [info, warning, error]
         title_key:
           type: string
+          description: Authoritative stable localization key for the alert title.
         title:
           type: string
+          description: Optional fallback title used only when the client cannot resolve title_key.
         description_key:
           type: string
         description:

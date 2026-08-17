@@ -281,7 +281,7 @@ type ConfirmedFact = {
   descriptionKey?: string;
   occurredAt?: string;
   route?: string;
-  titleFallback: string;
+  titleFallback?: string;
   titleKey: string;
 };
 
