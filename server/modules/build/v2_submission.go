@@ -474,7 +474,7 @@ func (s *Service) builderInstanceSupportsPlan(ctx context.Context, instance modu
 // SubmitExecutionPlan freezes an Application Workspace Snapshot and a
 // provider-neutral Execution Plan before Task Runtime materializes execution.
 //
-//nolint:gocognit,gocyclo,cyclop,funlen // Submission keeps authorization, freezing and Task reservation in one auditable boundary.
+//nolint:gocognit,gocyclo,cyclop,funlen,maintidx // Submission keeps authorization, freezing and Task reservation in one auditable boundary.
 func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlanRequest) (moduleapi.TaskReceipt, error) {
 	if s == nil || s.snapshots == nil || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil || s.workspaces == nil {
 		return moduleapi.TaskReceipt{}, errors.New("build v2 submission dependencies are unavailable")
@@ -482,9 +482,6 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	request, err := normalizeExecutionPlanRequest(request)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, errInvalidBuildRequest
-	}
-	if len(request.Platforms) > 1 && strings.TrimSpace(request.BuilderPoolID) == "" {
-		return moduleapi.TaskReceipt{}, errors.New("multi-platform build requires a Builder Pool")
 	}
 	if s.intents == nil {
 		return moduleapi.TaskReceipt{}, errors.New("build template and driver authority is unavailable")
@@ -494,6 +491,12 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		return moduleapi.TaskReceipt{}, fmt.Errorf("resolve build intent: %w", err)
 	}
 	request.TemplateRef, request.Driver = template.Ref, driver.Ref
+	if len(request.Platforms) > 1 && request.Driver != "docker-buildx@v1" {
+		return moduleapi.TaskReceipt{}, errors.New("multi-platform build requires the docker-buildx driver")
+	}
+	if len(request.Platforms) > 1 && strings.TrimSpace(request.BuilderPoolID) == "" {
+		return moduleapi.TaskReceipt{}, errors.New("multi-platform build requires a Builder Pool")
+	}
 	actorID := request.RequestedBy
 	if actorID == 0 {
 		if auth, ok := moduleapi.RequestAuthContextFromContext(ctx); ok && auth.User != nil {

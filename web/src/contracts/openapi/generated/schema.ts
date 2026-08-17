@@ -9423,8 +9423,12 @@ export interface components {
       builder_pool_id?: string;
       /** @enum {string} */
       template_ref: 'oci-dockerfile/default@v1';
-      /** @enum {string} */
-      driver: 'docker-engine@v1';
+      /**
+       * @description docker-buildx@v1 is required when platforms contains more than one platform.
+       * @enum {string}
+       */
+      driver: 'docker-engine@v1' | 'docker-buildx@v1';
+      /** @description A multi-platform request requires docker-buildx@v1 and a Builder Pool so Build can freeze one placement per platform. */
       platforms?: string[];
       destination: {
         /** @enum {string} */

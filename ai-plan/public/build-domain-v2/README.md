@@ -22,8 +22,10 @@ Deployable Agent trust and wire semantics follow
 
 ## Current Decision
 
-- Phase 4 is `active-incomplete`; the previous `archive-ready` closeout is superseded by the documented admission and
-  capacity gaps below.
+- Docker-only Phase 4 dynamic admission is complete. A target remains fail-closed unless its active Agent generation
+  supplies fresh controlled-ledger evidence. The Phase 7 multi-platform API release gate is complete: Buildx is the
+  only public multi-platform Driver, Build freezes per-platform Pool placements, and Task Runtime owns final manifest
+  aggregation.
 - New Build execution must not use `docker-runtime-store`, a default Docker credential store or environment-default
   Registry authentication. Historical records remain readable only.
 - Builder/Registry-local failure is a local Build capability failure. It cannot alter `PlatformAvailabilityStore` or
@@ -53,14 +55,9 @@ Task Runtime, Scheduler, Registry resource model, event store, evidence database
 
 ## Pending Direction
 
-1. Phase 4 is active and incomplete. `credential_cleanup_unverified` now resolves to `Internal` / `Needs Attention`
-   through the Task Runtime executor-outcome boundary, with no automatic retry or reservation/credential reuse.
-2. Complete `CapabilityMatcher` and frozen negotiation evidence for every manual, static, dynamic and distributed-leg
-   Placement.
-3. Replace the per-Instance live-lease rule with slot-aware Builder Reservation, then prove a provisioned Docker Builder
-   Agent telemetry source and Provider admission before enabling any dynamic policy.
-4. Keep dynamic rows readable but non-executable. BuildKit, Kaniko and Kubernetes remain future extensions until their
-   own conformance gates pass.
+1. Preserve Docker-only Provider admission: every dynamic Placement must retain active-generation and fresh
+   controlled-ledger evidence, and all incomplete evidence must fail closed.
+2. Keep BuildKit, Kaniko and Kubernetes as future extensions until their independent conformance gates pass.
 
 ## Validation Targets
 

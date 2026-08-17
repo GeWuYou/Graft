@@ -656,6 +656,52 @@
   topic tracking repository-truth list. Recovery sessions implementing the Docker Builder Agent protocol must read
   both documents before changing trust, enrollment, credential delivery, telemetry, or revocation behavior.
 
+## 2026-08-16 phase-4-docker-builder-agent-admission
+
+- Docker Builder Agent conformance evidence now freezes the active Runtime Target Agent binding's Docker Provider ID,
+  Builder scope, capability profile/version, and explicit `runtime-target-controlled-execution-ledger` provenance.
+  The fixture rejects stale or incomplete evidence before it can serve as a restart baseline.
+- The receipt count remains Runtime Target ledger evidence, not Docker/host metrics, Task JSON, Monitor data, or a UI
+  projection. Existing repository tests cover exact-retry idempotency, changed-receipt rejection, certificate mismatch
+  and revoked-generation rejection.
+- This validates Docker-only controlled-ledger admission evidence without registering another Provider, public API,
+  queue, task state machine, event store or global health registry. Dynamic policy remains non-executable pending the
+  following Provider admission and dynamic retry/recovery batch.
+
+## 2026-08-16 phase-4-provider-admission-and-dynamic-retry
+
+- Runtime Target now admits Builder telemetry only by projecting a current active Docker Agent generation's consumed,
+  unexpired mTLS ledger receipt. The projection carries the ledger snapshot's controlled running/queued/slot facts and
+  target-bound capability evidence, and rejects revoked, expired, unavailable or diagnostic-bearing receipts before
+  Build can observe them. It neither reads Docker/host metrics nor imports Task JSON, UI or Monitor data.
+- Build dynamic placement and its retry reconfirmation continue to use only the Runtime Target facade. A retry checks
+  the frozen Runtime Target, profile/version, capability negotiation and fresh ledger observation; it cannot re-read a
+  Pool or silently select another target. Reservation capacity remains tied to the frozen observation and new retry
+  fence.
+- Docker remains the sole MVP Provider. No Agent/operator public API, menu, alternate Provider, compatibility path,
+  queue, Task state machine, event store or global health registry was added. Dynamic policies fail closed unless the
+  complete active-generation and fresh-ledger evidence exists for the selected target.
+
+## 2026-08-16 Phase 4 Controller Archive Check
+
+- The controller accepted `phase-4-docker-builder-agent-admission` (`7ea08486a`) and
+  `phase-4-provider-admission-and-dynamic-retry` (`3095d05ce`). Docker-only Phase 4, Phase 8A and Phase 8B gates are
+  complete: Runtime Target admits only active-generation controlled-ledger evidence, while Task Runtime remains the
+  execution, retry and recovery authority.
+- The topic is not archive-ready. The unchecked Phase 7 Driver-owned OCI Manifest multi-platform API release gate is
+  outside this Phase 4 Agent-admission scope, so no additional implementation batch is dispatched here.
+
+## 2026-08-16 phase-7-driver-owned-oci-manifest-api-release-gate
+
+- The canonical Build Job OpenAPI contract now exposes `docker-buildx@v1` alongside the single-platform Docker Engine
+  Driver. A multi-platform request is rejected unless it selects Buildx and a Builder Pool, so Build can freeze one
+  supported Placement per platform rather than treating a direct Runtime Target as a distributed scheduler.
+- The Build create form uses the generated request type, makes platform selection explicit, and moves a multi-platform
+  selection to Buildx plus the existing Builder Pool boundary. It does not infer Provider capability, connection,
+  endpoint or credential state in the browser; Build continues to authorize and match the final request.
+- The release gate reuses the existing Task Runtime coordinated legs and serial aggregate stage. Only that aggregate
+  stage invokes Driver-owned OCI Manifest publication and Build-owned Artifact/Publication settlement.
+
 ## Loop Batch State
 
 ```json
@@ -682,14 +728,14 @@
     "phase-4-mandatory-capability-matching",
     "phase-4-slot-aware-reservation",
     "phase-4-capability-intent-and-frozen-negotiation",
-    "phase-4-resolved-policy-freezing"
-  ],
-  "pending_batches": [
+    "phase-4-resolved-policy-freezing",
     "phase-4-docker-builder-agent-admission",
-    "phase-4-provider-admission-and-dynamic-retry"
+    "phase-4-provider-admission-and-dynamic-retry",
+    "phase-7-driver-owned-oci-manifest-api-release-gate"
   ],
-  "current_batch": "phase-4-docker-builder-agent-admission",
-  "next_batch": "phase-4-provider-admission-and-dynamic-retry",
-  "closeout_status": "active-incomplete"
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "scope-complete-topic-active"
 }
 ```

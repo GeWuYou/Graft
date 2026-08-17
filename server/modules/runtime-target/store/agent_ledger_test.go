@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+//nolint:gocognit,gocyclo,cyclop // 同一场景需连续验证签发、回执重放、准入投影和撤销边界。
 func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	db := openAgentLedgerTestDB(t)
 	repository := NewSQLRepository(db)
@@ -34,6 +35,13 @@ func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(time.Second)); err != nil {
 		t.Fatalf("record receipt: %v", err)
 	}
+	admitted, err := repository.ListActiveDockerAgentLedgerSnapshots(context.Background(), []int64{identity.TargetID}, now.Add(2*time.Second))
+	if err != nil || len(admitted) != 1 {
+		t.Fatalf("admitted ledger snapshots = %#v, err=%v", admitted, err)
+	}
+	if admitted[0].TargetID != identity.TargetID || admitted[0].AgentID != identity.AgentID || admitted[0].ProviderID != "docker" || admitted[0].Sequence != snapshot.Sequence || !admitted[0].Available {
+		t.Fatalf("admitted ledger snapshot = %#v", admitted[0])
+	}
 	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(2*time.Second)); err != nil {
 		t.Fatalf("retry exact receipt: %v", err)
 	}
@@ -51,6 +59,9 @@ func TestAgentLedgerSnapshotAndReceiptBindActiveCertificate(t *testing.T) {
 	}
 	if err := repository.RevokeAgentTrustGeneration(context.Background(), identity.TargetID, identity.AgentID, 1, "operator_revoke", 0, now.Add(4*time.Second)); err != nil {
 		t.Fatalf("revoke active generation: %v", err)
+	}
+	if admitted, err := repository.ListActiveDockerAgentLedgerSnapshots(context.Background(), []int64{identity.TargetID}, now.Add(5*time.Second)); err != nil || len(admitted) != 0 {
+		t.Fatalf("revoked generation admission = %#v, err=%v", admitted, err)
 	}
 	if _, err := repository.IssueAgentLedgerSnapshot(context.Background(), mtlsIdentity, testAgentLedgerSnapshotID2(), now.Add(5*time.Second), now.Add(time.Minute)); !errors.Is(err, ErrAgentTrustNotActive) {
 		t.Fatalf("revoked generation = %v, want rejection", err)
