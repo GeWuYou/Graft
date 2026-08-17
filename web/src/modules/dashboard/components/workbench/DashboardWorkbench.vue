@@ -245,7 +245,7 @@
           v-for="action in presentation.homeQuickActions"
           :key="action.id"
           :action="action"
-          @activate="navigate(action.route)"
+          @activate="navigate(action.route, 'quick-entry')"
         />
       </div>
     </section>
@@ -282,7 +282,7 @@
                 :key="action.id"
                 :action="action"
                 variant="drawer-featured"
-                @activate="navigate(action.route)"
+                @activate="navigate(action.route, 'quick-entry')"
               />
             </div>
           </section>
@@ -300,7 +300,7 @@
                   :key="link.id"
                   class="quick-entry-drawer__navigation-item"
                   type="button"
-                  @click="navigate(link.route_location)"
+                  @click="navigate(link.route_location, 'quick-entry')"
                 >
                   <span class="quick-entry-drawer__navigation-icon">
                     <graft-menu-icon :icon-key="link.icon" />
@@ -331,7 +331,7 @@ import GraftMenuIcon from '@/shared/icons/MenuIcon.vue';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_FORMAT_OPTIONS } from '@/shared/observability';
 
 import type { DashboardQuickActionLink } from '../../contract/quick-action-links';
-import type { PresentationItem, WorkbenchPresentation } from '../../presentation/workbench';
+import type { PresentationItem, WorkbenchNavigationSource, WorkbenchPresentation } from '../../presentation/workbench';
 import { hasDashboardTranslation, resolveDashboardText } from '../widgets/widget-i18n';
 import WorkbenchQuickActionItem from './WorkbenchQuickActionItem.vue';
 import WorkbenchStatusIndicator from './WorkbenchStatusIndicator.vue';
@@ -364,7 +364,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  navigate: [route: string];
+  navigate: [route: string, source: WorkbenchNavigationSource];
   refresh: [];
   'retry-item': [item: PresentationItem];
 }>();
@@ -377,15 +377,21 @@ const loadingRows = [
   { width: '100%', height: '180px' },
 ];
 const presentation = computed(() => props.presentation);
-const pageTitleKey = computed(() => (props.preview ? 'dashboard.workbench.title' : 'dashboard.page.title'));
+const pageTitleKey = computed(() => (props.preview ? 'dashboard.previewWorkbench.title' : 'dashboard.page.title'));
 const pageDescriptionKey = computed(() =>
-  props.preview ? 'dashboard.workbench.description' : 'dashboard.page.description',
+  props.preview ? 'dashboard.previewWorkbench.description' : 'dashboard.page.description',
 );
-const pageEyebrowKey = computed(() => (props.preview ? 'dashboard.workbench.eyebrow' : 'dashboard.page.eyebrow'));
-const updatedAtKey = computed(() => (props.preview ? 'dashboard.workbench.updatedAt' : 'dashboard.page.lastUpdated'));
-const refreshLabelKey = computed(() => (props.preview ? 'dashboard.workbench.refresh' : 'dashboard.actions.refresh'));
+const pageEyebrowKey = computed(() =>
+  props.preview ? 'dashboard.previewWorkbench.eyebrow' : 'dashboard.page.eyebrow',
+);
+const updatedAtKey = computed(() =>
+  props.preview ? 'dashboard.previewWorkbench.updatedAt' : 'dashboard.page.lastUpdated',
+);
+const refreshLabelKey = computed(() =>
+  props.preview ? 'dashboard.previewWorkbench.refresh' : 'dashboard.actions.refresh',
+);
 const attentionDistribution = computed(() => {
-  const counts = presentation.value.operational.statusCounts;
+  const counts = presentation.value.operational.attentionStatusCounts;
   const key = counts.error
     ? 'dashboard.workbench.operational.distributionWithError'
     : 'dashboard.workbench.operational.distribution';
@@ -422,9 +428,9 @@ function formatTime(value: string) {
   return formatLocaleDateTime(value, currentLocale, MEDIUM_DATE_TIME_FORMAT_OPTIONS);
 }
 
-function navigate(route: string) {
+function navigate(route: string, source: WorkbenchNavigationSource) {
   drawerVisible.value = false;
-  emit('navigate', route);
+  emit('navigate', route, source);
 }
 
 function navigationLinkTitle(link: DashboardQuickActionLink) {
@@ -449,7 +455,7 @@ function handleAction(item: PresentationItem) {
   }
 
   if (item.action.route) {
-    void navigate(item.action.route);
+    navigate(item.action.route, 'contextual-action');
   }
 }
 

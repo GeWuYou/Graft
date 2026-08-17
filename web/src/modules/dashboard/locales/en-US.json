@@ -4,8 +4,7 @@
       "details": "View Details",
       "open": "Open",
       "refresh": "Refresh",
-      "retry": "Retry",
-      "viewDetails": "View Details"
+      "retry": "Retry"
     },
     "alert": {
       "count": "{count} Times",
@@ -172,13 +171,73 @@
         "label": "Visible Widgets"
       }
     },
-    "workbench": {
+    "previewWorkbench": {
       "routeTitle": "Workbench Design Preview",
       "eyebrow": "Operations Workbench · Design Preview",
       "title": "What Needs Attention Today?",
       "description": "Review items that need attention and recent activity.",
       "updatedAt": "Sample data · Data time: {time}",
       "refresh": "Refresh Data",
+      "attention": {
+        "accessLog": {
+          "title": "Access Log Data Temporarily Unavailable",
+          "description": "Access log data is temporarily unavailable, so request trends cannot be viewed.",
+          "action": "Retry Loading"
+        },
+        "outbound": {
+          "title": "Outbound Network Has Not Been Checked",
+          "description": "No connectivity check result is available yet.",
+          "action": "Start Check"
+        }
+      },
+      "health": {
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "Database connectivity check passed"
+        },
+        "redis": {
+          "title": "Redis",
+          "description": "Cache connectivity check passed"
+        }
+      },
+      "activity": {
+        "build": {
+          "title": "Build Completed",
+          "description": "Graft-web · main · Finished in 2m 18s"
+        },
+        "scheduledTask": {
+          "title": "Scheduled Backup Completed",
+          "description": "Database backup · Result verified"
+        }
+      },
+      "quickActions": {
+        "createBuild": {
+          "title": "Create Build",
+          "description": "Create and submit a new build job"
+        },
+        "observability": {
+          "title": "Observability Overview",
+          "description": "Review service and request runtime status"
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "Review recent security and operation records"
+        },
+        "artifacts": {
+          "title": "Build Artifacts",
+          "description": "Manage recently generated deliverables"
+        },
+        "scheduledTasks": {
+          "title": "Scheduled Tasks",
+          "description": "Review automation schedules and run history"
+        },
+        "accessLogs": {
+          "title": "Access Logs",
+          "description": "Review request details and diagnostics"
+        }
+      }
+    },
+    "workbench": {
       "status": {
         "error": "Error",
         "warning": "Warning",
@@ -200,44 +259,18 @@
       "attention": {
         "title": "Attention",
         "description": "Issues and pending checks that need attention.",
-        "empty": "No items currently need attention.",
-        "accessLog": {
-          "title": "Access Log Data Temporarily Unavailable",
-          "description": "Access log data is temporarily unavailable, so request trends cannot be viewed.",
-          "action": "Retry Loading"
-        },
-        "outbound": {
-          "title": "Outbound Network Has Not Been Checked",
-          "description": "No connectivity check result is available yet.",
-          "action": "Start Check"
-        }
+        "empty": "No items currently need attention."
       },
       "health": {
         "title": "System Health",
         "description": "Critical infrastructure services are operating normally.",
-        "empty": "No infrastructure health data is available.",
-        "postgresql": {
-          "title": "PostgreSQL",
-          "description": "Database connectivity check passed"
-        },
-        "redis": {
-          "title": "Redis",
-          "description": "Cache connectivity check passed"
-        }
+        "empty": "No infrastructure health data is available."
       },
       "activity": {
         "title": "Recent Runs",
         "description": "Recently completed tasks and run results.",
         "empty": "No recent runs.",
-        "view": "View Record",
-        "build": {
-          "title": "Build Completed",
-          "description": "Graft-web · main · Finished in 2m 18s"
-        },
-        "scheduledTask": {
-          "title": "Scheduled Backup Completed",
-          "description": "Database backup · Result verified"
-        }
+        "view": "View Record"
       },
       "resources": {
         "title": "Resources",
@@ -274,31 +307,7 @@
         "searchPlaceholder": "Search features, pages, or actions",
         "frequent": "Frequent",
         "allEntries": "All features",
-        "noResults": "No matching entries",
-        "createBuild": {
-          "title": "Create Build",
-          "description": "Create and submit a new build job"
-        },
-        "observability": {
-          "title": "Observability Overview",
-          "description": "Review service and request runtime status"
-        },
-        "audit": {
-          "title": "Audit Logs",
-          "description": "Review recent security and operation records"
-        },
-        "artifacts": {
-          "title": "Build Artifacts",
-          "description": "Manage recently generated deliverables"
-        },
-        "scheduledTasks": {
-          "title": "Scheduled Tasks",
-          "description": "Review automation schedules and run history"
-        },
-        "accessLogs": {
-          "title": "Access Logs",
-          "description": "Review request details and diagnostics"
-        }
+        "noResults": "No matching entries"
       }
     },
     "widget": {

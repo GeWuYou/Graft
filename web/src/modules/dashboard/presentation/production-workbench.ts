@@ -31,7 +31,7 @@ export type ProductionWorkbenchInput = {
   summary: DashboardSummaryResponse;
 };
 
-const DETAILS_ACTION_KEY = 'dashboard.actions.viewDetails';
+const DETAILS_ACTION_KEY = 'dashboard.actions.details';
 
 export function projectDashboardSummaryToWorkbench(input: ProductionWorkbenchInput): WorkbenchPresentation {
   const items = input.summary.widgets.flatMap(projectWidget);

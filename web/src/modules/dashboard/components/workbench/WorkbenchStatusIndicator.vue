@@ -3,10 +3,10 @@
     class="workbench-status"
     :class="`workbench-status--${status}`"
     :data-status="status"
-    :aria-label="label"
-    role="status"
+    :aria-label="showLabel ? undefined : label"
+    :role="showLabel ? undefined : 'img'"
   >
-    <component :is="statusIcon" size="16px" />
+    <component :is="statusIcon" size="16px" aria-hidden="true" />
     <span v-if="showLabel">{{ label }}</span>
   </span>
 </template>

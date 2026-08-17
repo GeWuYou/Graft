@@ -1,9 +1,3 @@
-import { ACCESS_LOG_ROUTE_PATH } from '@/modules/access-log/contract/paths';
-import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
-import { BUILD_ROUTE_PATH } from '@/modules/build/contract/paths';
-import { MONITOR_ROUTE_PATH } from '@/modules/monitor/contract/paths';
-import { NETWORK_ROUTE_PATH } from '@/modules/network/contract/paths';
-import { SCHEDULED_TASK_ROUTE_PATH } from '@/modules/scheduled-task/contract/paths';
 export const PRESENTATION_STATUS = {
   ERROR: 'error',
   WARNING: 'warning',
@@ -24,6 +18,8 @@ export const EVIDENCE_STATE = {
 export type EvidenceState = (typeof EVIDENCE_STATE)[keyof typeof EVIDENCE_STATE];
 
 export type PresentationRegion = 'attention' | 'health' | 'activity' | 'resources';
+/** 区分快捷入口激活与上下文 drill-down，只有前者可以影响浏览器本地的入口排序。 */
+export type WorkbenchNavigationSource = 'contextual-action' | 'quick-entry';
 
 export interface WorkbenchAction {
   labelKey: string;
@@ -81,7 +77,7 @@ export interface WorkbenchPresentation {
   generatedAt: string;
   operational: WorkbenchScenario['operational'] & {
     needsReview: number;
-    statusCounts: Record<PresentationStatus, number>;
+    attentionStatusCounts: Record<PresentationStatus, number>;
   };
   attention: PresentationItem[];
   health: PresentationItem[];
@@ -117,9 +113,18 @@ export function sortPresentationItems<T extends PresentationItem>(items: readonl
       return actionDifference;
     }
 
-    const timeDifference = (right.occurredAt ?? '').localeCompare(left.occurredAt ?? '');
+    const timeDifference = occurredAtTimestamp(right.occurredAt) - occurredAtTimestamp(left.occurredAt);
     return timeDifference || left.id.localeCompare(right.id);
   });
+}
+
+function occurredAtTimestamp(value?: string) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 export function presentationStatusFromAlertLevel(level: 'error' | 'warning' | 'info'): PresentationStatus {
@@ -149,7 +154,7 @@ export function projectWorkbenchScenario(scenario: WorkbenchScenario): Workbench
   scenario.items.forEach(assertPresentationEvidence);
   const sortedItems = sortPresentationItems(scenario.items);
   const attention = sortedItems.filter((item) => item.region === 'attention' && ATTENTION_STATUSES.has(item.status));
-  const statusCounts = Object.fromEntries(
+  const attentionStatusCounts = Object.fromEntries(
     Object.values(PRESENTATION_STATUS).map((status) => [
       status,
       attention.filter((item) => item.status === status).length,
@@ -161,7 +166,7 @@ export function projectWorkbenchScenario(scenario: WorkbenchScenario): Workbench
     operational: {
       ...scenario.operational,
       needsReview: attention.length,
-      statusCounts,
+      attentionStatusCounts,
     },
     attention,
     health: sortedItems.filter((item) => item.region === 'health'),
@@ -188,158 +193,3 @@ function assertPresentationEvidence(item: PresentationItem) {
     throw new Error(`Presentation item ${item.id} requires missing evidence for unknown status`);
   }
 }
-
-export const DASHBOARD_PREVIEW_SCENARIO = {
-  generatedAt: '2026-08-17T03:20:00.000Z',
-  operational: {
-    enabledModules: 22,
-    failedTasks: 0,
-    highRiskEvents: 0,
-  },
-  items: [
-    {
-      id: 'access-log-source',
-      region: 'attention',
-      status: PRESENTATION_STATUS.WARNING,
-      evidenceState: EVIDENCE_STATE.SOURCE_FAILED,
-      titleKey: 'dashboard.workbench.attention.accessLog.title',
-      descriptionKey: 'dashboard.workbench.attention.accessLog.description',
-      actionable: true,
-      action: { labelKey: 'dashboard.workbench.attention.accessLog.action', kind: 'retry' },
-      sourceMetadata: { loadStatus: 'error', displayState: 'critical', priority: 'critical' },
-    },
-    {
-      id: 'outbound-network',
-      region: 'attention',
-      status: PRESENTATION_STATUS.UNKNOWN,
-      evidenceState: EVIDENCE_STATE.MISSING,
-      titleKey: 'dashboard.workbench.attention.outbound.title',
-      descriptionKey: 'dashboard.workbench.attention.outbound.description',
-      actionable: true,
-      action: {
-        labelKey: 'dashboard.workbench.attention.outbound.action',
-        kind: 'navigate',
-        route: NETWORK_ROUTE_PATH.OUTBOUND,
-      },
-      sourceMetadata: { loadStatus: 'normal', displayState: 'critical', priority: 'critical' },
-    },
-    {
-      id: 'health-postgresql',
-      region: 'health',
-      status: PRESENTATION_STATUS.HEALTHY,
-      evidenceState: EVIDENCE_STATE.CONFIRMED,
-      titleKey: 'dashboard.workbench.health.postgresql.title',
-      descriptionKey: 'dashboard.workbench.health.postgresql.description',
-    },
-    {
-      id: 'health-redis',
-      region: 'health',
-      status: PRESENTATION_STATUS.HEALTHY,
-      evidenceState: EVIDENCE_STATE.CONFIRMED,
-      titleKey: 'dashboard.workbench.health.redis.title',
-      descriptionKey: 'dashboard.workbench.health.redis.description',
-    },
-    {
-      id: 'activity-build',
-      region: 'activity',
-      status: PRESENTATION_STATUS.INFO,
-      evidenceState: EVIDENCE_STATE.CONFIRMED,
-      titleKey: 'dashboard.workbench.activity.build.title',
-      descriptionKey: 'dashboard.workbench.activity.build.description',
-      occurredAt: '2026-08-17T03:12:00.000Z',
-      actionable: true,
-      action: {
-        labelKey: 'dashboard.workbench.activity.view',
-        kind: 'navigate',
-        route: BUILD_ROUTE_PATH.JOBS,
-      },
-    },
-    {
-      id: 'activity-scheduled-task',
-      region: 'activity',
-      status: PRESENTATION_STATUS.INFO,
-      evidenceState: EVIDENCE_STATE.CONFIRMED,
-      titleKey: 'dashboard.workbench.activity.scheduledTask.title',
-      descriptionKey: 'dashboard.workbench.activity.scheduledTask.description',
-      occurredAt: '2026-08-17T02:54:00.000Z',
-      actionable: true,
-      action: {
-        labelKey: 'dashboard.workbench.activity.view',
-        kind: 'navigate',
-        route: SCHEDULED_TASK_ROUTE_PATH.LIST,
-      },
-    },
-    {
-      id: 'resources-no-sample',
-      region: 'resources',
-      status: PRESENTATION_STATUS.INFO,
-      evidenceState: EVIDENCE_STATE.MISSING,
-      titleKey: 'dashboard.workbench.resources.noSample.title',
-      descriptionKey: 'dashboard.workbench.resources.noSample.description',
-      actionable: true,
-      action: {
-        labelKey: 'dashboard.workbench.resources.noSample.action',
-        kind: 'navigate',
-        route: MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW,
-      },
-    },
-  ],
-  quickActions: [
-    {
-      id: 'create-build',
-      iconKey: 'build',
-      kind: 'action',
-      titleKey: 'dashboard.workbench.quickActions.createBuild.title',
-      descriptionKey: 'dashboard.workbench.quickActions.createBuild.description',
-      route: BUILD_ROUTE_PATH.CREATE,
-      showOnHome: true,
-    },
-    {
-      id: 'observability',
-      iconKey: 'observability-overview',
-      kind: 'navigation',
-      titleKey: 'dashboard.workbench.quickActions.observability.title',
-      descriptionKey: 'dashboard.workbench.quickActions.observability.description',
-      route: MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW,
-      showOnHome: true,
-    },
-    {
-      id: 'audit-logs',
-      iconKey: 'audit-trail',
-      kind: 'navigation',
-      titleKey: 'dashboard.workbench.quickActions.audit.title',
-      descriptionKey: 'dashboard.workbench.quickActions.audit.description',
-      route: AUDIT_ROUTE_PATH.LOGS,
-      showOnHome: true,
-    },
-    {
-      id: 'artifacts',
-      iconKey: 'image-artifact',
-      kind: 'navigation',
-      titleKey: 'dashboard.workbench.quickActions.artifacts.title',
-      descriptionKey: 'dashboard.workbench.quickActions.artifacts.description',
-      route: BUILD_ROUTE_PATH.ARTIFACTS,
-      showOnHome: true,
-    },
-    {
-      id: 'scheduled-tasks',
-      iconKey: 'scheduled-automation',
-      kind: 'navigation',
-      titleKey: 'dashboard.workbench.quickActions.scheduledTasks.title',
-      descriptionKey: 'dashboard.workbench.quickActions.scheduledTasks.description',
-      route: SCHEDULED_TASK_ROUTE_PATH.LIST,
-      showOnHome: false,
-    },
-    {
-      id: 'access-logs',
-      iconKey: 'access-log',
-      kind: 'navigation',
-      titleKey: 'dashboard.workbench.quickActions.accessLogs.title',
-      descriptionKey: 'dashboard.workbench.quickActions.accessLogs.description',
-      route: ACCESS_LOG_ROUTE_PATH.LIST,
-      showOnHome: false,
-    },
-  ],
-} as const satisfies WorkbenchScenario;
-
-export const DASHBOARD_PREVIEW_PRESENTATION = projectWorkbenchScenario(DASHBOARD_PREVIEW_SCENARIO);

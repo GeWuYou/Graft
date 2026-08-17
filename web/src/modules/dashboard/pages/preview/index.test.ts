@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
-import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/workbench';
+import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/preview-workbench';
 import DashboardWorkbenchPreviewPage from './index.vue';
 
 const routerMocks = vi.hoisted(() => ({ push: vi.fn() }));

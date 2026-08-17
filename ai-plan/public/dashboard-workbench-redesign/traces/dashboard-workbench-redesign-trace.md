@@ -89,6 +89,22 @@
 - Passed ai-plan structure validation and independent semantic review with no remaining blocking, high, or medium findings. Existing OpenAPI 3.1/oapi-codegen and DTO-boundary warnings remain repository-known and introduced no violation.
 - Kept the authorized in-app browser open and handed off for annotation. Its local-address security policy rejected automated refresh, so final visual inspection remains an explicit human acceptance step rather than inferred proof.
 
+## 2026-08-17 PR Review Cleanup
+
+- Kept the explicit backend validation command because server execution truth does not assume a prebuilt `graft`
+  binary.
+- Separated contextual drill-down from quick-entry activation so Attention and Resources navigation no longer changes
+  the browser-local quick-entry rank.
+- Replaced ISO text ordering with instant ordering, renamed the attention-only count map, and added explicit unknown
+  evidence, offset timestamp, accessibility, navigation-ranking, and typed-fixture regressions.
+- Isolated the fixed preview scenario in `presentation/preview-workbench.ts` and its visible copy in
+  `dashboard.previewWorkbench.*`; the roadmap now deletes both with the preview route after human acceptance.
+- Reused `dashboard.actions.details` as the established server/Web action key and removed the duplicate
+  `dashboard.actions.viewDetails` locale entry.
+- Focused Dashboard Vitest (6 files, 33 tests), TypeScript typecheck, and strict i18n governance passed; the final
+  integrated `bun run check` also passed with 306 test files and 2107 tests plus the release build and all governance
+  stages.
+
 ## Batch State
 
 ```json

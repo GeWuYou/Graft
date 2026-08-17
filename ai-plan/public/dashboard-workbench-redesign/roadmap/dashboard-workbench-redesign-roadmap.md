@@ -2,17 +2,18 @@
 
 ## Phase 1: Preview And Acceptance
 
-- Implement the development-only fixed-scenario workbench in the real application shell.
-- Validate five-state semantics, responsive information hierarchy, theme tokens, and i18n.
-- Capture desktop and full-page inspection artifacts, then complete at least one visual refinement.
-- Keep the formal homepage and all production contracts unchanged.
+- [x] Implement the development-only fixed-scenario workbench in the real application shell.
+- [x] Validate five-state semantics, responsive information hierarchy, theme tokens, and i18n.
+- [x] Capture desktop and full-page inspection artifacts, then complete at least one visual refinement.
+- [x] Keep the formal homepage and all production contracts unchanged.
 
 ## Phase 2: Production Web Adoption
 
 - [x] Introduce the accepted fixed-slot presentation projection over the existing dashboard summary.
 - [x] Keep widget load status, display state, priority, and business presentation status separate.
 - [x] Collapse normal health facts and keep optional-source failure visible without overstating impact.
-- Remove the development preview when the formal homepage passes equivalent validation and human acceptance.
+- [ ] After equivalent validation and human acceptance, delete the development route, `pages/preview/**`,
+  `presentation/preview-workbench.ts`, and the `dashboard.previewWorkbench.*` locale namespace together.
 
 ## Phase 3: Typed Attention Contract
 

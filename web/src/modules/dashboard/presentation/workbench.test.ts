@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { DASHBOARD_PREVIEW_PRESENTATION, DASHBOARD_PREVIEW_SCENARIO } from './preview-workbench';
 import {
-  DASHBOARD_PREVIEW_PRESENTATION,
-  DASHBOARD_PREVIEW_SCENARIO,
   EVIDENCE_STATE,
   PRESENTATION_STATUS,
   type PresentationItem,
@@ -25,6 +24,18 @@ function item(id: string, status: PresentationItem['status'], occurredAt?: strin
   };
 }
 
+function presentationItem(overrides: Partial<PresentationItem> = {}): PresentationItem {
+  return {
+    id: 'fixture',
+    region: 'attention',
+    status: PRESENTATION_STATUS.WARNING,
+    evidenceState: EVIDENCE_STATE.CONFIRMED,
+    titleKey: 'fixture.title',
+    descriptionKey: 'fixture.description',
+    ...overrides,
+  };
+}
+
 describe('dashboard workbench presentation model', () => {
   it('sorts by the five-state semantic order and keeps stable id ordering for ties', () => {
     const sorted = sortPresentationItems([
@@ -37,6 +48,15 @@ describe('dashboard workbench presentation model', () => {
     ]);
 
     expect(sorted.map(({ id }) => id)).toEqual(['error', 'warning-a', 'warning-b', 'unknown', 'info', 'healthy']);
+  });
+
+  it('sorts equal-status timestamps by the represented instant instead of the ISO offset text', () => {
+    const sorted = sortPresentationItems([
+      presentationItem({ id: 'later', occurredAt: '2026-08-17T09:00:00+08:00' }),
+      presentationItem({ id: 'earlier', occurredAt: '2026-08-17T00:30:00Z' }),
+    ]);
+
+    expect(sorted.map(({ id }) => id)).toEqual(['later', 'earlier']);
   });
 
   it('does not let legacy loader or display metadata override explicit presentation status', () => {
@@ -68,21 +88,38 @@ describe('dashboard workbench presentation model', () => {
       EVIDENCE_STATE.MISSING,
     ]);
     expect(presentation.operational.needsReview).toBe(2);
-    expect(presentation.operational.statusCounts.error).toBe(0);
+    expect(presentation.operational.attentionStatusCounts.error).toBe(0);
   });
 
   it('rejects healthy or error claims without confirmed evidence', () => {
     const invalidScenario = {
       ...DASHBOARD_PREVIEW_SCENARIO,
       items: [
-        {
-          ...DASHBOARD_PREVIEW_SCENARIO.items[2],
+        presentationItem({
+          id: 'unconfirmed-healthy',
+          region: 'health',
+          status: PRESENTATION_STATUS.HEALTHY,
           evidenceState: EVIDENCE_STATE.MISSING,
-        },
+        }),
       ],
     };
 
     expect(() => projectWorkbenchScenario(invalidScenario)).toThrow(/requires confirmed evidence/);
+  });
+
+  it('rejects unknown status when evidence claims a confirmed result', () => {
+    const invalidScenario = {
+      ...DASHBOARD_PREVIEW_SCENARIO,
+      items: [
+        presentationItem({
+          id: 'confirmed-unknown',
+          status: PRESENTATION_STATUS.UNKNOWN,
+          evidenceState: EVIDENCE_STATE.CONFIRMED,
+        }),
+      ],
+    };
+
+    expect(() => projectWorkbenchScenario(invalidScenario)).toThrow(/requires missing evidence/);
   });
 
   it('preserves an explicit error even when its loader completed normally', () => {
@@ -119,7 +156,7 @@ describe('dashboard workbench presentation model', () => {
   });
 
   it('contains no invented error in the fixed design-validation scenario', () => {
-    expect(DASHBOARD_PREVIEW_PRESENTATION.operational.statusCounts).toMatchObject({
+    expect(DASHBOARD_PREVIEW_PRESENTATION.operational.attentionStatusCounts).toMatchObject({
       error: 0,
       warning: 1,
       unknown: 1,

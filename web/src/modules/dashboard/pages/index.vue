@@ -51,7 +51,11 @@ import {
   type DashboardResourceLoadState,
   projectDashboardSummaryToWorkbench,
 } from '../presentation/production-workbench';
-import { type PresentationItem, projectWorkbenchScenario } from '../presentation/workbench';
+import {
+  type PresentationItem,
+  projectWorkbenchScenario,
+  type WorkbenchNavigationSource,
+} from '../presentation/workbench';
 import type { DashboardSummaryResponse } from '../types/dashboard';
 
 defineOptions({ name: 'DashboardHomePage' });
@@ -223,8 +227,10 @@ function releaseDashboardContainerRealtimeSubscription() {
   releaseContainerDashboardSummarySubscription();
 }
 
-function navigate(route: string) {
-  recordAccess(route);
+function navigate(route: string, source: WorkbenchNavigationSource) {
+  if (source === 'quick-entry') {
+    recordAccess(route);
+  }
   void router.push(route);
 }
 

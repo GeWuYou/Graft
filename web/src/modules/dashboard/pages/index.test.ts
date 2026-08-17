@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, type PropType } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
+import type { BootstrapResponse } from '@/modules/auth/contract/types';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { resetContainerStatsManager } from '@/modules/container/shared/stats-manager';
 import { usePermissionStore } from '@/store/modules/permission';
 
@@ -72,13 +74,18 @@ vi.mock('../components/workbench/DashboardWorkbench.vue', () => ({
             h('span', { class: 'health-item', 'data-status': item.status }, item.titleFallback || item.titleKey),
           ),
           ...props.presentation.resources.map((item) =>
-            h('span', { class: 'resource-item', 'data-evidence': item.evidenceState, 'data-status': item.status }),
+            h('button', {
+              class: 'resource-item',
+              'data-evidence': item.evidenceState,
+              'data-status': item.status,
+              onClick: () => item.action?.route && emit('navigate', item.action.route, 'contextual-action'),
+            }),
           ),
           ...(props.quickActionsEnabled
             ? props.presentation.homeQuickActions.map((action) =>
                 h(
                   'button',
-                  { class: 'quick-action', onClick: () => emit('navigate', action.route) },
+                  { class: 'quick-action', onClick: () => emit('navigate', action.route, 'quick-entry') },
                   action.titleFallback || action.titleKey,
                 ),
               )
@@ -159,21 +166,34 @@ function configItem(value: string) {
 }
 
 function routes(count = 8): RouteRecordRaw[] {
-  return Array.from(
-    { length: count },
-    (_, index) =>
-      ({
-        path: `/feature-${index}`,
-        name: `Feature${index}Index`,
-        meta: {
-          icon: 'platform',
-          orderNo: index,
-          single: true,
-          title: { 'en-US': `Feature ${index}`, 'zh-CN': `功能 ${index}` },
-          titleKey: `feature${index}.title`,
-        },
-      }) as unknown as RouteRecordRaw,
-  );
+  return Array.from({ length: count }, (_, index): RouteRecordRaw => ({
+    path: `/feature-${index}`,
+    name: `Feature${index}Index`,
+    component: defineComponent({ render: () => null }),
+    meta: {
+      icon: 'platform',
+      orderNo: index,
+      single: true,
+      title: `Feature ${index}`,
+      titleKey: `feature${index}.title`,
+    },
+  }));
+}
+
+function bootstrapSnapshot(permissions: string[]): BootstrapResponse {
+  return {
+    user: { id: 1, username: 'admin', display_name: 'Admin' },
+    must_change_password: false,
+    roles: ['admin'],
+    permissions,
+    menus: [],
+    locale: {
+      current_locale: 'zh-CN',
+      default_locale: 'zh-CN',
+      fallback_locale: 'zh-CN',
+      supported_locales: ['zh-CN', 'en-US'],
+    },
+  };
 }
 
 function mountPage() {
@@ -183,10 +203,11 @@ function mountPage() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     resetContainerStatsManager();
     setActivePinia(createPinia());
     usePermissionStore().routers = routes();
-    usePermissionStore().setBootstrapSnapshot({ permissions: ['container.view'], menus: [], user: null } as never);
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view']));
     dashboardApiMocks.getDashboardSummary.mockResolvedValue(summaryResponse());
     configApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
     containerApiMocks.getContainerDashboardSummary.mockResolvedValue(containerSummary());
@@ -275,7 +296,7 @@ describe('DashboardHomePage', () => {
     resetContainerStatsManager();
     setActivePinia(createPinia());
     usePermissionStore().routers = routes();
-    usePermissionStore().setBootstrapSnapshot({ permissions: [], menus: [], user: null } as never);
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot([]));
     dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
     const hiddenWrapper = mountPage();
     await flushPromises();
@@ -287,5 +308,16 @@ describe('DashboardHomePage', () => {
     await flushPromises();
     await wrapper.get('.quick-action').trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith('/feature-0');
+    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toContain('/feature-0');
+  });
+
+  it('opens contextual resource actions without changing quick-entry usage ranking', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('.resource-item').trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith(CONTAINER_ROUTE_PATH.RESOURCES);
+    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toBeNull();
   });
 });

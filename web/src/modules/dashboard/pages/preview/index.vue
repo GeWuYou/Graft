@@ -12,6 +12,7 @@
   />
 </template>
 <script setup lang="ts">
+// 开发预览只驱动固定场景，不读取生产 Dashboard API，也不持有长期 presentation authority。
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -21,7 +22,8 @@ import { usePermissionStore } from '@/store/modules/permission';
 
 import DashboardWorkbench from '../../components/workbench/DashboardWorkbench.vue';
 import { buildDashboardQuickActionLinks } from '../../contract/sidebar-quick-actions';
-import { DASHBOARD_PREVIEW_PRESENTATION, type PresentationItem } from '../../presentation/workbench';
+import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/preview-workbench';
+import type { PresentationItem } from '../../presentation/workbench';
 
 defineOptions({ name: 'DashboardWorkbenchPreviewPage' });
 

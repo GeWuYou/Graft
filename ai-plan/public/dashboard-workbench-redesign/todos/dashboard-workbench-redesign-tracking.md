@@ -63,6 +63,9 @@ closeout:
 - Production `/` now renders the shared workbench over the existing summary response; the preview remains available for final comparison and deletion approval.
 - Formal-homepage acceptance reproduced invalid-payload warnings for key-first audit/access items and duplicate Monitor/CapabilityCoordinator PostgreSQL/Redis rows.
 - The corrective batch has synchronized OpenAPI/Web alert optionality, removed duplicate health authority, localized CapabilityCoordinator facts, and passed full cross-boundary validation.
+- PR review cleanup now keeps contextual Attention/Resources navigation out of quick-entry ranking, sorts activity by
+  parsed instants, names attention-only counts explicitly, removes test type escapes, and isolates the fixed preview
+  scenario plus copy behind one deletion boundary.
 - Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
 
 ## Task Checklist
@@ -81,6 +84,7 @@ closeout:
 - [x] Make alert fallback `title` optional at OpenAPI authority and synchronize generated/Web consumers.
 - [x] Remove Monitor's duplicate database/Redis homepage projection and localize CapabilityCoordinator rows.
 - [x] Pass focused and full cross-boundary validation.
+- [x] Resolve the bounded Dashboard/topic PR review findings without changing TDesign component usage or wire contracts.
 - [ ] Manually refresh the open formal homepage, repeat browser inspection, and record human acceptance.
 - [ ] Record human acceptance of the formal homepage and delete the preview.
 - [ ] Implement the additive typed attention contract in a later batch.
@@ -108,6 +112,12 @@ closeout:
 - The corrective batch passed all four OpenAPI freshness checks, the full backend completion entrypoint, and the full Web completion entrypoint with 305 test files and 2101 tests plus the release build and governance stages.
 - Independent read-only review found no remaining blocking, high, or medium issue after OpenAPI fallback semantics and core display-locale ownership were clarified.
 - The in-app browser tab remains open and handed off for annotation. Browser security policy blocked automated refresh of the local address, so the corrected runtime view is intentionally not claimed as automated acceptance evidence.
+- PR review cleanup passed 6 focused Dashboard Vitest files with 33 tests, `bun run typecheck`, and
+  `bun run lint:i18n`; it also kept the documented backend validation entry unchanged because
+  `cd server && go run ./cmd/graft validate backend` is the explicit repository entry when no prebuilt binary is
+  assumed.
+- The integrated PR review cleanup passed the full `bun run check` entrypoint with 306 test files and 2107 tests,
+  release build, type checks, formatting, lint, i18n, style, pagination, and hygiene governance.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
