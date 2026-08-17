@@ -201,6 +201,20 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
+    def test_environment_inventory_rejects_headroom_without_optional_pilot_adoption(self) -> None:
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(MODULE.TOOLS_AI)
+        mutated_text = current_text.replace('adoption: "optional-pilot"', 'adoption: "adopted"', 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == MODULE.TOOLS_AI else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any("missing optional-pilot adoption status" in finding.message for finding in findings))
+
 
 class PersonalSkillReferenceTests(unittest.TestCase):
     def test_personal_skill_references_are_absent_from_repository_guidance(self) -> None:

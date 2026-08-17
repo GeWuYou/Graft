@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-17T02:37:57Z"
+generated_at_utc: "2026-08-17T06:43:26Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -28,7 +28,7 @@ repository:
 required_runtimes:
   go:
     installed: true
-    version: "go version go1.26.6 linux/amd64"
+    version: "go version go1.26.4 linux/amd64"
     path: "/usr/local/go/bin/go"
     purpose: "Builds and tests the Graft server once server/go.mod exists."
   python3:
@@ -81,10 +81,10 @@ project_tools:
     path: "/usr/bin/docker"
     purpose: "Optional container runtime for local services or future automation."
   gh:
-    installed: false
-    authenticated: false
-    version: "not-installed"
-    path: ""
+    installed: true
+    authenticated: true
+    version: "gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)"
+    path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 ai_tools:
@@ -93,7 +93,7 @@ ai_tools:
     version: "not-installed"
     path: ""
     purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
-    mcp_command: " mcp serve"
+    mcp_command: "unavailable"
     memory_status: "controlled-local-only"
     memory_dir: ".ai/headroom/memory"
     learn_status: "controlled-local-only"

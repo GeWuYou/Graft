@@ -124,6 +124,22 @@ headroom_version() {
     "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
 }
 
+headroom_mcp_command() {
+    local binary
+
+    if [[ $# -gt 0 ]]; then
+        binary="$1"
+    else
+        binary="$(headroom_path)"
+    fi
+    if [[ -z "${binary}" ]]; then
+        printf '%s' "unavailable"
+        return
+    fi
+
+    printf '%s mcp serve' "${binary}"
+}
+
 gh_authenticated() {
     if ! command -v gh >/dev/null 2>&1; then
         printf 'false'
@@ -272,14 +288,22 @@ playwright_browsers_present() {
 
 read_os_release() {
     local key="$1"
+    local os_release_path="${2:-/etc/os-release}"
 
-    python3 - "$key" <<'PY'
+    python3 - "$key" "$os_release_path" <<'PY'
 import pathlib
 import sys
 
 target_key = sys.argv[1]
+os_release_path = pathlib.Path(sys.argv[2])
 values = {}
-for line in pathlib.Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
+try:
+    lines = os_release_path.read_text(encoding="utf-8").splitlines()
+except OSError:
+    print("unknown")
+    raise SystemExit
+
+for line in lines:
     if "=" not in line:
         continue
     key, value = line.split("=", 1)
@@ -418,7 +442,7 @@ ai_tools:
     version: "$(headroom_version)"
     path: "$(headroom_path)"
     purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
-    mcp_command: "$(headroom_path) mcp serve"
+    mcp_command: "$(headroom_mcp_command)"
     memory_status: "controlled-local-only"
     memory_dir: ".ai/headroom/memory"
     learn_status: "controlled-local-only"
@@ -506,12 +530,18 @@ python_environment:
 EOF
 }
 
-ensure_supported_mode
+main() {
+    ensure_supported_mode
 
-if [[ "${MODE}" == "--write" ]]; then
-    mkdir -p "$(dirname "${OUTPUT_PATH}")"
-    collect_inventory > "${OUTPUT_PATH}"
-    printf 'Wrote %s\n' "${OUTPUT_PATH}"
-else
-    collect_inventory
+    if [[ "${MODE}" == "--write" ]]; then
+        mkdir -p "$(dirname "${OUTPUT_PATH}")"
+        collect_inventory > "${OUTPUT_PATH}"
+        printf 'Wrote %s\n' "${OUTPUT_PATH}"
+    else
+        collect_inventory
+    fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main
 fi

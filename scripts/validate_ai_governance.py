@@ -371,6 +371,12 @@ def validate_environment_inventory() -> list[Finding]:
         )
         if record_match is None or 'adoption: "adopted"' not in record_match.group("record"):
             findings.append(Finding(TOOLS_AI, f"formally adopted MCP server {server_name!r} is missing adoption status"))
+    headroom_match = re.search(
+        r"(?ms)^  headroom:\n(?P<record>(?:    .*\n)+)",
+        mcp_section,
+    )
+    if headroom_match is None or 'adoption: "optional-pilot"' not in headroom_match.group("record"):
+        findings.append(Finding(TOOLS_AI, "Headroom MCP server is missing optional-pilot adoption status"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

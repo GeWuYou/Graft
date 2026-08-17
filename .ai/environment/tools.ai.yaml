@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-17T02:38:01Z"
+generated_at_utc: "2026-08-17T06:43:30Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -18,8 +18,8 @@ capabilities:
   npm: true
   bun: true
   docker: true
-  gh: false
-  gh_authenticated: false
+  gh: true
+  gh_authenticated: true
   ai_headroom: false
   mcp_codegraph: true
   mcp_tdesign: true
@@ -50,7 +50,7 @@ tool_selection:
     fallback: "sh"
     use_for: "Repository shell scripts and command execution."
   github_cli:
-    preferred: "environment token"
+    preferred: "gh"
     fallback: "environment token"
     use_for: "GitHub API authentication and PR-related local automation."
   scripting:

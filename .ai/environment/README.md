@@ -13,6 +13,7 @@
 ## Refresh Commands
 
 ```bash
+set -euo pipefail
 bash scripts/collect-dev-environment.sh --check
 bash scripts/collect-dev-environment.sh --write
 python3 scripts/generate-ai-environment.py
