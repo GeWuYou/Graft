@@ -21,12 +21,9 @@ export type PresentationRegion = 'attention' | 'health' | 'activity' | 'resource
 /** 区分快捷入口激活与上下文 drill-down，只有前者可以影响浏览器本地的入口排序。 */
 export type WorkbenchNavigationSource = 'contextual-action' | 'quick-entry';
 
-export interface WorkbenchAction {
-  labelKey: string;
-  labelFallback?: string;
-  route?: string;
-  kind: 'navigate' | 'retry';
-}
+export type WorkbenchAction =
+  | { kind: 'navigate'; labelKey: string; labelFallback?: string; route: string }
+  | { kind: 'retry'; labelKey: string; labelFallback?: string; route?: never };
 
 export interface PresentationItem {
   id: string;

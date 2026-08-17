@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { DASHBOARD_PREVIEW_PRESENTATION, DASHBOARD_PREVIEW_SCENARIO } from './preview-workbench';
 import {
@@ -10,6 +10,7 @@ import {
   presentationStatusFromRequestAttentionKind,
   projectWorkbenchScenario,
   sortPresentationItems,
+  type WorkbenchAction,
 } from './workbench';
 
 function item(id: string, status: PresentationItem['status'], occurredAt?: string): PresentationItem {
@@ -37,6 +38,17 @@ function presentationItem(overrides: Partial<PresentationItem> = {}): Presentati
 }
 
 describe('dashboard workbench presentation model', () => {
+  it('models navigation and retry actions as exclusive variants', () => {
+    expectTypeOf({
+      kind: 'navigate' as const,
+      labelKey: 'details',
+      route: '/details',
+    }).toMatchTypeOf<WorkbenchAction>();
+    expectTypeOf({ kind: 'retry' as const, labelKey: 'retry' }).toMatchTypeOf<WorkbenchAction>();
+    expectTypeOf({ kind: 'navigate' as const, labelKey: 'details' }).not.toMatchTypeOf<WorkbenchAction>();
+    expectTypeOf({ kind: 'retry' as const, labelKey: 'retry', route: '/details' }).not.toMatchTypeOf<WorkbenchAction>();
+  });
+
   it('sorts by the five-state semantic order and keeps stable id ordering for ties', () => {
     const sorted = sortPresentationItems([
       item('healthy', PRESENTATION_STATUS.HEALTHY),
