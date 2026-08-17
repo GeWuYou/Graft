@@ -42,46 +42,75 @@
     {{ t(emptyKey) }}
   </p>
 
-  <t-collapse v-if="remainingItems.length" v-model="expandedPanels" borderless class="workbench-collapse">
-    <t-collapse-panel :value="panelValue" :header="t(expandKey, { count: remainingItems.length })">
-      <t-list class="workbench-list" :class="{ 'workbench-list--quiet': variant === 'health' }" split>
-        <t-list-item
-          v-for="item in remainingItems"
-          :key="item.id"
-          :class="itemClasses(item)"
-          :data-status="item.status"
-          :data-evidence="item.evidenceState"
-          :[itemDataAttribute]="item.id"
+  <t-collapse
+    v-if="remainingItems.length"
+    v-model="expandedPanels"
+    borderless
+    :expand-icon="false"
+    :expand-on-row-click="false"
+    class="workbench-collapse"
+  >
+    <t-collapse-panel :value="panelValue">
+      <template #header>
+        <t-button
+          block
+          theme="primary"
+          type="button"
+          variant="text"
+          :aria-controls="panelContentId"
+          :aria-expanded="overflowExpanded"
+          :data-collapse-trigger="panelValue"
+          @click.stop="toggleOverflow"
+          @keydown.enter.prevent.stop="toggleOverflow"
+          @keydown.space.prevent.stop="toggleOverflow"
         >
-          <div class="workbench-row" :class="{ 'workbench-row--compact': variant !== 'attention' }">
-            <workbench-status-indicator
-              :status="item.status"
-              :label="t(`dashboard.workbench.status.${item.status}`)"
-              :show-label="variant === 'attention'"
-            />
-            <div class="workbench-row__copy">
-              <strong>{{ itemTitle(item) }}</strong>
-              <p>{{ itemDescription(item) }}</p>
-            </div>
-          </div>
-          <template #action>
-            <t-button
-              v-if="item.action"
-              :variant="variant === 'attention' ? 'outline' : 'text'"
-              :theme="variant === 'attention' ? 'default' : 'primary'"
-              size="small"
-              :loading="props.retryingId === item.id"
-              @click="handleAction(item)"
-            >
-              {{ actionLabel(item) }}
-            </t-button>
+          {{ t(expandKey, { count: remainingItems.length }) }}
+          <template #suffix>
+            <chevron-down-icon :style="{ transform: overflowExpanded ? 'rotate(180deg)' : undefined }" />
           </template>
-        </t-list-item>
-      </t-list>
+        </t-button>
+      </template>
+      <div :id="panelContentId">
+        <t-list class="workbench-list" :class="{ 'workbench-list--quiet': variant === 'health' }" split>
+          <t-list-item
+            v-for="item in remainingItems"
+            :key="item.id"
+            :class="itemClasses(item)"
+            :data-status="item.status"
+            :data-evidence="item.evidenceState"
+            :[itemDataAttribute]="item.id"
+          >
+            <div class="workbench-row" :class="{ 'workbench-row--compact': variant !== 'attention' }">
+              <workbench-status-indicator
+                :status="item.status"
+                :label="t(`dashboard.workbench.status.${item.status}`)"
+                :show-label="variant === 'attention'"
+              />
+              <div class="workbench-row__copy">
+                <strong>{{ itemTitle(item) }}</strong>
+                <p>{{ itemDescription(item) }}</p>
+              </div>
+            </div>
+            <template #action>
+              <t-button
+                v-if="item.action"
+                :variant="variant === 'attention' ? 'outline' : 'text'"
+                :theme="variant === 'attention' ? 'default' : 'primary'"
+                size="small"
+                :loading="props.retryingId === item.id"
+                @click="handleAction(item)"
+              >
+                {{ actionLabel(item) }}
+              </t-button>
+            </template>
+          </t-list-item>
+        </t-list>
+      </div>
     </t-collapse-panel>
   </t-collapse>
 </template>
 <script setup lang="ts">
+import { ChevronDownIcon } from 'tdesign-icons-vue-next';
 import { computed, ref } from 'vue';
 
 import { currentLocale, t } from '@/locales';
@@ -118,7 +147,13 @@ const expandedPanels = ref<string[]>([]);
 const visibleItems = computed(() => props.items.slice(0, props.visibleLimit));
 const remainingItems = computed(() => props.items.slice(props.visibleLimit));
 const panelValue = computed(() => `${props.variant}-more`);
+const panelContentId = computed(() => `workbench-${panelValue.value}-content`);
+const overflowExpanded = computed(() => expandedPanels.value.includes(panelValue.value));
 const itemDataAttribute = computed(() => `data-${props.variant}-id`);
+
+function toggleOverflow() {
+  expandedPanels.value = overflowExpanded.value ? [] : [panelValue.value];
+}
 
 function itemClasses(item: PresentationItem) {
   return [`${props.variant}-row`, props.variant === 'attention' ? `attention-row--${item.status}` : undefined];

@@ -7,12 +7,27 @@
       @navigate="emit('navigate', $event)"
     />
   </div>
-  <t-collapse v-if="remainingLinks.length" v-model="expandedPanels" borderless class="workbench-collapse">
-    <t-collapse-panel
-      :value="panelValue"
-      :header="t('dashboard.workbench.expand.contextLinks', { count: remainingLinks.length })"
-    >
-      <div class="context-links" role="list">
+  <t-collapse
+    v-if="remainingLinks.length"
+    v-model="expandedPanels"
+    v-bind="collapseBehavior"
+    class="workbench-collapse"
+  >
+    <t-collapse-panel :value="panelValue">
+      <template #header>
+        <t-button
+          v-bind="overflowTriggerProps"
+          @click.stop="toggleOverflow"
+          @keydown.enter.prevent.stop="toggleOverflow"
+          @keydown.space.prevent.stop="toggleOverflow"
+        >
+          {{ t('dashboard.workbench.expand.contextLinks', { count: remainingLinks.length }) }}
+          <template #suffix>
+            <chevron-down-icon :style="{ transform: overflowExpanded ? 'rotate(180deg)' : undefined }" />
+          </template>
+        </t-button>
+      </template>
+      <div :id="panelContentId" class="context-links" role="list">
         <context-link-row
           v-for="entry in remainingLinks"
           :key="entry.key"
@@ -24,7 +39,7 @@
   </t-collapse>
 </template>
 <script setup lang="ts">
-import { ChevronRightIcon } from 'tdesign-icons-vue-next';
+import { ChevronDownIcon, ChevronRightIcon } from 'tdesign-icons-vue-next';
 import type { PropType } from 'vue';
 import { computed, defineComponent, h, ref, resolveComponent } from 'vue';
 
@@ -48,9 +63,32 @@ const emit = defineEmits<{
 }>();
 
 const expandedPanels = ref<string[]>([]);
+const collapseBehavior = {
+  borderless: true,
+  expandIcon: false,
+  expandOnRowClick: false,
+} as const;
 const visibleLinks = computed(() => props.group.links.slice(0, props.visibleLimit));
 const remainingLinks = computed(() => props.group.links.slice(props.visibleLimit));
 const panelValue = computed(() => `context-more:${props.group.id}`);
+const panelContentId = computed(() => `workbench-context-more-${props.group.id}-content`);
+const overflowExpanded = computed(() => expandedPanels.value.includes(panelValue.value));
+const overflowTriggerProps = computed(
+  () =>
+    ({
+      block: true,
+      theme: 'primary',
+      type: 'button',
+      variant: 'text',
+      'aria-controls': panelContentId.value,
+      'aria-expanded': overflowExpanded.value,
+      'data-collapse-trigger': panelValue.value,
+    }) as const,
+);
+
+function toggleOverflow() {
+  expandedPanels.value = overflowExpanded.value ? [] : [panelValue.value];
+}
 
 function dashboardText(key?: string, fallback?: string, defaultText = '-') {
   return resolveDashboardText(key, fallback, defaultText);

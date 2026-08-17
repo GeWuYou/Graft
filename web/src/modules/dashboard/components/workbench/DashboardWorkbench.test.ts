@@ -61,7 +61,6 @@ vi.mock('@/shared/icons/MenuIcon.vue', () => ({
 
 type CollapseContext = {
   isOpen: (value: string) => boolean;
-  toggle: (value: string) => void;
 };
 
 const COLLAPSE_CONTEXT: InjectionKey<CollapseContext> = Symbol('collapse-context');
@@ -99,16 +98,9 @@ const alertStub = defineComponent({
 const collapseStub = defineComponent({
   name: 'CollapseStub',
   props: { modelValue: { type: Array as PropType<string[]>, default: () => [] } },
-  emits: ['update:modelValue'],
-  setup(props, { emit, slots }) {
+  setup(props, { slots }) {
     provide(COLLAPSE_CONTEXT, {
       isOpen: (value) => props.modelValue.includes(value),
-      toggle: (value) => {
-        const next = props.modelValue.includes(value)
-          ? props.modelValue.filter((item) => item !== value)
-          : [...props.modelValue, value];
-        emit('update:modelValue', next);
-      },
     });
     return () => h('div', { class: 'collapse-stub' }, slots.default?.());
   },
@@ -117,29 +109,13 @@ const collapseStub = defineComponent({
 const collapsePanelStub = defineComponent({
   name: 'CollapsePanelStub',
   props: {
-    header: { type: String, default: '' },
     value: { type: String, required: true },
   },
   setup(props, { slots }) {
     const collapse = inject(COLLAPSE_CONTEXT);
-    const toggle = () => collapse?.toggle(props.value);
     return () =>
       h('section', [
-        h(
-          'button',
-          {
-            class: 'collapse-trigger',
-            'data-collapse-value': props.value,
-            onClick: toggle,
-            onKeydown: (event: KeyboardEvent) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                toggle();
-              }
-            },
-          },
-          props.header,
-        ),
+        h('div', { class: 't-collapse-panel__header' }, slots.header?.()),
         collapse?.isOpen(props.value) ? h('div', { class: 'collapse-content' }, slots.default?.()) : null,
       ]);
   },
@@ -224,20 +200,34 @@ describe('DashboardWorkbench', () => {
   it('reveals attention, health, and contextual overflow through keyboard-accessible collapse triggers', async () => {
     const wrapper = mountWorkbench();
 
-    await wrapper.get('[data-collapse-value="attention-more"]').trigger('keydown', { key: 'Enter' });
+    const attentionTrigger = wrapper.get('[data-collapse-trigger="attention-more"]');
+    expect(attentionTrigger.element.tagName).toBe('BUTTON');
+    expect(attentionTrigger.attributes('type')).toBe('button');
+    expect(attentionTrigger.attributes('aria-expanded')).toBe('false');
+    expect(attentionTrigger.attributes('aria-controls')).toBe('workbench-attention-more-content');
+
+    await attentionTrigger.trigger('keydown', { key: 'Enter' });
     await nextTick();
+    expect(attentionTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-attention-id]')).toHaveLength(6);
 
-    await wrapper.get('[data-collapse-value="health-more"]').trigger('keydown', { key: ' ' });
+    await attentionTrigger.trigger('keydown', { key: 'Enter' });
     await nextTick();
+    expect(attentionTrigger.attributes('aria-expanded')).toBe('false');
+    expect(wrapper.findAll('[data-attention-id]')).toHaveLength(5);
+
+    const healthTrigger = wrapper.get('[data-collapse-trigger="health-more"]');
+    await healthTrigger.trigger('keydown', { key: ' ' });
+    await nextTick();
+    expect(healthTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-health-id]')).toHaveLength(5);
 
-    const contextTrigger = wrapper
-      .findAll('.collapse-trigger')
-      .find((node) => node.attributes('data-collapse-value')?.startsWith('context-more:'));
-    expect(contextTrigger).toBeDefined();
-    await contextTrigger!.trigger('keydown', { key: 'Enter' });
+    const contextTrigger = wrapper.get('.workbench-surface--context-links [data-collapse-trigger]');
+    expect(contextTrigger.attributes('aria-expanded')).toBe('false');
+    expect(contextTrigger.attributes('aria-controls')).toMatch(/^workbench-context-more-.+-content$/);
+    await contextTrigger.trigger('keydown', { key: 'Enter' });
     await nextTick();
+    expect(contextTrigger.attributes('aria-expanded')).toBe('true');
     expect(wrapper.findAll('[data-context-link-key]')).toHaveLength(8);
   });
 
