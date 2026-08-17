@@ -53,6 +53,11 @@ describe('dashboard widget payload guards', () => {
       asStatGroupPayload({ items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled' }] }),
     ).toBeNull();
     expect(
+      asStatGroupPayload({
+        items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled', value: '1', tone: 'critical' }],
+      }),
+    ).toBeNull();
+    expect(
       asAlertListPayload({ items: [{ id: 'risk-1', level: 'critical', title_key: 'dashboard.risk', title: 'Risk' }] }),
     ).toBeNull();
     expect(
@@ -61,6 +66,19 @@ describe('dashboard widget payload guards', () => {
       }),
     ).toBeNull();
     expect(asTimelinePayload({ items: [{ id: 'event-1', title_key: 'dashboard.event', title: 'Event' }] })).toBeNull();
+    expect(
+      asTimelinePayload({
+        items: [
+          {
+            id: 'event-1',
+            title_key: 'dashboard.event',
+            title: 'Event',
+            occurred_at: '2026-08-17T03:20:00Z',
+            status: 'critical',
+          },
+        ],
+      }),
+    ).toBeNull();
     expect(
       asHealthPayload({
         summary: { status: 'offline' },

@@ -4,7 +4,8 @@
       "details": "View Details",
       "open": "Open",
       "refresh": "Refresh",
-      "retry": "Retry"
+      "retry": "Retry",
+      "viewDetails": "View Details"
     },
     "alert": {
       "count": "{count} Times",
@@ -120,10 +121,10 @@
     },
     "loading": "Loading Dashboard",
     "page": {
-      "description": "Review the system summary and authorized module-contributed workspace widgets.",
-      "eyebrow": "Workspace",
-      "lastUpdated": "Last Updated: {time}",
-      "title": "Workspace"
+      "description": "Review items that need attention and recent activity.",
+      "eyebrow": "Operations Workbench",
+      "lastUpdated": "Last refreshed: {time}",
+      "title": "What Needs Attention Today?"
     },
     "quickActions": {
       "description": "Entries available to current permissions",
@@ -175,9 +176,9 @@
       "routeTitle": "Workbench Design Preview",
       "eyebrow": "Operations Workbench · Design Preview",
       "title": "What Needs Attention Today?",
-      "description": "Review items that need confirmation, system health, and recent results. This page uses fixed design-validation data.",
-      "updatedAt": "Data Time: {time}",
-      "refresh": "Refresh Preview",
+      "description": "Review items that need attention and recent activity.",
+      "updatedAt": "Sample data · Data time: {time}",
+      "refresh": "Refresh Data",
       "status": {
         "error": "Error",
         "warning": "Warning",
@@ -188,30 +189,33 @@
       "operational": {
         "title": "Operational Status",
         "eyebrow": "Operational Status",
-        "needsReview": "{count} Items Need Confirmation",
+        "needsAttention": "Needs Attention",
+        "itemCount": "{count} Items",
         "distribution": "{warning} Warning · {unknown} Unknown",
+        "distributionWithError": "{error} Error · {warning} Warning · {unknown} Unknown",
         "modules": "Enabled Modules",
         "failedTasks": "Failed Tasks",
         "highRiskEvents": "High-risk Events"
       },
       "attention": {
-        "title": "Needs Confirmation",
-        "description": "Confirmed degradation and states still waiting for reliable evidence.",
-        "count": "{count} Items",
+        "title": "Attention",
+        "description": "Issues and pending checks that need attention.",
+        "empty": "No items currently need attention.",
         "accessLog": {
           "title": "Access Log Data Temporarily Unavailable",
-          "description": "The access-log observation source failed to load, so request trends are unavailable. This does not mean request handling has failed.",
+          "description": "Access log data is temporarily unavailable, so request trends cannot be viewed.",
           "action": "Retry Loading"
         },
         "outbound": {
           "title": "Outbound Network Has Not Been Checked",
-          "description": "No reliable connectivity result is available yet. Run the first check before deciding whether action is needed.",
+          "description": "No connectivity check result is available yet.",
           "action": "Start Check"
         }
       },
       "health": {
         "title": "System Health",
-        "description": "Verified dependencies are intentionally shown with low visual weight.",
+        "description": "Critical infrastructure services are operating normally.",
+        "empty": "No infrastructure health data is available.",
         "postgresql": {
           "title": "PostgreSQL",
           "description": "Database connectivity check passed"
@@ -223,7 +227,8 @@
       },
       "activity": {
         "title": "Recent Runs",
-        "description": "Recently completed tasks and automation results.",
+        "description": "Recently completed tasks and run results.",
+        "empty": "No recent runs.",
         "view": "View Record",
         "build": {
           "title": "Build Completed",
@@ -236,18 +241,40 @@
       },
       "resources": {
         "title": "Resources",
-        "description": "Container and runtime resource summary.",
+        "description": "Container and runtime resource usage.",
+        "empty": "No resource information is available.",
+        "loading": {
+          "title": "Loading resource data",
+          "description": "Please wait."
+        },
+        "unavailable": {
+          "title": "Resource data is unavailable",
+          "description": "Container resource data could not be loaded."
+        },
+        "sample": {
+          "title": "{count} containers running",
+          "description": "CPU total {cpu}% · {abnormal} abnormal containers"
+        },
         "noSample": {
           "title": "No Resource Sample Yet",
-          "description": "Waiting for the next collection. Missing samples are not treated as resource failures.",
+          "description": "Waiting for the next resource collection.",
           "action": "View Observability"
         }
       },
+      "sourceUnavailable": {
+        "title": "Some data is unavailable",
+        "description": "This data source could not be loaded. Try again later."
+      },
       "quickActions": {
         "title": "Quick Actions",
-        "description": "Frequently used task entries",
+        "description": "Frequently used features",
         "viewAll": "All",
-        "drawerTitle": "All Quick Actions",
+        "drawerTitle": "All Entries",
+        "closeDrawer": "Close all entries",
+        "searchPlaceholder": "Search features, pages, or actions",
+        "frequent": "Frequent",
+        "allEntries": "All features",
+        "noResults": "No matching entries",
         "createBuild": {
           "title": "Create Build",
           "description": "Create and submit a new build job"

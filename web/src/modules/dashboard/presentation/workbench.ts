@@ -4,8 +4,6 @@ import { BUILD_ROUTE_PATH } from '@/modules/build/contract/paths';
 import { MONITOR_ROUTE_PATH } from '@/modules/monitor/contract/paths';
 import { NETWORK_ROUTE_PATH } from '@/modules/network/contract/paths';
 import { SCHEDULED_TASK_ROUTE_PATH } from '@/modules/scheduled-task/contract/paths';
-import type { MenuIconKey } from '@/shared/icons/menu-icon';
-
 export const PRESENTATION_STATUS = {
   ERROR: 'error',
   WARNING: 'warning',
@@ -29,6 +27,7 @@ export type PresentationRegion = 'attention' | 'health' | 'activity' | 'resource
 
 export interface WorkbenchAction {
   labelKey: string;
+  labelFallback?: string;
   route?: string;
   kind: 'navigate' | 'retry';
 }
@@ -39,10 +38,15 @@ export interface PresentationItem {
   status: PresentationStatus;
   evidenceState: EvidenceState;
   titleKey: string;
+  titleFallback?: string;
+  titleParams?: Record<string, string | number>;
   descriptionKey: string;
+  descriptionFallback?: string;
+  descriptionParams?: Record<string, string | number>;
   occurredAt?: string;
   actionable?: boolean;
   action?: WorkbenchAction;
+  sourceWidgetId?: string;
   sourceMetadata?: {
     loadStatus?: 'normal' | 'error';
     displayState?: 'normal' | 'warning' | 'critical' | 'hidden';
@@ -52,10 +56,14 @@ export interface PresentationItem {
 
 export interface QuickAction {
   id: string;
-  iconKey: MenuIconKey;
+  iconKey?: string;
+  kind: 'action' | 'navigation';
   titleKey: string;
+  titleFallback?: string;
   descriptionKey: string;
+  descriptionFallback?: string;
   route: string;
+  showOnHome: boolean;
 }
 
 export interface WorkbenchScenario {
@@ -79,6 +87,7 @@ export interface WorkbenchPresentation {
   health: PresentationItem[];
   activity: PresentationItem[];
   resources: PresentationItem[];
+  homeQuickActions: QuickAction[];
   quickActions: QuickAction[];
 }
 
@@ -143,7 +152,7 @@ export function projectWorkbenchScenario(scenario: WorkbenchScenario): Workbench
   const statusCounts = Object.fromEntries(
     Object.values(PRESENTATION_STATUS).map((status) => [
       status,
-      scenario.items.filter((item) => item.status === status).length,
+      attention.filter((item) => item.status === status).length,
     ]),
   ) as Record<PresentationStatus, number>;
 
@@ -158,6 +167,7 @@ export function projectWorkbenchScenario(scenario: WorkbenchScenario): Workbench
     health: sortedItems.filter((item) => item.region === 'health'),
     activity: sortedItems.filter((item) => item.region === 'activity'),
     resources: sortedItems.filter((item) => item.region === 'resources'),
+    homeQuickActions: scenario.quickActions.filter((action) => action.showOnHome),
     quickActions: scenario.quickActions,
   };
 }
@@ -278,44 +288,56 @@ export const DASHBOARD_PREVIEW_SCENARIO = {
     {
       id: 'create-build',
       iconKey: 'build',
+      kind: 'action',
       titleKey: 'dashboard.workbench.quickActions.createBuild.title',
       descriptionKey: 'dashboard.workbench.quickActions.createBuild.description',
       route: BUILD_ROUTE_PATH.CREATE,
+      showOnHome: true,
     },
     {
       id: 'observability',
       iconKey: 'observability-overview',
+      kind: 'navigation',
       titleKey: 'dashboard.workbench.quickActions.observability.title',
       descriptionKey: 'dashboard.workbench.quickActions.observability.description',
       route: MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW,
+      showOnHome: true,
     },
     {
       id: 'audit-logs',
       iconKey: 'audit-trail',
+      kind: 'navigation',
       titleKey: 'dashboard.workbench.quickActions.audit.title',
       descriptionKey: 'dashboard.workbench.quickActions.audit.description',
       route: AUDIT_ROUTE_PATH.LOGS,
+      showOnHome: true,
     },
     {
       id: 'artifacts',
       iconKey: 'image-artifact',
+      kind: 'navigation',
       titleKey: 'dashboard.workbench.quickActions.artifacts.title',
       descriptionKey: 'dashboard.workbench.quickActions.artifacts.description',
       route: BUILD_ROUTE_PATH.ARTIFACTS,
+      showOnHome: true,
     },
     {
       id: 'scheduled-tasks',
       iconKey: 'scheduled-automation',
+      kind: 'navigation',
       titleKey: 'dashboard.workbench.quickActions.scheduledTasks.title',
       descriptionKey: 'dashboard.workbench.quickActions.scheduledTasks.description',
       route: SCHEDULED_TASK_ROUTE_PATH.LIST,
+      showOnHome: false,
     },
     {
       id: 'access-logs',
       iconKey: 'access-log',
+      kind: 'navigation',
       titleKey: 'dashboard.workbench.quickActions.accessLogs.title',
       descriptionKey: 'dashboard.workbench.quickActions.accessLogs.description',
       route: ACCESS_LOG_ROUTE_PATH.LIST,
+      showOnHome: false,
     },
   ],
 } as const satisfies WorkbenchScenario;

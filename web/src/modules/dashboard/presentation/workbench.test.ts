@@ -123,8 +123,17 @@ describe('dashboard workbench presentation model', () => {
       error: 0,
       warning: 1,
       unknown: 1,
-      info: 3,
-      healthy: 2,
+      info: 0,
+      healthy: 0,
     });
+  });
+
+  it('selects home quick actions from presentation intent without imposing a fixed item count', () => {
+    const scenario = {
+      ...DASHBOARD_PREVIEW_SCENARIO,
+      quickActions: DASHBOARD_PREVIEW_SCENARIO.quickActions.map((action) => ({ ...action, showOnHome: true })),
+    };
+
+    expect(projectWorkbenchScenario(scenario).homeQuickActions).toHaveLength(scenario.quickActions.length);
   });
 });

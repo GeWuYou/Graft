@@ -9,6 +9,7 @@ type QuickActionSource = Pick<MenuRoute, 'path' | 'children' | 'name' | 'meta'>;
 interface QuickActionParent {
   groupKey?: string;
   groupLabel?: string;
+  order: number;
 }
 type QuickActionRouteMeta = AppRouteMeta & {
   permission?: string;
@@ -29,6 +30,7 @@ function collectLeafLinks(
   locale: SupportedLocale,
   parentPath = '',
   parent?: QuickActionParent,
+  section?: QuickActionParent,
 ): DashboardQuickActionLink[] {
   return routes.flatMap((route) => {
     const routeMeta = toRouteMeta(route.meta);
@@ -39,11 +41,12 @@ function collectLeafLinks(
     }
 
     const nextParent = resolveParent(routeMeta, locale, parent);
+    const nextSection = section ?? nextParent;
     if (routeMeta?.single && isQuickActionLeaf(route, fullPath)) {
-      return [buildQuickActionLink(route, routeMeta, fullPath, locale, parent)];
+      return [buildQuickActionLink(route, routeMeta, fullPath, locale, parent, nextSection)];
     }
 
-    const visibleChildren = collectLeafLinks(route.children ?? [], locale, fullPath, nextParent);
+    const visibleChildren = collectLeafLinks(route.children ?? [], locale, fullPath, nextParent, nextSection);
     if (visibleChildren.length > 0) {
       return visibleChildren;
     }
@@ -52,7 +55,7 @@ function collectLeafLinks(
       return [];
     }
 
-    return [buildQuickActionLink(route, routeMeta, fullPath, locale, parent)];
+    return [buildQuickActionLink(route, routeMeta, fullPath, locale, parent, nextSection)];
   });
 }
 
@@ -83,6 +86,7 @@ function buildQuickActionLink(
   fullPath: string,
   locale: SupportedLocale,
   parent?: QuickActionParent,
+  section?: QuickActionParent,
 ): DashboardQuickActionLink {
   const title =
     renderLocalizedTitle(resolveRouteLocalizedTitle(routeMeta, 'breadcrumb'), locale) ||
@@ -91,6 +95,7 @@ function buildQuickActionLink(
   const fullLabel = renderLocalizedTitle(resolveRouteLocalizedTitle(routeMeta, 'tab'), locale) || title;
   const routeGroup = renderLocalizedTitle(resolveRouteLocalizedTitle(routeMeta, 'page'), locale) || parent?.groupLabel;
   const isSingleLeaf = Boolean(routeMeta?.single);
+  const requiredPermissions = resolveRequiredPermissions(routeMeta);
 
   return {
     id: String(route.name ?? fullPath),
@@ -100,8 +105,15 @@ function buildQuickActionLink(
     icon: typeof routeMeta?.icon === 'string' ? routeMeta.icon : undefined,
     module_key: inferModuleKey(route, fullPath, routeMeta),
     order: routeMeta?.orderNo ?? 0,
-    required_permissions: resolveRequiredPermissions(routeMeta),
+    ...(requiredPermissions ? { required_permissions: requiredPermissions } : {}),
     route_location: fullPath,
+    ...(section?.groupLabel
+      ? {
+          section: section.groupLabel,
+          ...(section.groupKey ? { section_key: section.groupKey } : {}),
+          section_order: section.order,
+        }
+      : {}),
     title,
     title_key: routeMeta?.titleKey,
   };
@@ -125,6 +137,7 @@ function resolveParent(
   return {
     groupKey,
     groupLabel,
+    order: routeMeta?.orderNo ?? parent?.order ?? 0,
   };
 }
 
