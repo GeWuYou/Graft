@@ -415,3 +415,34 @@
   - `web/src/layouts/components/LayoutContent.test.ts`
 - Updated at:
   2026-08-08
+
+## LESSON-WEB-UI-PREVIEW-SHELL-001：设计预览应区分匿名直达与已登录真实壳层
+
+- Status: active
+- Level: L1
+- Applies to:
+  - `web` development-only 页面预览
+  - 需要与正式页面做视觉对照的截图验收
+  - 复用 Graft Header、Sidebar、Tabs 和内容容器的壳层内原型
+- Source:
+  - 首页工作台第二轮视觉验收发现：预览路由在认证流程前无条件短路会让已登录会话也失去 bootstrap 菜单，导致截图中的空侧栏成为非设计差异
+- Problem:
+  开发预览若为了匿名直达而无条件跳过会话 bootstrap，页面内容虽然可渲染，但 Header、Sidebar、菜单授权状态和内容壳层会偏离正式页面。此时新旧截图无法只比较目标页面，评审容易把壳层差异误判为信息架构或视觉质量问题。
+- Correct pattern:
+  development-only 预览可以在无 token 时直接进入，以保留独立 UI 验收能力；检测到已有会话时，应沿用正式 bootstrap、菜单和壳层装配。截图验收固定 viewport、zoom、主题和侧栏状态，只让目标内容发生变化。release build 必须继续排除预览路由。
+- Anti-pattern:
+  - 对所有预览访问无条件绕过 bootstrap
+  - 为截图伪造一套侧栏或菜单数据
+  - 用空侧栏截图与正式首页做视觉优劣对比
+  - 为复用壳层而把 development-only 预览注册进 release 路由
+- Enforcement:
+  预览路由同时测试匿名直达与已登录 bootstrap 两条分支，release 路由测试确认预览不可达；最终截图检查 Header、Sidebar、viewport、zoom 和主题与正式对照一致。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/app/bootstrap/route-guards.ts`
+  - `web/src/router/development-routes.development.ts`
+  - `web/src/permission.test.ts`
+- Updated at:
+  2026-08-17

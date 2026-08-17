@@ -31,20 +31,63 @@
 - Completed one screenshot-driven visual refinement: removed repeated status icons, kept health quiet, and stopped the missing-resource note from becoming an oversized empty surface.
 - Captured and retained the required desktop and full-page PNG artifacts under `.ai/artifacts/browser/dashboard-workbench-redesign/`.
 
+## 2026-08-17 Preview V2 Readability And Shell Refinement
+
+- Preserved the approved Attention-first information architecture, quiet healthy semantics, warning/unknown separation, 8/4 composition, compact Resources, and bottom Quick Actions.
+- Raised page, section, row, timestamp, and resource supporting copy to the readable body-large token while keeping verified healthy detail at body-medium.
+- Reframed Operational Status as the overall answer “Needs Attention · 2 Items” and removed the repeated count from the concrete Attention section.
+- Strengthened Attention at row level with one leading status identity, a three-pixel semantic rail, subtle row tint, stronger title, and explicit outline action; unknown remains neutral.
+- Grouped Health and Resources into the supplemental right rail and converted Quick Actions into one compact action group with hover and focus feedback.
+- Let authenticated development previews use the canonical session bootstrap so the formal sidebar and header remain present; anonymous development preview remains available for local inspection.
+- Verified 1920 × 1080 and the 1440 / 1200 / 992 / 768 responsive widths with no horizontal overflow, then regenerated both required PNG artifacts.
+- Passed the full `bun run check` entrypoint: 303 test files and 2091 tests plus the release build and governance stages.
+
+## 2026-08-17 Quick Entry And Responsive Drawer Refinement
+
+- Replaced the segmented Quick Actions frame with independent shared-icon action items. The home set is selected by `showOnHome` data and its responsive grid accepts any configured count without slicing to four.
+- Reframed the Drawer as “全部入口”: a matching frequent section, search, and compact navigation lists grouped by the authorized shell's existing top-level sections.
+- Kept arrows only for executable actions such as creating a build; ordinary page navigation remains arrowless and borderless until hover or keyboard focus.
+- Reused the shared `ResponsiveDialog` workspace policy instead of a dashboard-local fixed Drawer width. Fixed its Teleport styling authority so narrow screens receive a true fullscreen surface attached to `body` without the mobile navigation crossing the overlay.
+- Re-ran TDesign MCP protocol queries for Input docs and DOM, verified the locked 1.20.5 declarations, and used the documented `v-model`, `clearable`, `type=search`, and `prefixIcon` surface.
+- Rechecked the live authenticated page at 1920 × 1080 and the entry workspace at 390 × 844, regenerated both PNG artifacts, and left the in-app browser on the open Drawer for annotation.
+- Passed focused validation for 5 files and 34 tests, then passed the full `bun run check`: 304 test files and 2095 tests plus release build and all governance stages.
+
+## 2026-08-17 Preview Copy Refinement
+
+- Replaced design-rationale and validation-oriented helper text with concise operational product copy in the dashboard-owned Chinese and English locale catalogs.
+- Kept “示例数据” only beside the data timestamp and removed mock, sorting, visual-weight, and design-validation explanations from the main page descriptions.
+- Preserved the approved structure, layout, component hierarchy, visual styles, interaction, five-state semantics, and development-only route boundary.
+- Passed the focused preview test and the full `bun run check`: 304 test files and 2095 tests plus release build and all governance stages.
+
+## 2026-08-17 Production Web Adoption
+
+- Extracted the accepted preview surface into `DashboardWorkbench` and made both preview and formal routes consume the same component.
+- Added a pure production projector over validated alert, health, and timeline payloads. Loader failures remain local retryable warnings; legacy widget state and priority do not change presentation severity.
+- Kept the existing formal homepage data authorities: Dashboard summary, focused widget refresh, authorized menu links with configured ranking/count, and the shared container resource snapshot/realtime manager.
+- Distinguished container request failure, missing samples, confirmed samples, and missing permission without manufacturing resource anomalies.
+- Repaired the access-log source authority so 4xx and slow requests are warning while 5xx remains error; no OpenAPI or Registry shape changed.
+- Reused the shared responsive workspace for all entries. Browser inspection covered 1920 × 1080, 768 × 1024, and 390 × 844 without horizontal overflow; mobile remained fullscreen and searchable.
+- Removed the zero-error phrase when no error exists and compacted only healthy row spacing after screenshot review, reducing the real-data column-height difference while preserving readable type.
+- Retained the development preview for final formal-homepage acceptance and regenerated the required artifact paths.
+- Passed the full Web completion entrypoint: 305 test files and 2099 tests, release build, type checks, formatting, lint, i18n, style, responsive, density, hygiene, pagination, and frontend OpenAPI governance.
+- Passed `go test ./internal/httpx -count=1`; the full backend completion entrypoint remains environment-blocked because pinned `golangci-lint v2.12.2` is unavailable.
+- Passed the ai-plan structure guard and `git diff --check` after recording the production recovery point.
+
 ## Batch State
 
 ```json
 {
   "completed_batches": [
     "authority-discovery-and-design",
-    "development-preview-and-browser-evidence"
+    "development-preview-and-browser-evidence",
+    "production-web-adoption"
   ],
   "pending_batches": [
-    "production-web-adoption",
+    "preview-removal-after-acceptance",
     "typed-attention-contract"
   ],
   "current_batch": null,
-  "next_batch": "production-web-adoption",
-  "closeout_status": "preview-ready-for-acceptance"
+  "next_batch": "preview-removal-after-acceptance",
+  "closeout_status": "production-web-adoption-implemented"
 }
 ```

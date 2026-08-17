@@ -28,20 +28,21 @@ Work contract summary:
 Locked decisions:
 
 1. Keep contribution facts server-owned and presentation status dashboard-owned.
-2. Keep the preview development-only until human acceptance.
+2. Keep the preview development-only until the migrated formal homepage receives human acceptance, then delete it.
 3. Do not equate unknown evidence or a source loader failure with a confirmed business error.
 
 Implementation guardrails:
 
 - Repair the highest available authority first.
-- Keep production `/` and production APIs unchanged during the preview batch.
+- Keep OpenAPI and Dashboard Registry shapes unchanged during the production Web adoption batch.
 - Keep visible copy in the dashboard locale catalogs.
 - Use TDesign Vue Next and repository tokens only.
 
 Current batch plan:
 
-1. Complete deterministic preview, tests, and browser evidence.
-2. After acceptance, prepare production Web adoption as a separate batch.
+1. Verify the migrated production `/` against the accepted preview.
+2. After formal-homepage acceptance, delete the development preview in one bounded slice.
+3. Plan typed attention contract evolution separately.
 
 Validation expectations:
 

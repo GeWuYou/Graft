@@ -9,9 +9,9 @@
 
 ## Phase 2: Production Web Adoption
 
-- Introduce the accepted fixed-slot presentation projection over the existing dashboard summary.
-- Keep widget load status, display state, priority, and business presentation status separate.
-- Collapse normal health facts and keep optional-source failure visible without overstating impact.
+- [x] Introduce the accepted fixed-slot presentation projection over the existing dashboard summary.
+- [x] Keep widget load status, display state, priority, and business presentation status separate.
+- [x] Collapse normal health facts and keep optional-source failure visible without overstating impact.
 - Remove the development preview when the formal homepage passes equivalent validation and human acceptance.
 
 ## Phase 3: Typed Attention Contract
