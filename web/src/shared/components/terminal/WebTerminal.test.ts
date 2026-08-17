@@ -209,6 +209,7 @@ describe('WebTerminal', () => {
     expect(socket.send).not.toHaveBeenCalled();
 
     socket.emitOpen();
+    expect(socket.send).toHaveBeenCalledTimes(1);
     expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'resize', cols: 120, rows: 32 }));
     wrapper.unmount();
   });
