@@ -259,3 +259,22 @@
   "closeout_status": "awaiting-human-subjective-acceptance"
 }
 ```
+
+## 2026-08-18 PR Review Accessibility And Presentation Cleanup
+
+- Rebuilt PR #286 exhaustively before editing: 15/15 check runs passed; CodeRabbit had one open inline thread and three
+  folded nitpicks, with zero duplicate, major, minor, and outside-diff findings. No Greptile, Gemini, failed-check,
+  flaky-test, MegaLinter finding block, or GitHub Advanced Security finding existed.
+- Fixed the three actionable findings at the Web presentation boundary: native context-link buttons no longer override
+  their role, metric tone edges are visibly 3 px wide, and one `WorkbenchPresentationRow` now owns both visible and
+  overflow activity rendering so `occurredAt` cannot disappear in the expanded list.
+- Rejected the CPU missing-copy nitpick as noise after authority inspection: the canonical container dashboard contract
+  exposes a non-null `cpuTotalPercent`, and `no-sample` omits the overview instead of placing a null CPU value inside
+  it. Accepted the external docstring-coverage warning with reason because repository comment governance forbids
+  percentage-driven comments.
+- Focused Dashboard Vitest passed with 7 tests. `cd server && go run ./cmd/graft validate backend` passed, and
+  `cd web && bun run check` passed with 305 test files, 2120 tests, the release build, and all frontend governance
+  stages. TDesign MCP preflight was not applicable because no TDesign component API, prop, event, slot, or internal DOM
+  contract changed.
+- Human subjective acceptance remains pending. The preview route and its artifacts therefore remain intact until the
+  existing explicit acceptance gate is satisfied.

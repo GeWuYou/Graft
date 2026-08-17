@@ -127,26 +127,27 @@ const ContextLinkRow = defineComponent({
             )
           : null;
 
-      return h(
-        'button',
-        {
-          class: 'context-link',
-          type: 'button',
-          role: 'listitem',
-          disabled: link.disabled,
-          'data-context-link-key': link.key,
-          onClick: () => emitRow('navigate', link.route),
-        },
-        [
-          h('span', { class: 'context-link__icon' }, [h(GraftMenuIcon, { iconKey: link.iconKey })]),
-          h('span', { class: 'context-link__copy' }, [
-            h('strong', dashboardText(link.labelKey, link.labelFallback)),
-            description,
-          ]),
-          badge,
-          h(ChevronRightIcon),
-        ],
-      );
+      return h('div', { class: 'context-link-item', role: 'listitem' }, [
+        h(
+          'button',
+          {
+            class: 'context-link',
+            type: 'button',
+            disabled: link.disabled,
+            'data-context-link-key': link.key,
+            onClick: () => emitRow('navigate', link.route),
+          },
+          [
+            h('span', { class: 'context-link__icon' }, [h(GraftMenuIcon, { iconKey: link.iconKey })]),
+            h('span', { class: 'context-link__copy' }, [
+              h('strong', dashboardText(link.labelKey, link.labelFallback)),
+              description,
+            ]),
+            badge,
+            h(ChevronRightIcon),
+          ],
+        ),
+      ]);
     };
   },
 });
@@ -170,6 +171,10 @@ const ContextLinkRow = defineComponent({
 .context-links {
   display: grid;
   gap: var(--graft-density-gap-8);
+}
+
+.context-link-item {
+  min-width: 0;
 }
 
 .context-link {

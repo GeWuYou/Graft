@@ -937,6 +937,13 @@ function itemDescription(item: PresentationItem) {
   outline: none;
 }
 
+.metric-item[data-tone='success'],
+.metric-item[data-tone='warning'],
+.metric-item[data-tone='error'],
+.metric-item[data-tone='info'] {
+  border-left-width: 3px;
+}
+
 .metric-item[data-tone='success'] {
   border-left-color: var(--td-success-color);
 }

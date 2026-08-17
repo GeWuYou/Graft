@@ -5,11 +5,17 @@ import { defineComponent, h, inject, type InjectionKey, nextTick, type PropType,
 import enUS from '../../locales/en-US.json';
 import zhCN from '../../locales/zh-CN.json';
 import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/preview-workbench';
-import { projectWorkbenchScenario, type WorkbenchPresentation } from '../../presentation/workbench';
+import {
+  type PresentationItem,
+  projectWorkbenchScenario,
+  type WorkbenchPresentation,
+} from '../../presentation/workbench';
 import DashboardWorkbench from './DashboardWorkbench.vue';
 import componentSource from './DashboardWorkbench.vue?raw';
 import contextLinkSource from './WorkbenchContextLinkList.vue?raw';
+import WorkbenchPresentationList from './WorkbenchPresentationList.vue';
 import presentationListSource from './WorkbenchPresentationList.vue?raw';
+import presentationRowSource from './WorkbenchPresentationRow.vue?raw';
 
 vi.mock('@/locales', () => ({
   currentLocale: ref('en-US'),
@@ -181,6 +187,27 @@ function mountWorkbench(overrides: Partial<InstanceType<typeof DashboardWorkbenc
   });
 }
 
+function mountActivityList(items: PresentationItem[]) {
+  return mount(WorkbenchPresentationList, {
+    props: {
+      expandKey: 'dashboard.workbench.expand.activity',
+      items,
+      variant: 'activity',
+      visibleLimit: 1,
+    },
+    global: {
+      stubs: {
+        TButton: buttonStub,
+        TCollapse: collapseStub,
+        TCollapsePanel: collapsePanelStub,
+        TList: surfaceStub,
+        TListItem: surfaceStub,
+        WorkbenchStatusIndicator: statusStub,
+      },
+    },
+  });
+}
+
 function flattenKeys(value: unknown, prefix = ''): string[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return [prefix];
@@ -199,6 +226,11 @@ describe('DashboardWorkbench', () => {
     expect(wrapper.findAll('[data-health-id]')).toHaveLength(3);
     expect(wrapper.findAll('[data-context-link-key]')).toHaveLength(6);
     expect(wrapper.find('[data-secondary-region="activity"]').exists()).toBe(false);
+
+    const contextLink = wrapper.get('[data-context-link-key="build-jobs"]');
+    expect(contextLink.element.tagName).toBe('BUTTON');
+    expect(contextLink.attributes('role')).toBeUndefined();
+    expect(contextLink.element.parentElement?.getAttribute('role')).toBe('listitem');
   });
 
   it('reveals attention, health, and contextual overflow through keyboard-accessible collapse triggers', async () => {
@@ -298,9 +330,47 @@ describe('DashboardWorkbench', () => {
     expect(enUS.dashboard.widget.announcementTimeline.title).toBe('Latest Announcements');
     expect(zhCN.dashboard.widget.backupHealth.available.label).toBe('备份可用');
     expect(enUS.dashboard.widget.runtimeTargetSummary.unavailable).toBe('Unavailable Targets');
-    const workbenchSources = [componentSource, contextLinkSource, presentationListSource].join('\n');
+    const workbenchSources = [componentSource, contextLinkSource, presentationListSource, presentationRowSource].join(
+      '\n',
+    );
     expect(workbenchSources).not.toMatch(/#[\dA-Fa-f]{3,8}\b/);
     expect(componentSource).not.toContain('/infrastructure/docker/containers/resources');
     expect(workbenchSources).toContain('var(--td-');
+    expect(componentSource).toContain('border-left-width: 3px;');
+  });
+});
+
+describe('WorkbenchPresentationList', () => {
+  it('preserves activity timestamps when overflow rows are expanded', async () => {
+    const items: PresentationItem[] = [
+      {
+        id: 'activity-visible',
+        region: 'activity',
+        status: 'info',
+        evidenceState: 'confirmed',
+        titleKey: 'dashboard.activity.visible',
+        descriptionKey: 'dashboard.activity.visibleDescription',
+        occurredAt: '2026-08-17T03:20:00.000Z',
+      },
+      {
+        id: 'activity-overflow',
+        region: 'activity',
+        status: 'info',
+        evidenceState: 'confirmed',
+        titleKey: 'dashboard.activity.overflow',
+        descriptionKey: 'dashboard.activity.overflowDescription',
+        occurredAt: '2026-08-17T04:20:00.000Z',
+      },
+    ];
+    const wrapper = mountActivityList(items);
+
+    expect(wrapper.findAll('time').map((node) => node.attributes('datetime'))).toEqual([items[0].occurredAt]);
+
+    await wrapper.get('[data-collapse-trigger="activity-more"]').trigger('keydown', { key: 'Enter' });
+    await nextTick();
+
+    expect(wrapper.findAll('time').map((node) => node.attributes('datetime'))).toEqual(
+      items.map((item) => item.occurredAt),
+    );
   });
 });

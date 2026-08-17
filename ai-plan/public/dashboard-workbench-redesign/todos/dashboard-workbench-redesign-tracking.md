@@ -190,6 +190,20 @@ closeout:
   to a repository artifact.
 - This evidence completes formal-homepage machine browser acceptance only. Human subjective acceptance and the
   subsequent preview deletion remain unchecked.
+- PR #286 review cleanup rebuilt the complete current inventory: all 15 check runs passed; CodeRabbit reported one
+  open inline thread and three folded nitpicks with no duplicate, major, minor, or outside-diff finding; Greptile,
+  Gemini, failed checks, flaky tests, and GitHub Advanced Security findings were absent.
+- The cleanup restored the native button role for context links while moving `listitem` semantics to a wrapper,
+  strengthened the existing metric tone edge to 3 px, and extracted one module-private presentation row so visible and
+  expanded activity entries keep the same timestamp, status, copy, and action semantics.
+- The CPU missing-copy nitpick was rejected as noise: `ContainerDashboardOverview.cpuTotalPercent` is non-null, while
+  a missing sample is already represented by the parent `no-sample` state without an overview. The CodeRabbit
+  docstring-coverage warning was accepted with reason because repository comment governance explicitly rejects a
+  percentage target and requires comments to explain constraints or intent.
+- Focused Dashboard Vitest passed with 7 tests. The final cross-boundary completion run passed through
+  `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`; Web reported 305 test files and
+  2120 tests plus the release build and all frontend governance stages. This cleanup claims automated semantic,
+  structure, and copy evidence only; it does not replace the pending human subjective acceptance.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
