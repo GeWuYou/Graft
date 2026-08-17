@@ -1,7 +1,7 @@
 {
   "name": "graft-frontend-vibe-toolchain",
-  "version": "0.1.0",
-  "description": "Graft-specific Codex skills for governed Vue 3 and TDesign frontend work.",
+  "version": "0.2.0+codex.20260817042843",
+  "description": "Graft-specific, intent-routed Codex skills for governed Vue 3 and TDesign frontend work.",
   "author": {
     "name": "Graft"
   },
@@ -17,7 +17,7 @@
   "interface": {
     "displayName": "Graft Frontend Vibe Toolchain",
     "shortDescription": "Governed frontend vibe-coding skills for Graft.",
-    "longDescription": "Packages Graft-specific Codex skills that translate external frontend vibe-coding patterns into the repository's Vue 3, TDesign Vue Next, route, menu, i18n, and validation governance.",
+    "longDescription": "Packages narrow Graft Codex skills that route external frontend design intelligence into the repository's Vue 3, TDesign Vue Next, route, menu, i18n, asset/motion, and browser QA rules.",
     "developerName": "Graft",
     "category": "Productivity",
     "capabilities": [

@@ -69,6 +69,32 @@ If the task does not fit them naturally, register an extension type first and de
 - i18n requirements
 - acceptance rules
 
+## 2.1 Route intent into a bounded design brief
+
+Before choosing visual treatment, classify the request by its dominant intent:
+
+- `workflow`: repeated operational action, approval, editing, or bulk work
+- `scan`: dashboard, list, status comparison, or monitoring surface
+- `explain`: detail, audit, history, or configuration context
+- `navigate`: shell, auth, route entry, or cross-module wayfinding
+- `feedback`: loading, empty, error, disabled, or destructive-action behavior
+
+Use the intent only to choose the relevant Graft page master and quality checks. It must not introduce a new page type,
+framework, token set, or visual baseline. A mixed request may have one primary intent and secondary checks.
+
+For new pages, redesigns, and complex layout changes, emit a concise design brief before implementation:
+
+- `page_type` and primary operator/workflow
+- information hierarchy and expected scan order
+- `page_header`, `primary_action_area`, `main_content_surface`, and `feedback_surface`
+- state set: loading, empty, error, disabled, success, and destructive confirmation where applicable
+- responsive constraints for desktop and narrow containers, including text overflow behavior
+- theme/token dependencies and i18n ownership
+- acceptance checks tied to the selected intent
+
+The brief is task-local planning evidence. Do not persist it as a global design system, generated data catalog, or
+runtime artifact.
+
 ## 3. Split by task size
 
 For these tasks, return a structure proposal before coding:
@@ -103,6 +129,10 @@ Even then, still run the same self-checks.
 - Use token-driven surfaces, borders, text, and status colors.
 - Keep layout console-first and operational; do not introduce marketing-style hero treatment.
 - Prefer explicit backend composition over ornamental layouts.
+- Let intent shape emphasis, not technology: workflow pages optimize action clarity, scan pages optimize comparison,
+  explain pages optimize context, navigate pages optimize orientation, and feedback intent verifies recoverable states.
+- For every interactive state, provide a non-color cue and preserve stable layout dimensions so loading, validation, or
+  long localized text does not move adjacent controls unexpectedly.
 
 ## 5. Copy and i18n rules
 
@@ -124,7 +154,9 @@ Before handing off:
 - TDesign MCP preflight is recorded as `used`, `not applicable`, or `fallback to official docs`
 - when preflight was `used`, the closeout names the queried components, query types, adoption status, and reason
 - page type is declared
+- dominant intent and the bounded design brief are recorded for new, redesigned, or complex pages
 - structure matches the page type
+- loading, empty, error, disabled, and destructive states are covered where applicable
 - visible copy is clean
 - i18n ownership is correct
 - token/theme response is intact
