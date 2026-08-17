@@ -140,13 +140,15 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     `config.toml`：
 
     ```bash
-    codex mcp add github -- wsl.exe -d Ubuntu-24.04 -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS=default,actions -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
+    codex mcp add github -- wsl.exe -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS=default,actions -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
     ```
 
   - `default` 保留 `get_me`、repository、pull request 等标准读取面，`actions` 追加 workflow/check 上下文；
     不要用无持久凭据的 Docker OAuth callback 配置替代这条非交互启动链。
-  - Windows Codex host 与 WSL CLI 共享配置时，command 使用两侧 `PATH` 都可解析的 `wsl.exe`，不得写死
-    WindowsApps 内部绝对路径或仅 Linux host 可解析的 `bash` command。
+  - Windows Codex host 与 WSL CLI 共享配置时，command 使用两侧 `PATH` 都可解析的 `wsl.exe`，并让它进入
+    当前用户的默认 WSL distro；仓库共享文档不得写死某台机器的 distro 名、WindowsApps 内部绝对路径或仅
+    Linux host 可解析的 `bash` command。若工具只安装在非默认 distro，用户应先通过 `wsl.exe --list --quiet`
+    确认本机名称，再仅在个人 Codex 配置中追加 `--distribution <name>`。
   - 修改 GitHub MCP 配置后必须重启当前 Codex host，再用 `get_me` 和一个 repository-scoped 读取调用验证；
     `context canceled` 只说明当前 server 会话已取消，不能作为认证成功证据。
 

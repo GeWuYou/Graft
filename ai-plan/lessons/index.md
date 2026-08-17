@@ -13,6 +13,7 @@
 | LESSON-BACKEND-SAVED-VIEW-001          | 分页保存视图必须分离通用存储与消费页面语义     | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/domains/compose/Compose项目管理设计.md`                  |
 | LESSON-GOVERNANCE-BROWSER-BACKEND-001  | 浏览器验收需要真实后端时不要停在 mock 登录页   | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-COMMENT-VALUE-001    | 代码注释必须记录无法从实现推导的决策           | governance |    L3 | active | `ai-plan/lessons/governance.md` | `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md`                         |
+| LESSON-GOVERNANCE-PORTABLE-WSL-MCP-001 | 共享 MCP 指引不得固化本机 WSL 发行版            | governance |    L2 | active | `ai-plan/lessons/governance.md` | `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`                 |
 | LESSON-GOVERNANCE-RELEASE-LINT-001     | Release tag checkout 不应 prune lint 基准分支  | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001        | 信息密度切换必须治理 token 消费面              | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |

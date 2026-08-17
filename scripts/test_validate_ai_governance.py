@@ -280,6 +280,20 @@ class AiToolingDocTests(unittest.TestCase):
 
         self.assertTrue(any("missing AI tooling governance term 'headroom_stats'" == finding.message for finding in findings))
 
+    def test_ai_tooling_doc_rejects_hard_coded_wsl_distro(self) -> None:
+        current_text = MODULE.read_text(MODULE.AI_TOOLING_DOC)
+        mutated_text = current_text.replace(
+            "codex mcp add github -- wsl.exe -- bash -lc",
+            "codex mcp add github -- wsl.exe -d Ubuntu-24.04 -- bash -lc",
+            1,
+        )
+        self.assertNotEqual(current_text, mutated_text)
+
+        with mock.patch.object(MODULE, "read_text", return_value=mutated_text):
+            findings = MODULE.validate_ai_tooling_doc()
+
+        self.assertTrue(any("must not hard-code a WSL distro" in finding.message for finding in findings))
+
 
 class PushBranchGovernanceTests(unittest.TestCase):
     def test_push_branch_governance_is_currently_satisfied(self) -> None:

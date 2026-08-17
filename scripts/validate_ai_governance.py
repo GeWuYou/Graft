@@ -258,6 +258,10 @@ def validate_ai_tooling_doc() -> list[Finding]:
     for disallowed in ("headroom wrap codex", "headroom proxy"):
         if disallowed in text:
             findings.append(Finding(AI_TOOLING_DOC, f"Headroom governance should keep only MCP entry content, found {disallowed!r}"))
+    if "codex mcp add github -- wsl.exe -- bash -lc" not in text:
+        findings.append(Finding(AI_TOOLING_DOC, "GitHub MCP guidance must use the default portable WSL launcher"))
+    if re.search(r"\bwsl\.exe\s+(?:-d|--distribution)\s+\S+", text):
+        findings.append(Finding(AI_TOOLING_DOC, "shared GitHub MCP guidance must not hard-code a WSL distro"))
     return findings
 
 
