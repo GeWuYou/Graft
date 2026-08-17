@@ -136,11 +136,17 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 - `github`
   - 等级：`L1` 默认；开启评论或 PR 修改时视为 `L2`
   - 用途：读取当前 PR、review thread、Actions check 和失败日志，补强 `graft-pr-review`。
-  - 接入方式：用户级 Codex MCP 配置，默认只读和最小 toolsets：
+  - 接入方式：用户级 Codex MCP 配置，默认只读；复用当前 WSL 用户的 `gh` 登录，不把 token 写入
+    `config.toml`：
 
     ```bash
-    codex mcp add github -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS="context,repos,pull_requests,actions" -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
+    codex mcp add github -- bash -lc 'GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS=default,actions -e GITHUB_READ_ONLY=1 ghcr.io/github/github-mcp-server'
     ```
+
+  - `default` 保留 `get_me`、repository、pull request 等标准读取面，`actions` 追加 workflow/check 上下文；
+    不要用无持久凭据的 Docker OAuth callback 配置替代这条非交互启动链。
+  - 修改 GitHub MCP 配置后必须重启当前 Codex host，再用 `get_me` 和一个 repository-scoped 读取调用验证；
+    `context canceled` 只说明当前 server 会话已取消，不能作为认证成功证据。
 
   - 采用条件：PR 审查或 CI 排障需要 GitHub 实时状态。
   - 约束：写操作必须通过 `graft-pr-review`、`graft-pr-create` 或后续专门 skill 的显式流程。
