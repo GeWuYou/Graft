@@ -97,14 +97,15 @@ runtime artifact.
 
 ## 3. Split by task size
 
-For these tasks, return a structure proposal before coding:
+For these tasks, use the design brief above as the sole structure proposal before coding. Do not create a separate
+structure-proposal artifact with a second field set or recording location.
 
 - new pages
 - page rewrites
 - complex layout work
 - any change that alters information hierarchy or interaction model
 
-The structure proposal must include:
+The design brief must include:
 
 - page type
 - `page header`

@@ -44,5 +44,7 @@ Use this skill for real Graft admin UI work, not standalone websites. The output
 The design brief is an implementation boundary, not a new design-system artifact. It is normally kept in the task
 proposal or review record and does not become a global `MASTER.md`, generated catalog, or runtime configuration file.
 
-When the brief conflicts with repository authority, preserve the authority order: page-type governance, TDesign Vue
-Next, Graft tokens/theme, module ownership, then task-local preference. Resolve the conflict in the brief before coding.
+When the brief conflicts with repository authority, preserve the authority order: shared contract and OpenAPI authority,
+route, menu, and permission authority, page-type governance, TDesign Vue Next, Graft tokens/theme, module ownership,
+then task-local preference. Escalate conflicts to the corresponding authority owner and resolve them in the brief before
+coding.
