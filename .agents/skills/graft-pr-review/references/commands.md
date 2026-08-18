@@ -26,12 +26,16 @@ python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py \
   --ledger-validate-body-file /tmp/pr-review-ledger.md
 python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr <number> \
   --ledger-body-file /tmp/pr-review-ledger.md --ledger-expected-head <full-sha> --ledger-dry-run
+# Capture `ledger_action.baseline_revision` from the dry-run JSON, then reuse the same body file.
 python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr <number> \
-  --ledger-body-file /tmp/pr-review-ledger.md --ledger-expected-head <full-sha>
+  --ledger-body-file /tmp/pr-review-ledger.md --ledger-expected-head <full-sha> \
+  --ledger-expected-revision <sha256-or-absent>
 ```
 
 Only after explicit remote-write authorization and exact remote-SHA publication proof may the same reply or ledger
-command be rerun without its dry-run flag.
+command be rerun without its dry-run flag. A ledger write must reuse the validated body file plus the dry-run's
+`baseline_revision`; the helper rejects a stale snapshot and verifies the deterministic entry exactly once after the
+write.
 
 Resolve an eligible supported-AI review thread only after sending its reply, rebuilding the inventory, and proving the
 PR head equals the published local HEAD:

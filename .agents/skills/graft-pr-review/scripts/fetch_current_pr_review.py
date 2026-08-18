@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import datetime, timezone
+import hashlib
 import html
 import io
 import json
@@ -987,14 +987,30 @@ def validate_managed_ledger_document(document: str, *, marker: str = PR_REVIEW_L
     return normalized
 
 
+def managed_ledger_revision(body: str) -> str:
+    """Return a stable revision for one normalized managed-ledger snapshot."""
+    normalized = normalize_legacy_ledger_body(html.unescape(str(body or ""))).strip()
+    if not normalized:
+        return "absent"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def build_review_ledger_entry(result: dict[str, Any], body: str) -> str:
-    """Wrap one append-only review-ledger entry with stable run metadata."""
+    """Wrap one append-only review-ledger entry with a deterministic idempotency key."""
     body = validate_review_ledger_body(body)
 
     pull_request = result.get("pull_request", {})
-    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    key_source = "\n".join(
+        (
+            str(pull_request.get("number") or ""),
+            str(pull_request.get("head_branch") or ""),
+            str(pull_request.get("head_sha") or ""),
+            body,
+        )
+    )
+    entry_key = f"sha256:{hashlib.sha256(key_source.encode('utf-8')).hexdigest()}"
     lines = [
-        f"## Run {timestamp}",
+        f"## Run {entry_key}",
         f"- PR: #{pull_request.get('number')}",
         f"- Branch: {pull_request.get('head_branch', '')}",
         f"- Head SHA: {pull_request.get('head_sha', '')}",
@@ -1031,6 +1047,53 @@ def build_managed_issue_comment_body(
     return validate_managed_ledger_document(candidate, marker=marker)
 
 
+def fetch_issue_comment_snapshot(comment_id: int) -> dict[str, Any]:
+    """Fetch one issue comment together with its normalized body revision."""
+    payload, _ = fetch_json(f"https://api.github.com/repos/{OWNER}/{REPO}/issues/comments/{comment_id}")
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub did not return an issue comment payload for revision verification.")
+    body = normalize_legacy_ledger_body(html.unescape(str(payload.get("body") or ""))).strip()
+    return {
+        "comment": payload,
+        "body": body,
+        "revision": managed_ledger_revision(body),
+    }
+
+
+def verify_managed_ledger_append(
+    pull_number: int,
+    comment_id: int,
+    request_body: str,
+    entry_heading: str,
+    *,
+    marker: str = PR_REVIEW_LEDGER_MARKER,
+) -> dict[str, Any]:
+    """Re-read the ledger and require one exact persisted copy of the validated entry."""
+    comments = fetch_issue_comments(pull_number)
+    managed_comments = [comment for comment in comments if marker in html.unescape(str(comment.get("body") or ""))]
+    if len(managed_comments) != 1:
+        raise RuntimeError(
+            "Managed-ledger verification expected one managed comment and the target entry exactly once, "
+            f"found {len(managed_comments)} managed comments."
+        )
+    occurrence_count = sum(
+        normalize_legacy_ledger_body(html.unescape(str(comment.get("body") or ""))).count(entry_heading)
+        for comment in managed_comments
+    )
+    if occurrence_count != 1:
+        raise RuntimeError(
+            "Managed-ledger verification expected the target entry exactly once, "
+            f"found {occurrence_count}."
+        )
+    persisted = next((comment for comment in managed_comments if int(comment.get("id") or 0) == comment_id), None)
+    if persisted is None:
+        raise RuntimeError("Managed-ledger verification could not re-read the written comment.")
+    persisted_body = normalize_legacy_ledger_body(html.unescape(str(persisted.get("body") or ""))).strip()
+    if persisted_body != request_body:
+        raise RuntimeError("Managed-ledger verification body differs from the validated write payload.")
+    return persisted
+
+
 def perform_managed_issue_comment_append(
     pull_number: int,
     issue_comments: list[dict[str, Any]],
@@ -1039,18 +1102,27 @@ def perform_managed_issue_comment_append(
     *,
     marker: str = PR_REVIEW_LEDGER_MARKER,
     expected_head: str = "",
+    expected_revision: str = "",
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Create or append to the managed PR issue-comment ledger."""
+    """Create or append to the managed PR issue-comment ledger with optimistic concurrency."""
     if not resolve_github_token():
         raise RuntimeError("A GitHub token is required to sync the PR review ledger.")
 
     entry = build_review_ledger_entry(result, entry_body)
+    entry_heading = entry.splitlines()[0]
     normalized_expected_head = expected_head.strip()
+    normalized_expected_revision = expected_revision.strip()
     if not dry_run and not normalized_expected_head:
         raise RuntimeError("A full --ledger-expected-head is required for a managed ledger write.")
+    if not dry_run and not normalized_expected_revision:
+        raise RuntimeError("--ledger-expected-revision is required for a managed ledger write.")
     if normalized_expected_head and not re.fullmatch(r"[0-9a-fA-F]{40}", normalized_expected_head):
         raise RuntimeError("--ledger-expected-head must be one full 40-character commit SHA.")
+    if normalized_expected_revision and normalized_expected_revision != "absent" and not re.fullmatch(
+        r"[0-9a-f]{64}", normalized_expected_revision
+    ):
+        raise RuntimeError("--ledger-expected-revision must be 'absent' or one lowercase SHA-256 digest.")
     actual_head = str(result.get("pull_request", {}).get("head_sha") or "")
     if normalized_expected_head and actual_head.lower() != normalized_expected_head.lower():
         raise RuntimeError(
@@ -1059,11 +1131,36 @@ def perform_managed_issue_comment_append(
         )
 
     existing_comment = find_managed_issue_comment(issue_comments, marker=marker)
-    request_body = build_managed_issue_comment_body(
-        html.unescape(str(existing_comment.get("body") or "")) if existing_comment else "",
-        entry,
-        marker=marker,
+    existing_body = (
+        normalize_legacy_ledger_body(html.unescape(str(existing_comment.get("body") or ""))).strip()
+        if existing_comment
+        else ""
     )
+    baseline_revision = managed_ledger_revision(existing_body)
+    entry_count = existing_body.count(entry_heading)
+    if entry_count > 1:
+        raise RuntimeError("Managed ledger already contains the target idempotency key more than once.")
+    if entry_count == 1:
+        return {
+            "dry_run": dry_run,
+            "marker": marker,
+            "operation": "none",
+            "already_appended": True,
+            "comment_id": existing_comment.get("id") if existing_comment else None,
+            "entry": entry,
+            "entry_heading": entry_heading,
+            "baseline_revision": baseline_revision,
+            "expected_head": normalized_expected_head,
+            "expected_revision": normalized_expected_revision,
+            "request_payload": {"body": existing_body},
+        }
+    if normalized_expected_revision and baseline_revision != normalized_expected_revision:
+        raise RuntimeError(
+            "Managed-ledger revision does not match --ledger-expected-revision: "
+            f"expected {normalized_expected_revision}, found {baseline_revision}. Re-run the dry-run preview."
+        )
+
+    request_body = build_managed_issue_comment_body(existing_body, entry, marker=marker)
     request_payload = {"body": validate_managed_ledger_document(request_body, marker=marker)}
 
     if dry_run:
@@ -1073,36 +1170,55 @@ def perform_managed_issue_comment_append(
             "operation": "update" if existing_comment else "create",
             "comment_id": existing_comment.get("id") if existing_comment else None,
             "entry": entry,
+            "entry_heading": entry_heading,
+            "baseline_revision": baseline_revision,
             "expected_head": normalized_expected_head,
+            "expected_revision": normalized_expected_revision,
             "request_payload": request_payload,
         }
 
     if existing_comment is None:
+        refreshed_comment = find_managed_issue_comment(fetch_issue_comments(pull_number), marker=marker)
+        if refreshed_comment is not None:
+            raise RuntimeError("Managed ledger appeared after the validated snapshot. Re-run the dry-run preview.")
         payload, _ = post_json(
             f"https://api.github.com/repos/{OWNER}/{REPO}/issues/{pull_number}/comments",
             request_payload,
         )
     else:
+        snapshot = fetch_issue_comment_snapshot(int(existing_comment["id"]))
+        if snapshot["revision"] != baseline_revision:
+            raise RuntimeError("Managed ledger changed after the validated snapshot. Re-run the dry-run preview.")
         payload, _ = patch_json(
             f"https://api.github.com/repos/{OWNER}/{REPO}/issues/comments/{existing_comment['id']}",
             request_payload,
         )
-    if not isinstance(payload, dict):
+    if not isinstance(payload, dict) or payload.get("id") is None:
         raise RuntimeError("GitHub did not return an issue comment payload.")
 
+    persisted = verify_managed_ledger_append(
+        pull_number,
+        int(payload["id"]),
+        request_payload["body"],
+        entry_heading,
+        marker=marker,
+    )
     return {
         "dry_run": False,
         "marker": marker,
         "operation": "update" if existing_comment else "create",
-        "comment_id": payload.get("id"),
-        "html_url": payload.get("html_url") or "",
-        "body": payload.get("body") or "",
-        "user": payload.get("user", {}).get("login") or "",
+        "already_appended": False,
+        "comment_id": persisted.get("id"),
+        "html_url": persisted.get("html_url") or "",
+        "body": persisted.get("body") or "",
+        "user": persisted.get("user", {}).get("login") or "",
         "entry": entry,
+        "entry_heading": entry_heading,
+        "baseline_revision": baseline_revision,
         "expected_head": normalized_expected_head,
+        "expected_revision": normalized_expected_revision,
         "request_payload": request_payload,
     }
-
 
 def collapse_whitespace(text: str) -> str:
     """Collapse repeated whitespace into single spaces."""
@@ -1864,9 +1980,8 @@ def apply_github_review_thread_state(
             continue
         thread["github_thread_id"] = github_thread.get("thread_id") or ""
         thread["github_is_resolved"] = bool(github_thread.get("is_resolved"))
-        if thread["github_is_resolved"]:
-            thread["status"] = "resolved"
-            thread["reply_state"] = classify_reply_state(thread)
+        thread["status"] = "resolved" if thread["github_is_resolved"] else "open"
+        thread["reply_state"] = classify_reply_state(thread)
     return threads
 
 
@@ -2703,6 +2818,10 @@ def parse_args() -> argparse.Namespace:
         help="Require the PR head to equal this full commit SHA before writing the managed ledger.",
     )
     parser.add_argument(
+        "--ledger-expected-revision",
+        help="Require the managed comment to match the revision emitted by the dry-run preview.",
+    )
+    parser.add_argument(
         "--ledger-marker",
         default=PR_REVIEW_LEDGER_MARKER,
         help="Marker used to locate the managed PR review ledger issue comment.",
@@ -2759,8 +2878,11 @@ def main() -> None:
     if resolve_comment_id is None and (resolve_expected_head or resolve_dry_run):
         raise RuntimeError("Resolution options require --resolve-comment-id.")
     ledger_expected_head = getattr(args, "ledger_expected_head", None)
-    if ledger_expected_head and not (args.ledger_body or args.ledger_body_file):
-        raise RuntimeError("--ledger-expected-head requires --ledger-body or --ledger-body-file.")
+    ledger_expected_revision = getattr(args, "ledger_expected_revision", None)
+    if (ledger_expected_head or ledger_expected_revision) and not (args.ledger_body or args.ledger_body_file):
+        raise RuntimeError(
+            "--ledger-expected-head and --ledger-expected-revision require --ledger-body or --ledger-body-file."
+        )
     if args.ledger_dry_run and not (args.ledger_body or args.ledger_body_file):
         raise RuntimeError("--ledger-dry-run requires --ledger-body or --ledger-body-file.")
 
@@ -2793,6 +2915,7 @@ def main() -> None:
             ledger_body,
             marker=args.ledger_marker,
             expected_head=ledger_expected_head or "",
+            expected_revision=ledger_expected_revision or "",
             dry_run=args.ledger_dry_run,
         )
     json_output_path: str | None = None

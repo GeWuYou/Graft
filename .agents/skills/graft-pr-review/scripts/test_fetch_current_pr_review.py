@@ -542,6 +542,32 @@ class ReviewThreadResolutionTests(unittest.TestCase):
             {"threadId": "PRRT_thread"},
         )
 
+    def test_resolution_rejects_unconfirmed_github_response(self) -> None:
+        """GitHub must confirm isResolved before the helper reports success."""
+        thread = {
+            "thread_id": "PRRT_thread",
+            "is_resolved": False,
+            "root_comment_id": 42,
+            "root_author": MODULE.CODERABBIT_LOGIN,
+            "head_sha": "b" * 40,
+        }
+        unconfirmed = {"resolveReviewThread": {"thread": {"id": "PRRT_thread", "isResolved": False}}}
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment", return_value=thread
+        ), mock.patch.object(MODULE, "perform_graphql", return_value=unconfirmed):
+            with self.assertRaisesRegex(RuntimeError, "did not confirm"):
+                MODULE.perform_review_thread_resolution(287, 42, "b" * 40)
+
+    def test_resolution_rejects_abbreviated_expected_head_before_lookup(self) -> None:
+        """Abbreviated SHAs must fail before any review-thread lookup."""
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment"
+        ) as lookup:
+            with self.assertRaisesRegex(RuntimeError, "40-character"):
+                MODULE.perform_review_thread_resolution(287, 42, "b" * 8, dry_run=True)
+
+        lookup.assert_not_called()
+
     def test_resolution_rejects_head_mismatch_and_human_thread(self) -> None:
         """Publication drift and human-authored threads must fail closed."""
         ai_thread = {
@@ -633,6 +659,38 @@ class BuildAllOpenReviewThreadsTests(unittest.TestCase):
         threads = MODULE.build_all_open_review_threads(comments, review_thread_index)
 
         self.assertEqual(threads, [])
+
+    def test_graphql_unresolved_state_reopens_rest_addressed_thread(self) -> None:
+        """Authoritative GraphQL false must override a REST addressed marker."""
+        comments = [
+            {
+                "id": 8,
+                "path": ".agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py",
+                "line": 10,
+                "side": "RIGHT",
+                "created_at": "2026-08-18T10:00:00Z",
+                "updated_at": "2026-08-18T10:00:00Z",
+                "user": {"login": MODULE.CODERABBIT_LOGIN},
+                "commit_id": "latest-commit",
+                "in_reply_to_id": None,
+                "body": f"old marker {MODULE.REVIEW_COMMENT_ADDRESSED_MARKER}",
+            }
+        ]
+        review_thread_index = {
+            8: {
+                "thread_id": "PRRT_open",
+                "is_resolved": False,
+                "root_comment_id": 8,
+                "root_author": MODULE.CODERABBIT_LOGIN,
+                "head_sha": "a" * 40,
+            }
+        }
+
+        threads = MODULE.build_all_open_review_threads(comments, review_thread_index)
+
+        self.assertEqual(len(threads), 1)
+        self.assertEqual(threads[0]["status"], "open")
+        self.assertEqual(threads[0]["reply_state"], "unreplied")
 
 
 class FetchLatestCommitReviewTests(unittest.TestCase):
@@ -1293,6 +1351,8 @@ class ManagedIssueCommentTests(unittest.TestCase):
         self.assertEqual(action["operation"], "create")
         self.assertIn(MODULE.PR_REVIEW_LEDGER_MARKER, action["request_payload"]["body"])
         self.assertIn("coderabbit_handled", action["request_payload"]["body"])
+        self.assertEqual(action["baseline_revision"], "absent")
+        self.assertTrue(action["entry_heading"].startswith("## Run sha256:"))
 
     def test_perform_managed_issue_comment_append_supports_update_dry_run(self) -> None:
         """Dry-run ledger sync should append to the existing managed comment."""
@@ -1323,6 +1383,79 @@ class ManagedIssueCommentTests(unittest.TestCase):
         self.assertIn("Existing entry", action["request_payload"]["body"])
         self.assertIn("coderabbit_nitpick", action["request_payload"]["body"])
 
+    def test_managed_ledger_entry_is_deterministic_for_dry_run_and_write(self) -> None:
+        """The same validated body and PR head must produce one stable idempotency key."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "fix/test", "head_sha": "a" * 40},
+        }
+
+        first = MODULE.build_review_ledger_entry(result, self.VALID_ENTRY_BODY)
+        second = MODULE.build_review_ledger_entry(result, self.VALID_ENTRY_BODY)
+
+        self.assertEqual(first, second)
+        self.assertEqual(first.count("## Run sha256:"), 1)
+
+    def test_managed_ledger_write_rejects_stale_preview_revision(self) -> None:
+        """A live append must not rebuild a different payload from a stale preview snapshot."""
+        expected_head = "b" * 40
+        result = {
+            "pull_request": {"number": 136, "head_branch": "fix/test", "head_sha": expected_head},
+        }
+        existing_comments = [
+            {
+                "id": 55,
+                "body": f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n\n# Graft PR Review Ledger\n\n## Run old",
+                "updated_at": "2026-08-18T10:00:00Z",
+                "created_at": "2026-08-18T10:00:00Z",
+            }
+        ]
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE, "patch_json"
+        ) as patch_json:
+            with self.assertRaisesRegex(RuntimeError, "revision does not match"):
+                MODULE.perform_managed_issue_comment_append(
+                    136,
+                    existing_comments,
+                    result,
+                    self.VALID_ENTRY_BODY,
+                    expected_head=expected_head,
+                    expected_revision="c" * 64,
+                )
+
+        patch_json.assert_not_called()
+
+    def test_managed_ledger_update_rejects_change_after_validated_snapshot(self) -> None:
+        """A second revision check must reject a race immediately before PATCH."""
+        expected_head = "c" * 40
+        result = {
+            "pull_request": {"number": 136, "head_branch": "fix/test", "head_sha": expected_head},
+        }
+        existing_comments = [
+            {
+                "id": 55,
+                "body": f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n\n# Graft PR Review Ledger\n\n## Run old",
+                "updated_at": "2026-08-18T10:00:00Z",
+                "created_at": "2026-08-18T10:00:00Z",
+            }
+        ]
+        expected_revision = MODULE.managed_ledger_revision(existing_comments[0]["body"])
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE,
+            "fetch_issue_comment_snapshot",
+            return_value={"revision": "d" * 64},
+        ), mock.patch.object(MODULE, "patch_json") as patch_json:
+            with self.assertRaisesRegex(RuntimeError, "changed after the validated snapshot"):
+                MODULE.perform_managed_issue_comment_append(
+                    136,
+                    existing_comments,
+                    result,
+                    self.VALID_ENTRY_BODY,
+                    expected_head=expected_head,
+                    expected_revision=expected_revision,
+                )
+
+        patch_json.assert_not_called()
+
     def test_managed_ledger_write_requires_full_expected_head(self) -> None:
         """A non-dry-run ledger append must carry exact PR-head publication proof."""
         result = {
@@ -1333,6 +1466,26 @@ class ManagedIssueCommentTests(unittest.TestCase):
         ) as post_json:
             with self.assertRaisesRegex(RuntimeError, "ledger-expected-head"):
                 MODULE.perform_managed_issue_comment_append(136, [], result, self.VALID_ENTRY_BODY)
+
+        post_json.assert_not_called()
+
+    def test_managed_ledger_write_requires_preview_revision(self) -> None:
+        """A non-dry-run append must carry the revision emitted by its preview."""
+        expected_head = "a" * 40
+        result = {
+            "pull_request": {"number": 136, "head_branch": "fix/test", "head_sha": expected_head},
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE, "post_json"
+        ) as post_json:
+            with self.assertRaisesRegex(RuntimeError, "ledger-expected-revision"):
+                MODULE.perform_managed_issue_comment_append(
+                    136,
+                    [],
+                    result,
+                    self.VALID_ENTRY_BODY,
+                    expected_head=expected_head,
+                )
 
         post_json.assert_not_called()
 
@@ -1365,19 +1518,47 @@ class ManagedIssueCommentTests(unittest.TestCase):
             "user": {"login": "developer"},
         }
         with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
-            MODULE, "post_json", return_value=(response, {})
-        ) as post_json:
+            MODULE, "fetch_issue_comments", return_value=[]
+        ), mock.patch.object(MODULE, "post_json", return_value=(response, {})) as post_json, mock.patch.object(
+            MODULE, "verify_managed_ledger_append", return_value=response
+        ) as verify_append:
             action = MODULE.perform_managed_issue_comment_append(
                 136,
                 [],
                 result,
                 self.VALID_ENTRY_BODY,
                 expected_head=expected_head,
+                expected_revision="absent",
             )
 
         self.assertFalse(action["dry_run"])
         self.assertEqual(action["expected_head"], expected_head)
+        self.assertEqual(action["expected_revision"], "absent")
         post_json.assert_called_once()
+        verify_append.assert_called_once()
+
+    def test_verify_managed_ledger_append_requires_one_exact_entry_and_body(self) -> None:
+        """Post-write verification must reject duplicates and payload drift."""
+        entry_heading = "## Run sha256:target"
+        request_body = (
+            f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n\n# Graft PR Review Ledger\n\n{entry_heading}"
+        )
+        persisted = {"id": 99, "body": request_body}
+        with mock.patch.object(MODULE, "fetch_issue_comments", return_value=[persisted]):
+            result = MODULE.verify_managed_ledger_append(136, 99, request_body, entry_heading)
+
+        self.assertEqual(result["id"], 99)
+        duplicate_comments = [persisted, {"id": 100, "body": request_body}]
+        with mock.patch.object(MODULE, "fetch_issue_comments", return_value=duplicate_comments):
+            with self.assertRaisesRegex(RuntimeError, "exactly once"):
+                MODULE.verify_managed_ledger_append(136, 99, request_body, entry_heading)
+        with mock.patch.object(
+            MODULE,
+            "fetch_issue_comments",
+            return_value=[{"id": 99, "body": f"{request_body}\nextra"}],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "differs"):
+                MODULE.verify_managed_ledger_append(136, 99, request_body, entry_heading)
 
 
 if __name__ == "__main__":

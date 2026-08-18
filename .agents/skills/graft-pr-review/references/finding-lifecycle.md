@@ -32,11 +32,14 @@ Remote replies and ledger updates require explicit write authorization plus proo
 local HEAD. Reply to fixed findings with the fixing commit and useful location. Reply to verified noise with concise
 local evidence. Leave human-judgment findings unreplied and report them as `blocked`.
 
-An explicit `$graft-pr-remediation` run additionally owns supported-AI thread resolution. Reply first, rebuild the
-inventory, and resolve only a still-eligible `fixed`, `stale`, or `noise` thread after both the remote branch and PR head
-equal local HEAD. Keep human-authored, `delegated`, `blocked`, and `contested` threads open. After the final inventory,
-the same explicit run owns one append-only managed-ledger write through this skill's schema and helper; validate and
-dry-run the entry first, require the full expected PR-head SHA, then re-read the ledger to verify the appended run.
+An explicit `$graft-pr-remediation` run additionally owns supported-AI thread resolution. Reply first, then require a
+successful authoritative `github-graphql` inventory refresh immediately before resolution and revalidate every
+eligibility condition. Resolve only a still-open supported-AI `fixed`, `stale`, or `noise` thread after both the
+remote branch and PR head equal local HEAD and no human judgment remains unresolved. Keep human-authored,
+`delegated`, `blocked`, and `contested` threads open. After the final inventory, the same explicit run owns one
+append-only managed-ledger write through this skill's schema and helper; validate and dry-run the entry first, require the
+full expected PR-head SHA plus the dry-run's managed-comment revision, reuse the deterministic entry, then re-read
+the ledger to verify exactly one copy of the exact validated run.
 
 If an authorized PR description update is required, preserve the existing body and replace or append only:
 

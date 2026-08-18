@@ -1010,6 +1010,7 @@ def validate_pr_remediation_governance() -> list[Finding]:
                 "managed-ledger",
                 "--ledger-validate-body-file",
                 "--ledger-expected-head <full-sha>",
+                "--ledger-expected-revision <sha256-or-absent>",
                 "--ledger-dry-run",
                 "latest run",
                 "Do not claim closed-loop completion",
@@ -1024,6 +1025,7 @@ def validate_pr_remediation_governance() -> list[Finding]:
                 "resolveReviewThread",
                 "SUPPORTED_AI_REVIEWER_LOGINS",
                 "--ledger-expected-head",
+                "--ledger-expected-revision",
             ),
         ),
         (
@@ -1035,6 +1037,7 @@ def validate_pr_remediation_governance() -> list[Finding]:
                 "combined reply-and-resolve",
                 "--ledger-validate-body-file",
                 "--ledger-expected-head <full-sha>",
+                "--ledger-expected-revision <sha256-or-absent>",
                 "--ledger-dry-run",
             ),
         ),

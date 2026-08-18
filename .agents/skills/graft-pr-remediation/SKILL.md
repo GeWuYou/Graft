@@ -1,6 +1,6 @@
 ---
 name: graft-pr-remediation
-description: Repository-specific closed-loop workflow for Graft PR remediation. Use only when the user explicitly invokes `$graft-pr-remediation` or explicitly asks to fix verified PR findings, validate and publish the repairs, reply to eligible still-open AI review threads, resolve those threads, and append the verified run to the managed review ledger.
+description: "Repository-specific closed-loop workflow for Graft PR remediation. Use when the user explicitly invokes `$graft-pr-remediation` or makes an equivalent explicit request for the complete bounded workflow: fix verified PR findings, validate, commit, push, reply to and resolve eligible AI threads, and append the verified managed-ledger run."
 ---
 
 # Graft PR Remediation
@@ -11,7 +11,7 @@ validation, commit, push, and closeout authority. Reuse `graft-pr-review` for in
 
 ## Authorization Contract
 
-An explicit `$graft-pr-remediation` invocation authorizes this bounded workflow for the current branch PR:
+An explicit `$graft-pr-remediation` invocation, or an equivalent explicit request naming every stage of the complete bounded workflow, authorizes this workflow for the current branch PR:
 
 - repair every verified `actionable-local` finding in the owned scope
 - run the required validation
@@ -31,8 +31,11 @@ gates. Managed-ledger authority and payload validation remain owned by `graft-pr
 3. Assign every finding exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`.
 4. Repair every `actionable-local` finding in the authorized scope. Route `actionable-large` work through the
    repository's governed delegation path or leave it `blocked`; do not disguise it as `stale` or `noise`.
-5. Use `graft-validation-runner` for the smallest correct completion entrypoint. Preserve the exhaustive finding
-   inventory through validation, commit, and push.
+5. Use `graft-validation-runner` for the smallest correct completion entrypoint. The named contract test discovered
+   by `.agents/skills/graft-pr-remediation/scripts/test_pr_remediation_contract.py` must directly read this
+   `SKILL.md`, and `python3 scripts/run_skill_tests.py` must finish successfully before commit or push. A failed or
+   unavailable command makes the run `blocked`; record the exact command and exit result in closeout. Preserve the
+   exhaustive finding inventory through validation, commit, and push.
 6. Use `graft-commit` to commit every validated owned repair and `graft-push` to publish it. An explicit invocation of
    this skill is the explicit commit-and-push request for this bounded workflow.
 7. Before any PR reply or resolution, run
@@ -46,10 +49,13 @@ gates. Managed-ledger authority and payload validation remain owned by `graft-pr
    - it is not `contested`, `delegated`, or `blocked`
    - no human-authored review judgment remains unresolved in the thread
 9. For each eligible thread:
-   - write a concise reply that names the disposition and cites the fixing commit, current path/test evidence, or
-     canonical authority that proves `noise`
+   - write a concise reply that names the disposition and cites every relevant fixing commit (or one commit range),
+     all verified repair paths and test evidence, or the canonical authority that proves `noise`
    - preview the reply with the `graft-pr-review` helper's `--reply-dry-run`, then send the exact reviewed payload
-   - rebuild the inventory; if the reviewer has contested the reply, stop and leave the thread open for human review
+   - rebuild the authoritative `github-graphql` inventory immediately before resolution; require the refresh to
+     succeed and revalidate that the thread is still open, was created by a supported AI reviewer, maps to
+     `fixed` / `stale` / `noise`, is not `contested` / `delegated` / `blocked`, and contains no unresolved
+     human judgment; stop on refresh failure or any uncertain condition
    - preview resolution with
      `--resolve-comment-id <root-comment-id> --resolve-expected-head <full-sha> --resolve-dry-run`, then rerun without
      `--resolve-dry-run`
@@ -60,9 +66,12 @@ gates. Managed-ledger authority and payload validation remain owned by `graft-pr
     `coderabbit_pre_merge_checks`, `open_suggestions`, and `greptile_suggestions`. Also include disposition counts,
     validation, publication proof, and AI-thread replied/resolved/remaining counts.
 12. Validate the entry offline with `--ledger-validate-body-file`. Reconfirm local, remote branch, and PR head SHAs;
-    preview the exact append with `--ledger-body-file ... --ledger-expected-head <full-sha> --ledger-dry-run`, then
-    rerun without `--ledger-dry-run`. Rebuild the complete inventory and require the managed ledger's latest run to
-    record the current PR head and the exact validated entry.
+    preview the exact append with `--ledger-body-file ... --ledger-expected-head <full-sha> --ledger-dry-run`, record
+    its deterministic entry and `baseline_revision`, then rerun the same body with
+    `--ledger-expected-revision <sha256-or-absent>` and without `--ledger-dry-run`. The helper must reject stale
+    snapshots, reuse the deterministic entry, revision-check the managed comment immediately before update, and
+    re-read GitHub to prove that the exact validated body and exactly one target entry were persisted. Rebuild the
+    require the managed ledger's latest run to record the current PR head and the exact validated entry.
 13. Finish only after the eligible-thread count is zero and the final managed-ledger append is visible in the refreshed
     inventory. A failed or unverifiable ledger append leaves the remediation run `blocked`, not complete.
 
@@ -71,7 +80,8 @@ and its [helper commands](../graft-pr-review/references/commands.md) before perf
 
 ## Reply Rules
 
-- For `fixed`, name the published commit and the validated repair location.
+- For `fixed`, name every relevant published commit (or one commit range), every validated repair path, and the
+  test evidence.
 - For `stale`, state the current-HEAD evidence that makes the old finding no longer applicable.
 - For `noise`, state the canonical authority and why the reviewer interpretation is false.
 - Never resolve a thread merely because its diff line is outdated or a bot printed an “addressed” marker.
