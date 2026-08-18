@@ -37,6 +37,8 @@ class WorktreeManagerTests(unittest.TestCase):
         run("git", "remote", "add", "origin", str(self.remote), cwd=self.seed)
         run("git", "push", "-u", "origin", "main", cwd=self.seed)
         run("git", "clone", "--branch", "main", str(self.remote), str(self.repo), cwd=self.base)
+        run("git", "config", "user.email", "test@example.com", cwd=self.repo)
+        run("git", "config", "user.name", "Test User", cwd=self.repo)
         (self.repo / ".worktree-shared.json").write_text(json.dumps({"links": []}), encoding="utf-8")
 
     def tearDown(self) -> None:
@@ -53,6 +55,16 @@ class WorktreeManagerTests(unittest.TestCase):
 
     def closeout(self, worker: Path) -> subprocess.CompletedProcess[str]:
         return self.manager("closeout", "--worktree", str(worker))
+
+    def test_fixture_configures_repository_local_commit_identity(self) -> None:
+        self.assertEqual(
+            run("git", "config", "--local", "--get", "user.email", cwd=self.repo).stdout.strip(),
+            "test@example.com",
+        )
+        self.assertEqual(
+            run("git", "config", "--local", "--get", "user.name", cwd=self.repo).stdout.strip(),
+            "Test User",
+        )
 
     def test_acquire_status_and_release_reuse_numbered_slot(self) -> None:
         acquired = self.manager("acquire", "feature/runtime-target")
