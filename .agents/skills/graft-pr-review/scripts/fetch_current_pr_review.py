@@ -823,7 +823,7 @@ def parse_latest_ledger_run(body: str) -> dict[str, Any]:
     """Extract the newest machine-readable run metadata from the append-only ledger."""
     normalized = normalize_legacy_ledger_body(html.unescape(str(body or "")))
     matches = re.finditer(
-        r"(?ms)^## Run (?P<timestamp>\d{4}-\d{2}-\d{2}T[^\n]+)\n(?P<section>.*?)(?=^## Run |\Z)",
+        r"(?ms)^## Run (?P<run_id>[^\n]+)\n(?P<section>.*?)(?=^## Run |\Z)",
         normalized,
     )
     candidates: list[dict[str, Any]] = []
@@ -852,15 +852,18 @@ def parse_latest_ledger_run(body: str) -> dict[str, Any]:
 
         candidates.append(
             {
-                "timestamp": match.group("timestamp"),
+                "run_id": match.group("run_id"),
+                "timestamp": (
+                    match.group("run_id") if re.match(r"\d{4}-\d{2}-\d{2}T", match.group("run_id")) else ""
+                ),
                 "head_sha": head_match.group("head"),
                 "inventory": inventory,
             }
         )
 
     if not candidates:
-        return {"timestamp": "", "head_sha": "", "inventory": {}}
-    return max(candidates, key=lambda candidate: candidate["timestamp"])
+        return {"run_id": "", "timestamp": "", "head_sha": "", "inventory": {}}
+    return candidates[-1]
 
 
 def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_REVIEW_LEDGER_MARKER) -> dict[str, Any]:
@@ -873,7 +876,7 @@ def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_
             "created_at": "",
             "updated_at": "",
             "body": "",
-            "latest_run": {"timestamp": "", "head_sha": "", "inventory": {}},
+            "latest_run": {"run_id": "", "timestamp": "", "head_sha": "", "inventory": {}},
         }
 
     body = html.unescape(str(comment.get("body") or ""))

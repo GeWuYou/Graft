@@ -1264,6 +1264,27 @@ class ManagedIssueCommentTests(unittest.TestCase):
         self.assertEqual(parsed["head_sha"], "72638ae80cdfd269bdd353bb78fd8c671949522f")
         self.assertEqual(parsed["inventory"]["coderabbit_nitpick"]["declared"], 7)
 
+    def test_parse_latest_ledger_run_accepts_deterministic_run_key(self) -> None:
+        """Deterministic idempotency keys must remain visible to refreshed inventories."""
+        head_sha = "e" * 40
+        code_quote = chr(96)
+        body = (
+            f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n# Graft PR Review Ledger\n\n"
+            f"## Run sha256:{'f' * 64}\n"
+            f"- Head SHA: {head_sha}\n"
+            f"- {code_quote}coderabbit_nitpick{code_quote}: declared 1, handled 1."
+        )
+
+        parsed = MODULE.parse_latest_ledger_run(body)
+
+        self.assertEqual(parsed["run_id"], f"sha256:{'f' * 64}")
+        self.assertEqual(parsed["timestamp"], "")
+        self.assertEqual(parsed["head_sha"], head_sha)
+        self.assertEqual(
+            parsed["inventory"]["coderabbit_nitpick"],
+            {"declared": 1, "handled": 1},
+        )
+
     def test_build_review_ledger_delta_requires_rebuild_after_new_head(self) -> None:
         """A changed PR head must never reuse the previous ledger as review closure."""
         ledger = {

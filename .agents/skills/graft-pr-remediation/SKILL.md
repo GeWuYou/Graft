@@ -71,7 +71,8 @@ gates. Managed-ledger authority and payload validation remain owned by `graft-pr
     `--ledger-expected-revision <sha256-or-absent>` and without `--ledger-dry-run`. The helper must reject stale
     snapshots, reuse the deterministic entry, revision-check the managed comment immediately before update, and
     re-read GitHub to prove that the exact validated body and exactly one target entry were persisted. Rebuild the
-    require the managed ledger's latest run to record the current PR head and the exact validated entry.
+    complete inventory once more and require the managed ledger's latest run to record the current PR head and the
+    exact validated entry.
 13. Finish only after the eligible-thread count is zero and the final managed-ledger append is visible in the refreshed
     inventory. A failed or unverifiable ledger append leaves the remediation run `blocked`, not complete.
 
