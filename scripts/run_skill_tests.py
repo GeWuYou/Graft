@@ -15,7 +15,7 @@ SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 
 def discover_skill_tests(skills_dir: Path = SKILLS_DIR) -> list[Path]:
     """Return skill-local unittest files in stable repository-relative order."""
-    return sorted(path for path in skills_dir.rglob("scripts/test_*.py") if path.is_file())
+    return sorted(path for path in skills_dir.rglob("test_*.py") if path.is_file())
 
 
 def run_skill_tests(

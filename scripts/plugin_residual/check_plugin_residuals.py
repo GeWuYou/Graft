@@ -74,8 +74,15 @@ def load_allowlist() -> list[AllowRule]:
 
 
 def find_matches(path: str) -> list[Match]:
-    full_path = REPO_ROOT / path
-    if full_path.is_symlink() or not full_path.is_file():
+    relative_path = pathlib.PurePosixPath(path.replace("\\", "/"))
+    if pathlib.PureWindowsPath(path).is_absolute() or relative_path.is_absolute() or ".." in relative_path.parts:
+        return []
+    full_path = REPO_ROOT
+    for component in relative_path.parts:
+        full_path /= component
+        if full_path.is_symlink():
+            return []
+    if not full_path.is_file():
         return []
     try:
         text = full_path.read_text(encoding="utf-8")

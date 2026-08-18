@@ -46,4 +46,6 @@ Re-read the body and verify that content outside the markers is unchanged. The m
 validate the proposed entry and the assembled final payload before any authorized write.
 
 If an AI reviewer replies again after a response, mark the next inventory row `contested` and carry both arguments to
-human review. Do not wait synchronously for reviewer follow-up.
+human review. `contested` is a temporary review state, not a final disposition: after human review, map the row to
+exactly one of `fixed`, `delegated`, `blocked`, `stale`, or `noise`. When the judgment remains unresolved, use
+`blocked` and preserve both arguments plus the decision owner. Do not wait synchronously for reviewer follow-up.

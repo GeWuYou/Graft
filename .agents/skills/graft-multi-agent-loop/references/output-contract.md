@@ -17,6 +17,9 @@ After `VERIFY`, only the outer controller records `closeout_status`, `current_ba
 outer controller verifies and settles it. An unsettled failure remains a recovery handoff; a terminal `blocked`,
 `cancelled`, or `unsafe` decision requires `failed_batch_settled: true`.
 
+For a terminal blocker that occurs before any worker batch fails, `failed_batch_settled: true` means there is no
+unsettled failed batch; keep `retry_exhausted: false` and preserve the blocker evidence in `required_context`.
+
 Required top-level closeout fields:
 
 ```json

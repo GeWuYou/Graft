@@ -25,6 +25,9 @@ workflow; it does not replace repository startup, validation, closeout, or commi
    - `git status --short`
    - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, `scripts/**` audit helpers,
      and generated `.ai/environment/**` inventory when the task explicitly refreshes environment truth
+   - when the task includes `ai-plan/**`, pair this workflow with `graft-ai-plan-governance`; if authority discovery
+     requires a change outside that governed scope, escalate to the smallest responsible owner and record the
+     canonical owner plus minimal widened scope in closeout evidence
    - do not stage unrelated `server`, `web`, OpenAPI, dashboard, topic recovery, or generated artifact changes
 5. Check live local tool state when relevant:
    - `codex mcp list`
@@ -82,6 +85,7 @@ python3 scripts/run_skill_tests.py
 AI governance audit:
 - task_class: docs/automation
 - owned_scope: ai-plan/design/**, .agents/skills/**, scripts/**, .ai/environment/** when inventory refresh is explicit
+- authority_owner: <canonical owner and any minimal cross-scope escalation, or none>
 - tools_checked: codex mcp list / validate_ai_governance / repository unittest / run_skill_tests
 - mcp_changes: adopted | pilot | rejected | none
 - validation: <commands and results>

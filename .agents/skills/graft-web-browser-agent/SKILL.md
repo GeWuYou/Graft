@@ -75,8 +75,10 @@ environments:
 `credentials` is optional unless `--login` is used. Runtime identity is deliberately absent: dynamically verify it
 from the primary checkout on every run and pass the current branch and full `HEAD` in `--runtime-identity`.
 
-4. Run `browser_agent.py` against the selected target. CLI selectors override only the corresponding config defaults;
-   `--url` is an approved one-run URL override and is never persisted:
+4. Run `browser_agent.py` against the selected target. CLI selectors override only the corresponding config defaults.
+   `--url` is an approved, non-login, one-run path override and is never persisted; its scheme, host, and port must
+   exactly match the selected service `base_url`. Authenticated runs must use the registered `base_url` and cannot
+   combine `--login` with `--url`:
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \

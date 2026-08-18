@@ -27,7 +27,7 @@ class SkillTestRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             skills_dir = Path(temporary_dir)
             first = skills_dir / "a-skill" / "scripts" / "test_first.py"
-            second = skills_dir / "z-skill" / "nested" / "scripts" / "test_second.py"
+            second = skills_dir / "z-skill" / "tests" / "test_second.py"
             ignored = skills_dir / "z-skill" / "scripts" / "helper.py"
             for path in (first, second, ignored):
                 path.parent.mkdir(parents=True, exist_ok=True)

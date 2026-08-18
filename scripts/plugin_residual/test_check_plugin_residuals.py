@@ -66,6 +66,20 @@ class PluginResidualTests(unittest.TestCase):
                 self.assertEqual(MODULE.find_matches("skills-link"), [])
                 self.assertEqual(MODULE.find_matches("plain-directory"), [])
 
+    def test_find_matches_rejects_symlinked_parent_and_path_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "repo"
+            outside = Path(temporary_dir) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            (outside / "SKILL.md").write_text("plugin\n", encoding="utf-8")
+            (root / "skills-link").symlink_to(outside, target_is_directory=True)
+
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                self.assertEqual(MODULE.find_matches("skills-link/SKILL.md"), [])
+                self.assertEqual(MODULE.find_matches("../outside/SKILL.md"), [])
+                self.assertEqual(MODULE.find_matches(str(outside / "SKILL.md")), [])
+
 
 if __name__ == "__main__":
     unittest.main()

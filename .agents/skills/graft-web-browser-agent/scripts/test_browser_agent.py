@@ -84,17 +84,34 @@ class TargetConfigTest(unittest.TestCase):
 
             self.assertEqual(path.read_text(encoding="utf-8"), "user-owned\n")
 
-    def test_resolves_defaults_and_one_run_override(self) -> None:
+    def test_resolves_same_origin_one_run_override_without_login(self) -> None:
         target = browser_agent.resolve_target(
-            self.config(), None, None, None, "http://localhost:4173", True
+            self.config(), None, None, None, "http://127.0.0.1:3002/audit/logs", False
         )
 
         self.assertEqual(target["environment"], "local")
         self.assertEqual(target["instance"], "primary")
         self.assertEqual(target["service"], "web")
-        self.assertEqual(target["url"], "http://localhost:4173")
+        self.assertEqual(target["url"], "http://127.0.0.1:3002/audit/logs")
         self.assertEqual(target["url_source"], "override")
-        self.assertEqual(target["credentials"], {"username": "dev-user", "password": "dev-password"})
+        self.assertIsNone(target["credentials"])
+
+    def test_rejects_login_with_one_run_override(self) -> None:
+        with self.assertRaisesRegex(ValueError, "--login cannot be used with --url"):
+            browser_agent.resolve_target(
+                self.config(), None, None, None, "http://127.0.0.1:3002/audit/logs", True
+            )
+
+    def test_rejects_cross_origin_one_run_override(self) -> None:
+        overrides = (
+            "https://127.0.0.1:3002/audit/logs",
+            "http://localhost:3002/audit/logs",
+            "http://127.0.0.1:4173/audit/logs",
+        )
+        for override in overrides:
+            with self.subTest(override=override):
+                with self.assertRaisesRegex(ValueError, "same scheme, host, and port"):
+                    browser_agent.resolve_target(self.config(), None, None, None, override, False)
 
     def test_selects_explicit_service(self) -> None:
         target = browser_agent.resolve_target(self.config(), "local", "primary", "api", None, False)

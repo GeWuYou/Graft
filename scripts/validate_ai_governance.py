@@ -77,6 +77,9 @@ YAML_IMPLICIT_NON_STRING_RE = re.compile(
 MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]\n]+\]\((?P<target>[^)\n]+)\)")
 ALLOWED_MISSING_PRIVATE_REFERENCES = {".ai/private/graft-browser-targets.yaml"}
 PRIVATE_IPV4_RE = re.compile(r"(?<![\w.])(?:10(?:\.\d{1,3}){3}|172(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2})(?![\w.])")
+RFC1918_NETWORKS = tuple(
+    ipaddress.ip_network(cidr) for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
 FORBIDDEN_ACTIVE_SKILL_PATTERNS = (
     ("historical server plugin path", re.compile(r"server/plugins(?:/|\b)")),
     ("historical plugin API boundary", re.compile(r"(?:server/)?internal/pluginapi(?:/|\b)")),
@@ -527,6 +530,10 @@ def validate_openai_yaml(skill_dir: Path, tracked: set[str]) -> list[Finding]:
     skill_name = skill_dir.name
     if f"${skill_name}" not in fields.get("default_prompt", ""):
         findings.append(Finding(yaml_path, f"default_prompt should mention ${skill_name}"))
+    metadata_text = "\n".join(fields.values())
+    for label, pattern in FORBIDDEN_ACTIVE_SKILL_PATTERNS:
+        if pattern.search(metadata_text):
+            findings.append(Finding(yaml_path, f"active skill metadata references {label}"))
     return findings
 
 
@@ -554,7 +561,10 @@ def validate_skill_authority_and_references(skill_md: Path) -> list[Finding]:
             target = REPO_ROOT / relative_target.lstrip("/")
         else:
             target = skill_md.parent / relative_target
-        if not target.exists():
+        resolved_target = target.resolve()
+        if not resolved_target.is_relative_to(REPO_ROOT.resolve()):
+            findings.append(Finding(skill_md, f"Markdown reference target escapes repository root: {raw_target!r}"))
+        elif not resolved_target.exists():
             findings.append(Finding(skill_md, f"Markdown reference target does not exist: {raw_target!r}"))
 
     for literal in PRIVATE_IPV4_RE.findall(text):
@@ -562,7 +572,7 @@ def validate_skill_authority_and_references(skill_md: Path) -> list[Finding]:
             address = ipaddress.ip_address(literal)
         except ValueError:
             continue
-        if address.is_loopback:
+        if not any(address in network for network in RFC1918_NETWORKS):
             continue
         findings.append(Finding(skill_md, f"active skill must not hard-code private network address {literal!r}"))
     return findings

@@ -114,6 +114,24 @@ class SkillMetadataTests(unittest.TestCase):
 
         self.assertTrue(any("quoted interface string" in finding.message for finding in findings))
 
+    def test_openai_metadata_rejects_retired_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            skill_dir = root / "graft-example"
+            yaml_path = skill_dir / "agents" / "openai.yaml"
+            yaml_path.parent.mkdir(parents=True)
+            yaml_path.write_text(
+                "interface:\n"
+                '  display_name: "Example"\n'
+                '  short_description: "Review the historical server/plugins/example authority."\n'
+                '  default_prompt: "Use $graft-example."\n',
+                encoding="utf-8",
+            )
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                findings = MODULE.validate_openai_yaml(skill_dir, {"graft-example/agents/openai.yaml"})
+
+        self.assertTrue(any("active skill metadata references historical server plugin path" in finding.message for finding in findings))
+
 
 class SkillAuthorityTests(unittest.TestCase):
     def _validate(self, body: str, extra_files: tuple[str, ...] = ()) -> list[MODULE.Finding]:
@@ -150,6 +168,28 @@ class SkillAuthorityTests(unittest.TestCase):
 
         self.assertEqual(findings, [])
 
+    def test_rejects_markdown_reference_that_escapes_repository_root(self) -> None:
+        findings = self._validate("Read [outside](../../../../outside.md).\n")
+
+        self.assertTrue(any("escapes repository root" in finding.message for finding in findings))
+
+    def test_rejects_markdown_reference_through_external_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "repo"
+            outside = Path(temporary_dir) / "outside"
+            skill_dir = root / ".agents" / "skills" / "graft-example"
+            skill_dir.mkdir(parents=True)
+            outside.mkdir()
+            (outside / "details.md").write_text("outside\n", encoding="utf-8")
+            (skill_dir / "references").symlink_to(outside, target_is_directory=True)
+            skill_md = skill_dir / "SKILL.md"
+            skill_md.write_text("Read [details](references/details.md).\n", encoding="utf-8")
+
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                findings = MODULE.validate_skill_authority_and_references(skill_md)
+
+        self.assertTrue(any("escapes repository root" in finding.message for finding in findings))
+
     def test_rejects_private_ip_but_allows_loopback_and_config_placeholder(self) -> None:
         findings = self._validate(
             "Use http://172.21.235.129:3002; loopback http://127.0.0.1:8080 is allowed. "
@@ -157,6 +197,17 @@ class SkillAuthorityTests(unittest.TestCase):
         )
 
         self.assertEqual(sum("private network address" in finding.message for finding in findings), 1)
+
+    def test_rfc1918_172_range_uses_exact_network_boundaries(self) -> None:
+        findings = self._validate(
+            "Public-adjacent 172.15.255.255 and 172.32.0.0 are allowed; "
+            "private 172.16.0.0 and 172.31.255.255 are rejected.\n"
+        )
+
+        messages = [finding.message for finding in findings if "private network address" in finding.message]
+        self.assertEqual(len(messages), 2)
+        self.assertTrue(any("172.16.0.0" in message for message in messages))
+        self.assertTrue(any("172.31.255.255" in message for message in messages))
 
 
 class FindingTests(unittest.TestCase):

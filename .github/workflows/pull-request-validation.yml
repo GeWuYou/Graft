@@ -160,6 +160,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install AI governance dependencies
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+
       - name: Validate AI governance
         run: python3 scripts/validate_ai_governance.py
 

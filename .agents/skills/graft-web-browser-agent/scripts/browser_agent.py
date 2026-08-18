@@ -237,7 +237,18 @@ def validate_target_url(raw: Any) -> str:
         raise ValueError("Browser target URL must be an absolute http or https URL.")
     if parsed.username or parsed.password:
         raise ValueError("Browser target URL must not embed credentials.")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("Browser target URL must use a valid port.") from exc
     return value
+
+
+def target_origin(url: str) -> tuple[str, str, int]:
+    """Return a normalized HTTP origin for an already validated target URL."""
+    parsed = urlsplit(url)
+    default_port = 443 if parsed.scheme == "https" else 80
+    return parsed.scheme.lower(), (parsed.hostname or "").lower(), parsed.port or default_port
 
 
 def resolve_target(
@@ -262,6 +273,13 @@ def resolve_target(
     if not isinstance(services, dict):
         raise ValueError(f"Instance {instance_name} must define a services mapping.")
     service_config = _mapping_entry(services, service_name, "service")
+    base_url = validate_target_url(service_config.get("base_url"))
+
+    if login and url_override:
+        raise ValueError("--login cannot be used with --url; select a registered target instead.")
+    target_url = validate_target_url(url_override) if url_override else base_url
+    if url_override and target_origin(target_url) != target_origin(base_url):
+        raise ValueError("--url must use the same scheme, host, and port as the selected service base_url.")
 
     credentials: dict[str, str] | None = None
     if login:
@@ -278,7 +296,7 @@ def resolve_target(
         "environment": environment_name,
         "instance": instance_name,
         "service": service_name,
-        "url": validate_target_url(url_override or service_config.get("base_url")),
+        "url": target_url,
         "url_source": "override" if url_override else "config",
         "credentials": credentials,
     }
