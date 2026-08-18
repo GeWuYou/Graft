@@ -1,6 +1,6 @@
 ---
 name: graft-change-review
-description: Review a Graft change on two independent axes: repository standards and originating design/spec intent. Use before commit or integration for any implementation slice.
+description: "Review a Graft change on two independent axes: repository standards and originating design/spec intent. Use before commit or integration for any implementation slice."
 ---
 
 # Graft Change Review

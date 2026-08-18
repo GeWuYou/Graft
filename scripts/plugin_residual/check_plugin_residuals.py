@@ -75,6 +75,8 @@ def load_allowlist() -> list[AllowRule]:
 
 def find_matches(path: str) -> list[Match]:
     full_path = REPO_ROOT / path
+    if full_path.is_symlink() or not full_path.is_file():
+        return []
     try:
         text = full_path.read_text(encoding="utf-8")
     except UnicodeDecodeError:

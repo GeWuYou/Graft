@@ -475,7 +475,7 @@ class BuildAllOpenReviewThreadsTests(unittest.TestCase):
             },
             {
                 "id": 2,
-                "path": "server/plugins/user/session.go",
+                "path": "server/modules/user/session.go",
                 "line": 20,
                 "side": "RIGHT",
                 "created_at": "2026-05-16T11:00:00Z",
@@ -530,7 +530,7 @@ class FetchLatestCommitReviewTests(unittest.TestCase):
             },
             {
                 "id": 2,
-                "path": "server/plugins/user/session.go",
+                "path": "server/modules/user/session.go",
                 "line": 20,
                 "side": "RIGHT",
                 "created_at": "2026-05-16T11:00:00Z",
@@ -551,7 +551,7 @@ class FetchLatestCommitReviewTests(unittest.TestCase):
 
         self.assertEqual(result["latest_commit"]["sha"], "latest-commit")
         self.assertEqual(len(result["open_threads"]), 1)
-        self.assertEqual(result["open_threads"][0]["path"], "server/plugins/user/session.go")
+        self.assertEqual(result["open_threads"][0]["path"], "server/modules/user/session.go")
         self.assertEqual(len(result["all_open_threads"]), 2)
         self.assertEqual(result["all_open_thread_counts_by_user"][MODULE.CODERABBIT_LOGIN], 1)
         self.assertEqual(result["all_open_thread_counts_by_user"][MODULE.GREPTILE_LOGIN], 1)

@@ -20,7 +20,8 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 3. Read `ai-plan/design/governance/platform/本地化与i18n治理规范.md`.
 4. Read `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` when adding or changing stable keys.
 5. Read `ai-plan/public/localization-governance/README.md` when continuing the localization migration topic.
-6. Read `ai-plan/public/server-locale-ownership-migration/README.md` when the task is specifically about server locale physical ownership, owner-local embedded resources, or the final drift audit for that migration.
+6. For historical server locale ownership decisions, follow the active localization topic's links into
+   `ai-plan/public/archive/**`; do not assume the archived migration still has an active-topic path.
 
 ## Authority Rules
 
@@ -84,15 +85,14 @@ For docs or skill-only changes:
 
 ```bash
 git diff --check
-python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-localization-governance
+python3 scripts/validate_ai_governance.py
 ```
 
 For server i18n implementation:
 
 ```bash
-cd server && go test ./internal/i18n/...
-cd server && go run ./cmd/graft validate backend --stage lint
-cd server && go build ./cmd/graft
+cd server && go test ./internal/i18n/...       # supplemental iteration check
+graft validate backend                        # required completion entrypoint
 ```
 
 For web locale changes:
@@ -103,6 +103,8 @@ cd web && bun run check
 ```
 
 For cross-boundary localization work, validate both sides and report any skipped command with the exact reason.
+Use `graft-validation-runner` to select the completion scope; focused tests and lint stages supplement but never
+replace the full backend or web entrypoint required by the changed runtime scope.
 
 ## Closeout Evidence
 

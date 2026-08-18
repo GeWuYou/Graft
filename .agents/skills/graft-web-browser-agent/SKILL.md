@@ -1,6 +1,6 @@
 ---
 name: graft-web-browser-agent
-description: Repository-specific Playwright browser workflow for inspecting, authenticating into, and interacting with the local Graft web UI. Use when Codex needs Graft browser screenshots, DOM text snapshots, login/auth verification with temp credentials, or simple click/fill/wait checks before normal web validation.
+description: Repository-specific Playwright browser workflow for inspecting, authenticating into, and interacting with an explicitly approved Graft web target. Use when Codex needs browser screenshots, DOM text snapshots, login verification with private local credentials, or simple click/fill/wait checks before normal web validation.
 ---
 
 # Graft Web Browser Agent
@@ -31,11 +31,9 @@ turn the stable path into a `browser_agent.py` command so the final evidence is 
 
 ## Workflow
 
-1. Confirm the explicit local authorization and target browser-only question, then from the approved developer-owned
-   primary checkout confirm the local web app is already running.
-   - Default local targets are backend `127.0.0.1:8080` through the Vite proxy and frontend `http://172.21.235.129:3002`.
-   - If those ports are occupied, verify that the process serves the branch and HEAD under review; do not start or use
-     an unrelated runtime as evidence.
+1. Confirm explicit authorization and the browser-only question. From the approved developer-owned primary checkout,
+   confirm that the selected service is already running and serves the branch and full `HEAD` under review. Do not
+   infer a target from current WSL networking, an occupied port, or a previous run.
 2. Bootstrap the project-local browser environment if `.ai/venv/bin/python` or Playwright is missing:
 
 ```bash
@@ -44,25 +42,63 @@ turn the stable path into a `browser_agent.py` command so the final evidence is 
 
 If bootstrap reports missing Chromium system dependencies, do not claim browser inspection is available yet. Report the printed `playwright install-deps chromium` command to the user; installing those packages is an explicit machine-level action.
 
-3. Run `browser_agent.py` against the target page. Use a stable `--session` name so later checks can reuse the same artifact directory.
+3. Initialize the fixed private target registry on first use:
+
+```bash
+.ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py --init-config
+```
+
+The command creates `.ai/private/graft-browser-targets.yaml` only when absent, refuses to overwrite it, and stops.
+Normal invocation also creates the template and stops when the file is missing. Fill the private file before retrying.
+It is ignored by Git and must never be printed, committed, or copied into browser artifacts.
+
+Use this schema; add as many environments, instances, and services as the developer has approved:
+
+```yaml
+schema_version: 1
+defaults:
+  environment: local
+  instance: primary
+  service: web
+environments:
+  local:
+    instances:
+      primary:
+        services:
+          web:
+            base_url: "http://127.0.0.1:3002"
+            credentials:
+              username: ""
+              password: ""
+```
+
+`credentials` is optional unless `--login` is used. Runtime identity is deliberately absent: dynamically verify it
+from the primary checkout on every run and pass the current branch and full `HEAD` in `--runtime-identity`.
+
+4. Run `browser_agent.py` against the selected target. CLI selectors override only the corresponding config defaults;
+   `--url` is an approved one-run URL override and is never persisted:
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://172.21.235.129:3002 \
+  --environment local \
+  --instance primary \
+  --service web \
   --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session ui-inspection \
   --screenshot \
   --snapshot-text
 ```
 
-4. For authenticated Graft admin screenshots, use the temp credential file and let the script verify login before capture:
+5. For authenticated Graft admin screenshots, place the credentials only on the selected service entry in the private
+   config and let the script verify login before capture:
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://172.21.235.129:3002 \
+  --environment local \
+  --instance primary \
+  --service web \
   --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --login \
-  --credentials temp/username-passward.yaml \
   --session auth-check \
   --screenshot \
   --snapshot-text
@@ -71,16 +107,18 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 Replace both placeholders with the branch and full `HEAD` verified in the clean primary checkout before running the
 command. The script rejects missing, mismatched, or unsafe labels before importing or launching Playwright.
 
-The login helper reads a YAML mapping of named profiles and defaults to `dev` when present; use
-`--credential-profile <name>` to select another profile. Each profile accepts `username` / `account` / `user` and
-`password` / `passward` / `passwd` / `pwd` fields. It writes only redacted auth status to `summary.json`; do not print
-or commit credential values, access tokens, or session storage dumps.
+The helper reads only `credentials.username` and `credentials.password` from the selected private service entry.
+`summary.json` may record non-secret selectors, relative navigation paths, and authentication status, but never the
+configured `base_url`, URL origin/query, credential fields, or credential values. Do not place secrets in `--url`,
+`--fill`, `--runtime-identity`, session names, screenshots, or visible page text.
 
-5. Use focused interactions when debugging UI behavior:
+6. Use focused interactions when debugging UI behavior:
 
 ```bash
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
-  --url http://172.21.235.129:3002/audit/logs \
+  --environment local --instance primary --service web \
+  --url http://127.0.0.1:3002/audit/logs \
+  --runtime-identity "primary-web <verified-branch> <verified-full-head>" \
   --session audit-filter-check \
   --click "text=Filter" \
   --fill "input[placeholder='Keyword']=admin" \
@@ -88,7 +126,7 @@ or commit credential values, access tokens, or session storage dumps.
   --screenshot
 ```
 
-6. Use the browser evidence to guide fixes, then run the normal repository validation required by the changed scope.
+7. Use the browser evidence to guide fixes, then run the normal repository validation required by the changed scope.
    Stop after the focused question is resolved; do not repeat unrelated interaction flows for generic UI confidence.
 
 ## Playwright MCP Fast Path
@@ -118,8 +156,8 @@ Browser evidence:
 
 When login fails:
 
-- Verify the credential file can be parsed without printing secret values.
-- Probe `http://172.21.235.129:3002/api/auth/login` through the frontend proxy before blaming the browser.
+- Verify that the selected service has non-empty credential fields without printing values.
+- Probe `<selected-base-url>/api/auth/login` through the same approved frontend proxy before blaming the browser.
 - Use `.ai/venv/bin/python`, not system `python3`; the system interpreter may not have Playwright installed.
 - Inspect `.ai/artifacts/browser/<session>/summary.json` for `/api/auth/login` and `/api/auth/bootstrap` statuses.
 - Treat a final `/login` URL after `--login` as an authentication failure even if a screenshot exists.
@@ -139,7 +177,7 @@ If the user chooses to keep artifacts for the current conversation, report the r
 ## Scripts
 
 - `scripts/bootstrap.sh` creates `.ai/venv`, installs `.ai/browser/requirements.txt`, and installs Chromium into `.ai/ms-playwright`.
-- `scripts/browser_agent.py` opens a URL, optionally authenticates with temp credentials, applies simple actions, waits, writes screenshots, and optionally writes visible page text.
+- `scripts/browser_agent.py` resolves an approved private target, optionally authenticates with its service-local credentials, applies simple actions, waits, writes screenshots, and optionally writes visible page text.
 - `scripts/cleanup.sh` removes one session, all browser artifacts, or artifacts older than a given age.
 
 ## Boundaries
@@ -149,4 +187,5 @@ If the user chooses to keep artifacts for the current conversation, report the r
   evidence with `browser_agent.py`.
 - Do not treat screenshots as acceptance by themselves; they are inspection evidence.
 - Do not commit `.ai/venv`, `.ai/ms-playwright`, or `.ai/artifacts/browser`.
+- Do not commit, print, or copy `.ai/private/graft-browser-targets.yaml`; never store runtime identity as trusted config.
 - Prefer `data-testid`, stable text, role selectors, or TDesign-visible labels for actions. Avoid brittle generated class selectors when a stable selector exists.

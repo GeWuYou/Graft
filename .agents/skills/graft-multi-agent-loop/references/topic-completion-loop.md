@@ -1,5 +1,11 @@
 # Topic Completion Loop Example
 
+- [Initial State](#initial-state)
+- [Batch 1 Closeout](#batch-1-closeout)
+- [Batch 2 Closeout](#batch-2-closeout)
+- [Batch 3 Closeout](#batch-3-closeout)
+- [Final Archive-Readiness Check](#final-archive-readiness-check)
+
 This example shows the default `topic-completion-loop` lifecycle.
 
 ## Initial State

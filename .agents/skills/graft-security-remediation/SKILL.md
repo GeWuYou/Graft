@@ -16,6 +16,14 @@ security-specific workflow plus reusable inventory assets; it does not create a 
 
 ## Workflow
 
+This skill has two explicit stages:
+
+- `inventory/review` is the default and is read-only. It may query alerts, inspect local code, classify findings, and
+  propose validation, but it must not edit files, dismiss alerts, commit, push, create/update a PR, or post comments.
+- `remediation/write` starts only when the user explicitly requests local fixes or a specific external write. Local
+  remediation authority does not implicitly authorize GitHub writes, commits, or pushes; apply each owning workflow's
+  authorization gate independently.
+
 1. Complete the startup preflight from root `AGENTS.md` and classify the task as `server`, `web`, `cross-boundary`, or
    `docs/automation`.
 2. Read the required subdomain `AGENTS.md` before edits, then inspect the current worktree with `git status --short`.
@@ -36,20 +44,21 @@ security-specific workflow plus reusable inventory assets; it does not create a 
    - `needs-investigation`
    - `already-remediated-locally`
    - `blocked`
-5. Publish a concise remediation plan before edits:
+5. Publish a concise remediation plan. If the user requested only inspection, stop after the inventory/review report:
    - in-scope alerts
    - classification evidence
    - intended authority-first repair
    - validation commands
    - branch / commit / recheck path
-6. Remediate with the smallest authority-correct fix:
+6. Enter `remediation/write` only under explicit authorization, then remediate with the smallest authority-correct fix:
    - verify `source -> sink` for code scanning alerts
    - verify direct vs indirect usage and patched version reality for dependency alerts
    - do not add suppressions, aliases, or compatibility layers unless root `AGENTS.md` exception rules are satisfied
-7. Run the smallest correct validation for the touched scope:
-   - `server`: focused `go test`, then `go run ./cmd/graft validate backend --stage lint`
+7. Use `graft-validation-runner` and complete the full entrypoint for the touched runtime scope:
+   - `server`: focused `go test` during iteration, then `graft validate backend`
    - `web`: `bun run check`
    - `cross-boundary`: validate both sides
+   Focused tests and lint stages are supplemental; they do not replace a full completion entrypoint.
 8. Recheck after local validation. Read [references/recheck.md](references/recheck.md) when you need the standard
    evidence checklist or post-push expectations.
 
@@ -58,7 +67,8 @@ security-specific workflow plus reusable inventory assets; it does not create a 
 - Do not start with a partial subset of alerts when a full inventory is still missing.
 - Do not claim `false-positive` or `already-remediated-locally` without code-level evidence from the current branch.
 - Do not invent remote write steps as the default path. Push, PR creation, alert dismissal, and any GitHub write action
-  require explicit user request or an owning repository skill that authorizes that write path.
+  require an explicit user request and the owning repository skill's authorization gate.
+- Do not turn a read-only inventory request into local remediation because findings are actionable.
 - Keep the owned scope limited to the confirmed remediation slice; do not bundle unrelated worktree changes.
 
 ## Closeout Evidence
@@ -71,4 +81,5 @@ Security remediation evidence:
 - authority_repair: <canonical layer changed or no-change>
 - validation: <commands and results>
 - recheck_status: local-only | pushed-awaiting-github | github-confirmed
+- stage: inventory/review | remediation/write
 ```

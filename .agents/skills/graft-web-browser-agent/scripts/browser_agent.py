@@ -28,9 +28,25 @@ def repo_root() -> Path:
 ROOT_DIR = repo_root()
 DEFAULT_OUTPUT_DIR = ROOT_DIR / ".ai" / "artifacts" / "browser"
 DEFAULT_BROWSERS_DIR = ROOT_DIR / ".ai" / "ms-playwright"
-DEFAULT_CREDENTIALS_FILE = ROOT_DIR / "temp" / "username-passward.yaml"
+TARGET_CONFIG_FILE = ROOT_DIR / ".ai" / "private" / "graft-browser-targets.yaml"
 AUTH_PATH_PREFIX = "/api/auth/"
 SAFE_RUNTIME_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._/-]*")
+TARGET_CONFIG_TEMPLATE = """schema_version: 1
+defaults:
+  environment: local
+  instance: primary
+  service: web
+environments:
+  local:
+    instances:
+      primary:
+        services:
+          web:
+            base_url: "http://127.0.0.1:3002"
+            credentials:
+              username: ""
+              password: ""
+"""
 
 
 def parse_viewport(raw: str) -> tuple[int, int]:
@@ -173,75 +189,134 @@ class BrowserAction(argparse.Action):
         setattr(namespace, "actions", actions)
 
 
-def parse_credentials(path: Path, profile: str | None = None) -> tuple[dict[str, str], str | None]:
-    if not path.exists():
-        raise FileNotFoundError(f"Credentials file does not exist: {path}")
+def initialize_target_config(path: Path = TARGET_CONFIG_FILE) -> None:
+    """Create the private target template exactly once without overwriting user values."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(TARGET_CONFIG_TEMPLATE)
+    except FileExistsError as exc:
+        raise FileExistsError(f"Target config already exists; refusing to overwrite: {path}") from exc
 
+
+def load_target_config(path: Path = TARGET_CONFIG_FILE) -> dict[str, Any]:
     try:
         document = safe_load(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise
     except YAMLError as exc:
-        raise ValueError(f"Credentials file must be valid YAML: {path}") from exc
-    if not isinstance(document, dict):
-        raise ValueError("Credentials YAML must contain a mapping of profiles or credential fields.")
-
-    selected_profile: str | None = None
-    if profile:
-        selected_profile = select_credential_profile(document, profile)
-        candidate = document[selected_profile]
-        if not isinstance(candidate, dict):
-            raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
-        fields = normalize_credential_fields(candidate)
-    else:
-        fields = normalize_credential_fields(document)
-        if not has_credential_fields(fields):
-            selected_profile = select_credential_profile(document, profile)
-            candidate = document[selected_profile]
-            if not isinstance(candidate, dict):
-                raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
-            fields = normalize_credential_fields(candidate)
-
-    username = first_nonempty(fields, ("username", "account", "user"))
-    password = first_nonempty(fields, ("password", "passward", "passwd", "pwd"))
-    if not username or not password:
-        raise ValueError(
-            "Selected credentials must include username/account/user and password/passward/passwd/pwd fields."
-        )
-    return {"username": username, "password": password}, selected_profile
+        raise ValueError(f"Target config must be valid YAML: {path}") from exc
+    if not isinstance(document, dict) or document.get("schema_version") != 1:
+        raise ValueError("Target config must be a mapping with schema_version: 1.")
+    if not isinstance(document.get("defaults"), dict) or not isinstance(document.get("environments"), dict):
+        raise ValueError("Target config must define defaults and environments mappings.")
+    return document
 
 
-def normalize_credential_fields(raw_fields: dict[Any, Any]) -> dict[str, str]:
+def _selected_name(explicit: str | None, defaults: dict[str, Any], key: str) -> str:
+    value = explicit or defaults.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Target selection requires --{key} or defaults.{key}.")
+    return value.strip()
+
+
+def _mapping_entry(parent: dict[str, Any], key: str, label: str) -> dict[str, Any]:
+    value = parent.get(key)
+    if not isinstance(value, dict):
+        available = ", ".join(sorted(str(name) for name in parent)) or "none"
+        raise ValueError(f"Unknown {label}: {key}. Available: {available}")
+    return value
+
+
+def validate_target_url(raw: Any) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("Selected service must define a non-empty base_url, or use --url for one run.")
+    value = raw.strip()
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Browser target URL must be an absolute http or https URL.")
+    if parsed.username or parsed.password:
+        raise ValueError("Browser target URL must not embed credentials.")
+    return value
+
+
+def resolve_target(
+    document: dict[str, Any],
+    environment: str | None,
+    instance: str | None,
+    service: str | None,
+    url_override: str | None,
+    login: bool,
+) -> dict[str, Any]:
+    defaults = document["defaults"]
+    environment_name = _selected_name(environment, defaults, "environment")
+    instance_name = _selected_name(instance, defaults, "instance")
+    service_name = _selected_name(service, defaults, "service")
+
+    environment_config = _mapping_entry(document["environments"], environment_name, "environment")
+    instances = environment_config.get("instances")
+    if not isinstance(instances, dict):
+        raise ValueError(f"Environment {environment_name} must define an instances mapping.")
+    instance_config = _mapping_entry(instances, instance_name, "instance")
+    services = instance_config.get("services")
+    if not isinstance(services, dict):
+        raise ValueError(f"Instance {instance_name} must define a services mapping.")
+    service_config = _mapping_entry(services, service_name, "service")
+
+    credentials: dict[str, str] | None = None
+    if login:
+        raw_credentials = service_config.get("credentials")
+        if not isinstance(raw_credentials, dict):
+            raise ValueError("--login requires service-local credentials in the private target config.")
+        username = raw_credentials.get("username")
+        password = raw_credentials.get("password")
+        if not isinstance(username, str) or not username.strip() or not isinstance(password, str) or not password:
+            raise ValueError("--login requires non-empty service-local credentials.username and credentials.password.")
+        credentials = {"username": username.strip(), "password": password}
+
     return {
-        str(key).strip().lower(): str(value).strip()
-        for key, value in raw_fields.items()
-        if value is not None and not isinstance(value, dict)
+        "environment": environment_name,
+        "instance": instance_name,
+        "service": service_name,
+        "url": validate_target_url(url_override or service_config.get("base_url")),
+        "url_source": "override" if url_override else "config",
+        "credentials": credentials,
     }
 
 
-def has_credential_fields(fields: dict[str, str]) -> bool:
-    return bool(first_nonempty(fields, ("username", "account", "user")))
+def public_target_metadata(target: dict[str, Any]) -> dict[str, str]:
+    """Return only non-secret target selectors for summary.json."""
+    return {
+        "environment": target["environment"],
+        "instance": target["instance"],
+        "service": target["service"],
+        "url_source": target["url_source"],
+    }
 
 
-def select_credential_profile(document: dict[Any, Any], requested_profile: str | None) -> str:
-    if requested_profile:
-        if requested_profile not in document:
-            available = ", ".join(str(key) for key, value in document.items() if isinstance(value, dict))
-            raise ValueError(f"Credential profile not found: {requested_profile}. Available profiles: {available}")
-        return requested_profile
-
-    if isinstance(document.get("dev"), dict):
-        return "dev"
-    for name, value in document.items():
-        if isinstance(value, dict):
-            return str(name)
-    raise ValueError("Credentials YAML must contain a profile with username and password fields.")
+def public_navigation_metadata(requested_url: str, final_url: str) -> dict[str, str]:
+    """Record navigation paths without copying private origins, queries, or fragments."""
+    requested = urlsplit(requested_url)
+    final = urlsplit(final_url)
+    return {
+        "requested_path": requested.path or "/",
+        "final_path": final.path or "/",
+    }
 
 
-def first_nonempty(fields: dict[str, str], keys: tuple[str, ...]) -> str:
-    for key in keys:
-        value = fields.get(key, "").strip()
-        if value:
-            return value
-    return ""
+def redact_sensitive_values(value: Any, secrets: list[str]) -> Any:
+    """Remove configured secrets from any string before serializing evidence."""
+    protected = sorted({secret for secret in secrets if secret}, key=len, reverse=True)
+    if isinstance(value, str):
+        redacted = value
+        for secret in protected:
+            redacted = redacted.replace(secret, "[REDACTED]")
+        return redacted
+    if isinstance(value, list):
+        return [redact_sensitive_values(item, protected) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_sensitive_values(item, protected) for key, item in value.items()}
+    return value
 
 
 def redact_actions(actions: list[dict[str, str]]) -> list[dict[str, Any]]:
@@ -299,7 +374,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Inspect the local Graft web UI with project-local Playwright."
     )
-    parser.add_argument("--url", required=True, help="URL to open, for example http://localhost:5173")
+    parser.add_argument("--init-config", action="store_true", help="Create the private target template and stop.")
+    parser.add_argument("--environment", help="Environment name; defaults to defaults.environment in private config.")
+    parser.add_argument("--instance", help="Instance name; defaults to defaults.instance in private config.")
+    parser.add_argument("--service", help="Service name; defaults to defaults.service in private config.")
+    parser.add_argument("--url", help="Approved one-run URL override for the selected service.")
     parser.add_argument(
         "--runtime-identity",
         help="Non-secret identity confirmed for the runtime under review; recorded in summary.json.",
@@ -316,21 +395,40 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--wait-ms", type=int, default=0, help="Extra wait time in milliseconds.")
     parser.add_argument("--timeout-ms", type=int, default=15000, help="Navigation and selector timeout.")
     parser.add_argument("--login", action="store_true", help="Log in to the Graft admin shell before capture.")
-    parser.add_argument(
-        "--credentials",
-        default=str(DEFAULT_CREDENTIALS_FILE),
-        help="YAML credential file for --login. Defaults to temp/username-passward.yaml.",
-    )
-    parser.add_argument(
-        "--credential-profile",
-        help="Credential profile in the YAML file. Defaults to dev, then the first profile.",
-    )
     return parser
 
 
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.init_config:
+        try:
+            initialize_target_config(TARGET_CONFIG_FILE)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(f"Created {TARGET_CONFIG_FILE}. Fill the approved targets and credentials, then rerun.")
+        return 0
+    if not TARGET_CONFIG_FILE.exists():
+        initialize_target_config(TARGET_CONFIG_FILE)
+        print(
+            f"Created {TARGET_CONFIG_FILE}. Fill the approved targets and credentials, then rerun; no browser was launched.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        target = resolve_target(
+            load_target_config(TARGET_CONFIG_FILE),
+            args.environment,
+            args.instance,
+            args.service,
+            args.url,
+            args.login,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Browser target selection failed: {exc}", file=sys.stderr)
+        return 2
+
     session = safe_session_name(args.session)
     session_dir = Path(args.output_dir).resolve() / session
     session_dir.mkdir(parents=True, exist_ok=True)
@@ -356,9 +454,7 @@ def main() -> int:
     width, height = args.viewport
     started_at = datetime.now(timezone.utc).isoformat()
     checkout = preflight["checkout"]
-    credentials, credential_profile = (
-        parse_credentials(Path(args.credentials).resolve(), args.credential_profile) if args.login else (None, None)
-    )
+    credentials = target["credentials"]
     auth_events: list[dict[str, Any]] = []
 
     with sync_playwright() as playwright:
@@ -382,7 +478,7 @@ def main() -> int:
             "response",
             lambda response: auth_events.append(event) if (event := auth_response_event(response)) else None,
         )
-        page.goto(args.url, wait_until="networkidle", timeout=args.timeout_ms)
+        page.goto(target["url"], wait_until="networkidle", timeout=args.timeout_ms)
 
         if credentials:
             perform_login(page, credentials, args.timeout_ms)
@@ -401,20 +497,20 @@ def main() -> int:
 
         screenshot_path: str | None = None
         if args.screenshot:
-            target = session_dir / f"{timestamp()}.png"
-            page.screenshot(path=str(target), full_page=True)
-            screenshot_path = str(target)
+            artifact_path = session_dir / f"{timestamp()}.png"
+            page.screenshot(path=str(artifact_path), full_page=True)
+            screenshot_path = str(artifact_path)
 
         text_path: str | None = None
         if args.snapshot_text:
-            target = session_dir / "page-text.txt"
-            target.write_text(page.locator("body").inner_text(timeout=args.timeout_ms), encoding="utf-8")
-            text_path = str(target)
+            artifact_path = session_dir / "page-text.txt"
+            artifact_path.write_text(page.locator("body").inner_text(timeout=args.timeout_ms), encoding="utf-8")
+            text_path = str(artifact_path)
 
         summary: dict[str, Any] = {
             "session": session,
-            "url": args.url,
-            "final_url": page.url,
+            "target": public_target_metadata(target),
+            "navigation": public_navigation_metadata(target["url"], page.url),
             "started_at": started_at,
             "finished_at": datetime.now(timezone.utc).isoformat(),
             "checkout": checkout,
@@ -428,7 +524,6 @@ def main() -> int:
             "actions": redact_actions(actions),
             "login": {
                 "attempted": bool(args.login),
-                "credential_profile": credential_profile,
                 "authenticated": bool(
                     args.login
                     and page.url
@@ -443,6 +538,10 @@ def main() -> int:
             "artifact_dir": str(session_dir),
             "title": page.title(),
         }
+        secret_values = [target["url"]]
+        if credentials:
+            secret_values.extend(credentials.values())
+        summary = redact_sensitive_values(summary, secret_values)
         summary_path = session_dir / "summary.json"
         summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

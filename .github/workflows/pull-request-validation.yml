@@ -160,14 +160,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install AI governance dependencies
-        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
-
       - name: Validate AI governance
         run: python3 scripts/validate_ai_governance.py
 
       - name: Run AI governance validator tests
         run: python3 -m unittest scripts/test_validate_ai_governance.py
+
+      - name: Run repository skill-local tests
+        run: python3 scripts/run_skill_tests.py
 
   web-check:
     name: Web Check

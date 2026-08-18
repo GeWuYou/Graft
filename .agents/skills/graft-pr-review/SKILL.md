@@ -1,322 +1,90 @@
 ---
 name: graft-pr-review
-description: Repository-specific GitHub PR review workflow for the Graft repo. Use when Codex needs to inspect the GitHub pull request for the current branch, extract AI review findings from CodeRabbit, greptile-apps, gemini-code-assist, or github-advanced-security, read failed checks, MegaLinter warnings, or failed test signals from the PR, and then verify which findings should be fixed in the local codebase.
+description: Repository-specific GitHub PR review workflow for Graft. Use to inventory and verify current-branch PR findings from CodeRabbit, Greptile, Gemini Code Assist, GitHub Advanced Security, failed checks, MegaLinter, or failed tests; default to read-only review and require explicit authorization before local remediation or GitHub writes.
 ---
 
 # Graft PR Review
 
-Use this skill when the task depends on the GitHub PR for the current `Graft` branch rather than only on local files.
+Use this skill when the task depends on live GitHub PR state rather than local files alone. Treat root `AGENTS.md` as
+the authority for startup, validation, commit, push, and closeout.
 
-Shortcut: `$graft-pr-review`
+## Permission Stages
 
-Token source order:
+Use two fail-closed stages:
 
-1. `GRAFT_GITHUB_TOKEN`
-2. `GITHUB_TOKEN`
-3. `GH_TOKEN`
-4. `gh auth token`
+1. `inventory/review` is the default. Read GitHub and local code, build an exhaustive inventory, verify findings, and
+   report dispositions. Do not edit files, commit, push, change PR metadata, reply to threads, or update the ledger.
+2. `remediation/write` starts only when the user explicitly requests local fixes or a specific remote write. Permission
+   to fix locally does not authorize commit, push, PR metadata changes, replies, ledger writes, or other GitHub writes;
+   satisfy each owning skill's authorization gate independently.
 
-`gh` is now a supported repository tool for this skill. When the shell is already logged into GitHub through `gh auth login`,
-the skill may reuse that token automatically instead of requiring a second manual export step.
+## Inventory Workflow
 
-GitHub MCP can be used as the first live-context source when it is available in `codex mcp list`. Keep the repository
-Python helper as the deterministic fallback and JSON normalizer for large inventories, reply payload construction, and
-repeatable local repro extraction.
+1. Complete startup preflight and resolve the current branch and its PR.
+2. Prefer GitHub MCP for focused live discovery. Use `scripts/fetch_current_pr_review.py` as the deterministic fallback
+   and JSON normalizer whenever MCP is unavailable or a complete machine-readable inventory is needed.
+3. Build one exhaustive inventory before any remediation:
+   - unresolved latest-head threads from supported AI reviewers and GitHub Advanced Security
+   - failed checks, failed jobs/steps, annotations, MegaLinter, and failed-test signals
+   - CodeRabbit pre-merge checks, including every `Warning` and `Inconclusive`
+   - all folded latest-review groups, including `Duplicate comments`, `Major comments`, `Minor comments`,
+     `Outside diff range comments`, and `Nitpick comments`
+4. Reconcile every declared folded-section count with parsed rows. An under-parsed group makes the inventory incomplete;
+   inspect the raw review body or a focused helper section until all items are enumerated or an exact blocker is known.
+5. Verify every row against the checked-out HEAD and classify it as `actionable-local`, `actionable-large`, `stale`, or
+   `noise`. For CI, reproduce the smallest matching local command before diagnosing the failure. `Inconclusive` must be
+   resolved; every `Warning` needs an explicit remediate or accept-with-reason decision.
+6. In the default read-only stage, stop after reporting the full inventory, evidence, proposed repairs, and the exact
+   authorization needed for any next write.
 
-## Workflow
+Read [references/finding-lifecycle.md](references/finding-lifecycle.md) when building dispositions, handling folded
+sections, or deciding a remote response. Read [references/commands.md](references/commands.md) only when selecting
+helper flags, JSON sections, dry runs, replies, or ledger validation.
 
-Fail-closed rule for this skill:
+## Authorized Remediation
 
-- inventory-first is mandatory: do not start edits, partial fixes, commit/push steps, or PR-thread replies that imply resolution until the latest PR state has been turned into one exhaustive finding inventory
-- folded latest-review sections are mandatory inventory, not optional appendix material; declared counts such as `Nitpick comments (13)` must be reconciled before implementation begins
-- do not reinterpret this skill as a “review-driven repair workflow” where a few obvious findings are fixed first and the rest are deferred informally
-- after the inventory exists, the run may fix findings incrementally, but it must not close out until every finding from that inventory ends in exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`
-- if verified findings remain and no full disposition closure has been reached yet, the run is still incomplete even when some fixes were committed, pushed, or replied on the PR
-- `next-slice required` is not a valid informal escape hatch; a still-valid finding that does not fit one safe local slice must be actively routed through `graft-multi-agent-batch`, `graft-multi-agent-loop`, or an explicit `blocked` state before the run closes
-- “handled some findings and will revisit the rest later” is an invalid final state for this skill
+When explicit local-remediation authority exists:
 
-1. Read `AGENTS.md` before deciding how to validate or fix anything.
-2. Resolve the current branch with normal `git` first. Use explicit `GRAFT_GIT_DIR` and `GRAFT_WORK_TREE` only when the current shell cannot resolve the right repository context on its own.
-3. Prefer GitHub MCP for quick live discovery when available:
-   - identify the current branch PR
-   - read PR metadata, latest review threads, failed check runs, and Actions context
-   - narrow the highest-signal URLs, comment IDs, run IDs, and failed jobs before running heavier local parsing
-4. Run `scripts/fetch_current_pr_review.py` when GitHub MCP is unavailable, when a complete machine-readable inventory is
-   needed, or when constructing PR replies:
-   - fetch live GitHub check-runs for the PR head commit before trusting any CodeRabbit failed-check summary
-   - fetch failed Actions jobs, their failed steps, annotations, and a local repro command derived from `.github/workflows/pull-request-validation.yml`
-   - locate the PR for the current branch through the GitHub PR API
-   - fetch PR metadata, issue comments, reviews, and review comments through the GitHub API
-   - extract CodeRabbit summary blocks and actionable-comment rollups when present
-   - extract every CodeRabbit pre-merge summary check row into the helper's `pre_merge_checks` inventory, including
-     `Failed`, `Warning`, `Inconclusive`, and `Passed` status rows; preserve the raw status, normalized status,
-     explanation, resolution, and source commit
-   - parse the latest CodeRabbit grouped review body across the PR, even when the newest head-commit CodeRabbit review is
-     an empty approval or prompt-only follow-up; folded sections such as `Duplicate comments (N)`, `Major comments (N)`,
-     `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)` must still be inventoried
-   - capture unresolved latest-head review threads for supported AI reviewers and `github-advanced-security[bot]`
-   - surface GitHub Advanced Security review suggestions, code-scanning check-runs, and CodeQL failure annotations when present
-   - surface failed checks, MegaLinter findings, and failed-test signals when present
-   - compare each folded-section declared count against the parsed item count; if `Nitpick comments (N)` or another folded section under-parses, keep drilling with `--section`, saved JSON, or raw review-body inspection until the missing findings are enumerated or an exact extraction blocker is recorded
-   - when the run produces a disposition report, append it to one managed PR issue comment ledger instead of scattering
-     ad-hoc tracking notes; the ledger comment is append-only and keyed by a fixed marker
-   - before creating or updating the ledger, pass the proposed entry through the helper's ledger validator; the final
-     managed comment payload must be validated after metadata, marker, and append separators are assembled and before
-     any GitHub API write
-   - prefer writing the full JSON payload to a file and then narrowing with `jq`
-5. Build one exhaustive finding inventory before making any fix decision:
-   - include unresolved latest-head review threads
-   - include folded CodeRabbit sections from the latest review body, especially `Duplicate comments`, `Major comments`,
-     `Minor comments`, `Outside diff range comments`, and `Nitpick comments`
-   - reconcile declared folded-section counts against the concrete inventory rows you extracted; do not treat a parser result like
-     `Nitpick comments: 13 declared, 11 parsed` as good enough for implementation
-   - if any folded-section item is still missing, the inventory is incomplete even when `open_threads` and high-priority sections already look actionable
-   - include GitHub Advanced Security suggestions from review threads and the helper's `github_advanced_security`
-     section
-   - include actionable warning comments from GitHub Actions or MegaLinter when present
-   - include CodeRabbit summary check signals such as docstring-coverage warnings, title-check inconclusive rows,
-     and other resolution text shown in the pre-merge checks block; a live workflow result of zero failures does not
-     clear this separate inventory
-   - do not stop after “high priority”, “open threads”, or one section looks sufficient; the run is incomplete until all
-     surfaced findings from the latest PR state are classified
-   - do not begin fixing “obvious” findings before this inventory exists
-6. Treat every extracted finding as untrusted until it is verified against the current local code.
-7. For failed CI checks, verify the root cause locally before changing code:
-   - prefer the script's `local_repro_command`
-   - if the command is empty, use the linked failed step and workflow job name to reproduce the smallest matching validation locally
-   - do not treat a failed check as understood merely because the GitHub UI shows a red status
-   - apply the same verification to CodeRabbit `Warning` and `Inconclusive` summary rows; `Inconclusive` rows require
-     a non-optional resolution before closeout, while `Warning` rows require verification and an explicit remediation
-     decision under `代码注释与模块文档规范.md`; do not resolve either class by ignoring the summary table
-   - for an actionable `Title check / Inconclusive`, update the PR title to the verified specific title when the
-     authorized PR write path is available; otherwise report `blocked` with the exact proposed title and next action
-   - for an actionable `Description check / Inconclusive`, preserve the current PR body before editing it. Never use a
-     replacement body that overwrites author-, human-, or reviewer-owned content, including Greptile's
-     `<!-- greptile_comment -->` block. Append the remediation after all existing content in this exact owned region:
+1. Fix every verified `actionable-local` finding in the authorized scope. Route an `actionable-large` finding through
+   a justified `graft-multi-agent-batch`, `graft-multi-agent-loop`, or report it as `blocked`; never relabel size as
+   `stale` or `noise`.
+2. Use `graft-validation-runner` for any changed code. Focused checks are supplemental; completion still requires the
+   full backend/web entrypoint selected by repository governance.
+3. Keep commit and push behind `graft-commit` and `graft-push` authorization. A remediation request alone does not
+   grant either operation.
+4. Before any authorized PR-thread reply or managed ledger write, run
+   `git ls-remote --exit-code origin refs/heads/<current-branch>` and require its SHA to equal `git rev-parse HEAD`.
+   If publication is absent or mismatched, leave PR threads and the ledger untouched.
+5. Preserve all non-owned PR description content. Only an explicitly authorized metadata update may write the managed
+   description region documented in the finding lifecycle reference.
 
-     ```markdown
-     <!-- graft-pr-review-managed-description:start -->
-     ## Maintainer Update
+## Completion Contract
 
-     <concise verified description>
-     <!-- graft-pr-review-managed-description:end -->
-     ```
+Every inventoried finding must end in exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`.
+Partial fixes, handled open threads, or a successful push do not close unreconciled folded findings.
 
-     When the owned markers already exist, replace only the content between those markers. When they do not exist,
-     append the complete region after a blank line and `---` separator. Re-read the PR body after writing and verify
-     that every non-owned region is unchanged; otherwise report the metadata update as `blocked`.
-8. Classify each verified finding before deciding the next action:
-   - `actionable-local`
-     - the finding still applies and fits one safe local slice
-   - `actionable-large`
-     - the finding still applies but the repair spans multiple files, multiple subsystems, a new bounded slice, or a
-       follow-up execution round
-   - `stale`
-     - the finding no longer applies on the checked-out head
-   - `noise`
-     - the finding is a false positive, misread, or otherwise not a real defect after local verification
-   - `Warning` remediation decisions are recorded separately as `remediate` or `accept-with-reason`; this does not
-     add a sixth general finding disposition. `Inconclusive` has no optional acceptance path.
-9. A `$graft-pr-review` run is not allowed to end after fixing only a subset such as “critical”, “major”, or “currently open”
-   findings. Every finding from step 5 must end the run in exactly one reported disposition: `fixed`, `delegated`,
-   `blocked`, `stale`, or `noise`.
-   - a commit, push, or partial batch of PR replies does not satisfy this rule by itself
-   - if a previous run landed partial fixes but did not finish full disposition closure, the resumed run must rebuild the inventory from the latest head and continue until all remaining findings are classified
-   - “all open threads were handled” is still an invalid final state when any folded nitpick, outside-diff, duplicate, major, or minor comment remains unreconciled
-10. Only mark a finding non-actionable when it is `stale` or `noise`. A finding is not `noise` merely because the fix is large, risky, or needs a new slice.
-11. Do not downgrade `Nitpick comments`, `Outside diff range comments`, or folded latest-review sections to optional by default.
-    If a verified suggestion still points to drift risk, duplicated test infrastructure, contract mismatch, missing
-    regression coverage, weak recovery metadata, or another maintainability problem, treat it as actionable review input.
-12. Fix every `actionable-local` finding in the current slice. “I only handled the high-priority findings” is never an
-    acceptable closeout for this skill.
-    - “current slice” here means the full set of verified `actionable-local` findings from the current inventory, not an agent-chosen subset
-13. Do not ignore `actionable-large` findings. When a verified finding no longer fits one safe local slice:
-   - prefer `$graft-multi-agent-batch` when the repair can be split into disjoint parallel slices with reviewable ownership
-   - prefer `$graft-multi-agent-loop` when the repair needs to be repeated in bounded rounds, retryable orchestration, or a serialized continuation path
-   - if neither multi-agent path is justified yet, report the finding as `blocked`; do not silently drop it from the review outcome
-   - do not mark a large verified finding as handled unless the required owned scope is actually repaired or explicitly delegated with a clear next prompt
-   - do not use `next-slice required` as an untracked defer label while ending the run as though review closure was achieved
-14. Use the multi-agent routes actively when they are the correct fit:
-   - choose `$graft-multi-agent-batch` for many small or disjoint actionable findings that can be repaired in parallel
-   - choose `$graft-multi-agent-loop` for one deeper finding or one bounded repair thread that benefits from a worker
-     subagent owning iterative implementation and closeout
-   - do not leave verified actionable findings untouched just because the current main-agent slice would become long
-15. Before any PR-thread reply or managed review-ledger write, prove the current branch is published: run
-    `git ls-remote --exit-code origin refs/heads/<current-branch>` and require its SHA to equal `git rev-parse HEAD`.
-    If a remediation commit is not yet published, run `$graft-push` first; a local commit, successful pre-push hook,
-    or unverified push command is insufficient. On any publication failure, leave PR threads and the ledger untouched
-    and report the exact retry command.
-16. When a verified AI finding is `noise` or a clear misread, reply directly on the PR review thread instead of only carrying a local note:
-    - use `--reply-comment-id <id>` plus `--reply-body` or `--reply-body-file`
-    - if the reply body is still being drafted, use `--reply-dry-run` first
-    - do not wait in the same run for the AI to answer back; a later `graft-pr-review` run should classify the thread as `resolved_after_reply`, `pending_ai_followup`, or `contested`
-17. When a verified AI finding is fixed locally but the PR thread is still open, reply on that thread only after the
-    fixing commit is confirmed on the remote branch:
-    - state that the finding has been fixed
-    - include the fixing commit SHA or short SHA
-    - name the touched file or location when useful
-    - do not wait in the same run for the AI reviewer to auto-close the thread
-    - in later `$graft-pr-review` runs, if the thread is still open and the latest follow-up is from the AI reviewer, classify it as `contested` and either reply once more with the newer fixing commit or request human review
-18. When a verified finding needs human judgment before deciding whether to fix or reject it, do not reply on the PR thread in the same `$graft-pr-review` run:
-    - report it as `blocked`; if earlier notes used `needs-human-review`, map that state to the canonical `blocked` disposition at closeout
-    - include the concrete local verification reason and the tradeoff
-    - leave the AI thread unreplied until the user explicitly decides whether to fix it or manually reply
-19. At task closeout, list every verified finding and its disposition:
-    - `fixed`
-    - `delegated`
-    - `blocked`
-    - `stale`
-    - `noise`
-   - A narrow `--section failed-checks` or `--section open-threads` query is not a complete review run; follow the
-     helper's pre-merge and folded-section notices or run the default complete output before making any closeout claim.
-20. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
-    - `coderabbit_handled`
-      - how many CodeRabbit findings from the rebuilt inventory ended this run as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
-    - `coderabbit_outside_diff_range`
-      - declared count and handled count for `Outside diff range comments (N)`; if the section is absent, record `0`
-    - `coderabbit_nitpick`
-      - declared count and handled count for `Nitpick comments (N)`; if the section is absent, record `0`
-    - `open_suggestions`
-      - how many AI review findings remained open on the PR at the time the inventory was captured, plus how many still remain open after this run when rechecked
-    - `greptile_suggestions`
-      - total verified Greptile findings in scope for the run, with their final dispositions
-    - `coderabbit_pre_merge_checks`
-      - total, status counts, source head commit, and each `Warning` decision / `Inconclusive` disposition
-    - when another AI reviewer is present, keep it in the normal finding inventory, but the five fields above are still mandatory
-    - append that same summary block to the managed PR issue comment ledger so the next `$graft-pr-review` run can confirm deltas incrementally instead of re-auditing prior handled rows by memory
-21. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
-22. Do not ignore any verified suggestion. If the repair grows large:
-   - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
-   - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
-   - if neither is justified yet, report the finding as `blocked` with the reason
-   - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
-23. If any finding is reported as `noise` or AI misjudgment, explicitly record:
-    - which finding it was
-    - the concrete local verification reason
-    - why it was not adopted
-    - wording suitable for replying on the PR
-24. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
-    `contested` and carry both sides' reasoning into the final summary for human judgment.
-25. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
+Report:
 
-## Commands
+```text
+Graft PR review:
+- stage: inventory/review | remediation/write
+- inventory_source: GitHub MCP | deterministic fallback | mixed
+- inventory_complete: yes | no with exact blocker
+- findings: <each finding, evidence, classification, disposition>
+- coderabbit_handled: <count>
+- coderabbit_outside_diff_range: <declared/handled>
+- coderabbit_nitpick: <declared/handled>
+- coderabbit_pre_merge_checks: <status counts and decisions>
+- open_suggestions: <before/after>
+- greptile_suggestions: <count and dispositions>
+- validation: <commands/results or not-applicable>
+- writes: <none or explicitly authorized operations/results>
+```
 
-- Default:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py`
-- Recommended machine-readable workflow:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --json-output /tmp/pr1-review.json`
-  - `jq '.latest_commit_review.open_threads' /tmp/pr1-review.json`
-- Force a PR number:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1`
-- Machine-readable output:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --format json`
-- Write machine-readable output to a file instead of stdout:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --format json --json-output /tmp/pr1-review.json`
-- Reply to one AI review thread after verifying it is noise:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --reply-comment-id 1234567890 --reply-body "本地已核对，当前 HEAD 上该建议不成立，原因是 ..."`
-- Preview a reply payload without sending it:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --reply-comment-id 1234567890 --reply-body-file /tmp/reply.txt --reply-dry-run`
-- Reply after fixing a finding in a commit:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --reply-comment-id 1234567890 --reply-fixed-commit abc1234 --reply-fixed-path server/modules/auth/route_errors.go`
-- Append one run summary to the managed PR issue-comment ledger without posting:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md --ledger-dry-run`
-- Append one run summary to the managed PR issue-comment ledger:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md`
-- Validate one proposed ledger entry body offline before syncing:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --ledger-validate-body-file /tmp/pr-review-ledger.md`
-- Validate a complete downloaded managed ledger document offline:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --ledger-validate-file /tmp/graft-pr-review-ledger.md`
-- Inspect only a high-signal section:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
-- Inspect CodeRabbit pre-merge checks, including warnings and inconclusive rows:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section pre-merge-checks`
-- Inspect grouped CodeRabbit severity comments from the latest review body:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor --section outside-diff --section nitpick`
-- Inspect GitHub Advanced Security suggestions and code-scanning signals:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section advanced-security`
-- Narrow text output to one path fragment:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads --path AGENTS.md`
+## Boundaries
 
-## Output Expectations
-
-The script should produce:
-
-- PR metadata: number, title, state, branch, URL
-- Live workflow checks for the PR head commit, especially failed GitHub Actions jobs
-- For each failed live check: failed step, annotations when available, linked details URL, and a local repro command
-- Supported automated reviewer summary, including latest reviews and open-thread counts for `coderabbitai[bot]`,
-  `greptile-apps[bot]`, `gemini-code-assist[bot]`, and `github-advanced-security[bot]`
-- CodeRabbit summary block from issue comments when available
-- Folded latest-review sections such as `Duplicate comments (N)`, `Major comments (N)`, `Minor comments (N)`,
-  `Outside diff range comments (N)`, and `Nitpick comments (N)` from the latest grouped CodeRabbit review across the PR
-  when CodeRabbit puts them in the review body instead of issue comments
-- For each folded latest-review section, both the declared count and the extracted inventory count, with an explicit mismatch signal when they differ
-- Parsed latest head-review threads, with unresolved threads clearly separated
-- Latest head commit review metadata and review threads
-- GitHub Advanced Security status, including `github-advanced-security[bot]` review threads, code-scanning or CodeQL
-  check-runs, failed annotations, and a focused `github_advanced_security` JSON section
-- Pre-merge failed checks, if present
-- Complete CodeRabbit pre-merge check inventory under `coderabbit_summary.pre_merge_checks`, including warning and
-  inconclusive rows with their normalized status, handling policy, explanations, resolutions, and source commit;
-  every non-passed row must receive a final disposition or an explicit execution blocker
-- Latest MegaLinter status and any detailed issues posted by `github-actions[bot]`
-- Test summary, including failed-test signals when present
-- Detailed failed-test rows from GitHub Test Reporter or CTRF comments when available
-- CLI support for writing full JSON to a file and printing only narrowed text sections to stdout
-- Managed PR issue-comment ledger support keyed by one fixed marker, with append-only run blocks and dry-run preview
-- Ledger writes reject empty content, literal `\\n` / `\\r` escapes, missing required inventory fields, missing marker/title/run headings,
-  and any final payload that fails validation after append assembly; legacy existing comments with literal newline escapes
-  are normalized before the final payload check
-- Human review closeout that records each verified finding as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
-- Exhaustive coverage confirmation that no latest-review finding section was left unclassified
-- Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`,
-  `coderabbit_pre_merge_checks`, `open_suggestions`, and `greptile_suggestions`
-- Thread reply state for replied AI findings: `unreplied`, `pending_ai_followup`, `resolved_after_reply`, or `contested`
-- Guidance and CLI support for replying to fixed-but-still-open AI threads with the fixing commit SHA
-- Explicit closeout guidance that findings needing human review must not be auto-replied on the PR thread
-- Explicit reasons for every `stale` or `noise` finding, instead of silently omitting it from the reported outcome
-
-## Recovery Rules
-
-- If a previous run committed or pushed only a subset of fixes without full finding disposition closure, the resumed run must treat that as an incomplete prior execution, rebuild the inventory from the latest head, and continue until the remaining findings are all classified.
-
-- If the current branch has no matching public PR, report that clearly instead of guessing.
-- If GitHub access fails because of local proxy configuration, rerun the fetch with proxy variables removed.
-- If live check-runs are visible but job logs return `403`, keep the failed step, annotations, and repro command as the root-cause surface; warn, but do not treat the whole failed-check extraction as broken.
-- Treat CodeRabbit pre-merge `Warning` and `Inconclusive` rows as mandatory inventory. Verify docstring coverage,
-  title checks, and similar summary signals against repository policy and the current head; do not dismiss them only
-  because CodeRabbit labels warnings optional or because no inline review thread exists. A `Warning` may be accepted
-  only with an explicit comment-governance reason; an actionable `Inconclusive` must be fixed, delegated, blocked with
-  a concrete next step, or proven stale/noise before closeout.
-- Prefer GitHub API results over PR HTML. The PR HTML page is a fallback/debugging source, not the primary source of truth.
-- If the summary block and the latest head review threads disagree, trust the latest unresolved head-review threads and treat older summary findings as stale until re-verified locally.
-- If the latest review body contains folded sections, those sections are still in scope even when `open_threads` looks short;
-  do not treat missing urgency labels as permission to skip them.
-- If a folded-section parser reports a mismatch such as `Nitpick comments: 13 declared, 11 parsed`, treat that as an incomplete inventory state; continue with raw review-body inspection, `--section` narrowing, or another deterministic extraction path until the missing findings are enumerated or an exact blocker is recorded in closeout.
-- Do not assume every AI reviewer behaves like CodeRabbit. `greptile-apps[bot]` and `gemini-code-assist[bot]` findings may exist only as latest-head review threads.
-- Do not assume GitHub Advanced Security behaves like CodeRabbit. `github-advanced-security[bot]` findings may exist as
-  review threads, while related code-scanning or CodeQL problems may exist only as check-runs or annotations.
-- Treat GitHub Actions comments with `Success with warnings` as actionable when they include concrete linter diagnostics such as MegaLinter detailed issues.
-- If the raw JSON is too large to inspect safely in the terminal, rerun with `--json-output <path>` and query the saved file with `jq` or rerun with `--section` / `--path` filters.
-- If a verified finding still matters but needs a larger repair slice, do not downgrade it to optional; route it through
-  `$graft-multi-agent-batch`, `$graft-multi-agent-loop`, or an explicit `blocked` state with a next safe startup prompt.
-- The only acceptable reasons to leave a verified finding unfixed in the final report are `stale`, `noise`, or a
-  clearly stated execution blocker with a next safe step.
-- “Only high-priority findings were handled”, “open threads were handled”, “nitpicks were skipped”, or “parser only found most nitpicks” are invalid final
-  states for this skill.
-- When a finding is left as `noise` or AI misjudgment, the closeout must name the exact suggestion and give a concrete
-  non-adoption reason that the user can reuse in the PR reply.
-- When a finding was fixed but the AI thread did not auto-close, first verify that the remote branch ref resolves exactly
-  to `HEAD`, then reply once with the fixing commit SHA and location. Leave the thread alone until a later
-  `graft-pr-review` run shows either resolution or a fresh AI follow-up.
-- When a finding still needs human judgment on whether to fix or reject it, do not auto-reply; surface the reason to the
-  user and wait for an explicit decision before any PR-thread response.
-- If the agent has already replied to an AI finding and a later run still sees the thread open with a fresh AI counterargument, mark that thread `contested` and leave the final decision to a human reviewer instead of auto-closing it.
-
-## Example Triggers
-
-- `Use $graft-pr-review on the current branch`
-- `Check the current PR and extract CodeRabbit suggestions`
-- `Check the current PR and summarize failed checks`
-- `Look for Failed Tests on the PR`
-- `先用 $graft-pr-review 看当前分支 PR`
+- Do not treat a narrow `--section` query as a complete review.
+- Do not start edits before exhaustive inventory or without explicit local-remediation authority.
+- Do not infer GitHub write authority from read access, a token, MCP availability, or local remediation authority.
+- Do not wait in the same run for an AI reviewer to answer a reply; classify follow-up in a later inventory.
+- Do not create a second validation, commit, push, PR creation, or recovery workflow.

@@ -19,7 +19,16 @@
 - 前端页面的数据流设计先区分 server state 与 UI/client state；出现重复请求、手工 loading/error/data、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，先按 `ai-plan/design/architecture/前端架构设计.md` 评估 `@tanstack/vue-query`。
 - 不把 TanStack 当作默认替换方案：Table、Virtual、Router 和 Form 只有在既有能力被可复核的性能或维护性证据否定后才可进入独立设计。
 
-## 2.1 Semantic Review Layer
+## 2.1 Inspection 与写操作授权
+
+- PR review 与 security alert 请求默认只授权只读 inventory、证据提取、finding 分类和根因诊断。
+- 只有用户明确要求修复，才授权进入对应代码 repair；只读审查本身不授权修改工作树。
+- GitHub 评论、alert 回复或关闭、commit、push、PR 创建或更新等 external write 必须由用户明确要求，并继续受
+  对应 `graft-commit`、`graft-push`、`graft-pr-create` 或专项 skill 约束。
+- 从 inspection 进入 repair 或 external write 时必须重新确认 authority、owned scope、验证和 closeout 路径；
+  不得把“finding 可执行”解释为已获得写操作授权。
+
+## 2.2 Semantic Review Layer
 
 语义审查是设计阶段的默认层，不是用户显式要求时才运行的工具。Boot 必须按 authority、task class 和影响面
 主动匹配所有适用 Review Skill，并在设计或 Work Contract 中记录选择、发现和未决决策。
@@ -105,6 +114,14 @@ Vitest 测试证明的行为仍由 Agent 验证。
 真实浏览器环境，或用户明确要求浏览器自动化时，才可按 `web/AGENTS.md` 和 `graft-web-browser-agent` 执行。未来已
 登记且隔离的 CI browser test 可在 CI 自动运行，但当前本地 Agent 操作浏览器始终需要授权。截图、DOM snapshot 和
 artifact 只记录检查证据，不能替代自动化测试或人工验收。
+
+授权后的本地浏览器目标可从 Git 忽略的 `.ai/private/graft-browser-targets.yaml` 选择；它支持多个 environment、
+instance 和 service，但只属于开发者本机元数据。首次调用仅在文件不存在时创建非秘密占位模板，不得覆盖已有配置；
+凭据必须保持私有且在所有可见输出中脱敏。branch / HEAD 不从配置取得；每次浏览器运行前都必须动态验证所选 runtime
+正在服务的 branch 与完整 HEAD，并在无法验证或不匹配时停止。验证必须通过 approved runtime identity
+process 独立完成，配置本身不是证据，本规范也不假定存在返回身份的特定 server endpoint。selector 解析已配置
+defaults，显式 `--url` 只作为单次覆盖；目标清单不得持有可信 `runtime_identity`，base URL 也不得进入 tracked
+文件或 summary。
 
 当自动验证通过但仍需真实用户判断时，Agent 停止继续验证，输出：
 

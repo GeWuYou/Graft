@@ -6,7 +6,9 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).with_name("check_plugin_residuals.py")
@@ -51,6 +53,18 @@ class PluginResidualTests(unittest.TestCase):
         )
         rule = MODULE.classify(match, rules)
         self.assertIsNone(rule)
+
+    def test_find_matches_skips_directory_symlink_and_non_regular_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            target_dir = root / "target"
+            target_dir.mkdir()
+            (target_dir / "SKILL.md").write_text("plugin\n", encoding="utf-8")
+            (root / "skills-link").symlink_to(target_dir, target_is_directory=True)
+            (root / "plain-directory").mkdir()
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                self.assertEqual(MODULE.find_matches("skills-link"), [])
+                self.assertEqual(MODULE.find_matches("plain-directory"), [])
 
 
 if __name__ == "__main__":

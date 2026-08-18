@@ -157,12 +157,14 @@ func (s *Service) RegisterEmbeddedLocaleResources(resources []EmbeddedLocaleReso
 
 ## 6. 验证
 
+以下包级测试只用于迭代定位；涉及 `server` runtime 的完成态必须由 `graft-validation-runner` 回到完整 backend
+entrypoint，skill / 治理文档则使用仓库自有 AI governance guard：
+
 ```bash
 git diff --check
 cd server && go test ./internal/i18n/...
 cd server && go test ./internal/app/... ./internal/moduleruntime/...
 cd server && go test ./modules/announcement/... ./modules/container/... ./modules/audit/... ./modules/monitor/... ./modules/rbac/... ./modules/scheduler/... ./modules/system-config/... ./modules/user/...
-cd server && go run ./cmd/graft validate backend --stage lint
-cd server && go build ./cmd/graft
-python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-localization-governance
+cd server && go run ./cmd/graft validate backend
+python3 scripts/validate_ai_governance.py
 ```

@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -32,6 +33,131 @@ class FrontmatterTests(unittest.TestCase):
     def test_parse_frontmatter_rejects_missing_block(self) -> None:
         self.assertIsNone(MODULE.parse_frontmatter("# Body only\n"))
 
+    def test_parse_frontmatter_rejects_unquoted_colon_space(self) -> None:
+        text = "---\nname: graft-example\ndescription: Review changes: compare both authorities.\n---\n"
+
+        with self.assertRaisesRegex(MODULE.FrontmatterError, "unquoted colon-space"):
+            MODULE.parse_frontmatter(text)
+
+        trailing_colon = "---\nname: graft-example\ndescription: Review changes:\n---\n"
+        with self.assertRaisesRegex(MODULE.FrontmatterError, "unquoted colon-space"):
+            MODULE.parse_frontmatter(trailing_colon)
+
+    def test_parse_frontmatter_rejects_yaml_collection_and_alias_indicators(self) -> None:
+        for invalid_value in ("[broken", "{broken", "*missing"):
+            with self.subTest(invalid_value=invalid_value):
+                text = f"---\nname: graft-example\ndescription: {invalid_value}\n---\n"
+
+                with self.assertRaisesRegex(MODULE.FrontmatterError, "reserved YAML indicator"):
+                    MODULE.parse_frontmatter(text)
+
+    def test_parse_frontmatter_rejects_implicit_non_string_scalar(self) -> None:
+        for invalid_value in ("true", "0xdeadbeef", "2026-08-18"):
+            with self.subTest(invalid_value=invalid_value):
+                text = f"---\nname: graft-example\ndescription: {invalid_value}\n---\n"
+
+                with self.assertRaisesRegex(MODULE.FrontmatterError, "non-string YAML scalar"):
+                    MODULE.parse_frontmatter(text)
+
+    def test_validate_frontmatter_rejects_unknown_schema_field(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            skill_dir = Path(temporary_dir) / "graft-example"
+            skill_dir.mkdir()
+            skill_md = skill_dir / "SKILL.md"
+            skill_md.write_text(
+                "---\n"
+                "name: graft-example\n"
+                "description: A sufficiently explicit repository skill description used to test strict schema validation behavior.\n"
+                "extra: unsupported\n"
+                "---\n",
+                encoding="utf-8",
+            )
+
+            findings = MODULE.validate_skill_frontmatter(skill_md)
+
+        self.assertTrue(any("unsupported frontmatter fields" in finding.message for finding in findings))
+
+
+class SkillMetadataTests(unittest.TestCase):
+    def test_openai_metadata_requires_interface_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            skill_dir = root / "graft-example"
+            yaml_path = skill_dir / "agents" / "openai.yaml"
+            yaml_path.parent.mkdir(parents=True)
+            yaml_path.write_text(
+                'display_name: "Example"\n'
+                'short_description: "Example description"\n'
+                'default_prompt: "Use $graft-example."\n',
+                encoding="utf-8",
+            )
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                findings = MODULE.validate_openai_yaml(skill_dir, {"graft-example/agents/openai.yaml"})
+
+        self.assertTrue(any("top-level interface" in finding.message for finding in findings))
+
+    def test_openai_metadata_requires_quoted_interface_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            skill_dir = root / "graft-example"
+            yaml_path = skill_dir / "agents" / "openai.yaml"
+            yaml_path.parent.mkdir(parents=True)
+            yaml_path.write_text(
+                "interface:\n"
+                "  display_name: Example\n"
+                '  short_description: "Example description"\n'
+                '  default_prompt: "Use $graft-example."\n',
+                encoding="utf-8",
+            )
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                findings = MODULE.validate_openai_yaml(skill_dir, {"graft-example/agents/openai.yaml"})
+
+        self.assertTrue(any("quoted interface string" in finding.message for finding in findings))
+
+
+class SkillAuthorityTests(unittest.TestCase):
+    def _validate(self, body: str, extra_files: tuple[str, ...] = ()) -> list[MODULE.Finding]:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            skill_dir = root / ".agents" / "skills" / "graft-example"
+            skill_dir.mkdir(parents=True)
+            skill_md = skill_dir / "SKILL.md"
+            skill_md.write_text(body, encoding="utf-8")
+            for relative_path in extra_files:
+                target = skill_dir / relative_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("reference\n", encoding="utf-8")
+            with mock.patch.object(MODULE, "REPO_ROOT", root):
+                return MODULE.validate_skill_authority_and_references(skill_md)
+
+    def test_rejects_retired_plugin_authority(self) -> None:
+        findings = self._validate("Use server/plugins/example and internal/pluginapi through graft-plugin-scaffold.\n")
+
+        self.assertGreaterEqual(len(findings), 3)
+
+    def test_allows_negative_dynamic_plugin_guidance(self) -> None:
+        findings = self._validate("Do not introduce dynamic plugin loading.\n")
+
+        self.assertEqual(findings, [])
+
+    def test_rejects_missing_relative_markdown_reference(self) -> None:
+        findings = self._validate("Read [details](references/missing.md).\n")
+
+        self.assertTrue(any("does not exist" in finding.message for finding in findings))
+
+    def test_accepts_existing_relative_markdown_reference(self) -> None:
+        findings = self._validate("Read [details](references/details.md).\n", ("references/details.md",))
+
+        self.assertEqual(findings, [])
+
+    def test_rejects_private_ip_but_allows_loopback_and_config_placeholder(self) -> None:
+        findings = self._validate(
+            "Use http://172.21.235.129:3002; loopback http://127.0.0.1:8080 is allowed. "
+            "Load [private targets](/.ai/private/graft-browser-targets.yaml).\n"
+        )
+
+        self.assertEqual(sum("private network address" in finding.message for finding in findings), 1)
+
 
 class FindingTests(unittest.TestCase):
     def test_finding_formats_repo_relative_path(self) -> None:
@@ -43,6 +169,19 @@ class FindingTests(unittest.TestCase):
 class SkillMcpGuidanceTests(unittest.TestCase):
     def test_skill_mcp_guidance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_skill_mcp_guidance(), [])
+
+
+class BootReceiptTests(unittest.TestCase):
+    def test_boot_receipt_requires_authority_summary(self) -> None:
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(MODULE.BOOT_SKILL)
+        mutated_text = current_text.replace("authority summary", "authority result")
+        self.assertNotEqual(current_text, mutated_text)
+
+        with mock.patch.object(MODULE, "read_text", return_value=mutated_text):
+            findings = MODULE.validate_boot_startup_receipt()
+
+        self.assertTrue(any("authority summary" in finding.message for finding in findings))
 
 
 class SubagentModelGovernanceTests(unittest.TestCase):

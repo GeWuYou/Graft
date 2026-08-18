@@ -350,16 +350,20 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
-  - verified actionable findings from PR review must not be ignored only because the repair is large, cross-slice, or
-    likely to require a new task slice; when the fix no longer fits one safe local slice, prefer
-    `graft-multi-agent-batch` or `graft-multi-agent-loop` under the normal subagent rules
-  - only stale findings, noise, false positives, or no-longer-applicable findings may be left unfixed, and those cases
-    must be listed explicitly in the task closeout with the concrete reason
+  - default to read-only finding inventory and diagnosis; repairing code or performing any GitHub write requires the
+    user's explicit authorization for that phase and must return to the owning implementation, commit, push, or PR skill
+  - inventory must classify every finding; during read-only review, actionable findings may remain open only when the
+    report preserves their evidence, risk, and concrete next step or blocker instead of silently ignoring them
+  - an explicitly authorized remediation run must close every finding as `fixed`, `delegated`, `blocked`, `stale`, or
+    `noise`; large or cross-slice repairs follow the normal bounded-work and subagent rules, while stale/noise decisions
+    record the concrete reason
 - `graft-security-remediation`
-  - use when triaging, fixing, validating, and closing GitHub `security/code-scanning` or `security/dependabot`
-    alerts for this repository, including bounded branch hygiene, commit/push/PR flow, and post-push security recheck
-- `graft-plugin-scaffold`
-  - use when adding a new `server` module under `server/modules/*` or shaping that module before implementation
+  - use read-only inventory and diagnosis by default for GitHub `security/code-scanning` or `security/dependabot`
+    alerts; enter repair, commit/push/PR, alert-closing, or post-push recheck only when the user explicitly authorizes
+    the corresponding remediation or external-write phase
+- `graft-server-module-scaffold`
+  - use when adding a new `server` module under `server/modules/*` or shaping its canonical module and
+    `server/internal/moduleapi/**` boundaries before implementation
 - `graft-table-design`
   - use when designing or changing database tables, Ent schemas, Atlas migrations, audit fields, soft delete fields,
     indexes, store query semantics, or database comments
@@ -398,7 +402,7 @@ Prefer the repository skills below when their trigger matches the task:
   - use when adding or changing server i18n facade behavior, locale resource files, message keys, JSON Schema
     `x-i18n` metadata, web locale catalogs, locale aggregation, or key-first localization governance
 - `graft-web-module-scaffold`
-  - use when adding a new `web` feature module aligned with backend module semantics
+  - use when adding a new `web` feature module aligned with the canonical `server` module contract
 - `graft-web-vibe-coding`
   - use when adding, redesigning, or reviewing `web` pages, shell surfaces, frontend AI prompts, or visual-governance
     rules that should first declare a page type, pick one of the built-in page masters or register an extension type,
@@ -420,6 +424,9 @@ Prefer the repository skills below when their trigger matches the task:
   - use when evaluating or changing AI tooling, MCP adoption, repository skills, Python helper scripts, environment
     inventory, or drift between AGENTS and AI workflow documents; pair it with `graft-ai-plan-governance` when the
     same slice also changes `ai-plan/**` governance
+  - its governed docs/automation surface includes generated `.ai/environment/**` inventory and only the narrow
+    `.github/workflows/**` CI guard that runs repository-owned AI-governance validation; generated files must be
+    refreshed through their owner script
 - `graft-navigation-route-governance`
   - use before adding, moving, or reviewing a menu item, UI route, global page, or object-detail entry so the
     capability is classified against the repository navigation and resource-route authority before implementation
@@ -627,6 +634,14 @@ Local browser interaction is opt-in: it requires a task-local user or developer 
 `web/AGENTS.md` primary-checkout safeguards. A future browser test registered in CI may run there as part of its CI
 contract; this does not authorize local agent browser interaction. Screenshots and browser artifacts are inspection
 evidence, never standalone acceptance proof.
+
+Authorized browser runs may discover targets from the ignored developer-local
+`.ai/private/graft-browser-targets.yaml`. That file may describe multiple environments, instances, and services, but
+it is not repository authority or recovery state. On first use, tooling may create a placeholder template only when
+the file is absent and must never overwrite an existing file. Credentials stay private and are redacted from commands,
+logs, artifacts, and closeout. The file does not provide trusted runtime identity: the expected current branch and full
+HEAD must be supplied, then independently proven against the selected runtime through the approved runtime identity
+process for every run. Configuration is not proof; unavailable or mismatched proof fails closed.
 
 ### 10.6 Line Ending Governance
 

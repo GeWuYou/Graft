@@ -23,7 +23,8 @@ workflow; it does not replace repository startup, validation, closeout, or commi
    - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
 4. Inspect concurrent work before edits:
    - `git status --short`
-   - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, and `scripts/**` audit helpers
+   - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, `scripts/**` audit helpers,
+     and generated `.ai/environment/**` inventory when the task explicitly refreshes environment truth
    - do not stage unrelated `server`, `web`, OpenAPI, dashboard, topic recovery, or generated artifact changes
 5. Check live local tool state when relevant:
    - `codex mcp list`
@@ -43,6 +44,12 @@ python3 scripts/validate_ai_governance.py
 
 ```bash
 python3 -m unittest discover -s scripts -p 'test_*.py'
+```
+
+If skill-local scripts or tests changed, run the canonical skill-local suite as well:
+
+```bash
+python3 scripts/run_skill_tests.py
 ```
 
 8. Report:
@@ -74,8 +81,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 ```text
 AI governance audit:
 - task_class: docs/automation
-- owned_scope: ai-plan/design/**, .agents/skills/**, scripts/**
-- tools_checked: codex mcp list / validate_ai_governance / unittest
+- owned_scope: ai-plan/design/**, .agents/skills/**, scripts/**, .ai/environment/** when inventory refresh is explicit
+- tools_checked: codex mcp list / validate_ai_governance / repository unittest / run_skill_tests
 - mcp_changes: adopted | pilot | rejected | none
 - validation: <commands and results>
 - commit_scope: <confirmed owned paths>

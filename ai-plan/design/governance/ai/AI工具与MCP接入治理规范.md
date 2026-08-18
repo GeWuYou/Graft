@@ -175,6 +175,19 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     编号 agent worktree 禁止使用 Playwright MCP 或 browser agent，也不得启动服务来获得浏览器证据；浏览器 QA 只允许
     在经用户或开发者许可、且已确认服务待验收分支和 HEAD 的主检出区执行。工作树只记录该主检出区 follow-up，不把它
     作为 scoped commit 的阻塞条件。
+  - 本地目标清单：`graft-web-browser-agent` 可使用 Git 忽略的
+    `.ai/private/graft-browser-targets.yaml` 保存开发者本机目标元数据。该 YAML 必须支持多个 environment、instance
+    和 service，不成为仓库依赖、CI 配置、validation truth 或 recovery truth。固定 schema 为顶层
+    `schema_version: 1`、带 `environment` / `instance` / `service` 的 `defaults`，以及
+    `environments.<env>.instances.<instance>.services.<service>.base_url`；所选 service 可选配置
+    `credentials.username` 和 `credentials.password`。
+  - 选择规则：CLI selector 解析上述 defaults；显式 `--url` 只覆盖当前一次运行，不回写目标清单。
+  - 初始化与秘密：第一次调用仅在文件不存在时创建带占位值的模板，已有文件永不自动覆盖。凭据即使保存在该私有文件中
+    也不得进入 tracked 文件、命令回显、日志、截图 metadata、summary 或 closeout；base URL 同样不得进入 tracked
+    文件或 summary，所有可见输出必须脱敏。创建模板后必须停止并等待用户编辑，不能使用占位值继续运行。
+  - 运行时身份：目标清单不保存可信 `runtime_identity`。每次运行必须由调用方提供期望的当前 branch 与完整 HEAD，
+    再通过 approved runtime identity process 独立证明所选 runtime 确实服务该身份；配置本身不是证据，无法证明、
+    存在歧义或不匹配时 fail closed，不执行后续浏览器动作。本规范不假定 runtime 通过某个特定 endpoint 提供身份。
 ### 4.3 Optional Pilot
 
 - `headroom`
@@ -237,9 +250,13 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
 - 先确认是否已有 skill 可以扩展，避免重复工作流。
 - `SKILL.md` 只放触发条件、关键流程、拒绝条件和必要命令。
 - 复杂、可重复、易错的步骤优先放到 `scripts/**`。
-- 若新增 `agents/openai.yaml`，默认只写 `display_name`、`short_description`、`default_prompt`。
+- 若新增 `agents/openai.yaml`，必须以顶层 `interface` 包裹 `display_name`、`short_description`、
+  `default_prompt`，默认不增加其它 metadata 字段。
 - skill 不得要求读取无关大文件，不得把 task tracking 写到 `.agents/skills/**`。
 - skill 的脚本必须能在无项目运行时服务的情况下做最小结构验证。
+- skill 的 frontmatter 必须是严格合法 YAML，`name` 必须与目录名一致；显式 Markdown 文档引用必须指向
+  存在的仓库文件。active skill 不得硬编码私网 IP，也不得重新引入 `server/plugins/**`、
+  `server/internal/pluginapi/**` 等历史 authority 路径。
 - 仓库 skill 只能引用仓库内 skill 或已登记的用户级工具能力；个人设备操作 skill 不得成为工作树的默认 prompt、隐式依赖或 closeout 步骤。
 - `graft-ai-plan-governance` 是 `ai-plan/**` router、active topic recovery、template、catalog 与 bounded validator
   的窄治理 skill；它必须回到 root `AGENTS.md`、`ai-plan/AGENTS.md`、`ai-plan/README.md` 与
@@ -248,7 +265,9 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
 - `graft-work-intake` 是 workflow orchestrator，而不是内容生产 skill；它只负责 `Work Intake`、`Work Contract`、
   contract-driven minimal bootstrap 和 dispatch，所有领域正文仍由对应专业 skill 负责。
 - `graft-ai-governance-audit` 保持 broader AI tooling / MCP / skill / inventory drift audit；当同一批次同时修改
-  `.agents/skills/**`、`scripts/**` 或本规范时，可与 `graft-ai-plan-governance` 组合使用。
+  `.agents/skills/**`、`scripts/**` 或本规范时，可与 `graft-ai-plan-governance` 组合使用。其 owned scope 可按
+  当前任务明确覆盖生成的 `.ai/environment/**` inventory，以及 `.github/workflows/**` 中运行仓库 AI governance
+  guard 的窄 CI workflow；前者必须通过生成脚本刷新，后者不得变成 runtime validation authority。
 - 自动验证、浏览器检查与人工验收的责任边界由根 `AGENTS.md` 与 `AI代码生成与Review规范.md` 定义；
   `scripts/validate_ai_governance.py` 只检查这些 authority、相关 skills 和 active recovery wording 是否漂移，
   不成为 `server` / `web` 的第二套完成态或产品验收入口。
@@ -258,7 +277,14 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
   comment-count、覆盖率或第二套 lint 门禁。
 - `graft-pr-review` 的完整盘点要求必须贯穿其后续 repair / commit / push 链路；如果一个批次来自 PR review，
   则 `Outside diff range comments`、`Nitpick comments` 和其它 folded latest-review findings 仍然必须在 closeout
-  中逐项落到 `fixed`、`delegated`、`blocked`、`stale` 或 `noise`，不能因中间 commit、push 或并行修复而降级为可选。
+  中保持逐项 disposition，不能因中间 commit、push 或并行修复而降级为可选。只读 review 可以把 actionable
+  finding 保持为带证据、风险和具体下一步的 open / reported；只有显式授权的 remediation run 才要求逐项闭环为
+  `fixed`、`delegated`、`blocked`、`stale` 或 `noise`。
+- `graft-pr-review` 默认只读：inventory 和 diagnosis 不授权修改代码、提交、推送、PR 评论或其它 GitHub 写入；
+  只有用户明确要求 repair 或对应 external write 后，才可进入由实现、`graft-commit`、`graft-push`、
+  `graft-pr-create` 等 owner skill 约束的写阶段。
+- `graft-security-remediation` 同样先执行只读 alert inventory 和 diagnosis；修复代码、提交、推送、创建或更新 PR、
+  关闭或回复 alert、post-push recheck 都必须由用户对相应 remediation / external-write 阶段作出明确授权。
 - 预合并汇总检查也必须进入同一 closeout：passed 仅作为证据保留；Warning 必须有显式 remediation decision；
   Inconclusive 必须有非可选 disposition，不能被 live workflow 的成功状态覆盖。
 - `graft-table-design` 是数据库表设计、Ent schema、migration、审计字段、软删除、索引和数据库注释的治理
@@ -292,7 +318,11 @@ Python helper 用于仓库自动化和 AI 辅助验证时：
   新发现的未登记文件最多作为 warning，不作为阻断错误。
 - `scripts/validate_ai_governance.py` 可校验 AI 工作流 authority 的稳定锚点，包括 verification classification、
   本地 browser opt-in、human acceptance handoff 和 active topic recovery 不得把 browser evidence 写成默认 closeout gate；
-  它与其 `unittest` 仅作为 docs/automation guard，并由 PR workflow 执行。
+  它还必须严格校验 skill frontmatter、目录名、现有 `agents/openai.yaml` 结构、仓库内显式 Markdown 引用、
+  active skill 的历史 plugin authority 残留和私网 IP 硬编码。它与其 `unittest` 仅作为 docs/automation guard，
+  并由 PR workflow 执行。
+- skill-local tests 由仓库拥有的 test runner 统一发现和运行，并接入同一 AI governance CI guard；不得依赖
+  外部 `SKILL_CREATOR_ROOT` 或只扫描 `scripts/test_*.py` 的命令来声明 skill 测试完整通过。
 
 ## 7. Closeout Evidence
 

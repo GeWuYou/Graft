@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 import tempfile
@@ -16,79 +17,120 @@ browser_agent = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(browser_agent)
 
 
-class ParseCredentialsTest(unittest.TestCase):
-    def test_defaults_to_dev_profile(self) -> None:
+class TargetConfigTest(unittest.TestCase):
+    def config(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "defaults": {"environment": "local", "instance": "primary", "service": "web"},
+            "environments": {
+                "local": {
+                    "instances": {
+                        "primary": {
+                            "services": {
+                                "web": {
+                                    "base_url": "http://127.0.0.1:3002",
+                                    "credentials": {"username": "dev-user", "password": "dev-password"},
+                                },
+                                "api": {"base_url": "http://127.0.0.1:8080"},
+                            }
+                        }
+                    }
+                }
+            },
+        }
+
+    def test_init_creates_template_only_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            credentials_file = Path(directory) / "credentials.yaml"
-            credentials_file.write_text(
-                """dev:
-  username: dev-user
-  password: dev-password
-test:
-  username: test-user
-  password: test-password
-""",
-                encoding="utf-8",
-            )
+            path = Path(directory) / "private" / "targets.yaml"
+            browser_agent.initialize_target_config(path)
 
-            credentials, profile = browser_agent.parse_credentials(credentials_file)
+            document = browser_agent.load_target_config(path)
 
-        self.assertEqual(profile, "dev")
-        self.assertEqual(credentials, {"username": "dev-user", "password": "dev-password"})
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(document["defaults"]["service"], "web")
 
-    def test_selects_requested_profile(self) -> None:
+    def test_init_refuses_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            credentials_file = Path(directory) / "credentials.yaml"
-            credentials_file.write_text(
-                """dev:
-  username: dev-user
-  password: dev-password
-test:
-  username: test-user
-  password: test-password
-""",
-                encoding="utf-8",
-            )
+            path = Path(directory) / "targets.yaml"
+            path.write_text("user-owned\n", encoding="utf-8")
 
-            credentials, profile = browser_agent.parse_credentials(credentials_file, "test")
+            with self.assertRaisesRegex(FileExistsError, "refusing to overwrite"):
+                browser_agent.initialize_target_config(path)
 
-        self.assertEqual(profile, "test")
-        self.assertEqual(credentials, {"username": "test-user", "password": "test-password"})
+            self.assertEqual(path.read_text(encoding="utf-8"), "user-owned\n")
 
-    def test_requested_profile_overrides_top_level_credentials(self) -> None:
+    def test_first_main_invocation_creates_config_and_stops(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            credentials_file = Path(directory) / "credentials.yaml"
-            credentials_file.write_text(
-                """username: flat-user
-password: flat-password
-dev:
-  username: dev-user
-  password: dev-password
-test:
-  username: test-user
-  password: test-password
-""",
-                encoding="utf-8",
-            )
+            path = Path(directory) / "private" / "targets.yaml"
+            with (
+                patch.object(browser_agent, "TARGET_CONFIG_FILE", path),
+                patch.object(browser_agent, "browser_preflight") as browser_preflight,
+                patch.object(sys, "argv", ["browser_agent.py"]),
+            ):
+                self.assertEqual(browser_agent.main(), 2)
 
-            credentials, profile = browser_agent.parse_credentials(credentials_file, "test")
+            self.assertTrue(path.is_file())
+            browser_preflight.assert_not_called()
 
-        self.assertEqual(profile, "test")
-        self.assertEqual(credentials, {"username": "test-user", "password": "test-password"})
-
-    def test_rejects_unknown_profile_without_disclosing_values(self) -> None:
+    def test_explicit_init_refuses_existing_config(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            credentials_file = Path(directory) / "credentials.yaml"
-            credentials_file.write_text(
-                """dev:
-  username: dev-user
-  password: dev-password
-""",
-                encoding="utf-8",
-            )
+            path = Path(directory) / "targets.yaml"
+            path.write_text("user-owned\n", encoding="utf-8")
+            with (
+                patch.object(browser_agent, "TARGET_CONFIG_FILE", path),
+                patch.object(sys, "argv", ["browser_agent.py", "--init-config"]),
+            ):
+                self.assertEqual(browser_agent.main(), 2)
 
-            with self.assertRaisesRegex(ValueError, "Credential profile not found: missing"):
-                browser_agent.parse_credentials(credentials_file, "missing")
+            self.assertEqual(path.read_text(encoding="utf-8"), "user-owned\n")
+
+    def test_resolves_defaults_and_one_run_override(self) -> None:
+        target = browser_agent.resolve_target(
+            self.config(), None, None, None, "http://localhost:4173", True
+        )
+
+        self.assertEqual(target["environment"], "local")
+        self.assertEqual(target["instance"], "primary")
+        self.assertEqual(target["service"], "web")
+        self.assertEqual(target["url"], "http://localhost:4173")
+        self.assertEqual(target["url_source"], "override")
+        self.assertEqual(target["credentials"], {"username": "dev-user", "password": "dev-password"})
+
+    def test_selects_explicit_service(self) -> None:
+        target = browser_agent.resolve_target(self.config(), "local", "primary", "api", None, False)
+
+        self.assertEqual(target["url"], "http://127.0.0.1:8080")
+        self.assertIsNone(target["credentials"])
+
+    def test_rejects_missing_target(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Unknown service: missing"):
+            browser_agent.resolve_target(self.config(), None, None, "missing", None, False)
+
+    def test_public_metadata_redacts_credentials(self) -> None:
+        config = self.config()
+        config["environments"]["local"]["instances"]["primary"]["services"]["web"]["base_url"] = (
+            "http://private-host.internal:3002/audit?private=value"
+        )
+        target = browser_agent.resolve_target(config, None, None, None, None, True)
+
+        public_summary = {
+            "target": browser_agent.public_target_metadata(target),
+            "navigation": browser_agent.public_navigation_metadata(target["url"], target["url"] + "#done"),
+            "title": "Welcome dev-user at http://private-host.internal:3002/audit?private=value",
+        }
+        redacted_summary = browser_agent.redact_sensitive_values(
+            public_summary,
+            [target["url"], target["credentials"]["username"], target["credentials"]["password"]],
+        )
+        encoded = json.dumps(redacted_summary)
+
+        self.assertNotIn("dev-user", encoded)
+        self.assertNotIn("dev-password", encoded)
+        self.assertNotIn("credentials", encoded)
+        self.assertNotIn("private-host.internal", encoded)
+        self.assertNotIn("private=value", encoded)
+        self.assertNotIn(target["url"], encoded)
+        self.assertEqual(redacted_summary["navigation"]["requested_path"], "/audit")
 
 
 class RuntimeIdentityTest(unittest.TestCase):
@@ -154,12 +196,16 @@ class BrowserPreflightTest(unittest.TestCase):
                 browser_agent.browser_preflight("primary-web feature/test abc123")
 
     def test_invalid_preflight_does_not_import_playwright(self) -> None:
-        with (
-            patch.object(browser_agent, "browser_preflight", side_effect=ValueError("invalid runtime label")),
-            patch.object(browser_agent, "load_sync_playwright") as load_playwright,
-            patch.object(sys, "argv", ["browser_agent.py", "--url", "http://localhost:5173"]),
-        ):
-            self.assertEqual(browser_agent.main(), 2)
+        with tempfile.TemporaryDirectory() as directory:
+            target_config = Path(directory) / "targets.yaml"
+            target_config.write_text(browser_agent.TARGET_CONFIG_TEMPLATE, encoding="utf-8")
+            with (
+                patch.object(browser_agent, "TARGET_CONFIG_FILE", target_config),
+                patch.object(browser_agent, "browser_preflight", side_effect=ValueError("invalid runtime label")),
+                patch.object(browser_agent, "load_sync_playwright") as load_playwright,
+                patch.object(sys, "argv", ["browser_agent.py"]),
+            ):
+                self.assertEqual(browser_agent.main(), 2)
 
         load_playwright.assert_not_called()
 

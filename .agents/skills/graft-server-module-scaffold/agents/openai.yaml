@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Server Module Scaffold"
+  short_description: "Shape a Graft server module before implementation"
+  default_prompt: "Use $graft-server-module-scaffold to define the lifecycle, contracts, permissions, menus, migrations, routes, jobs, and validation boundary for a new Graft server module."
