@@ -18,6 +18,11 @@ Use two fail-closed stages:
    to fix locally does not authorize commit, push, PR metadata changes, replies, ledger writes, or other GitHub writes;
    satisfy each owning skill's authorization gate independently.
 
+When the user explicitly invokes `$graft-pr-remediation`, route through that companion workflow. Its explicit contract
+bundles verified local repair, validation, scoped commit, push, supported-AI thread replies, and eligible thread
+resolution plus the final managed-ledger append while preserving this skill's complete inventory, ledger schema, and
+disposition requirements.
+
 ## Inventory Workflow
 
 1. Complete startup preflight and resolve the current branch and its PR.

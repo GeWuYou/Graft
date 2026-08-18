@@ -25,6 +25,11 @@
 - 只有用户明确要求修复，才授权进入对应代码 repair；只读审查本身不授权修改工作树。
 - GitHub 评论、alert 回复或关闭、commit、push、PR 创建或更新等 external write 必须由用户明确要求，并继续受
   对应 `graft-commit`、`graft-push`、`graft-pr-create` 或专项 skill 约束。
+- 用户显式调用 `graft-pr-remediation` 时，该调用就是当前分支 PR 的 bounded repair / validate / commit / push /
+  supported-AI thread reply / resolve / managed-ledger append 授权；它不授权 force-push、merge、PR metadata、
+  arbitrary issue comment、human-authored thread resolution 或 unbounded finding。所有回复、resolve 与 ledger 写入
+  仍必须在远端分支和 PR head 精确匹配本地 HEAD 后执行，ledger schema 和 append-only payload validation 继续由
+  `graft-pr-review` 持有。
 - 从 inspection 进入 repair 或 external write 时必须重新确认 authority、owned scope、验证和 closeout 路径；
   不得把“finding 可执行”解释为已获得写操作授权。
 

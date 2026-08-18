@@ -34,6 +34,9 @@ TASK_CLOSEOUT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-task-closeout" /
 WEB_VIBE_CODING_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-vibe-coding" / "SKILL.md"
 WEB_AGENTS = REPO_ROOT / "web" / "AGENTS.md"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
+PR_REMEDIATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-remediation" / "SKILL.md"
+PR_REVIEW_HELPER = PR_REVIEW_SKILL.parent / "scripts" / "fetch_current_pr_review.py"
+PR_REVIEW_COMMANDS = PR_REVIEW_SKILL.parent / "references" / "commands.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-governance" / "SKILL.md"
@@ -985,6 +988,70 @@ def validate_pr_reply_publication_governance() -> list[Finding]:
     return findings
 
 
+def validate_pr_remediation_governance() -> list[Finding]:
+    """Require the explicit PR remediation workflow to close eligible AI threads safely."""
+    checks = (
+        (
+            PR_REMEDIATION_SKILL,
+            (
+                "`graft-pr-review`",
+                "`graft-validation-runner`",
+                "`graft-commit`",
+                "`graft-push`",
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "PR head SHA",
+                "thread_resolution_source",
+                "github-graphql",
+                "supported AI reviewers",
+                "`contested`",
+                "--resolve-comment-id <root-comment-id>",
+                "--resolve-expected-head <full-sha>",
+                "--resolve-dry-run",
+                "managed-ledger",
+                "--ledger-validate-body-file",
+                "--ledger-expected-head <full-sha>",
+                "--ledger-dry-run",
+                "latest run",
+                "Do not claim closed-loop completion",
+            ),
+        ),
+        (
+            PR_REVIEW_HELPER,
+            (
+                "--resolve-comment-id",
+                "--resolve-expected-head",
+                "--resolve-dry-run",
+                "resolveReviewThread",
+                "SUPPORTED_AI_REVIEWER_LOGINS",
+                "--ledger-expected-head",
+            ),
+        ),
+        (
+            PR_REVIEW_COMMANDS,
+            (
+                "--resolve-comment-id <root-comment-id>",
+                "--resolve-expected-head <full-sha>",
+                "--resolve-dry-run",
+                "combined reply-and-resolve",
+                "--ledger-validate-body-file",
+                "--ledger-expected-head <full-sha>",
+                "--ledger-dry-run",
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "PR remediation governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "PR remediation governance", terms))
+
+    for path in (AGENTS, AI_TOOLING_DOC, AI_CODE_REVIEW_DOC, PR_REVIEW_SKILL):
+        if path.is_file() and "graft-pr-remediation" not in read_text(path):
+            findings.append(Finding(path, "missing graft-pr-remediation workflow reference"))
+    return findings
+
+
 def validate_commit_completion_governance() -> list[Finding]:
     """Ensure a bare graft-commit closes every captured worktree change."""
     checks = (
@@ -1452,6 +1519,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
     findings.extend(validate_pr_reply_publication_governance())
+    findings.extend(validate_pr_remediation_governance())
     findings.extend(validate_commit_completion_governance())
     findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())

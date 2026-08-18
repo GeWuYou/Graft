@@ -357,6 +357,15 @@ Prefer the repository skills below when their trigger matches the task:
   - an explicitly authorized remediation run must close every finding as `fixed`, `delegated`, `blocked`, `stale`, or
     `noise`; large or cross-slice repairs follow the normal bounded-work and subagent rules, while stale/noise decisions
     record the concrete reason
+- `graft-pr-remediation`
+  - use only when the user explicitly requests the complete current-PR repair loop: exhaustive `graft-pr-review`
+    inventory, verified local fixes, repository validation, scoped commit, incremental push, exact remote/PR-head
+    publication proof, replies plus resolution for every still-open eligible supported-AI review thread, and one final
+    validated append to the `graft-pr-review` managed ledger
+  - its explicit invocation authorizes that bounded commit/push/reply/resolve chain, but not force-push, merge, PR
+    metadata or arbitrary issue-comment writes, human-authored thread resolution, or unbounded findings; managed-ledger
+    schema authority remains in `graft-pr-review`, while `delegated`, `blocked`, and contested findings remain open with
+    explicit ownership
 - `graft-security-remediation`
   - use read-only inventory and diagnosis by default for GitHub `security/code-scanning` or `security/dependabot`
     alerts; enter repair, commit/push/PR, alert-closing, or post-push recheck only when the user explicitly authorizes

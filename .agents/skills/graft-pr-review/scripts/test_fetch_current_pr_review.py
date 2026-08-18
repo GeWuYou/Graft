@@ -455,6 +455,115 @@ class ReplyStateTests(unittest.TestCase):
         self.assertEqual(MODULE.classify_reply_state(thread), "resolved_after_reply")
 
 
+class ReviewThreadResolutionTests(unittest.TestCase):
+    """Cover guarded GraphQL resolution for supported-AI review threads."""
+
+    def test_find_review_thread_paginates_and_matches_root_comment(self) -> None:
+        """The lookup should follow review-thread cursors and match only the root database id."""
+        first_page = {
+            "repository": {
+                "pullRequest": {
+                    "headRefOid": "a" * 40,
+                    "reviewThreads": {
+                        "nodes": [],
+                        "pageInfo": {"hasNextPage": True, "endCursor": "next"},
+                    },
+                }
+            }
+        }
+        second_page = {
+            "repository": {
+                "pullRequest": {
+                    "headRefOid": "a" * 40,
+                    "reviewThreads": {
+                        "nodes": [
+                            {
+                                "id": "PRRT_thread",
+                                "isResolved": False,
+                                "comments": {
+                                    "nodes": [
+                                        {"databaseId": 42, "author": {"login": "coderabbitai"}},
+                                        {"databaseId": 43, "author": {"login": "developer"}},
+                                    ]
+                                },
+                            }
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                }
+            }
+        }
+
+        with mock.patch.object(MODULE, "perform_graphql", side_effect=[first_page, second_page]) as graphql:
+            thread = MODULE.find_review_thread_by_root_comment(287, 42)
+
+        self.assertEqual(thread["thread_id"], "PRRT_thread")
+        self.assertEqual(thread["root_author"], "coderabbitai")
+        self.assertEqual(graphql.call_args_list[1].args[1]["cursor"], "next")
+
+    def test_resolution_dry_run_requires_exact_head_and_supported_ai_author(self) -> None:
+        """A dry run should validate the target without mutating GitHub."""
+        thread = {
+            "thread_id": "PRRT_thread",
+            "is_resolved": False,
+            "root_comment_id": 42,
+            "root_author": "coderabbitai",
+            "head_sha": "a" * 40,
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment", return_value=thread
+        ), mock.patch.object(MODULE, "perform_graphql") as graphql:
+            result = MODULE.perform_review_thread_resolution(287, 42, "a" * 40, dry_run=True)
+
+        self.assertTrue(result["dry_run"])
+        self.assertFalse(result["already_resolved"])
+        graphql.assert_not_called()
+
+    def test_resolution_executes_mutation_and_requires_confirmation(self) -> None:
+        """An authorized resolution should require GitHub to return isResolved true."""
+        thread = {
+            "thread_id": "PRRT_thread",
+            "is_resolved": False,
+            "root_comment_id": 42,
+            "root_author": MODULE.GREPTILE_LOGIN,
+            "head_sha": "b" * 40,
+        }
+        mutation_result = {
+            "resolveReviewThread": {"thread": {"id": "PRRT_thread", "isResolved": True}}
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment", return_value=thread
+        ), mock.patch.object(MODULE, "perform_graphql", return_value=mutation_result) as graphql:
+            result = MODULE.perform_review_thread_resolution(287, 42, "b" * 40)
+
+        self.assertTrue(result["resolved"])
+        graphql.assert_called_once_with(
+            MODULE.RESOLVE_REVIEW_THREAD_MUTATION,
+            {"threadId": "PRRT_thread"},
+        )
+
+    def test_resolution_rejects_head_mismatch_and_human_thread(self) -> None:
+        """Publication drift and human-authored threads must fail closed."""
+        ai_thread = {
+            "thread_id": "PRRT_ai",
+            "is_resolved": False,
+            "root_comment_id": 42,
+            "root_author": MODULE.CODERABBIT_LOGIN,
+            "head_sha": "c" * 40,
+        }
+        human_thread = {**ai_thread, "root_author": "maintainer", "head_sha": "d" * 40}
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment", return_value=ai_thread
+        ):
+            with self.assertRaisesRegex(RuntimeError, "PR head does not match"):
+                MODULE.perform_review_thread_resolution(287, 42, "d" * 40, dry_run=True)
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="token"), mock.patch.object(
+            MODULE, "find_review_thread_by_root_comment", return_value=human_thread
+        ):
+            with self.assertRaisesRegex(RuntimeError, "unsupported reviewer"):
+                MODULE.perform_review_thread_resolution(287, 42, "d" * 40, dry_run=True)
+
+
 class BuildAllOpenReviewThreadsTests(unittest.TestCase):
     """Cover PR-wide unresolved AI-thread aggregation beyond the latest commit only."""
 
@@ -494,6 +603,36 @@ class BuildAllOpenReviewThreadsTests(unittest.TestCase):
             [thread["root_comment"]["user"] for thread in threads],
             [MODULE.CODERABBIT_LOGIN, MODULE.GREPTILE_LOGIN],
         )
+
+    def test_build_all_open_review_threads_excludes_graphql_resolved_threads(self) -> None:
+        """Authoritative GraphQL state should remove resolved threads from the open inventory."""
+        comments = [
+            {
+                "id": 7,
+                "path": "server/modules/audit/service.go",
+                "line": 30,
+                "side": "RIGHT",
+                "created_at": "2026-05-16T10:00:00Z",
+                "updated_at": "2026-05-16T10:00:00Z",
+                "user": {"login": MODULE.CODERABBIT_LOGIN},
+                "commit_id": "older-commit",
+                "in_reply_to_id": None,
+                "body": "Old finding",
+            }
+        ]
+        review_thread_index = {
+            7: {
+                "thread_id": "PRRT_resolved",
+                "is_resolved": True,
+                "root_comment_id": 7,
+                "root_author": MODULE.CODERABBIT_LOGIN,
+                "head_sha": "a" * 40,
+            }
+        }
+
+        threads = MODULE.build_all_open_review_threads(comments, review_thread_index)
+
+        self.assertEqual(threads, [])
 
 
 class FetchLatestCommitReviewTests(unittest.TestCase):
@@ -1183,6 +1322,62 @@ class ManagedIssueCommentTests(unittest.TestCase):
         self.assertEqual(action["comment_id"], 55)
         self.assertIn("Existing entry", action["request_payload"]["body"])
         self.assertIn("coderabbit_nitpick", action["request_payload"]["body"])
+
+    def test_managed_ledger_write_requires_full_expected_head(self) -> None:
+        """A non-dry-run ledger append must carry exact PR-head publication proof."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "a" * 40},
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE, "post_json"
+        ) as post_json:
+            with self.assertRaisesRegex(RuntimeError, "ledger-expected-head"):
+                MODULE.perform_managed_issue_comment_append(136, [], result, self.VALID_ENTRY_BODY)
+
+        post_json.assert_not_called()
+
+    def test_managed_ledger_dry_run_rejects_pr_head_mismatch(self) -> None:
+        """A supplied expected head must match even when previewing the ledger payload."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "a" * 40},
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"):
+            with self.assertRaisesRegex(RuntimeError, "PR head does not match"):
+                MODULE.perform_managed_issue_comment_append(
+                    136,
+                    [],
+                    result,
+                    self.VALID_ENTRY_BODY,
+                    expected_head="b" * 40,
+                    dry_run=True,
+                )
+
+    def test_managed_ledger_write_uses_verified_expected_head(self) -> None:
+        """A matching full head should permit the append and remain visible in action evidence."""
+        expected_head = "c" * 40
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": expected_head},
+        }
+        response = {
+            "id": 99,
+            "html_url": "https://example.test/comment/99",
+            "body": "ledger",
+            "user": {"login": "developer"},
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE, "post_json", return_value=(response, {})
+        ) as post_json:
+            action = MODULE.perform_managed_issue_comment_append(
+                136,
+                [],
+                result,
+                self.VALID_ENTRY_BODY,
+                expected_head=expected_head,
+            )
+
+        self.assertFalse(action["dry_run"])
+        self.assertEqual(action["expected_head"], expected_head)
+        post_json.assert_called_once()
 
 
 if __name__ == "__main__":

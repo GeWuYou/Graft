@@ -153,7 +153,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     `context canceled` 只说明当前 server 会话已取消，不能作为认证成功证据。
 
   - 采用条件：PR 审查或 CI 排障需要 GitHub 实时状态。
-  - 约束：写操作必须通过 `graft-pr-review`、`graft-pr-create` 或后续专门 skill 的显式流程。
+  - 约束：只读盘点和 managed-ledger schema 通过 `graft-pr-review`；完整修复、发布、回复、解决线程及最终台账追加
+    必须由用户显式调用 `graft-pr-remediation`；PR 创建或元数据写入继续通过 `graft-pr-create`。
   - 评审盘点约束：`graft-pr-review` 必须把 latest review body 的 folded sections 全量纳入清单，尤其
     `Outside diff range comments (N)`、`Nitpick comments (N)`、`Duplicate comments (N)`、`Major comments (N)`、
     `Minor comments (N)`；这些项不是可忽略附录，也不能因为后续使用 `graft-multi-agent-batch`、`graft-commit`
@@ -283,6 +284,13 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
 - `graft-pr-review` 默认只读：inventory 和 diagnosis 不授权修改代码、提交、推送、PR 评论或其它 GitHub 写入；
   只有用户明确要求 repair 或对应 external write 后，才可进入由实现、`graft-commit`、`graft-push`、
   `graft-pr-create` 等 owner skill 约束的写阶段。
+- `graft-pr-remediation` 是当前分支 PR 的显式闭环入口。用户显式调用它时，授权范围限定为完整 finding inventory、
+  已验证的本地修复、完成态验证、scoped commit、incremental push、远端分支与 PR head 精确 publication proof，以及
+  对 supported AI reviewer 的 eligible `fixed` / `stale` / `noise` 线程逐条回复并 resolve，再把最终 inventory 作为
+  一个 append-only run 写入 `graft-pr-review` managed ledger。它不得 force-push、merge、修改 PR metadata、发布任意
+  issue comment、关闭 human-authored thread，也不得关闭 `delegated`、`blocked`、`contested` finding。回复与 resolve
+  必须分两次远端写执行，中间重建 inventory；ledger body 必须先校验和 dry-run，并以完整 expected PR-head SHA 阻断
+  漂移，写入后必须回读确认。若 reviewer 已产生 contested follow-up，则保留线程交由人工判断。
 - `graft-security-remediation` 同样先执行只读 alert inventory 和 diagnosis；修复代码、提交、推送、创建或更新 PR、
   关闭或回复 alert、post-push recheck 都必须由用户对相应 remediation / external-write 阶段作出明确授权。
 - 预合并汇总检查也必须进入同一 closeout：passed 仅作为证据保留；Warning 必须有显式 remediation decision；

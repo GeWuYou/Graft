@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft PR Remediation"
+  short_description: "Close verified PR findings through reply and resolve"
+  default_prompt: "Use $graft-pr-remediation to repair and publish verified PR findings, reply to and resolve eligible AI review threads, then append and verify the final managed review ledger run."
