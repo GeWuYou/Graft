@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	routecontract "graft/server/internal/contract/route"
 	auditcontract "graft/server/modules/audit/contract"
 	auditstore "graft/server/modules/audit/store"
 )
@@ -96,10 +97,10 @@ func isAuditVisibilityPolicyWriteCandidate(candidate auditstore.AuditCandidate) 
 
 func isAuditVisibilityPolicyWriteAction(action string) bool {
 	switch action {
-	case http.MethodPut + " " + "/api" + auditcontract.AuditVisibilityPolicyAPIPath,
-		http.MethodPut + " " + "/api" + auditcontract.AuditVisibilityOverrideAPIPath,
-		http.MethodDelete + " " + "/api" + auditcontract.AuditVisibilityOverrideAPIPath,
-		http.MethodPut + " " + "/api" + auditcontract.AuditVisibilityOverrideBatchAPIPath:
+	case http.MethodPut + " " + routecontract.APIPath(auditcontract.AuditVisibilityPolicyAPIPath),
+		http.MethodPut + " " + routecontract.APIPath(auditcontract.AuditVisibilityOverrideAPIPath),
+		http.MethodDelete + " " + routecontract.APIPath(auditcontract.AuditVisibilityOverrideAPIPath),
+		http.MethodPut + " " + routecontract.APIPath(auditcontract.AuditVisibilityOverrideBatchAPIPath):
 		return true
 	default:
 		return false
