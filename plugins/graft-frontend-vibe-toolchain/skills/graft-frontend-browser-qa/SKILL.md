@@ -18,12 +18,16 @@ Use this skill after or during Graft web UI changes when behavior, layout, visib
    snapshots, and simple click/fill/wait checks.
 4. Use Playwright MCP only as an exploratory browser aid when it is already configured; do not add a Playwright test dependency or generate a new test baseline.
 5. Inspect console errors, failed network requests, broken auth flows, layout overlap, unreadable text, missing affordances, and focus/keyboard traps.
-6. Check desktop and mobile-sized viewports when the changed surface is responsive or visually material.
+6. Check desktop and mobile-sized viewports when the changed surface is responsive or visually material. Exercise the longest realistic labels, IDs, validation messages, empty states, and loading replacements so they do not clip, overlap, or cause disruptive layout shifts.
 7. Keep evidence auditable: record the branch/HEAD, command or browser path, page/surface inspected, and any validation gaps.
 
 ## Accessibility-Oriented Review
 
-- Verify controls have visible labels, predictable focus order, usable disabled/loading/empty/error states, and color-independent status signals.
+- Verify controls have visible labels; icon-only controls have accessible names; decorative icons do not create duplicate announcements; and focus order follows the visual workflow.
+- Verify keyboard users can reach and operate changed controls, receive a visible unobscured focus indicator, and have an alternative to any drag, hover-only, or pointer-only action.
+- Verify form fields retain specific adjacent errors and recovery guidance. Multi-error submission should preserve field errors and direct users to a useful error summary or the first invalid field; status messages must not steal focus.
+- Verify disabled, loading, success, empty, and error states communicate both the current status and the next viable action without relying on color alone.
+- Verify fixed bars, dialogs, drawers, tables, tags, and long user-provided values remain readable and operable at the reviewed viewport sizes; truncation must not hide essential information without a usable disclosure.
 - Prefer TDesign-native controls and semantics before custom DOM.
 - Treat screenshot review as evidence, not as a replacement for `bun run check`.
 

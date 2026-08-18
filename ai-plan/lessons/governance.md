@@ -188,3 +188,35 @@
   - `server/internal/cli/validate_backend_lint.go`
 - Updated at:
   2026-08-01
+
+## LESSON-GOVERNANCE-EXTERNAL-SKILL-001：外部 skill 应按现有能力边界转换并路由
+
+- Status: active
+- Level: L2
+- Applies to:
+  - 引入或参考第三方 AI skill、plugin、设计工作流或资料包
+  - `.agents/skills/**` 与项目级 Codex plugin 的能力演进
+- Source:
+  - UI/UX Pro Max 适配任务中，用户明确拒绝将外部能力压缩为一个“上帝 skill”
+- Problem:
+  直接 vendoring 外部 skill 或把其所有能力堆入一个本地入口，会带入无关技术栈、数据、脚本和第二套工作流，
+  并模糊现有 skill 的 authority 与职责。
+- Correct pattern:
+  固定外部对照版本并仅作开发期阅读；按请求意图提取可复用原则，分别收口到已有的 intake、构建、QA、资产/动效
+  等窄 skill。外部资料只提供启发式输入，项目设计文档、既有 skill、运行时框架和验证入口继续是 authority。
+- Anti-pattern:
+  - 整包复制外部 skill、搜索脚本、数据集、字体或框架特定实现
+  - 新建覆盖设计、生成、验证和资产决策的通用“上帝 skill”
+  - 让外部生成的设计系统、目录或验证流程成为第二套长期真值
+- Enforcement:
+  外部前端 skill 先经过 `graft-frontend-skill-intake` 路由；变更项目级 plugin 时运行 manifest、skill 结构和
+  AI governance 校验，并确认没有引入运行时依赖、个人配置或未经授权的技术栈。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-skill-intake/`
+  - `.agents/skills/graft-web-vibe-coding/SKILL.md`
+  - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
+- Updated at:
+  2026-08-17
