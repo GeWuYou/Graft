@@ -344,6 +344,8 @@ UI 约束：
 
 - `web/src` 运行时代码禁止使用浏览器原生 `window.alert`、`window.confirm`、`window.prompt`，以及对应 bare call 或 `globalThis.*` 调用。
 - 确认、告警、输入类交互必须统一使用 `TDesign Vue Next` 的 `t-dialog` 或 `DialogPlugin`。
+- 标准模态框位置由应用级 `TConfigProvider` 统一配置为视口居中；业务页面不得重复声明默认位置、添加局部顶部偏移，或用全局 CSS 改写 TDesign 内部 DOM。
+- `full-screen`、响应式 sheet/drawer，或由内容尺寸证明需要独立布局的大型结果视图，可以在组件职责边界内显式覆盖位置，但不得形成模块级第二套默认值。
 - 原生弹窗治理门禁必须扫描整个 `web/src`，并排除 tests、mocks、generated 等非运行时边界；不得退化成只检查当前改动文件。
 
 可见文案治理规则：

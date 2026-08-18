@@ -1,5 +1,5 @@
 <template>
-  <t-config-provider :global-config="getComponentsLocale">
+  <t-config-provider :global-config="globalConfig">
     <div class="app-theme-surface" :class="mode" :data-theme-mode="mode">
       <router-view />
     </div>
@@ -7,6 +7,7 @@
   </t-config-provider>
 </template>
 <script setup lang="ts">
+import type { GlobalConfigProvider } from 'tdesign-vue-next';
 import { computed, watch } from 'vue';
 
 import { APP_RESULT_ROUTE_PATH, resolveRecoveryRoutePath } from '@/contracts/app/routes';
@@ -17,7 +18,7 @@ import { useSettingStore } from '@/store';
 import { usePlatformAvailabilityStore } from '@/store/modules/platform-availability';
 import { store as pinia } from '@/store/pinia';
 
-// 应用 provider 统一承接主题、TDesign locale 和路由树，业务页面只消费已准备好的运行时上下文。
+// 应用 provider 统一承接主题、TDesign locale、标准模态框位置和路由树，避免业务页面重复声明平台级交互策略。
 const store = useSettingStore();
 const availability = usePlatformAvailabilityStore(pinia);
 availability.bindRequestBridge();
@@ -81,6 +82,13 @@ const showSetting = computed(
 );
 
 const { getComponentsLocale } = useLocale();
+const globalConfig = computed<GlobalConfigProvider>(() => ({
+  ...getComponentsLocale.value,
+  dialog: {
+    ...getComponentsLocale.value.dialog,
+    placement: 'center',
+  },
+}));
 
 if (import.meta.env.MODE !== 'test') {
   if (availability.status === 'unknown') {
