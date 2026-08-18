@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -54,12 +55,114 @@ func TestServiceFiltersWidgetsByRequiredPermissions(t *testing.T) {
 	}
 }
 
+func TestServiceDoesNotInvokeUnauthorizedWidgetLoader(t *testing.T) {
+	t.Parallel()
+
+	invoked := make(chan struct{}, 1)
+	registry := NewRegistry()
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:                  "audit.hidden",
+		ModuleKey:           "audit",
+		Type:                WidgetTypeAlertList,
+		Size:                WidgetSizeMedium,
+		RequiredPermissions: []string{"audit.read"},
+		Loader: WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+			invoked <- struct{}{}
+			return WidgetPayload{}, nil
+		}),
+	})
+
+	summary := NewService(ServiceOptions{Registry: registry, Authorizer: testAuthorizer{}}).
+		Summary(context.Background(), testRequestAuth())
+	if len(summary.Widgets) != 0 {
+		t.Fatalf("expected no unauthorized widgets, got %#v", summary.Widgets)
+	}
+	select {
+	case <-invoked:
+		t.Fatal("unauthorized widget loader was invoked")
+	default:
+	}
+}
+
+func TestServiceLoadsVisibleWidgetsWithBoundedParallelism(t *testing.T) {
+	t.Parallel()
+
+	const expectedConcurrency = 4
+	const extraDefinitions = 2
+	totalDefinitions := expectedConcurrency + extraDefinitions
+	started := make(chan string, totalDefinitions)
+	release := make(chan struct{})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+
+	registry := NewRegistry()
+	for index := range totalDefinitions {
+		id := fmt.Sprintf("core.concurrent.%d", index)
+		mustRegisterWidget(t, registry, WidgetDefinition{
+			ID:        id,
+			ModuleKey: "core",
+			Type:      WidgetTypeHealth,
+			Size:      WidgetSizeSmall,
+			Order:     index,
+			Loader: WidgetLoaderFunc(func(_ context.Context, request WidgetRequest) (WidgetPayload, error) {
+				started <- request.WidgetID
+				<-release
+				return WidgetPayload{}, nil
+			}),
+		})
+	}
+
+	done := make(chan generated.DashboardSummaryResponse, 1)
+	go func() {
+		done <- NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth())
+	}()
+
+	for range expectedConcurrency {
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("expected the fixed worker budget to load widgets in parallel")
+		}
+	}
+	select {
+	case id := <-started:
+		t.Fatalf("widget %q exceeded the concurrency budget", id)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case summary := <-done:
+		if len(summary.Widgets) != totalDefinitions {
+			t.Fatalf("expected %d widgets, got %d", totalDefinitions, len(summary.Widgets))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("parallel widget loading did not finish")
+	}
+}
+
 func TestServiceReturnsOrderedWidgets(t *testing.T) {
 	t.Parallel()
 
+	laterOrderLoaded := make(chan struct{})
 	registry := NewRegistry()
-	mustRegisterWidget(t, registry, testWidgetDefinitionWithOrder("b.widget", 20))
-	mustRegisterWidget(t, registry, testWidgetDefinitionWithOrder("a.widget", 10))
+	later := testWidgetDefinitionWithOrder("b.widget", 20)
+	later.Loader = WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+		close(laterOrderLoaded)
+		return WidgetPayload{}, nil
+	})
+	mustRegisterWidget(t, registry, later)
+	first := testWidgetDefinitionWithOrder("a.widget", 10)
+	first.Loader = WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+		<-laterOrderLoaded
+		return WidgetPayload{}, nil
+	})
+	mustRegisterWidget(t, registry, first)
 
 	summary := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth())
 	if got := []string{summary.Widgets[0].Id, summary.Widgets[1].Id}; got[0] != "a.widget" || got[1] != "b.widget" {

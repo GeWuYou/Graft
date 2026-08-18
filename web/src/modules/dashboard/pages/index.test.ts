@@ -317,7 +317,7 @@ describe('DashboardHomePage', () => {
 
     await wrapper.get('.resource-item').trigger('click');
 
-    expect(routerMocks.push).toHaveBeenCalledWith(CONTAINER_ROUTE_PATH.RESOURCES);
+    expect(routerMocks.push).toHaveBeenCalledWith(CONTAINER_ROUTE_PATH.LIST);
     expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toBeNull();
   });
 });

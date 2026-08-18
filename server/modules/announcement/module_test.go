@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,10 @@ func TestModuleRegistersAnnouncementMetadata(t *testing.T) {
 	assertAnnouncementMenuRegistered(t, ctx.MenuRegistry)
 	assertAnnouncementMessageRegistered(t, ctx.I18n, i18n.LocaleZHCN, "公告管理")
 	assertAnnouncementMessageRegistered(t, ctx.I18n, i18n.LocaleENUS, "Announcements")
+	definition, ok := ctx.DashboardRegistry.Get(announcementTimelineWidgetID)
+	if !ok || definition.Type != dashboard.WidgetTypeTimeline || definition.RouteLocation != announcementcontract.MyAnnouncementMenuPath || len(definition.RequiredPermissions) != 0 {
+		t.Fatalf("unexpected current-user announcement dashboard definition: %#v", definition)
+	}
 	assertRegisteredAnnouncementErrorMessage(
 		t,
 		ctx.I18n,
@@ -59,6 +64,71 @@ func TestModuleRegistersAnnouncementMetadata(t *testing.T) {
 		announcementcontract.AnnouncementPublishedDeleteForbidden.String(),
 		"Archive the published announcement before deleting it",
 	)
+}
+
+func TestAnnouncementDashboardWidgetLoadsCurrentUserTimelineWithCap(t *testing.T) {
+	publishedAt := time.Date(2026, time.August, 17, 12, 0, 0, 0, time.UTC)
+	repository := &announcementDashboardRepository{}
+	for index := range 7 {
+		repository.items = append(repository.items, announcementstore.UserAnnouncement{Announcement: announcementstore.Announcement{
+			ID: uint64(index + 1), Title: fmt.Sprintf("Announcement %d", index+1), Content: "**must not be projected**",
+			Level: announcementcontract.AnnouncementLevelWarning.String(), PublishedAt: &publishedAt,
+		}})
+	}
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	registry := dashboard.NewRegistry()
+	if err := registerAnnouncementDashboardWidget(&module.Context{DashboardRegistry: registry}, service); err != nil {
+		t.Fatalf("register dashboard widget: %v", err)
+	}
+	definition, _ := registry.Get(announcementTimelineWidgetID)
+	payload, err := definition.Loader.Load(context.Background(), dashboard.WidgetRequest{RequestAuth: moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 42}}})
+	if err != nil {
+		t.Fatalf("load dashboard widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok || len(items) != announcementTimelineLimit {
+		t.Fatalf("unexpected timeline items: %#v", payload["items"])
+	}
+	if repository.calls != 1 || repository.query.UserID != 42 || repository.query.Limit != announcementTimelineLimit || repository.query.Offset != 0 {
+		t.Fatalf("unexpected current-user query: calls=%d query=%#v", repository.calls, repository.query)
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil || strings.Contains(string(encoded), "must not be projected") {
+		t.Fatalf("timeline projected announcement body: json=%s err=%v", encoded, err)
+	}
+	if items[0]["route_location"] != announcementcontract.MyAnnouncementMenuPath || items[0]["status"] != "warning" {
+		t.Fatalf("unexpected timeline item: %#v", items[0])
+	}
+}
+
+func TestAnnouncementDashboardWidgetPreservesEmptyAndErrorFacts(t *testing.T) {
+	emptyService, _ := NewService(&announcementDashboardRepository{})
+	emptyPayload, err := loadAnnouncementTimelineWidget(context.Background(), dashboard.WidgetRequest{RequestAuth: moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}}, emptyService)
+	if err != nil || emptyPayload["visible"] != false || emptyPayload["state"] != string(dashboard.WidgetStateHidden) {
+		t.Fatalf("unexpected empty timeline payload=%#v err=%v", emptyPayload, err)
+	}
+	loadErr := errors.New("announcement read failed")
+	errorService, _ := NewService(&announcementDashboardRepository{err: loadErr})
+	if _, err := loadAnnouncementTimelineWidget(context.Background(), dashboard.WidgetRequest{RequestAuth: moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}}, errorService); !errors.Is(err, loadErr) {
+		t.Fatalf("expected repository error, got %v", err)
+	}
+	if _, err := loadAnnouncementTimelineWidget(context.Background(), dashboard.WidgetRequest{}, emptyService); err == nil {
+		t.Fatal("expected missing request user to fail")
+	}
+}
+
+func TestAnnouncementDashboardWidgetRegistrationErrorsPropagate(t *testing.T) {
+	service, _ := NewService(testAnnouncementRepository{})
+	ctx := &module.Context{DashboardRegistry: dashboard.NewRegistry()}
+	if err := registerAnnouncementDashboardWidget(ctx, service); err != nil {
+		t.Fatalf("register first widget: %v", err)
+	}
+	if err := registerAnnouncementDashboardWidget(ctx, service); err == nil {
+		t.Fatal("expected duplicate registration error")
+	}
 }
 
 func TestNewModuleSpecDeclaresMigrationAndDependencies(t *testing.T) {
@@ -993,6 +1063,23 @@ func assertAnnouncementArchivedAtCleared(t *testing.T, item announcementstore.An
 }
 
 type testAnnouncementRepository struct{}
+
+type announcementDashboardRepository struct {
+	testAnnouncementRepository
+	items []announcementstore.UserAnnouncement
+	err   error
+	calls int
+	query announcementstore.UserListQuery
+}
+
+func (r *announcementDashboardRepository) ListCurrentUser(_ context.Context, query announcementstore.UserListQuery) (announcementstore.UserListResult, error) {
+	r.calls++
+	r.query = query
+	if r.err != nil {
+		return announcementstore.UserListResult{}, r.err
+	}
+	return announcementstore.UserListResult{Items: r.items, Total: len(r.items)}, nil
+}
 
 func (testAnnouncementRepository) Ping(context.Context) error {
 	return nil

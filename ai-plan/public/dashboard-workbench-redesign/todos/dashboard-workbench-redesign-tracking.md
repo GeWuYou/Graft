@@ -44,10 +44,13 @@ closeout:
 ## Semantic Review Selection
 
 - `graft-platform-architecture-review`: fixes presentation ownership above direct widget-card geometry.
-- `graft-cross-boundary-review`: preserves server/OpenAPI fact authority while keeping the prototype Web-only.
-- `graft-module-architecture-review`: keeps the presentation mapper private to the dashboard module.
+- `graft-cross-boundary-review`: preserves module-owned server facts, Dashboard Registry authorization/aggregation,
+  generated payload consumption, and dashboard-owned presentation across the completed authority expansion.
+- `graft-module-architecture-review`: keeps runtime facts in their owning modules, aggregation in the Dashboard
+  Registry/service boundary, and presentation policy private to the dashboard Web module.
 - `graft-typescript-dx-audit`: governs the closed presentation/evidence unions and caller inference.
-- `graft-test-seam-review`: tests the pure presentation model and development route seam.
+- `graft-test-seam-review`: covers module registration/loaders, the Runtime Target aggregate store seam, Dashboard
+  aggregation/projection, development scenarios, and formal homepage component behavior.
 - `graft-consistency-review` and `graft-delete-review`: avoid a parallel UI baseline, duplicate sorting authority, and speculative shared helpers.
 - `graft-openapi-contract-review` and `graft-api-dx-review`: correct alert fallback optionality at the wire authority without a compatibility DTO.
 - `graft-localization-governance`: keep platform capability display key-first and owner-local in both locale catalogs.
@@ -63,6 +66,13 @@ closeout:
 - Production `/` now renders the shared workbench over the existing summary response; the preview remains available for final comparison and deletion approval.
 - Formal-homepage acceptance reproduced invalid-payload warnings for key-first audit/access items and duplicate Monitor/CapabilityCoordinator PostgreSQL/Redis rows.
 - The corrective batch has synchronized OpenAPI/Web alert optionality, removed duplicate health authority, localized CapabilityCoordinator facts, and passed full cross-boundary validation.
+- Phase 2.1 now expands the existing authority chain end to end: Monitor/Audit enrich existing facts; Announcement,
+  Backup, and Runtime Target register bounded module-owned contributions; Dashboard loads them with permission filtering,
+  a four-worker request budget, isolated failures, deterministic ordering, and no runtime-fact cache; Web projects the
+  enriched widgets, module/source coverage, bounded container resources, contextual links, and quick actions into the
+  fixed workbench surfaces.
+- The hidden `/infrastructure/docker/containers/resources` page and route are deleted without alias, redirect,
+  compatibility menu, or replacement aggregate page. Canonical container list/detail routes remain drill-down targets.
 - PR review cleanup now keeps contextual Attention/Resources navigation out of quick-entry ranking, sorts activity by
   parsed instants, names attention-only counts explicitly, removes test type escapes, and isolates the fixed preview
   scenario plus copy behind one deletion boundary.
@@ -72,7 +82,10 @@ closeout:
 - A follow-up PR review found no new runtime or contract defect; it corrected one compound modifier in this recovery
   record, then gave the CI-sensitive Monaco KeepAlive lifecycle test a local 20-second budget after the same five-second
   timeout reproduced remotely while focused and joint local repetitions remained green.
-- Automated refresh of the already-open in-app browser was blocked by its local-address security policy, so formal-homepage visual acceptance remains human-owned.
+- Commits `d47ffa1e` (main authority/content expansion), `48611b0b` (Collapse keyboard repair), and `13247b96`
+  (expanded-list alignment repair) now back the clean formal-homepage browser runtime. Machine browser acceptance is
+  complete in the current dark/brand theme; human subjective acceptance remains explicitly pending before preview
+  deletion.
 
 ## Task Checklist
 
@@ -91,15 +104,20 @@ closeout:
 - [x] Remove Monitor's duplicate database/Redis homepage projection and localize CapabilityCoordinator rows.
 - [x] Pass focused and full cross-boundary validation.
 - [x] Resolve the bounded Dashboard/topic PR review findings without changing TDesign component usage or wire contracts.
-- [ ] Manually refresh the open formal homepage, repeat browser inspection, and record human acceptance.
-- [ ] Record human acceptance of the formal homepage and delete the preview.
+- [x] Complete Phase 2.1 existing-contract authority and content expansion across server facts, Dashboard aggregation,
+  Web presentation, bounded resources, preview scenarios, and hidden-route deletion.
+- [x] Complete formal-homepage machine browser inspection at desktop/tablet/mobile widths and repair the discovered
+  Collapse keyboard accessibility and expanded-list alignment defects.
+- [ ] Record human subjective acceptance of the formal homepage.
+- [ ] After human acceptance, delete the development preview route, presentation, page, tests, and dedicated locale
+  namespace together.
 - [ ] Implement the additive typed attention contract in a later batch.
 
 ## Validation Evidence
 
 - Focused Vitest for the second round: 4 files, 20 tests passed.
 - Full `bun run check` after production adoption passed: 305 test files and 2099 tests, plus typecheck, TS7 check, release build, format, lint, i18n, style, density, hygiene, responsive, pagination, and OpenAPI frontend governance stages.
-- Focused backend package validation passed: `go test ./internal/httpx -count=1`, including the 4xx/5xx/slow severity assertions. The repository backend completion entrypoint could not finish because the environment does not contain the pinned `golangci-lint v2.12.2` binary.
+- The current repository backend completion entrypoint passed: `cd server && go run ./cmd/graft validate backend`.
 - `python3 scripts/validate_ai_plan_structure.py` and `git diff --check` passed after the recovery documents were updated.
 - Independent read-only review found no blocker or P1. Its four P2 findings were resolved by adding an explicit presentation region, enforcing evidence invariants, using the shared `access-log` icon key, and removing the mobile orphan metric row.
 - Browser inspection used the existing signed-in external browser after the reproducible WSL browser agent was blocked by missing Chromium system libraries. The real shell, status copy, quick-action Drawer, and fixed scenario were visible and interactive.
@@ -131,6 +149,61 @@ closeout:
 - The follow-up Monaco diagnosis passed 20 isolated lifecycle repetitions and 10 joint Monaco/WebTerminal repetitions;
   the single-test body completed in about 1.4-1.8 seconds locally while Monaco import and CSS evaluation dominated the
   process wall time, supporting a test-local timeout repair instead of a global runner change.
+- Phase 2.1 full Web validation passed through `cd web && bun run check`: 305 test files and 2119 tests, the release
+  build, and all frontend governance stages passed.
+- The `Justfile` `openapi-check` wrapper could not run because `just` is absent. Its four authoritative commands all
+  passed individually: `cd server && go run ./cmd/graft validate openapi`,
+  `node scripts/openapi-runtime-paths.mjs --check`, `cd web && bun run openapi:types:check`, and
+  `cd server && go run ./internal/contract/projection/cmd/projectiongen --check`.
+- CodeGraph synchronized 53 changed files and reported the index up to date at 3,446 files, 56,526 nodes, and 170,066
+  edges. It remained developer-local and introduced no repository dependency.
+- TDesign Vue Next preflight evidence for the workbench surfaces documented Card, List, Collapse, and Tag usage against
+  the existing component baseline; no second UI library or arbitrary module-owned Vue widget was introduced.
+- Runtime facts remain `no cache`; the Dashboard Registry definitions remain startup-immutable. The ai-plan structure
+  guard and scoped diff check passed.
+- At the Phase 2.1 checkpoint no browser evidence was claimed for the newly expanded runtime; the following evidence
+  records the later formal-homepage machine browser acceptance.
+- Formal-homepage machine browser evidence was collected after commits `d47ffa1e`, `48611b0b`, and `13247b96` from a
+  clean committed runtime before restoring these topic-document drafts. Vite ran from repository `web/` on port 3002;
+  the same checkout served the backend through air/`tmp/graft` on port 8080.
+- In the current dark/brand theme at 1920 × 1080, the real `/` page displayed the four first-screen regions and real
+  module, monitor, audit, scheduler, runtime-target, and container facts. No claim is made for light theme or other
+  brand themes in this browser round; automated tests continue to cover theme governance.
+- The Resources action navigated to `/infrastructure/docker/containers`. The removed hidden resources route remained
+  absent from production registration, and Recent Activity stayed hidden because no real timeline records existed.
+- Responsive measurements found no horizontal overflow: document client/scroll width was 768/768 at 768 × 1024 and
+  390/390 at 390 × 844.
+- The first real keyboard pass found the default Collapse header was not focusable. Commit `48611b0b` repaired the
+  semantic trigger: Enter expands Attention, Space expands Health, `aria-expanded` changes from `false` to `true`, and
+  `aria-controls` points to stable panel IDs.
+- The first expanded-content pass then found its rows horizontally offset from the summary rows. Commit `13247b96`
+  removed the TDesign Collapse body background and left/right content padding. At 1920 × 1080 with both sections
+  expanded and `aria-expanded=true`, Attention summary/detail rectangles matched exactly at left 258.390625, right
+  1159.671875, width 901.28125; Health matched at left 1224.359375, right 1651.609375, width 427.25. Computed Collapse
+  content padding was `0px` and background was transparent (`rgba(0, 0, 0, 0)`).
+- After the alignment repair, two focused Vitest files with 10 tests, typecheck, scoped lint/style/format, duplicate-code
+  detection, and diff check passed. The full `bun run check` result with 305 test files, 2119 tests, the release build,
+  and all frontend governance stages was captured after the keyboard repair and before the alignment repair; it is not
+  claimed as a post-alignment full run.
+- The post-alignment responsive recheck again found document client/scroll widths of 768/768 at 768 × 1024 and 390/390
+  at 390 × 844. The temporary screenshot is named `graft-dashboard-expanded-aligned-1920x1080.png`; it is not promoted
+  to a repository artifact.
+- This evidence completes formal-homepage machine browser acceptance only. Human subjective acceptance and the
+  subsequent preview deletion remain unchecked.
+- PR #286 review cleanup rebuilt the complete current inventory: all 15 check runs passed; CodeRabbit reported one
+  open inline thread and three folded nitpicks with no duplicate, major, minor, or outside-diff finding; Greptile,
+  Gemini, failed checks, flaky tests, and GitHub Advanced Security findings were absent.
+- The cleanup restored the native button role for context links while moving `listitem` semantics to a wrapper,
+  strengthened the existing metric tone edge to 3 px, and extracted one module-private presentation row so visible and
+  expanded activity entries keep the same timestamp, status, copy, and action semantics.
+- The CPU missing-copy nitpick was rejected as noise: `ContainerDashboardOverview.cpuTotalPercent` is non-null, while
+  a missing sample is already represented by the parent `no-sample` state without an overview. The CodeRabbit
+  docstring-coverage warning was accepted with reason because repository comment governance explicitly rejects a
+  percentage target and requires comments to explain constraints or intent.
+- Focused Dashboard Vitest passed with 7 tests. The final cross-boundary completion run passed through
+  `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`; Web reported 305 test files and
+  2120 tests plus the release build and all frontend governance stages. This cleanup claims automated semantic,
+  structure, and copy evidence only; it does not replace the pending human subjective acceptance.
 - Retained artifacts:
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign.png`
   - `.ai/artifacts/browser/dashboard-workbench-redesign/dashboard-redesign-full.png`
@@ -141,7 +214,8 @@ closeout:
 - Unknown, warning, info, healthy, and error remain semantically distinct.
 - The fixed scenario contains no fabricated error state.
 - The formal homepage uses the accepted workbench; the Dashboard Registry shape remains unchanged, while OpenAPI correctly treats key-first alert fallback `title` as optional.
-- Automated validation passes; browser artifacts remain inspection evidence rather than acceptance proof.
+- Automated validation and formal machine browser acceptance pass; human subjective acceptance remains a separate,
+  explicit gate before preview deletion.
 
 ## Batch State
 
@@ -151,15 +225,17 @@ closeout:
     "authority-discovery-and-design",
     "development-preview-and-browser-evidence",
     "production-web-adoption",
-    "homepage-acceptance-corrective-repair"
+    "homepage-acceptance-corrective-repair",
+    "existing-contract-authority-and-content-expansion",
+    "formal-homepage-browser-machine-acceptance"
   ],
   "pending_batches": [
-    "formal-homepage-browser-acceptance",
+    "formal-homepage-human-acceptance",
     "preview-removal-after-acceptance",
     "typed-attention-contract"
   ],
-  "current_batch": "formal-homepage-browser-acceptance",
-  "next_batch": "formal-homepage-browser-acceptance",
-  "closeout_status": "awaiting-human-visual-acceptance"
+  "current_batch": "formal-homepage-human-acceptance",
+  "next_batch": "formal-homepage-human-acceptance",
+  "closeout_status": "awaiting-human-subjective-acceptance"
 }
 ```

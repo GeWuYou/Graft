@@ -13,7 +13,13 @@ monitor.serverStatus.anomaly.runtimeGoroutinePressure: "Goroutine 数量达到 {
 monitor.serverStatus.anomaly.runtimeHeapPressure: "运行时堆内存使用量达到 {bytes} 字节。"
 monitor.serverStatus.anomaly.systemLoadPressure: "1 分钟负载均值达到 {load}，对应 {cores} 个 CPU 核心。"
 dashboard.widget.monitorSystemHealth.title: 系统健康
-dashboard.widget.monitorSystemHealth.description: 当前监控窗口内的活跃异常。
+dashboard.widget.monitorSystemHealth.description: 主机资源、模块健康、采样与当前活跃异常。
+dashboard.widget.monitorSystemHealth.hostResources: 主机资源
+dashboard.widget.monitorSystemHealth.hostResourcesDescription: 服务器 CPU、内存与磁盘资源状态。
+dashboard.widget.monitorSystemHealth.moduleHealth: 模块健康
+dashboard.widget.monitorSystemHealth.moduleHealthDescription: 已注册模块的当前运行健康状态。
 dashboard.widget.monitorSystemHealth.anomalies: 活跃异常
 dashboard.widget.monitorSystemHealth.anomaliesDescription: 当前监控窗口内的活跃异常数量。
+dashboard.widget.monitorSystemHealth.observability: 主机采样
+dashboard.widget.monitorSystemHealth.observabilityDescription: 主机趋势与扩展可观测性采样状态。
 dashboard.widget.monitorSystemHealth.summary: 系统健康

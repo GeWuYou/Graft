@@ -36,6 +36,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}
+	if err := registerBackupDashboardWidget(ctx, m.service); err != nil {
+		return err
+	}
 	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
 	if err != nil {
 		return err

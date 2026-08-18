@@ -1,1 +1,10 @@
 menu.runtimeTargets.title: Runtime Targets
+dashboard.widget.runtimeTargetSummary.title: Runtime Targets
+dashboard.widget.runtimeTargetSummary.description: Current availability summary for registered runtime targets.
+dashboard.widget.runtimeTargetSummary.action: View Runtime Targets
+dashboard.widget.runtimeTargetSummary.total: Total Targets
+dashboard.widget.runtimeTargetSummary.totalDescription: Total runtime targets that have not been deleted.
+dashboard.widget.runtimeTargetSummary.healthy: Healthy Targets
+dashboard.widget.runtimeTargetSummary.healthyDescription: Runtime targets marked available by their latest check.
+dashboard.widget.runtimeTargetSummary.unavailable: Unavailable Targets
+dashboard.widget.runtimeTargetSummary.unavailableDescription: Runtime targets marked unavailable by their latest check.

@@ -40,7 +40,12 @@
       <t-skeleton animation="gradient" :row-col="loadingRows" />
     </div>
 
-    <section v-if="props.ready" class="operational-status" :aria-label="t('dashboard.workbench.operational.title')">
+    <section
+      v-if="props.ready"
+      class="operational-status"
+      data-first-screen-region="operational-status"
+      :aria-label="t('dashboard.workbench.operational.title')"
+    >
       <div class="operational-status__primary">
         <span class="operational-status__eyebrow">{{ t('dashboard.workbench.operational.eyebrow') }}</span>
         <div class="operational-status__summary">
@@ -71,7 +76,12 @@
 
     <responsive-content v-if="props.ready" class="workbench-preview__grid" layout="wide-split">
       <div class="workbench-preview__column workbench-preview__column--primary">
-        <t-card class="workbench-surface workbench-surface--attention" :bordered="false" header-bordered>
+        <t-card
+          class="workbench-surface workbench-surface--attention"
+          data-first-screen-region="attention"
+          :bordered="false"
+          header-bordered
+        >
           <template #header>
             <div class="workbench-surface__heading">
               <div>
@@ -80,86 +90,26 @@
               </div>
             </div>
           </template>
-          <t-list class="workbench-list" split>
-            <t-list-item
-              v-for="item in presentation.attention"
-              :key="item.id"
-              class="attention-row"
-              :class="`attention-row--${item.status}`"
-              :data-attention-id="item.id"
-              :data-status="item.status"
-              :data-evidence="item.evidenceState"
-            >
-              <div class="workbench-row attention-row__content">
-                <workbench-status-indicator
-                  :status="item.status"
-                  :label="t(`dashboard.workbench.status.${item.status}`)"
-                />
-                <div class="workbench-row__copy">
-                  <strong>{{ itemTitle(item) }}</strong>
-                  <p>{{ itemDescription(item) }}</p>
-                </div>
-              </div>
-              <template #action>
-                <t-button
-                  v-if="item.action"
-                  class="attention-row__action"
-                  variant="outline"
-                  theme="default"
-                  size="small"
-                  :loading="props.retryingId === item.id"
-                  @click="handleAction(item)"
-                >
-                  {{ actionLabel(item) }}
-                </t-button>
-              </template>
-            </t-list-item>
-          </t-list>
-          <p v-if="!presentation.attention.length" class="workbench-empty">
-            {{ t('dashboard.workbench.attention.empty') }}
-          </p>
-        </t-card>
-
-        <t-card class="workbench-surface workbench-surface--activity" :bordered="false" header-bordered>
-          <template #header>
-            <div class="workbench-surface__heading">
-              <div>
-                <h2>{{ t('dashboard.workbench.activity.title') }}</h2>
-                <p>{{ t('dashboard.workbench.activity.description') }}</p>
-              </div>
-            </div>
-          </template>
-          <t-list class="workbench-list" split>
-            <t-list-item v-for="item in presentation.activity" :key="item.id" :data-activity-id="item.id">
-              <div class="workbench-row workbench-row--compact">
-                <workbench-status-indicator
-                  :status="item.status"
-                  :label="t(`dashboard.workbench.status.${item.status}`)"
-                  :show-label="false"
-                />
-                <div class="workbench-row__copy">
-                  <div class="workbench-row__title-line">
-                    <strong>{{ itemTitle(item) }}</strong>
-                    <time v-if="item.occurredAt" :datetime="item.occurredAt">{{ formatTime(item.occurredAt) }}</time>
-                  </div>
-                  <p>{{ itemDescription(item) }}</p>
-                </div>
-              </div>
-              <template #action>
-                <t-button v-if="item.action" variant="text" theme="primary" size="small" @click="handleAction(item)">
-                  {{ actionLabel(item) }}
-                </t-button>
-              </template>
-            </t-list-item>
-          </t-list>
-          <p v-if="!presentation.activity.length" class="workbench-empty">
-            {{ t('dashboard.workbench.activity.empty') }}
-          </p>
+          <workbench-presentation-list
+            variant="attention"
+            empty-key="dashboard.workbench.attention.empty"
+            expand-key="dashboard.workbench.expand.attention"
+            :items="presentation.attention"
+            :retrying-id="props.retryingId"
+            :visible-limit="5"
+            @navigate="navigate($event, 'contextual-action')"
+            @retry-item="emit('retry-item', $event)"
+          />
         </t-card>
       </div>
 
       <div class="workbench-preview__column workbench-preview__column--secondary">
-        <t-card class="workbench-surface workbench-surface--health" :bordered="false" header-bordered>
+        <t-card
+          class="workbench-surface workbench-surface--health"
+          data-first-screen-region="health"
+          :bordered="false"
+          header-bordered
+        >
           <template #header>
             <div class="workbench-surface__heading">
               <div>
@@ -168,59 +118,274 @@
               </div>
             </div>
           </template>
-          <t-list class="workbench-list workbench-list--quiet" split>
-            <t-list-item
-              v-for="item in presentation.health"
-              :key="item.id"
-              class="health-row"
-              :data-health-id="item.id"
-              :data-status="item.status"
-            >
-              <div class="workbench-row workbench-row--compact">
-                <workbench-status-indicator
-                  :status="item.status"
-                  :label="t(`dashboard.workbench.status.${item.status}`)"
-                  :show-label="false"
-                />
-                <div class="workbench-row__copy">
-                  <strong>{{ itemTitle(item) }}</strong>
-                  <p>{{ itemDescription(item) }}</p>
-                </div>
-              </div>
-            </t-list-item>
-          </t-list>
-          <p v-if="!presentation.health.length" class="workbench-empty">
-            {{ t('dashboard.workbench.health.empty') }}
-          </p>
+          <workbench-presentation-list
+            variant="health"
+            empty-key="dashboard.workbench.health.empty"
+            expand-key="dashboard.workbench.expand.health"
+            :items="presentation.health"
+            :visible-limit="3"
+            @navigate="navigate($event, 'contextual-action')"
+          />
         </t-card>
 
-        <t-card class="workbench-surface workbench-surface--resources" :bordered="false" header-bordered>
+        <t-card
+          class="workbench-surface workbench-surface--module-coverage"
+          data-first-screen-region="module-coverage"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ t('dashboard.workbench.moduleCoverage.title') }}</h2>
+                <p>{{ t('dashboard.workbench.moduleCoverage.description') }}</p>
+              </div>
+            </div>
+          </template>
+          <dl class="module-coverage__metrics">
+            <div data-coverage-metric="registered">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.registered') }}</dt>
+              <dd>{{ presentation.moduleCoverage.registeredModules }}</dd>
+            </div>
+            <div data-coverage-metric="enabled">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.enabled') }}</dt>
+              <dd>{{ presentation.moduleCoverage.enabledModules }}</dd>
+            </div>
+            <div data-coverage-metric="degraded">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.degraded') }}</dt>
+              <dd>{{ presentation.moduleCoverage.degradedModules }}</dd>
+            </div>
+            <div data-coverage-metric="normal-sources">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.normalSources') }}</dt>
+              <dd>{{ presentation.moduleCoverage.normalContributionSources }}</dd>
+            </div>
+            <div data-coverage-metric="failed-sources">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.failedSources') }}</dt>
+              <dd>{{ presentation.moduleCoverage.failedContributionSources }}</dd>
+            </div>
+          </dl>
+        </t-card>
+      </div>
+    </responsive-content>
+
+    <responsive-content v-if="props.ready" class="workbench-details" layout="wide-split">
+      <div class="workbench-details__column workbench-details__column--primary">
+        <t-card
+          v-for="group in presentation.metricGroups"
+          :key="group.id"
+          class="workbench-surface workbench-surface--metrics"
+          :data-metric-group-id="group.id"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ dashboardText(group.titleKey, group.titleFallback) }}</h2>
+                <p v-if="group.descriptionKey || group.descriptionFallback">
+                  {{ dashboardText(group.descriptionKey, group.descriptionFallback, '') }}
+                </p>
+              </div>
+              <t-button
+                v-if="group.action?.kind === 'navigate'"
+                variant="text"
+                theme="primary"
+                size="small"
+                @click="navigate(group.action.route, 'contextual-action')"
+              >
+                {{ workbenchActionLabel(group.action) }}
+              </t-button>
+            </div>
+          </template>
+          <div class="metric-group__items">
+            <component
+              :is="metric.route ? 'button' : 'div'"
+              v-for="metric in group.metrics"
+              :key="metric.key"
+              class="metric-item"
+              :class="{ 'metric-item--actionable': Boolean(metric.route) }"
+              :data-metric-key="metric.key"
+              :data-tone="metric.tone"
+              :type="metric.route ? 'button' : undefined"
+              @click="metric.route && navigate(metric.route, 'contextual-action')"
+            >
+              <span class="metric-item__label">{{ dashboardText(metric.labelKey, metric.labelFallback) }}</span>
+              <strong class="metric-item__value">
+                {{ metric.value }}
+                <small v-if="metric.unitKey || metric.unitFallback">
+                  {{ dashboardText(metric.unitKey, metric.unitFallback, '') }}
+                </small>
+              </strong>
+              <span v-if="metric.descriptionKey || metric.descriptionFallback" class="metric-item__description">
+                {{ dashboardText(metric.descriptionKey, metric.descriptionFallback, '') }}
+              </span>
+            </component>
+          </div>
+        </t-card>
+
+        <t-card
+          v-if="presentation.resourceSummary.state !== 'hidden'"
+          class="workbench-surface workbench-surface--resources"
+          :data-resource-state="presentation.resourceSummary.state"
+          :bordered="false"
+          header-bordered
+        >
           <template #header>
             <div class="workbench-surface__heading">
               <div>
                 <h2>{{ t('dashboard.workbench.resources.title') }}</h2>
                 <p>{{ t('dashboard.workbench.resources.description') }}</p>
               </div>
+              <t-button
+                v-if="presentation.resourceSummary.route"
+                variant="text"
+                theme="primary"
+                size="small"
+                @click="navigate(presentation.resourceSummary.route, 'contextual-action')"
+              >
+                {{ t('dashboard.actions.details') }}
+              </t-button>
             </div>
           </template>
-          <div
-            v-for="item in presentation.resources"
-            :key="item.id"
-            class="resource-note"
-            :data-evidence="item.evidenceState"
-          >
-            <info-circle-icon size="18px" />
-            <div>
-              <strong>{{ itemTitle(item) }}</strong>
-              <p>{{ itemDescription(item) }}</p>
+
+          <template v-if="presentation.resourceSummary.state === 'loaded' && presentation.resourceSummary.overview">
+            <dl class="resource-overview">
+              <div>
+                <dt>{{ t('dashboard.workbench.resources.overview.running') }}</dt>
+                <dd>{{ presentation.resourceSummary.overview.runningContainers }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('dashboard.workbench.resources.overview.abnormal') }}</dt>
+                <dd>{{ presentation.resourceSummary.overview.abnormalContainers }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('dashboard.workbench.resources.overview.cpu') }}</dt>
+                <dd>{{ formatPercent(presentation.resourceSummary.overview.cpuTotalPercent) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('dashboard.workbench.resources.overview.memory') }}</dt>
+                <dd>{{ formatOverviewMemory() }}</dd>
+              </div>
+            </dl>
+
+            <div class="resource-breakdown">
+              <section class="resource-breakdown__group" data-resource-group="cpu">
+                <h3>{{ t('dashboard.workbench.resources.topCpu') }}</h3>
+                <ul v-if="presentation.resourceSummary.topCpu.length" class="resource-ranking">
+                  <li v-for="item in presentation.resourceSummary.topCpu" :key="item.id">
+                    <span>{{ item.name }}</span>
+                    <strong>{{ formatPercent(item.cpuPercent) }}</strong>
+                  </li>
+                </ul>
+                <p v-else class="workbench-empty workbench-empty--compact">
+                  {{ t('dashboard.workbench.resources.noHotspots') }}
+                </p>
+              </section>
+              <section class="resource-breakdown__group" data-resource-group="memory">
+                <h3>{{ t('dashboard.workbench.resources.topMemory') }}</h3>
+                <ul v-if="presentation.resourceSummary.topMemory.length" class="resource-ranking">
+                  <li v-for="item in presentation.resourceSummary.topMemory" :key="item.id">
+                    <span>{{ item.name }}</span>
+                    <strong>{{ formatMemoryHotspot(item.memoryPercent, item.memoryUsageBytes) }}</strong>
+                  </li>
+                </ul>
+                <p v-else class="workbench-empty workbench-empty--compact">
+                  {{ t('dashboard.workbench.resources.noHotspots') }}
+                </p>
+              </section>
             </div>
-            <t-button v-if="item.action" variant="text" theme="primary" size="small" @click="handleAction(item)">
-              {{ actionLabel(item) }}
-            </t-button>
-          </div>
-          <p v-if="!presentation.resources.length" class="workbench-empty">
-            {{ t('dashboard.workbench.resources.empty') }}
-          </p>
+
+            <section class="resource-anomalies" data-resource-group="anomalies">
+              <h3>{{ t('dashboard.workbench.resources.anomalies') }}</h3>
+              <ul v-if="presentation.resourceSummary.anomalies.length" class="resource-anomalies__list">
+                <li v-for="item in presentation.resourceSummary.anomalies" :key="item.id">
+                  <div>
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ resourceAnomalyReason(item) }}</span>
+                  </div>
+                  <t-tag theme="warning" variant="light">
+                    {{ t('dashboard.workbench.resources.restartCount', { count: item.restartCount ?? 0 }) }}
+                  </t-tag>
+                </li>
+              </ul>
+              <p v-else class="workbench-empty workbench-empty--compact">
+                {{ t('dashboard.workbench.resources.noAnomalies') }}
+              </p>
+            </section>
+          </template>
+
+          <template v-else>
+            <div
+              v-for="item in presentation.resources"
+              :key="item.id"
+              class="resource-note"
+              :data-evidence="item.evidenceState"
+            >
+              <info-circle-icon size="18px" />
+              <div>
+                <strong>{{ itemTitle(item) }}</strong>
+                <p>{{ itemDescription(item) }}</p>
+              </div>
+            </div>
+          </template>
+        </t-card>
+
+        <t-card
+          v-if="presentation.activity.length"
+          class="workbench-surface workbench-surface--activity"
+          data-secondary-region="activity"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ t('dashboard.workbench.activity.title') }}</h2>
+                <p>{{ t('dashboard.workbench.activity.description') }}</p>
+              </div>
+            </div>
+          </template>
+          <workbench-presentation-list
+            variant="activity"
+            :items="presentation.activity"
+            @navigate="navigate($event, 'contextual-action')"
+          />
+        </t-card>
+      </div>
+
+      <div class="workbench-details__column workbench-details__column--secondary">
+        <t-card
+          v-for="group in presentation.contextLinkGroups"
+          :key="group.id"
+          class="workbench-surface workbench-surface--context-links"
+          :data-context-group-id="group.id"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ dashboardText(group.titleKey, group.titleFallback) }}</h2>
+                <p v-if="group.descriptionKey || group.descriptionFallback">
+                  {{ dashboardText(group.descriptionKey, group.descriptionFallback, '') }}
+                </p>
+              </div>
+              <t-button
+                v-if="group.action?.kind === 'navigate'"
+                variant="text"
+                theme="primary"
+                size="small"
+                @click="navigate(group.action.route, 'contextual-action')"
+              >
+                {{ workbenchActionLabel(group.action) }}
+              </t-button>
+            </div>
+          </template>
+          <workbench-context-link-list
+            :group="group"
+            :visible-limit="6"
+            @navigate="navigate($event, 'contextual-action')"
+          />
         </t-card>
       </div>
     </responsive-content>
@@ -328,13 +493,24 @@ import { PageHeader } from '@/shared/components/page';
 import ResponsiveContent from '@/shared/components/responsive/ResponsiveContent.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import GraftMenuIcon from '@/shared/icons/MenuIcon.vue';
-import { formatLocaleDateTime, MEDIUM_DATE_TIME_FORMAT_OPTIONS } from '@/shared/observability';
+import {
+  formatBytes,
+  formatLocaleDateTime,
+  formatPercent,
+  MEDIUM_DATE_TIME_FORMAT_OPTIONS,
+} from '@/shared/observability';
 
 import type { DashboardQuickActionLink } from '../../contract/quick-action-links';
-import type { PresentationItem, WorkbenchNavigationSource, WorkbenchPresentation } from '../../presentation/workbench';
+import type {
+  PresentationItem,
+  WorkbenchAction,
+  WorkbenchNavigationSource,
+  WorkbenchPresentation,
+} from '../../presentation/workbench';
 import { hasDashboardTranslation, resolveDashboardText } from '../widgets/widget-i18n';
+import WorkbenchContextLinkList from './WorkbenchContextLinkList.vue';
+import WorkbenchPresentationList from './WorkbenchPresentationList.vue';
 import WorkbenchQuickActionItem from './WorkbenchQuickActionItem.vue';
-import WorkbenchStatusIndicator from './WorkbenchStatusIndicator.vue';
 
 // 工作台只消费显式 presentation model；入口抽屉读取授权导航，不借此反推业务健康状态。
 defineOptions({ name: 'DashboardWorkbench' });
@@ -424,10 +600,6 @@ const filteredNavigationGroups = computed(() => {
   return [...groups.values()].sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
 });
 
-function formatTime(value: string) {
-  return formatLocaleDateTime(value, currentLocale, MEDIUM_DATE_TIME_FORMAT_OPTIONS);
-}
-
 function navigate(route: string, source: WorkbenchNavigationSource) {
   drawerVisible.value = false;
   emit('navigate', route, source);
@@ -444,19 +616,50 @@ function handleDrawerVisible(visible: boolean) {
   }
 }
 
-function handleAction(item: PresentationItem) {
-  if (!item.action) {
-    return;
-  }
+function dashboardText(key?: string, fallback?: string, defaultText = '-') {
+  return resolveDashboardText(key, fallback, defaultText);
+}
 
-  if (item.action.kind === 'retry') {
-    emit('retry-item', item);
-    return;
-  }
+function workbenchActionLabel(action: WorkbenchAction) {
+  return resolveDashboardText(action.labelKey, action.labelFallback || '');
+}
 
-  if (item.action.route) {
-    navigate(item.action.route, 'contextual-action');
+function formatOverviewMemory() {
+  const overview = presentation.value.resourceSummary.overview;
+  if (!overview) {
+    return t('dashboard.workbench.resources.notCollected');
   }
+  const percent = formatPercent(overview.memoryTotalPercent, t('dashboard.workbench.resources.notCollected'));
+  if (overview.memoryTotalUsageBytes === null || overview.memoryTotalLimitBytes === null) {
+    return percent;
+  }
+  return t('dashboard.workbench.resources.memoryUsage', {
+    usage: formatBytes(overview.memoryTotalUsageBytes),
+    limit: formatBytes(overview.memoryTotalLimitBytes),
+    percent,
+  });
+}
+
+function formatMemoryHotspot(percent: number | null, usageBytes: number | null) {
+  const percentLabel = formatPercent(percent, t('dashboard.workbench.resources.notCollected'));
+  if (usageBytes === null) {
+    return percentLabel;
+  }
+  return t('dashboard.workbench.resources.hotspotMemory', {
+    usage: formatBytes(usageBytes),
+    percent: percentLabel,
+  });
+}
+
+function resourceAnomalyReason(item: WorkbenchPresentation['resourceSummary']['anomalies'][number]) {
+  return (
+    item.reasonLabel?.trim() ||
+    item.status?.trim() ||
+    item.reasonCode?.trim() ||
+    item.health?.trim() ||
+    item.state ||
+    t('dashboard.workbench.resources.unknownAnomaly')
+  );
 }
 
 function itemTitle(item: PresentationItem) {
@@ -471,13 +674,6 @@ function itemDescription(item: PresentationItem) {
     return t(item.descriptionKey, item.descriptionParams ?? {});
   }
   return resolveDashboardText(item.descriptionKey, item.descriptionFallback || '');
-}
-
-function actionLabel(item: PresentationItem) {
-  if (!item.action) {
-    return '';
-  }
-  return resolveDashboardText(item.action.labelKey, item.action.labelFallback || '');
 }
 </script>
 <style scoped lang="less">
@@ -600,12 +796,19 @@ function actionLabel(item: PresentationItem) {
   order: 2;
 }
 
-.workbench-surface--activity {
+.workbench-surface--module-coverage {
   order: 3;
 }
 
-.workbench-surface--resources {
-  order: 4;
+.workbench-details {
+  --graft-responsive-wide-split-template: minmax(0, 2fr) minmax(18rem, 1fr);
+}
+
+.workbench-details__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+  min-width: 0;
 }
 
 .workbench-surface {
@@ -646,19 +849,6 @@ function actionLabel(item: PresentationItem) {
   white-space: nowrap;
 }
 
-.workbench-list,
-.workbench-list :deep(.t-list-item) {
-  background: transparent;
-}
-
-.workbench-list :deep(.t-list-item) {
-  padding: var(--graft-density-gap-16) 0;
-}
-
-.workbench-list--quiet :deep(.t-list-item) {
-  padding: var(--graft-density-gap-8) 0;
-}
-
 .workbench-empty {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-large);
@@ -666,88 +856,187 @@ function actionLabel(item: PresentationItem) {
   padding: var(--graft-density-gap-16) 0;
 }
 
-.attention-row {
-  border-left: 3px solid transparent;
-  padding-left: var(--graft-density-gap-16) !important;
-}
-
-.attention-row--warning {
-  background: color-mix(in srgb, var(--td-warning-color-light) 12%, transparent) !important;
-  border-left-color: var(--td-warning-color);
-}
-
-.attention-row--error {
-  background: color-mix(in srgb, var(--td-error-color-light) 10%, transparent) !important;
-  border-left-color: var(--td-error-color);
-}
-
-.attention-row--unknown {
-  background: color-mix(in srgb, var(--td-bg-color-container-hover) 22%, transparent) !important;
-  border-left-color: var(--td-text-color-placeholder);
-}
-
-.attention-row__content :deep(.workbench-status) {
+.workbench-empty--compact {
   font: var(--td-font-body-medium);
-  min-width: 4rem;
+  padding: var(--graft-density-gap-8) 0;
 }
 
-.attention-row__content .workbench-row__copy > strong {
-  font: var(--td-font-title-small);
-}
-
-.attention-row__action {
-  flex: 0 0 auto;
-}
-
-.workbench-row {
-  align-items: flex-start;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  min-width: 0;
-}
-
-.workbench-row--compact {
-  gap: var(--graft-density-gap-8);
-}
-
-.workbench-row__copy {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.workbench-row__copy strong,
 .resource-note strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);
 }
 
-.workbench-row__copy p,
 .resource-note p {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-large);
   margin: var(--graft-density-gap-6) 0 0;
 }
 
-.health-row .workbench-row__copy p {
+.module-coverage__metrics,
+.resource-overview {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  margin: 0;
+}
+
+.module-coverage__metrics > div,
+.resource-overview > div {
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.module-coverage__metrics dt,
+.resource-overview dt {
+  color: var(--td-text-color-secondary);
   font: var(--td-font-body-medium);
-  margin-top: var(--graft-density-gap-2);
 }
 
-.workbench-row__title-line {
-  align-items: center;
+.module-coverage__metrics dd,
+.resource-overview dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: var(--graft-density-gap-4) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.metric-group__items {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.metric-item {
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  color: inherit;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+  text-align: left;
+}
+
+.metric-item--actionable {
+  cursor: pointer;
+}
+
+.metric-item--actionable:hover {
+  background: var(--td-bg-color-container-hover);
+  border-color: var(--td-border-level-2-color);
+}
+
+.metric-item--actionable:focus-visible {
+  border-color: var(--td-brand-color);
+  box-shadow: inset 0 0 0 1px var(--td-brand-color);
+  outline: none;
+}
+
+.metric-item[data-tone='success'],
+.metric-item[data-tone='warning'],
+.metric-item[data-tone='error'],
+.metric-item[data-tone='info'] {
+  border-left-width: 3px;
+}
+
+.metric-item[data-tone='success'] {
+  border-left-color: var(--td-success-color);
+}
+
+.metric-item[data-tone='warning'] {
+  border-left-color: var(--td-warning-color);
+}
+
+.metric-item[data-tone='error'] {
+  border-left-color: var(--td-error-color);
+}
+
+.metric-item[data-tone='info'] {
+  border-left-color: var(--td-brand-color);
+}
+
+.metric-item__label,
+.metric-item__description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-medium);
+}
+
+.metric-item__value {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-headline-small);
+}
+
+.metric-item__value small {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-medium);
+  font-weight: 400;
+}
+
+.resource-breakdown {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--graft-density-gap-16);
+}
+
+.resource-breakdown__group,
+.resource-anomalies {
+  border-top: 1px solid var(--td-border-level-1-color);
+  padding-top: var(--graft-density-gap-12);
+}
+
+.resource-anomalies {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.resource-breakdown__group h3,
+.resource-anomalies h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  margin: 0 0 var(--graft-density-gap-8);
+}
+
+.resource-ranking,
+.resource-anomalies__list {
+  display: grid;
   gap: var(--graft-density-gap-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resource-ranking li,
+.resource-anomalies__list li {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: flex;
+  font: var(--td-font-body-medium);
+  gap: var(--graft-density-gap-12);
   justify-content: space-between;
+  min-width: 0;
 }
 
-.workbench-row__title-line time {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-large);
+.resource-ranking li > span,
+.resource-anomalies__list li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.health-row {
-  color: var(--td-text-color-secondary);
+.resource-ranking strong,
+.resource-anomalies__list strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.resource-anomalies__list li > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-2);
 }
 
 .resource-note {
@@ -755,7 +1044,7 @@ function actionLabel(item: PresentationItem) {
   color: var(--td-text-color-placeholder);
   display: grid;
   gap: var(--graft-density-gap-12);
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   padding: var(--graft-density-gap-12) 0;
 }
 
@@ -910,11 +1199,6 @@ function actionLabel(item: PresentationItem) {
 
   .resource-note {
     grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .resource-note .t-button {
-    grid-column: 2;
-    justify-self: start;
   }
 }
 </style>

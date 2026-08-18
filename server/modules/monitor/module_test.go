@@ -349,25 +349,107 @@ func TestMonitorSystemHealthDashboardWidgetLoadsHealthPayload(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected health items payload, got %#v", payload["items"])
 	}
-	if len(items) != 1 || items[0].Key != "anomalies" {
-		t.Fatalf("expected monitor dashboard to expose only active anomalies, got %#v", items)
+	if len(items) != 4 {
+		t.Fatalf("expected four monitor-owned health rows, got %#v", items)
 	}
-	anomalyCount, ok := payload["abnormal_services"].(int)
-	if !ok {
+	assertMonitorDashboardHealthItems(t, items)
+	if _, ok := payload["abnormal_services"].(int); !ok {
 		t.Fatalf("expected abnormal service count, got %#v", payload["abnormal_services"])
-	}
-	expectedStatus := monitorHealthStatusForAnomalies(anomalyCount)
-	if summary.Status != expectedStatus {
-		t.Fatalf("expected summary status %q for %d anomalies, got %q", expectedStatus, anomalyCount, summary.Status)
 	}
 	expectedState := dashboard.WidgetStateNormal
 	expectedPriority := dashboard.WidgetPriorityNormal
-	if anomalyCount > 0 {
+	if summary.Status == dashboard.HealthStatusDegraded {
 		expectedState = dashboard.WidgetStateWarning
 		expectedPriority = dashboard.WidgetPriorityWarning
 	}
 	if payload["state"] != string(expectedState) || payload["priority"] != string(expectedPriority) {
 		t.Fatalf("expected anomaly-owned state %q/%q, got %#v/%#v", expectedState, expectedPriority, payload["state"], payload["priority"])
+	}
+}
+
+func assertMonitorDashboardHealthItems(t *testing.T, items []dashboard.HealthItem) {
+	t.Helper()
+	wantKeys := []string{"host-resources", "module-health", "anomalies", "observability"}
+	seen := make(map[string]struct{}, len(items))
+	for index, item := range items {
+		if item.Key != wantKeys[index] {
+			t.Fatalf("expected item %d to be %q, got %#v", index, wantKeys[index], item)
+		}
+		if _, duplicate := seen[item.Key]; duplicate {
+			t.Fatalf("monitor dashboard must not duplicate health row %q", item.Key)
+		}
+		seen[item.Key] = struct{}{}
+		if item.Key == "postgresql" || item.Key == "redis" {
+			t.Fatalf("monitor dashboard must not duplicate core capability health: %#v", item)
+		}
+		if item.RouteLocation != monitorcontract.ServerStatusOverviewMenuPath {
+			t.Fatalf("expected monitor health row to open overview, got %#v", item)
+		}
+	}
+}
+
+func TestMonitorSystemHealthPayloadProjectsResourceModuleAndSamplingStates(t *testing.T) {
+	response := generated.ServerStatusResponse{
+		Runtime: generated.ServerStatusRuntime{
+			HostMemoryTotalBytes: 16 * 1024 * 1024 * 1024,
+			DiskUsage:            generated.ServerStatusDiskUsage{TotalBytes: 128 * 1024 * 1024 * 1024},
+		},
+		Summary: generated.ServerStatusSummary{TotalModules: 2, HealthyModules: 1},
+		Trend:   generated.ServerStatusTrend{Points: []generated.ServerStatusTrendPoint{{CpuPercent: 91}}},
+		Anomalies: []generated.ServerStatusAnomaly{
+			{AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.ResourceCPUPressure)},
+		},
+	}
+
+	payload := monitorSystemHealthPayload(response)
+	items, ok := payload["items"].([]dashboard.HealthItem)
+	if !ok {
+		t.Fatalf("expected health items payload, got %#v", payload["items"])
+	}
+	statuses := make(map[string]dashboard.HealthStatus, len(items))
+	for _, item := range items {
+		statuses[item.Key] = item.Status
+	}
+	if statuses["host-resources"] != dashboard.HealthStatusDegraded {
+		t.Fatalf("expected resource anomaly to degrade host resources, got %#v", statuses)
+	}
+	if statuses["module-health"] != dashboard.HealthStatusDegraded {
+		t.Fatalf("expected unhealthy module summary to degrade module health, got %#v", statuses)
+	}
+	if statuses["anomalies"] != dashboard.HealthStatusDegraded {
+		t.Fatalf("expected active anomaly row to be degraded, got %#v", statuses)
+	}
+	if statuses["observability"] != dashboard.HealthStatusHealthy {
+		t.Fatalf("expected trend sample to mark observability healthy, got %#v", statuses)
+	}
+	if payload["state"] != string(dashboard.WidgetStateWarning) || payload["priority"] != string(dashboard.WidgetPriorityWarning) {
+		t.Fatalf("expected degraded summary to raise widget attention, got %#v", payload)
+	}
+	if payload["abnormal_services"] != 1 {
+		t.Fatalf("expected one active anomaly, got %#v", payload["abnormal_services"])
+	}
+}
+
+func TestMonitorSystemHealthPayloadKeepsMissingSamplesUnknownWithoutFalseWarning(t *testing.T) {
+	payload := monitorSystemHealthPayload(generated.ServerStatusResponse{})
+	items, ok := payload["items"].([]dashboard.HealthItem)
+	if !ok {
+		t.Fatalf("expected health items payload, got %#v", payload["items"])
+	}
+	statuses := make(map[string]dashboard.HealthStatus, len(items))
+	for _, item := range items {
+		statuses[item.Key] = item.Status
+	}
+	if statuses["host-resources"] != dashboard.HealthStatusUnknown ||
+		statuses["module-health"] != dashboard.HealthStatusUnknown ||
+		statuses["observability"] != dashboard.HealthStatusUnknown {
+		t.Fatalf("expected unavailable samples to remain unknown, got %#v", statuses)
+	}
+	if statuses["anomalies"] != dashboard.HealthStatusHealthy {
+		t.Fatalf("expected empty anomaly set to remain healthy, got %#v", statuses)
+	}
+	if payload["state"] != string(dashboard.WidgetStateNormal) || payload["priority"] != string(dashboard.WidgetPriorityNormal) {
+		t.Fatalf("missing optional samples must not create a false warning, got %#v", payload)
 	}
 }
 

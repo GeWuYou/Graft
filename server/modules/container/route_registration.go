@@ -916,11 +916,7 @@ func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (conta
 	if !ok {
 		return containeropenapi.GetDockerVolumesParams{}, false
 	}
-	if limit == nil {
-		defaultLimit := 20
-		limit = &defaultLimit
-	}
-	params.Limit = limit
+	params.Limit = containerListLimitOrDefault(limit)
 	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
 	if !ok {
 		return containeropenapi.GetDockerVolumesParams{}, false
@@ -1256,7 +1252,7 @@ func bindGetDockerNetworksParams(ginCtx *gin.Context, ctx *module.Context) (cont
 	if !ok {
 		return params, false
 	}
-	params.Limit = limit
+	params.Limit = containerListLimitOrDefault(limit)
 	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
 	if !ok {
 		return params, false
@@ -1309,6 +1305,14 @@ func queryBool(ginCtx *gin.Context, key string) (bool, bool) {
 		return false, false
 	}
 	return parsed, true
+}
+
+func containerListLimitOrDefault(limit *int) *int {
+	if limit != nil {
+		return limit
+	}
+	defaultLimit := defaultContainerListLimit
+	return &defaultLimit
 }
 
 func intValue(value *int) int {

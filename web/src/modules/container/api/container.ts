@@ -157,9 +157,6 @@ export type DockerVolumeDetail = NonNullable<
 >;
 export type DockerVolumeListQuery = NonNullable<paths['/api/ops/docker/volumes']['get']['parameters']['query']>;
 export type DockerVolumeListResponse = DockerVolumesData;
-type DockerSystemData = NonNullable<
-  paths['/api/ops/docker/system']['get']['responses'][200]['content']['application/json']['data']
->;
 
 export type DockerImageRecord = DockerImagesData['items'][number];
 
@@ -243,8 +240,6 @@ export const createDockerNetwork = (data: DockerNetworkCreateRequest) =>
   request.post<DockerNetworkCreateData>({ url: OPENAPI_RUNTIME_PATH.postDockerNetwork, data });
 export const removeDockerNetwork = (id: string, data: DockerNetworkRemoveRequest) =>
   request.delete({ url: buildOpenApiRuntimePath('deleteDockerNetwork', { id }), data });
-export const getDockerVolumes = () =>
-  request.get<DockerVolumesData>({ url: OPENAPI_RUNTIME_PATH.getDockerVolumes }) as Promise<DockerVolumesData>;
 export const listDockerVolumes = (query?: DockerVolumeListQuery) =>
   request.get<DockerVolumesData>({
     url: OPENAPI_RUNTIME_PATH.getDockerVolumes,
@@ -262,8 +257,6 @@ export function batchRemoveDockerVolumes(payload: DockerVolumeBatchRemoveRequest
     data: payload,
   });
 }
-export const getDockerSystem = () =>
-  request.get<DockerSystemData>({ url: OPENAPI_RUNTIME_PATH.getDockerSystem }) as Promise<DockerSystemData>;
 
 /**
  * 获取容器列表。

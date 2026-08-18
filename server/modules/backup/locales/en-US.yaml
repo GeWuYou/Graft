@@ -1,1 +1,19 @@
 menu.platform.backup: Backups
+dashboard.widget.backupHealth.title: Latest Backup
+dashboard.widget.backupHealth.description: Availability of the latest backup record; this does not assert complete disaster-recovery protection.
+dashboard.widget.backupHealth.action: View Backups
+dashboard.widget.backupHealth.available.summary: Latest backup available
+dashboard.widget.backupHealth.available.label: Backup available
+dashboard.widget.backupHealth.available.description: The latest backup record remains within its retention period.
+dashboard.widget.backupHealth.expired.summary: Latest backup expired
+dashboard.widget.backupHealth.expired.label: Backup expired
+dashboard.widget.backupHealth.expired.description: The latest backup record is beyond its retention period.
+dashboard.widget.backupHealth.restored.summary: Restore result recorded
+dashboard.widget.backupHealth.restored.label: Restore result recorded
+dashboard.widget.backupHealth.restored.description: Restore evidence exists, but this does not mean a usable backup is currently available.
+dashboard.widget.backupHealth.none.summary: No backup record
+dashboard.widget.backupHealth.none.label: No backup record
+dashboard.widget.backupHealth.none.description: No record is available for determining the current backup state.
+dashboard.widget.backupHealth.unknown.summary: Backup status unknown
+dashboard.widget.backupHealth.unknown.label: Backup status unknown
+dashboard.widget.backupHealth.unknown.description: The latest backup record uses an unknown status.

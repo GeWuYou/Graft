@@ -91,15 +91,16 @@ describe('dashboard workbench presentation model', () => {
   it('keeps evidence state independent from severity and filters attention by explicit semantics', () => {
     const presentation = projectWorkbenchScenario(DASHBOARD_PREVIEW_SCENARIO);
 
-    expect(presentation.attention.map(({ status }) => status)).toEqual([
-      PRESENTATION_STATUS.WARNING,
-      PRESENTATION_STATUS.UNKNOWN,
-    ]);
-    expect(presentation.attention.map(({ evidenceState }) => evidenceState)).toEqual([
-      EVIDENCE_STATE.SOURCE_FAILED,
-      EVIDENCE_STATE.MISSING,
-    ]);
-    expect(presentation.operational.needsReview).toBe(2);
+    expect(presentation.attention).toHaveLength(6);
+    expect(presentation.attention.filter(({ status }) => status === PRESENTATION_STATUS.WARNING)).toHaveLength(3);
+    expect(presentation.attention.filter(({ status }) => status === PRESENTATION_STATUS.UNKNOWN)).toHaveLength(3);
+    expect(
+      presentation.attention.filter(({ evidenceState }) => evidenceState === EVIDENCE_STATE.SOURCE_FAILED),
+    ).toHaveLength(3);
+    expect(presentation.attention.filter(({ evidenceState }) => evidenceState === EVIDENCE_STATE.MISSING)).toHaveLength(
+      3,
+    );
+    expect(presentation.operational.needsReview).toBe(6);
     expect(presentation.operational.attentionStatusCounts.error).toBe(0);
   });
 
@@ -170,11 +171,50 @@ describe('dashboard workbench presentation model', () => {
   it('contains no invented error in the fixed design-validation scenario', () => {
     expect(DASHBOARD_PREVIEW_PRESENTATION.operational.attentionStatusCounts).toMatchObject({
       error: 0,
-      warning: 1,
-      unknown: 1,
+      warning: 3,
+      unknown: 3,
       info: 0,
       healthy: 0,
     });
+  });
+
+  it('keeps the fixed preview intentionally long and covers the new bounded presentation regions', () => {
+    expect(DASHBOARD_PREVIEW_PRESENTATION.attention).toHaveLength(6);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.health).toHaveLength(5);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.activity).toEqual([]);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.metricGroups[0]?.metrics).toHaveLength(3);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.contextLinkGroups[0]?.links).toHaveLength(8);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.moduleCoverage).toEqual({
+      registeredModules: 24,
+      enabledModules: 22,
+      degradedModules: 1,
+      normalContributionSources: 8,
+      failedContributionSources: 1,
+    });
+    expect(DASHBOARD_PREVIEW_PRESENTATION.resourceSummary).toMatchObject({
+      state: 'loaded',
+      overview: { runningContainers: 8, abnormalContainers: 1 },
+    });
+  });
+
+  it('supplies stable empty defaults for optional extended regions', () => {
+    const presentation = projectWorkbenchScenario({
+      generatedAt: '2026-08-17T03:20:00.000Z',
+      operational: { enabledModules: 2, failedTasks: 0, highRiskEvents: 0 },
+      items: [],
+      quickActions: [],
+    });
+
+    expect(presentation.moduleCoverage).toEqual({
+      registeredModules: 2,
+      enabledModules: 2,
+      degradedModules: 0,
+      normalContributionSources: 0,
+      failedContributionSources: 0,
+    });
+    expect(presentation.metricGroups).toEqual([]);
+    expect(presentation.contextLinkGroups).toEqual([]);
+    expect(presentation.resourceSummary).toEqual({ state: 'hidden', topCpu: [], topMemory: [], anomalies: [] });
   });
 
   it('selects home quick actions from presentation intent without imposing a fixed item count', () => {

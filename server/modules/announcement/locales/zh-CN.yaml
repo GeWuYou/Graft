@@ -1,2 +1,6 @@
 menu.announcement.title: 公告管理
 announcement.published_delete_forbidden: 已发布公告需先归档后删除
+dashboard.widget.announcementTimeline.title: 最新公告
+dashboard.widget.announcementTimeline.description: 当前用户可见的最新公告。
+dashboard.widget.announcementTimeline.action: 查看全部公告
+dashboard.widget.announcementTimeline.empty: 当前没有可见公告。

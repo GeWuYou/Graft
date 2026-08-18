@@ -155,3 +155,126 @@
   "closeout_status": "awaiting-human-visual-acceptance"
 }
 ```
+
+## 2026-08-17 Existing-Contract Authority And Content Expansion
+
+- Completed the Phase 2.1 cross-boundary expansion without changing Dashboard HTTP/OpenAPI shape, permissions,
+  dependencies, or cache policy. Monitor and Audit enrich existing contributions; Announcement adds a current-user
+  timeline capped at five real records; Backup adds latest-record health; Runtime Target adds total, healthy, and
+  unavailable counts through one module-owned aggregate query.
+- Dashboard aggregation now loads permission-filtered contributions with at most four workers, the request deadline,
+  isolated source failures, and deterministic `priority -> order -> id` output. Runtime fact loaders remain uncached.
+- Production presentation now consumes `stat-group` and `link-list`, derives module coverage only from `system_summary`,
+  derives source coverage only after authorization, keeps Attention/Health/contextual-link budgets at 5/3/6, and hides
+  Recent Activity when no real timeline exists.
+- Expanded container presentation remains bounded to overview, Top 3 CPU, Top 3 memory, and at most five anomalies.
+  `/infrastructure/docker/containers/resources` was deleted without alias, redirect, compatibility menu, or replacement
+  aggregate page; actions use canonical container list and detail routes.
+- Synchronized normal, abnormal, permission-limited, no-sample, and long-list preview scenarios. TDesign Vue Next
+  preflight documented Card, List, Collapse, and Tag usage against the existing component baseline.
+- `cd server && go run ./cmd/graft validate backend` passed. `cd web && bun run check` passed with 305 test files and
+  2119 tests, the release build, and all frontend governance stages.
+- `just openapi-check` could not invoke because `just` is absent. Its four exact commands all passed individually:
+  `cd server && go run ./cmd/graft validate openapi`, `node scripts/openapi-runtime-paths.mjs --check`,
+  `cd web && bun run openapi:types:check`, and
+  `cd server && go run ./internal/contract/projection/cmd/projectiongen --check`.
+- CodeGraph synchronized 53 changed files and reported an up-to-date index with 3,446 files, 56,526 nodes, and 170,066
+  edges. The developer-local index did not enter dependencies, CI, hooks, or runtime.
+- The ai-plan structure guard and diff check passed. This batch claims no new browser evidence; formal-homepage
+  browser/human acceptance and preview deletion remain pending.
+
+## Batch State After Phase 2.1
+
+```json
+{
+  "completed_batches": [
+    "authority-discovery-and-design",
+    "development-preview-and-browser-evidence",
+    "production-web-adoption",
+    "homepage-acceptance-corrective-repair",
+    "existing-contract-authority-and-content-expansion"
+  ],
+  "pending_batches": [
+    "formal-homepage-browser-acceptance",
+    "preview-removal-after-acceptance",
+    "typed-attention-contract"
+  ],
+  "current_batch": "formal-homepage-browser-acceptance",
+  "next_batch": "formal-homepage-browser-acceptance",
+  "closeout_status": "awaiting-human-visual-acceptance"
+}
+```
+
+## 2026-08-17 Formal Homepage Machine Browser Acceptance, Keyboard, And Alignment Repair
+
+- Validated the committed implementation at `d47ffa1e`, the keyboard follow-up at `48611b0b`, and the expanded-list
+  alignment follow-up at `13247b96`; the committed runtime was clean before these topic-document drafts were restored.
+  Vite served repository `web/` on port 3002, while air/`tmp/graft` served the backend from the same checkout on port
+  8080.
+- In the current dark/brand theme at 1920 × 1080, formal `/` showed the four bounded first-screen regions and real
+  module, monitor, audit, scheduler, runtime-target, and container content. This browser round did not inspect light
+  theme or other brand themes; theme governance remains covered by automated validation.
+- The Resources action reached `/infrastructure/docker/containers`; the deleted hidden resources route remained absent
+  from production registration. Recent Activity was not rendered because the runtime had no real timeline record.
+- At 768 × 1024, document client and scroll width were both 768. At 390 × 844, both were 390. Neither viewport had
+  horizontal overflow.
+- The first real keyboard inspection found the default Collapse header could not receive focus. The repair made the
+  section trigger semantic and stable: Enter expands Attention, Space expands Health, `aria-expanded` transitions from
+  `false` to `true`, and `aria-controls` references stable panel IDs.
+- The first expanded-content inspection then found its list rows horizontally offset from the summary rows. The root
+  cause was TDesign Collapse body background and left/right content padding; `13247b96` made that background transparent
+  and padding zero.
+- At 1920 × 1080 with both sections expanded and `aria-expanded=true`, Attention summary/detail rectangles matched
+  exactly at left 258.390625, right 1159.671875, width 901.28125. Health matched at left 1224.359375, right 1651.609375,
+  width 427.25. Computed Collapse content padding was `0px` and its background was `rgba(0, 0, 0, 0)`.
+- Post-alignment responsive inspection again measured document client/scroll widths of 768/768 at 768 × 1024 and
+  390/390 at 390 × 844, with no horizontal overflow. The temporary evidence screenshot is named
+  `graft-dashboard-expanded-aligned-1920x1080.png` and is not retained as a repository artifact.
+- After the alignment repair, two focused Vitest files with 10 tests, typecheck, scoped lint/style/format,
+  duplicate-code detection, and diff check passed. Full `bun run check` with 305 test files, 2119 tests, the release
+  build, and all frontend governance stages passed after the keyboard repair but before the alignment repair; it is not
+  recorded as a post-alignment full run.
+- Formal-homepage machine browser acceptance is complete. Human subjective acceptance is not inferred from this
+  evidence, and preview deletion remains blocked on that explicit confirmation.
+
+## Batch State After Formal Homepage Machine Browser Acceptance
+
+```json
+{
+  "completed_batches": [
+    "authority-discovery-and-design",
+    "development-preview-and-browser-evidence",
+    "production-web-adoption",
+    "homepage-acceptance-corrective-repair",
+    "existing-contract-authority-and-content-expansion",
+    "formal-homepage-browser-machine-acceptance"
+  ],
+  "pending_batches": [
+    "formal-homepage-human-acceptance",
+    "preview-removal-after-acceptance",
+    "typed-attention-contract"
+  ],
+  "current_batch": "formal-homepage-human-acceptance",
+  "next_batch": "formal-homepage-human-acceptance",
+  "closeout_status": "awaiting-human-subjective-acceptance"
+}
+```
+
+## 2026-08-18 PR Review Accessibility And Presentation Cleanup
+
+- Rebuilt PR #286 exhaustively before editing: 15/15 check runs passed; CodeRabbit had one open inline thread and three
+  folded nitpicks, with zero duplicate, major, minor, and outside-diff findings. No Greptile, Gemini, failed-check,
+  flaky-test, MegaLinter finding block, or GitHub Advanced Security finding existed.
+- Fixed the three actionable findings at the Web presentation boundary: native context-link buttons no longer override
+  their role, metric tone edges are visibly 3 px wide, and one `WorkbenchPresentationRow` now owns both visible and
+  overflow activity rendering so `occurredAt` cannot disappear in the expanded list.
+- Rejected the CPU missing-copy nitpick as noise after authority inspection: the canonical container dashboard contract
+  exposes a non-null `cpuTotalPercent`, and `no-sample` omits the overview instead of placing a null CPU value inside
+  it. Accepted the external docstring-coverage warning with reason because repository comment governance forbids
+  percentage-driven comments.
+- Focused Dashboard Vitest passed with 7 tests. `cd server && go run ./cmd/graft validate backend` passed, and
+  `cd web && bun run check` passed with 305 test files, 2120 tests, the release build, and all frontend governance
+  stages. TDesign MCP preflight was not applicable because no TDesign component API, prop, event, slot, or internal DOM
+  contract changed.
+- Human subjective acceptance remains pending. The preview route and its artifacts therefore remain intact until the
+  existing explicit acceptance gate is satisfied.

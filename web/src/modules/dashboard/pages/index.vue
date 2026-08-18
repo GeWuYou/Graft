@@ -101,7 +101,7 @@ const presentation = computed(() => {
     quickActionConfig: quickActionConfig.value,
     rankedQuickLinks: rankedLinks.value,
     resources: {
-      route: CONTAINER_ROUTE_PATH.RESOURCES,
+      route: CONTAINER_ROUTE_PATH.LIST,
       state: canViewContainerOverview.value ? containerResourceState.value : 'hidden',
       summary: containerDashboardSummary.value,
     },

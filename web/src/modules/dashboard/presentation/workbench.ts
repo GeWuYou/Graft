@@ -1,3 +1,9 @@
+import type {
+  ContainerDashboardAnomalyItem,
+  ContainerDashboardHotspotItem,
+  ContainerDashboardOverview,
+} from '@/modules/container/contract/dashboard-summary';
+
 export const PRESENTATION_STATUS = {
   ERROR: 'error',
   WARNING: 'warning',
@@ -59,6 +65,83 @@ export interface QuickAction {
   showOnHome: boolean;
 }
 
+export type WorkbenchMetricTone = 'normal' | 'success' | 'warning' | 'error' | 'info';
+
+export interface WorkbenchMetric {
+  key: string;
+  labelKey: string;
+  labelFallback?: string;
+  value: string;
+  unitKey?: string;
+  unitFallback?: string;
+  descriptionKey?: string;
+  descriptionFallback?: string;
+  tone: WorkbenchMetricTone;
+  route?: string;
+}
+
+export interface WorkbenchMetricGroup {
+  id: string;
+  titleKey: string;
+  titleFallback?: string;
+  descriptionKey?: string;
+  descriptionFallback?: string;
+  action?: WorkbenchAction;
+  metrics: WorkbenchMetric[];
+  sourceWidgetId: string;
+}
+
+export interface WorkbenchContextLink {
+  key: string;
+  labelKey: string;
+  labelFallback?: string;
+  descriptionKey?: string;
+  descriptionFallback?: string;
+  route: string;
+  iconKey?: string;
+  badgeKey?: string;
+  badgeFallback?: string;
+  disabled: boolean;
+}
+
+export interface WorkbenchContextLinkGroup {
+  id: string;
+  titleKey: string;
+  titleFallback?: string;
+  descriptionKey?: string;
+  descriptionFallback?: string;
+  action?: WorkbenchAction;
+  links: WorkbenchContextLink[];
+  sourceWidgetId: string;
+}
+
+export interface WorkbenchModuleCoverage {
+  registeredModules: number;
+  enabledModules: number;
+  degradedModules: number;
+  normalContributionSources: number;
+  failedContributionSources: number;
+}
+
+export type WorkbenchResourceState = 'hidden' | 'loading' | 'failed' | 'no-sample' | 'loaded';
+
+export type WorkbenchResourceOverview = Omit<ContainerDashboardOverview, 'collectedAt'> & {
+  collectedAt: string;
+};
+
+export type WorkbenchResourceHotspot = ContainerDashboardHotspotItem;
+
+export type WorkbenchResourceAnomaly = ContainerDashboardAnomalyItem;
+
+export interface WorkbenchResourceSummary {
+  state: WorkbenchResourceState;
+  route?: string;
+  overview?: WorkbenchResourceOverview;
+  topCpu: WorkbenchResourceHotspot[];
+  topMemory: WorkbenchResourceHotspot[];
+  anomalies: WorkbenchResourceAnomaly[];
+}
+
 export interface WorkbenchScenario {
   generatedAt: string;
   operational: {
@@ -68,6 +151,10 @@ export interface WorkbenchScenario {
   };
   items: PresentationItem[];
   quickActions: QuickAction[];
+  moduleCoverage?: WorkbenchModuleCoverage;
+  metricGroups?: WorkbenchMetricGroup[];
+  contextLinkGroups?: WorkbenchContextLinkGroup[];
+  resourceSummary?: WorkbenchResourceSummary;
 }
 
 export interface WorkbenchPresentation {
@@ -80,6 +167,10 @@ export interface WorkbenchPresentation {
   health: PresentationItem[];
   activity: PresentationItem[];
   resources: PresentationItem[];
+  moduleCoverage: WorkbenchModuleCoverage;
+  metricGroups: WorkbenchMetricGroup[];
+  contextLinkGroups: WorkbenchContextLinkGroup[];
+  resourceSummary: WorkbenchResourceSummary;
   homeQuickActions: QuickAction[];
   quickActions: QuickAction[];
 }
@@ -169,6 +260,21 @@ export function projectWorkbenchScenario(scenario: WorkbenchScenario): Workbench
     health: sortedItems.filter((item) => item.region === 'health'),
     activity: sortedItems.filter((item) => item.region === 'activity'),
     resources: sortedItems.filter((item) => item.region === 'resources'),
+    moduleCoverage: scenario.moduleCoverage ?? {
+      registeredModules: scenario.operational.enabledModules,
+      enabledModules: scenario.operational.enabledModules,
+      degradedModules: 0,
+      normalContributionSources: 0,
+      failedContributionSources: 0,
+    },
+    metricGroups: scenario.metricGroups ?? [],
+    contextLinkGroups: scenario.contextLinkGroups ?? [],
+    resourceSummary: scenario.resourceSummary ?? {
+      state: 'hidden',
+      topCpu: [],
+      topMemory: [],
+      anomalies: [],
+    },
     homeQuickActions: scenario.quickActions.filter((action) => action.showOnHome),
     quickActions: scenario.quickActions,
   };

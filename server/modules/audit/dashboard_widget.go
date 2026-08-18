@@ -17,7 +17,7 @@ import (
 const (
 	auditRiskEventsWidgetID    = "audit.risk-events"
 	auditRiskEventsWidgetOrder = 100
-	auditRiskEventsItemCap     = 3
+	auditRiskEventsItemCap     = 5
 	auditLogsQueryPreset       = "preset"
 	auditLogsQueryBusiness     = "business_category"
 	auditLogsQueryResults      = "results"
@@ -100,6 +100,27 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 		DescriptionKey: "dashboard.widget.auditRiskEvents.authFailures.description",
 		ActionLabelKey: "dashboard.widget.auditRiskEvents.authFailures.action",
 	})
+	items = appendAuditOverviewGroupItem(items, auditOverviewGroupItemDefinition{
+		count:          riskGroupCounts[auditstore.AuditBusinessCategoryPermissionDenials],
+		id:             "audit.permission-denied",
+		items:          overview.PermissionDenied,
+		scope:          auditstore.AuditBusinessCategoryPermissionDenials,
+		TitleKey:       "audit.overview.riskGroups.permissionDenials",
+		DescriptionKey: "dashboard.widget.auditRiskEvents.permissionDenials.description",
+		ActionLabelKey: "dashboard.widget.auditRiskEvents.permissionDenials.action",
+	})
+	items = appendAuditOverviewGroupItem(items, auditOverviewGroupItemDefinition{
+		count:          overview.Summary.SensitiveOperations,
+		id:             "audit.sensitive-operations",
+		items:          overview.SensitiveOps,
+		scope:          auditstore.AuditBusinessCategorySensitiveOperations,
+		TitleKey:       "dashboard.widget.auditRiskEvents.sensitiveOperations.title",
+		DescriptionKey: "dashboard.widget.auditRiskEvents.sensitiveOperations.description",
+		ActionLabelKey: "dashboard.widget.auditRiskEvents.sensitiveOperations.action",
+	})
+	if len(items) > auditRiskEventsItemCap {
+		items = items[:auditRiskEventsItemCap]
+	}
 
 	highRiskEvents := overview.Summary.HighRiskEvents
 	state := dashboard.WidgetStateHidden
