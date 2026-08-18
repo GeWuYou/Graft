@@ -171,6 +171,11 @@ func TestRepositoryUpsertAuditVisibilityOverridesLeavesNoPartialDurableState(t *
 		END;`); err != nil {
 		t.Fatalf("create failure trigger: %v", err)
 	}
+	t.Cleanup(func() {
+		if _, err := db.Exec(`DROP TRIGGER IF EXISTS audit_visibility_overrides_fail_second`); err != nil {
+			t.Errorf("drop failure trigger: %v", err)
+		}
+	})
 
 	repo := &repository{db: db}
 	_, err := repo.UpsertAuditVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{

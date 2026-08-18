@@ -11,7 +11,6 @@ import type {
   AuditSavedViewRequest,
   AuditVisibilityDefaultResponse,
   AuditVisibilityDefaultUpdateRequest,
-  AuditVisibilityOverrideBatchResponse,
   AuditVisibilityOverrideBatchUpsertRequest,
   AuditVisibilityOverrideResponse,
   AuditVisibilityOverrideUpsertRequest,
@@ -178,7 +177,7 @@ export function upsertAuditVisibilityOverridesBatch(payload: AuditVisibilityOver
   return request.put<PutAuditVisibilityOverridesBatchResponseData>({
     url: OPENAPI_RUNTIME_PATH.putAuditVisibilityOverridesBatch,
     data: payload,
-  }) as Promise<AuditVisibilityOverrideBatchResponse>;
+  });
 }
 
 /**

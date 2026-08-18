@@ -301,7 +301,7 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
 ]);
 
 const fieldValues = computed<Record<string, string | string[]>>(() => ({
-  visibilityScope: props.modelValue.visibilityScope,
+  visibilityScope: props.modelValue.visibilityScope === 'default' ? '' : props.modelValue.visibilityScope,
   action: props.modelValue.action,
   actionPrefixes: props.modelValue.actionPrefixes,
   actionKeywords: props.modelValue.actionKeywords,

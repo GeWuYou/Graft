@@ -237,6 +237,9 @@ describe('AuditFilters', () => {
       },
     });
 
+    const tags = JSON.parse(wrapper.get('[data-testid="tags"]').text());
+    expect(tags.map((tag: { label: string }) => tag.label)).not.toContain('记录可见范围：仅默认可见');
+
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
     expect(wrapper.emitted('update:modelValue')).toHaveLength(1);

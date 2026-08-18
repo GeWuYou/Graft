@@ -195,7 +195,7 @@
                   <t-select
                     :disabled="isOverrideBusy(item.source, item.action_key)"
                     :model-value="overrideDrafts[item.source]?.[item.action_key] ?? item.effective_strategy"
-                    :options="overrideStrategyOptions"
+                    :options="visibilityStrategyOptions"
                     @update:model-value="handleOverrideDraftChange(item.source, item.action_key, $event)"
                   />
                   <div class="audit-policy-drawer__catalog-buttons">
@@ -471,11 +471,6 @@ const columnViewPresets = computed(() => [
 const hasClientOnlyFilters = computed(() => false);
 const canManageAuditPolicy = computed(() => getPermissionStore().hasPermission(AUDIT_PERMISSION_CODE.MANAGE));
 const visibilityStrategyOptions = computed(() => [
-  { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
-  { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
-  { label: t('audit.logList.policy.strategy.ignore'), value: 'ignore' },
-]);
-const overrideStrategyOptions = computed(() => [
   { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
   { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
   { label: t('audit.logList.policy.strategy.ignore'), value: 'ignore' },
