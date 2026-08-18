@@ -7,6 +7,7 @@ import (
 
 	capabilitycontract "graft/server/internal/contract/capability"
 	generated "graft/server/internal/contract/openapi/generated"
+	routecontract "graft/server/internal/contract/route"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -283,7 +284,7 @@ func (r *Runtime) registerDashboardWithAuth(
 				return moduleruntime.BuildSnapshot(r.config, r.moduleRuntimeSpecs()).Summary
 			},
 		},
-		r.server.Engine().Group("/api"),
+		r.server.Engine().Group(routecontract.APIRoot),
 		authService,
 		authorizer,
 	); err != nil {

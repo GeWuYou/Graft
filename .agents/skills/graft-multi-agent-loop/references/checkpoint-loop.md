@@ -77,6 +77,20 @@ Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs
     "runtime_minutes": 34
   },
   "scope_expanded": false,
-  "risk_level": "medium"
+  "risk_level": "medium",
+  "recovery": {
+    "status": "required",
+    "resume_target": "RESUME_CURRENT_BATCH",
+    "current_batch_preserved": true,
+    "pending_batches_preserved": true,
+    "failed_batch_settled": true,
+    "retry_exhausted": false,
+    "repair_authority": "user architecture decision",
+    "repair_eligible": false,
+    "required_context": {
+      "failed_round": {},
+      "evidence": {"blocker": "menu ownership decision required"}
+    }
+  }
 }
 ```

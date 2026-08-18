@@ -19,6 +19,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import type { DropdownProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -30,8 +31,6 @@ type ActionOption = {
   testId?: string;
   value: string;
 };
-type DropdownActionPayload = { value?: string | number | Record<string, unknown> } | string | number;
-type DropdownActionContext = { e?: MouseEvent };
 
 const props = withDefaults(
   defineProps<{
@@ -97,14 +96,14 @@ function handlePrimaryClick(event?: MouseEvent) {
   }
 }
 
-function handleMenuClick(payload: DropdownActionPayload, context?: DropdownActionContext) {
+const handleMenuClick: NonNullable<DropdownProps['onClick']> = (payload, context) => {
   context?.e?.stopPropagation();
 
   const action = typeof payload === 'object' && payload ? payload.value : payload;
   if (typeof action === 'string') {
     emit('action', action);
   }
-}
+};
 </script>
 <style scoped lang="less">
 .table-action-menu {

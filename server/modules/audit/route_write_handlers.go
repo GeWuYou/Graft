@@ -133,6 +133,65 @@ func handleUpsertAuditVisibilityOverride(
 	}
 }
 
+// handleUpsertAuditVisibilityOverrides 处理审计可见性覆盖的原子批量写入请求。
+func handleUpsertAuditVisibilityOverrides(
+	ctx *module.Context,
+	moduleName string,
+	reader auditReader,
+) gin.HandlerFunc {
+	return func(ginCtx *gin.Context) {
+		setAuditVisibilityBatchCounts(ginCtx, auditVisibilityBatchCounts{})
+		var request auditopenapi.PutAuditVisibilityOverridesBatchJSONRequestBody
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
+				"field": "body",
+			})
+			return
+		}
+
+		counts := auditVisibilityBatchCounts{Attempted: len(request.Items)}
+		setAuditVisibilityBatchCounts(ginCtx, counts)
+		userID, username := currentAuditActor(ginCtx)
+		inputs := make([]auditstore.UpsertAuditVisibilityOverrideInput, 0, len(request.Items))
+		for _, requestItem := range request.Items {
+			description := ""
+			if requestItem.Description != nil {
+				description = *requestItem.Description
+			}
+			inputs = append(inputs, auditstore.UpsertAuditVisibilityOverrideInput{
+				Source:      auditstore.AuditSource(strings.TrimSpace(string(requestItem.Source))),
+				ActionKey:   requestItem.ActionKey,
+				Strategy:    auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(requestItem.Strategy))),
+				Description: description,
+				Actor: auditstore.AuditVisibilityActor{
+					UserID:   userID,
+					Username: username,
+				},
+			})
+		}
+
+		items, err := reader.UpdateVisibilityOverrides(withAuditRequestLocale(ginCtx, ctx), inputs)
+		if err != nil {
+			counts.Failed = counts.Attempted
+			setAuditVisibilityBatchCounts(ginCtx, counts)
+			handleAuditVisibilityWriteError(ginCtx, ctx, moduleName, err)
+			return
+		}
+		counts.Committed = len(items)
+		setAuditVisibilityBatchCounts(ginCtx, counts)
+
+		payload, mapErr := toAuditVisibilityOverrideBatchResponse(items)
+		if mapErr != nil {
+			reported := reportAuditRouteError(ginCtx, ctx, "map audit visibility override batch failed", mapErr,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_visibility_override_batch_response"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+	}
+}
+
 // handleDeleteAuditVisibilityOverride 删除指定源和操作键的审计可见性覆盖配置。
 // 当 source 或 action_key 缺失时返回本地化的 400 InvalidArgument；删除成功后返回空对象。
 func handleDeleteAuditVisibilityOverride(

@@ -1,6 +1,6 @@
 ---
 name: graft-web-module-scaffold
-description: Scaffold or shape a new Graft web module before implementation. Use when adding a Vue 3 admin feature under web/src/modules and Codex needs to align menu, route, page, api, and permission boundaries with the backend plugin contract and the repository's TDesign-based frontend conventions.
+description: Scaffold or shape a new Graft web module before implementation. Use when adding a Vue 3 admin feature under web/src/modules and Codex needs to align menu, route, page, API, and permission boundaries with the server module contract and the repository's TDesign-based frontend conventions.
 ---
 
 # Graft Web Module Scaffold
@@ -9,7 +9,7 @@ Use this skill when adding a new `web` feature module.
 
 ## Workflow
 
-1. Identify the backend plugin or capability the module belongs to.
+1. Identify the server module or capability the web module belongs to.
 2. Define the minimum module path under `web/src/modules/<name>`.
 3. Establish the required connection points before writing code:
    - API layer

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import datetime, timezone
+import hashlib
 import html
 import io
 import json
@@ -95,6 +95,40 @@ SUPPORTED_AI_REVIEWERS = (
     },
 )
 SUPPORTED_AI_REVIEWER_LOGINS = frozenset(agent["login"] for agent in SUPPORTED_AI_REVIEWERS)
+SUPPORTED_AI_REVIEWER_IDENTITIES = frozenset(
+    identity
+    for login in SUPPORTED_AI_REVIEWER_LOGINS
+    for identity in (login, login.removesuffix("[bot]"))
+)
+REVIEW_THREADS_QUERY = """
+query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      headRefOid
+      reviewThreads(first: 100, after: $cursor) {
+        nodes {
+          id
+          isResolved
+          comments(first: 100) {
+            nodes {
+              databaseId
+              author { login }
+            }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}
+"""
+RESOLVE_REVIEW_THREAD_MUTATION = """
+mutation($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) {
+    thread { id isResolved }
+  }
+}
+"""
 DISPLAY_SECTION_CHOICES = (
     "pr",
     "failed-checks",
@@ -634,6 +668,135 @@ def perform_review_reply(
     }
 
 
+def perform_graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    """Send a GraphQL request to GitHub and return its data object."""
+    payload, _ = post_json(
+        "https://api.github.com/graphql",
+        {"query": query, "variables": variables},
+    )
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub did not return a GraphQL object.")
+    errors = payload.get("errors")
+    if errors:
+        raise RuntimeError(f"GitHub GraphQL request failed: {json.dumps(errors, ensure_ascii=False)}")
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise RuntimeError("GitHub GraphQL response is missing data.")
+    return data
+
+
+def is_supported_ai_reviewer_identity(login: str) -> bool:
+    """Accept the equivalent REST and GraphQL login forms for registered AI reviewers."""
+    return login in SUPPORTED_AI_REVIEWER_IDENTITIES
+
+
+def fetch_review_thread_index(pull_number: int) -> dict[str, Any]:
+    """Fetch GraphQL review-thread state keyed by root REST comment database id."""
+    cursor: str | None = None
+    head_sha = ""
+    threads_by_root_comment: dict[int, dict[str, Any]] = {}
+    while True:
+        data = perform_graphql(
+            REVIEW_THREADS_QUERY,
+            {
+                "owner": OWNER,
+                "repo": REPO,
+                "number": pull_number,
+                "cursor": cursor,
+            },
+        )
+        repository = data.get("repository")
+        pull_request = repository.get("pullRequest") if isinstance(repository, dict) else None
+        if not isinstance(pull_request, dict):
+            raise RuntimeError(f"GitHub PR #{pull_number} was not found.")
+        page_head_sha = pull_request.get("headRefOid") or ""
+        if head_sha and page_head_sha != head_sha:
+            raise RuntimeError("PR head changed while review threads were being paginated.")
+        head_sha = page_head_sha
+
+        connection = pull_request.get("reviewThreads")
+        if not isinstance(connection, dict):
+            raise RuntimeError("GitHub GraphQL response is missing reviewThreads.")
+        for thread in connection.get("nodes") or []:
+            comments = thread.get("comments", {}).get("nodes") or []
+            if not comments or comments[0].get("databaseId") is None:
+                continue
+            root_comment_id = int(comments[0]["databaseId"])
+            threads_by_root_comment[root_comment_id] = {
+                "thread_id": thread.get("id") or "",
+                "is_resolved": bool(thread.get("isResolved")),
+                "root_comment_id": root_comment_id,
+                "root_author": comments[0].get("author", {}).get("login") or "",
+                "head_sha": head_sha,
+            }
+
+        page_info = connection.get("pageInfo") or {}
+        if not page_info.get("hasNextPage"):
+            break
+        cursor = page_info.get("endCursor")
+        if not cursor:
+            raise RuntimeError("GitHub review-thread pagination did not return an end cursor.")
+
+    return {"head_sha": head_sha, "threads_by_root_comment": threads_by_root_comment}
+
+
+def find_review_thread_by_root_comment(pull_number: int, comment_id: int) -> dict[str, Any]:
+    """Find one PR review thread by its root REST comment database id."""
+    index = fetch_review_thread_index(pull_number)
+    thread = index["threads_by_root_comment"].get(comment_id)
+    if thread is None:
+        raise RuntimeError(f"No PR review thread matched root comment id {comment_id}.")
+    return thread
+
+
+def perform_review_thread_resolution(
+    pull_number: int,
+    comment_id: int,
+    expected_head: str,
+    *,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Resolve one supported-AI PR review thread after exact PR-head verification."""
+    if not resolve_github_token():
+        raise RuntimeError("A GitHub token is required to resolve PR review threads.")
+    normalized_expected_head = expected_head.strip()
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", normalized_expected_head):
+        raise RuntimeError("--resolve-expected-head must be one full 40-character commit SHA.")
+
+    thread = find_review_thread_by_root_comment(pull_number, comment_id)
+    if not is_supported_ai_reviewer_identity(thread["root_author"]):
+        raise RuntimeError(
+            f"Refusing to resolve a thread opened by unsupported reviewer {thread['root_author']!r}."
+        )
+    if thread["head_sha"].lower() != normalized_expected_head.lower():
+        raise RuntimeError(
+            "PR head does not match --resolve-expected-head: "
+            f"expected {normalized_expected_head}, found {thread['head_sha'] or '<missing>'}."
+        )
+
+    request_payload = {
+        "query": RESOLVE_REVIEW_THREAD_MUTATION,
+        "variables": {"threadId": thread["thread_id"]},
+    }
+    if thread["is_resolved"]:
+        return {**thread, "dry_run": dry_run, "already_resolved": True, "request_payload": request_payload}
+    if dry_run:
+        return {**thread, "dry_run": True, "already_resolved": False, "request_payload": request_payload}
+
+    data = perform_graphql(RESOLVE_REVIEW_THREAD_MUTATION, {"threadId": thread["thread_id"]})
+    resolution = data.get("resolveReviewThread")
+    resolved_thread = resolution.get("thread") if isinstance(resolution, dict) else None
+    if not isinstance(resolved_thread, dict) or not resolved_thread.get("isResolved"):
+        raise RuntimeError("GitHub did not confirm that the review thread was resolved.")
+    return {
+        **thread,
+        "dry_run": False,
+        "already_resolved": False,
+        "resolved": True,
+        "request_payload": request_payload,
+    }
+
+
 def find_managed_issue_comment(
     comments: list[dict[str, Any]],
     *,
@@ -660,7 +823,7 @@ def parse_latest_ledger_run(body: str) -> dict[str, Any]:
     """Extract the newest machine-readable run metadata from the append-only ledger."""
     normalized = normalize_legacy_ledger_body(html.unescape(str(body or "")))
     matches = re.finditer(
-        r"(?ms)^## Run (?P<timestamp>\d{4}-\d{2}-\d{2}T[^\n]+)\n(?P<section>.*?)(?=^## Run |\Z)",
+        r"(?ms)^## Run (?P<run_id>[^\n]+)\n(?P<section>.*?)(?=^## Run |\Z)",
         normalized,
     )
     candidates: list[dict[str, Any]] = []
@@ -689,15 +852,18 @@ def parse_latest_ledger_run(body: str) -> dict[str, Any]:
 
         candidates.append(
             {
-                "timestamp": match.group("timestamp"),
+                "run_id": match.group("run_id"),
+                "timestamp": (
+                    match.group("run_id") if re.match(r"\d{4}-\d{2}-\d{2}T", match.group("run_id")) else ""
+                ),
                 "head_sha": head_match.group("head"),
                 "inventory": inventory,
             }
         )
 
     if not candidates:
-        return {"timestamp": "", "head_sha": "", "inventory": {}}
-    return max(candidates, key=lambda candidate: candidate["timestamp"])
+        return {"run_id": "", "timestamp": "", "head_sha": "", "inventory": {}}
+    return candidates[-1]
 
 
 def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_REVIEW_LEDGER_MARKER) -> dict[str, Any]:
@@ -710,7 +876,7 @@ def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_
             "created_at": "",
             "updated_at": "",
             "body": "",
-            "latest_run": {"timestamp": "", "head_sha": "", "inventory": {}},
+            "latest_run": {"run_id": "", "timestamp": "", "head_sha": "", "inventory": {}},
         }
 
     body = html.unescape(str(comment.get("body") or ""))
@@ -824,14 +990,30 @@ def validate_managed_ledger_document(document: str, *, marker: str = PR_REVIEW_L
     return normalized
 
 
+def managed_ledger_revision(body: str) -> str:
+    """Return a stable revision for one normalized managed-ledger snapshot."""
+    normalized = normalize_legacy_ledger_body(html.unescape(str(body or ""))).strip()
+    if not normalized:
+        return "absent"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def build_review_ledger_entry(result: dict[str, Any], body: str) -> str:
-    """Wrap one append-only review-ledger entry with stable run metadata."""
+    """Wrap one append-only review-ledger entry with a deterministic idempotency key."""
     body = validate_review_ledger_body(body)
 
     pull_request = result.get("pull_request", {})
-    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    key_source = "\n".join(
+        (
+            str(pull_request.get("number") or ""),
+            str(pull_request.get("head_branch") or ""),
+            str(pull_request.get("head_sha") or ""),
+            body,
+        )
+    )
+    entry_key = f"sha256:{hashlib.sha256(key_source.encode('utf-8')).hexdigest()}"
     lines = [
-        f"## Run {timestamp}",
+        f"## Run {entry_key}",
         f"- PR: #{pull_request.get('number')}",
         f"- Branch: {pull_request.get('head_branch', '')}",
         f"- Head SHA: {pull_request.get('head_sha', '')}",
@@ -868,6 +1050,53 @@ def build_managed_issue_comment_body(
     return validate_managed_ledger_document(candidate, marker=marker)
 
 
+def fetch_issue_comment_snapshot(comment_id: int) -> dict[str, Any]:
+    """Fetch one issue comment together with its normalized body revision."""
+    payload, _ = fetch_json(f"https://api.github.com/repos/{OWNER}/{REPO}/issues/comments/{comment_id}")
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub did not return an issue comment payload for revision verification.")
+    body = normalize_legacy_ledger_body(html.unescape(str(payload.get("body") or ""))).strip()
+    return {
+        "comment": payload,
+        "body": body,
+        "revision": managed_ledger_revision(body),
+    }
+
+
+def verify_managed_ledger_append(
+    pull_number: int,
+    comment_id: int,
+    request_body: str,
+    entry_heading: str,
+    *,
+    marker: str = PR_REVIEW_LEDGER_MARKER,
+) -> dict[str, Any]:
+    """Re-read the ledger and require one exact persisted copy of the validated entry."""
+    comments = fetch_issue_comments(pull_number)
+    managed_comments = [comment for comment in comments if marker in html.unescape(str(comment.get("body") or ""))]
+    if len(managed_comments) != 1:
+        raise RuntimeError(
+            "Managed-ledger verification expected one managed comment and the target entry exactly once, "
+            f"found {len(managed_comments)} managed comments."
+        )
+    occurrence_count = sum(
+        normalize_legacy_ledger_body(html.unescape(str(comment.get("body") or ""))).count(entry_heading)
+        for comment in managed_comments
+    )
+    if occurrence_count != 1:
+        raise RuntimeError(
+            "Managed-ledger verification expected the target entry exactly once, "
+            f"found {occurrence_count}."
+        )
+    persisted = next((comment for comment in managed_comments if int(comment.get("id") or 0) == comment_id), None)
+    if persisted is None:
+        raise RuntimeError("Managed-ledger verification could not re-read the written comment.")
+    persisted_body = normalize_legacy_ledger_body(html.unescape(str(persisted.get("body") or ""))).strip()
+    if persisted_body != request_body:
+        raise RuntimeError("Managed-ledger verification body differs from the validated write payload.")
+    return persisted
+
+
 def perform_managed_issue_comment_append(
     pull_number: int,
     issue_comments: list[dict[str, Any]],
@@ -875,19 +1104,66 @@ def perform_managed_issue_comment_append(
     entry_body: str,
     *,
     marker: str = PR_REVIEW_LEDGER_MARKER,
+    expected_head: str = "",
+    expected_revision: str = "",
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Create or append to the managed PR issue-comment ledger."""
+    """Create or append to the managed PR issue-comment ledger with optimistic concurrency."""
     if not resolve_github_token():
         raise RuntimeError("A GitHub token is required to sync the PR review ledger.")
 
-    existing_comment = find_managed_issue_comment(issue_comments, marker=marker)
     entry = build_review_ledger_entry(result, entry_body)
-    request_body = build_managed_issue_comment_body(
-            html.unescape(str(existing_comment.get("body") or "")) if existing_comment else "",
-            entry,
-            marker=marker,
+    entry_heading = entry.splitlines()[0]
+    normalized_expected_head = expected_head.strip()
+    normalized_expected_revision = expected_revision.strip()
+    if not dry_run and not normalized_expected_head:
+        raise RuntimeError("A full --ledger-expected-head is required for a managed ledger write.")
+    if not dry_run and not normalized_expected_revision:
+        raise RuntimeError("--ledger-expected-revision is required for a managed ledger write.")
+    if normalized_expected_head and not re.fullmatch(r"[0-9a-fA-F]{40}", normalized_expected_head):
+        raise RuntimeError("--ledger-expected-head must be one full 40-character commit SHA.")
+    if normalized_expected_revision and normalized_expected_revision != "absent" and not re.fullmatch(
+        r"[0-9a-f]{64}", normalized_expected_revision
+    ):
+        raise RuntimeError("--ledger-expected-revision must be 'absent' or one lowercase SHA-256 digest.")
+    actual_head = str(result.get("pull_request", {}).get("head_sha") or "")
+    if normalized_expected_head and actual_head.lower() != normalized_expected_head.lower():
+        raise RuntimeError(
+            "PR head does not match --ledger-expected-head: "
+            f"expected {normalized_expected_head}, found {actual_head or '<missing>'}."
         )
+
+    existing_comment = find_managed_issue_comment(issue_comments, marker=marker)
+    existing_body = (
+        normalize_legacy_ledger_body(html.unescape(str(existing_comment.get("body") or ""))).strip()
+        if existing_comment
+        else ""
+    )
+    baseline_revision = managed_ledger_revision(existing_body)
+    entry_count = existing_body.count(entry_heading)
+    if entry_count > 1:
+        raise RuntimeError("Managed ledger already contains the target idempotency key more than once.")
+    if entry_count == 1:
+        return {
+            "dry_run": dry_run,
+            "marker": marker,
+            "operation": "none",
+            "already_appended": True,
+            "comment_id": existing_comment.get("id") if existing_comment else None,
+            "entry": entry,
+            "entry_heading": entry_heading,
+            "baseline_revision": baseline_revision,
+            "expected_head": normalized_expected_head,
+            "expected_revision": normalized_expected_revision,
+            "request_payload": {"body": existing_body},
+        }
+    if normalized_expected_revision and baseline_revision != normalized_expected_revision:
+        raise RuntimeError(
+            "Managed-ledger revision does not match --ledger-expected-revision: "
+            f"expected {normalized_expected_revision}, found {baseline_revision}. Re-run the dry-run preview."
+        )
+
+    request_body = build_managed_issue_comment_body(existing_body, entry, marker=marker)
     request_payload = {"body": validate_managed_ledger_document(request_body, marker=marker)}
 
     if dry_run:
@@ -897,34 +1173,55 @@ def perform_managed_issue_comment_append(
             "operation": "update" if existing_comment else "create",
             "comment_id": existing_comment.get("id") if existing_comment else None,
             "entry": entry,
+            "entry_heading": entry_heading,
+            "baseline_revision": baseline_revision,
+            "expected_head": normalized_expected_head,
+            "expected_revision": normalized_expected_revision,
             "request_payload": request_payload,
         }
 
     if existing_comment is None:
+        refreshed_comment = find_managed_issue_comment(fetch_issue_comments(pull_number), marker=marker)
+        if refreshed_comment is not None:
+            raise RuntimeError("Managed ledger appeared after the validated snapshot. Re-run the dry-run preview.")
         payload, _ = post_json(
             f"https://api.github.com/repos/{OWNER}/{REPO}/issues/{pull_number}/comments",
             request_payload,
         )
     else:
+        snapshot = fetch_issue_comment_snapshot(int(existing_comment["id"]))
+        if snapshot["revision"] != baseline_revision:
+            raise RuntimeError("Managed ledger changed after the validated snapshot. Re-run the dry-run preview.")
         payload, _ = patch_json(
             f"https://api.github.com/repos/{OWNER}/{REPO}/issues/comments/{existing_comment['id']}",
             request_payload,
         )
-    if not isinstance(payload, dict):
+    if not isinstance(payload, dict) or payload.get("id") is None:
         raise RuntimeError("GitHub did not return an issue comment payload.")
 
+    persisted = verify_managed_ledger_append(
+        pull_number,
+        int(payload["id"]),
+        request_payload["body"],
+        entry_heading,
+        marker=marker,
+    )
     return {
         "dry_run": False,
         "marker": marker,
         "operation": "update" if existing_comment else "create",
-        "comment_id": payload.get("id"),
-        "html_url": payload.get("html_url") or "",
-        "body": payload.get("body") or "",
-        "user": payload.get("user", {}).get("login") or "",
+        "already_appended": False,
+        "comment_id": persisted.get("id"),
+        "html_url": persisted.get("html_url") or "",
+        "body": persisted.get("body") or "",
+        "user": persisted.get("user", {}).get("login") or "",
         "entry": entry,
+        "entry_heading": entry_heading,
+        "baseline_revision": baseline_revision,
+        "expected_head": normalized_expected_head,
+        "expected_revision": normalized_expected_revision,
         "request_payload": request_payload,
     }
-
 
 def collapse_whitespace(text: str) -> str:
     """Collapse repeated whitespace into single spaces."""
@@ -1674,9 +1971,30 @@ def dedupe_review_threads(threads: list[dict[str, Any]]) -> list[dict[str, Any]]
     return sorted(deduped, key=lambda item: (item["path"], item["line"] or 0, item["thread_id"]))
 
 
-def build_all_open_review_threads(comments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def apply_github_review_thread_state(
+    threads: list[dict[str, Any]],
+    review_thread_index: dict[int, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Annotate REST review comments with authoritative GraphQL thread resolution state."""
+    for thread in threads:
+        root_comment_id = thread.get("root_comment", {}).get("id")
+        github_thread = review_thread_index.get(root_comment_id)
+        if github_thread is None:
+            continue
+        thread["github_thread_id"] = github_thread.get("thread_id") or ""
+        thread["github_is_resolved"] = bool(github_thread.get("is_resolved"))
+        thread["status"] = "resolved" if thread["github_is_resolved"] else "open"
+        thread["reply_state"] = classify_reply_state(thread)
+    return threads
+
+
+def build_all_open_review_threads(
+    comments: list[dict[str, Any]],
+    review_thread_index: dict[int, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Group all PR review comments and keep unresolved supported-AI threads, not only latest-commit ones."""
     threads = build_latest_commit_review_threads(comments)
+    apply_github_review_thread_state(threads, review_thread_index or {})
     open_threads = [thread for thread in threads if thread["status"] == "open"]
     ai_open_threads = [
         thread
@@ -1831,7 +2149,7 @@ def build_open_thread_counts_by_user(open_threads: list[dict[str, Any]]) -> dict
     return counts
 
 
-def fetch_latest_commit_review(pr_number: int) -> dict[str, Any]:
+def fetch_latest_commit_review(pr_number: int, *, include_github_resolution: bool = False) -> dict[str, Any]:
     """Fetch the latest commit review, grouped threads, and AI-reviewer summaries."""
     api_base = f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/{pr_number}"
     commits = fetch_paged_json(f"{api_base}/commits?per_page=100")
@@ -1867,11 +2185,23 @@ def fetch_latest_commit_review(pr_number: int) -> dict[str, Any]:
         summarized_review["is_latest_commit_review"] = summarized_review.get("commit_id") == latest_commit_sha
         latest_reviews_by_user[agent["login"]] = summarized_review
 
+    review_thread_index: dict[int, dict[str, Any]] = {}
+    thread_resolution_source = "rest-inference"
+    thread_resolution_warning = ""
+    if include_github_resolution:
+        try:
+            graphql_index = fetch_review_thread_index(pr_number)
+            review_thread_index = graphql_index["threads_by_root_comment"]
+            thread_resolution_source = "github-graphql"
+        except Exception as error:  # noqa: BLE001
+            thread_resolution_warning = f"GitHub review-thread resolution state could not be fetched: {error}"
+
     latest_commit_comments = [comment for comment in comments if comment.get("commit_id") == latest_commit_sha]
     threads = build_latest_commit_review_threads(latest_commit_comments)
+    apply_github_review_thread_state(threads, review_thread_index)
     open_threads = [thread for thread in threads if thread["status"] == "open"]
     open_thread_counts_by_user = build_open_thread_counts_by_user(open_threads)
-    all_open_threads = build_all_open_review_threads(comments)
+    all_open_threads = build_all_open_review_threads(comments, review_thread_index)
     all_open_thread_counts_by_user = build_open_thread_counts_by_user(all_open_threads)
 
     return {
@@ -1887,6 +2217,8 @@ def fetch_latest_commit_review(pr_number: int) -> dict[str, Any]:
         "threads": threads,
         "open_threads": open_threads,
         "all_open_threads": all_open_threads,
+        "thread_resolution_source": thread_resolution_source,
+        "thread_resolution_warning": thread_resolution_warning,
     }
 
 
@@ -1934,7 +2266,9 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
     coderabbit_review: dict[str, Any] = {}
     review_agents: list[dict[str, Any]] = []
     try:
-        latest_commit_review = fetch_latest_commit_review(pr_number)
+        latest_commit_review = fetch_latest_commit_review(pr_number, include_github_resolution=True)
+        if latest_commit_review.get("thread_resolution_warning"):
+            warnings.append(latest_commit_review["thread_resolution_warning"])
         latest_reviews_by_user = latest_commit_review.get("latest_reviews_by_user", {})
         open_thread_counts_by_user = latest_commit_review.get("open_thread_counts_by_user", {})
         all_open_thread_counts_by_user = latest_commit_review.get("all_open_thread_counts_by_user", {})
@@ -2085,6 +2419,7 @@ def format_text(
     normalized_path_filters = normalize_path_filters(path_filters)
     pr = result["pull_request"]
     reply_action = result.get("reply_action", {})
+    resolution_action = result.get("resolution_action", {})
     ledger_action = result.get("ledger_action", {})
     if reply_action:
         lines.append(
@@ -2097,6 +2432,19 @@ def format_text(
         )
         if reply_action.get("html_url"):
             lines.append(f"Reply URL: {reply_action['html_url']}")
+        lines.append("")
+    if resolution_action:
+        resolution_state = (
+            "already resolved"
+            if resolution_action.get("already_resolved")
+            else "dry-run"
+            if resolution_action.get("dry_run")
+            else "resolved"
+        )
+        lines.append(
+            "Review thread resolution: "
+            f"{resolution_state} for root comment {resolution_action.get('root_comment_id')}"
+        )
         lines.append("")
     if ledger_action:
         lines.append(
@@ -2452,8 +2800,30 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Validate and print the reply payload without sending it to GitHub.",
     )
+    parser.add_argument(
+        "--resolve-comment-id",
+        type=int,
+        help="Resolve the thread rooted at this PR review comment id.",
+    )
+    parser.add_argument(
+        "--resolve-expected-head",
+        help="Require the PR head to equal this full commit SHA before resolving a thread.",
+    )
+    parser.add_argument(
+        "--resolve-dry-run",
+        action="store_true",
+        help="Validate and print the thread-resolution payload without resolving it.",
+    )
     parser.add_argument("--ledger-body", help="Append one markdown block to the managed PR review ledger issue comment.")
     parser.add_argument("--ledger-body-file", help="Read the ledger body from a UTF-8 text file.")
+    parser.add_argument(
+        "--ledger-expected-head",
+        help="Require the PR head to equal this full commit SHA before writing the managed ledger.",
+    )
+    parser.add_argument(
+        "--ledger-expected-revision",
+        help="Require the managed comment to match the revision emitted by the dry-run preview.",
+    )
     parser.add_argument(
         "--ledger-marker",
         default=PR_REVIEW_LEDGER_MARKER,
@@ -2501,6 +2871,21 @@ def main() -> None:
 
     if args.reply_fixed_commit and (args.reply_body or args.reply_body_file):
         raise RuntimeError("Use either --reply-fixed-commit or a manual reply body, not both.")
+    resolve_comment_id = getattr(args, "resolve_comment_id", None)
+    resolve_expected_head = getattr(args, "resolve_expected_head", None)
+    resolve_dry_run = bool(getattr(args, "resolve_dry_run", False))
+    if resolve_comment_id is not None and args.reply_comment_id is not None:
+        raise RuntimeError("Reply and resolve in separate invocations so the PR inventory can be rebuilt between them.")
+    if resolve_comment_id is not None and not resolve_expected_head:
+        raise RuntimeError("--resolve-comment-id requires --resolve-expected-head.")
+    if resolve_comment_id is None and (resolve_expected_head or resolve_dry_run):
+        raise RuntimeError("Resolution options require --resolve-comment-id.")
+    ledger_expected_head = getattr(args, "ledger_expected_head", None)
+    ledger_expected_revision = getattr(args, "ledger_expected_revision", None)
+    if (ledger_expected_head or ledger_expected_revision) and not (args.ledger_body or args.ledger_body_file):
+        raise RuntimeError(
+            "--ledger-expected-head and --ledger-expected-revision require --ledger-body or --ledger-body-file."
+        )
     if args.ledger_dry_run and not (args.ledger_body or args.ledger_body_file):
         raise RuntimeError("--ledger-dry-run requires --ledger-body or --ledger-body-file.")
 
@@ -2517,6 +2902,13 @@ def main() -> None:
             reply_body,
             dry_run=args.reply_dry_run,
         )
+    if resolve_comment_id is not None:
+        result["resolution_action"] = perform_review_thread_resolution(
+            result["pull_request"]["number"],
+            resolve_comment_id,
+            resolve_expected_head,
+            dry_run=resolve_dry_run,
+        )
     if args.ledger_body or args.ledger_body_file:
         ledger_body = resolve_ledger_body(args)
         result["ledger_action"] = perform_managed_issue_comment_append(
@@ -2525,6 +2917,8 @@ def main() -> None:
             result,
             ledger_body,
             marker=args.ledger_marker,
+            expected_head=ledger_expected_head or "",
+            expected_revision=ledger_expected_revision or "",
             dry_run=args.ledger_dry_run,
         )
     json_output_path: str | None = None

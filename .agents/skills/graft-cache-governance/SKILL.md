@@ -168,7 +168,6 @@ For docs or skill-only changes:
 ```bash
 git diff --check
 python3 scripts/validate_ai_governance.py
-python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-cache-governance
 ```
 
 Add:
@@ -182,15 +181,19 @@ when the task changes shared-asset registry entries.
 For backend cache changes:
 
 ```bash
-cd server && go run ./cmd/graft validate backend --stage lint
+graft validate backend
 ```
 
-Also run the smallest direct `go test` scope covering:
+Use `graft-validation-runner` to confirm the completion scope. During iteration, also run the smallest direct `go test`
+scope covering:
 
 - cache hit/miss behavior
 - invalidation after update/reset
 - concurrent miss collapse when relevant
 - degraded behavior when Redis publish/subscribe is unavailable, if Redis is part of the slice
+
+Focused tests and `graft validate backend --stage lint` are supplemental checks; they do not replace the full backend
+completion entrypoint.
 
 ## Closeout Evidence
 

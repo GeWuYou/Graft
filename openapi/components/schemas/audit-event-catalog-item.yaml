@@ -22,7 +22,7 @@ properties:
     type: string
   default_strategy:
     type: string
-    enum: [visible, hidden]
+    enum: [visible, hidden, ignore]
   effective_strategy:
     type: string
     enum: [visible, hidden, ignore]

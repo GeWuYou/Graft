@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft Security Remediation"
-  short_description: "Triage and close Graft security alerts safely"
-  default_prompt: "Use $graft-security-remediation to inventory GitHub Code Scanning and Dependabot alerts, classify true positives vs false positives, remediate the owned scope, validate it, and run the guarded branch/commit/push/PR/recheck flow."
+  short_description: "Inventory Graft security alerts before guarded remediation"
+  default_prompt: "Use $graft-security-remediation in read-only inventory/review mode by default; enter local remediation or external write stages only when I explicitly authorize them."

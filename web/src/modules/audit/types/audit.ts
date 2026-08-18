@@ -70,3 +70,6 @@ export type AuditLogQuery = {
 
 export type AuditVisibilityDefaultUpdateRequest = components['schemas']['AuditVisibilityDefaultUpdateRequest'];
 export type AuditVisibilityOverrideUpsertRequest = components['schemas']['AuditVisibilityOverrideUpsertRequest'];
+export type AuditVisibilityOverrideBatchUpsertRequest =
+  components['schemas']['AuditVisibilityOverrideBatchUpsertRequest'];
+export type AuditVisibilityOverrideBatchResponse = components['schemas']['AuditVisibilityOverrideBatchResponse'];

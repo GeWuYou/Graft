@@ -3,4 +3,4 @@ required: [strategy]
 properties:
   strategy:
     type: string
-    enum: [visible, hidden]
+    enum: [visible, hidden, ignore]

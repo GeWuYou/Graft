@@ -32,7 +32,7 @@ ensure_supported_mode() {
 command_path() {
     local tool="$1"
 
-    if command -v "${tool}" >/dev/null 2>&1; then
+    if command_probe "${tool}"; then
         command -v "${tool}"
     else
         printf '%s' ""
@@ -42,17 +42,34 @@ command_path() {
 command_installed() {
     local tool="$1"
 
-    if command -v "${tool}" >/dev/null 2>&1; then
+    if command_probe "${tool}"; then
         printf 'true'
     else
         printf 'false'
     fi
 }
 
-command_version() {
+command_probe() {
     local tool="$1"
 
     if ! command -v "${tool}" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    case "${tool}" in
+        go)
+            go version >/dev/null 2>&1
+            ;;
+        *)
+            "${tool}" --version >/dev/null 2>&1
+            ;;
+    esac
+}
+
+command_version() {
+    local tool="$1"
+
+    if ! command_probe "${tool}"; then
         printf '%s' "not-installed"
         return
     fi

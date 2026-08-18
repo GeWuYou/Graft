@@ -15,7 +15,7 @@ validation rules.
 ## Preconditions
 
 1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
-2. Read `AGENTS.md` `13. Git Workflow Rules` before pushing or diagnosing a push failure.
+2. Read `AGENTS.md` `11. Git Workflow Rules` before pushing or diagnosing a push failure.
 3. Confirm the push trigger is valid:
    - either the user explicitly requested a push
    - or the current task is blocked on a local push failure that the user asked to diagnose

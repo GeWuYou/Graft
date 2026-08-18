@@ -1,0 +1,9 @@
+type: object
+required: [items]
+properties:
+  items:
+    type: array
+    minItems: 1
+    maxItems: 100
+    items:
+      $ref: ./audit-visibility-override-upsert-request.yaml

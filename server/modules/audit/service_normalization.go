@@ -175,21 +175,6 @@ func normalizeAuditVisibilityStrategy(strategy auditstore.AuditVisibilityStrateg
 	)
 }
 
-// normalizeMutableAuditVisibilityStrategy 将可见性策略归一化为仅允许可写的可见或隐藏值。
-// 输入可识别时返回 `Visible` 或 `Hidden`，其余情况返回空字符串。
-func normalizeMutableAuditVisibilityStrategy(
-	strategy auditstore.AuditVisibilityStrategy,
-) auditstore.AuditVisibilityStrategy {
-	switch normalizeAuditVisibilityStrategy(strategy) {
-	case auditstore.AuditVisibilityStrategyVisible:
-		return auditstore.AuditVisibilityStrategyVisible
-	case auditstore.AuditVisibilityStrategyHidden:
-		return auditstore.AuditVisibilityStrategyHidden
-	default:
-		return ""
-	}
-}
-
 // normalizeAuditStringFilters 去除字符串筛选值两侧空白并丢弃空项；当输入为空或处理后没有有效值时返回 nil。
 func normalizeAuditStringFilters(values []string) []string {
 	return normalizeAuditSlice(values, strings.TrimSpace)

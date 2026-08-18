@@ -4,13 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
+import ipaddress
+import json
 import re
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -30,10 +34,14 @@ TASK_CLOSEOUT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-task-closeout" /
 WEB_VIBE_CODING_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-vibe-coding" / "SKILL.md"
 WEB_AGENTS = REPO_ROOT / "web" / "AGENTS.md"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
+PR_REMEDIATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-remediation" / "SKILL.md"
+PR_REVIEW_HELPER = PR_REVIEW_SKILL.parent / "scripts" / "fetch_current_pr_review.py"
+PR_REVIEW_COMMANDS = PR_REVIEW_SKILL.parent / "references" / "commands.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-governance" / "SKILL.md"
 WORK_INTAKE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-work-intake" / "SKILL.md"
+BOOT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-boot" / "SKILL.md"
 WORKTREE_MANAGER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-worktree-manager" / "SKILL.md"
 PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 COMMIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-commit" / "SKILL.md"
@@ -56,6 +64,31 @@ SUBAGENT_DELEGATION_SKILLS = (
 )
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
+SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FRONTMATTER_KEY_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+YAML_PLAIN_FORBIDDEN_INITIAL = frozenset("-?:,[]{}#&*!|>'\"%@`")
+YAML_IMPLICIT_NON_STRING_RE = re.compile(
+    r"(?ix)(?:"
+    r"~|null|true|false|yes|no|on|off|"
+    r"[-+]?0(?:b[01_]+|o[0-7_]+|x[0-9a-f_]+)|"
+    r"[-+]?(?:0|[1-9][0-9_]*)(?:\.[0-9_]*)?(?:e[-+]?[0-9]+)?|"
+    r"[-+]?\.(?:inf|nan)|"
+    r"[0-9][0-9_]*(?::[0-5]?[0-9])+|"
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?:(?:[Tt]|[ \t]+)[0-9]{2}:[0-9]{2}:[0-9]{2}.*)?"
+    r")"
+)
+MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]\n]+\]\((?P<target>[^)\n]+)\)")
+ALLOWED_MISSING_PRIVATE_REFERENCES = {".ai/private/graft-browser-targets.yaml"}
+PRIVATE_IPV4_RE = re.compile(r"(?<![\w.])(?:10(?:\.\d{1,3}){3}|172(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2})(?![\w.])")
+RFC1918_NETWORKS = tuple(
+    ipaddress.ip_network(cidr) for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
+FORBIDDEN_ACTIVE_SKILL_PATTERNS = (
+    ("historical server plugin path", re.compile(r"server/plugins(?:/|\b)")),
+    ("historical plugin API boundary", re.compile(r"(?:server/)?internal/pluginapi(?:/|\b)")),
+    ("retired skill name", re.compile(r"\bgraft-plugin-scaffold\b")),
+    ("historical backend plugin wording", re.compile(r"\bbackend plugin\b", re.IGNORECASE)),
+)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
 HEADROOM_RTK_END = "<!-- /headroom:rtk-instructions -->"
 GOVERNED_GUIDANCE_PREFIXES = (".agents/", "ai-plan/", ".ai/")
@@ -115,23 +148,65 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+class FrontmatterError(ValueError):
+    """Raised when repository skill frontmatter is not strict flat YAML."""
+
+
+def _parse_quoted_scalar(raw_value: str) -> str:
+    try:
+        value = json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise FrontmatterError("quoted scalars must use valid JSON-compatible double quotes") from exc
+    if not isinstance(value, str):
+        raise FrontmatterError("frontmatter values must be strings")
+    return value
+
+
+def _parse_plain_scalar(value: str, line_no: int) -> str:
+    """Accept a conservative plain-string subset that is unambiguous YAML."""
+    if value[0] in YAML_PLAIN_FORBIDDEN_INITIAL:
+        raise FrontmatterError(f"line {line_no} starts with a reserved YAML indicator")
+    if ": " in value or value.endswith(":"):
+        raise FrontmatterError(f"line {line_no} contains an unquoted colon-space scalar")
+    if re.search(r"\s#", value):
+        raise FrontmatterError(f"line {line_no} contains an unquoted YAML comment")
+    if any(ord(character) < 0x20 or ord(character) == 0x7F for character in value):
+        raise FrontmatterError(f"line {line_no} contains a control character")
+    if YAML_IMPLICIT_NON_STRING_RE.fullmatch(value):
+        raise FrontmatterError(f"line {line_no} would resolve to a non-string YAML scalar")
+    return value
+
+
 def parse_frontmatter(text: str) -> dict[str, str] | None:
+    """Parse the intentionally flat skill frontmatter without a YAML dependency."""
     match = FRONTMATTER_RE.match(text)
     if match is None:
         return None
 
     values: dict[str, str] = {}
-    for raw_line in match.group("body").splitlines():
-        line = raw_line.strip()
+    for line_no, raw_line in enumerate(match.group("body").splitlines(), start=2):
+        if raw_line.startswith((" ", "\t")):
+            raise FrontmatterError(f"line {line_no} must be a top-level scalar")
+        line = raw_line.rstrip()
         if not line or line.startswith("#"):
             continue
         key, sep, raw_value = line.partition(":")
         if not sep:
-            continue
+            raise FrontmatterError(f"line {line_no} is not a key/value pair")
+        if not FRONTMATTER_KEY_RE.fullmatch(key):
+            raise FrontmatterError(f"line {line_no} has an invalid key")
+        if key in values:
+            raise FrontmatterError(f"line {line_no} duplicates key {key!r}")
         value = raw_value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-            value = value[1:-1]
-        values[key.strip()] = value
+        if not value:
+            raise FrontmatterError(f"line {line_no} has an empty value")
+        if value[0] == '"':
+            if len(value) < 2 or value[-1] != '"':
+                raise FrontmatterError(f"line {line_no} has an unterminated quoted scalar")
+            value = _parse_quoted_scalar(value)
+        else:
+            value = _parse_plain_scalar(value, line_no)
+        values[key] = value
     return values
 
 
@@ -269,7 +344,12 @@ def validate_skill_mcp_guidance() -> list[Finding]:
     checks = (
         (
             WEB_BROWSER_SKILL,
-            ("Playwright MCP", "browser_agent.py", "playwright_mcp_used"),
+            (
+                "Playwright MCP",
+                "browser_agent.py",
+                "playwright_mcp_used",
+                ".ai/private/graft-browser-targets.yaml",
+            ),
         ),
         (
             PR_REVIEW_SKILL,
@@ -389,20 +469,31 @@ def validate_environment_inventory() -> list[Finding]:
 
 def validate_skill_frontmatter(skill_md: Path) -> list[Finding]:
     text = read_text(skill_md)
-    metadata = parse_frontmatter(text)
     findings: list[Finding] = []
+    try:
+        metadata = parse_frontmatter(text)
+    except FrontmatterError as exc:
+        return [Finding(skill_md, f"invalid YAML frontmatter: {exc}")]
     if metadata is None:
         return [Finding(skill_md, "missing YAML frontmatter")]
+
+    unexpected_keys = sorted(set(metadata) - {"name", "description"})
+    if unexpected_keys:
+        findings.append(Finding(skill_md, f"unsupported frontmatter fields: {', '.join(unexpected_keys)}"))
 
     skill_dir_name = skill_md.parent.name
     name = metadata.get("name", "")
     description = metadata.get("description", "")
     if name != skill_dir_name:
         findings.append(Finding(skill_md, f"frontmatter name {name!r} does not match directory {skill_dir_name!r}"))
+    if not SKILL_NAME_RE.fullmatch(name) or len(name) > 64:
+        findings.append(Finding(skill_md, "frontmatter name must be 1-64 lowercase letters, digits, or single hyphens"))
     if not description:
         findings.append(Finding(skill_md, "frontmatter description is required"))
     if len(description) < 80:
         findings.append(Finding(skill_md, "frontmatter description should be explicit enough for skill discovery"))
+    if len(description) > 1024:
+        findings.append(Finding(skill_md, "frontmatter description must not exceed 1024 characters"))
     return findings
 
 
@@ -413,15 +504,89 @@ def validate_openai_yaml(skill_dir: Path, tracked: set[str]) -> list[Finding]:
     if not yaml_path.is_file():
         return [Finding(yaml_path, "tracked or expected agents/openai.yaml is missing")]
 
-    text = read_text(yaml_path)
+    lines = read_text(yaml_path).splitlines()
     findings: list[Finding] = []
-    for key in ("display_name:", "short_description:", "default_prompt:"):
-        if key not in text:
-            findings.append(Finding(yaml_path, f"missing interface field {key}"))
+    content_lines = [line for line in lines if line.strip() and not line.lstrip().startswith("#")]
+    if not content_lines or content_lines[0] != "interface:":
+        return [Finding(yaml_path, "metadata must have a top-level interface mapping")]
+
+    fields: dict[str, str] = {}
+    for line_no, line in enumerate(content_lines[1:], start=2):
+        match = re.fullmatch(r'  ([a-z_]+):\s*("(?:[^"\\]|\\.)*")', line)
+        if match is None:
+            findings.append(Finding(yaml_path, f"line {line_no} must be a quoted interface string field"))
+            continue
+        key, raw_value = match.groups()
+        if key in fields:
+            findings.append(Finding(yaml_path, f"duplicate interface field {key!r}"))
+            continue
+        try:
+            fields[key] = ast.literal_eval(raw_value)
+        except (SyntaxError, ValueError):
+            findings.append(Finding(yaml_path, f"interface field {key!r} is not a valid quoted string"))
+
+    required_fields = {"display_name", "short_description", "default_prompt"}
+    for key in sorted(required_fields - fields.keys()):
+        findings.append(Finding(yaml_path, f"missing interface field {key}:"))
+    for key in sorted(fields.keys() - required_fields):
+        findings.append(Finding(yaml_path, f"unsupported interface field {key!r}"))
     skill_name = skill_dir.name
-    if f"${skill_name}" not in text:
+    if f"${skill_name}" not in fields.get("default_prompt", ""):
         findings.append(Finding(yaml_path, f"default_prompt should mention ${skill_name}"))
+    metadata_text = "\n".join(fields.values())
+    for label, pattern in FORBIDDEN_ACTIVE_SKILL_PATTERNS:
+        if pattern.search(metadata_text):
+            findings.append(Finding(yaml_path, f"active skill metadata references {label}"))
     return findings
+
+
+def validate_skill_authority_and_references(skill_md: Path) -> list[Finding]:
+    """Reject retired authority and machine-local literals in active skills."""
+    text = read_text(skill_md)
+    findings: list[Finding] = []
+    for label, pattern in FORBIDDEN_ACTIVE_SKILL_PATTERNS:
+        if pattern.search(text):
+            findings.append(Finding(skill_md, f"active skill references {label}"))
+
+    for match in MARKDOWN_LINK_RE.finditer(text):
+        raw_target = match.group("target").strip()
+        if raw_target.startswith("<") and raw_target.endswith(">"):
+            raw_target = raw_target[1:-1]
+        split = urlsplit(raw_target)
+        if split.scheme or raw_target.startswith(("#", "//")):
+            continue
+        relative_target = unquote(split.path)
+        if not relative_target:
+            continue
+        if relative_target.lstrip("/") in ALLOWED_MISSING_PRIVATE_REFERENCES:
+            continue
+        if relative_target.startswith("/"):
+            target = REPO_ROOT / relative_target.lstrip("/")
+        else:
+            target = skill_md.parent / relative_target
+        resolved_target = target.resolve()
+        if not resolved_target.is_relative_to(REPO_ROOT.resolve()):
+            findings.append(Finding(skill_md, f"Markdown reference target escapes repository root: {raw_target!r}"))
+        elif not resolved_target.exists():
+            findings.append(Finding(skill_md, f"Markdown reference target does not exist: {raw_target!r}"))
+
+    for literal in PRIVATE_IPV4_RE.findall(text):
+        try:
+            address = ipaddress.ip_address(literal)
+        except ValueError:
+            continue
+        if not any(address in network for network in RFC1918_NETWORKS):
+            continue
+        findings.append(Finding(skill_md, f"active skill must not hard-code private network address {literal!r}"))
+    return findings
+
+
+def validate_boot_startup_receipt() -> list[Finding]:
+    if not BOOT_SKILL.is_file():
+        return [Finding(BOOT_SKILL, "boot skill is missing")]
+    text = read_text(BOOT_SKILL)
+    required_fields = ("governance source", "task class", "recovery source", "authority summary")
+    return [Finding(BOOT_SKILL, f"startup receipt is missing field {field!r}") for field in required_fields if field not in text]
 
 
 def validate_skills() -> list[Finding]:
@@ -441,6 +606,7 @@ def validate_skills() -> list[Finding]:
             continue
         findings.extend(validate_skill_frontmatter(skill_md))
         findings.extend(validate_openai_yaml(skill_dir, tracked))
+        findings.extend(validate_skill_authority_and_references(skill_md))
 
     audit_skill = SKILLS_DIR / "graft-ai-governance-audit" / "SKILL.md"
     if not audit_skill.is_file():
@@ -819,6 +985,73 @@ def validate_pr_reply_publication_governance() -> list[Finding]:
         for term in terms:
             if term not in text:
                 findings.append(Finding(path, f"missing PR reply publication governance term {term!r}"))
+    return findings
+
+
+def validate_pr_remediation_governance() -> list[Finding]:
+    """Require the explicit PR remediation workflow to close eligible AI threads safely."""
+    checks = (
+        (
+            PR_REMEDIATION_SKILL,
+            (
+                "`graft-pr-review`",
+                "`graft-validation-runner`",
+                "`graft-commit`",
+                "`graft-push`",
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "PR head SHA",
+                "thread_resolution_source",
+                "github-graphql",
+                "supported AI reviewers",
+                "`contested`",
+                "--resolve-comment-id <root-comment-id>",
+                "--resolve-expected-head <full-sha>",
+                "--resolve-dry-run",
+                "managed-ledger",
+                "--ledger-validate-body-file",
+                "--ledger-expected-head <full-sha>",
+                "--ledger-expected-revision <sha256-or-absent>",
+                "--ledger-dry-run",
+                "latest run",
+                "Do not claim closed-loop completion",
+            ),
+        ),
+        (
+            PR_REVIEW_HELPER,
+            (
+                "--resolve-comment-id",
+                "--resolve-expected-head",
+                "--resolve-dry-run",
+                "resolveReviewThread",
+                "SUPPORTED_AI_REVIEWER_LOGINS",
+                "--ledger-expected-head",
+                "--ledger-expected-revision",
+            ),
+        ),
+        (
+            PR_REVIEW_COMMANDS,
+            (
+                "--resolve-comment-id <root-comment-id>",
+                "--resolve-expected-head <full-sha>",
+                "--resolve-dry-run",
+                "combined reply-and-resolve",
+                "--ledger-validate-body-file",
+                "--ledger-expected-head <full-sha>",
+                "--ledger-expected-revision <sha256-or-absent>",
+                "--ledger-dry-run",
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "PR remediation governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "PR remediation governance", terms))
+
+    for path in (AGENTS, AI_TOOLING_DOC, AI_CODE_REVIEW_DOC, PR_REVIEW_SKILL):
+        if path.is_file() and "graft-pr-remediation" not in read_text(path):
+            findings.append(Finding(path, "missing graft-pr-remediation workflow reference"))
     return findings
 
 
@@ -1277,6 +1510,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_gitignore())
     findings.extend(validate_ai_tooling_doc())
     findings.extend(validate_skills())
+    findings.extend(validate_boot_startup_receipt())
     findings.extend(validate_ai_plan_governance_skill())
     findings.extend(validate_work_intake_skill())
     findings.extend(validate_worktree_manager_skill())
@@ -1288,6 +1522,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
     findings.extend(validate_pr_reply_publication_governance())
+    findings.extend(validate_pr_remediation_governance())
     findings.extend(validate_commit_completion_governance())
     findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())

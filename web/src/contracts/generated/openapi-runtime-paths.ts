@@ -304,6 +304,7 @@ export const OPENAPI_RUNTIME_PATH = {
   putAppLogSavedView: '/api/app-log/saved-views/{viewId}',
   putAuditLogSavedView: '/api/audit/logs/saved-views/{viewId}',
   putAuditVisibilityOverride: '/api/audit/policies/visibility/overrides',
+  putAuditVisibilityOverridesBatch: '/api/audit/policies/visibility/overrides/batch',
   putAuditVisibilityPolicy: '/api/audit/policies/visibility',
   putContainerSavedView: '/api/ops/containers/saved-views/{viewId}',
   putDockerImageSavedView: '/api/docker/images/saved-views/{viewId}',

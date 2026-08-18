@@ -562,6 +562,8 @@ type AuditRepository interface {
 	FindAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) (AuditVisibilityOverride, bool, error)
 	// UpsertAuditVisibilityOverride 创建或更新一条来源加动作可见性覆盖规则。
 	UpsertAuditVisibilityOverride(ctx context.Context, input UpsertAuditVisibilityOverrideInput) (AuditVisibilityOverride, error)
+	// UpsertAuditVisibilityOverrides 在单个事务中按输入顺序创建或更新一组覆盖规则。
+	UpsertAuditVisibilityOverrides(ctx context.Context, inputs []UpsertAuditVisibilityOverrideInput) ([]AuditVisibilityOverride, error)
 	// DeleteAuditVisibilityOverride 删除一条来源加动作可见性覆盖规则。
 	DeleteAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) error
 	DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error)

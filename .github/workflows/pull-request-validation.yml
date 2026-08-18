@@ -169,6 +169,9 @@ jobs:
       - name: Run AI governance validator tests
         run: python3 -m unittest scripts/test_validate_ai_governance.py
 
+      - name: Run repository skill-local tests
+        run: python3 scripts/run_skill_tests.py
+
   web-check:
     name: Web Check
     runs-on: ubuntu-latest

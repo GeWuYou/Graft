@@ -39,7 +39,7 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 
 1. Read the closeout rules in `AGENTS.md`:
    - `4.1 Startup Governance` for required handoff prompt fields
-   - `13. Git Workflow Rules` for pre-handoff commit requirements
+   - `11. Git Workflow Rules` for pre-handoff commit requirements
 2. Classify the closeout state:
    - `validated and owned`: the current slice reached the required validation level and ownership is clear
    - `handoff_only`: the slice needs a next-step prompt but is not ready for a safe commit

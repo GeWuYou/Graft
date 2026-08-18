@@ -440,7 +440,7 @@
 </template>
 <script setup lang="ts">
 import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from 'tdesign-icons-vue-next';
-import type { TableProps } from 'tdesign-vue-next';
+import type { DropdownProps, TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -708,10 +708,10 @@ async function submitCleanup() {
   await invalidateDockerNetworkQueries();
   if (!cleanup.selectedIds.value.length) cleanup.visible.value = false;
 }
-function handleHeaderAction(payload: { value?: unknown } | string | number) {
+const handleHeaderAction: NonNullable<DropdownProps['onClick']> = (payload) => {
   const action = typeof payload === 'object' && payload ? payload.value : payload;
   if (action === 'cleanup') void openCleanup();
-}
+};
 function handleNetworkAction(network: DockerNetwork, payload: { value?: unknown } | string | number) {
   const action = typeof payload === 'object' && payload ? payload.value : payload;
   if (action === 'remove' && canRemove.value) openRemoveDialog(network);

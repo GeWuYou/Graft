@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	routecontract "graft/server/internal/contract/route"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
@@ -227,11 +228,11 @@ func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequ
 	}, nil
 }
 
-// buildShellWebSocketURL constructs a WebSocket URL for accessing the shell of a specified container.
+// buildShellWebSocketURL 使用平台 API 根路径构造容器终端 WebSocket 地址。
 func buildShellWebSocketURL(ref Ref, ticket string) string {
 	values := url.Values{}
 	values.Set("ticket", ticket)
-	return "/api" + containercontract.ContainerAPIGroup + "/" + url.PathEscape(ref.Value) + "/shell/ws?" + values.Encode()
+	return routecontract.APIPath(containercontract.ContainerAPIGroup) + "/" + url.PathEscape(ref.Value) + "/shell/ws?" + values.Encode()
 }
 
 // mapRealtimeTicketError 将实时票证错误映射为对应的 Shell 特定错误。

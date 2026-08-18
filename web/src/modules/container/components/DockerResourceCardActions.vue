@@ -41,10 +41,10 @@ const dropdownOptions = computed<NonNullable<DropdownProps['options']>>(() =>
   })),
 );
 
-function handleAction(payload: { value?: unknown } | string | number) {
+const handleAction: NonNullable<DropdownProps['onClick']> = (payload) => {
   const action = typeof payload === 'object' && payload ? payload.value : payload;
   if (typeof action === 'string') emit('action', action);
-}
+};
 </script>
 <style scoped lang="less">
 .docker-resource-card-actions {

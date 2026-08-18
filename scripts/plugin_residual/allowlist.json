@@ -1,10 +1,82 @@
 {
   "patterns": [
     {
+      "path_prefix": "scripts/plugin_residual/",
+      "regex": ".+",
+      "category": "scanner_implementation",
+      "reason": "The scanner, its tests, and its allowlist necessarily contain the token they govern."
+    },
+    {
+      "path": "scripts/validate_ai_governance.py",
+      "regex": "plugin|Plugin|server/plugins|internal/pluginapi|graft-plugin-scaffold",
+      "category": "scanner_implementation",
+      "reason": "The AI governance validator contains explicit patterns for rejecting retired plugin authority from active skills."
+    },
+    {
+      "path": "scripts/test_validate_ai_governance.py",
+      "regex": "plugin|Plugin|server/plugins|internal/pluginapi|graft-plugin-scaffold",
+      "category": "scanner_test_fixture",
+      "reason": "Validator regression fixtures intentionally contain forbidden historical literals."
+    },
+    {
+      "path": ".agents/plugins/marketplace.json",
+      "regex": "plugins|plugins/",
+      "category": "ai_tooling",
+      "reason": "Codex plugin marketplace metadata is AI guidance configuration, not server runtime authority."
+    },
+    {
+      "path": ".ai/registries/cross-boundary-assets.yaml",
+      "regex": "plugin|plugins/",
+      "category": "ai_tooling",
+      "reason": "The curated asset registry records the repository-local Codex guidance plugin."
+    },
+    {
+      "path": ".releaserc.json",
+      "regex": "plugins",
+      "category": "third_party",
+      "reason": "Semantic Release uses its own third-party plugin configuration vocabulary."
+    },
+    {
+      "path_prefix": "plugins/",
+      "regex": "plugin|plugins",
+      "category": "ai_tooling_or_third_party",
+      "reason": "Repository-local Codex guidance assets and their third-party integration guidance use plugin terminology outside server runtime authority."
+    },
+    {
+      "path": "server/runner/compose/Dockerfile",
+      "regex": "cli-plugins",
+      "category": "third_party",
+      "reason": "Docker CLI Compose uses its upstream cli-plugins filesystem layout."
+    },
+    {
+      "path": "web/AGENTS.md",
+      "regex": "repo-local frontend plugin / skill pack",
+      "category": "ai_tooling",
+      "reason": "Frontend governance distinguishes Codex guidance assets from runtime architecture."
+    },
+    {
+      "path_prefix": "web/scripts/i18n-governance/",
+      "regex": "plugin|plugins",
+      "category": "third_party_api",
+      "reason": "The i18n guard names TDesign's public message and notification plugin APIs."
+    },
+    {
+      "path_prefix": "web/src/",
+      "regex": "plugins:\\s*\\[|pinia-plugin-persistedstate",
+      "category": "third_party_api",
+      "reason": "Vue Test Utils mount options and Pinia package names use third-party plugin vocabulary."
+    },
+    {
+      "path": "web/vitest.config.ts",
+      "regex": "plugins:\\s*\\[",
+      "category": "third_party_api",
+      "reason": "Vite exposes a plugins array as part of its public configuration API."
+    },
+    {
       "path_prefix": ".agents/skills/",
       "regex": "plugin|Plugin",
       "category": "history_or_tool_name",
-      "reason": "Repository skills retain historical tool names, examples, and older bounded-scope wording."
+      "reason": "Generic plugin vocabulary and test fixtures remain allowed in skills; validate_ai_governance.py separately rejects retired active-skill authority."
     },
     {
       "path": ".gitignore",
@@ -20,7 +92,7 @@
     },
     {
       "path": "AGENTS.md",
-      "regex": "graft-plugin-scaffold|backend plugin semantics|historical plugin naming|plugin\\.|under historical plugin naming|current runtime truth",
+      "regex": "graft-server-module-scaffold|historical module naming|plugin\\.|under historical plugin naming|current runtime truth",
       "category": "history_or_tool_name",
       "reason": "Skill names and historical semantic references are retained identifiers, not live runtime authority."
     },
@@ -38,9 +110,87 @@
     },
     {
       "path": "ai-plan/design/architecture/项目设计.md",
-      "regex": "runtime plugin platform|server/plugins/\\*|internal/plugin\\*|历史 plugin 命名|plugin 命名",
+      "regex": "runtime plugin platform|runtime plugin loading|server/plugins/\\*|internal/plugin\\*|历史 plugin 命名|plugin 命名",
       "category": "historical_governance",
       "reason": "Design truth explicitly records historical rename context and anti-goal plugin-platform wording."
+    },
+    {
+      "path": "ai-plan/design/architecture/build-domain-v2-provider-sdk-spi.md",
+      "regex": "plugin marketplace",
+      "category": "historical_governance",
+      "reason": "Provider architecture explicitly rejects a plugin marketplace and duplicate platform machinery."
+    },
+    {
+      "path": "ai-plan/design/architecture/运行时组合与资源治理设计.md",
+      "regex": "plugin|Plugin",
+      "category": "historical_governance",
+      "reason": "Runtime composition governance explicitly rejects historical plugin reloaders and context terminology."
+    },
+    {
+      "path": "ai-plan/design/decisions/ADR-025-provider-oriented-project-layout.md",
+      "regex": "plugin|Plugin",
+      "category": "historical_governance",
+      "reason": "The ADR preserves explicit negative guidance against dynamic plugin systems and marketplaces."
+    },
+    {
+      "path": "ai-plan/design/domains/container/容器管理设计.md",
+      "regex": "Plugin",
+      "category": "intentional_domain_or_wire",
+      "reason": "Container design names Plugin as a possible external resource type, not a Graft server module boundary."
+    },
+    {
+      "path": "ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md",
+      "regex": "plugin|Plugin|plugins/",
+      "category": "ai_tooling",
+      "reason": "AI governance distinguishes Codex guidance plugins from server runtime authority and audits historical wording."
+    },
+    {
+      "path": "ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md",
+      "regex": "plugin",
+      "category": "ai_tooling",
+      "reason": "Frontend AI governance references repository-local Codex guidance assets."
+    },
+    {
+      "path": "ai-plan/design/governance/frontend/前端视觉设计规范.md",
+      "regex": "plugin",
+      "category": "ai_tooling",
+      "reason": "Frontend visual governance references repository-local Codex guidance assets."
+    },
+    {
+      "path": "ai-plan/lessons/governance.md",
+      "regex": "plugin|plugins/",
+      "category": "ai_tooling",
+      "reason": "The governance lesson records intentional Codex skill and guidance-plugin intake terminology, not server runtime authority."
+    },
+    {
+      "path": "ai-plan/public/docker-resource-context-ia/README.md",
+      "regex": "Plugin",
+      "category": "intentional_domain_or_wire",
+      "reason": "The topic lists Plugin as an explicitly out-of-scope Docker resource type."
+    },
+    {
+      "path": "ai-plan/public/platform-availability-capability-health/README.md",
+      "regex": "plugin",
+      "category": "historical_governance",
+      "reason": "The topic explicitly rejects runtime plugin discovery and hot loading."
+    },
+    {
+      "path_prefix": "ai-plan/public/runtime-composability-governance/",
+      "regex": "plugin|Plugin",
+      "category": "historical_governance",
+      "reason": "The runtime-composability topic preserves explicit negative and migration context for historical plugin semantics."
+    },
+    {
+      "path": "ai-plan/roadmap/build-domain-v2.md",
+      "regex": "plugin",
+      "category": "historical_governance",
+      "reason": "The roadmap explicitly rejects a generic plugin scheduler."
+    },
+    {
+      "path": "ai-plan/roadmap/运行时组合与资源治理实施路线.md",
+      "regex": "Plugin",
+      "category": "historical_governance",
+      "reason": "The roadmap rejects the historical Agent-to-Task-to-Plugin context tree."
     },
     {
       "path": "ai-plan/design/architecture/项目设计.md",

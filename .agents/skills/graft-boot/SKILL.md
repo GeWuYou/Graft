@@ -17,6 +17,7 @@ startup; it does not replace repository rules.
    - `governance source`
    - `task class`
    - `recovery source`
+   - `authority summary`
 3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
    mapped parent topic and relevant subtopic recovery files for the current task shape.
 4. Read the relevant repository-wide design and roadmap truth needed by the task.

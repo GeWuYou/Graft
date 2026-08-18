@@ -6,8 +6,9 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { localDateTimeToUtcIso, normalizeRouteRangeForPageState } from '@/shared/observability';
 import { clearQueryCache } from '@/shared/query';
+import { getPermissionStore } from '@/store/modules/permission';
 
-import type { AuditLogListResponse } from '../../types/audit';
+import type { AuditLogListResponse, AuditVisibilityPolicyResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
 
 const {
@@ -21,6 +22,7 @@ const {
   putAuditSavedViewMock,
   updateAuditVisibilityDefaultMock,
   upsertAuditVisibilityOverrideMock,
+  upsertAuditVisibilityOverridesBatchMock,
 } = vi.hoisted(() => ({
   deleteAuditSavedViewMock: vi.fn(),
   deleteAuditVisibilityOverrideMock: vi.fn(),
@@ -32,6 +34,7 @@ const {
   putAuditSavedViewMock: vi.fn(),
   updateAuditVisibilityDefaultMock: vi.fn(),
   upsertAuditVisibilityOverrideMock: vi.fn(),
+  upsertAuditVisibilityOverridesBatchMock: vi.fn(),
 }));
 
 function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}): AuditLogListResponse {
@@ -81,6 +84,40 @@ function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}):
   };
 }
 
+function createVisibilityPolicy(overrides: Partial<AuditVisibilityPolicyResponse> = {}): AuditVisibilityPolicyResponse {
+  return {
+    default: {
+      key: 'global',
+      strategy: 'visible',
+      updated_at: '2026-05-27T08:00:00Z',
+    },
+    overrides: [],
+    catalog: [
+      {
+        source: 'REQUEST',
+        action_key: 'POST /api/auth/login',
+        display_name: 'Login',
+        description: 'Login request',
+        category: 'auth',
+        default_strategy: 'visible',
+        effective_strategy: 'visible',
+        overridden: false,
+      },
+      {
+        source: 'REQUEST',
+        action_key: 'POST /api/auth/logout',
+        display_name: 'Logout',
+        description: 'Logout request',
+        category: 'auth',
+        default_strategy: 'visible',
+        effective_strategy: 'visible',
+        overridden: false,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 vi.mock('../../api/audit', () => ({
   deleteAuditSavedView: deleteAuditSavedViewMock,
   deleteAuditVisibilityOverride: deleteAuditVisibilityOverrideMock,
@@ -92,6 +129,7 @@ vi.mock('../../api/audit', () => ({
   putAuditSavedView: putAuditSavedViewMock,
   updateAuditVisibilityDefault: updateAuditVisibilityDefaultMock,
   upsertAuditVisibilityOverride: upsertAuditVisibilityOverrideMock,
+  upsertAuditVisibilityOverridesBatch: upsertAuditVisibilityOverridesBatchMock,
 }));
 
 vi.mock('@/shared/localized-api-error', () => ({
@@ -108,12 +146,13 @@ vi.mock('@/utils/logger', () => ({
 vi.mock('../../components/AuditFilters.vue', () => ({
   default: defineComponent({
     name: 'AuditFiltersStub',
-    props: ['presets', 'activePreset', 'modelValue'],
+    props: ['presets', 'activePreset', 'modelValue', 'canManageVisibility'],
     emits: ['search', 'reset', 'apply-preset', 'update:modelValue'],
     setup(props, { emit, slots }) {
       return () =>
         h('div', [
           h('span', { 'data-testid': 'audit-filter-model' }, JSON.stringify(props.modelValue)),
+          h('span', { 'data-testid': 'audit-filter-can-manage-visibility' }, String(props.canManageVisibility)),
           h('button', { 'data-testid': 'audit-search', onClick: () => emit('search') }, 'search'),
           h('button', { 'data-testid': 'audit-reset', onClick: () => emit('reset') }, 'reset'),
           h('button', { 'data-testid': 'audit-preset', onClick: () => emit('apply-preset', 'high-risk') }, 'preset'),
@@ -232,9 +271,20 @@ const passthroughStub = defineComponent({
 
 const buttonStub = defineComponent({
   name: 'TButtonStub',
+  props: ['disabled', 'loading'],
   emits: ['click'],
-  setup(_, { emit, slots, attrs }) {
-    return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.());
+  setup(props, { emit, slots, attrs }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          disabled: props.disabled || props.loading,
+          'data-loading': String(Boolean(props.loading)),
+          onClick: () => emit('click'),
+        },
+        slots.default?.(),
+      );
   },
 });
 
@@ -254,9 +304,32 @@ const checkboxStub = defineComponent({
 
 const drawerStub = defineComponent({
   name: 'TDrawerStub',
-  props: ['visible', 'header'],
-  setup(_, { slots }) {
-    return () => h('div', slots.default?.());
+  props: ['visible', 'header', 'footer'],
+  setup(props, { slots }) {
+    return () => h('div', { 'data-testid': 'policy-drawer', 'data-footer': String(props.footer) }, slots.default?.());
+  },
+});
+
+const dialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: ['visible', 'header', 'body', 'confirmLoading'],
+  emits: ['update:visible', 'cancel', 'close', 'confirm'],
+  setup(props, { emit }) {
+    return () =>
+      h('div', { 'data-testid': 'ignore-default-dialog', 'data-visible': String(props.visible) }, [
+        h('span', props.header),
+        h('span', props.body),
+        h('button', { 'data-testid': 'ignore-default-cancel', onClick: () => emit('cancel') }, 'cancel'),
+        h(
+          'button',
+          {
+            'data-testid': 'ignore-default-confirm',
+            disabled: props.confirmLoading,
+            onClick: () => emit('confirm'),
+          },
+          'confirm',
+        ),
+      ]);
   },
 });
 
@@ -420,25 +493,37 @@ const auditMessages: Record<string, string> = {
   'audit.logList.columnViews.default': 'Default View',
   'audit.logList.columnViews.troubleshooting': 'Troubleshooting View',
   'audit.logList.columnViews.technical': 'Technical View',
-  'audit.logList.policy.manage': 'Manage Visibility',
-  'audit.logList.policy.drawerTitle': 'Audit Visibility Policy',
-  'audit.logList.policy.defaultStrategy': 'Global default strategy',
-  'audit.logList.policy.visibilityScope': 'Current list visibility scope',
-  'audit.logList.policy.saveDefault': 'Save Default',
+  'audit.logList.policy.manage': 'Manage Recording Policy',
+  'audit.logList.policy.drawerTitle': 'Audit Recording Policy',
+  'audit.logList.policy.defaultStrategy': 'Default Policy for New Events',
+  'audit.logList.policy.defaultHint': 'Future events only',
+  'audit.logList.policy.saveDefault': 'Save',
+  'audit.logList.policy.saveAllOverrides': 'Save All',
   'audit.logList.policy.saveSuccess': 'Audit visibility default updated',
   'audit.logList.policy.saveFailed': 'Failed to update audit visibility default',
   'audit.logList.policy.overrideTitle': 'Per-event overrides',
   'audit.logList.policy.overrideHint': 'Override hint',
-  'audit.logList.policy.saveOverride': 'Save Override',
+  'audit.logList.policy.saveOverride': 'Save',
   'audit.logList.policy.saveOverrideSuccess': 'Audit visibility override updated',
   'audit.logList.policy.saveOverrideFailed': 'Failed to update audit visibility override',
+  'audit.logList.policy.saveAllSuccess': 'All overrides updated',
+  'audit.logList.policy.saveAllFailed': 'Failed to update all overrides',
   'audit.logList.policy.resetOverride': 'Reset Override',
   'audit.logList.policy.resetOverrideSuccess': 'Audit visibility override removed',
   'audit.logList.policy.resetOverrideFailed': 'Failed to remove audit visibility override',
   'audit.logList.policy.overriddenTag': 'Overridden',
+  'audit.logList.policy.unsavedTag': 'Unsaved',
   'audit.logList.policy.descriptionFallback': 'No description',
+  'audit.logList.policy.ignoreConfirmTitle': 'Ignore future audit events?',
+  'audit.logList.policy.ignoreConfirmBody': 'Ignored events cannot be recovered.',
+  'audit.logList.policy.ignoreConfirmCancel': 'Cancel',
+  'audit.logList.policy.ignoreConfirmAction': 'Ignore and Drop',
   'audit.logList.policy.catalog.request.post_api_auth_refresh.displayName': 'Refresh Session Token',
   'audit.logList.policy.catalog.request.post_api_auth_refresh.description': 'Frontend-owned refresh token description',
+  'audit.logList.policy.catalog.request.post_api_auth_login.displayName': 'Login',
+  'audit.logList.policy.catalog.request.post_api_auth_login.description': 'Login request',
+  'audit.logList.policy.catalog.request.post_api_auth_logout.displayName': 'Logout',
+  'audit.logList.policy.catalog.request.post_api_auth_logout.description': 'Logout request',
   'audit.logList.policy.defaultState': 'Default: {value}',
   'audit.logList.policy.effectiveState': 'Effective: {value}',
   'audit.logList.policy.scope.default': 'Default visible only',
@@ -469,6 +554,7 @@ describe('AuditLogsPage', () => {
     getAuditVisibilityPolicyMock.mockReset();
     updateAuditVisibilityDefaultMock.mockReset();
     upsertAuditVisibilityOverrideMock.mockReset();
+    upsertAuditVisibilityOverridesBatchMock.mockReset();
     postAuditSavedViewMock.mockReset();
     putAuditSavedViewMock.mockReset();
     getAuditLogsMock.mockResolvedValue(createAuditLogsResponse());
@@ -525,6 +611,8 @@ describe('AuditLogsPage', () => {
       updated_at: '2026-05-27T08:00:00Z',
     });
     deleteAuditVisibilityOverrideMock.mockResolvedValue({});
+    upsertAuditVisibilityOverridesBatchMock.mockResolvedValue({ items: [] });
+    getPermissionStore().setBootstrapSnapshot(null);
   });
 
   afterEach(() => {
@@ -537,7 +625,9 @@ describe('AuditLogsPage', () => {
       created_to: '2026-05-31T07:21:04.000Z',
       results: 'DENIED',
     },
+    canManagePolicy = false,
   ) {
+    getPermissionStore().setBootstrapSnapshot(canManagePolicy ? ({ permissions: ['audit.manage'] } as never) : null);
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -566,6 +656,7 @@ describe('AuditLogsPage', () => {
           't-checkbox': checkboxStub,
           't-checkbox-group': checkboxGroupStub,
           't-drawer': drawerStub,
+          't-dialog': dialogStub,
           't-space': passthroughStub,
           't-select': selectStub,
           't-tag': tagStub,
@@ -620,6 +711,7 @@ describe('AuditLogsPage', () => {
           't-checkbox': checkboxStub,
           't-checkbox-group': checkboxGroupStub,
           't-drawer': drawerStub,
+          't-dialog': dialogStub,
           't-space': passthroughStub,
           't-select': selectStub,
           't-tag': tagStub,
@@ -664,6 +756,7 @@ describe('AuditLogsPage', () => {
         name: 'Denied sessions',
         page_size: 50,
         query_state: {
+          visibility_scope: 'hidden_only',
           actor: 'alice',
           action_prefixes: ['rbac.'],
           created_from: '2026-05-01T10:00:00.000Z',
@@ -676,13 +769,14 @@ describe('AuditLogsPage', () => {
         visible_columns: ['action', 'session_id', 'result', 'created_at'],
       },
     ]);
-    const { router, wrapper } = await mountPage();
+    const { router, wrapper } = await mountPage(undefined, true);
 
     await wrapper.get('[data-testid="audit-saved-view-apply"]').trigger('click');
     await flushPromises();
 
     expect(router.currentRoute.value.query).toMatchObject({
       actor: 'alice',
+      visibility_scope: 'hidden_only',
       action_prefixes: 'rbac.',
       created_from: '2026-05-01T10:00:00.000Z',
       created_to: '2026-05-02T18:30:00.000Z',
@@ -695,7 +789,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 50,
-      visibility_scope: 'default',
+      visibility_scope: 'hidden_only',
       actor: 'alice',
       action_prefixes: ['rbac.'],
       created_from: '2026-05-01T10:00:00.000Z',
@@ -743,6 +837,259 @@ describe('AuditLogsPage', () => {
     expect(wrapper.text()).toContain('Refresh Session Token');
     expect(wrapper.text()).toContain('Frontend-owned refresh token description');
     expect(wrapper.text()).not.toContain('Refresh token request');
+  });
+
+  it('keeps other override and default drafts dirty when a single override is saved', async () => {
+    getAuditVisibilityPolicyMock.mockResolvedValue(createVisibilityPolicy());
+    const { wrapper } = await mountPage({}, true);
+    const page = wrapper.vm as unknown as {
+      handleOverrideDraftChange: (source: string, actionKey: string, value: string) => void;
+      handlePolicyDefaultChange: (value: string) => void;
+      isOverrideDirty: (source: string, actionKey: string) => boolean;
+      loadPolicySnapshot: () => Promise<void>;
+      overrideDrafts: Record<string, Record<string, string>>;
+      policyDefaultDirty: boolean;
+      policyDefaultStrategy: string;
+      resetPolicyOverride: (source: 'REQUEST', actionKey: string) => Promise<void>;
+      savePolicyOverride: (source: 'REQUEST', actionKey: string) => Promise<void>;
+    };
+
+    await page.loadPolicySnapshot();
+    page.handlePolicyDefaultChange('hidden');
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/login', 'hidden');
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/logout', 'ignore');
+    await page.savePolicyOverride('REQUEST', 'POST /api/auth/login');
+
+    expect(upsertAuditVisibilityOverrideMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action_key: 'POST /api/auth/login', strategy: 'hidden' }),
+    );
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/login')).toBe(false);
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(true);
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/logout']).toBe('ignore');
+    expect(page.policyDefaultStrategy).toBe('hidden');
+    expect(page.policyDefaultDirty).toBe(true);
+
+    await page.resetPolicyOverride('REQUEST', 'POST /api/auth/logout');
+    expect(deleteAuditVisibilityOverrideMock).not.toHaveBeenCalled();
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(false);
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/logout']).toBe('visible');
+  });
+
+  it('preserves dirty drafts while refreshing untouched policy state after the drawer is reopened', async () => {
+    const initialPolicy = createVisibilityPolicy();
+    const refreshedPolicy = createVisibilityPolicy({
+      default: {
+        key: 'global',
+        strategy: 'hidden',
+        updated_at: '2026-05-27T09:00:00Z',
+      },
+      catalog: createVisibilityPolicy().catalog.map((item) => ({
+        ...item,
+        default_strategy: 'hidden',
+        effective_strategy: 'hidden',
+      })),
+    });
+    getAuditVisibilityPolicyMock.mockResolvedValueOnce(initialPolicy).mockResolvedValue(refreshedPolicy);
+    const { wrapper } = await mountPage({}, true);
+    const page = wrapper.vm as unknown as {
+      handleOverrideDraftChange: (source: string, actionKey: string, value: string) => void;
+      isOverrideDirty: (source: string, actionKey: string) => boolean;
+      openPolicyDrawer: () => Promise<void>;
+      overrideDrafts: Record<string, Record<string, string>>;
+      policyDefaultStrategy: string;
+      policyDrawerVisible: boolean;
+    };
+
+    await page.openPolicyDrawer();
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/logout', 'ignore');
+    page.policyDrawerVisible = false;
+    await page.openPolicyDrawer();
+
+    expect(page.policyDrawerVisible).toBe(true);
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(true);
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/logout']).toBe('ignore');
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/login']).toBe('hidden');
+    expect(page.policyDefaultStrategy).toBe('hidden');
+    expect(getAuditVisibilityPolicyMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves unrelated drafts when saving the default or resetting a persisted override', async () => {
+    const persistedPolicy = createVisibilityPolicy({
+      overrides: [
+        {
+          id: 1,
+          source: 'REQUEST',
+          action_key: 'POST /api/auth/login',
+          strategy: 'hidden',
+          description: 'Login request',
+          created_at: '2026-05-27T08:00:00Z',
+          updated_at: '2026-05-27T08:00:00Z',
+        },
+      ],
+      catalog: createVisibilityPolicy().catalog.map((item) =>
+        item.action_key === 'POST /api/auth/login' ? { ...item, effective_strategy: 'hidden', overridden: true } : item,
+      ),
+    });
+    getAuditVisibilityPolicyMock
+      .mockResolvedValueOnce(persistedPolicy)
+      .mockResolvedValueOnce({
+        ...persistedPolicy,
+        default: { ...persistedPolicy.default, strategy: 'hidden' },
+      })
+      .mockResolvedValue(createVisibilityPolicy());
+    const { wrapper } = await mountPage({}, true);
+    const page = wrapper.vm as unknown as {
+      handleOverrideDraftChange: (source: string, actionKey: string, value: string) => void;
+      handlePolicyDefaultChange: (value: string) => void;
+      isOverrideDirty: (source: string, actionKey: string) => boolean;
+      loadPolicySnapshot: () => Promise<void>;
+      overrideDrafts: Record<string, Record<string, string>>;
+      requestSavePolicyDefault: () => void;
+      resetPolicyOverride: (source: 'REQUEST', actionKey: string) => Promise<void>;
+    };
+
+    await page.loadPolicySnapshot();
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/logout', 'ignore');
+    page.handlePolicyDefaultChange('hidden');
+    page.requestSavePolicyDefault();
+    await flushPromises();
+
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(true);
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/logout']).toBe('ignore');
+
+    await page.resetPolicyOverride('REQUEST', 'POST /api/auth/login');
+    expect(deleteAuditVisibilityOverrideMock).toHaveBeenCalledWith('REQUEST', 'POST /api/auth/login');
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(true);
+    expect(page.overrideDrafts.REQUEST['POST /api/auth/logout']).toBe('ignore');
+  });
+
+  it('saves exactly dirty overrides atomically and retains all drafts when the batch fails', async () => {
+    getAuditVisibilityPolicyMock.mockResolvedValue(createVisibilityPolicy());
+    const { wrapper } = await mountPage({}, true);
+    const page = wrapper.vm as unknown as {
+      handleOverrideDraftChange: (source: string, actionKey: string, value: string) => void;
+      isOverrideDirty: (source: string, actionKey: string) => boolean;
+      loadPolicySnapshot: () => Promise<void>;
+      saveAllPolicyOverrides: () => Promise<void>;
+    };
+
+    await page.loadPolicySnapshot();
+    const saveAllButton = () => wrapper.findAll('button').find((button) => button.text() === 'Save All');
+    expect(saveAllButton()?.attributes()).toHaveProperty('disabled');
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/login', 'hidden');
+    page.handleOverrideDraftChange('REQUEST', 'POST /api/auth/logout', 'ignore');
+    await flushPromises();
+    expect(wrapper.text()).toContain('Unsaved');
+    expect(saveAllButton()?.attributes()).not.toHaveProperty('disabled');
+    upsertAuditVisibilityOverridesBatchMock.mockRejectedValueOnce(new Error('batch failed'));
+    await page.saveAllPolicyOverrides();
+
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/login')).toBe(true);
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(true);
+
+    let resolveBatch!: (value: { items: never[] }) => void;
+    upsertAuditVisibilityOverridesBatchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBatch = resolve;
+        }),
+    );
+    const savePromise = page.saveAllPolicyOverrides();
+    const duplicateSavePromise = page.saveAllPolicyOverrides();
+    await flushPromises();
+    expect(upsertAuditVisibilityOverridesBatchMock).toHaveBeenCalledTimes(2);
+    expect(saveAllButton()?.attributes('data-loading')).toBe('true');
+    resolveBatch({ items: [] });
+    await Promise.all([savePromise, duplicateSavePromise]);
+    expect(upsertAuditVisibilityOverridesBatchMock).toHaveBeenLastCalledWith({
+      items: [
+        {
+          source: 'REQUEST',
+          action_key: 'POST /api/auth/login',
+          strategy: 'hidden',
+          description: 'Login request',
+        },
+        {
+          source: 'REQUEST',
+          action_key: 'POST /api/auth/logout',
+          strategy: 'ignore',
+          description: 'Logout request',
+        },
+      ],
+    });
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/login')).toBe(false);
+    expect(page.isOverrideDirty('REQUEST', 'POST /api/auth/logout')).toBe(false);
+  });
+
+  it('confirms the dangerous ignore default and removes the unused drawer footer', async () => {
+    getAuditVisibilityPolicyMock.mockResolvedValueOnce(createVisibilityPolicy()).mockResolvedValue(
+      createVisibilityPolicy({
+        default: { key: 'global', strategy: 'ignore', updated_at: '2026-05-27T08:00:00Z' },
+      }),
+    );
+    const { wrapper } = await mountPage({}, true);
+    const page = wrapper.vm as unknown as {
+      handlePolicyDefaultChange: (value: string) => void;
+      loadPolicySnapshot: () => Promise<void>;
+      requestSavePolicyDefault: () => void;
+    };
+
+    await page.loadPolicySnapshot();
+    expect(wrapper.findAllComponents(selectStub)[0]?.props('options')).toContainEqual({
+      label: 'Ignore and drop',
+      value: 'ignore',
+    });
+    page.handlePolicyDefaultChange('ignore');
+    page.requestSavePolicyDefault();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="policy-drawer"]').attributes('data-footer')).toBe('false');
+    expect(wrapper.get('[data-testid="ignore-default-dialog"]').attributes('data-visible')).toBe('true');
+    expect(updateAuditVisibilityDefaultMock).not.toHaveBeenCalled();
+
+    await wrapper.get('[data-testid="ignore-default-cancel"]').trigger('click');
+    expect(wrapper.get('[data-testid="ignore-default-dialog"]').attributes('data-visible')).toBe('false');
+    expect(updateAuditVisibilityDefaultMock).not.toHaveBeenCalled();
+
+    page.requestSavePolicyDefault();
+    await wrapper.get('[data-testid="ignore-default-confirm"]').trigger('click');
+    await flushPromises();
+    expect(updateAuditVisibilityDefaultMock).toHaveBeenCalledWith({ strategy: 'ignore' });
+  });
+
+  it('normalizes elevated visibility ranges for non-managers and keeps them for audit managers', async () => {
+    const nonManager = await mountPage({ visibility_scope: 'hidden_only' });
+    expect(nonManager.wrapper.get('[data-testid="audit-filter-can-manage-visibility"]').text()).toBe('false');
+    expect(JSON.parse(nonManager.wrapper.get('[data-testid="audit-filter-model"]').text()).visibilityScope).toBe(
+      'default',
+    );
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(expect.objectContaining({ visibility_scope: 'default' }));
+    nonManager.wrapper.unmount();
+
+    getAuditLogsMock.mockClear();
+    const manager = await mountPage({ visibility_scope: 'hidden_only' }, true);
+    expect(manager.wrapper.get('[data-testid="audit-filter-can-manage-visibility"]').text()).toBe('true');
+    expect(JSON.parse(manager.wrapper.get('[data-testid="audit-filter-model"]').text()).visibilityScope).toBe(
+      'hidden_only',
+    );
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(expect.objectContaining({ visibility_scope: 'hidden_only' }));
+    expect(
+      (
+        manager.wrapper.vm as unknown as {
+          currentAuditSavedViewQueryState: () => { visibility_scope?: string };
+        }
+      ).currentAuditSavedViewQueryState().visibility_scope,
+    ).toBe('hidden_only');
+
+    await manager.wrapper.get('[data-testid="audit-reset"]').trigger('click');
+    await flushPromises();
+    expect(JSON.parse(manager.wrapper.get('[data-testid="audit-filter-model"]').text()).visibilityScope).toBe(
+      'default',
+    );
+    expect(
+      (manager.wrapper.vm as unknown as { buildQuery: () => { visibility_scope?: string } }).buildQuery()
+        .visibility_scope,
+    ).toBe('default');
   });
 
   it('opens a detail drawer directly when audit_log_id is present in the route query', async () => {

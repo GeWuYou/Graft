@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-17T06:43:26Z"
+generated_at_utc: "2026-08-18T00:11:44Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -64,9 +64,9 @@ required_tools:
     path: "/usr/bin/bash"
     purpose: "Executes repository scripts and shell automation."
   rg:
-    installed: true
-    version: "unknown"
-    path: "/mnt/c/Program Files/WindowsApps/OpenAI.Codex_26.810.7004.0_x64__2p2nqsd0c76g0/app/resources/rg"
+    installed: false
+    version: "not-installed"
+    path: ""
     purpose: "Fast text search across the repository."
   jq:
     installed: true

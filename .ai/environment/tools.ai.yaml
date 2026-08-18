@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-17T06:43:30Z"
+generated_at_utc: "2026-08-18T00:27:18Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -27,7 +27,7 @@ capabilities:
   mcp_github: true
   mcp_playwright: true
   mcp_headroom: false
-  fast_search: true
+  fast_search: false
   json_cli: true
   ai_browser: false
   ai_headroom_mcp: false
@@ -38,7 +38,7 @@ capabilities:
   web_scaffolded: true
 tool_selection:
   search:
-    preferred: "rg"
+    preferred: "grep"
     fallback: "grep"
     use_for: "Repository text search."
   json:

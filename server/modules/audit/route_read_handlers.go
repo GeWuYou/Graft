@@ -24,6 +24,7 @@ type auditReader interface {
 		username string,
 	) (auditstore.AuditVisibilityDefault, error)
 	UpdateVisibilityOverride(ctx context.Context, input auditstore.UpsertAuditVisibilityOverrideInput) (auditstore.AuditVisibilityOverride, error)
+	UpdateVisibilityOverrides(ctx context.Context, inputs []auditstore.UpsertAuditVisibilityOverrideInput) ([]auditstore.AuditVisibilityOverride, error)
 	DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error
 }
 

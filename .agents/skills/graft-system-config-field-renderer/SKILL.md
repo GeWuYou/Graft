@@ -57,14 +57,13 @@ Use only the needed MCP calls:
 Record the queried components and adoption decision in closeout. If the slice only changes server definitions,
 schemas, docs, or validation scripts, record TDesign MCP as not applicable.
 
-## 5. Focused Validation
+## 5. Validation
 
-Run the smallest validation that directly covers the slice:
+Use `graft-validation-runner` to select the smallest correct completion scope:
 
-- schema or server definition changes: focused Go tests for the owning module plus `graft validate backend --stage lint`
-  when practical.
-- web renderer changes: `cd web && bun run check` or the narrow directly affected test command when the slice is small.
+- schema or server definition changes: focused Go tests for iteration, then `graft validate backend` for completion.
+- web renderer changes: focused directly affected tests for iteration, then `cd web && bun run check` for completion.
 - i18n governance changes: `cd web && bun run test:run scripts/check-i18n-governance.test.ts` and
-  `cd web && bun run lint:i18n` when practical.
+  `cd web && bun run lint:i18n` as supplemental checks before the applicable full entrypoint.
 
 Report any skipped validation command and the exact reason.

@@ -44,6 +44,28 @@ class EnvironmentCollectorTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout, "unavailable")
 
+    def test_command_requires_successful_execution_probe(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            fake_rg = Path(temporary_dir) / "rg"
+            fake_rg.write_text("#!/usr/bin/env bash\nexit 126\n", encoding="utf-8")
+            fake_rg.chmod(0o755)
+            completed = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source "$1"; PATH="$2:/usr/bin:/bin"; command_installed rg; printf "\\n"; command_path rg',
+                    "bash",
+                    str(SCRIPT_PATH),
+                    temporary_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, "false\n")
+
 
 if __name__ == "__main__":
     unittest.main()

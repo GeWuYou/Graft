@@ -7,6 +7,7 @@ import (
 	capabilityruntime "graft/server/internal/capability"
 	"graft/server/internal/container"
 	capabilitycontract "graft/server/internal/contract/capability"
+	routecontract "graft/server/internal/contract/route"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	productmcp "graft/server/internal/mcp"
@@ -57,7 +58,7 @@ func (r *Runtime) registerCoreAuthenticatedRoutesWith(authService moduleapi.Auth
 }
 
 func (r *Runtime) registerCapabilityRoutes(authService moduleapi.AuthService, authorizer moduleapi.Authorizer) error {
-	return capabilityruntime.RegisterRoutes(r.server.Engine().Group("/api"), r.services, r.capabilityCoordinator, httpx.RequirePermission(r.i18n, authService, authorizer, capabilitycontract.ReadPermission))
+	return capabilityruntime.RegisterRoutes(r.server.Engine().Group(routecontract.APIRoot), r.services, r.capabilityCoordinator, httpx.RequirePermission(r.i18n, authService, authorizer, capabilitycontract.ReadPermission))
 }
 
 func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {
@@ -115,7 +116,7 @@ func (r *Runtime) registerModuleRuntimeWithAuth(
 			Config:             r.config,
 			Specs:              r.moduleRuntimeSpecs(),
 		},
-		r.server.Engine().Group("/api"),
+		r.server.Engine().Group(routecontract.APIRoot),
 		authService,
 		authorizer,
 	); err != nil {
@@ -140,7 +141,7 @@ func (r *Runtime) registerAccessLogExplorerWithAuth(
 			PermissionRegistry: r.permissionRegistry,
 			EventBus:           r.eventBus,
 		},
-		r.server.Engine().Group("/api"),
+		r.server.Engine().Group(routecontract.APIRoot),
 		r.server.AccessLogRepository(),
 		authService,
 		authorizer,
@@ -171,7 +172,7 @@ func (r *Runtime) registerAppLogExplorerWithAuth(
 			PermissionRegistry: r.permissionRegistry,
 			EventBus:           r.eventBus,
 		},
-		r.server.Engine().Group("/api"),
+		r.server.Engine().Group(routecontract.APIRoot),
 		r.appLogRepository,
 		authService,
 		authorizer,
@@ -224,7 +225,7 @@ func (r *Runtime) registerRealtimeSubscriptionRoutes() error {
 		return fmt.Errorf("resolve realtime route auth: %w", err)
 	}
 
-	group := r.server.Engine().Group("/api")
+	group := r.server.Engine().Group(routecontract.APIRoot)
 	group.Use(httpx.RequestIDMiddleware())
 	group.Use(httpx.RequirePermission(r.i18n, authService, authorizer, ""))
 

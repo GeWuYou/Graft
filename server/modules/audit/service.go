@@ -17,6 +17,7 @@ const (
 	maxPageSize                     = 200
 	auditSortPartCount              = 2
 	auditVisibilityGlobalDefaultKey = "global"
+	maxAuditVisibilityOverrideBatch = 100
 )
 
 var (
@@ -259,7 +260,7 @@ func (s *Service) UpdateVisibilityDefault(
 		return auditstore.AuditVisibilityDefault{}, err
 	}
 
-	normalized := normalizeMutableAuditVisibilityStrategy(strategy)
+	normalized := normalizeAuditVisibilityStrategy(strategy)
 	if normalized == "" {
 		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("%w: audit visibility default strategy is required", auditstore.ErrAuditValidation)
 	}
@@ -287,30 +288,52 @@ func (s *Service) UpdateVisibilityOverride(
 		return auditstore.AuditVisibilityOverride{}, err
 	}
 
-	normalizedSource, normalizedActionKey, err := normalizeVisibilityOverrideRef(input.Source, input.ActionKey)
+	normalizedInput, err := normalizeVisibilityOverrideInput(input)
 	if err != nil {
 		return auditstore.AuditVisibilityOverride{}, err
-	}
-	normalizedStrategy := normalizeAuditVisibilityStrategy(input.Strategy)
-	if normalizedStrategy == "" {
-		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override strategy is required", auditstore.ErrAuditValidation)
 	}
 
 	updated, err := repo.UpsertAuditVisibilityOverride(
 		ctx,
-		auditstore.UpsertAuditVisibilityOverrideInput{
-			Source:      normalizedSource,
-			ActionKey:   normalizedActionKey,
-			Strategy:    normalizedStrategy,
-			Description: strings.TrimSpace(input.Description),
-			Actor: auditstore.AuditVisibilityActor{
-				UserID:   input.Actor.UserID,
-				Username: strings.TrimSpace(input.Actor.Username),
-			},
-		},
+		normalizedInput,
 	)
 	if err != nil {
 		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("upsert audit visibility override: %w", err)
+	}
+	return updated, nil
+}
+
+// UpdateVisibilityOverrides 原子更新一组审计可见性覆盖项，并保持响应顺序与请求顺序一致。
+func (s *Service) UpdateVisibilityOverrides(
+	ctx context.Context,
+	inputs []auditstore.UpsertAuditVisibilityOverrideInput,
+) ([]auditstore.AuditVisibilityOverride, error) {
+	repo, err := s.repository()
+	if err != nil {
+		return nil, err
+	}
+	if len(inputs) == 0 || len(inputs) > maxAuditVisibilityOverrideBatch {
+		return nil, fmt.Errorf("%w: audit visibility override batch must contain 1 to %d items", auditstore.ErrAuditValidation, maxAuditVisibilityOverrideBatch)
+	}
+
+	normalized := make([]auditstore.UpsertAuditVisibilityOverrideInput, 0, len(inputs))
+	seen := make(map[string]struct{}, len(inputs))
+	for _, input := range inputs {
+		item, normalizeErr := normalizeVisibilityOverrideInput(input)
+		if normalizeErr != nil {
+			return nil, normalizeErr
+		}
+		key := string(item.Source) + "\x00" + item.ActionKey
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("%w: duplicate audit visibility override", auditstore.ErrAuditValidation)
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, item)
+	}
+
+	updated, err := repo.UpsertAuditVisibilityOverrides(ctx, normalized)
+	if err != nil {
+		return nil, fmt.Errorf("upsert audit visibility overrides: %w", err)
 	}
 	return updated, nil
 }
@@ -344,22 +367,14 @@ func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.Audi
 		return auditstore.AuditLog{}, false, err
 	}
 
-	decision, err := evaluator.Evaluate(ctx, candidate)
+	recordingPolicy, err := s.resolveCandidateRecordingPolicy(ctx, evaluator, candidate)
 	if err != nil {
 		return auditstore.AuditLog{}, false, err
 	}
-	if !decision.Matched || !decision.Allowed {
+	if !recordingPolicy.shouldRecord {
 		return auditstore.AuditLog{}, false, nil
 	}
-
-	strategy, err := s.resolveCandidateVisibilityStrategy(ctx, candidate)
-	if err != nil {
-		return auditstore.AuditLog{}, false, err
-	}
-	if strategy == auditstore.AuditVisibilityStrategyIgnore {
-		return auditstore.AuditLog{}, false, nil
-	}
-	candidate.Visibility = strategy
+	candidate.Visibility = recordingPolicy.strategy
 
 	record, err := s.Record(ctx, RecordInput{
 		IdempotencyKey:   candidate.IdempotencyKey,
@@ -376,7 +391,7 @@ func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.Audi
 		IP:               candidate.IP,
 		UserAgent:        candidate.UserAgent,
 		Message:          candidate.Message,
-		Metadata:         candidateMetadata(candidate, decision),
+		Metadata:         candidateMetadata(candidate, recordingPolicy.decision),
 		CreatedAt:        candidate.CreatedAt,
 	})
 	if err != nil {

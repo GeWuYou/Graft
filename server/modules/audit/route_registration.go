@@ -21,6 +21,7 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	group.GET(auditcontract.AuditVisibilityPolicyCollection, guard.manage, handleReadAuditVisibilityPolicy(ctx, moduleName, reader))
 	group.PUT(auditcontract.AuditVisibilityPolicyCollection, guard.manage, handleUpdateAuditVisibilityDefault(ctx, moduleName, reader))
 	group.PUT(auditcontract.AuditVisibilityOverrideCollection, guard.manage, handleUpsertAuditVisibilityOverride(ctx, moduleName, reader))
+	group.PUT(auditcontract.AuditVisibilityOverrideBatchCollection, guard.manage, handleUpsertAuditVisibilityOverrides(ctx, moduleName, reader))
 	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, handleDeleteAuditVisibilityOverride(ctx, moduleName, reader))
 }
 

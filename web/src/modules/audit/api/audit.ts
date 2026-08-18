@@ -11,6 +11,7 @@ import type {
   AuditSavedViewRequest,
   AuditVisibilityDefaultResponse,
   AuditVisibilityDefaultUpdateRequest,
+  AuditVisibilityOverrideBatchUpsertRequest,
   AuditVisibilityOverrideResponse,
   AuditVisibilityOverrideUpsertRequest,
   AuditVisibilityPolicyResponse,
@@ -20,6 +21,12 @@ type AuditLogsPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogs;
 type GetAuditLogsOperation = paths[AuditLogsPath]['get'];
 type GetAuditLogsResponse = GetAuditLogsOperation['responses'][200]['content']['application/json'];
 type GetAuditLogsResponseData = NonNullable<GetAuditLogsResponse['data']>;
+
+type AuditVisibilityOverridesBatchPath = typeof OPENAPI_RUNTIME_PATH.putAuditVisibilityOverridesBatch;
+type PutAuditVisibilityOverridesBatchOperation = paths[AuditVisibilityOverridesBatchPath]['put'];
+type PutAuditVisibilityOverridesBatchResponse =
+  PutAuditVisibilityOverridesBatchOperation['responses'][200]['content']['application/json'];
+type PutAuditVisibilityOverridesBatchResponseData = NonNullable<PutAuditVisibilityOverridesBatchResponse['data']>;
 
 type AuditLogDetailPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogDetail;
 type GetAuditLogDetailOperation = paths[AuditLogDetailPath]['get'];
@@ -154,6 +161,21 @@ export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpda
 export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUpsertRequest) {
   return request.put<AuditVisibilityOverrideResponse>({
     url: OPENAPI_RUNTIME_PATH.putAuditVisibilityOverride,
+    data: payload,
+  });
+}
+
+/**
+ * 原子更新一组审计可见性覆盖规则。
+ *
+ * 服务端保证整批成功或整批回滚，调用方可在失败时安全保留原有草稿。
+ *
+ * @param payload - 要原子提交的覆盖规则集合
+ * @returns 按请求顺序返回的覆盖规则结果
+ */
+export function upsertAuditVisibilityOverridesBatch(payload: AuditVisibilityOverrideBatchUpsertRequest) {
+  return request.put<PutAuditVisibilityOverridesBatchResponseData>({
+    url: OPENAPI_RUNTIME_PATH.putAuditVisibilityOverridesBatch,
     data: payload,
   });
 }

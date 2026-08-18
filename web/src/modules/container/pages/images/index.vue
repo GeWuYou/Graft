@@ -674,7 +674,7 @@
 <script setup lang="ts">
 // 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，结构化拒绝直接展示稳定错误，网络结果未知时才通过详情查询对账。
 import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon } from 'tdesign-icons-vue-next';
-import type { TableProps } from 'tdesign-vue-next';
+import type { DropdownProps, TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -967,9 +967,10 @@ function handleRowAction(action: string, image: DockerImage) {
   if (action === 'tag') openTag(image);
   if (action === 'remove' && canRemove.value) openRemove(image);
 }
-function handleCompactHeaderAction(action: { value?: string | number | Record<string, unknown> }) {
-  if (action.value === 'cleanup') void openCleanup();
-}
+const handleCompactHeaderAction: NonNullable<DropdownProps['onClick']> = (payload) => {
+  const action = typeof payload === 'object' && payload ? payload.value : payload;
+  if (action === 'cleanup') void openCleanup();
+};
 function handleCardAction(action: string, image: DockerImage) {
   if (action === 'select') {
     cardSelectionMode.value = true;

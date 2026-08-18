@@ -20,6 +20,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	routecontract "graft/server/internal/contract/route"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
@@ -733,7 +734,7 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		EventTxPublisher:   r.eventDispatcher,
 		EventRegistry:      r.eventDispatcher,
 		Realtime:           r.realtimeHub,
-		Router:             r.server.Engine().Group("/api"),
+		Router:             r.server.Engine().Group(routecontract.APIRoot),
 		Services:           r.services,
 		RuntimeMetadata:    r.runtimeMetadata,
 		MenuRegistry:       r.menuRegistry,

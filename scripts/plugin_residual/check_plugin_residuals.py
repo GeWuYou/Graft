@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -45,14 +46,27 @@ class Match:
 
 def tracked_files() -> list[str]:
     completed = subprocess.run(
-        ["git", "-c", "core.quotePath=false", "ls-files"],
+        ["git", "ls-files", "-z"],
         cwd=REPO_ROOT,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
     )
-    return [line for line in completed.stdout.splitlines() if line]
+    return [os.fsdecode(path) for path in completed.stdout.split(b"\0") if path]
+
+
+def safe_relative_parts(path: str, *, platform: str | None = None) -> tuple[str, ...] | None:
+    current_platform = platform or os.name
+    if current_platform == "nt":
+        relative_path = pathlib.PureWindowsPath(path)
+        if relative_path.drive or relative_path.root or ".." in relative_path.parts:
+            return None
+        return relative_path.parts
+
+    relative_path = pathlib.PurePosixPath(path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        return None
+    return relative_path.parts
 
 
 def should_skip(path: str) -> bool:
@@ -74,7 +88,16 @@ def load_allowlist() -> list[AllowRule]:
 
 
 def find_matches(path: str) -> list[Match]:
-    full_path = REPO_ROOT / path
+    relative_parts = safe_relative_parts(path)
+    if relative_parts is None:
+        return []
+    full_path = REPO_ROOT
+    for component in relative_parts:
+        full_path /= component
+        if full_path.is_symlink():
+            return []
+    if not full_path.is_file():
+        return []
     try:
         text = full_path.read_text(encoding="utf-8")
     except UnicodeDecodeError:

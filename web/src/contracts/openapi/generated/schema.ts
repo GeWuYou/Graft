@@ -1149,6 +1149,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/policies/visibility/overrides/batch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Batch upsert audit visibility overrides
+     * @description Atomically upserts a bounded set of audit-owned source plus action visibility overrides in request order.
+     */
+    put: operations['putAuditVisibilityOverridesBatch'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/monitor/server-status': {
     parameters: {
       query?: never;
@@ -4893,9 +4913,12 @@ export interface components {
     AuditVisibilityPolicyResponse: components['schemas']['audit-visibility-policy-response'];
     AuditVisibilityDefaultUpdateRequest: components['schemas']['audit-visibility-default-update-request'];
     AuditVisibilityOverrideUpsertRequest: components['schemas']['audit-visibility-override-upsert-request'];
+    AuditVisibilityOverrideBatchUpsertRequest: components['schemas']['audit-visibility-override-batch-upsert-request'];
+    AuditVisibilityOverrideBatchResponse: components['schemas']['audit-visibility-override-batch-response'];
     EnvelopedAuditVisibilityPolicyResponse: components['schemas']['enveloped-audit-visibility-policy-response'];
     EnvelopedAuditVisibilityDefaultResponse: components['schemas']['enveloped-audit-visibility-default-response'];
     EnvelopedAuditVisibilityOverrideResponse: components['schemas']['enveloped-audit-visibility-override-response'];
+    EnvelopedAuditVisibilityOverrideBatchResponse: components['schemas']['enveloped-audit-visibility-override-batch-response'];
     ServerStatusConnectionPool: components['schemas']['server-status-connection-pool'];
     ServerStatusPostgreSQLCurrentMetrics: components['schemas']['server-status-postgresql-current-metrics'];
     ServerStatusRedisKeyspaceMetrics: components['schemas']['server-status-redis-keyspace-metrics'];
@@ -6101,7 +6124,7 @@ export interface components {
     'audit-visibility-default-response': {
       key: string;
       /** @enum {string} */
-      strategy: 'visible' | 'hidden';
+      strategy: 'visible' | 'hidden' | 'ignore';
       /** Format: date-time */
       updated_at: string;
       /** Format: int64 */
@@ -6136,7 +6159,7 @@ export interface components {
       description: string;
       category: string;
       /** @enum {string} */
-      default_strategy: 'visible' | 'hidden';
+      default_strategy: 'visible' | 'hidden' | 'ignore';
       /** @enum {string} */
       effective_strategy: 'visible' | 'hidden' | 'ignore';
       overridden: boolean;
@@ -6151,7 +6174,7 @@ export interface components {
     };
     'audit-visibility-default-update-request': {
       /** @enum {string} */
-      strategy: 'visible' | 'hidden';
+      strategy: 'visible' | 'hidden' | 'ignore';
     };
     'enveloped-audit-visibility-default-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-visibility-default-response'];
@@ -6166,6 +6189,15 @@ export interface components {
     };
     'enveloped-audit-visibility-override-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-visibility-override-response'];
+    };
+    'audit-visibility-override-batch-upsert-request': {
+      items: components['schemas']['audit-visibility-override-upsert-request'][];
+    };
+    'audit-visibility-override-batch-response': {
+      items: components['schemas']['audit-visibility-override-response'][];
+    };
+    'enveloped-audit-visibility-override-batch-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-visibility-override-batch-response'];
     };
     /**
      * @example {
@@ -15149,6 +15181,52 @@ export interface operations {
         };
       };
       /** @description Invalid delete query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putAuditVisibilityOverridesBatch: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['audit-visibility-override-batch-upsert-request'];
+      };
+    };
+    responses: {
+      /** @description Atomically updated audit visibility overrides in request order. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-visibility-override-batch-response'];
+        };
+      };
+      /** @description Invalid, duplicate, empty, or oversized override batch. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

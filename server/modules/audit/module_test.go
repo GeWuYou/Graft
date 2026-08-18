@@ -252,6 +252,21 @@ func (r *memoryAuditRepository) UpsertAuditVisibilityOverride(
 	return item, nil
 }
 
+func (r *memoryAuditRepository) UpsertAuditVisibilityOverrides(
+	ctx context.Context,
+	inputs []store.UpsertAuditVisibilityOverrideInput,
+) ([]store.AuditVisibilityOverride, error) {
+	items := make([]store.AuditVisibilityOverride, 0, len(inputs))
+	for _, input := range inputs {
+		item, err := r.UpsertAuditVisibilityOverride(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
 func (r *memoryAuditRepository) DeleteAuditVisibilityOverride(
 	_ context.Context,
 	source store.AuditSource,
@@ -335,6 +350,13 @@ func (failingAuditRepository) UpsertAuditVisibilityOverride(
 	store.UpsertAuditVisibilityOverrideInput,
 ) (store.AuditVisibilityOverride, error) {
 	return store.AuditVisibilityOverride{}, errors.New("visibility override update failed")
+}
+
+func (failingAuditRepository) UpsertAuditVisibilityOverrides(
+	context.Context,
+	[]store.UpsertAuditVisibilityOverrideInput,
+) ([]store.AuditVisibilityOverride, error) {
+	return nil, errors.New("visibility override batch update failed")
 }
 
 func (failingAuditRepository) DeleteAuditVisibilityOverride(context.Context, store.AuditSource, string) error {
@@ -1115,6 +1137,121 @@ func TestAuditLogsRouteRejectsUnknownDrilldownScope(t *testing.T) {
 	response := testassert.DecodeErrorResponse(t, recorder)
 	if field := response.Details["field"]; field != "scope" {
 		t.Fatalf("expected invalid scope field, got %#v", field)
+	}
+}
+
+func TestAuditVisibilityOverrideBatchRoutePersistsOrderedItemsAndAuditCounts(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContext(t, repo)
+	body := `{"items":[{"source":"SECURITY_EVENT","action_key":"auth.token.expired","strategy":"hidden"},{"source":"REQUEST","action_key":"POST /api/auth/refresh","strategy":"visible"}]}`
+	request := httptest.NewRequest(http.MethodPut, "/api/audit/policies/visibility/overrides/batch", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer token")
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if len(repo.visibilityOverrides) != 2 || repo.visibilityOverrides[0].ActionKey != "auth.token.expired" || repo.visibilityOverrides[1].ActionKey != "POST /api/auth/refresh" {
+		t.Fatalf("expected ordered visibility overrides, got %#v", repo.visibilityOverrides)
+	}
+	if len(repo.items) != 1 {
+		t.Fatalf("expected mandatory policy-write audit record, got %d", len(repo.items))
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(repo.items[0].Metadata, &metadata); err != nil {
+		t.Fatalf("decode audit metadata: %v", err)
+	}
+	batch, ok := metadata["batch"].(map[string]any)
+	if !ok || batch["attempted"] != float64(2) || batch["committed"] != float64(2) || batch["failed"] != float64(0) || batch["skipped"] != float64(0) {
+		t.Fatalf("expected server-derived batch counts, got %#v", metadata["batch"])
+	}
+}
+
+func TestAuditVisibilityOverrideBatchRouteRejectsDuplicateItems(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContext(t, repo)
+	body := `{"items":[{"source":"REQUEST","action_key":"POST /api/auth/refresh","strategy":"hidden"},{"source":"REQUEST","action_key":"POST /api/auth/refresh","strategy":"visible"}]}`
+	request := httptest.NewRequest(http.MethodPut, "/api/audit/policies/visibility/overrides/batch", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer token")
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if len(repo.visibilityOverrides) != 0 {
+		t.Fatalf("expected no partial writes, got %#v", repo.visibilityOverrides)
+	}
+	if len(repo.items) != 1 {
+		t.Fatalf("expected failed policy write to remain audited, got %d", len(repo.items))
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(repo.items[0].Metadata, &metadata); err != nil {
+		t.Fatalf("decode failed batch audit metadata: %v", err)
+	}
+	batch, ok := metadata["batch"].(map[string]any)
+	if !ok || batch["attempted"] != float64(2) || batch["committed"] != float64(0) || batch["failed"] != float64(2) || batch["skipped"] != float64(0) {
+		t.Fatalf("expected failed server-derived batch counts, got %#v", metadata["batch"])
+	}
+}
+
+func TestAuditVisibilityOverrideBatchRouteRejectsMalformedBody(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContext(t, repo)
+	request := httptest.NewRequest(http.MethodPut, "/api/audit/policies/visibility/overrides/batch", strings.NewReader(`{"items":`))
+	request.Header.Set("Authorization", "Bearer token")
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestAuditVisibilityOverrideBatchRouteRequiresManagePermission(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContextWithAuthorizer(t, repo, zap.NewNop(), denyAuthorizer{})
+	request := httptest.NewRequest(http.MethodPut, "/api/audit/policies/visibility/overrides/batch", strings.NewReader(`{"items":[]}`))
+	request.Header.Set("Authorization", "Bearer token")
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestGlobalIgnoreOnlyAffectsFutureOrdinaryCandidates(t *testing.T) {
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{{ID: 9, Action: "historical.event", Visibility: store.AuditVisibilityStrategyVisible}},
+		rules: []store.AuditPolicyRule{{
+			Source: store.AuditSourceRequest, Enabled: true, Effect: store.AuditPolicyEffectInclude,
+			Method: http.MethodPost, PathPattern: "/api/example", MatchType: store.AuditPolicyMatchTypeExact,
+		}},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if _, err := service.UpdateVisibilityDefault(context.Background(), store.AuditVisibilityStrategyIgnore, nil, "operator"); err != nil {
+		t.Fatalf("update global visibility default: %v", err)
+	}
+	_, recorded, err := service.RecordCandidate(context.Background(), store.AuditCandidate{
+		Source: store.AuditSourceRequest, Action: "POST /api/example", RequestMethod: http.MethodPost, RequestPath: "/api/example", Success: true,
+	})
+	if err != nil {
+		t.Fatalf("record future candidate: %v", err)
+	}
+	if recorded {
+		t.Fatal("expected future ordinary candidate to be ignored")
+	}
+	if len(repo.items) != 1 || repo.items[0].Action != "historical.event" {
+		t.Fatalf("expected historical record to remain unchanged, got %#v", repo.items)
 	}
 }
 
