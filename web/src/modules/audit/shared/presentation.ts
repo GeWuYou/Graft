@@ -1,6 +1,6 @@
 import { formatLocaleDateTime } from '@/shared/observability';
 
-import type { AuditLogListItem } from '../types/audit';
+import type { AuditLogListItem, AuditVisibilityScope } from '../types/audit';
 import type { AuditBusinessCategory } from '../types/audit';
 import type { AuditResult as AuditResultEnum, AuditRiskLevel as AuditRiskLevelEnum } from '../types/audit';
 import type { AuditSorter } from '../types/audit';
@@ -25,6 +25,7 @@ export type AuditResultValue = 'all' | AuditResultEnum;
 
 export type AuditClientFilterState = {
   keyword: string;
+  visibilityScope: AuditVisibilityScope;
   actor: string;
   success: 'all' | 'true' | 'false';
   action: string;

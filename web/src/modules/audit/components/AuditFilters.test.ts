@@ -69,6 +69,7 @@ const i18n = createI18n({
             fields: {
               timeRange: '时间范围',
               sorterBuilder: '排序方式',
+              visibilityScope: '记录可见范围',
               success: '成功状态',
               action: '操作类型',
               actionPrefixes: '操作分类',
@@ -91,6 +92,14 @@ const i18n = createI18n({
           },
           filters: {
             keywordPlaceholder: '搜索操作、用户、目标对象、请求ID...',
+            visibilityScopePlaceholder: '选择记录可见范围',
+          },
+          policy: {
+            scope: {
+              default: '仅默认可见',
+              all: '显示全部持久化记录',
+              hiddenOnly: '仅隐藏记录',
+            },
           },
           sort: {
             tagPrefix: '排序',
@@ -142,8 +151,10 @@ describe('AuditFilters', () => {
     const wrapper = mount(AuditFilters, {
       props: {
         activePreset: 'all',
+        canManageVisibility: true,
         modelValue: {
           keyword: '',
+          visibilityScope: 'all',
           actor: 'admin',
           success: 'all',
           action: '',
@@ -180,6 +191,7 @@ describe('AuditFilters', () => {
 
     const tags = JSON.parse(wrapper.get('[data-testid="tags"]').text());
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('排序 1: 创建时间 ↓');
+    expect(tags.map((tag: { label: string }) => tag.label)).toContain('记录可见范围：显示全部持久化记录');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('结果：业务失败');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('操作分类：权限配置动作、角色动作');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('结果集合：权限拒绝');
@@ -192,6 +204,7 @@ describe('AuditFilters', () => {
         activePreset: 'all',
         modelValue: {
           keyword: '',
+          visibilityScope: 'default',
           actor: '',
           success: 'all',
           action: '',
@@ -238,6 +251,7 @@ describe('AuditFilters', () => {
         activePreset: 'all',
         modelValue: {
           keyword: '',
+          visibilityScope: 'default',
           actor: '',
           success: 'all',
           action: '',
@@ -282,5 +296,57 @@ describe('AuditFilters', () => {
     ]);
     expect(JSON.parse(wrapper.get('[data-testid="sort-move-up-disabled"]').text())).toEqual([true]);
     expect(JSON.parse(wrapper.get('[data-testid="sort-move-down-disabled"]').text())).toEqual([true]);
+  });
+
+  it('only exposes elevated visibility ranges to audit policy managers', async () => {
+    const createProps = (canManageVisibility: boolean) => ({
+      activePreset: 'all' as const,
+      canManageVisibility,
+      modelValue: {
+        keyword: '',
+        visibilityScope: 'default' as const,
+        actor: '',
+        success: 'all' as const,
+        action: '',
+        actionPrefix: '',
+        actionPrefixes: [],
+        actionKeywords: [],
+        requestPathPrefixes: [],
+        source: '',
+        businessCategory: '' as const,
+        createdRange: [],
+        resourceType: '',
+        resourceTypes: [],
+        resourceName: '',
+        resourceId: '',
+        result: 'all' as const,
+        results: [],
+        riskLevel: 'all' as const,
+        riskLevels: [],
+        session: '',
+        requestId: '',
+        sorters: [{ field: 'created_at' as const, direction: 'desc' as const }],
+      },
+      presets: [],
+    });
+    const wrapper = mount(AuditFilters, {
+      props: createProps(false),
+      global: {
+        plugins: [i18n],
+        stubs: { AdvancedQueryFilterBuilder: logFilterBuilderStub },
+      },
+    });
+
+    const fields = () => JSON.parse(wrapper.get('[data-testid="fields"]').text());
+    expect(fields().find((field: { key: string }) => field.key === 'visibilityScope').options).toEqual([
+      { label: '仅默认可见', value: 'default' },
+    ]);
+
+    await wrapper.setProps(createProps(true));
+    expect(fields().find((field: { key: string }) => field.key === 'visibilityScope').options).toEqual([
+      { label: '仅默认可见', value: 'default' },
+      { label: '显示全部持久化记录', value: 'all' },
+      { label: '仅隐藏记录', value: 'hidden_only' },
+    ]);
   });
 });

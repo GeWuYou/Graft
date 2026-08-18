@@ -37,6 +37,7 @@ type stubAuditRepository struct {
 	deleteErr           error
 	findOverrideCalls   int
 	listOverrideCalls   int
+	bulkOverrideCalls   int
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -190,6 +191,25 @@ func (r *stubAuditRepository) UpsertAuditVisibilityOverride(
 	}
 	r.visibilityOverrides = next
 	return item, nil
+}
+
+func (r *stubAuditRepository) UpsertAuditVisibilityOverrides(
+	ctx context.Context,
+	inputs []auditstore.UpsertAuditVisibilityOverrideInput,
+) ([]auditstore.AuditVisibilityOverride, error) {
+	r.bulkOverrideCalls++
+	if r.policyErr != nil {
+		return nil, r.policyErr
+	}
+	items := make([]auditstore.AuditVisibilityOverride, 0, len(inputs))
+	for _, input := range inputs {
+		item, err := r.UpsertAuditVisibilityOverride(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func (r *stubAuditRepository) DeleteAuditVisibilityOverride(_ context.Context, source auditstore.AuditSource, actionKey string) error {
@@ -680,6 +700,134 @@ func TestStubAuditRepositoryUpsertVisibilityOverrideKeepsOtherOverrides(t *testi
 	}
 	if repo.visibilityOverrides[1].ActionKey != "auth.token.expired" {
 		t.Fatalf("expected unmatched override to remain, got %#v", repo.visibilityOverrides[1])
+	}
+}
+
+func TestServiceUpdateVisibilityDefaultAcceptsIgnore(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	updated, err := service.UpdateVisibilityDefault(context.Background(), auditstore.AuditVisibilityStrategyIgnore, nil, "operator")
+	if err != nil {
+		t.Fatalf("update visibility default: %v", err)
+	}
+	if updated.Strategy != auditstore.AuditVisibilityStrategyIgnore {
+		t.Fatalf("expected ignore default, got %q", updated.Strategy)
+	}
+}
+
+func TestServiceUpdateVisibilityOverridesPreservesRequestOrder(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	items, err := service.UpdateVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", Strategy: auditstore.AuditVisibilityStrategyHidden},
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyVisible},
+	})
+	if err != nil {
+		t.Fatalf("update visibility overrides: %v", err)
+	}
+	if len(items) != 2 || items[0].ActionKey != "auth.token.expired" || items[1].ActionKey != "POST /api/auth/refresh" {
+		t.Fatalf("expected request order, got %#v", items)
+	}
+}
+
+func TestServiceUpdateVisibilityOverridesRejectsDuplicateAndOversizedBatches(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	duplicate := auditstore.UpsertAuditVisibilityOverrideInput{
+		Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyHidden,
+	}
+	if _, err := service.UpdateVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{duplicate, duplicate}); !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected duplicate validation error, got %v", err)
+	}
+
+	oversized := make([]auditstore.UpsertAuditVisibilityOverrideInput, maxAuditVisibilityOverrideBatch+1)
+	if _, err := service.UpdateVisibilityOverrides(context.Background(), oversized); !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected batch limit validation error, got %v", err)
+	}
+	if repo.bulkOverrideCalls != 0 {
+		t.Fatalf("expected invalid batches to be rejected before repository, got %d bulk calls", repo.bulkOverrideCalls)
+	}
+}
+
+func TestServiceUpdateVisibilityOverridesRejectsEmptyAndInvalidStrategyBeforeRepository(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	if _, err := service.UpdateVisibilityOverrides(context.Background(), nil); !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected empty batch validation error, got %v", err)
+	}
+	if _, err := service.UpdateVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{{
+		Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: "unsupported",
+	}}); !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected invalid strategy validation error, got %v", err)
+	}
+	if repo.bulkOverrideCalls != 0 {
+		t.Fatalf("expected empty and invalid batches to be rejected before repository, got %d bulk calls", repo.bulkOverrideCalls)
+	}
+}
+
+func TestServiceRejectsIgnoreOverrideForVisibilityPolicyWrite(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.UpdateVisibilityOverride(context.Background(), auditstore.UpsertAuditVisibilityOverrideInput{
+		Source:    auditstore.AuditSourceRequest,
+		ActionKey: "PUT /api/audit/policies/visibility/overrides/batch",
+		Strategy:  auditstore.AuditVisibilityStrategyIgnore,
+	})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected protected policy-write validation error, got %v", err)
+	}
+
+	_, err = service.UpdateVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", Strategy: auditstore.AuditVisibilityStrategyHidden},
+		{Source: auditstore.AuditSourceRequest, ActionKey: "PUT /api/audit/policies/visibility", Strategy: auditstore.AuditVisibilityStrategyIgnore},
+	})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected protected batch validation error, got %v", err)
+	}
+	if len(repo.visibilityOverrides) != 0 {
+		t.Fatalf("expected full batch validation before repository write, got %#v", repo.visibilityOverrides)
+	}
+}
+
+func TestServiceRecordCandidatePersistsPolicyWriteAsHiddenUnderIgnoreDefault(t *testing.T) {
+	repo := &stubAuditRepository{
+		visibilityDefault: auditstore.AuditVisibilityDefault{Key: "global", Strategy: auditstore.AuditVisibilityStrategyIgnore},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceRequest,
+		Action:        "PUT /api/audit/policies/visibility",
+		RequestMethod: "PUT",
+		RequestPath:   "/api/audit/policies/visibility",
+		Success:       true,
+	})
+	if err != nil {
+		t.Fatalf("record policy write: %v", err)
+	}
+	if !recorded || repo.createdInput.Visibility != auditstore.AuditVisibilityStrategyHidden {
+		t.Fatalf("expected mandatory hidden policy-write evidence, recorded=%v input=%#v", recorded, repo.createdInput)
 	}
 }
 

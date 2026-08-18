@@ -271,12 +271,55 @@ func (r *repository) UpsertAuditVisibilityOverride(
 		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("audit repository is unavailable")
 	}
 
+	return upsertAuditVisibilityOverride(ctx, r.db, input)
+}
+
+// UpsertAuditVisibilityOverrides 在一个数据库事务内按输入顺序写入全部覆盖规则。
+func (r *repository) UpsertAuditVisibilityOverrides(
+	ctx context.Context,
+	inputs []auditstore.UpsertAuditVisibilityOverrideInput,
+) ([]auditstore.AuditVisibilityOverride, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("audit repository is unavailable")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin audit visibility override transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	items := make([]auditstore.AuditVisibilityOverride, 0, len(inputs))
+	for _, input := range inputs {
+		item, upsertErr := upsertAuditVisibilityOverride(ctx, tx, input)
+		if upsertErr != nil {
+			return nil, upsertErr
+		}
+		items = append(items, item)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit audit visibility override transaction: %w", err)
+	}
+	return items, nil
+}
+
+type auditVisibilityOverrideQueryRower interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func upsertAuditVisibilityOverride(
+	ctx context.Context,
+	queryer auditVisibilityOverrideQueryRower,
+	input auditstore.UpsertAuditVisibilityOverrideInput,
+) (auditstore.AuditVisibilityOverride, error) {
 	who, err := nullableUint64(input.Actor.UserID)
 	if err != nil {
 		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("upsert audit visibility override: %w", err)
 	}
 
-	row := r.db.QueryRowContext(
+	row := queryer.QueryRowContext(
 		ctx,
 		`INSERT INTO audit_visibility_overrides (
 			source,
@@ -289,11 +332,11 @@ func (r *repository) UpsertAuditVisibilityOverride(
 			updated_at,
 			updated_by,
 			updated_by_name
-		) VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW(), $5, $6)
+		) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, $6, CURRENT_TIMESTAMP, $5, $6)
 		ON CONFLICT (source, action_key) DO UPDATE SET
 			strategy = EXCLUDED.strategy,
 			description = EXCLUDED.description,
-			updated_at = NOW(),
+			updated_at = CURRENT_TIMESTAMP,
 			updated_by = EXCLUDED.updated_by,
 			updated_by_name = EXCLUDED.updated_by_name
 		RETURNING

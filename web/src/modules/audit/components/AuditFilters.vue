@@ -80,6 +80,7 @@ type BuilderFieldKey = 'timeRange' | 'sorterBuilder' | AuditFilterKey;
 
 const props = defineProps<{
   activePreset: AuditQuickPresetKey;
+  canManageVisibility?: boolean;
   lockedFields?: AuditFilterKey[];
   loading?: boolean;
   modelValue: AuditClientFilterState;
@@ -139,6 +140,16 @@ const successOptions = computed<ModuleAuditFilterOption[]>(() => [
   { label: t('audit.logList.filterOptions.SUCCESS'), value: 'true' },
   { label: t('audit.logList.filterOptions.FAILED'), value: 'false' },
 ]);
+const visibilityScopeOptions = computed<ModuleAuditFilterOption[]>(() => {
+  const options = [{ label: t('audit.logList.policy.scope.default'), value: 'default' }];
+  if (props.canManageVisibility) {
+    options.push(
+      { label: t('audit.logList.policy.scope.all'), value: 'all' },
+      { label: t('audit.logList.policy.scope.hiddenOnly'), value: 'hidden_only' },
+    );
+  }
+  return options;
+});
 const riskOptions = computed<ModuleAuditFilterOption[]>(() => [
   { label: t('audit.logList.filterOptions.LOW'), value: 'LOW' },
   { label: t('audit.logList.filterOptions.MEDIUM'), value: 'MEDIUM' },
@@ -161,6 +172,13 @@ const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpD
 const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'timeRange', kind: 'special', label: t('audit.logList.builder.fields.timeRange') },
   { key: 'sorterBuilder', kind: 'special', label: t('audit.logList.builder.fields.sorterBuilder') },
+  {
+    key: 'visibilityScope',
+    kind: 'select',
+    label: t('audit.logList.builder.fields.visibilityScope'),
+    placeholder: t('audit.logList.filters.visibilityScopePlaceholder'),
+    options: visibilityScopeOptions.value,
+  },
   {
     key: 'action',
     kind: 'select',
@@ -283,6 +301,7 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
 ]);
 
 const fieldValues = computed<Record<string, string | string[]>>(() => ({
+  visibilityScope: props.modelValue.visibilityScope,
   action: props.modelValue.action,
   actionPrefixes: props.modelValue.actionPrefixes,
   actionKeywords: props.modelValue.actionKeywords,
@@ -416,6 +435,10 @@ function clearField(key: AuditFilterKey) {
   }
   if (key === 'result' || key === 'riskLevel' || key === 'success') {
     updateField(key, 'all' as never);
+    return;
+  }
+  if (key === 'visibilityScope') {
+    updateField(key, 'default');
     return;
   }
   if (

@@ -1295,6 +1295,7 @@ func (e AuditDrilldownScope) Valid() bool {
 // Defines values for AuditEventCatalogItemDefaultStrategy.
 const (
 	AuditEventCatalogItemDefaultStrategyHidden  AuditEventCatalogItemDefaultStrategy = "hidden"
+	AuditEventCatalogItemDefaultStrategyIgnore  AuditEventCatalogItemDefaultStrategy = "ignore"
 	AuditEventCatalogItemDefaultStrategyVisible AuditEventCatalogItemDefaultStrategy = "visible"
 )
 
@@ -1302,6 +1303,8 @@ const (
 func (e AuditEventCatalogItemDefaultStrategy) Valid() bool {
 	switch e {
 	case AuditEventCatalogItemDefaultStrategyHidden:
+		return true
+	case AuditEventCatalogItemDefaultStrategyIgnore:
 		return true
 	case AuditEventCatalogItemDefaultStrategyVisible:
 		return true
@@ -1718,6 +1721,7 @@ func (e AuditTargetKind) Valid() bool {
 // Defines values for AuditVisibilityDefaultResponseStrategy.
 const (
 	AuditVisibilityDefaultResponseStrategyHidden  AuditVisibilityDefaultResponseStrategy = "hidden"
+	AuditVisibilityDefaultResponseStrategyIgnore  AuditVisibilityDefaultResponseStrategy = "ignore"
 	AuditVisibilityDefaultResponseStrategyVisible AuditVisibilityDefaultResponseStrategy = "visible"
 )
 
@@ -1725,6 +1729,8 @@ const (
 func (e AuditVisibilityDefaultResponseStrategy) Valid() bool {
 	switch e {
 	case AuditVisibilityDefaultResponseStrategyHidden:
+		return true
+	case AuditVisibilityDefaultResponseStrategyIgnore:
 		return true
 	case AuditVisibilityDefaultResponseStrategyVisible:
 		return true
@@ -1736,6 +1742,7 @@ func (e AuditVisibilityDefaultResponseStrategy) Valid() bool {
 // Defines values for AuditVisibilityDefaultUpdateRequestStrategy.
 const (
 	AuditVisibilityDefaultUpdateRequestStrategyHidden  AuditVisibilityDefaultUpdateRequestStrategy = "hidden"
+	AuditVisibilityDefaultUpdateRequestStrategyIgnore  AuditVisibilityDefaultUpdateRequestStrategy = "ignore"
 	AuditVisibilityDefaultUpdateRequestStrategyVisible AuditVisibilityDefaultUpdateRequestStrategy = "visible"
 )
 
@@ -1743,6 +1750,8 @@ const (
 func (e AuditVisibilityDefaultUpdateRequestStrategy) Valid() bool {
 	switch e {
 	case AuditVisibilityDefaultUpdateRequestStrategyHidden:
+		return true
+	case AuditVisibilityDefaultUpdateRequestStrategyIgnore:
 		return true
 	case AuditVisibilityDefaultUpdateRequestStrategyVisible:
 		return true
@@ -8399,6 +8408,16 @@ type AuditVisibilityDefaultUpdateRequest struct {
 // AuditVisibilityDefaultUpdateRequestStrategy defines model for AuditVisibilityDefaultUpdateRequest.Strategy.
 type AuditVisibilityDefaultUpdateRequestStrategy string
 
+// AuditVisibilityOverrideBatchResponse defines model for audit-visibility-override-batch-response.
+type AuditVisibilityOverrideBatchResponse struct {
+	Items []AuditVisibilityOverrideResponse `json:"items"`
+}
+
+// AuditVisibilityOverrideBatchUpsertRequest defines model for audit-visibility-override-batch-upsert-request.
+type AuditVisibilityOverrideBatchUpsertRequest struct {
+	Items []AuditVisibilityOverrideUpsertRequest `json:"items"`
+}
+
 // AuditVisibilityOverrideResponse defines model for audit-visibility-override-response.
 type AuditVisibilityOverrideResponse struct {
 	ActionKey     string                                  `json:"action_key"`
@@ -10811,6 +10830,26 @@ type EnvelopedAuditVisibilityDefaultResponse struct {
 	// Code Existing canonical response code.
 	Code string                         `json:"code"`
 	Data AuditVisibilityDefaultResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAuditVisibilityOverrideBatchResponse defines model for enveloped-audit-visibility-override-batch-response.
+type EnvelopedAuditVisibilityOverrideBatchResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data AuditVisibilityOverrideBatchResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -16500,6 +16539,16 @@ type PutAuditVisibilityOverrideParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PutAuditVisibilityOverridesBatchParams defines parameters for PutAuditVisibilityOverridesBatch.
+type PutAuditVisibilityOverridesBatchParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetAuthBootstrapParams defines parameters for GetAuthBootstrap.
 type GetAuthBootstrapParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -19355,6 +19404,9 @@ type PutAuditVisibilityPolicyJSONRequestBody = AuditVisibilityDefaultUpdateReque
 
 // PutAuditVisibilityOverrideJSONRequestBody defines body for PutAuditVisibilityOverride for application/json ContentType.
 type PutAuditVisibilityOverrideJSONRequestBody = AuditVisibilityOverrideUpsertRequest
+
+// PutAuditVisibilityOverridesBatchJSONRequestBody defines body for PutAuditVisibilityOverridesBatch for application/json ContentType.
+type PutAuditVisibilityOverridesBatchJSONRequestBody = AuditVisibilityOverrideBatchUpsertRequest
 
 // PostAuthChangePasswordJSONRequestBody defines body for PostAuthChangePassword for application/json ContentType.
 type PostAuthChangePasswordJSONRequestBody = ChangePasswordRequest

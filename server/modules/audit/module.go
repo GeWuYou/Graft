@@ -388,6 +388,7 @@ func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {
 		UserAgent:     strings.TrimSpace(ctx.Request.UserAgent()),
 		Success:       ctx.Writer.Status() < http.StatusBadRequest,
 		Message:       currentAuditMessage(ctx),
+		Metadata:      requestAuditMetadata(ctx),
 	}
 	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx.Request.Context()); ok {
 		if requestAuth.User != nil {
@@ -401,6 +402,43 @@ func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {
 	}
 
 	return candidate
+}
+
+const auditVisibilityBatchCountsContextKey = "audit.visibility.batch-counts"
+
+type auditVisibilityBatchCounts struct {
+	Attempted int `json:"attempted"`
+	Committed int `json:"committed"`
+	Failed    int `json:"failed"`
+	Skipped   int `json:"skipped"`
+}
+
+func setAuditVisibilityBatchCounts(ctx *gin.Context, counts auditVisibilityBatchCounts) {
+	if ctx != nil {
+		ctx.Set(auditVisibilityBatchCountsContextKey, counts)
+	}
+}
+
+func requestAuditMetadata(ctx *gin.Context) json.RawMessage {
+	if ctx == nil {
+		return nil
+	}
+	value, exists := ctx.Get(auditVisibilityBatchCountsContextKey)
+	if !exists {
+		return nil
+	}
+	counts, ok := value.(auditVisibilityBatchCounts)
+	if !ok {
+		return nil
+	}
+	return mustMarshalMetadata(map[string]any{
+		"batch": map[string]int{
+			"attempted": counts.Attempted,
+			"committed": counts.Committed,
+			"failed":    counts.Failed,
+			"skipped":   counts.Skipped,
+		},
+	})
 }
 
 func eventAuditCandidate(ctx context.Context, idempotencyKey string, payload moduleapi.AuditEvent) auditstore.AuditCandidate {

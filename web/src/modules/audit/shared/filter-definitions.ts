@@ -22,7 +22,7 @@ export type AuditTextFilterKey = Extract<
 
 export type AuditSingleSelectFilterKey = Extract<
   AuditFilterKey,
-  'action' | 'source' | 'businessCategory' | 'resourceType' | 'result' | 'riskLevel' | 'success'
+  'action' | 'source' | 'businessCategory' | 'resourceType' | 'result' | 'riskLevel' | 'success' | 'visibilityScope'
 >;
 
 export type AuditMultiSelectFilterKey = Extract<

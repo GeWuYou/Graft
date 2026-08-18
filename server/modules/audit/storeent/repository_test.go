@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/config"
@@ -125,6 +127,67 @@ func newTestLocalizer() *i18n.Service {
 		panic(err)
 	}
 	return localizer
+}
+
+func TestRepositoryUpsertAuditVisibilityOverridesRollsBackAtomically(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sql mock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	query := regexp.QuoteMeta("INSERT INTO audit_visibility_overrides")
+	mock.ExpectBegin()
+	mock.ExpectQuery(query).
+		WithArgs("REQUEST", "POST /api/auth/refresh", "hidden", "", nil, "operator").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "source", "action_key", "strategy", "description", "created_at", "created_by", "created_by_name", "updated_at", "updated_by", "updated_by_name",
+		}).AddRow(1, "REQUEST", "POST /api/auth/refresh", "hidden", "", time.Now(), nil, "operator", time.Now(), nil, "operator"))
+	mock.ExpectQuery(query).
+		WithArgs("SECURITY_EVENT", "auth.token.expired", "hidden", "", nil, "operator").
+		WillReturnError(errors.New("forced second item failure"))
+	mock.ExpectRollback()
+
+	repo := &repository{db: db}
+	_, err = repo.UpsertAuditVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyHidden, Actor: auditstore.AuditVisibilityActor{Username: "operator"}},
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", Strategy: auditstore.AuditVisibilityStrategyHidden, Actor: auditstore.AuditVisibilityActor{Username: "operator"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "forced second item failure") {
+		t.Fatalf("expected second item failure, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("verify transaction rollback: %v", err)
+	}
+}
+
+func TestRepositoryUpsertAuditVisibilityOverridesLeavesNoPartialDurableState(t *testing.T) {
+	db := openTestDB(t)
+	if _, err := db.Exec(`CREATE TRIGGER audit_visibility_overrides_fail_second
+		BEFORE INSERT ON audit_visibility_overrides
+		WHEN NEW.action_key = 'fail.second'
+		BEGIN
+			SELECT RAISE(ABORT, 'forced second item failure');
+		END;`); err != nil {
+		t.Fatalf("create failure trigger: %v", err)
+	}
+
+	repo := &repository{db: db}
+	_, err := repo.UpsertAuditVisibilityOverrides(context.Background(), []auditstore.UpsertAuditVisibilityOverrideInput{
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyHidden},
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "fail.second", Strategy: auditstore.AuditVisibilityStrategyHidden},
+	})
+	if err == nil || !strings.Contains(err.Error(), "forced second item failure") {
+		t.Fatalf("expected injected second item failure, got %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_visibility_overrides`).Scan(&count); err != nil {
+		t.Fatalf("count visibility overrides after rollback: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected rollback to leave no durable overrides, got %d", count)
+	}
 }
 
 func TestRepositoryCreateAndListAuditLogs(t *testing.T) {

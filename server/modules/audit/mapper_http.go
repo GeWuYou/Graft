@@ -393,6 +393,19 @@ func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) 
 	return response, nil
 }
 
+// toAuditVisibilityOverrideBatchResponse 按请求顺序组装原子批量写入响应。
+func toAuditVisibilityOverrideBatchResponse(items []auditstore.AuditVisibilityOverride) (generated.AuditVisibilityOverrideBatchResponse, error) {
+	converted := make([]generated.AuditVisibilityOverrideResponse, 0, len(items))
+	for _, item := range items {
+		response, err := toAuditVisibilityOverrideResponse(item)
+		if err != nil {
+			return generated.AuditVisibilityOverrideBatchResponse{}, err
+		}
+		converted = append(converted, response)
+	}
+	return generated.AuditVisibilityOverrideBatchResponse{Items: converted}, nil
+}
+
 // appendAuditLogTarget 在目标信息存在时填充审计日志项的目标字段。
 func appendAuditLogTarget(converted *generated.AuditLogListItem, target auditstore.AuditTarget) {
 	if target.Kind == "" && target.Type == "" && target.Label == "" && target.ID == "" && target.RouteRef == "" {

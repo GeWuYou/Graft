@@ -25,6 +25,8 @@ const (
 	AuditVisibilityPolicyCollection = "/policies/visibility"
 	// AuditVisibilityOverrideCollection 是审计可见性覆盖规则路由片段。
 	AuditVisibilityOverrideCollection = AuditVisibilityPolicyCollection + "/overrides"
+	// AuditVisibilityOverrideBatchCollection 是审计可见性覆盖规则原子批量写入路由片段。
+	AuditVisibilityOverrideBatchCollection = AuditVisibilityOverrideCollection + "/batch"
 
 	// AuditIncidentItem 是审计事件详情路由片段。
 	AuditIncidentItem = "/incidents/:" + AuditIncidentParam
@@ -42,6 +44,8 @@ const (
 	AuditVisibilityPolicyAPIPath = AuditGroup + AuditVisibilityPolicyCollection
 	// AuditVisibilityOverrideAPIPath 是审计可见性覆盖规则 API 的规范路径。
 	AuditVisibilityOverrideAPIPath = AuditGroup + AuditVisibilityOverrideCollection
+	// AuditVisibilityOverrideBatchAPIPath 是审计可见性覆盖规则原子批量写入 API 的规范路径。
+	AuditVisibilityOverrideBatchAPIPath = AuditGroup + AuditVisibilityOverrideBatchCollection
 
 	// AuditIncidentAPIPath 是审计事件详情 API 的规范路径模板。
 	AuditIncidentAPIPath = AuditGroup + "/incidents/{" + AuditIncidentParam + "}"

@@ -48,6 +48,7 @@
       <audit-filters
         v-model="filters"
         :active-preset="activePreset"
+        :can-manage-visibility="canManageAuditPolicy"
         :locked-fields="scopeOwnedFilterKeys"
         :loading="loading"
         :presets="presetViews"
@@ -105,22 +106,36 @@
         :rows="rows"
         :monitor-origin="navigationContext.monitorOrigin"
       />
-      <t-drawer v-model:visible="policyDrawerVisible" :header="t('audit.logList.policy.drawerTitle')" size="720px">
+      <t-drawer
+        v-model:visible="policyDrawerVisible"
+        :footer="false"
+        :header="t('audit.logList.policy.drawerTitle')"
+        size="720px"
+      >
         <div class="audit-policy-drawer">
           <div class="audit-policy-drawer__section">
-            <label class="audit-policy-drawer__label">{{ t('audit.logList.policy.defaultStrategy') }}</label>
-            <t-select v-model="policyDefaultStrategy" :options="visibilityStrategyOptions" />
-            <t-button theme="primary" class="audit-policy-drawer__action" @click="savePolicyDefault">
+            <div class="audit-policy-drawer__title-row">
+              <label class="audit-policy-drawer__label">{{ t('audit.logList.policy.defaultStrategy') }}</label>
+              <t-tag v-if="policyDefaultDirty" theme="primary" variant="light-outline" size="small">
+                {{ t('audit.logList.policy.unsavedTag') }}
+              </t-tag>
+            </div>
+            <p class="audit-policy-drawer__hint">{{ t('audit.logList.policy.defaultHint') }}</p>
+            <t-select
+              :disabled="defaultPolicySaving || bulkPolicySaving"
+              :model-value="policyDefaultStrategy"
+              :options="visibilityStrategyOptions"
+              @update:model-value="handlePolicyDefaultChange"
+            />
+            <t-button
+              theme="primary"
+              class="audit-policy-drawer__action"
+              :disabled="!policyDefaultDirty || bulkPolicySaving"
+              :loading="defaultPolicySaving"
+              @click="requestSavePolicyDefault"
+            >
               {{ t('audit.logList.policy.saveDefault') }}
             </t-button>
-          </div>
-          <div class="audit-policy-drawer__section">
-            <label class="audit-policy-drawer__label">{{ t('audit.logList.policy.visibilityScope') }}</label>
-            <t-select
-              v-model="visibilityScope"
-              :options="visibilityScopeOptions"
-              @change="handleVisibilityScopeChange"
-            />
           </div>
           <div class="audit-policy-drawer__section">
             <div class="audit-policy-drawer__section-header">
@@ -130,6 +145,15 @@
                   {{ t('audit.logList.policy.overrideHint') }}
                 </p>
               </div>
+              <t-button
+                theme="primary"
+                variant="outline"
+                :disabled="!overrideDirtyCount || defaultPolicySaving"
+                :loading="bulkPolicySaving"
+                @click="saveAllPolicyOverrides"
+              >
+                {{ t('audit.logList.policy.saveAllOverrides') }}
+              </t-button>
             </div>
             <div class="audit-policy-drawer__catalog">
               <div
@@ -142,6 +166,14 @@
                     <span>{{ resolvePolicyCatalogDisplayName(item) }}</span>
                     <t-tag v-if="item.overridden" theme="warning" variant="light-outline" size="small">
                       {{ t('audit.logList.policy.overriddenTag') }}
+                    </t-tag>
+                    <t-tag
+                      v-if="isOverrideDirty(item.source, item.action_key)"
+                      theme="primary"
+                      variant="light-outline"
+                      size="small"
+                    >
+                      {{ t('audit.logList.policy.unsavedTag') }}
                     </t-tag>
                   </div>
                   <div class="audit-policy-drawer__catalog-key">{{ item.source }} / {{ item.action_key }}</div>
@@ -161,6 +193,7 @@
                 </div>
                 <div class="audit-policy-drawer__catalog-actions">
                   <t-select
+                    :disabled="isOverrideBusy(item.source, item.action_key)"
                     :model-value="overrideDrafts[item.source]?.[item.action_key] ?? item.effective_strategy"
                     :options="overrideStrategyOptions"
                     @update:model-value="handleOverrideDraftChange(item.source, item.action_key, $event)"
@@ -169,6 +202,8 @@
                     <t-button
                       theme="primary"
                       variant="outline"
+                      :disabled="!isOverrideDirty(item.source, item.action_key) || bulkPolicySaving"
+                      :loading="isOverrideSaving(item.source, item.action_key)"
                       @click="savePolicyOverride(item.source, item.action_key)"
                     >
                       {{ t('audit.logList.policy.saveOverride') }}
@@ -176,7 +211,11 @@
                     <t-button
                       theme="default"
                       variant="text"
-                      :disabled="!item.overridden"
+                      :disabled="
+                        (!item.overridden && !isOverrideDirty(item.source, item.action_key)) ||
+                        isOverrideBusy(item.source, item.action_key)
+                      "
+                      :loading="isOverrideResetting(item.source, item.action_key)"
                       @click="resetPolicyOverride(item.source, item.action_key)"
                     >
                       {{ t('audit.logList.policy.resetOverride') }}
@@ -188,6 +227,18 @@
           </div>
         </div>
       </t-drawer>
+      <t-dialog
+        v-model:visible="ignoreDefaultConfirmVisible"
+        theme="warning"
+        :header="t('audit.logList.policy.ignoreConfirmTitle')"
+        :body="t('audit.logList.policy.ignoreConfirmBody')"
+        :cancel-btn="t('audit.logList.policy.ignoreConfirmCancel')"
+        :confirm-btn="{ content: t('audit.logList.policy.ignoreConfirmAction'), theme: 'danger' }"
+        :confirm-loading="defaultPolicySaving"
+        @cancel="cancelIgnoreDefaultSave"
+        @close="cancelIgnoreDefaultSave"
+        @confirm="confirmIgnoreDefaultSave"
+      />
     </template>
   </advanced-query-list-page>
 </template>
@@ -238,6 +289,7 @@ import {
   putAuditSavedView,
   updateAuditVisibilityDefault,
   upsertAuditVisibilityOverride,
+  upsertAuditVisibilityOverridesBatch,
 } from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
@@ -334,12 +386,21 @@ const filters = ref<AuditClientFilterState>({
 });
 const routePreset = ref<AuditTimePreset | ''>('');
 const routeScope = ref<AuditDrilldownScope | ''>('');
-const visibilityScope = ref<AuditVisibilityScope>('default');
 const policyDrawerVisible = ref(false);
-const policyDefaultStrategy = ref<'visible' | 'hidden'>('visible');
+const policyDefaultBaseline = ref<AuditVisibilityStrategy>('visible');
+const policyDefaultStrategy = ref<AuditVisibilityStrategy>('visible');
+const policyDefaultDirty = ref(false);
+const defaultPolicySaving = ref(false);
+const bulkPolicySaving = ref(false);
+const ignoreDefaultConfirmVisible = ref(false);
+const pendingDefaultStrategy = ref<AuditVisibilityStrategy | null>(null);
 const policyCatalog = ref<AuditEventCatalogItem[]>([]);
 const policyOverrides = ref<AuditVisibilityOverrideResponse[]>([]);
 const overrideDrafts = ref<Record<string, Record<string, AuditVisibilityStrategy>>>({});
+// dirty 集合记录用户创建显式覆盖的意图，避免默认策略变化或局部保存后的快照刷新吞掉其他草稿。
+const overrideDirtyKeys = ref<Set<string>>(new Set());
+const savingOverrideKeys = ref<Set<string>>(new Set());
+const resettingOverrideKeys = ref<Set<string>>(new Set());
 const appliedScope = ref<AppliedDrilldownScope | null>(null);
 const scopeProjection = ref<DrilldownScopeProjection | null>(null);
 const convertibleFilters = ref<AuditLogConvertibleFilters | null>(null);
@@ -409,20 +470,17 @@ const columnViewPresets = computed(() => [
 
 const hasClientOnlyFilters = computed(() => false);
 const canManageAuditPolicy = computed(() => getPermissionStore().hasPermission(AUDIT_PERMISSION_CODE.MANAGE));
-const visibilityScopeOptions = computed(() => [
-  { label: t('audit.logList.policy.scope.default'), value: 'default' },
-  { label: t('audit.logList.policy.scope.all'), value: 'all' },
-  { label: t('audit.logList.policy.scope.hiddenOnly'), value: 'hidden_only' },
-]);
 const visibilityStrategyOptions = computed(() => [
   { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
   { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
+  { label: t('audit.logList.policy.strategy.ignore'), value: 'ignore' },
 ]);
 const overrideStrategyOptions = computed(() => [
   { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
   { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
   { label: t('audit.logList.policy.strategy.ignore'), value: 'ignore' },
 ]);
+const overrideDirtyCount = computed(() => overrideDirtyKeys.value.size);
 
 const displayRows = computed(() => rows.value);
 const tableTotal = computed(() => total.value);
@@ -514,7 +572,7 @@ function buildQuery(): AuditLogQuery {
   if (routeScope.value) {
     query.scope = routeScope.value;
   }
-  query.visibility_scope = visibilityScope.value;
+  query.visibility_scope = filters.value.visibilityScope;
   if (filters.value.keyword) {
     query.keyword = filters.value.keyword;
   }
@@ -642,20 +700,68 @@ async function openPolicyDrawer() {
   }
 }
 
-async function invalidateAuditLogQueries() {
+async function invalidateAuditPolicyQueries() {
   await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
   await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
 }
 
-async function savePolicyDefault() {
+function handlePolicyDefaultChange(value: string | number | undefined) {
+  const strategy = normalizeOverrideStrategy(value);
+  if (!strategy) {
+    return;
+  }
+  policyDefaultStrategy.value = strategy;
+  policyDefaultDirty.value = strategy !== policyDefaultBaseline.value;
+}
+
+function requestSavePolicyDefault() {
+  if (!policyDefaultDirty.value || defaultPolicySaving.value || bulkPolicySaving.value) {
+    return;
+  }
+  const strategy = policyDefaultStrategy.value;
+  if (strategy === 'ignore') {
+    pendingDefaultStrategy.value = strategy;
+    ignoreDefaultConfirmVisible.value = true;
+    return;
+  }
+  void savePolicyDefault(strategy);
+}
+
+function cancelIgnoreDefaultSave() {
+  if (defaultPolicySaving.value) {
+    return;
+  }
+  ignoreDefaultConfirmVisible.value = false;
+  pendingDefaultStrategy.value = null;
+}
+
+async function confirmIgnoreDefaultSave() {
+  const strategy = pendingDefaultStrategy.value;
+  if (strategy !== 'ignore') {
+    cancelIgnoreDefaultSave();
+    return;
+  }
+  await savePolicyDefault(strategy);
+}
+
+async function savePolicyDefault(strategy: AuditVisibilityStrategy) {
+  if (defaultPolicySaving.value) {
+    return;
+  }
+  defaultPolicySaving.value = true;
   try {
-    await updateAuditVisibilityDefault({ strategy: policyDefaultStrategy.value });
-    await invalidateAuditLogQueries();
+    await updateAuditVisibilityDefault({ strategy });
+    policyDefaultDirty.value = false;
+    policyDefaultBaseline.value = strategy;
+    ignoreDefaultConfirmVisible.value = false;
+    pendingDefaultStrategy.value = null;
+    await invalidateAuditPolicyQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveSuccess'));
-    await fetchAuditLogs();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.saveFailed')));
+  } finally {
+    defaultPolicySaving.value = false;
   }
 }
 
@@ -663,14 +769,18 @@ async function loadPolicySnapshot() {
   const response = await queryClient.fetchQuery({
     queryKey: ['audit', 'visibility-policy'],
     queryFn: getAuditVisibilityPolicy,
+    staleTime: 0,
   });
-  policyDefaultStrategy.value = response.default.strategy;
+  policyDefaultBaseline.value = response.default.strategy;
+  if (!policyDefaultDirty.value) {
+    policyDefaultStrategy.value = response.default.strategy;
+  }
   policyCatalog.value = response.catalog;
   policyOverrides.value = response.overrides;
-  overrideDrafts.value = buildOverrideDrafts(response.catalog, response.overrides);
+  overrideDrafts.value = mergeOverrideDrafts(response.catalog, response.overrides);
 }
 
-function buildOverrideDrafts(
+function mergeOverrideDrafts(
   catalog: AuditEventCatalogItem[],
   overrides: AuditVisibilityOverrideResponse[],
 ): Record<string, Record<string, AuditVisibilityStrategy>> {
@@ -679,7 +789,11 @@ function buildOverrideDrafts(
 
   catalog.forEach((item) => {
     const sourceDrafts = (drafts[item.source] ??= {});
-    sourceDrafts[item.action_key] = overrideIndex.get(`${item.source}:${item.action_key}`) ?? item.effective_strategy;
+    const key = policyOverrideKey(item.source, item.action_key);
+    sourceDrafts[item.action_key] =
+      overrideDirtyKeys.value.has(key) && overrideDrafts.value[item.source]?.[item.action_key]
+        ? overrideDrafts.value[item.source][item.action_key]
+        : (overrideIndex.get(key) ?? item.effective_strategy);
   });
 
   return drafts;
@@ -736,6 +850,7 @@ function handleOverrideDraftChange(source: string, actionKey: string, value: str
       [actionKey]: next,
     },
   };
+  overrideDirtyKeys.value = new Set(overrideDirtyKeys.value).add(policyOverrideKey(source, actionKey));
 }
 
 function normalizeOverrideStrategy(value: string | number | undefined): AuditVisibilityStrategy | '' {
@@ -746,12 +861,14 @@ function normalizeOverrideStrategy(value: string | number | undefined): AuditVis
 }
 
 async function savePolicyOverride(source: AuditSource, actionKey: string) {
+  const key = policyOverrideKey(source, actionKey);
   const strategy = overrideDrafts.value[source]?.[actionKey];
   const catalogItem = policyCatalog.value.find((item) => item.source === source && item.action_key === actionKey);
-  if (!strategy || !catalogItem) {
+  if (!strategy || !catalogItem || !overrideDirtyKeys.value.has(key) || isOverrideBusy(source, actionKey)) {
     return;
   }
 
+  savingOverrideKeys.value = new Set(savingOverrideKeys.value).add(key);
   try {
     await upsertAuditVisibilityOverride({
       source,
@@ -759,34 +876,124 @@ async function savePolicyOverride(source: AuditSource, actionKey: string) {
       strategy,
       description: catalogItem.description,
     });
-    await invalidateAuditLogQueries();
+    clearOverrideDirtyKey(key);
+    await invalidateAuditPolicyQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveOverrideSuccess'));
-    await fetchAuditLogs();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.saveOverrideFailed')));
+  } finally {
+    const next = new Set(savingOverrideKeys.value);
+    next.delete(key);
+    savingOverrideKeys.value = next;
+  }
+}
+
+async function saveAllPolicyOverrides() {
+  if (!overrideDirtyKeys.value.size || bulkPolicySaving.value || defaultPolicySaving.value) {
+    return;
+  }
+
+  const submittedKeys = new Set(overrideDirtyKeys.value);
+  const items = policyCatalog.value.flatMap((item) => {
+    const key = policyOverrideKey(item.source, item.action_key);
+    const strategy = overrideDrafts.value[item.source]?.[item.action_key];
+    if (!submittedKeys.has(key) || !strategy) {
+      return [];
+    }
+    return [
+      {
+        source: item.source,
+        action_key: item.action_key,
+        strategy,
+        description: item.description,
+      },
+    ];
+  });
+  if (!items.length) {
+    return;
+  }
+  const submittedItemKeys = new Set(items.map((item) => policyOverrideKey(item.source, item.action_key)));
+
+  bulkPolicySaving.value = true;
+  try {
+    await upsertAuditVisibilityOverridesBatch({ items });
+    submittedItemKeys.forEach(clearOverrideDirtyKey);
+    await invalidateAuditPolicyQueries();
+    await loadPolicySnapshot();
+    MessagePlugin.success(t('audit.logList.policy.saveAllSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.saveAllFailed')));
+  } finally {
+    bulkPolicySaving.value = false;
   }
 }
 
 async function resetPolicyOverride(source: AuditSource, actionKey: string) {
+  const key = policyOverrideKey(source, actionKey);
+  const persisted = policyOverrides.value.some((item) => item.source === source && item.action_key === actionKey);
+  if (!persisted) {
+    clearOverrideDirtyKey(key);
+    const catalogItem = policyCatalog.value.find((item) => item.source === source && item.action_key === actionKey);
+    if (catalogItem) {
+      overrideDrafts.value = {
+        ...overrideDrafts.value,
+        [source]: {
+          ...(overrideDrafts.value[source] ?? {}),
+          [actionKey]: catalogItem.effective_strategy,
+        },
+      };
+    }
+    return;
+  }
+  if (isOverrideBusy(source, actionKey)) {
+    return;
+  }
+
+  resettingOverrideKeys.value = new Set(resettingOverrideKeys.value).add(key);
   try {
     await deleteAuditVisibilityOverride(source, actionKey);
-    await invalidateAuditLogQueries();
+    clearOverrideDirtyKey(key);
+    await invalidateAuditPolicyQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.resetOverrideSuccess'));
-    await fetchAuditLogs();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.resetOverrideFailed')));
+  } finally {
+    const next = new Set(resettingOverrideKeys.value);
+    next.delete(key);
+    resettingOverrideKeys.value = next;
   }
+}
+
+function policyOverrideKey(source: string, actionKey: string) {
+  return `${source}:${actionKey}`;
+}
+
+function clearOverrideDirtyKey(key: string) {
+  const next = new Set(overrideDirtyKeys.value);
+  next.delete(key);
+  overrideDirtyKeys.value = next;
+}
+
+function isOverrideDirty(source: string, actionKey: string) {
+  return overrideDirtyKeys.value.has(policyOverrideKey(source, actionKey));
+}
+
+function isOverrideSaving(source: string, actionKey: string) {
+  return savingOverrideKeys.value.has(policyOverrideKey(source, actionKey));
+}
+
+function isOverrideResetting(source: string, actionKey: string) {
+  return resettingOverrideKeys.value.has(policyOverrideKey(source, actionKey));
+}
+
+function isOverrideBusy(source: string, actionKey: string) {
+  return bulkPolicySaving.value || isOverrideSaving(source, actionKey) || isOverrideResetting(source, actionKey);
 }
 
 function visibilityStrategyLabel(strategy: AuditVisibilityStrategy) {
   return t(`audit.logList.policy.strategy.${strategy}`);
-}
-
-function handleVisibilityScopeChange() {
-  pagination.value.current = 1;
-  updateRouteQuery();
 }
 
 function applyPreset(preset: AuditQuickPresetKey) {
@@ -833,6 +1040,7 @@ function convertScopeToFilters() {
 function createDefaultFilters(): AuditClientFilterState {
   return {
     keyword: '',
+    visibilityScope: 'default',
     actor: '',
     success: 'all',
     action: '',
@@ -922,9 +1130,9 @@ function applyRouteFilters() {
   const query = parseAuditLogsRouteQuery(route.query);
   routePreset.value = normalizePreset(query.preset);
   routeScope.value = normalizeScope(query.scope);
-  visibilityScope.value = normalizeVisibilityScope(query.visibility_scope);
   const nextFilters: AuditClientFilterState = {
     ...createDefaultFilters(),
+    visibilityScope: normalizeVisibilityScope(query.visibility_scope),
     keyword: query.keyword ?? '',
     actor: query.actor ?? '',
     success: query.success === 'true' ? 'true' : query.success === 'false' ? 'false' : 'all',
@@ -967,7 +1175,7 @@ function buildRouteQuery() {
     audit_log_id: routeAuditLogId.value,
     preset: routePreset.value,
     scope: routeScope.value,
-    visibility_scope: visibilityScope.value,
+    visibility_scope: filters.value.visibilityScope,
     keyword: filters.value.keyword,
     actor: filters.value.actor,
     success: filters.value.success === 'all' ? '' : filters.value.success,
@@ -1208,6 +1416,9 @@ function normalizeBusinessCategory(value?: string): AuditClientFilterState['busi
 }
 
 function normalizeVisibilityScope(value?: string): AuditVisibilityScope {
+  if (!canManageAuditPolicy.value) {
+    return 'default';
+  }
   switch (value) {
     case 'all':
     case 'hidden_only':
@@ -1523,7 +1734,15 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
 .audit-policy-drawer__section-header {
   align-items: flex-start;
   display: flex;
+  gap: var(--graft-density-gap-12);
   justify-content: space-between;
+}
+
+.audit-policy-drawer__title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
 }
 
 .audit-policy-drawer__label {
@@ -1616,6 +1835,11 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
   }
 
   .audit-policy-drawer__catalog-item {
+    flex-direction: column;
+  }
+
+  .audit-policy-drawer__section-header {
+    align-items: stretch;
     flex-direction: column;
   }
 

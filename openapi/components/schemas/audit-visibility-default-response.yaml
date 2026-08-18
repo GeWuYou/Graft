@@ -5,7 +5,7 @@ properties:
     type: string
   strategy:
     type: string
-    enum: [visible, hidden]
+    enum: [visible, hidden, ignore]
   updated_at:
     type: string
     format: date-time

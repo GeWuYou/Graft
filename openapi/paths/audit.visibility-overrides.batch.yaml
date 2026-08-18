@@ -1,0 +1,41 @@
+put:
+  tags: [audit]
+  summary: Batch upsert audit visibility overrides
+  operationId: putAuditVisibilityOverridesBatch
+  description: Atomically upserts a bounded set of audit-owned source plus action visibility overrides in request order.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/audit-visibility-override-batch-upsert-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Atomically updated audit visibility overrides in request order.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-audit-visibility-override-batch-response.yaml
+    '400':
+      description: Invalid, duplicate, empty, or oversized override batch.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
