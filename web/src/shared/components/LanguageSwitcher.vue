@@ -10,7 +10,7 @@
         v-for="(lang, index) in languageList"
         :key="index"
         :value="lang.value"
-        @click="(options) => changeLang(options.value as string)"
+        @click="handleDropdownChange"
         >{{ lang.content }}</t-dropdown-item
       ></t-dropdown-menu
     >
@@ -40,6 +40,7 @@
 </template>
 <script setup lang="ts">
 import { TranslateIcon } from 'tdesign-icons-vue-next';
+import type { DropdownProps } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
 import { languageList, t } from '@/locales';
@@ -62,6 +63,10 @@ const selectedLanguage = computed({
 const changeLang = (lang: string) => {
   changeLocale(lang);
   dialogVisible.value = false;
+};
+
+const handleDropdownChange: NonNullable<DropdownProps['onClick']> = (value) => {
+  if (typeof value === 'string') changeLang(value);
 };
 
 const open = () => {

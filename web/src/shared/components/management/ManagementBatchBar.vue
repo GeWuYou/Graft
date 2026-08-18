@@ -57,10 +57,10 @@ const emit = defineEmits<{
   clear: [];
 }>();
 
-function handleCompactAction(action: ManagementBatchAction) {
-  const { value } = action;
+const handleCompactAction: NonNullable<DropdownProps['onClick']> = (action) => {
+  const value = typeof action === 'object' && action ? action.value : action;
   if (typeof value === 'string') emit('action', value);
-}
+};
 </script>
 <style scoped lang="less">
 .management-batch-bar,

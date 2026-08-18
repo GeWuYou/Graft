@@ -2095,13 +2095,14 @@ const serviceBatchActionOptions = computed<DropdownProps['options']>(() => [
 ]);
 
 const handleServiceBatchMenuAction: NonNullable<DropdownProps['onClick']> = (item) => {
-  if (item.value === 'clear') {
+  const action = typeof item === 'object' && item ? item.value : item;
+  if (action === 'clear') {
     clearSelectedServices();
     return;
   }
 
-  if (item.value === 'start' || item.value === 'stop' || item.value === 'restart') {
-    confirmServiceBatchAction(item.value);
+  if (action === 'start' || action === 'stop' || action === 'restart') {
+    confirmServiceBatchAction(action);
   }
 };
 

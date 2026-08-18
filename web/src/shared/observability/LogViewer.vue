@@ -479,7 +479,7 @@
 defineOptions({ inheritAttrs: false });
 
 import { BrowseIcon, CopyIcon, FullscreenIcon } from 'tdesign-icons-vue-next';
-import type { DropdownOption, DropdownProps, SelectProps } from 'tdesign-vue-next';
+import type { DropdownProps, SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import {
   type ComponentPublicInstance,
@@ -939,8 +939,9 @@ function togglePause() {
   emit('pause');
 }
 
-async function handleMoreAction(item: DropdownOption, _context: { e: MouseEvent }) {
-  switch (item.value) {
+const handleMoreAction: NonNullable<DropdownProps['onClick']> = async (item) => {
+  const action = typeof item === 'object' && item ? item.value : item;
+  switch (action) {
     case 'clear':
       emit('clear');
       return;
@@ -956,7 +957,7 @@ async function handleMoreAction(item: DropdownOption, _context: { e: MouseEvent 
     case 'reconnect':
       emit('reconnect');
   }
-}
+};
 
 function jumpBottom() {
   scrollToBottom();
