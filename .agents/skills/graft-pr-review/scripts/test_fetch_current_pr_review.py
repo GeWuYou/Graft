@@ -1573,6 +1573,10 @@ class ManagedIssueCommentTests(unittest.TestCase):
         with mock.patch.object(MODULE, "fetch_issue_comments", return_value=duplicate_comments):
             with self.assertRaisesRegex(RuntimeError, "exactly once"):
                 MODULE.verify_managed_ledger_append(136, 99, request_body, entry_heading)
+        duplicate_entry = {"id": 99, "body": f"{request_body}\n\n{entry_heading}"}
+        with mock.patch.object(MODULE, "fetch_issue_comments", return_value=[duplicate_entry]):
+            with self.assertRaisesRegex(RuntimeError, "exactly once"):
+                MODULE.verify_managed_ledger_append(136, 99, request_body, entry_heading)
         with mock.patch.object(
             MODULE,
             "fetch_issue_comments",
