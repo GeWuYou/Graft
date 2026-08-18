@@ -157,6 +157,12 @@
       "reason": "Frontend visual governance references repository-local Codex guidance assets."
     },
     {
+      "path": "ai-plan/lessons/governance.md",
+      "regex": "plugin|plugins/",
+      "category": "ai_tooling",
+      "reason": "The governance lesson records intentional Codex skill and guidance-plugin intake terminology, not server runtime authority."
+    },
+    {
       "path": "ai-plan/public/docker-resource-context-ia/README.md",
       "regex": "Plugin",
       "category": "intentional_domain_or_wire",
