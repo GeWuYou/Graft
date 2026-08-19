@@ -90,6 +90,11 @@ vi.mock('vue-i18n', () => ({
 
 const draft: ApplicationLifecycleConfigurationDraft = {
   additional_args: '',
+  managed_service_names: [],
+  declared_service_names: [],
+  stop_args: '',
+  restart_args: '',
+  pull_args: '',
   build_before_up: false,
   compose_project_name: 'compose-demo',
   compose_files: ['compose.yaml'],

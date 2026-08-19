@@ -2,6 +2,8 @@ package project
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
 	"strings"
 
 	projectcontract "graft/server/modules/project/contract"
@@ -12,6 +14,7 @@ import (
 func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 	return LifecycleStandardConfig{
 		Profiles:                 []string{},
+		ManagedServiceNames:      []string{},
 		DownBeforeRedeploy:       true,
 		PullBeforeRedeploy:       false,
 		BuildBeforeUp:            false,
@@ -22,6 +25,9 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 		RenewAnonVolumes:         false,
 		PruneImagesAfterRedeploy: false,
 		AdditionalArgs:           []string{},
+		StopArgs:                 []string{},
+		RestartArgs:              []string{},
+		PullArgs:                 []string{},
 	}
 }
 
@@ -41,11 +47,13 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ApplicationAggre
 			aggregate.Application.LifecycleReviewStatus,
 			projectcontract.LifecycleReviewStatusReviewRequired.String(),
 		)),
-		WorkingDir:      aggregate.Application.WorkspacePath,
-		ComposeFiles:    collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
-		ApplicationName: aggregate.Application.ComposeProjectName,
+		WorkingDir:           aggregate.Application.WorkspacePath,
+		ComposeFiles:         collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
+		ApplicationName:      aggregate.Application.ComposeProjectName,
+		DeclaredServiceCount: declaredServiceCount(aggregate),
 		Standard: LifecycleStandardConfig{
 			Profiles:                 append([]string(nil), aggregate.Application.LifecycleConfig.Profiles...),
+			ManagedServiceNames:      append([]string(nil), aggregate.Application.LifecycleConfig.ManagedServiceNames...),
 			DownBeforeRedeploy:       aggregate.Application.LifecycleConfig.DownBeforeRedeploy,
 			PullBeforeRedeploy:       aggregate.Application.LifecycleConfig.PullBeforeRedeploy,
 			BuildBeforeUp:            aggregate.Application.LifecycleConfig.BuildBeforeUp,
@@ -56,14 +64,25 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ApplicationAggre
 			RenewAnonVolumes:         aggregate.Application.LifecycleConfig.RenewAnonVolumes,
 			PruneImagesAfterRedeploy: aggregate.Application.LifecycleConfig.PruneImagesAfterRedeploy,
 			AdditionalArgs:           append([]string(nil), aggregate.Application.LifecycleConfig.AdditionalArgs...),
+			StopArgs:                 append([]string(nil), aggregate.Application.LifecycleConfig.StopArgs...),
+			RestartArgs:              append([]string(nil), aggregate.Application.LifecycleConfig.RestartArgs...),
+			PullArgs:                 append([]string(nil), aggregate.Application.LifecycleConfig.PullArgs...),
 		},
 	}
+}
+
+func declaredServiceCount(aggregate projectstore.ApplicationAggregate) int {
+	if aggregate.Snapshot == nil {
+		return 0
+	}
+	return aggregate.Snapshot.DeclaredServiceCount
 }
 
 // toStoreLifecycleConfig 将标准生命周期配置转换为存储层表示。
 func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.LifecycleConfig {
 	return projectstore.LifecycleConfig{
 		Profiles:                 append([]string(nil), config.Profiles...),
+		ManagedServiceNames:      append([]string(nil), config.ManagedServiceNames...),
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
 		BuildBeforeUp:            config.BuildBeforeUp,
@@ -74,6 +93,9 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
 		AdditionalArgs:           append([]string(nil), config.AdditionalArgs...),
+		StopArgs:                 append([]string(nil), config.StopArgs...),
+		RestartArgs:              append([]string(nil), config.RestartArgs...),
+		PullArgs:                 append([]string(nil), config.PullArgs...),
 	}
 }
 
@@ -98,8 +120,25 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 	if err != nil {
 		return LifecycleStandardConfig{}, err
 	}
+	normalizedManagedServices, err := normalizeManagedServiceNames(config.ManagedServiceNames)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
+	normalizedStopArgs, err := normalizeLifecycleActionArgs("stop", config.StopArgs)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
+	normalizedRestartArgs, err := normalizeLifecycleActionArgs("restart", config.RestartArgs)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
+	normalizedPullArgs, err := normalizeLifecycleActionArgs("pull", config.PullArgs)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
 	return LifecycleStandardConfig{
 		Profiles:                 normalizedProfiles,
+		ManagedServiceNames:      normalizedManagedServices,
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
 		BuildBeforeUp:            config.BuildBeforeUp,
@@ -110,6 +149,9 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
 		AdditionalArgs:           normalizedAdditionalArgs,
+		StopArgs:                 normalizedStopArgs,
+		RestartArgs:              normalizedRestartArgs,
+		PullArgs:                 normalizedPullArgs,
 	}, validateLifecycleWaitTimeout(config.WaitTimeoutSeconds)
 }
 
@@ -145,6 +187,69 @@ func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
 	return normalized, nil
 }
 
+func normalizeLifecycleActionArgs(action string, values []string) ([]string, error) {
+	normalized, valid := projectcontract.NormalizeLifecycleActionArgs(action, values)
+	if !valid {
+		return nil, errProjectInvalidArgument
+	}
+	return normalized, nil
+}
+
+func normalizeManagedServiceNames(values []string) ([]string, error) {
+	normalized := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value)
+		if name == "" {
+			return nil, errProjectInvalidArgument
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		normalized = append(normalized, name)
+	}
+	slices.Sort(normalized)
+	return normalized, nil
+}
+
+func validateManagedServiceSelection(selected []string, declared []string, required bool) error {
+	if len(selected) == 0 {
+		if required {
+			return errProjectInvalidArgument
+		}
+		return nil
+	}
+	declaredSet := make(map[string]struct{}, len(declared))
+	for _, name := range declared {
+		declaredSet[name] = struct{}{}
+	}
+	for _, name := range selected {
+		if _, exists := declaredSet[name]; !exists {
+			return errProjectInvalidArgument
+		}
+	}
+	return nil
+}
+
+func declaredServiceNamesFromAggregate(aggregate projectstore.ApplicationAggregate) []string {
+	if aggregate.Snapshot == nil || len(aggregate.Snapshot.NormalizedComposeJSON) == 0 {
+		return nil
+	}
+	var document struct {
+		Services map[string]json.RawMessage `json:"services"`
+	}
+	if json.Unmarshal(aggregate.Snapshot.NormalizedComposeJSON, &document) != nil {
+		return nil
+	}
+	names := make([]string, 0, len(document.Services))
+	for name := range document.Services {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 // isLifecycleAuthorityOverrideArg 判断参数是否为禁止覆盖项目权威配置的选项。
 func isLifecycleAuthorityOverrideArg(argument string) bool {
 	forbidden := []string{
@@ -178,6 +283,15 @@ func (s *Service) UpdateLifecycleConfiguration(
 	normalized, err := normalizeLifecycleStandardConfig(config)
 	if err != nil {
 		return projectstore.ApplicationAggregate{}, err
+	}
+	if len(normalized.ManagedServiceNames) > 0 {
+		current, getErr := repository.Get(ctx, projectID)
+		if getErr != nil {
+			return projectstore.ApplicationAggregate{}, mapStoreError(getErr)
+		}
+		if err := validateManagedServiceSelection(normalized.ManagedServiceNames, declaredServiceNamesFromAggregate(current), false); err != nil {
+			return projectstore.ApplicationAggregate{}, err
+		}
 	}
 	aggregate, err := repository.UpdateLifecycleConfig(ctx, projectstore.UpdateLifecycleConfigInput{
 		ApplicationRecordID:   projectID,

@@ -172,7 +172,14 @@ func toImportValidateResponse(result ImportValidationResult) generated.Applicati
 
 // toRuntimeImportInspectResponse 将运行时导入检查结果转换为 OpenAPI 响应。
 func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ApplicationImportRuntimeInspectResponse {
-	return generated.ApplicationImportRuntimeInspectResponse{
+	serviceOptions := make([]generated.ApplicationImportServiceOption, 0, len(result.ServiceOptions))
+	for _, service := range result.ServiceOptions {
+		serviceOptions = append(serviceOptions, generated.ApplicationImportServiceOption{
+			Name:      service.ServiceName,
+			DependsOn: append([]string(nil), service.DependsOn...),
+		})
+	}
+	response := generated.ApplicationImportRuntimeInspectResponse{
 		InspectionId:             result.InspectionID,
 		ExpiresAt:                result.ExpiresAt,
 		CandidateKey:             result.CandidateKey,
@@ -192,15 +199,21 @@ func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated
 		ValidationStatus:         generated.ApplicationImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
 		LifecycleConfiguration:   toGeneratedLifecycleConfigurationRequest(result.LifecycleConfiguration),
 	}
+	response.ServiceOptions = serviceOptions
+	return response
 }
 
 // toGeneratedLifecycleConfigurationRequest 将内部标准生命周期配置转换为 OpenAPI 生命周期配置请求。
 // 返回的请求使用标准策略，并包含配置的配置文件、策略选项和附加参数。
 func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ApplicationLifecycleConfigurationRequest {
 	additionalArgs := append([]string{}, config.AdditionalArgs...)
+	stopArgs := append([]string{}, config.StopArgs...)
+	restartArgs := append([]string{}, config.RestartArgs...)
+	pullArgs := append([]string{}, config.PullArgs...)
 	return generated.ApplicationLifecycleConfigurationRequest{
 		StrategyKind:             generated.ApplicationLifecycleStrategyKindStandard,
 		Profiles:                 append([]string{}, config.Profiles...),
+		ManagedServiceNames:      append([]string{}, config.ManagedServiceNames...),
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
 		BuildBeforeUp:            config.BuildBeforeUp,
@@ -211,6 +224,9 @@ func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) ge
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
 		AdditionalArgs:           &additionalArgs,
+		StopArgs:                 &stopArgs,
+		RestartArgs:              &restartArgs,
+		PullArgs:                 &pullArgs,
 	}
 }
 
@@ -364,8 +380,21 @@ func toLifecycleConfigurationRequest(request generated.ApplicationLifecycleConfi
 	if request.AdditionalArgs != nil {
 		additionalArgs = append(additionalArgs, (*request.AdditionalArgs)...)
 	}
+	stopArgs := []string{}
+	if request.StopArgs != nil {
+		stopArgs = append(stopArgs, (*request.StopArgs)...)
+	}
+	restartArgs := []string{}
+	if request.RestartArgs != nil {
+		restartArgs = append(restartArgs, (*request.RestartArgs)...)
+	}
+	pullArgs := []string{}
+	if request.PullArgs != nil {
+		pullArgs = append(pullArgs, (*request.PullArgs)...)
+	}
 	return LifecycleStandardConfig{
 		Profiles:                 append([]string(nil), request.Profiles...),
+		ManagedServiceNames:      append([]string(nil), request.ManagedServiceNames...),
 		DownBeforeRedeploy:       request.DownBeforeRedeploy,
 		PullBeforeRedeploy:       request.PullBeforeRedeploy,
 		BuildBeforeUp:            request.BuildBeforeUp,
@@ -376,6 +405,9 @@ func toLifecycleConfigurationRequest(request generated.ApplicationLifecycleConfi
 		RenewAnonVolumes:         request.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: request.PruneImagesAfterRedeploy,
 		AdditionalArgs:           additionalArgs,
+		StopArgs:                 stopArgs,
+		RestartArgs:              restartArgs,
+		PullArgs:                 pullArgs,
 	}
 }
 

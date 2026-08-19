@@ -13,6 +13,7 @@ required:
   - prune_images_after_redeploy
   - generated_commands
   - additional_args
+  - managed_service_names
 properties:
   strategy_kind:
     $ref: ./application-lifecycle-strategy-kind.yaml
@@ -46,6 +47,23 @@ properties:
     type: boolean
     default: false
   additional_args:
+    type: array
+    items:
+      type: string
+  managed_service_names:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+  stop_args:
+    type: array
+    items:
+      type: string
+  restart_args:
+    type: array
+    items:
+      type: string
+  pull_args:
     type: array
     items:
       type: string

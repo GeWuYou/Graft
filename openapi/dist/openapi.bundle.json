@@ -14591,6 +14591,12 @@
           },
           {
             "$ref": "#/components/parameters/container-list-runtime-target-id"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope-kind"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope"
           }
         ],
         "security": [
@@ -42740,6 +42746,28 @@
           }
         }
       },
+      "application-import-service-option": {
+        "type": "object",
+        "required": [
+          "name",
+          "depends_on"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "depends_on": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "application-import-runtime-network-resource": {
         "type": "object",
         "required": [
@@ -42879,7 +42907,8 @@
           "wait_after_up",
           "wait_timeout_seconds",
           "renew_anon_volumes",
-          "prune_images_after_redeploy"
+          "prune_images_after_redeploy",
+          "managed_service_names"
         ],
         "properties": {
           "strategy_kind": {
@@ -42933,7 +42962,52 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 256,
-              "pattern": "^\\S+$"
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "managed_service_names": {
+            "type": "array",
+            "description": "Services included in Graft lifecycle actions; empty means all declared services for legacy records.",
+            "uniqueItems": true,
+            "maxItems": 256,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "stop_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose stop.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "restart_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose restart.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "pull_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose pull.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
             }
           }
         },
@@ -42952,6 +43026,7 @@
           "compose_files",
           "env_files",
           "services",
+          "service_options",
           "networks",
           "volumes",
           "runtime_members",
@@ -43001,6 +43076,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "service_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-import-service-option"
             }
           },
           "networks": {
@@ -43341,7 +43422,8 @@
           "renew_anon_volumes",
           "prune_images_after_redeploy",
           "generated_commands",
-          "additional_args"
+          "additional_args",
+          "managed_service_names"
         ],
         "properties": {
           "strategy_kind": {
@@ -43388,6 +43470,31 @@
             "default": false
           },
           "additional_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "managed_service_names": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "stop_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "restart_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pull_args": {
             "type": "array",
             "items": {
               "type": "string"
@@ -45401,11 +45508,16 @@
           "service_name",
           "container_members",
           "running_count",
-          "stopped_count"
+          "stopped_count",
+          "managed"
         ],
         "properties": {
           "service_name": {
             "type": "string"
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "Whether Graft application lifecycle actions include this Compose service."
           },
           "image": {
             "type": "string",
@@ -46933,6 +47045,40 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "container-list-source-scope-kind": {
+        "name": "source_scope_kind",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "compose_project",
+            "compose_service",
+            "swarm_stack",
+            "swarm_task",
+            "kubernetes_namespace",
+            "kubernetes_pod"
+          ],
+          "x-enum-varnames": [
+            "ContainerListSourceScopeKindComposeProject",
+            "ContainerListSourceScopeKindComposeService",
+            "ContainerListSourceScopeKindSwarmStack",
+            "ContainerListSourceScopeKindSwarmTask",
+            "ContainerListSourceScopeKindKubernetesNamespace",
+            "ContainerListSourceScopeKindKubernetesPod"
+          ]
+        }
+      },
+      "container-list-source-scope": {
+        "name": "source_scope",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope value. Must be paired with source_scope_kind.",
+        "schema": {
+          "type": "string"
         }
       },
       "container-id-path": {

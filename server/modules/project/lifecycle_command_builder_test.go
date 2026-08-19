@@ -97,6 +97,39 @@ func TestBuildLifecycleUpArgvSkipsWaitTimeoutWhenWaitDisabled(t *testing.T) {
 	}
 }
 
+func TestLifecycleCommandsScopeActionsToManagedServices(t *testing.T) {
+	t.Parallel()
+
+	config := LifecycleConfiguration{
+		ApplicationName:      "compose-demo",
+		ComposeFiles:         []string{"/srv/compose-demo/compose.yaml"},
+		DeclaredServiceCount: 3,
+		Standard: LifecycleStandardConfig{
+			ManagedServiceNames: []string{"api", "worker"},
+			DownBeforeRedeploy:  true,
+			PullBeforeRedeploy:  true,
+			StopArgs:            []string{"--timeout", "30"},
+			RestartArgs:         []string{"--no-deps"},
+			PullArgs:            []string{"--include-deps"},
+		},
+	}
+
+	steps := buildLifecycleCommandSteps(config, "redeploy")
+	if len(steps) != 3 || steps[0].Kind != "stop" {
+		t.Fatalf("redeploy steps = %#v", steps)
+	}
+	if !equalStrings(steps[0].Argv[len(steps[0].Argv)-4:], []string{"--timeout", "30", "api", "worker"}) {
+		t.Fatalf("stop argv = %#v", steps[0].Argv)
+	}
+	if !equalStrings(steps[1].Argv[len(steps[1].Argv)-3:], []string{"--include-deps", "api", "worker"}) {
+		t.Fatalf("pull argv = %#v", steps[1].Argv)
+	}
+	restart := buildLifecycleCommandSteps(config, "restart")[0].Argv
+	if !equalStrings(restart[len(restart)-3:], []string{"--no-deps", "api", "worker"}) {
+		t.Fatalf("restart argv = %#v", restart)
+	}
+}
+
 func TestLifecycleRestartPlanDefersRuntimeRecoveryDecision(t *testing.T) {
 	t.Parallel()
 

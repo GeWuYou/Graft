@@ -84,7 +84,9 @@ type Snapshot struct {
 
 // LifecycleConfig 保存应用拥有的生命周期执行语义。
 type LifecycleConfig struct {
-	Profiles                 []string `json:"profiles"`
+	Profiles []string `json:"profiles"`
+	// ManagedServiceNames 为空时表示历史全量服务语义，显式值表示 Graft 可操作的服务子集。
+	ManagedServiceNames      []string `json:"managed_service_names"`
 	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
 	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
 	BuildBeforeUp            bool     `json:"build_before_up"`
@@ -95,6 +97,9 @@ type LifecycleConfig struct {
 	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
 	AdditionalArgs           []string `json:"additional_args"`
+	StopArgs                 []string `json:"stop_args"`
+	RestartArgs              []string `json:"restart_args"`
+	PullArgs                 []string `json:"pull_args"`
 }
 
 // ApplicationAggregate 将应用、文件和最近快照组合为读取聚合。

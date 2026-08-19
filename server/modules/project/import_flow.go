@@ -227,24 +227,25 @@ type RuntimeImportVolumeResource struct {
 
 // RuntimeImportInspectResult 返回一个运行时候选的检查预览及其短期检查会话标识。
 type RuntimeImportInspectResult struct {
-	InspectionID             string                         `json:"inspection_id"`
-	ExpiresAt                time.Time                      `json:"expires_at"`
-	CandidateKey             string                         `json:"candidate_key"`
-	ResolvedWorkspacePath    string                         `json:"resolved_workspace_path"`
-	ComposeProjectName       string                         `json:"compose_project_name"`
-	ComposeProjectNameSource string                         `json:"compose_project_name_source"`
-	DisplayNameSuggested     string                         `json:"display_name_suggested"`
-	ComposeFiles             []FileView                     `json:"compose_files"`
-	EnvFiles                 []FileView                     `json:"env_files"`
-	ServiceNames             []string                       `json:"services"`
-	NetworkResources         []RuntimeImportNetworkResource `json:"networks"`
-	VolumeResources          []RuntimeImportVolumeResource  `json:"volumes"`
-	RuntimeMembers           []RuntimeImportMember          `json:"runtime_members"`
-	ConfigHash               string                         `json:"config_hash"`
-	Warnings                 []string                       `json:"warnings"`
-	Conflicts                []string                       `json:"conflicts"`
-	ValidationStatus         string                         `json:"validation_status"`
-	LifecycleConfiguration   LifecycleStandardConfig        `json:"lifecycle_configuration"`
+	InspectionID             string                             `json:"inspection_id"`
+	ExpiresAt                time.Time                          `json:"expires_at"`
+	CandidateKey             string                             `json:"candidate_key"`
+	ResolvedWorkspacePath    string                             `json:"resolved_workspace_path"`
+	ComposeProjectName       string                             `json:"compose_project_name"`
+	ComposeProjectNameSource string                             `json:"compose_project_name_source"`
+	DisplayNameSuggested     string                             `json:"display_name_suggested"`
+	ComposeFiles             []FileView                         `json:"compose_files"`
+	EnvFiles                 []FileView                         `json:"env_files"`
+	ServiceNames             []string                           `json:"services"`
+	ServiceOptions           []projectcompose.ServiceProjection `json:"service_options"`
+	NetworkResources         []RuntimeImportNetworkResource     `json:"networks"`
+	VolumeResources          []RuntimeImportVolumeResource      `json:"volumes"`
+	RuntimeMembers           []RuntimeImportMember              `json:"runtime_members"`
+	ConfigHash               string                             `json:"config_hash"`
+	Warnings                 []string                           `json:"warnings"`
+	Conflicts                []string                           `json:"conflicts"`
+	ValidationStatus         string                             `json:"validation_status"`
+	LifecycleConfiguration   LifecycleStandardConfig            `json:"lifecycle_configuration"`
 }
 
 // ImportExecuteRequest 根据之前的检查快照完成一次导入。

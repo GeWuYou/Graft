@@ -10554,6 +10554,10 @@ export interface components {
       order_index: number;
       last_observed_hash?: string | null;
     };
+    'application-import-service-option': {
+      name: string;
+      depends_on: string[];
+    };
     'application-import-runtime-network-resource': {
       name: string;
       driver: string | null;
@@ -10601,6 +10605,14 @@ export interface components {
       renew_anon_volumes: boolean;
       /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server. */
       additional_args?: string[];
+      /** @description Services included in Graft lifecycle actions; empty means all declared services for legacy records. */
+      managed_service_names: string[];
+      /** @description Bounded argv tokens appended to docker compose stop. */
+      stop_args?: string[];
+      /** @description Bounded argv tokens appended to docker compose restart. */
+      restart_args?: string[];
+      /** @description Bounded argv tokens appended to docker compose pull. */
+      pull_args?: string[];
     };
     'application-import-runtime-inspect-response': {
       inspection_id: string;
@@ -10617,6 +10629,7 @@ export interface components {
       compose_files: components['schemas']['application-import-inspect-file-item'][];
       env_files: components['schemas']['application-import-inspect-file-item'][];
       services: string[];
+      service_options: components['schemas']['application-import-service-option'][];
       networks: components['schemas']['application-import-runtime-network-resource'][];
       volumes: components['schemas']['application-import-runtime-volume-resource'][];
       runtime_members: components['schemas']['application-import-runtime-member'][];
@@ -10697,6 +10710,10 @@ export interface components {
       /** @default false */
       renew_anon_volumes: boolean;
       additional_args: string[];
+      managed_service_names: string[];
+      stop_args?: string[];
+      restart_args?: string[];
+      pull_args?: string[];
       generated_commands: {
         up: components['schemas']['application-lifecycle-generated-command'];
         stop: components['schemas']['application-lifecycle-generated-command'];
@@ -11193,6 +11210,8 @@ export interface components {
     };
     'application-service-item': {
       service_name: string;
+      /** @description Whether Graft application lifecycle actions include this Compose service. */
+      managed: boolean;
       image?: string | null;
       build_context?: string | null;
       declared_ports?: string[];
@@ -11610,6 +11629,11 @@ export interface components {
     'container-list-deployment-type': 'standalone' | 'compose' | 'unknown';
     /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
     'container-list-runtime-target-id': number;
+    /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
+    'container-list-source-scope-kind':
+      'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
+    /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
+    'container-list-source-scope': string;
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
     /** @description Runtime target numeric identifier. */
@@ -19764,6 +19788,10 @@ export interface operations {
         deployment_type?: components['parameters']['container-list-deployment-type'];
         /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
         runtime_target_id?: components['parameters']['container-list-runtime-target-id'];
+        /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
+        source_scope_kind?: components['parameters']['container-list-source-scope-kind'];
+        /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
+        source_scope?: components['parameters']['container-list-source-scope'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

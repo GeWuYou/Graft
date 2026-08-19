@@ -23,6 +23,8 @@ get:
     - $ref: ../components/parameters/container-list-health.yaml
     - $ref: ../components/parameters/container-list-deployment-type.yaml
     - $ref: ../components/parameters/container-list-runtime-target-id.yaml
+    - $ref: ../components/parameters/container-list-source-scope-kind.yaml
+    - $ref: ../components/parameters/container-list-source-scope.yaml
   security:
     - bearerAuth: []
   responses:

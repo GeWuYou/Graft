@@ -11,6 +11,7 @@ required:
   - wait_timeout_seconds
   - renew_anon_volumes
   - prune_images_after_redeploy
+  - managed_service_names
 properties:
   strategy_kind:
     $ref: ./application-lifecycle-strategy-kind.yaml
@@ -51,5 +52,42 @@ properties:
       type: string
       minLength: 1
       maxLength: 256
-      pattern: '^\S+$'
+      pattern: '^[^\r\n]+$'
+  managed_service_names:
+    type: array
+    description: Services included in Graft lifecycle actions; empty means all declared services for legacy records.
+    uniqueItems: true
+    maxItems: 256
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[^\r\n]+$'
+  stop_args:
+    type: array
+    description: Bounded argv tokens appended to docker compose stop.
+    maxItems: 16
+    items:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[^\r\n]+$'
+  restart_args:
+    type: array
+    description: Bounded argv tokens appended to docker compose restart.
+    maxItems: 16
+    items:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[^\r\n]+$'
+  pull_args:
+    type: array
+    description: Bounded argv tokens appended to docker compose pull.
+    maxItems: 16
+    items:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[^\r\n]+$'
 additionalProperties: false

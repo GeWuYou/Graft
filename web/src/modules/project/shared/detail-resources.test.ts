@@ -19,6 +19,7 @@ function createService(
     declared_ports: [],
     declared_volumes: [],
     image: null,
+    managed: true,
     running_count: 0,
     service_name,
     stopped_count: 0,
