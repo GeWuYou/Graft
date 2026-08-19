@@ -31,6 +31,7 @@ const ManagementPagedTableStub = defineComponent({
         h('div', { 'data-testid': 'action-slot' }, slots.action?.({ row })),
         h('div', { 'data-testid': 'resource-slot' }, slots.resource?.({ row })),
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
+        h('div', { 'data-testid': 'batch-slot' }, slots.batch?.()),
         h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
     };
@@ -141,7 +142,7 @@ function auditRow(): AuditLogListItem {
   } as AuditLogListItem;
 }
 
-function mountTable(row = auditRow()) {
+function mountTable(row = auditRow(), slots: Record<string, string> = {}) {
   return shallowMount(AuditTable, {
     global: {
       plugins: [i18n],
@@ -158,10 +159,17 @@ function mountTable(row = auditRow()) {
       total: 1,
       visibleColumnKeys: ['action', 'actor', 'resource'],
     },
+    slots,
   });
 }
 
 describe('AuditTable', () => {
+  it('forwards the batch operation slot to the shared paged table', () => {
+    const wrapper = mountTable(auditRow(), { batch: '<span>Batch actions</span>' });
+
+    expect(wrapper.get('[data-testid="batch-slot"]').text()).toBe('Batch actions');
+  });
+
   it('keeps the fixed operation column while row click opens detail', async () => {
     const wrapper = mountTable();
 

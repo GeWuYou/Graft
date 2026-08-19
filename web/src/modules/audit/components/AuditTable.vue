@@ -32,6 +32,7 @@
       </div>
     </template>
     <template v-if="$slots.toolbar" #toolbar><slot name="toolbar" /></template>
+    <template v-if="$slots.batch" #batch><slot name="batch" /></template>
 
     <template #action="{ row }">
       <div class="stack-cell">
