@@ -6067,7 +6067,7 @@
         },
         "responses": {
           "200": {
-            "description": "Audit logs deleted.",
+            "description": "Audit logs deleted, or a matching idempotent replay accepted without deleting records again.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -27919,6 +27919,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",

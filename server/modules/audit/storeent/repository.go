@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,8 @@ type repository struct {
 	localizer       *i18n.Service
 	monitorEvidence moduleapi.MonitorIncidentEvidenceService
 }
+
+var _ auditstore.AuditLogDeleter = (*repository)(nil)
 
 type auditLocaleContextKey struct{}
 
@@ -341,6 +344,9 @@ func (r *repository) DeleteAuditLogsByIDs(
 	if err != nil {
 		return 0, fmt.Errorf("begin audit log deletion: %w", err)
 	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	return executeAuditLogDeletion(ctx, tx, ids, input)
 }
 
@@ -350,37 +356,130 @@ func executeAuditLogDeletion(
 	ids []uint64,
 	input auditstore.AuditLogDeletionInput,
 ) (int64, error) {
-	list, args := auditLogIDQueryArgs(ids)
-	rollback := func(cause error) (int64, error) {
-		_ = tx.Rollback()
-		return 0, cause
+	canonicalIDs, err := canonicalAuditLogIDs(ids)
+	if err != nil {
+		return 0, err
 	}
-	var alreadyApplied int
-	if err := tx.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM audit_logs WHERE metadata ->> 'auditDeletionIdempotencyKey' = $1`, input.IdempotencyKey,
-	).Scan(&alreadyApplied); err != nil {
-		return rollback(fmt.Errorf("check audit deletion idempotency: %w", err))
+	claimed, err := claimAuditDeletionReceipt(ctx, tx, canonicalIDs, input)
+	if err != nil {
+		return 0, err
 	}
-	if alreadyApplied > 0 {
+	if !claimed {
 		if err := tx.Commit(); err != nil {
 			return 0, fmt.Errorf("commit idempotent audit log deletion replay: %w", err)
 		}
 		return 0, nil
 	}
-	if err := validateDeletableAuditLogs(ctx, tx, list, args, len(ids)); err != nil {
-		return rollback(err)
+	list, args := auditLogIDQueryArgs(canonicalIDs)
+	if err := validateDeletableAuditLogs(ctx, tx, list, args, len(canonicalIDs)); err != nil {
+		return 0, err
 	}
-	deleted, err := deleteAuditLogs(ctx, tx, list, args, len(ids))
+	deleted, err := deleteAuditLogs(ctx, tx, list, args, len(canonicalIDs))
 	if err != nil {
-		return rollback(err)
-	}
-	if err := writeAuditDeletionReceipt(ctx, tx, ids, input); err != nil {
-		return rollback(err)
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit audit log deletion: %w", err)
 	}
 	return deleted, nil
+}
+
+func canonicalAuditLogIDs(ids []uint64) ([]uint64, error) {
+	canonical := append([]uint64(nil), ids...)
+	sort.Slice(canonical, func(i, j int) bool { return canonical[i] < canonical[j] })
+	for index, id := range canonical {
+		if id == 0 {
+			return nil, fmt.Errorf("%w: audit log id is required", auditstore.ErrAuditValidation)
+		}
+		if index > 0 && canonical[index-1] == id {
+			return nil, fmt.Errorf("%w: duplicate audit log id", auditstore.ErrAuditValidation)
+		}
+	}
+	return canonical, nil
+}
+
+func claimAuditDeletionReceipt(
+	ctx context.Context,
+	tx *sql.Tx,
+	ids []uint64,
+	input auditstore.AuditLogDeletionInput,
+) (bool, error) {
+	metadata, err := auditDeletionReceiptMetadata(ids, input.IdempotencyKey)
+	if err != nil {
+		return false, err
+	}
+	actorUserID, err := nullableUint64(input.ActorUserID)
+	if err != nil {
+		return false, fmt.Errorf("normalize audit deletion actor: %w", err)
+	}
+	// 唯一表达式索引会让同键 INSERT 等待竞争事务完成；未取得凭证时只能按已提交的 ID 集重放。
+	var receiptID uint64
+	err = tx.QueryRowContext(ctx, `INSERT INTO audit_logs (
+		actor_user_id, actor_username, actor_display_name, action, visibility,
+		resource_type, resource_id, resource_name, success, request_id, metadata, created_at
+	) VALUES ($1, $2, $3, 'audit.logs.batch_deleted', 'visible', 'audit_logs', $4, $5, true, $6, $7, $8)
+	ON CONFLICT ((metadata ->> 'auditDeletionIdempotencyKey'))
+	WHERE action = 'audit.logs.batch_deleted' AND metadata ->> 'auditDeletionIdempotencyKey' IS NOT NULL
+	DO NOTHING
+	RETURNING id`, actorUserID, input.ActorUsername, input.ActorUsername, "batch", fmt.Sprintf("%d audit logs", len(ids)), input.RequestID, metadata, input.DeletedAt.UTC()).Scan(&receiptID)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("claim audit deletion receipt: %w", err)
+	}
+
+	existingIDs, err := readAuditDeletionReceiptIDs(ctx, tx, input.IdempotencyKey)
+	if err != nil {
+		return false, err
+	}
+	if !equalAuditLogIDs(ids, existingIDs) {
+		return false, fmt.Errorf("%w: idempotency key was already used for a different audit log set", auditstore.ErrAuditValidation)
+	}
+	return false, nil
+}
+
+func auditDeletionReceiptMetadata(ids []uint64, idempotencyKey string) ([]byte, error) {
+	metadata, err := json.Marshal(map[string]any{
+		"auditDeletionIdempotencyKey": idempotencyKey,
+		"deletedIds":                  ids,
+		"protected":                   true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode audit deletion receipt: %w", err)
+	}
+	return metadata, nil
+}
+
+func readAuditDeletionReceiptIDs(ctx context.Context, tx *sql.Tx, idempotencyKey string) ([]uint64, error) {
+	var metadata []byte
+	if err := tx.QueryRowContext(ctx, `SELECT metadata FROM audit_logs
+		WHERE action = 'audit.logs.batch_deleted' AND metadata ->> 'auditDeletionIdempotencyKey' = $1`, idempotencyKey).Scan(&metadata); err != nil {
+		return nil, fmt.Errorf("read audit deletion receipt: %w", err)
+	}
+	var receipt struct {
+		DeletedIDs []uint64 `json:"deletedIds"`
+	}
+	if err := json.Unmarshal(metadata, &receipt); err != nil {
+		return nil, fmt.Errorf("decode audit deletion receipt: %w", err)
+	}
+	canonical, err := canonicalAuditLogIDs(receipt.DeletedIDs)
+	if err != nil {
+		return nil, fmt.Errorf("decode audit deletion receipt ids: %w", err)
+	}
+	return canonical, nil
+}
+
+func equalAuditLogIDs(left, right []uint64) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func auditLogIDQueryArgs(ids []uint64) (string, []any) {
@@ -430,30 +529,6 @@ func deleteAuditLogs(ctx context.Context, tx *sql.Tx, list string, args []any, e
 		return 0, fmt.Errorf("audit log deletion affected %d of %d records", deleted, expected)
 	}
 	return deleted, nil
-}
-
-func writeAuditDeletionReceipt(ctx context.Context, tx *sql.Tx, ids []uint64, input auditstore.AuditLogDeletionInput) error {
-	metadata, err := json.Marshal(map[string]any{
-		"auditDeletionIdempotencyKey": input.IdempotencyKey,
-		"deleted_ids":                 ids,
-		"protected":                   true,
-	})
-	if err != nil {
-		return fmt.Errorf("encode audit deletion receipt: %w", err)
-	}
-	actorUserID, err := nullableUint64(input.ActorUserID)
-	if err != nil {
-		return fmt.Errorf("normalize audit deletion actor: %w", err)
-	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO audit_logs (
-		actor_user_id, actor_username, actor_display_name, action, visibility,
-		resource_type, resource_id, resource_name, success, request_id, metadata, created_at
-	) VALUES ($1, $2, $3, 'audit.logs.batch_deleted', 'visible', 'audit_logs', $4, $4, true, $5, $6, $7)`,
-		actorUserID, input.ActorUsername, input.ActorUsername, input.IdempotencyKey, input.RequestID, metadata, input.DeletedAt.UTC())
-	if err != nil {
-		return fmt.Errorf("write audit deletion receipt: %w", err)
-	}
-	return nil
 }
 
 func buildAuditLogOrderBy(query auditstore.ListAuditLogsQuery) string {

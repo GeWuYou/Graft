@@ -14757,7 +14757,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Audit logs deleted. */
+      /** @description Audit logs deleted, or a matching idempotent replay accepted without deleting records again. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

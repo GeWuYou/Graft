@@ -193,6 +193,11 @@ type AuditLogDeletionInput struct {
 	DeletedAt      time.Time
 }
 
+// AuditLogDeleter 定义审计日志手工删除能力；它与常规读写仓储分离，避免破坏性能力扩散到全部仓储替身。
+type AuditLogDeleter interface {
+	DeleteAuditLogsByIDs(ctx context.Context, ids []uint64, input AuditLogDeletionInput) (int64, error)
+}
+
 // AuditCandidate 是写入审计记录前经过来源和字段归一化、等待策略评估的候选事实。
 type AuditCandidate struct {
 	// IdempotencyKey 标识一个可重试事件的稳定投递 ID，供持久化层避免重复写入。
