@@ -82,12 +82,7 @@
         "cancelled": "已取消",
         "unknown": "未知"
       },
-      "actions": {
-        "retry": "重试",
-        "cancel": "取消",
-        "logs": "日志",
-        "details": "详情"
-      },
+      "actions": { "retry": "重试", "cancel": "取消", "logs": "日志", "details": "详情" },
       "error": {
         "title": "无法连接构建服务",
         "unavailable": "构建模块尚未启用或当前环境未配置 Build Service。",
@@ -96,14 +91,26 @@
         "details": "查看详情",
         "detailsDescription": "如需排查，请联系管理员并提供本次请求的 Request ID。"
       },
-      "detail": {
-        "title": "构建任务",
-        "summary": "冻结快照",
-        "artifact": "构建产物",
-        "noArtifact": "尚无已结算产物"
-      },
+      "detail": { "title": "构建任务", "summary": "冻结快照", "artifact": "构建产物", "noArtifact": "尚无已结算产物" },
       "create": {
         "title": "创建构建任务",
+        "eyebrow": "构建",
+        "description": "选择构建来源、执行方式和产物目标，提交后可在构建任务中跟踪进度。",
+        "sections": {
+          "source": {
+            "title": "构建来源",
+            "description": "选择本次构建使用的构建工作区。"
+          },
+          "execution": {
+            "title": "执行配置",
+            "description": "选择构建资源、模板、驱动和目标平台。"
+          },
+          "destination": {
+            "title": "产物发布",
+            "description": "选择已授权的镜像仓库和发布标签。"
+          }
+        },
+        "back": "返回构建任务",
         "submit": "提交构建",
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",

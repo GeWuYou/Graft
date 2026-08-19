@@ -82,12 +82,7 @@
         "cancelled": "Cancelled",
         "unknown": "Unknown"
       },
-      "actions": {
-        "retry": "Retry",
-        "cancel": "Cancel",
-        "logs": "Logs",
-        "details": "Details"
-      },
+      "actions": { "retry": "Retry", "cancel": "Cancel", "logs": "Logs", "details": "Details" },
       "error": {
         "title": "Build Service Not Available",
         "unavailable": "The build module is disabled or no Build Service is configured for this environment.",
@@ -104,6 +99,23 @@
       },
       "create": {
         "title": "Create Build Job",
+        "eyebrow": "Build",
+        "description": "Select the build source, execution strategy, and artifact destination, then track progress from Build Tasks.",
+        "sections": {
+          "source": {
+            "title": "Build source",
+            "description": "Select the authorized workspace for this build."
+          },
+          "execution": {
+            "title": "Execution configuration",
+            "description": "Choose the builder, template, driver, and target platforms."
+          },
+          "destination": {
+            "title": "Artifact publication",
+            "description": "Choose an authorized image repository and publication tag."
+          }
+        },
+        "back": "Back to Build Tasks",
         "submit": "Submit build",
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",

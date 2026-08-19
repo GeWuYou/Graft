@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref } from 'vue';
 
 import { REGISTRY_ROUTE_PATH } from '@/modules/registry/contract/paths';
 
+import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import BuildCreatePage from './index.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -28,10 +29,7 @@ vi.mock('@/shared/localized-api-error', () => ({
 }));
 const testLocale = ref('en-US');
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: testLocale,
-    t: (key: string) => `${testLocale.value}:${key}`,
-  }),
+  useI18n: () => ({ locale: testLocale, t: (key: string) => `${testLocale.value}:${key}` }),
 }));
 
 const WrapperStub = defineComponent({
@@ -43,6 +41,23 @@ const AlertStub = defineComponent({
   props: { message: { type: String, default: '' } },
   setup(props, { slots }) {
     return () => h('div', { 'data-testid': 'alert' }, [props.message, slots.message?.(), slots.operation?.()]);
+  },
+});
+const ManagementPageHeaderStub = defineComponent({
+  name: 'ManagementPageHeader',
+  props: {
+    descriptionKey: { type: String, default: '' },
+    source: { type: Object, default: () => ({}) },
+    titleKey: { type: String, default: '' },
+  },
+  setup(props) {
+    return () =>
+      h('header', {
+        'data-description-key': props.descriptionKey,
+        'data-source-key': (props.source as { labelKey?: string }).labelKey,
+        'data-testid': 'management-page-header',
+        'data-title-key': props.titleKey,
+      });
   },
 });
 const FormStub = defineComponent({
@@ -121,22 +136,13 @@ const RadioGroupStub = defineComponent({
   },
 });
 const CheckboxGroupStub = defineComponent({
-  props: {
-    modelValue: { type: Array, default: () => [] },
-    options: { type: Array, default: () => [] },
-  },
+  props: { modelValue: { type: Array, default: () => [] }, options: { type: Array, default: () => [] } },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     return () =>
       h(
         'div',
-        (
-          props.options as Array<{
-            disabled?: boolean;
-            label: string;
-            value: string;
-          }>
-        ).map((option) =>
+        (props.options as Array<{ disabled?: boolean; label: string; value: string }>).map((option) =>
           h(
             'button',
             {
@@ -169,8 +175,11 @@ function mountPage() {
   return mount(BuildCreatePage, {
     global: {
       stubs: {
+        ManagementPageContent: WrapperStub,
+        ManagementPageHeader: ManagementPageHeaderStub,
         't-alert': AlertStub,
         't-button': ButtonStub,
+        't-card': WrapperStub,
         't-checkbox-group': CheckboxGroupStub,
         't-form': FormStub,
         't-form-item': WrapperStub,
@@ -189,20 +198,10 @@ describe('BuildCreatePage', () => {
     vi.clearAllMocks();
     testLocale.value = 'en-US';
     mocks.push.mockResolvedValue(undefined);
-    mocks.getBuildWorkspaces.mockResolvedValue({
-      items: [{ workspace_id: 'workspace_app', name: 'Application' }],
-    });
-    mocks.getBuildRuntimeTargets.mockResolvedValue({
-      items: [{ target_id: 4, display_name: 'Local Docker' }],
-    });
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [{ workspace_id: 'workspace_app', name: 'Application' }] });
+    mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
     mocks.getBuildBuilderPools.mockResolvedValue({
-      items: [
-        {
-          pool_id: 'pool:default',
-          display_name: 'Default Pool',
-          scheduling_policy: 'round_robin',
-        },
-      ],
+      items: [{ pool_id: 'pool:default', display_name: 'Default Pool', scheduling_policy: 'round_robin' }],
     });
     mocks.getBuildRegistryDestinations.mockResolvedValue({
       items: [
@@ -220,6 +219,26 @@ describe('BuildCreatePage', () => {
         },
       ],
     });
+  });
+
+  it('aligns the shared header and form card on one bounded workflow surface with three ordered sections', () => {
+    const wrapper = mountPage();
+    const pageHeader = wrapper.get('[data-testid="management-page-header"]');
+    const formCard = wrapper.get('[data-testid="build-create-form-card"]');
+
+    expect(wrapper.attributes('data-page-type')).toBe('workflow');
+    expect(pageHeader.attributes()).toMatchObject({
+      'data-description-key': 'build.jobs.create.description',
+      'data-source-key': 'build.jobs.create.eyebrow',
+      'data-title-key': 'build.jobs.create.title',
+    });
+    expect(pageHeader.element.parentElement).toBe(formCard.element.parentElement);
+    expect(pageHeader.classes()).toContain('build-create-page__surface');
+    expect(formCard.classes()).toContain('build-create-page__surface');
+    expect(formCard.find('.build-create-page__form').exists()).toBe(true);
+    expect(
+      wrapper.findAll('[data-testid^="build-create-section-"]').map((section) => section.attributes('data-testid')),
+    ).toEqual(['build-create-section-source', 'build-create-section-execution', 'build-create-section-destination']);
   });
 
   it('loads selector options through the Build-owned read boundary', async () => {
@@ -263,36 +282,12 @@ describe('BuildCreatePage', () => {
   it('projects every server-authorized Pool policy beside its display name', async () => {
     mocks.getBuildBuilderPools.mockResolvedValue({
       items: [
-        {
-          pool_id: 'pool:manual',
-          display_name: 'Manual Pool',
-          scheduling_policy: 'manual',
-        },
-        {
-          pool_id: 'pool:round-robin',
-          display_name: 'Round Robin Pool',
-          scheduling_policy: 'round_robin',
-        },
-        {
-          pool_id: 'pool:random',
-          display_name: 'Random Pool',
-          scheduling_policy: 'random',
-        },
-        {
-          pool_id: 'pool:least-load',
-          display_name: 'Least Load Pool',
-          scheduling_policy: 'least_load',
-        },
-        {
-          pool_id: 'pool:capacity',
-          display_name: 'Capacity Pool',
-          scheduling_policy: 'capacity',
-        },
-        {
-          pool_id: 'pool:affinity',
-          display_name: 'Affinity Pool',
-          scheduling_policy: 'affinity',
-        },
+        { pool_id: 'pool:manual', display_name: 'Manual Pool', scheduling_policy: 'manual' },
+        { pool_id: 'pool:round-robin', display_name: 'Round Robin Pool', scheduling_policy: 'round_robin' },
+        { pool_id: 'pool:random', display_name: 'Random Pool', scheduling_policy: 'random' },
+        { pool_id: 'pool:least-load', display_name: 'Least Load Pool', scheduling_policy: 'least_load' },
+        { pool_id: 'pool:capacity', display_name: 'Capacity Pool', scheduling_policy: 'capacity' },
+        { pool_id: 'pool:affinity', display_name: 'Affinity Pool', scheduling_policy: 'affinity' },
       ],
     });
     const wrapper = mountPage();
@@ -345,11 +340,7 @@ describe('BuildCreatePage', () => {
     await nextTick();
 
     expect(
-      (
-        JSON.parse(select.attributes('data-options') ?? '[]') as Array<{
-          label: string;
-        }>
-      ).map(({ label }) => label),
+      (JSON.parse(select.attributes('data-options') ?? '[]') as Array<{ label: string }>).map(({ label }) => label),
     ).toEqual([
       'Manual Pool (zh-CN:build.jobs.create.builderPoolPolicy.manual)',
       'Round Robin Pool (zh-CN:build.jobs.create.builderPoolPolicy.roundRobin)',
@@ -515,5 +506,16 @@ describe('BuildCreatePage', () => {
       ?.trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith(REGISTRY_ROUTE_PATH.LIST);
+  });
+
+  it('returns to the Build Tasks list from the secondary action', async () => {
+    const wrapper = mountPage();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('build.jobs.create.back'))
+      ?.trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith(BUILD_ROUTE_PATH.JOBS);
   });
 });
