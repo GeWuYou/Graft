@@ -9,7 +9,7 @@ import AuditTable from './AuditTable.vue';
 const ManagementPagedTableStub = defineComponent({
   name: 'ManagementPagedTableStub',
   props: ['cardsVisible', 'columns', 'presentation', 'rows'],
-  emits: ['row-click'],
+  emits: ['row-click', 'select-change'],
   setup(props, { emit, slots }) {
     return () => {
       const row = props.rows?.[0] ?? auditRow();
@@ -23,6 +23,11 @@ const ManagementPagedTableStub = defineComponent({
           ),
         ),
         h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', row) }, 'open'),
+        h(
+          'button',
+          { 'data-testid': 'select-change', onClick: () => emit('select-change', [row.id, row.id, 99]) },
+          'select',
+        ),
         h('div', { 'data-testid': 'action-slot' }, slots.action?.({ row })),
         h('div', { 'data-testid': 'resource-slot' }, slots.resource?.({ row })),
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
@@ -181,6 +186,15 @@ describe('AuditTable', () => {
     expect(deletable.find('.audit-log-card__select').exists()).toBe(true);
   });
 
+  it('emits only deduplicated current-page row keys from table selection', async () => {
+    const wrapper = mountTable();
+    await wrapper.setProps({ canDelete: true, selectedRowKeys: [99, 1] });
+
+    await wrapper.get('[data-testid="select-change"]').trigger('click');
+
+    expect(wrapper.emitted('select-change')).toEqual([[[1]]]);
+  });
+
   it('emits non-destructive related log and raw JSON actions from the action menu', async () => {
     const wrapper = mountTable();
 
@@ -240,5 +254,17 @@ describe('AuditTable', () => {
 
     await card.trigger('keydown.enter');
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1 });
+  });
+
+  it('keeps checkbox and action-menu keyboard events from opening the card detail', async () => {
+    const wrapper = mountTable();
+    await wrapper.setProps({ canDelete: true });
+
+    await wrapper.get('.audit-log-card__select').trigger('keydown.space');
+    await wrapper.get('.audit-log-card__select').trigger('keydown.enter');
+    await wrapper.get('.audit-log-card__actions [data-testid="detail-action"]').trigger('keydown.space');
+    await wrapper.get('.audit-log-card__actions [data-testid="detail-action"]').trigger('keydown.enter');
+
+    expect(wrapper.emitted('detail')).toBeUndefined();
   });
 });

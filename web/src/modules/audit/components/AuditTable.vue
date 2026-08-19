@@ -18,7 +18,7 @@
     :total="total"
     @page-change="emitPageChange"
     @row-click="handleRowClick"
-    @select-change="(rowKeys) => emit('select-change', rowKeys)"
+    @select-change="handleTableSelectChange"
   >
     <template #head>
       <div class="table-head">
@@ -106,6 +106,8 @@
           class="audit-log-card__select"
           :checked="selectedRowKeys.some((key) => Number(key) === row.id)"
           @click.stop
+          @keydown.enter.stop
+          @keydown.space.stop
           @change="toggleCardSelection(row, $event)"
         />
         <div class="audit-log-card__header">
@@ -126,7 +128,7 @@
             v-bind="technicalCopyLabels"
           />
         </div>
-        <div class="audit-log-card__actions" @click.stop>
+        <div class="audit-log-card__actions" @click.stop @keydown.enter.stop @keydown.space.stop>
           <table-action-menu
             :actions="rowActions(row)"
             :more-label="t('audit.logList.more')"
@@ -173,6 +175,7 @@ import {
 import { copyAuditRequestId } from '../shared/request-id-copy';
 import type { AuditLogListItem } from '../types/audit';
 
+// 审计表格负责当前页的展示与交互，跨页选择集合由日志页面统一持有和合并。
 type AuditRowAction = {
   fallbackLabel: string;
   label: string;
@@ -237,10 +240,20 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
 });
 function toggleCardSelection(row: AuditLogListItem, value: boolean | { checked?: boolean }) {
   const checked = typeof value === 'boolean' ? value : value.checked === true;
-  const next = checked
-    ? Array.from(new Set([...selectedRowKeys.value, row.id]))
-    : selectedRowKeys.value.filter((key) => Number(key) !== row.id);
-  emit('select-change', next);
+  const next = new Set(currentPageSelection(selectedRowKeys.value));
+  if (checked) {
+    next.add(row.id);
+  } else {
+    next.delete(row.id);
+  }
+  emit('select-change', [...next]);
+}
+function currentPageSelection(rowKeys: Array<string | number>) {
+  const pageIds = new Set(props.rows.map((row) => row.id));
+  return [...new Set(rowKeys.map(Number).filter((rowId) => pageIds.has(rowId)))];
+}
+function handleTableSelectChange(rowKeys: Array<string | number>) {
+  emit('select-change', currentPageSelection(rowKeys));
 }
 function emitPageChange() {
   emit('page-change');

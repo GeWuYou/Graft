@@ -706,8 +706,9 @@ async function fetchAuditLogs() {
 
 function handleSelectChange(rowKeys: Array<string | number>) {
   const pageIds = new Set(rows.value.map((row) => row.id));
-  const preserved = selectedRowKeys.value.filter((key) => !pageIds.has(Number(key)));
-  selectedRowKeys.value = [...preserved, ...rowKeys];
+  const preserved = selectedRowKeys.value.map(Number).filter((key) => !pageIds.has(key));
+  const currentPageKeys = rowKeys.map(Number).filter((key) => pageIds.has(key));
+  selectedRowKeys.value = [...new Set([...preserved, ...currentPageKeys])];
 }
 
 function clearSelection() {
@@ -715,17 +716,12 @@ function clearSelection() {
 }
 
 function selectCurrentPage() {
-  handleSelectChange([...selectedRowKeys.value, ...rows.value.map((row) => row.id)]);
+  handleSelectChange(rows.value.map((row) => row.id));
 }
 
 function invertCurrentPage() {
-  const pageIds = new Set(rows.value.map((row) => row.id));
-  const selected = new Set(selectedRowKeys.value);
-  const next = selectedRowKeys.value.filter((key) => !pageIds.has(Number(key)));
-  rows.value.forEach((row) => {
-    if (!selected.has(row.id)) next.push(row.id);
-  });
-  selectedRowKeys.value = next;
+  const selected = new Set(selectedRowKeys.value.map(Number));
+  handleSelectChange(rows.value.filter((row) => !selected.has(row.id)).map((row) => row.id));
 }
 
 function createAuditDeleteIdempotencyKey() {

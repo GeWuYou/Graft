@@ -205,9 +205,10 @@ vi.mock('../../components/AuditFilters.vue', () => ({
 vi.mock('../../components/AuditTable.vue', () => ({
   default: defineComponent({
     name: 'AuditTableStub',
-    props: ['rows', 'summary', 'footerSummary'],
+    props: ['rows', 'summary', 'footerSummary', 'selectedRowKeys'],
     emits: [
       'detail',
+      'select-change',
       'update:current',
       'update:pageSize',
       'page-change',
@@ -215,12 +216,22 @@ vi.mock('../../components/AuditTable.vue', () => ({
       'view-app-log',
       'view-security-event',
     ],
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
       return () =>
         h('div', [
           props.summary,
           props.footerSummary,
           h('span', JSON.stringify(props.rows)),
+          h('span', { 'data-testid': 'audit-selected-row-keys' }, JSON.stringify(props.selectedRowKeys ?? [])),
+          h(
+            'button',
+            {
+              'data-testid': 'audit-select-current-row',
+              onClick: () => emit('select-change', [props.rows?.[0]?.id, props.rows?.[0]?.id, 99]),
+            },
+            'select-current-row',
+          ),
+          h('button', { 'data-testid': 'audit-page-change', onClick: () => emit('page-change') }, 'page-change'),
           h('button', { 'data-testid': 'audit-detail', onClick: () => emit('detail', props.rows?.[0]) }, 'detail'),
           h(
             'button',
@@ -240,10 +251,24 @@ vi.mock('../../components/AuditTable.vue', () => ({
             },
             'security-event',
           ),
+          slots.batch?.(),
         ]);
     },
   }),
 }));
+
+const managementBatchBarStub = defineComponent({
+  name: 'ManagementBatchBarStub',
+  emits: ['select-current-page'],
+  setup(_, { emit }) {
+    return () =>
+      h(
+        'button',
+        { 'data-testid': 'audit-select-current-page', onClick: () => emit('select-current-page') },
+        'select-current-page',
+      );
+  },
+});
 
 vi.mock('../../components/AuditDetailDrawer.vue', () => ({
   default: defineComponent({
@@ -412,6 +437,11 @@ const auditMessages: Record<string, string> = {
   'audit.logList.columns.ip': 'IP',
   'audit.logList.columns.result': 'Result',
   'audit.logList.columns.risk': 'Risk',
+  'audit.logList.batch.actions': 'Batch actions',
+  'audit.logList.batch.clear': 'Clear selection',
+  'audit.logList.batch.invertCurrentPage': 'Invert current page',
+  'audit.logList.batch.selectCurrentPage': 'Select current page',
+  'audit.logList.batch.selected': '{count} selected',
   'audit.logList.presets.all': 'All',
   'audit.logList.presets.securityEvents': 'Security Events',
   'audit.logList.presets.failedOperations': 'Failed Operations',
@@ -652,6 +682,7 @@ describe('AuditLogsPage', () => {
           'management-empty-state': passthroughStub,
           'management-page-content': passthroughStub,
           'management-page-header': passthroughStub,
+          ManagementBatchBar: managementBatchBarStub,
           't-button': buttonStub,
           't-checkbox': checkboxStub,
           't-checkbox-group': checkboxGroupStub,
@@ -826,6 +857,25 @@ describe('AuditLogsPage', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('keeps cross-page selection unique when selecting the next current page', async () => {
+    const { wrapper } = await mountPage();
+
+    await wrapper.get('[data-testid="audit-select-current-row"]').trigger('click');
+    expect(wrapper.get('[data-testid="audit-selected-row-keys"]').text()).toBe('[1]');
+
+    getAuditLogsMock.mockResolvedValueOnce(
+      createAuditLogsResponse({
+        items: [{ ...createAuditLogsResponse().items[0], id: 2 }],
+        page: 2,
+      }),
+    );
+    await wrapper.get('[data-testid="audit-page-change"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="audit-select-current-page"]').trigger('click');
+
+    expect(wrapper.get('[data-testid="audit-selected-row-keys"]').text()).toBe('[1,2]');
   });
 
   it('prefers frontend locale mapping over backend policy catalog display text when a source-action key exists', async () => {

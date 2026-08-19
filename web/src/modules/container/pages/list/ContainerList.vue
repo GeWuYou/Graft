@@ -106,17 +106,9 @@ function toggleCardSelection(rowID: string, checked: boolean) {
   min-width: 0;
 }
 
-.container-list__cards > :last-child {
-  justify-self: end;
-}
-
 @container (width >= 768px) {
   .container-list__cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .container-list__cards > :last-child {
-    grid-column: 1 / -1;
   }
 }
 </style>
