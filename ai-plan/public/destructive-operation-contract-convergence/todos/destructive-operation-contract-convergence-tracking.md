@@ -48,15 +48,16 @@ closeout:
 ## Current Recovery Point
 
 - Startup, authority discovery, and idle worktree acquisition are complete.
-- Contract-foundation and the user soft-delete pilot are complete and fully validated.
+- Contract-foundation, the user soft-delete pilot, and relationship/RBAC convergence are complete and fully validated.
 - Existing operations remain unannotated until their behavior is migrated; full inventory coverage becomes blocking in the convergence-closeout batch.
-- The next owned batch is relationship removal plus atomic RBAC security batches.
+- RBAC relationship removals use canonical DELETE operations without aliases; atomic security batches return the shared ordered result contract and reject empty, duplicate, or over-100-item requests.
+- The next owned batch is audit and app-log hard-delete commands with persistent idempotency receipts.
 
 ## Task Checklist
 
 - [x] `contract-foundation`
 - [x] `soft-delete-pilot`
-- [ ] `relationship-and-rbac`
+- [x] `relationship-and-rbac`
 - [ ] `hard-delete-commands`
 - [ ] `external-destruction-tasks`
 - [ ] `convergence-closeout`
@@ -77,16 +78,16 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "contract-foundation",
-    "soft-delete-pilot"
+    "soft-delete-pilot",
+    "relationship-and-rbac"
   ],
   "pending_batches": [
-    "relationship-and-rbac",
     "hard-delete-commands",
     "external-destruction-tasks",
     "convergence-closeout"
   ],
-  "current_batch": "relationship-and-rbac",
-  "next_batch": "hard-delete-commands",
+  "current_batch": "hard-delete-commands",
+  "next_batch": "external-destruction-tasks",
   "closeout_status": "batch-validated"
 }
 ```

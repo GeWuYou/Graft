@@ -28,6 +28,20 @@
 - Ordinary resource batches may partially commit; security-sensitive batches are atomic.
 - Metadata must describe implemented behavior, never a future target presented as current truth.
 
+## 2026-08-19 Relationship And RBAC Closeout
+
+- Replaced RBAC relationship-removal action paths with canonical `DELETE` operations for role permissions, one user's roles, and multi-user roles; legacy action paths were removed without aliases.
+- Kept atomicity, authorization, audit, and persistence in the RBAC service/store boundary while the HTTP layer performs bounded validation and maps ordered shared results.
+- Returned the shared `operation_id + summary + results` envelope for role/permission and user-role atomic batches; results preserve request order and the runtime rejects empty, duplicate, or over-100-item requests.
+- Added truthful `x-graft-destructive` metadata only to the migrated relationship-removal operations and fixed external-schema reference normalization in the validator without weakening the shared per-item conditional contract.
+- Regenerated OpenAPI bundle, Go bindings, TypeScript schemas, runtime paths, and embedded server docs; updated server/web contract tests and freshness checks.
+- Completion evidence:
+  - `go run ./cmd/graft validate backend`: passed
+  - `bun run check`: passed; 306 test files and 2140 tests passed, release build succeeded
+  - focused RBAC server and web API tests: passed
+  - canonical OpenAPI validation and generated freshness checks: passed
+- Semantic review outcome: OpenAPI remains wire authority, RBAC remains atomic domain authority, no compatibility bridge or generic destructive service was introduced, and redundant handler wrappers were deleted instead of exempted from lint.
+
 ## Loop Batch State
 
 ```json
@@ -35,16 +49,16 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "contract-foundation",
-    "soft-delete-pilot"
+    "soft-delete-pilot",
+    "relationship-and-rbac"
   ],
   "pending_batches": [
-    "relationship-and-rbac",
     "hard-delete-commands",
     "external-destruction-tasks",
     "convergence-closeout"
   ],
-  "current_batch": "relationship-and-rbac",
-  "next_batch": "hard-delete-commands",
+  "current_batch": "hard-delete-commands",
+  "next_batch": "external-destruction-tasks",
   "closeout_status": "batch-validated"
 }
 ```

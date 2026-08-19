@@ -51,10 +51,10 @@ func (h rbacWriteGeneratedHandler) PostRolePermissionsAdd(
 	_ = body
 }
 
-func (h rbacWriteGeneratedHandler) PostRolePermissionsRemove(
+func (h rbacWriteGeneratedHandler) DeleteRolePermissions(
 	id uint64,
-	params rbacopenapi.PostRolePermissionsRemoveParams,
-	body rbacopenapi.PostRolePermissionsRemoveJSONRequestBody,
+	params rbacopenapi.DeleteRolePermissionsParams,
+	body rbacopenapi.DeleteRolePermissionsJSONRequestBody,
 ) {
 	_ = h
 	_ = id
@@ -95,10 +95,10 @@ func (h rbacWriteGeneratedHandler) PostUserRolesAdd(
 	_ = body
 }
 
-func (h rbacWriteGeneratedHandler) PostUserRolesRemove(
+func (h rbacWriteGeneratedHandler) DeleteUserRoles(
 	id uint64,
-	params rbacopenapi.PostUserRolesRemoveParams,
-	body rbacopenapi.PostUserRolesRemoveJSONRequestBody,
+	params rbacopenapi.DeleteUserRolesParams,
+	body rbacopenapi.DeleteUserRolesJSONRequestBody,
 ) {
 	_ = h
 	_ = id
@@ -126,9 +126,9 @@ func (h rbacWriteGeneratedHandler) PostUsersRolesAdd(
 	_ = body
 }
 
-func (h rbacWriteGeneratedHandler) PostUsersRolesRemove(
-	params rbacopenapi.PostUsersRolesRemoveParams,
-	body rbacopenapi.PostUsersRolesRemoveJSONRequestBody,
+func (h rbacWriteGeneratedHandler) DeleteUsersRoles(
+	params rbacopenapi.DeleteUsersRolesParams,
+	body rbacopenapi.DeleteUsersRolesJSONRequestBody,
 ) {
 	_ = h
 	_ = params
@@ -181,9 +181,9 @@ func bindGeneratedRolePermissionAddParams(ginCtx *gin.Context) rbacopenapi.PostR
 
 // bindGeneratedRolePermissionRemoveParams 从请求头构造角色权限移除接口的参数。
 // 它填充 `XGraftLocale` 和 `XRequestId`。
-func bindGeneratedRolePermissionRemoveParams(ginCtx *gin.Context) rbacopenapi.PostRolePermissionsRemoveParams {
+func bindGeneratedRolePermissionRemoveParams(ginCtx *gin.Context) rbacopenapi.DeleteRolePermissionsParams {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.PostRolePermissionsRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+	return rbacopenapi.DeleteRolePermissionsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGeneratedRoleStatusParams 从请求头构造角色状态接口的参数。
@@ -210,9 +210,9 @@ func bindGeneratedUserRoleAddParams(ginCtx *gin.Context) rbacopenapi.PostUserRol
 
 // bindGeneratedUserRoleRemoveParams 构造移除用户角色请求的参数。
 // 它会填充通用请求头中的 `XGraftLocale` 和 `XRequestId`。
-func bindGeneratedUserRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.PostUserRolesRemoveParams {
+func bindGeneratedUserRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.DeleteUserRolesParams {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.PostUserRolesRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+	return rbacopenapi.DeleteUserRolesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGeneratedUsersRoleReplaceParams 构造批量用户角色替换接口的请求参数。
@@ -231,7 +231,7 @@ func bindGeneratedUsersRoleAddParams(ginCtx *gin.Context) rbacopenapi.PostUsersR
 
 // bindGeneratedUsersRoleRemoveParams 生成批量移除用户角色所需的请求参数。
 // 它会从请求头中读取通用信息并填充到 OpenAPI 参数结构体中。
-func bindGeneratedUsersRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.PostUsersRolesRemoveParams {
+func bindGeneratedUsersRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.DeleteUsersRolesParams {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.PostUsersRolesRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+	return rbacopenapi.DeleteUsersRolesParams{XGraftLocale: locale, XRequestId: requestID}
 }

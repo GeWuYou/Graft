@@ -8,18 +8,18 @@ This package is intentionally limited to a guarded RBAC management migration bat
 - `getRoles`
 - `getRolePermissions`
 - `postRoleDelete`
+- `deleteRolePermissions`
 - `postRolePermissionsAdd`
-- `postRolePermissionsRemove`
 - `postRolePermissionsReplace`
 - `postRoleStatus`
 - `postRoleUpdate`
 - `postRoles`
 - `getUserRoles`
+- `deleteUserRoles`
 - `postUserRolesAdd`
-- `postUserRolesRemove`
 - `postUserRolesReplace`
+- `deleteUsersRoles`
 - `postUsersRolesAdd`
-- `postUsersRolesRemove`
 - `postUsersRolesReplace`
 
 The generated layer constrains header semantics, request-body shape, and the handler-facing method signatures without

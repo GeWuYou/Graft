@@ -9,8 +9,8 @@
 - Canonical authority:
   - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
   - `openapi/openapi.yaml`
-- Completed so far: contract foundation and the user soft-delete pilot, including generated server/web consumers and completion validation.
-- Remaining: relationship/RBAC convergence, hard-delete commands, external Task destruction, and full inventory closeout.
+- Completed so far: contract foundation, the user soft-delete pilot, and relationship/RBAC convergence, including generated server/web consumers and completion validation.
+- Remaining: hard-delete commands, external Task destruction, and full inventory closeout.
 
 ## Recovery Receipt
 
@@ -51,10 +51,11 @@ Out of scope:
 
 ## Current Recovery Point
 
-- `contract-foundation` and `soft-delete-pilot` are complete in worktree `01` on `refactor/unified-destructive-operations`.
+- `contract-foundation`, `soft-delete-pilot`, and `relationship-and-rbac` are complete in worktree `01` on `refactor/unified-destructive-operations`.
 - Existing operations are not annotated until their runtime behavior matches the metadata; the first gate validates truthful annotations instead of publishing target semantics as current behavior.
 - User deletion now uses `DELETE /api/users/{id}`: first delete and same-scope tombstone retry return 204, while normal detail/list reads continue to hide the tombstone.
-- Next step: inventory relationship removals and RBAC security-sensitive batches, then migrate them to DELETE plus atomic shared batch contracts.
+- RBAC relationship removals now use canonical `DELETE` collection operations without aliases; atomic role/permission/user-role batches return the shared ordered result contract and reject empty, duplicate, or over-100-item requests.
+- Next step: migrate audit and app-log irreversible deletion to `POST .../deletions` commands backed by persistent idempotency receipts.
 
 ## Work Intake
 
@@ -63,8 +64,8 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- migrate relationship removals to canonical DELETE operations without aliases
-- make role, permission, and access-binding batches atomic and return the shared destructive batch result where a success body is required
+- inventory audit and app-log hard-delete paths from canonical OpenAPI through persistence and web consumers
+- migrate irreversible deletion to `POST .../deletions` commands with persistent idempotency receipts and no legacy aliases
 
 ## Validation Targets
 

@@ -18,15 +18,15 @@ type UserRoleServerInterface interface {
 type WriteServerInterface interface {
 	PostRoleDelete(id uint64, params PostRoleDeleteParams)
 	PostRolePermissionsAdd(id uint64, params PostRolePermissionsAddParams, body PostRolePermissionsAddJSONRequestBody)
-	PostRolePermissionsRemove(id uint64, params PostRolePermissionsRemoveParams, body PostRolePermissionsRemoveJSONRequestBody)
+	DeleteRolePermissions(id uint64, params DeleteRolePermissionsParams, body DeleteRolePermissionsJSONRequestBody)
 	PostRolePermissionsReplace(id uint64, params PostRolePermissionsReplaceParams, body PostRolePermissionsReplaceJSONRequestBody)
 	PostRoles(params PostRolesParams, body PostRolesJSONRequestBody)
 	PostRoleStatus(id uint64, params PostRoleStatusParams, body PostRoleStatusJSONRequestBody)
 	PostRoleUpdate(id uint64, params PostRoleUpdateParams, body PostRoleUpdateJSONRequestBody)
 	PostUserRolesAdd(id uint64, params PostUserRolesAddParams, body PostUserRolesAddJSONRequestBody)
-	PostUserRolesRemove(id uint64, params PostUserRolesRemoveParams, body PostUserRolesRemoveJSONRequestBody)
+	DeleteUserRoles(id uint64, params DeleteUserRolesParams, body DeleteUserRolesJSONRequestBody)
 	PostUserRolesReplace(id uint64, params PostUserRolesReplaceParams, body PostUserRolesReplaceJSONRequestBody)
 	PostUsersRolesAdd(params PostUsersRolesAddParams, body PostUsersRolesAddJSONRequestBody)
-	PostUsersRolesRemove(params PostUsersRolesRemoveParams, body PostUsersRolesRemoveJSONRequestBody)
+	DeleteUsersRoles(params DeleteUsersRolesParams, body DeleteUsersRolesJSONRequestBody)
 	PostUsersRolesReplace(params PostUsersRolesReplaceParams, body PostUsersRolesReplaceJSONRequestBody)
 }

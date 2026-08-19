@@ -8465,6 +8465,12 @@ type AuditVisibilityPolicyResponse struct {
 	Overrides []AuditVisibilityOverrideResponse `json:"overrides"`
 }
 
+// BatchRemoveUserRolesRequest defines model for batch-remove-user-roles-request.
+type BatchRemoveUserRolesRequest struct {
+	RoleIds []int64 `json:"role_ids"`
+	UserIds []int64 `json:"user_ids"`
+}
+
 // BatchUserRolesRequest defines model for batch-user-roles-request.
 type BatchUserRolesRequest struct {
 	RoleIds []int64 `json:"role_ids"`
@@ -9646,6 +9652,25 @@ type DashboardWidgetStatus string
 
 // DashboardWidgetType defines model for dashboard-widget-type.
 type DashboardWidgetType string
+
+// DestructiveBatchResult Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.
+type DestructiveBatchResult struct {
+	OperationId string                       `json:"operation_id"`
+	Results     []DestructiveBatchResultItem `json:"results"`
+
+	// Summary Counts for one bounded synchronous destructive batch operation.
+	Summary DestructiveBatchResultSummary `json:"summary"`
+}
+
+// DestructiveBatchResultItem defines model for destructive-batch-result-item.
+type DestructiveBatchResultItem = interface{}
+
+// DestructiveBatchResultSummary Counts for one bounded synchronous destructive batch operation.
+type DestructiveBatchResultSummary struct {
+	Failed    int `json:"failed"`
+	Requested int `json:"requested"`
+	Succeeded int `json:"succeeded"`
+}
 
 // DockerImage defines model for docker-image.
 type DockerImage struct {
@@ -11259,6 +11284,28 @@ type EnvelopedDashboardWidget struct {
 	// Code Existing canonical response code.
 	Code string          `json:"code"`
 	Data DashboardWidget `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDestructiveBatchResult defines model for enveloped-destructive-batch-result.
+type EnvelopedDestructiveBatchResult struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.
+	Data DestructiveBatchResult `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -14126,6 +14173,16 @@ type RegistryRepositoryAssignmentCandidateListResponse struct {
 
 // RegistryVerificationResult Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization.
 type RegistryVerificationResult string
+
+// RemoveRolePermissionsRequest defines model for remove-role-permissions-request.
+type RemoveRolePermissionsRequest struct {
+	PermissionIds []int64 `json:"permission_ids"`
+}
+
+// RemoveUserRolesRequest defines model for remove-user-roles-request.
+type RemoveUserRolesRequest struct {
+	RoleIds []int64 `json:"role_ids"`
+}
 
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {
@@ -18608,6 +18665,16 @@ type PostRoleDeleteParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// DeleteRolePermissionsParams defines parameters for DeleteRolePermissions.
+type DeleteRolePermissionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetRolePermissionsParams defines parameters for GetRolePermissions.
 type GetRolePermissionsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -18620,16 +18687,6 @@ type GetRolePermissionsParams struct {
 
 // PostRolePermissionsAddParams defines parameters for PostRolePermissionsAdd.
 type PostRolePermissionsAddParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostRolePermissionsRemoveParams defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19150,8 +19207,8 @@ type PostUsersParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUsersRolesAddParams defines parameters for PostUsersRolesAdd.
-type PostUsersRolesAddParams struct {
+// DeleteUsersRolesParams defines parameters for DeleteUsersRoles.
+type DeleteUsersRolesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19160,8 +19217,8 @@ type PostUsersRolesAddParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUsersRolesRemoveParams defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemoveParams struct {
+// PostUsersRolesAddParams defines parameters for PostUsersRolesAdd.
+type PostUsersRolesAddParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19250,6 +19307,16 @@ type PostUserResetPasswordParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// DeleteUserRolesParams defines parameters for DeleteUserRoles.
+type DeleteUserRolesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetUserRolesParams defines parameters for GetUserRoles.
 type GetUserRolesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -19262,16 +19329,6 @@ type GetUserRolesParams struct {
 
 // PostUserRolesAddParams defines parameters for PostUserRolesAdd.
 type PostUserRolesAddParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostUserRolesRemoveParams defines parameters for PostUserRolesRemove.
-type PostUserRolesRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19639,11 +19696,11 @@ type PutRoleSavedViewJSONRequestBody = SavedViewRequest
 // PostRoleCloneJSONRequestBody defines body for PostRoleClone for application/json ContentType.
 type PostRoleCloneJSONRequestBody = CloneRoleRequest
 
+// DeleteRolePermissionsJSONRequestBody defines body for DeleteRolePermissions for application/json ContentType.
+type DeleteRolePermissionsJSONRequestBody = RemoveRolePermissionsRequest
+
 // PostRolePermissionsAddJSONRequestBody defines body for PostRolePermissionsAdd for application/json ContentType.
 type PostRolePermissionsAddJSONRequestBody = ReplaceRolePermissionsRequest
-
-// PostRolePermissionsRemoveJSONRequestBody defines body for PostRolePermissionsRemove for application/json ContentType.
-type PostRolePermissionsRemoveJSONRequestBody = ReplaceRolePermissionsRequest
 
 // PostRolePermissionsReplaceJSONRequestBody defines body for PostRolePermissionsReplace for application/json ContentType.
 type PostRolePermissionsReplaceJSONRequestBody = ReplaceRolePermissionsRequest
@@ -19690,11 +19747,11 @@ type PutSystemConfigJSONRequestBody = UpdateSystemConfigRequest
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
 
+// DeleteUsersRolesJSONRequestBody defines body for DeleteUsersRoles for application/json ContentType.
+type DeleteUsersRolesJSONRequestBody = BatchRemoveUserRolesRequest
+
 // PostUsersRolesAddJSONRequestBody defines body for PostUsersRolesAdd for application/json ContentType.
 type PostUsersRolesAddJSONRequestBody = BatchUserRolesRequest
-
-// PostUsersRolesRemoveJSONRequestBody defines body for PostUsersRolesRemove for application/json ContentType.
-type PostUsersRolesRemoveJSONRequestBody = BatchUserRolesRequest
 
 // PostUsersRolesReplaceJSONRequestBody defines body for PostUsersRolesReplace for application/json ContentType.
 type PostUsersRolesReplaceJSONRequestBody = BatchUserRolesRequest
@@ -19708,11 +19765,11 @@ type PutUserSavedViewJSONRequestBody = SavedViewRequest
 // PostUserResetPasswordJSONRequestBody defines body for PostUserResetPassword for application/json ContentType.
 type PostUserResetPasswordJSONRequestBody = ResetUserPasswordRequest
 
+// DeleteUserRolesJSONRequestBody defines body for DeleteUserRoles for application/json ContentType.
+type DeleteUserRolesJSONRequestBody = RemoveUserRolesRequest
+
 // PostUserRolesAddJSONRequestBody defines body for PostUserRolesAdd for application/json ContentType.
 type PostUserRolesAddJSONRequestBody = ReplaceUserRolesRequest
-
-// PostUserRolesRemoveJSONRequestBody defines body for PostUserRolesRemove for application/json ContentType.
-type PostUserRolesRemoveJSONRequestBody = ReplaceUserRolesRequest
 
 // PostUserRolesReplaceJSONRequestBody defines body for PostUserRolesReplace for application/json ContentType.
 type PostUserRolesReplaceJSONRequestBody = ReplaceUserRolesRequest

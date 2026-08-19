@@ -37,7 +37,7 @@ func registerRoleWriteRoutes(
 	group.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, func(ginCtx *gin.Context) { handleDeleteRoleRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleReplaceRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleAddRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
+	group.DELETE(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
 }
 
 func handleCloneRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {

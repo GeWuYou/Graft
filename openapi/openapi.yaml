@@ -147,8 +147,6 @@ paths:
     $ref: ./paths/roles.permissions.replace.yaml
   /api/roles/{id}/permissions/add:
     $ref: ./paths/roles.permissions.add.yaml
-  /api/roles/{id}/permissions/remove:
-    $ref: ./paths/roles.permissions.remove.yaml
   /api/roles/{id}/clone:
     $ref: ./paths/roles.clone.yaml
   /api/roles/{id}/update:
@@ -171,14 +169,12 @@ paths:
     $ref: ./paths/users.roles.replace.yaml
   /api/users/{id}/roles/add:
     $ref: ./paths/users.roles.add.yaml
-  /api/users/{id}/roles/remove:
-    $ref: ./paths/users.roles.remove.yaml
+  /api/users/roles:
+    $ref: ./paths/users.roles.batch.yaml
   /api/users/roles/replace:
     $ref: ./paths/users.roles.batch.replace.yaml
   /api/users/roles/add:
     $ref: ./paths/users.roles.batch.add.yaml
-  /api/users/roles/remove:
-    $ref: ./paths/users.roles.batch.remove.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
   /api/audit/logs/batch-delete:

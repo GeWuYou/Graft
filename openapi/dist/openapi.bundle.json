@@ -3864,6 +3864,130 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role permissions",
+        "operationId": "deleteRolePermissions",
+        "description": "Removes the provided stable permission ids from the target role in one atomic transaction. All permission ids are validated before the write; validation failure returns an error envelope and commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/remove-role-permissions-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions were removed atomically.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role or permission not found; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/roles/{id}/permissions/replace": {
@@ -4009,105 +4133,6 @@
         "responses": {
           "200": {
             "description": "Role permissions added.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request payload.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Role or permission not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/roles/{id}/permissions/remove": {
-      "post": {
-        "tags": [
-          "rbac"
-        ],
-        "summary": "Remove role permissions",
-        "operationId": "postRolePermissionsRemove",
-        "description": "Removes the provided stable permission ids from the target role.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/replace-role-permissions-request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Role permissions removed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5087,6 +5112,145 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role bindings for one user",
+        "operationId": "deleteUserRoles",
+        "description": "Removes the supplied role ids from the target user in one atomic transaction. All role ids and protected-account invariants are validated before the write; validation failure commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/remove-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User role bindings were removed atomically.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id or role id set; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/users/{id}/roles/replace": {
@@ -5317,30 +5481,47 @@
         }
       }
     },
-    "/api/users/{id}/roles/remove": {
-      "post": {
+    "/api/users/roles": {
+      "delete": {
         "tags": [
           "rbac"
         ],
-        "summary": "Remove role bindings for one user",
-        "operationId": "postUserRolesRemove",
-        "description": "Removes the supplied role ids from the target user.",
+        "summary": "Remove role bindings for many users",
+        "operationId": "deleteUsersRoles",
+        "description": "Removes the supplied role ids from the supplied user id set in one atomic transaction. All users, roles, and protected-account invariants are validated before the write; validation failure commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
           }
         ],
         "security": [
@@ -5353,14 +5534,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/replace-user-roles-request"
+                "$ref": "#/components/schemas/batch-remove-user-roles-request"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "User roles removed.",
+            "description": "User role bindings were removed atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5369,13 +5550,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid user id or invalid role id list.",
+            "description": "Invalid user id set or role id set; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5396,7 +5577,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "User or role not found.",
+            "description": "User or role not found; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5411,7 +5592,7 @@
             }
           },
           "409": {
-            "description": "User-role lifecycle conflict.",
+            "description": "User-role lifecycle conflict; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5464,7 +5645,7 @@
         },
         "responses": {
           "200": {
-            "description": "User roles replaced in batch.",
+            "description": "User roles replaced atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5473,7 +5654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
@@ -5568,7 +5749,7 @@
         },
         "responses": {
           "200": {
-            "description": "User roles added in batch.",
+            "description": "User roles added atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5577,111 +5758,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid user id set or role id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "User or role not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "User-role lifecycle conflict.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/users/roles/remove": {
-      "post": {
-        "tags": [
-          "rbac"
-        ],
-        "summary": "Remove role bindings for many users",
-        "operationId": "postUsersRolesRemove",
-        "description": "Removes the supplied role ids from the supplied user id set in one batch transaction.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/batch-user-roles-request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User roles removed in batch.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
@@ -27353,11 +27430,158 @@
           }
         ]
       },
+      "remove-role-permissions-request": {
+        "type": "object",
+        "required": [
+          "permission_ids"
+        ],
+        "properties": {
+          "permission_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "destructive-batch-result-summary": {
+        "type": "object",
+        "description": "Counts for one bounded synchronous destructive batch operation.",
+        "required": [
+          "requested",
+          "succeeded",
+          "failed"
+        ],
+        "properties": {
+          "requested": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "succeeded": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "destructive-batch-result-item": {
+        "type": "object",
+        "description": "Result for one requested resource identifier, preserved in request order.",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "deleted",
+              "removed",
+              "revoked",
+              "unchanged",
+              "accepted",
+              "failed"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "required": [
+                "code"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "destructive-batch-result": {
+        "type": "object",
+        "description": "Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.",
+        "required": [
+          "operation_id",
+          "summary",
+          "results"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "summary": {
+            "$ref": "#/components/schemas/destructive-batch-result-summary"
+          },
+          "results": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/destructive-batch-result-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-destructive-batch-result": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/destructive-batch-result"
+              }
+            }
+          }
+        ]
+      },
       "replace-role-permissions-request": {
         "type": "object",
         "properties": {
           "permission_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64"
@@ -27367,6 +27591,8 @@
           },
           "bindings": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "$ref": "#/components/schemas/role-permission-binding-item"
             }
@@ -27616,6 +27842,25 @@
           }
         ]
       },
+      "remove-user-roles-request": {
+        "type": "object",
+        "required": [
+          "role_ids"
+        ],
+        "properties": {
+          "role_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
       "replace-user-roles-request": {
         "type": "object",
         "required": [
@@ -27624,6 +27869,8 @@
         "properties": {
           "role_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -27638,6 +27885,37 @@
           ]
         }
       },
+      "batch-remove-user-roles-request": {
+        "type": "object",
+        "required": [
+          "user_ids",
+          "role_ids"
+        ],
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
       "batch-user-roles-request": {
         "type": "object",
         "required": [
@@ -27647,6 +27925,8 @@
         "properties": {
           "user_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -27655,6 +27935,8 @@
           },
           "role_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -46470,132 +46752,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "destructive-batch-result-summary": {
-        "type": "object",
-        "description": "Counts for one bounded synchronous destructive batch operation.",
-        "required": [
-          "requested",
-          "succeeded",
-          "failed"
-        ],
-        "properties": {
-          "requested": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "succeeded": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "failed": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        "additionalProperties": false
-      },
-      "destructive-batch-result-item": {
-        "type": "object",
-        "description": "Result for one requested resource identifier, preserved in request order.",
-        "required": [
-          "id",
-          "status"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "deleted",
-              "removed",
-              "revoked",
-              "unchanged",
-              "accepted",
-              "failed"
-            ]
-          },
-          "code": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise."
-          }
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "status": {
-                  "const": "failed"
-                }
-              },
-              "required": [
-                "status"
-              ]
-            },
-            "then": {
-              "required": [
-                "code"
-              ]
-            },
-            "else": {
-              "not": {
-                "required": [
-                  "code"
-                ]
-              }
-            }
-          }
-        ],
-        "additionalProperties": false
-      },
-      "destructive-batch-result": {
-        "type": "object",
-        "description": "Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.",
-        "required": [
-          "operation_id",
-          "summary",
-          "results"
-        ],
-        "properties": {
-          "operation_id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "summary": {
-            "$ref": "#/components/schemas/destructive-batch-result-summary"
-          },
-          "results": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "$ref": "#/components/schemas/destructive-batch-result-item"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "enveloped-destructive-batch-result": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/destructive-batch-result"
-              }
-            }
-          }
-        ]
       },
       "dashboard-stat-group-payload": {
         "type": "object",

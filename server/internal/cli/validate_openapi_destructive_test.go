@@ -116,6 +116,37 @@ func TestValidateOpenAPIDestructiveOperationsAcceptsSharedPartialBatchResult(t *
 	}
 }
 
+func TestValidateOpenAPIDestructiveOperationsAcceptsCanonicalKebabCaseBatchReference(t *testing.T) {
+	document := loadDestructiveValidationSpec(t, `
+    "/api/roles/{id}/permissions": {
+      "delete": {
+        "operationId": "deleteRolePermissions",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {"mode": "tombstone_idempotent"},
+          "result": {"status": 200},
+          "authorization": {"owner_check": false},
+          "audit": {"required": true},
+          "confirmation": {"required": true},
+          "exposure": {"mcp": false},
+          "batch": {"mode": "atomic", "max_items": 100}
+        },
+        "responses": {
+          "200": {
+            "description": "Batch result.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/enveloped-destructive-batch-result"}}}
+          }
+        }
+      }
+    }`)
+
+	if err := validateOpenAPIDestructiveOperations(document); err != nil {
+		t.Fatalf("validate canonical kebab-case batch reference: %v", err)
+	}
+}
+
 func TestValidateOpenAPIDestructiveOperationsRejectsModuleSpecificBatchResult(t *testing.T) {
 	document := loadDestructiveValidationSpec(t, `
     "/api/users/deletions": {
@@ -202,7 +233,10 @@ func loadDestructiveValidationSpec(t *testing.T, paths string) *openapi3.T {
   "openapi": "3.1.0",
   "info": {"title": "test", "version": "1"},
   "x-graft-destructive-schema": {},
-  "components": {"schemas": {"EnvelopedDestructiveBatchResult": {"type": "object"}}},
+  "components": {"schemas": {
+    "EnvelopedDestructiveBatchResult": {"type": "object"},
+    "enveloped-destructive-batch-result": {"type": "object"}
+  }},
   "paths": {` + paths + `}
 }`
 	document, err := openapi3.NewLoader().LoadFromData([]byte(spec))

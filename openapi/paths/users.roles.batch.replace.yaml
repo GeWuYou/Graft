@@ -16,14 +16,14 @@ post:
           $ref: ../components/schemas/batch-user-roles-request.yaml
   responses:
     '200':
-      description: User roles replaced in batch.
+      description: User roles replaced atomically.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-empty-response.yaml
+            $ref: ../components/schemas/enveloped-destructive-batch-result.yaml
     '400':
       description: Invalid user id set or role id set.
       headers:

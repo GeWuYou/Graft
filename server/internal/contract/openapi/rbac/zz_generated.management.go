@@ -659,6 +659,81 @@ func (e PostRoleDelete500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for DeleteRolePermissions400JSONResponseBodySuccess.
+const (
+	DeleteRolePermissions400JSONResponseBodySuccessFalse DeleteRolePermissions400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteRolePermissions400JSONResponseBodySuccess enum.
+func (e DeleteRolePermissions400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteRolePermissions400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteRolePermissions401JSONResponseBodySuccess.
+const (
+	DeleteRolePermissions401JSONResponseBodySuccessFalse DeleteRolePermissions401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteRolePermissions401JSONResponseBodySuccess enum.
+func (e DeleteRolePermissions401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteRolePermissions401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteRolePermissions403JSONResponseBodySuccess.
+const (
+	DeleteRolePermissions403JSONResponseBodySuccessFalse DeleteRolePermissions403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteRolePermissions403JSONResponseBodySuccess enum.
+func (e DeleteRolePermissions403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteRolePermissions403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteRolePermissions404JSONResponseBodySuccess.
+const (
+	DeleteRolePermissions404JSONResponseBodySuccessFalse DeleteRolePermissions404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteRolePermissions404JSONResponseBodySuccess enum.
+func (e DeleteRolePermissions404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteRolePermissions404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteRolePermissions500JSONResponseBodySuccess.
+const (
+	DeleteRolePermissions500JSONResponseBodySuccessFalse DeleteRolePermissions500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteRolePermissions500JSONResponseBodySuccess enum.
+func (e DeleteRolePermissions500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteRolePermissions500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRolePermissions200JSONResponseBodyDataBindingsScope.
 const (
 	GetRolePermissions200JSONResponseBodyDataBindingsScopeAll   GetRolePermissions200JSONResponseBodyDataBindingsScope = "all"
@@ -845,111 +920,18 @@ func (e PostRolePermissionsAdd500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostRolePermissionsRemoveJSONBodyBindingsScope.
-const (
-	PostRolePermissionsRemoveJSONBodyBindingsScopeAll   PostRolePermissionsRemoveJSONBodyBindingsScope = "all"
-	PostRolePermissionsRemoveJSONBodyBindingsScopeOwned PostRolePermissionsRemoveJSONBodyBindingsScope = "owned"
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemoveJSONBodyBindingsScope enum.
-func (e PostRolePermissionsRemoveJSONBodyBindingsScope) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemoveJSONBodyBindingsScopeAll:
-		return true
-	case PostRolePermissionsRemoveJSONBodyBindingsScopeOwned:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostRolePermissionsRemove400JSONResponseBodySuccess.
-const (
-	PostRolePermissionsRemove400JSONResponseBodySuccessFalse PostRolePermissionsRemove400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemove400JSONResponseBodySuccess enum.
-func (e PostRolePermissionsRemove400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemove400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostRolePermissionsRemove401JSONResponseBodySuccess.
-const (
-	PostRolePermissionsRemove401JSONResponseBodySuccessFalse PostRolePermissionsRemove401JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemove401JSONResponseBodySuccess enum.
-func (e PostRolePermissionsRemove401JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemove401JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostRolePermissionsRemove403JSONResponseBodySuccess.
-const (
-	PostRolePermissionsRemove403JSONResponseBodySuccessFalse PostRolePermissionsRemove403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemove403JSONResponseBodySuccess enum.
-func (e PostRolePermissionsRemove403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemove403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostRolePermissionsRemove404JSONResponseBodySuccess.
-const (
-	PostRolePermissionsRemove404JSONResponseBodySuccessFalse PostRolePermissionsRemove404JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemove404JSONResponseBodySuccess enum.
-func (e PostRolePermissionsRemove404JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemove404JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostRolePermissionsRemove500JSONResponseBodySuccess.
-const (
-	PostRolePermissionsRemove500JSONResponseBodySuccessFalse PostRolePermissionsRemove500JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostRolePermissionsRemove500JSONResponseBodySuccess enum.
-func (e PostRolePermissionsRemove500JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostRolePermissionsRemove500JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PostRolePermissionsReplaceJSONBodyBindingsScope.
 const (
-	PostRolePermissionsReplaceJSONBodyBindingsScopeAll   PostRolePermissionsReplaceJSONBodyBindingsScope = "all"
-	PostRolePermissionsReplaceJSONBodyBindingsScopeOwned PostRolePermissionsReplaceJSONBodyBindingsScope = "owned"
+	All   PostRolePermissionsReplaceJSONBodyBindingsScope = "all"
+	Owned PostRolePermissionsReplaceJSONBodyBindingsScope = "owned"
 )
 
 // Valid indicates whether the value is a known member of the PostRolePermissionsReplaceJSONBodyBindingsScope enum.
 func (e PostRolePermissionsReplaceJSONBodyBindingsScope) Valid() bool {
 	switch e {
-	case PostRolePermissionsReplaceJSONBodyBindingsScopeAll:
+	case All:
 		return true
-	case PostRolePermissionsReplaceJSONBodyBindingsScopeOwned:
+	case Owned:
 		return true
 	default:
 		return false
@@ -1286,6 +1268,96 @@ func (e PostRoleUpdate500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for DeleteUsersRoles400JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles400JSONResponseBodySuccessFalse DeleteUsersRoles400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles400JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUsersRoles401JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles401JSONResponseBodySuccessFalse DeleteUsersRoles401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles401JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUsersRoles403JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles403JSONResponseBodySuccessFalse DeleteUsersRoles403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles403JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUsersRoles404JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles404JSONResponseBodySuccessFalse DeleteUsersRoles404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles404JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUsersRoles409JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles409JSONResponseBodySuccessFalse DeleteUsersRoles409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles409JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUsersRoles500JSONResponseBodySuccess.
+const (
+	DeleteUsersRoles500JSONResponseBodySuccessFalse DeleteUsersRoles500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUsersRoles500JSONResponseBodySuccess enum.
+func (e DeleteUsersRoles500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUsersRoles500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostUsersRolesAdd400JSONResponseBodySuccess.
 const (
 	PostUsersRolesAdd400JSONResponseBodySuccessFalse PostUsersRolesAdd400JSONResponseBodySuccess = false
@@ -1376,96 +1448,6 @@ func (e PostUsersRolesAdd500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostUsersRolesRemove400JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove400JSONResponseBodySuccessFalse PostUsersRolesRemove400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove400JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUsersRolesRemove401JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove401JSONResponseBodySuccessFalse PostUsersRolesRemove401JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove401JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove401JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove401JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUsersRolesRemove403JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove403JSONResponseBodySuccessFalse PostUsersRolesRemove403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove403JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUsersRolesRemove404JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove404JSONResponseBodySuccessFalse PostUsersRolesRemove404JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove404JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove404JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove404JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUsersRolesRemove409JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove409JSONResponseBodySuccessFalse PostUsersRolesRemove409JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove409JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove409JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove409JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUsersRolesRemove500JSONResponseBodySuccess.
-const (
-	PostUsersRolesRemove500JSONResponseBodySuccessFalse PostUsersRolesRemove500JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUsersRolesRemove500JSONResponseBodySuccess enum.
-func (e PostUsersRolesRemove500JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUsersRolesRemove500JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PostUsersRolesReplace400JSONResponseBodySuccess.
 const (
 	PostUsersRolesReplace400JSONResponseBodySuccessFalse PostUsersRolesReplace400JSONResponseBodySuccess = false
@@ -1550,6 +1532,96 @@ const (
 func (e PostUsersRolesReplace500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostUsersRolesReplace500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles400JSONResponseBodySuccess.
+const (
+	DeleteUserRoles400JSONResponseBodySuccessFalse DeleteUserRoles400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles400JSONResponseBodySuccess enum.
+func (e DeleteUserRoles400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles401JSONResponseBodySuccess.
+const (
+	DeleteUserRoles401JSONResponseBodySuccessFalse DeleteUserRoles401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles401JSONResponseBodySuccess enum.
+func (e DeleteUserRoles401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles403JSONResponseBodySuccess.
+const (
+	DeleteUserRoles403JSONResponseBodySuccessFalse DeleteUserRoles403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles403JSONResponseBodySuccess enum.
+func (e DeleteUserRoles403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles404JSONResponseBodySuccess.
+const (
+	DeleteUserRoles404JSONResponseBodySuccessFalse DeleteUserRoles404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles404JSONResponseBodySuccess enum.
+func (e DeleteUserRoles404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles409JSONResponseBodySuccess.
+const (
+	DeleteUserRoles409JSONResponseBodySuccessFalse DeleteUserRoles409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles409JSONResponseBodySuccess enum.
+func (e DeleteUserRoles409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteUserRoles500JSONResponseBodySuccess.
+const (
+	DeleteUserRoles500JSONResponseBodySuccessFalse DeleteUserRoles500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteUserRoles500JSONResponseBodySuccess enum.
+func (e DeleteUserRoles500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteUserRoles500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -1715,96 +1787,6 @@ const (
 func (e PostUserRolesAdd500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostUserRolesAdd500JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove400JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove400JSONResponseBodySuccessFalse PostUserRolesRemove400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove400JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove401JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove401JSONResponseBodySuccessFalse PostUserRolesRemove401JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove401JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove401JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove401JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove403JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove403JSONResponseBodySuccessFalse PostUserRolesRemove403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove403JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove404JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove404JSONResponseBodySuccessFalse PostUserRolesRemove404JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove404JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove404JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove404JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove409JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove409JSONResponseBodySuccessFalse PostUserRolesRemove409JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove409JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove409JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove409JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostUserRolesRemove500JSONResponseBodySuccess.
-const (
-	PostUserRolesRemove500JSONResponseBodySuccessFalse PostUserRolesRemove500JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the PostUserRolesRemove500JSONResponseBodySuccess enum.
-func (e PostUserRolesRemove500JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case PostUserRolesRemove500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2143,6 +2125,36 @@ type PostRoleDelete409JSONResponseBodySuccess bool
 // PostRoleDelete500JSONResponseBodySuccess defines parameters for PostRoleDelete.
 type PostRoleDelete500JSONResponseBodySuccess bool
 
+// DeleteRolePermissionsJSONBody defines parameters for DeleteRolePermissions.
+type DeleteRolePermissionsJSONBody struct {
+	PermissionIds []int64 `json:"permission_ids"`
+}
+
+// DeleteRolePermissionsParams defines parameters for DeleteRolePermissions.
+type DeleteRolePermissionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteRolePermissions400JSONResponseBodySuccess defines parameters for DeleteRolePermissions.
+type DeleteRolePermissions400JSONResponseBodySuccess bool
+
+// DeleteRolePermissions401JSONResponseBodySuccess defines parameters for DeleteRolePermissions.
+type DeleteRolePermissions401JSONResponseBodySuccess bool
+
+// DeleteRolePermissions403JSONResponseBodySuccess defines parameters for DeleteRolePermissions.
+type DeleteRolePermissions403JSONResponseBodySuccess bool
+
+// DeleteRolePermissions404JSONResponseBodySuccess defines parameters for DeleteRolePermissions.
+type DeleteRolePermissions404JSONResponseBodySuccess bool
+
+// DeleteRolePermissions500JSONResponseBodySuccess defines parameters for DeleteRolePermissions.
+type DeleteRolePermissions500JSONResponseBodySuccess bool
+
 // GetRolePermissionsParams defines parameters for GetRolePermissions.
 type GetRolePermissionsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -2219,55 +2231,6 @@ type PostRolePermissionsAdd404JSONResponseBodySuccess bool
 
 // PostRolePermissionsAdd500JSONResponseBodySuccess defines parameters for PostRolePermissionsAdd.
 type PostRolePermissionsAdd500JSONResponseBodySuccess bool
-
-// PostRolePermissionsRemoveJSONBody defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveJSONBody struct {
-	Bindings *[]struct {
-		PermissionId int64 `json:"permission_id"`
-
-		// Scope owned is valid only for resources that expose creator ownership authorization.
-		Scope PostRolePermissionsRemoveJSONBodyBindingsScope `json:"scope"`
-	} `json:"bindings,omitempty"`
-
-	// PermissionIds Legacy all-scope binding input. New clients must submit bindings.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	PermissionIds *[]int64 `json:"permission_ids,omitempty"`
-	union         json.RawMessage
-}
-
-// PostRolePermissionsRemoveParams defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// PostRolePermissionsRemoveJSONBodyBindingsScope defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveJSONBodyBindingsScope string
-
-// PostRolePermissionsRemoveJSONBody0 defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveJSONBody0 = interface{}
-
-// PostRolePermissionsRemoveJSONBody1 defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveJSONBody1 = interface{}
-
-// PostRolePermissionsRemove400JSONResponseBodySuccess defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemove400JSONResponseBodySuccess bool
-
-// PostRolePermissionsRemove401JSONResponseBodySuccess defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemove401JSONResponseBodySuccess bool
-
-// PostRolePermissionsRemove403JSONResponseBodySuccess defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemove403JSONResponseBodySuccess bool
-
-// PostRolePermissionsRemove404JSONResponseBodySuccess defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemove404JSONResponseBodySuccess bool
-
-// PostRolePermissionsRemove500JSONResponseBodySuccess defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemove500JSONResponseBodySuccess bool
 
 // PostRolePermissionsReplaceJSONBody defines parameters for PostRolePermissionsReplace.
 type PostRolePermissionsReplaceJSONBody struct {
@@ -2403,6 +2366,40 @@ type PostRoleUpdate404JSONResponseBodySuccess bool
 // PostRoleUpdate500JSONResponseBodySuccess defines parameters for PostRoleUpdate.
 type PostRoleUpdate500JSONResponseBodySuccess bool
 
+// DeleteUsersRolesJSONBody defines parameters for DeleteUsersRoles.
+type DeleteUsersRolesJSONBody struct {
+	RoleIds []int64 `json:"role_ids"`
+	UserIds []int64 `json:"user_ids"`
+}
+
+// DeleteUsersRolesParams defines parameters for DeleteUsersRoles.
+type DeleteUsersRolesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteUsersRoles400JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles400JSONResponseBodySuccess bool
+
+// DeleteUsersRoles401JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles401JSONResponseBodySuccess bool
+
+// DeleteUsersRoles403JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles403JSONResponseBodySuccess bool
+
+// DeleteUsersRoles404JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles404JSONResponseBodySuccess bool
+
+// DeleteUsersRoles409JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles409JSONResponseBodySuccess bool
+
+// DeleteUsersRoles500JSONResponseBodySuccess defines parameters for DeleteUsersRoles.
+type DeleteUsersRoles500JSONResponseBodySuccess bool
+
 // PostUsersRolesAddJSONBody defines parameters for PostUsersRolesAdd.
 type PostUsersRolesAddJSONBody struct {
 	RoleIds []int64 `json:"role_ids"`
@@ -2437,40 +2434,6 @@ type PostUsersRolesAdd409JSONResponseBodySuccess bool
 // PostUsersRolesAdd500JSONResponseBodySuccess defines parameters for PostUsersRolesAdd.
 type PostUsersRolesAdd500JSONResponseBodySuccess bool
 
-// PostUsersRolesRemoveJSONBody defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemoveJSONBody struct {
-	RoleIds []int64 `json:"role_ids"`
-	UserIds []int64 `json:"user_ids"`
-}
-
-// PostUsersRolesRemoveParams defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemoveParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// PostUsersRolesRemove400JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove400JSONResponseBodySuccess bool
-
-// PostUsersRolesRemove401JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove401JSONResponseBodySuccess bool
-
-// PostUsersRolesRemove403JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove403JSONResponseBodySuccess bool
-
-// PostUsersRolesRemove404JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove404JSONResponseBodySuccess bool
-
-// PostUsersRolesRemove409JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove409JSONResponseBodySuccess bool
-
-// PostUsersRolesRemove500JSONResponseBodySuccess defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemove500JSONResponseBodySuccess bool
-
 // PostUsersRolesReplaceJSONBody defines parameters for PostUsersRolesReplace.
 type PostUsersRolesReplaceJSONBody struct {
 	RoleIds []int64 `json:"role_ids"`
@@ -2504,6 +2467,39 @@ type PostUsersRolesReplace409JSONResponseBodySuccess bool
 
 // PostUsersRolesReplace500JSONResponseBodySuccess defines parameters for PostUsersRolesReplace.
 type PostUsersRolesReplace500JSONResponseBodySuccess bool
+
+// DeleteUserRolesJSONBody defines parameters for DeleteUserRoles.
+type DeleteUserRolesJSONBody struct {
+	RoleIds []int64 `json:"role_ids"`
+}
+
+// DeleteUserRolesParams defines parameters for DeleteUserRoles.
+type DeleteUserRolesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteUserRoles400JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles400JSONResponseBodySuccess bool
+
+// DeleteUserRoles401JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles401JSONResponseBodySuccess bool
+
+// DeleteUserRoles403JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles403JSONResponseBodySuccess bool
+
+// DeleteUserRoles404JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles404JSONResponseBodySuccess bool
+
+// DeleteUserRoles409JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles409JSONResponseBodySuccess bool
+
+// DeleteUserRoles500JSONResponseBodySuccess defines parameters for DeleteUserRoles.
+type DeleteUserRoles500JSONResponseBodySuccess bool
 
 // GetUserRolesParams defines parameters for GetUserRoles.
 type GetUserRolesParams struct {
@@ -2563,39 +2559,6 @@ type PostUserRolesAdd409JSONResponseBodySuccess bool
 // PostUserRolesAdd500JSONResponseBodySuccess defines parameters for PostUserRolesAdd.
 type PostUserRolesAdd500JSONResponseBodySuccess bool
 
-// PostUserRolesRemoveJSONBody defines parameters for PostUserRolesRemove.
-type PostUserRolesRemoveJSONBody struct {
-	RoleIds []int64 `json:"role_ids"`
-}
-
-// PostUserRolesRemoveParams defines parameters for PostUserRolesRemove.
-type PostUserRolesRemoveParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// PostUserRolesRemove400JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove400JSONResponseBodySuccess bool
-
-// PostUserRolesRemove401JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove401JSONResponseBodySuccess bool
-
-// PostUserRolesRemove403JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove403JSONResponseBodySuccess bool
-
-// PostUserRolesRemove404JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove404JSONResponseBodySuccess bool
-
-// PostUserRolesRemove409JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove409JSONResponseBodySuccess bool
-
-// PostUserRolesRemove500JSONResponseBodySuccess defines parameters for PostUserRolesRemove.
-type PostUserRolesRemove500JSONResponseBodySuccess bool
-
 // PostUserRolesReplaceJSONBody defines parameters for PostUserRolesReplace.
 type PostUserRolesReplaceJSONBody struct {
 	RoleIds []int64 `json:"role_ids"`
@@ -2635,11 +2598,11 @@ type PostRolesJSONRequestBody PostRolesJSONBody
 // PostRoleCloneJSONRequestBody defines body for PostRoleClone for application/json ContentType.
 type PostRoleCloneJSONRequestBody PostRoleCloneJSONBody
 
+// DeleteRolePermissionsJSONRequestBody defines body for DeleteRolePermissions for application/json ContentType.
+type DeleteRolePermissionsJSONRequestBody DeleteRolePermissionsJSONBody
+
 // PostRolePermissionsAddJSONRequestBody defines body for PostRolePermissionsAdd for application/json ContentType.
 type PostRolePermissionsAddJSONRequestBody PostRolePermissionsAddJSONBody
-
-// PostRolePermissionsRemoveJSONRequestBody defines body for PostRolePermissionsRemove for application/json ContentType.
-type PostRolePermissionsRemoveJSONRequestBody PostRolePermissionsRemoveJSONBody
 
 // PostRolePermissionsReplaceJSONRequestBody defines body for PostRolePermissionsReplace for application/json ContentType.
 type PostRolePermissionsReplaceJSONRequestBody PostRolePermissionsReplaceJSONBody
@@ -2650,20 +2613,20 @@ type PostRoleStatusJSONRequestBody PostRoleStatusJSONBody
 // PostRoleUpdateJSONRequestBody defines body for PostRoleUpdate for application/json ContentType.
 type PostRoleUpdateJSONRequestBody PostRoleUpdateJSONBody
 
+// DeleteUsersRolesJSONRequestBody defines body for DeleteUsersRoles for application/json ContentType.
+type DeleteUsersRolesJSONRequestBody DeleteUsersRolesJSONBody
+
 // PostUsersRolesAddJSONRequestBody defines body for PostUsersRolesAdd for application/json ContentType.
 type PostUsersRolesAddJSONRequestBody PostUsersRolesAddJSONBody
-
-// PostUsersRolesRemoveJSONRequestBody defines body for PostUsersRolesRemove for application/json ContentType.
-type PostUsersRolesRemoveJSONRequestBody PostUsersRolesRemoveJSONBody
 
 // PostUsersRolesReplaceJSONRequestBody defines body for PostUsersRolesReplace for application/json ContentType.
 type PostUsersRolesReplaceJSONRequestBody PostUsersRolesReplaceJSONBody
 
+// DeleteUserRolesJSONRequestBody defines body for DeleteUserRoles for application/json ContentType.
+type DeleteUserRolesJSONRequestBody DeleteUserRolesJSONBody
+
 // PostUserRolesAddJSONRequestBody defines body for PostUserRolesAdd for application/json ContentType.
 type PostUserRolesAddJSONRequestBody PostUserRolesAddJSONBody
-
-// PostUserRolesRemoveJSONRequestBody defines body for PostUserRolesRemove for application/json ContentType.
-type PostUserRolesRemoveJSONRequestBody PostUserRolesRemoveJSONBody
 
 // PostUserRolesReplaceJSONRequestBody defines body for PostUserRolesReplace for application/json ContentType.
 type PostUserRolesReplaceJSONRequestBody PostUserRolesReplaceJSONBody
@@ -2751,116 +2714,6 @@ func (t PostRolePermissionsAddJSONBody) MarshalJSON() ([]byte, error) {
 }
 
 func (t *PostRolePermissionsAddJSONBody) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	if err != nil {
-		return err
-	}
-	object := make(map[string]json.RawMessage)
-	err = json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["bindings"]; found {
-		err = json.Unmarshal(raw, &t.Bindings)
-		if err != nil {
-			return fmt.Errorf("error reading 'bindings': %w", err)
-		}
-	}
-
-	if raw, found := object["permission_ids"]; found {
-		err = json.Unmarshal(raw, &t.PermissionIds)
-		if err != nil {
-			return fmt.Errorf("error reading 'permission_ids': %w", err)
-		}
-	}
-
-	return err
-}
-
-// AsPostRolePermissionsRemoveJSONBody0 returns the union data inside the PostRolePermissionsRemoveJSONBody as a PostRolePermissionsRemoveJSONBody0
-func (t PostRolePermissionsRemoveJSONBody) AsPostRolePermissionsRemoveJSONBody0() (PostRolePermissionsRemoveJSONBody0, error) {
-	var body PostRolePermissionsRemoveJSONBody0
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromPostRolePermissionsRemoveJSONBody0 overwrites any union data inside the PostRolePermissionsRemoveJSONBody as the provided PostRolePermissionsRemoveJSONBody0
-func (t *PostRolePermissionsRemoveJSONBody) FromPostRolePermissionsRemoveJSONBody0(v PostRolePermissionsRemoveJSONBody0) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergePostRolePermissionsRemoveJSONBody0 performs a merge with any union data inside the PostRolePermissionsRemoveJSONBody, using the provided PostRolePermissionsRemoveJSONBody0
-func (t *PostRolePermissionsRemoveJSONBody) MergePostRolePermissionsRemoveJSONBody0(v PostRolePermissionsRemoveJSONBody0) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsPostRolePermissionsRemoveJSONBody1 returns the union data inside the PostRolePermissionsRemoveJSONBody as a PostRolePermissionsRemoveJSONBody1
-func (t PostRolePermissionsRemoveJSONBody) AsPostRolePermissionsRemoveJSONBody1() (PostRolePermissionsRemoveJSONBody1, error) {
-	var body PostRolePermissionsRemoveJSONBody1
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromPostRolePermissionsRemoveJSONBody1 overwrites any union data inside the PostRolePermissionsRemoveJSONBody as the provided PostRolePermissionsRemoveJSONBody1
-func (t *PostRolePermissionsRemoveJSONBody) FromPostRolePermissionsRemoveJSONBody1(v PostRolePermissionsRemoveJSONBody1) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergePostRolePermissionsRemoveJSONBody1 performs a merge with any union data inside the PostRolePermissionsRemoveJSONBody, using the provided PostRolePermissionsRemoveJSONBody1
-func (t *PostRolePermissionsRemoveJSONBody) MergePostRolePermissionsRemoveJSONBody1(v PostRolePermissionsRemoveJSONBody1) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t PostRolePermissionsRemoveJSONBody) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	object := make(map[string]json.RawMessage)
-	if t.union != nil {
-		err = json.Unmarshal(b, &object)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if t.Bindings != nil {
-		object["bindings"], err = json.Marshal(t.Bindings)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'bindings': %w", err)
-		}
-	}
-
-	if t.PermissionIds != nil {
-		object["permission_ids"], err = json.Marshal(t.PermissionIds)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'permission_ids': %w", err)
-		}
-	}
-	b, err = json.Marshal(object)
-	return b, err
-}
-
-func (t *PostRolePermissionsRemoveJSONBody) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	if err != nil {
 		return err

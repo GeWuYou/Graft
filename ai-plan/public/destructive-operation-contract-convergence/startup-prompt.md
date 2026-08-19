@@ -44,9 +44,9 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. inventory relationship-removal and RBAC batch operations from canonical OpenAPI through handlers, stores, and web consumers
-2. migrate relationship removal to DELETE without aliases and make security-sensitive role/permission/access-binding batches atomic
-3. use the shared destructive batch envelope for successful batch results and add truthful `x-graft-destructive` metadata only after runtime behavior matches
+1. inventory audit and app-log irreversible deletion paths from canonical OpenAPI through handlers, stores, and web consumers
+2. define persistent idempotency receipt ownership and transaction boundaries in the owning modules
+3. migrate hard deletion to `POST .../deletions` commands without aliases and return the canonical command receipt
 
 Validation expectations:
 

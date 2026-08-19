@@ -119,14 +119,14 @@ describe('rbac api', () => {
   });
 
   it('calls the canonical role-permissions remove path through request.ts', async () => {
-    const requestPost = vi.mocked(request.post);
+    const requestDelete = vi.mocked(request.delete);
     const payload = { permission_ids: [2, 3] };
-    requestPost.mockResolvedValueOnce(null as never);
+    requestDelete.mockResolvedValueOnce({ operation_id: 'request-1' } as never);
 
     await removeRolePermissions(42, payload);
 
-    expect(requestPost).toHaveBeenCalledWith({
-      url: buildOpenApiRuntimePath('postRolePermissionsRemove', { id: 42 }),
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deleteRolePermissions', { id: 42 }),
       data: payload,
     });
   });

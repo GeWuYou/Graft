@@ -1,18 +1,32 @@
-post:
+delete:
   tags: [rbac]
-  summary: Remove role bindings for one user
-  operationId: postUserRolesRemove
-  description: Removes the supplied role ids from the target user.
+  summary: Remove role bindings for many users
+  operationId: deleteUsersRoles
+  description: >-
+    Removes the supplied role ids from the supplied user id set in one atomic transaction. All users, roles, and
+    protected-account invariants are validated before the write; validation failure commits no relationship change.
+  x-graft-destructive:
+    kind: relationship_remove
+    effect: relationship_removal
+    execution: synchronous
+    retry:
+      mode: tombstone_idempotent
+    result:
+      status: 200
+    authorization:
+      owner_check: false
+    audit:
+      required: true
+    confirmation:
+      required: true
+    exposure:
+      mcp: false
+    batch:
+      mode: atomic
+      max_items: 100
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
   security:
     - bearerAuth: []
   requestBody:
@@ -20,19 +34,19 @@ post:
     content:
       application/json:
         schema:
-          $ref: ../components/schemas/replace-user-roles-request.yaml
+          $ref: ../components/schemas/batch-remove-user-roles-request.yaml
   responses:
     '200':
-      description: User roles removed.
+      description: User role bindings were removed atomically.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-empty-response.yaml
+            $ref: ../components/schemas/enveloped-destructive-batch-result.yaml
     '400':
-      description: Invalid user id or invalid role id list.
+      description: Invalid user id set or role id set; no relationship change was committed.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -45,7 +59,7 @@ post:
     '403':
       $ref: ../components/responses/forbidden.yaml
     '404':
-      description: User or role not found.
+      description: User or role not found; no relationship change was committed.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -54,7 +68,7 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '409':
-      description: User-role lifecycle conflict.
+      description: User-role lifecycle conflict; no relationship change was committed.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

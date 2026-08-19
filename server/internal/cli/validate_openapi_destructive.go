@@ -324,7 +324,18 @@ func validateSynchronousDestructiveBatchResult(response *openapi3.Response, meta
 
 func responseUsesSchema(response *openapi3.Response, schemaName string) bool {
 	mediaType := response.Content.Get("application/json")
-	return mediaType != nil && mediaType.Schema != nil && strings.Contains(mediaType.Schema.Ref, schemaName)
+	if mediaType == nil || mediaType.Schema == nil {
+		return false
+	}
+	refName := mediaType.Schema.Ref
+	if separator := strings.LastIndex(refName, "/"); separator >= 0 {
+		refName = refName[separator+1:]
+	}
+	refName = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(refName, ".yaml"), ".yml"), ".json")
+	normalize := func(value string) string {
+		return strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(value))
+	}
+	return normalize(refName) == normalize(schemaName)
 }
 
 func hasRequiredHeaderParameter(pathItem *openapi3.PathItem, operation *openapi3.Operation, name string) bool {
