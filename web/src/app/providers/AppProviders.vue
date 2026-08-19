@@ -73,8 +73,12 @@ const mode = computed(() => {
   return store.displayMode;
 });
 
-// 恢复探测不卸载工作台，避免已打开的 Drawer 在健康状态恢复后被重新创建并播放进入动画。
-const showSetting = computed(() => availability.status !== 'unavailable');
+// 普通页面的恢复探测不卸载工作台；服务不可用结果页保持纯恢复界面，避免探测状态切换导致悬浮入口闪现。
+const showSetting = computed(
+  () =>
+    router.currentRoute.value.path !== APP_RESULT_ROUTE_PATH.SERVICE_UNAVAILABLE &&
+    availability.status !== 'unavailable',
+);
 
 const { getComponentsLocale } = useLocale();
 

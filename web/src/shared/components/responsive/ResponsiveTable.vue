@@ -32,11 +32,13 @@ import type { ResponsivePresentation } from '@/shared/responsive';
 const {
   densityScope = 'container',
   entityCardLayout = 'compact',
+  forceCards = false,
   preserveInactive = false,
   presentation = 'data',
 } = defineProps<{
   densityScope?: 'container' | 'viewport';
   entityCardLayout?: ResponsiveEntityCardLayout;
+  forceCards?: boolean;
   preserveInactive?: boolean;
   presentation?: ResponsivePresentation;
 }>();
@@ -48,10 +50,14 @@ const slots = useSlots();
 const showCards = computed(
   () =>
     Boolean(slots.cards) &&
-    (presentation === 'log'
-      ? variant.value.density === 'compact'
-      : presentation === 'entity' &&
-        (entityCardLayout === 'adaptive' ? variant.value.density !== 'spacious' : variant.value.density === 'compact')),
+    (forceCards
+      ? true
+      : presentation === 'log'
+        ? variant.value.density === 'compact'
+        : presentation === 'entity' &&
+          (entityCardLayout === 'adaptive'
+            ? variant.value.density !== 'spacious'
+            : variant.value.density === 'compact')),
 );
 </script>
 <style scoped lang="less">

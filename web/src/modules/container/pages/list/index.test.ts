@@ -734,7 +734,7 @@ describe('container list page', () => {
     expect(wrapper.find('.container-view-switch').exists()).toBe(false);
     expect(wrapper.find('.container-list').attributes('data-presentation')).toBe('card');
     expect(wrapper.find('[data-testid="container-card-container-1"]').exists()).toBe(true);
-    expect(wrapper.findComponent({ name: 'ContainerResourceTable' }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: 'ContainerResourceTable' }).exists()).toBe(true);
   });
 
   it('opens the associated Compose application detail instead of searching the application list', async () => {

@@ -1001,6 +1001,96 @@ func (e GetAuditLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostAuditLogsBatchDelete400JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete400JSONResponseBodySuccessFalse PostAuditLogsBatchDelete400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete400JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogsBatchDelete401JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete401JSONResponseBodySuccessFalse PostAuditLogsBatchDelete401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete401JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogsBatchDelete403JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete403JSONResponseBodySuccessFalse PostAuditLogsBatchDelete403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete403JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogsBatchDelete404JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete404JSONResponseBodySuccessFalse PostAuditLogsBatchDelete404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete404JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogsBatchDelete409JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete409JSONResponseBodySuccessFalse PostAuditLogsBatchDelete409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete409JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogsBatchDelete500JSONResponseBodySuccess.
+const (
+	PostAuditLogsBatchDelete500JSONResponseBodySuccessFalse PostAuditLogsBatchDelete500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete500JSONResponseBodySuccess enum.
+func (e PostAuditLogsBatchDelete500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogsBatchDelete500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogSavedViews401JSONResponseBodySuccess.
 const (
 	GetAuditLogSavedViews401JSONResponseBodySuccessFalse GetAuditLogSavedViews401JSONResponseBodySuccess = false
@@ -2133,6 +2223,42 @@ type GetAuditLogs403JSONResponseBodySuccess bool
 // GetAuditLogs500JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs500JSONResponseBodySuccess bool
 
+// PostAuditLogsBatchDeleteJSONBody defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDeleteJSONBody struct {
+	Ids []int64 `json:"ids"`
+}
+
+// PostAuditLogsBatchDeleteParams defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDeleteParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Stable retry key for the destructive batch operation.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostAuditLogsBatchDelete400JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete400JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDelete401JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete401JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDelete403JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete403JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDelete404JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete404JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDelete409JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete409JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDelete500JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDelete500JSONResponseBodySuccess bool
+
 // GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
 type GetAuditLogSavedViewsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -2437,6 +2563,9 @@ type PutAuditVisibilityOverridesBatch403JSONResponseBodySuccess bool
 
 // PutAuditVisibilityOverridesBatch500JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverridesBatch.
 type PutAuditVisibilityOverridesBatch500JSONResponseBodySuccess bool
+
+// PostAuditLogsBatchDeleteJSONRequestBody defines body for PostAuditLogsBatchDelete for application/json ContentType.
+type PostAuditLogsBatchDeleteJSONRequestBody PostAuditLogsBatchDeleteJSONBody
 
 // PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
 type PostAuditLogSavedViewJSONRequestBody PostAuditLogSavedViewJSONBody

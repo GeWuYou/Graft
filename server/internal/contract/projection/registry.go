@@ -184,6 +184,7 @@ func auditRegistry() []Entry {
 	return []Entry{
 		{ID: "audit.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/audit/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: auditcontract.AuditReadPermission},
 		{ID: "audit.permission.manage", Name: "MANAGE", Kind: KindPermissionCode, Owner: "server/modules/audit/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: auditcontract.AuditManagePermission},
+		{ID: "audit.permission.delete", Name: "DELETE", Kind: KindPermissionCode, Owner: "server/modules/audit/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: auditcontract.AuditDeletePermission},
 	}
 }
 

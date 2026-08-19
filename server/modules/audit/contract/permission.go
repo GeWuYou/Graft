@@ -13,9 +13,13 @@ const (
 	AuditReadPermission PermissionCode = "audit.read"
 	// AuditManagePermission 表示审计可见性策略管理权限。
 	AuditManagePermission PermissionCode = "audit.manage"
+	// AuditDeletePermission 表示审计日志手工删除权限。
+	AuditDeletePermission PermissionCode = "audit.delete"
 
 	// AuditRead 是审计模块消费者使用的规范读取权限。
 	AuditRead PermissionCode = AuditReadPermission
 	// AuditManage 是审计可见性策略管理使用的规范权限。
 	AuditManage PermissionCode = AuditManagePermission
+	// AuditDelete 是审计日志删除使用的规范权限。
+	AuditDelete PermissionCode = AuditDeletePermission
 )

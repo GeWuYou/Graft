@@ -358,6 +358,31 @@ func TestServiceDeleteBeforeRejectsZeroCutoff(t *testing.T) {
 	}
 }
 
+func TestServiceDeleteByIDsValidatesBatchBeforeRepositoryCapability(t *testing.T) {
+	service, err := NewService(&stubAuditRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	for name, ids := range map[string][]uint64{
+		"empty":     nil,
+		"zero":      {0},
+		"duplicate": {7, 7},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := service.DeleteByIDs(context.Background(), ids, auditstore.AuditLogDeletionInput{IdempotencyKey: "delete-1"})
+			if !errors.Is(err, auditstore.ErrAuditValidation) {
+				t.Fatalf("expected validation error, got %v", err)
+			}
+		})
+	}
+
+	_, err = service.DeleteByIDs(context.Background(), []uint64{7}, auditstore.AuditLogDeletionInput{})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected missing idempotency validation error, got %v", err)
+	}
+}
+
 func TestServiceListNormalizesPagination(t *testing.T) {
 	repo := &stubAuditRepository{
 		listResult: auditstore.ListAuditLogsResult{

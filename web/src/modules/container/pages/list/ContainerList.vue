@@ -1,39 +1,43 @@
 <template>
   <section ref="container" class="container-list" :data-presentation="effectivePresentation">
-    <slot name="toolbar" :presentation="effectivePresentation" :desktop="desktop" />
-    <slot v-if="effectivePresentation === 'table'" name="batch" />
-    <slot name="feedback" />
     <container-resource-table
-      v-if="effectivePresentation === 'table'"
       v-bind="props"
       :current="current"
+      :force-cards="effectivePresentation === 'card'"
       :page-size="pageSize"
+      :presentation="effectivePresentation === 'card' ? 'entity' : 'data'"
       @update:current="$emit('update:current', $event)"
       @update:page-size="$emit('update:page-size', $event)"
       @action="$emit('action', $event)"
       @application-context="$emit('application-context', $event)"
       @page-change="$emit('page-change', $event)"
       @select-change="$emit('select-change', $event)"
-      ><template #empty-action><slot name="empty-action" /></template
-    ></container-resource-table>
-    <div v-else class="container-list__cards">
-      <container-card
-        v-for="row in rows"
-        :key="row.id"
-        :row="row"
-        :actions="rowActions(row)"
-        @detail="$emit('detail', $event)"
-        @action="$emit('action', $event)"
-      /><t-empty v-if="!loading && !rows.length" :title="emptyTitle" :description="emptyDescription"
-        ><template #action><slot name="empty-action" /></template></t-empty
-      ><t-pagination
-        v-if="total > 0"
-        :current="current"
-        :page-size="pageSize"
-        :total="total"
-        @change="$emit('page-change', $event)"
-      />
-    </div>
+    >
+      <template #toolbar>
+        <slot name="toolbar" :presentation="effectivePresentation" :desktop="desktop" />
+      </template>
+      <template #batch>
+        <slot name="batch" />
+      </template>
+      <template #feedback>
+        <slot name="feedback" />
+      </template>
+      <template #cards>
+        <div class="container-list__cards">
+          <container-card
+            v-for="row in rows"
+            :key="row.id"
+            :row="row"
+            :actions="rowActions(row)"
+            :selected="selectedRowKeys.includes(row.id)"
+            @detail="$emit('detail', $event)"
+            @action="$emit('action', $event)"
+            @select-change="toggleCardSelection(row.id, $event)"
+          />
+        </div>
+      </template>
+      <template #empty-action><slot name="empty-action" /></template>
+    </container-resource-table>
   </section>
 </template>
 <script setup lang="ts">
@@ -66,7 +70,7 @@ const props = defineProps<{
   headSummary: string;
   moreActionsLabel: string;
 }>();
-defineEmits<{
+const emit = defineEmits<{
   detail: [row: ContainerSummaryRecord];
   action: [payload: { action: string; row: ContainerSummaryRecord }];
   'application-context': [applicationId: string];
@@ -79,6 +83,16 @@ const container = ref<HTMLElement | null>(null);
 const variant = useResponsiveVariant(container, { presentation: 'entity' });
 const desktop = computed(() => variant.value.density === 'spacious');
 const effectivePresentation = computed(() => (desktop.value ? props.presentation : 'card'));
+
+function toggleCardSelection(rowID: string, checked: boolean) {
+  const next = new Set(props.selectedRowKeys.map((key) => String(key)));
+  if (checked) {
+    next.add(rowID);
+  } else {
+    next.delete(rowID);
+  }
+  emit('select-change', [...next]);
+}
 </script>
 <style scoped lang="less">
 .container-list {

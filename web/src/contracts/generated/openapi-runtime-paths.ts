@@ -202,6 +202,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postAppLogBatchDelete: '/api/app-log/batch-delete',
   postAppLogSavedView: '/api/app-log/saved-views',
   postAuditLogSavedView: '/api/audit/logs/saved-views',
+  postAuditLogsBatchDelete: '/api/audit/logs/batch-delete',
   postAuthChangePassword: '/api/auth/change-password',
   postAuthCompleteRequiredPasswordChange: '/api/auth/complete-required-password-change',
   postAuthLogin: '/api/auth/login',

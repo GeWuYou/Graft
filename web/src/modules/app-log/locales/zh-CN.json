@@ -45,7 +45,9 @@
       "selected": "已选择 {count} 条应用日志",
       "cancelSelection": "取消选择",
       "select": "批量选择",
-      "selectAll": "全选当前页"
+      "actions": "批量操作",
+      "selectAll": "全选当前页",
+      "invert": "反选当前页"
     },
     "deleteDialog": {
       "title": "删除应用日志",

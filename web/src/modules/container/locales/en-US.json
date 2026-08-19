@@ -496,6 +496,7 @@
       },
       "batch": {
         "selected": "{count} Containers Selected",
+        "selectRow": "Select Container {name}",
         "start": "Batch Start",
         "stop": "Batch Stop",
         "restart": "Batch Restart",

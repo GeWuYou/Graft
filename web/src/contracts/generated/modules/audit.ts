@@ -2,6 +2,7 @@
 // Source: server/internal/contract/projection.Targets.
 
 export const AUDIT_PERMISSION_CODE = {
+  DELETE: 'audit.delete',
   MANAGE: 'audit.manage',
   READ: 'audit.read',
 } as const;

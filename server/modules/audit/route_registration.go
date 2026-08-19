@@ -13,6 +13,7 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	group := ctx.Router.Group(auditcontract.AuditGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, moduleName, reader))
+	group.POST(auditcontract.AuditBatchDeleteCollection, guard.delete, handleBatchDeleteAuditLogs(ctx, moduleName, reader))
 	if savedViews != nil {
 		registerAuditSavedViewRoutes(group, ctx, guard.read, savedViews)
 	}

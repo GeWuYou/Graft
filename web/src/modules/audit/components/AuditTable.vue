@@ -13,10 +13,12 @@
     presentation="log"
     row-key="id"
     :rows="rows"
+    :selected-row-keys="selectedRowKeys"
     :summary="summary"
     :total="total"
     @page-change="emitPageChange"
     @row-click="handleRowClick"
+    @select-change="(rowKeys) => emit('select-change', rowKeys)"
   >
     <template #head>
       <div class="table-head">
@@ -99,6 +101,13 @@
         @keydown.enter="emit('detail', row)"
         @keydown.space.prevent="emit('detail', row)"
       >
+        <t-checkbox
+          v-if="canDelete"
+          class="audit-log-card__select"
+          :checked="selectedRowKeys.some((key) => Number(key) === row.id)"
+          @click.stop
+          @change="toggleCardSelection(row, $event)"
+        />
         <div class="audit-log-card__header">
           <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
         </div>
@@ -173,10 +182,12 @@ type AuditRowAction = {
 
 const props = defineProps<{
   description?: string;
+  canDelete?: boolean;
   footerSummary: string;
   loading?: boolean;
   localFilterActive?: boolean;
   rows: AuditLogListItem[];
+  selectedRowKeys?: Array<string | number>;
   summary?: string;
   total: number;
   visibleColumnKeys?: string[];
@@ -184,6 +195,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'detail', row: AuditLogListItem): void;
   (e: 'page-change'): void;
+  (e: 'select-change', rowKeys: Array<string | number>): void;
   (e: 'view-access-log', row: AuditLogListItem): void;
   (e: 'view-app-log', row: AuditLogListItem): void;
   (e: 'view-security-event', row: AuditLogListItem): void;
@@ -191,6 +203,8 @@ const emit = defineEmits<{
 const { t, locale } = useI18n();
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
+const selectedRowKeys = computed(() => props.selectedRowKeys ?? []);
+const canDelete = computed(() => props.canDelete === true);
 const technicalCopyLabels = computed(() => ({
   copyable: true,
   copyLabel: t('audit.logList.drawer.actions.copyRequestId'),
@@ -199,23 +213,35 @@ const technicalCopyLabels = computed(() => ({
 }));
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
+  const selectionColumn = canDelete.value
+    ? [{ colKey: 'row-select', fixed: 'left' as const, type: 'multiple', width: 48 }]
+    : [];
+  const allColumns: TdBaseTableProps['columns'] = [
+    ...selectionColumn,
+    createMainTextColumn(t('audit.logList.columns.action'), 'action', 260),
+    createIdentifierColumn(t('audit.logList.columns.actor'), 'actor', 168),
+    createIdentifierColumn(t('audit.logList.columns.resource'), 'resource', 208),
+    createTechnicalColumn(t('audit.logList.columns.correlation'), 'correlation', 248),
+    createTechnicalColumn(t('audit.logList.columns.sessionId'), 'session_id', 220),
+    createIdentifierColumn(t('audit.logList.columns.ip'), 'ip', 160),
+    createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
+    createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
+    createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 200),
+    createActionColumn(t('audit.logList.columns.operation'), 156, 'center', 'operation'),
+  ];
   return resolveManagedColumns(
-    [
-      createMainTextColumn(t('audit.logList.columns.action'), 'action', 260),
-      createIdentifierColumn(t('audit.logList.columns.actor'), 'actor', 168),
-      createIdentifierColumn(t('audit.logList.columns.resource'), 'resource', 208),
-      createTechnicalColumn(t('audit.logList.columns.correlation'), 'correlation', 248),
-      createTechnicalColumn(t('audit.logList.columns.sessionId'), 'session_id', 220),
-      createIdentifierColumn(t('audit.logList.columns.ip'), 'ip', 160),
-      createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
-      createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
-      createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 200),
-      createActionColumn(t('audit.logList.columns.operation'), 156, 'center', 'operation'),
-    ],
+    allColumns,
     props.visibleColumnKeys,
-    ['operation'],
+    canDelete.value ? ['row-select', 'operation'] : ['operation'],
   );
 });
+function toggleCardSelection(row: AuditLogListItem, value: boolean | { checked?: boolean }) {
+  const checked = typeof value === 'boolean' ? value : value.checked === true;
+  const next = checked
+    ? Array.from(new Set([...selectedRowKeys.value, row.id]))
+    : selectedRowKeys.value.filter((key) => Number(key) !== row.id);
+  emit('select-change', next);
+}
 function emitPageChange() {
   emit('page-change');
 }

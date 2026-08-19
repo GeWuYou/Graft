@@ -170,6 +170,17 @@ describe('AuditTable', () => {
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1, request_id: 'req-1' });
   });
 
+  it('exposes the selection column and card checkbox only with delete capability', async () => {
+    const wrapper = mountTable();
+    expect(wrapper.get('[data-testid="table-columns"]').text()).not.toContain('row-select');
+    expect(wrapper.find('.audit-log-card__select').exists()).toBe(false);
+
+    const deletable = mountTable();
+    await deletable.setProps({ canDelete: true, selectedRowKeys: [1] });
+    expect(deletable.get('[data-testid="table-columns"]').text()).toContain('row-select');
+    expect(deletable.find('.audit-log-card__select').exists()).toBe(true);
+  });
+
   it('emits non-destructive related log and raw JSON actions from the action menu', async () => {
     const wrapper = mountTable();
 

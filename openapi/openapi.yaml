@@ -181,6 +181,8 @@ paths:
     $ref: ./paths/users.roles.batch.remove.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
+  /api/audit/logs/batch-delete:
+    $ref: ./paths/audit.logs.batch-delete.yaml
   /api/audit/logs/{id}:
     $ref: ./paths/audit.logs.detail.yaml
   /api/audit/logs/saved-views:
@@ -684,6 +686,8 @@ components:
       $ref: ./components/schemas/audit-business-category.yaml
     AuditLogListResponse:
       $ref: ./components/schemas/audit-log-list-response.yaml
+    AuditLogsBatchDeleteRequest:
+      $ref: ./components/schemas/audit-logs-batch-delete-request.yaml
     AuditLogDetailResponse:
       $ref: ./components/schemas/audit-log-detail-response.yaml
     EnvelopedAuditLogListResponse:

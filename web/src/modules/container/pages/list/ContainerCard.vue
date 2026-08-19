@@ -1,6 +1,11 @@
 <template>
   <article class="container-card" :data-testid="`container-card-${row.id}`">
     <header class="container-card__header">
+      <t-checkbox
+        :checked="selected"
+        :aria-label="t('container.list.batch.selectRow', { name: displayContainerName(row) })"
+        @change="emit('select-change', Boolean($event))"
+      />
       <div class="container-card__identity">
         <strong>{{ displayContainerName(row) }}</strong>
         <span :title="row.id">{{ row.short_id || shortContainerId(row.id) }}</span>
@@ -55,7 +60,7 @@ import { type ContainerResourceRowAction, displayContainerName, shortContainerId
 import type { ContainerSummaryRecord } from '../../types/container';
 
 /** 卡片复用列表行与动作真值，不自行请求或推断容器能力。 */
-const props = defineProps<{ row: ContainerSummaryRecord; actions: ContainerResourceRowAction[] }>();
+const props = defineProps<{ row: ContainerSummaryRecord; actions: ContainerResourceRowAction[]; selected?: boolean }>();
 const { t } = useI18n();
 const moreActionOptions = computed(() =>
   props.actions
@@ -95,6 +100,7 @@ function stateTheme(state: ContainerSummaryRecord['state']) {
 const emit = defineEmits<{
   detail: [row: ContainerSummaryRecord];
   action: [payload: { action: string; row: ContainerSummaryRecord }];
+  'select-change': [checked: boolean];
 }>();
 function emitAction(action: string) {
   emit('action', { action, row: props.row });

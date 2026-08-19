@@ -328,6 +328,134 @@ func (r *repository) DeleteAuditLogsBefore(ctx context.Context, createdBefore ti
 	return deleted, nil
 }
 
+// DeleteAuditLogsByIDs 在单个事务中校验、删除指定记录，并写入不可手工删除的删除凭证。
+func (r *repository) DeleteAuditLogsByIDs(
+	ctx context.Context,
+	ids []uint64,
+	input auditstore.AuditLogDeletionInput,
+) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("audit repository is unavailable")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin audit log deletion: %w", err)
+	}
+	return executeAuditLogDeletion(ctx, tx, ids, input)
+}
+
+func executeAuditLogDeletion(
+	ctx context.Context,
+	tx *sql.Tx,
+	ids []uint64,
+	input auditstore.AuditLogDeletionInput,
+) (int64, error) {
+	list, args := auditLogIDQueryArgs(ids)
+	rollback := func(cause error) (int64, error) {
+		_ = tx.Rollback()
+		return 0, cause
+	}
+	var alreadyApplied int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM audit_logs WHERE metadata ->> 'auditDeletionIdempotencyKey' = $1`, input.IdempotencyKey,
+	).Scan(&alreadyApplied); err != nil {
+		return rollback(fmt.Errorf("check audit deletion idempotency: %w", err))
+	}
+	if alreadyApplied > 0 {
+		if err := tx.Commit(); err != nil {
+			return 0, fmt.Errorf("commit idempotent audit log deletion replay: %w", err)
+		}
+		return 0, nil
+	}
+	if err := validateDeletableAuditLogs(ctx, tx, list, args, len(ids)); err != nil {
+		return rollback(err)
+	}
+	deleted, err := deleteAuditLogs(ctx, tx, list, args, len(ids))
+	if err != nil {
+		return rollback(err)
+	}
+	if err := writeAuditDeletionReceipt(ctx, tx, ids, input); err != nil {
+		return rollback(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit audit log deletion: %w", err)
+	}
+	return deleted, nil
+}
+
+func auditLogIDQueryArgs(ids []uint64) (string, []any) {
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	return strings.Join(placeholders, ", "), args
+}
+
+func validateDeletableAuditLogs(ctx context.Context, tx *sql.Tx, list string, args []any, expected int) error {
+	var found int
+	//nolint:gosec // list 只由连续参数占位符生成，记录 ID 仍通过数据库参数绑定。
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_logs WHERE id IN (`+list+`)`, args...).Scan(&found); err != nil {
+		return fmt.Errorf("check audit logs for deletion: %w", err)
+	}
+	if found != expected {
+		return auditstore.ErrAuditLogNotFound
+	}
+
+	var protected int
+	//nolint:gosec // list 只由连续参数占位符生成，记录 ID 仍通过数据库参数绑定。
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_logs WHERE id IN (`+list+
+		`) AND (metadata ->> 'protected' = 'true' OR action = 'audit.logs.batch_deleted')`, args...).Scan(&protected); err != nil {
+		return fmt.Errorf("check protected audit logs: %w", err)
+	}
+	if protected > 0 {
+		return auditstore.ErrAuditLogProtected
+	}
+	return nil
+}
+
+func deleteAuditLogs(ctx context.Context, tx *sql.Tx, list string, args []any, expected int) (int64, error) {
+	//nolint:gosec // list 只由连续参数占位符生成，记录 ID 仍通过数据库参数绑定。
+	result, err := tx.ExecContext(ctx, `DELETE FROM audit_logs WHERE id IN (`+list+
+		`) AND metadata ->> 'auditDeletionIdempotencyKey' IS NULL`, args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete audit logs: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read deleted audit log count: %w", err)
+	}
+	if deleted != int64(expected) {
+		return 0, fmt.Errorf("audit log deletion affected %d of %d records", deleted, expected)
+	}
+	return deleted, nil
+}
+
+func writeAuditDeletionReceipt(ctx context.Context, tx *sql.Tx, ids []uint64, input auditstore.AuditLogDeletionInput) error {
+	metadata, err := json.Marshal(map[string]any{
+		"auditDeletionIdempotencyKey": input.IdempotencyKey,
+		"deleted_ids":                 ids,
+		"protected":                   true,
+	})
+	if err != nil {
+		return fmt.Errorf("encode audit deletion receipt: %w", err)
+	}
+	actorUserID, err := nullableUint64(input.ActorUserID)
+	if err != nil {
+		return fmt.Errorf("normalize audit deletion actor: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO audit_logs (
+		actor_user_id, actor_username, actor_display_name, action, visibility,
+		resource_type, resource_id, resource_name, success, request_id, metadata, created_at
+	) VALUES ($1, $2, $3, 'audit.logs.batch_deleted', 'visible', 'audit_logs', $4, $4, true, $5, $6, $7)`,
+		actorUserID, input.ActorUsername, input.ActorUsername, input.IdempotencyKey, input.RequestID, metadata, input.DeletedAt.UTC())
+	if err != nil {
+		return fmt.Errorf("write audit deletion receipt: %w", err)
+	}
+	return nil
+}
+
 func buildAuditLogOrderBy(query auditstore.ListAuditLogsQuery) string {
 	for _, raw := range query.Sorts {
 		switch strings.TrimSpace(raw) {

@@ -18,6 +18,7 @@ const (
 	auditSortPartCount              = 2
 	auditVisibilityGlobalDefaultKey = "global"
 	maxAuditVisibilityOverrideBatch = 100
+	maxAuditLogDeleteBatch           = 100
 )
 
 var (
@@ -236,6 +237,41 @@ func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (in
 	}
 
 	return deleted, nil
+}
+
+// DeleteByIDs 原子删除一批审计记录，并要求仓储为该操作写入不可手工删除凭证。
+func (s *Service) DeleteByIDs(ctx context.Context, ids []uint64, input auditstore.AuditLogDeletionInput) (int64, error) {
+	repo, err := s.repository()
+	if err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 || len(ids) > maxAuditLogDeleteBatch {
+		return 0, fmt.Errorf("%w: audit log delete batch must contain 1-%d ids", auditstore.ErrAuditValidation, maxAuditLogDeleteBatch)
+	}
+	seen := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			return 0, fmt.Errorf("%w: audit log id is required", auditstore.ErrAuditValidation)
+		}
+		if _, ok := seen[id]; ok {
+			return 0, fmt.Errorf("%w: duplicate audit log id", auditstore.ErrAuditValidation)
+		}
+		seen[id] = struct{}{}
+	}
+	input.IdempotencyKey = strings.TrimSpace(input.IdempotencyKey)
+	if input.IdempotencyKey == "" {
+		return 0, fmt.Errorf("%w: audit log deletion idempotency key is required", auditstore.ErrAuditValidation)
+	}
+	if input.DeletedAt.IsZero() {
+		input.DeletedAt = time.Now().UTC()
+	}
+	deleter, ok := repo.(interface {
+		DeleteAuditLogsByIDs(context.Context, []uint64, auditstore.AuditLogDeletionInput) (int64, error)
+	})
+	if !ok {
+		return 0, ErrAuditServiceUnavailable
+	}
+	return deleter.DeleteAuditLogsByIDs(ctx, ids, input)
 }
 
 // VisibilityPolicy 返回当前由审计模块拥有的可见性策略快照。

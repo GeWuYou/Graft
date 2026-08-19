@@ -49,7 +49,7 @@ func TestSystemRolePolicyRejectsCoverageAndCriticalReviewGaps(t *testing.T) {
 }
 
 func TestSystemRolePolicyCriticalEntriesHaveReviewMetadata(t *testing.T) {
-	critical := map[string]bool{"container.shell": true, "role.permission.assign": true, "user.role.assign": true, "system-config.write": true}
+	critical := map[string]bool{"audit.delete": true, "container.shell": true, "role.permission.assign": true, "user.role.assign": true, "system-config.write": true}
 	for _, entry := range SystemRolePolicy() {
 		if !critical[entry.Code] {
 			continue
@@ -66,7 +66,7 @@ func TestSystemRolePolicyRestrictsConnectivitySensitivePermissionsToAdmin(t *tes
 		entries[entry.Code] = entry
 	}
 
-	for _, code := range []string{"platform-network.targets.manage", "platform-network.exit-ip.read", capabilitycontract.ReadPermission} {
+	for _, code := range []string{"audit.delete", "platform-network.targets.manage", "platform-network.exit-ip.read", capabilitycontract.ReadPermission} {
 		entry, exists := entries[code]
 		if !exists {
 			t.Fatalf("system role policy does not cover %s", code)

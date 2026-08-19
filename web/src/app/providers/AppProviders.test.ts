@@ -7,7 +7,7 @@ import AppProviders from './AppProviders.vue';
 const localeRef = ref('zh-CN');
 const providerLocaleRef = ref({ localeName: 'zh-CN-components' });
 const displayModeRef = ref('light');
-const availabilityStatusRef = ref<'healthy' | 'recovering' | 'unavailable'>('healthy');
+const availabilityStatusRef = ref<'unknown' | 'healthy' | 'recovering' | 'unavailable'>('healthy');
 const routerMock = vi.hoisted(() => ({
   currentRoute: { value: { path: '/', fullPath: '/', query: {} as Record<string, unknown> } },
   replace: vi.fn(),
@@ -129,6 +129,36 @@ describe('AppProviders', () => {
     expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(true);
 
     availabilityStatusRef.value = 'unavailable';
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(false);
+  });
+
+  it('keeps the theme workbench hidden on the unavailable result route during recovery probes', async () => {
+    routerMock.currentRoute.value = {
+      path: '/result/service-unavailable',
+      fullPath: '/result/service-unavailable?redirect=%2Fprojects',
+      query: { redirect: '/projects' },
+    };
+    availabilityStatusRef.value = 'unknown';
+
+    const wrapper = mount(AppProviders, {
+      global: {
+        stubs: {
+          RouterView: RouteProbe,
+          TConfigProvider: defineComponent({
+            name: 'TConfigProviderStub',
+            setup(_, { slots }) {
+              return () => h('div', slots.default?.());
+            },
+          }),
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(false);
+
+    availabilityStatusRef.value = 'recovering';
     await nextTick();
 
     expect(wrapper.find('[data-testid="setting-stub"]').exists()).toBe(false);
