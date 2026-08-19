@@ -245,7 +245,7 @@ func TestRunValidateOpenAPIInvokesFreshnessCheck(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	spec := "openapi: 3.0.3\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}\n"
+	spec := "openapi: 3.0.3\ninfo:\n  title: Test\n  version: 1.0.0\nx-graft-destructive-schema: {}\npaths: {}\n"
 	if err := os.WriteFile(filepath.Join(specDir, "openapi.yaml"), []byte(spec), 0o600); err != nil {
 		t.Fatalf("write openapi spec: %v", err)
 	}

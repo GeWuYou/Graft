@@ -34,9 +34,6 @@ const (
 	// UserResetPasswordRoute 标识单个用户密码重置接口的路径片段。
 	UserResetPasswordRoute = "/:id/reset-password"
 
-	// UserDeleteRoute 标识单个用户软删除接口的路径片段。
-	UserDeleteRoute = "/:id/delete"
-
 	// UserSessions 标识管理员查看指定用户会话列表的路径片段。
 	UserSessions = "/:id/sessions"
 

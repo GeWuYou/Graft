@@ -16,24 +16,20 @@ type GetUserByIdPath = typeof OPENAPI_RUNTIME_PATH.getUserById;
 type PostUserUpdatePath = typeof OPENAPI_RUNTIME_PATH.postUserUpdate;
 type PostUserStatusPath = typeof OPENAPI_RUNTIME_PATH.postUserStatus;
 type PostUserResetPasswordPath = typeof OPENAPI_RUNTIME_PATH.postUserResetPassword;
-type PostUserDeletePath = typeof OPENAPI_RUNTIME_PATH.postUserDelete;
 type GetUsersOperation = paths[UsersPath]['get'];
 type GetUserByIdOperation = paths[GetUserByIdPath]['get'];
 type PostUsersOperation = paths[UsersPath]['post'];
 type PostUserUpdateOperation = paths[PostUserUpdatePath]['post'];
 type PostUserStatusOperation = paths[PostUserStatusPath]['post'];
 type PostUserResetPasswordOperation = paths[PostUserResetPasswordPath]['post'];
-type PostUserDeleteOperation = paths[PostUserDeletePath]['post'];
 type GetUsersResponse = GetUsersOperation['responses']['200']['content']['application/json'];
 type GetUserByIdResponse = GetUserByIdOperation['responses']['200']['content']['application/json'];
 type PostUsersRequest = PostUsersOperation['requestBody']['content']['application/json'];
 type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['application/json'];
 type PostUserStatusRequest = PostUserStatusOperation['requestBody']['content']['application/json'];
 type PostUserResetPasswordRequest = PostUserResetPasswordOperation['requestBody']['content']['application/json'];
-type PostUserDeleteResponse = PostUserDeleteOperation['responses']['200']['content']['application/json'];
 type GetUsersResponseData = NonNullable<GetUsersResponse['data']>;
 type GetUserByIdResponseData = NonNullable<GetUserByIdResponse['data']>;
-type PostUserDeleteResponseData = NonNullable<PostUserDeleteResponse['data']>;
 type UserSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getUserSavedViews;
 type GetUserSavedViewsOperation = paths[UserSavedViewsPath]['get'];
 type GetUserSavedViewsResponse = GetUserSavedViewsOperation['responses'][200]['content']['application/json'];
@@ -118,8 +114,8 @@ export function resetUserPassword(userId: number, payload: ResetUserPasswordPayl
 }
 
 export function deleteUser(userId: number) {
-  return request.post<PostUserDeleteResponseData>({
-    url: buildOpenApiRuntimePath('postUserDelete', { id: userId }),
+  return request.delete<void>({
+    url: buildOpenApiRuntimePath('deleteUser', { id: userId }),
   });
 }
 

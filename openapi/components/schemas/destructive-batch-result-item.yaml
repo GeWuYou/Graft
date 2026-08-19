@@ -1,0 +1,25 @@
+type: object
+description: Result for one requested resource identifier, preserved in request order.
+required: [id, status]
+properties:
+  id:
+    type: string
+    minLength: 1
+  status:
+    type: string
+    enum: [deleted, removed, revoked, unchanged, accepted, failed]
+  code:
+    type: string
+    minLength: 1
+    description: Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise.
+allOf:
+  - if:
+      properties:
+        status: { const: failed }
+      required: [status]
+    then:
+      required: [code]
+    else:
+      not:
+        required: [code]
+additionalProperties: false

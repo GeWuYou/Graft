@@ -1,0 +1,87 @@
+type: object
+description: >-
+  Validation anchor for operation-level x-graft-destructive metadata. The metadata describes implemented destructive
+  behavior and governance requirements; it does not authorize the operation or replace owning-module policy.
+required:
+  - kind
+  - effect
+  - execution
+  - retry
+  - result
+  - authorization
+  - audit
+  - confirmation
+  - exposure
+properties:
+  kind:
+    type: string
+    enum:
+      - resource_delete
+      - relationship_remove
+      - credential_revoke
+      - lifecycle_termination
+      - hard_delete
+      - external_destroy
+  effect:
+    type: string
+    enum:
+      - soft_delete
+      - hard_delete
+      - relationship_removal
+      - revocation
+      - external_side_effect
+  execution:
+    type: string
+    enum: [synchronous, asynchronous]
+  retry:
+    type: object
+    required: [mode]
+    properties:
+      mode:
+        type: string
+        enum: [tombstone_idempotent, idempotency_key, task_receipt]
+    additionalProperties: false
+  result:
+    type: object
+    required: [status]
+    properties:
+      status:
+        type: integer
+        enum: [200, 202, 204]
+    additionalProperties: false
+  authorization:
+    type: object
+    required: [owner_check]
+    properties:
+      owner_check: { type: boolean }
+    additionalProperties: false
+  audit:
+    type: object
+    required: [required]
+    properties:
+      required: { type: boolean }
+    additionalProperties: false
+  confirmation:
+    type: object
+    required: [required]
+    properties:
+      required: { type: boolean }
+    additionalProperties: false
+  exposure:
+    type: object
+    required: [mcp]
+    properties:
+      mcp: { type: boolean }
+    additionalProperties: false
+  batch:
+    type: object
+    required: [mode, max_items]
+    properties:
+      mode:
+        type: string
+        enum: [partial, atomic]
+      max_items:
+        type: integer
+        minimum: 1
+    additionalProperties: false
+additionalProperties: false

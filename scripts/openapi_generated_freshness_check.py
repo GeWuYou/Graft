@@ -47,7 +47,7 @@ RBAC_MANAGEMENT_ARGS = [
 ]
 USER_WRITE_ARGS = [
     "--include-operation-ids",
-    "getUsers,getUserById,getUserSessions,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,postUserDelete,postUserSessionsRevokeAll,postUserSessionRevoke",
+    "getUsers,getUserById,getUserSessions,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,deleteUser,postUserSessionsRevokeAll,postUserSessionRevoke",
     "--generate",
     "types",
     "--package",

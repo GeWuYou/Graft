@@ -19220,8 +19220,8 @@ type PutUserSavedViewParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// GetUserByIdParams defines parameters for GetUserById.
-type GetUserByIdParams struct {
+// DeleteUserParams defines parameters for DeleteUser.
+type DeleteUserParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19230,8 +19230,8 @@ type GetUserByIdParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUserDeleteParams defines parameters for PostUserDelete.
-type PostUserDeleteParams struct {
+// GetUserByIdParams defines parameters for GetUserById.
+type GetUserByIdParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

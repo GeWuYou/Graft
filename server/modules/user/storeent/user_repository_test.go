@@ -3,6 +3,7 @@ package storeent
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -22,8 +23,13 @@ func TestUserRepositoryGetByUsernameReturnsOnlyActiveProfile(t *testing.T) {
 	if _, err := client.User.Create().SetUsername("active-user").SetDisplay("Active User").SetStatus("enabled").Save(context.Background()); err != nil {
 		t.Fatalf("create active user: %v", err)
 	}
-	if _, err := client.User.Create().SetUsername("deleted-user").SetDisplay("Deleted User").SetStatus("enabled").SetDeletedAt(1).Save(context.Background()); err != nil {
+	deletedRecord, err := client.User.Create().SetUsername("deleted-user").SetDisplay("Deleted User").SetStatus("enabled").SetDeletedAt(1).Save(context.Background())
+	if err != nil {
 		t.Fatalf("create deleted user: %v", err)
+	}
+	deletedUserID, err := strconv.ParseUint(strconv.Itoa(deletedRecord.ID), 10, 64)
+	if err != nil {
+		t.Fatalf("convert deleted user id: %v", err)
 	}
 
 	repo, err := newUserRepository(client)
@@ -42,6 +48,17 @@ func TestUserRepositoryGetByUsernameReturnsOnlyActiveProfile(t *testing.T) {
 	_, err = repo.GetByUsername(context.Background(), "deleted-user")
 	if !errors.Is(err, userstore.ErrUserNotFound) {
 		t.Fatalf("GetByUsername(deleted-user) error = %v, want ErrUserNotFound", err)
+	}
+
+	deletionState, err := repo.GetDeletionState(context.Background(), deletedUserID)
+	if err != nil {
+		t.Fatalf("GetDeletionState(deleted-user) error = %v", err)
+	}
+	if !deletionState.Deleted || deletionState.Username != "deleted-user" {
+		t.Fatalf("GetDeletionState(deleted-user) = %#v", deletionState)
+	}
+	if _, err := repo.GetByID(context.Background(), deletedUserID); !errors.Is(err, userstore.ErrUserNotFound) {
+		t.Fatalf("GetByID(deleted-user) error = %v, want ErrUserNotFound", err)
 	}
 }
 

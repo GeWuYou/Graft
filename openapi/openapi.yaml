@@ -5,6 +5,8 @@ info:
   description: Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation.
 x-graft-mcp-schema:
   $ref: ./components/schemas/graft-mcp-operation-metadata.yaml
+x-graft-destructive-schema:
+  $ref: ./components/schemas/graft-destructive-operation-metadata.yaml
 x-tagGroups:
   - name: Platform
     tags:
@@ -125,8 +127,6 @@ paths:
     $ref: ./paths/users.status.yaml
   /api/users/{id}/reset-password:
     $ref: ./paths/users.reset-password.yaml
-  /api/users/{id}/delete:
-    $ref: ./paths/users.delete.yaml
   /api/users/{id}/sessions:
     $ref: ./paths/users.sessions.yaml
   /api/users/{id}/sessions/{sessionID}/revoke:
@@ -588,6 +588,16 @@ paths:
     $ref: ./paths/ops-applications.destroy.yaml
 components:
   schemas:
+    GraftDestructiveOperationMetadata:
+      $ref: ./components/schemas/graft-destructive-operation-metadata.yaml
+    DestructiveBatchResultSummary:
+      $ref: ./components/schemas/destructive-batch-result-summary.yaml
+    DestructiveBatchResultItem:
+      $ref: ./components/schemas/destructive-batch-result-item.yaml
+    DestructiveBatchResult:
+      $ref: ./components/schemas/destructive-batch-result.yaml
+    EnvelopedDestructiveBatchResult:
+      $ref: ./components/schemas/enveloped-destructive-batch-result.yaml
     ApiEnvelope:
       $ref: ./components/schemas/api-envelope.yaml
     ErrorResponse:

@@ -73,6 +73,8 @@ Overlay note:
 
 - `dashboard-workbench-redesign`
   - Recovery entry: `ai-plan/public/dashboard-workbench-redesign/README.md`
+- `destructive-operation-contract-convergence`
+  - Recovery entry: `ai-plan/public/destructive-operation-contract-convergence/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.

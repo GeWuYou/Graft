@@ -20,6 +20,10 @@ func (r *identityProviderRepository) GetByID(ctx context.Context, id uint64) (us
 	return r.getByID(ctx, id)
 }
 
+func (r *identityProviderRepository) GetDeletionState(context.Context, uint64) (userstore.UserDeletionState, error) {
+	return userstore.UserDeletionState{}, nil
+}
+
 func (r *identityProviderRepository) GetByUsername(ctx context.Context, username string) (userstore.User, error) {
 	return r.getByUsername(ctx, username)
 }

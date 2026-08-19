@@ -393,7 +393,11 @@ export interface paths {
     get: operations['getUserById'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Soft delete one user
+     * @description Soft deletes the managed user. A repeat DELETE for an existing tombstone in the same authorized management scope returns 204 without repeating domain side effects. GET and list operations continue to hide the tombstone.
+     */
+    delete: operations['deleteUser'];
     options?: never;
     head?: never;
     patch?: never;
@@ -453,26 +457,6 @@ export interface paths {
      * @description Resets the managed user password using the existing backend reset semantics.
      */
     post: operations['postUserResetPassword'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/users/{id}/delete': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Delete one user
-     * @description Deletes the specified managed user without changing current backend delete semantics.
-     */
-    post: operations['postUserDelete'];
     delete?: never;
     options?: never;
     head?: never;
@@ -4866,6 +4850,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    GraftDestructiveOperationMetadata: components['schemas']['graft-destructive-operation-metadata'];
+    DestructiveBatchResultSummary: components['schemas']['destructive-batch-result-summary'];
+    DestructiveBatchResultItem: components['schemas']['destructive-batch-result-item'];
+    DestructiveBatchResult: components['schemas']['destructive-batch-result'];
+    EnvelopedDestructiveBatchResult: components['schemas']['enveloped-destructive-batch-result'];
     ApiEnvelope: components['schemas']['api-envelope'];
     ErrorResponse: components['schemas']['error-response'];
     EnvelopedEmptyResponse: components['schemas']['enveloped-empty-response'];
@@ -11373,6 +11362,69 @@ export interface components {
       delete_workspace: boolean;
       confirm_application_id: components['schemas']['application-id'];
     };
+    /** @description Validation anchor for operation-level x-graft-destructive metadata. The metadata describes implemented destructive behavior and governance requirements; it does not authorize the operation or replace owning-module policy. */
+    'graft-destructive-operation-metadata': {
+      /** @enum {string} */
+      kind:
+        | 'resource_delete'
+        | 'relationship_remove'
+        | 'credential_revoke'
+        | 'lifecycle_termination'
+        | 'hard_delete'
+        | 'external_destroy';
+      /** @enum {string} */
+      effect: 'soft_delete' | 'hard_delete' | 'relationship_removal' | 'revocation' | 'external_side_effect';
+      /** @enum {string} */
+      execution: 'synchronous' | 'asynchronous';
+      retry: {
+        /** @enum {string} */
+        mode: 'tombstone_idempotent' | 'idempotency_key' | 'task_receipt';
+      };
+      result: {
+        /** @enum {integer} */
+        status: 200 | 202 | 204;
+      };
+      authorization: {
+        owner_check: boolean;
+      };
+      audit: {
+        required: boolean;
+      };
+      confirmation: {
+        required: boolean;
+      };
+      exposure: {
+        mcp: boolean;
+      };
+      batch?: {
+        /** @enum {string} */
+        mode: 'partial' | 'atomic';
+        max_items: number;
+      };
+    };
+    /** @description Counts for one bounded synchronous destructive batch operation. */
+    'destructive-batch-result-summary': {
+      requested: number;
+      succeeded: number;
+      failed: number;
+    };
+    /** @description Result for one requested resource identifier, preserved in request order. */
+    'destructive-batch-result-item': {
+      id: string;
+      /** @enum {string} */
+      status: 'deleted' | 'removed' | 'revoked' | 'unchanged' | 'accepted' | 'failed';
+      /** @description Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise. */
+      code?: string;
+    } & unknown;
+    /** @description Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed. */
+    'destructive-batch-result': {
+      operation_id: string;
+      summary: components['schemas']['destructive-batch-result-summary'];
+      results: components['schemas']['destructive-batch-result-item'][];
+    };
+    'enveloped-destructive-batch-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['destructive-batch-result'];
+    };
     'dashboard-stat-group-payload': {
       items: {
         key: string;
@@ -12743,6 +12795,58 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  deleteUser: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User was soft deleted or the same authorized scope retried an existing tombstone. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid user id or protected self-delete attempt. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User never existed in the authorized management scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postUserUpdate: {
     parameters: {
       query?: never;
@@ -12896,60 +13000,6 @@ export interface operations {
         };
       };
       /** @description Invalid request or password policy violation. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description User not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postUserDelete: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description User deleted. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
-        };
-      };
-      /** @description Invalid user id or protected self-delete attempt. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

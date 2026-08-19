@@ -106,3 +106,68 @@ get:
                 data: {}
     '500':
       $ref: ../components/responses/internal-server-error.yaml
+delete:
+  tags: [users]
+  summary: Soft delete one user
+  operationId: deleteUser
+  description: >-
+    Soft deletes the managed user. A repeat DELETE for an existing tombstone in the same authorized management scope
+    returns 204 without repeating domain side effects. GET and list operations continue to hide the tombstone.
+  x-graft-destructive:
+    kind: resource_delete
+    effect: soft_delete
+    execution: synchronous
+    retry:
+      mode: tombstone_idempotent
+    result:
+      status: 204
+    authorization:
+      owner_check: false
+    audit:
+      required: true
+    confirmation:
+      required: true
+    exposure:
+      mcp: false
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security:
+    - bearerAuth: []
+  responses:
+    '204':
+      description: User was soft deleted or the same authorized scope retried an existing tombstone.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+    '400':
+      description: Invalid user id or protected self-delete attempt.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: User never existed in the authorized management scope.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

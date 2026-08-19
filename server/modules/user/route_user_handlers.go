@@ -251,9 +251,9 @@ func (h userWriteGeneratedHandler) PostUserResetPassword(
 	_ = body
 }
 
-func (h userWriteGeneratedHandler) PostUserDelete(
+func (h userWriteGeneratedHandler) DeleteUser(
 	id uint64,
-	params useropenapi.PostUserDeleteParams,
+	params useropenapi.DeleteUserParams,
 ) {
 	_ = h
 	_ = id
@@ -315,19 +315,19 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 }
 
 func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserDeleteRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.DELETE(usercontract.UserByID, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
 		requestCtx := ginCtx.Request.Context()
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
 		}
-		userWriteGeneratedHandler{}.PostUserDelete(userID, bindGeneratedUserDeleteParams(ginCtx))
+		userWriteGeneratedHandler{}.DeleteUser(userID, bindGeneratedUserDeleteParams(ginCtx))
 
 		if err := r.userSvc.DeleteUser(requestCtx, userID); err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)
 			return
 		}
 
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+		ginCtx.Status(http.StatusNoContent)
 	})
 }

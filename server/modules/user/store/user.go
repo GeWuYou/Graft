@@ -77,9 +77,19 @@ type DeleteUserInput struct {
 	ActorID   uint64
 }
 
+// UserDeletionState 是删除命令专用的最小 tombstone 事实；普通读取不得使用它绕过 deleted_at 过滤。
+type UserDeletionState struct {
+	ID                    uint64
+	Username              string
+	ProtectedDefaultAdmin bool
+	Deleted               bool
+}
+
 // UserRepository 暴露 user 模块私有的用户持久化契约；调用方应通过模块服务执行授权与业务规则。
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
+	// GetDeletionState 区分从未存在与已删除 tombstone，仅供 owning service 实现幂等删除。
+	GetDeletionState(ctx context.Context, id uint64) (UserDeletionState, error)
 	GetByUsername(ctx context.Context, username string) (User, error)
 	List(ctx context.Context) ([]User, error)
 	// ListPage 在同一组筛选条件下返回稳定 ID 排序的当前页与总数。

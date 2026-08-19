@@ -37,7 +37,6 @@ func TestRequiredLiveRoutesStayCoveredByRootSpec(t *testing.T) {
 		"/api/auth/change-password",
 		"/api/auth/complete-required-password-change",
 		"/api/users/{id}",
-		"/api/users/{id}/delete",
 		"/api/users/{id}/sessions",
 		"/api/users/{id}/sessions/{sessionID}/revoke",
 		"/api/users/{id}/sessions/revoke-all",
