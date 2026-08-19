@@ -70,4 +70,5 @@ put:
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
     '404': {description: Runtime target or user not found}
+    '409': {$ref: ../components/responses/conflict.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

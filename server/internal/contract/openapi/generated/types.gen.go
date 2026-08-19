@@ -14543,8 +14543,17 @@ type RuntimeTargetUsageMetric struct {
 type RuntimeTargetUserAssignment struct {
 	CreatedAt time.Time `json:"created_at"`
 	CreatedBy *int64    `json:"created_by,omitempty"`
-	TargetId  int64     `json:"target_id"`
-	UserId    int64     `json:"user_id"`
+
+	// Display Current display name when the assigned user remains available.
+	Display *string `json:"display,omitempty"`
+
+	// Status Current account status when the assigned user remains available.
+	Status   *string `json:"status,omitempty"`
+	TargetId int64   `json:"target_id"`
+	UserId   int64   `json:"user_id"`
+
+	// Username Current username when the assigned user remains available.
+	Username *string `json:"username,omitempty"`
 }
 
 // RuntimeTargetUserAssignmentListResponse defines model for runtime-target-user-assignment-list-response.

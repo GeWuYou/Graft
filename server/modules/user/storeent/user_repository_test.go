@@ -89,3 +89,40 @@ func TestUserRepositoryListPageFiltersCountsAndOrdersByID(t *testing.T) {
 		t.Fatalf("ListPage(status and IDs) = %#v, total %d; want bravo and total 1", users, total)
 	}
 }
+
+func TestUserRepositoryListSummariesByIDsReturnsOnlyRequestedActiveUsers(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:user-storeent-list-summaries?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close user ent client: %v", err)
+		}
+	})
+	first, err := client.User.Create().SetUsername("first").SetDisplay("First User").SetStatus("enabled").Save(context.Background())
+	if err != nil {
+		t.Fatalf("create first user: %v", err)
+	}
+	second, err := client.User.Create().SetUsername("second").SetDisplay("Second User").SetStatus("disabled").Save(context.Background())
+	if err != nil {
+		t.Fatalf("create second user: %v", err)
+	}
+	deleted, err := client.User.Create().SetUsername("deleted").SetDisplay("Deleted User").SetStatus("enabled").SetDeletedAt(1).Save(context.Background())
+	if err != nil {
+		t.Fatalf("create deleted user: %v", err)
+	}
+	repo, err := newUserRepository(client)
+	if err != nil {
+		t.Fatalf("newUserRepository() error = %v", err)
+	}
+
+	items, err := repo.ListSummariesByIDs(context.Background(), []uint64{
+		toStoreID(second.ID),
+		toStoreID(deleted.ID),
+		toStoreID(first.ID),
+	})
+	if err != nil {
+		t.Fatalf("ListSummariesByIDs() error = %v", err)
+	}
+	if len(items) != 2 || items[0].Username != "first" || items[1].Username != "second" {
+		t.Fatalf("ListSummariesByIDs() = %#v", items)
+	}
+}

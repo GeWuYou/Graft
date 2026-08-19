@@ -177,19 +177,7 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		auditBus:     ctx.EventBus,
 		logger:       logger,
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.UserService)(nil), func(_ container.Resolver) (any, error) {
-		return userSvc, nil
-	}); err != nil {
-		return registeredServices{}, err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.UserCandidateReader)(nil), func(_ container.Resolver) (any, error) {
-		return userSvc, nil
-	}); err != nil {
-		return registeredServices{}, err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.UserSecurityReader)(nil), func(_ container.Resolver) (any, error) {
-		return userSvc, nil
-	}); err != nil {
+	if err := registerUserReadServices(ctx, userSvc); err != nil {
 		return registeredServices{}, err
 	}
 
@@ -215,6 +203,21 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		authFlow:     deferredAuth,
 		bootstrap:    bootstrapSvc,
 	}, nil
+}
+
+func registerUserReadServices(ctx *module.Context, userSvc userService) error {
+	provider := func(_ container.Resolver) (any, error) { return userSvc, nil }
+	for _, marker := range []any{
+		(*moduleapi.UserService)(nil),
+		(*moduleapi.UserCandidateReader)(nil),
+		(*moduleapi.UserSummaryBatchReader)(nil),
+		(*moduleapi.UserSecurityReader)(nil),
+	} {
+		if err := ctx.Services.RegisterSingleton(marker, provider); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type deferredAuthTransactionFactory struct {

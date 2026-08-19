@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,9 @@ type runtimeTargetUserAssignmentHTTP struct {
 	UserID    uint64 `json:"user_id"`
 	CreatedAt string `json:"created_at"`
 	CreatedBy uint64 `json:"created_by"`
+	Username  string `json:"username,omitempty"`
+	Display   string `json:"display,omitempty"`
+	Status    string `json:"status,omitempty"`
 }
 
 type runtimeTargetUserAssignmentRequestHTTP struct {
@@ -83,10 +87,12 @@ func (m *Module) handleListAssignments(c *gin.Context) {
 		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return
 	}
-	response := make([]runtimeTargetUserAssignmentHTTP, 0, len(items))
-	for _, item := range items {
-		response = append(response, toAssignmentHTTP(item))
+	summaries, err := m.assignmentUserSummaryMap(c.Request.Context(), assignmentUserIDs(items))
+	if err != nil {
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		return
 	}
+	response := assignmentHTTPItems(items, summaries)
 	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response, Revision: revision})
 }
 
@@ -108,6 +114,11 @@ func (m *Module) handleGrantAssignment(c *gin.Context) {
 		m.writeAssignmentUserError(c, err)
 		return
 	}
+	summaries, err := m.assignmentUserSummaryMap(c.Request.Context(), []uint64{request.UserID})
+	if err != nil {
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		return
+	}
 	actorID, ok := assignmentActorID(c)
 	if !ok {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
@@ -118,7 +129,7 @@ func (m *Module) handleGrantAssignment(c *gin.Context) {
 		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toAssignmentHTTP(assignment))
+	httpx.WriteSuccess(c, http.StatusOK, toAssignmentHTTP(assignment, summaries[assignment.UserID]))
 }
 
 func (m *Module) handleAssignmentCandidates(c *gin.Context) {
@@ -164,15 +175,17 @@ func (m *Module) handleReplaceAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
+	summaries, err := m.assignmentUserSummaryMap(c.Request.Context(), userIDs)
+	if err != nil {
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		return
+	}
 	items, revision, err := m.replaceUserAssignments(c.Request.Context(), target, userIDs, request.Revision, actorID)
 	if err != nil {
 		m.writeAssignmentReplaceError(c, err)
 		return
 	}
-	response := make([]runtimeTargetUserAssignmentHTTP, 0, len(items))
-	for _, item := range items {
-		response = append(response, toAssignmentHTTP(item))
-	}
+	response := assignmentHTTPItems(items, summaries)
 	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response, Revision: revision})
 }
 
@@ -365,6 +378,44 @@ func assignmentActorID(c *gin.Context) (uint64, bool) {
 	return auth.User.ID, true
 }
 
-func toAssignmentHTTP(item store.UserAssignment) runtimeTargetUserAssignmentHTTP {
-	return runtimeTargetUserAssignmentHTTP{TargetID: item.TargetID, UserID: item.UserID, CreatedAt: item.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"), CreatedBy: item.CreatedBy}
+func (m *Module) assignmentUserSummaryMap(ctx context.Context, userIDs []uint64) (map[uint64]moduleapi.UserAccountSummary, error) {
+	if len(userIDs) == 0 {
+		return map[uint64]moduleapi.UserAccountSummary{}, nil
+	}
+	if m.userSummaries == nil {
+		return nil, errors.New("runtime target user summary reader is unavailable")
+	}
+	items, err := m.userSummaries.ListUserSummariesByIDs(ctx, uniqueAssignmentIDs(userIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list runtime target assignment user summaries: %w", err)
+	}
+	summaries := make(map[uint64]moduleapi.UserAccountSummary, len(items))
+	for _, item := range items {
+		summaries[item.ID] = item
+	}
+	return summaries, nil
+}
+
+func assignmentUserIDs(items []store.UserAssignment) []uint64 {
+	userIDs := make([]uint64, 0, len(items))
+	for _, item := range items {
+		userIDs = append(userIDs, item.UserID)
+	}
+	return userIDs
+}
+
+func assignmentHTTPItems(items []store.UserAssignment, summaries map[uint64]moduleapi.UserAccountSummary) []runtimeTargetUserAssignmentHTTP {
+	response := make([]runtimeTargetUserAssignmentHTTP, 0, len(items))
+	for _, item := range items {
+		response = append(response, toAssignmentHTTP(item, summaries[item.UserID]))
+	}
+	return response
+}
+
+func toAssignmentHTTP(item store.UserAssignment, summary moduleapi.UserAccountSummary) runtimeTargetUserAssignmentHTTP {
+	return runtimeTargetUserAssignmentHTTP{
+		TargetID: item.TargetID, UserID: item.UserID,
+		CreatedAt: item.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"), CreatedBy: item.CreatedBy,
+		Username: summary.Username, Display: summary.Display, Status: summary.Status,
+	}
 }

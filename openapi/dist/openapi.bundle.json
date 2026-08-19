@@ -19392,6 +19392,9 @@
           "404": {
             "description": "Runtime target or user not found"
           },
+          "409": {
+            "$ref": "#/components/responses/conflict"
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -41080,6 +41083,18 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "username": {
+            "type": "string",
+            "description": "Current username when the assigned user remains available."
+          },
+          "display": {
+            "type": "string",
+            "description": "Current display name when the assigned user remains available."
+          },
+          "status": {
+            "type": "string",
+            "description": "Current account status when the assigned user remains available."
           }
         }
       },

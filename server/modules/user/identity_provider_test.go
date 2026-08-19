@@ -36,6 +36,9 @@ func (*identityProviderRepository) ListPage(context.Context, userstore.UserListF
 func (*identityProviderRepository) ListCandidates(context.Context, userstore.UserCandidateQuery) ([]userstore.User, int, error) {
 	return nil, 0, nil
 }
+func (*identityProviderRepository) ListSummariesByIDs(context.Context, []uint64) ([]userstore.User, error) {
+	return nil, nil
+}
 
 func (*identityProviderRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
 	return nil, nil

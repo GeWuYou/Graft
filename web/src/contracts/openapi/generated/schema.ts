@@ -10127,6 +10127,12 @@ export interface components {
       created_at: string;
       /** Format: int64 */
       created_by?: number;
+      /** @description Current username when the assigned user remains available. */
+      username?: string;
+      /** @description Current display name when the assigned user remains available. */
+      display?: string;
+      /** @description Current account status when the assigned user remains available. */
+      status?: string;
     };
     'runtime-target-user-assignment-list-response': {
       /**
@@ -23071,6 +23077,7 @@ export interface operations {
         };
         content?: never;
       };
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
