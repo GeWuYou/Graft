@@ -263,6 +263,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -334,7 +335,18 @@ const filters = ref<PermissionFilterState>({
 });
 const appliedFilters = ref<PermissionFilterState>({ ...filters.value });
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref(['permission', 'module', 'code', 'role_count', 'updated_at', 'operation']);
+const DEFAULT_VISIBLE_COLUMNS = ['permission', 'module', 'code', 'role_count', 'updated_at', 'operation'];
+const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
+);
 const detailDrawerVisible = ref(false);
 const detailDrawerPermission = ref<PermissionListItem | null>(null);
 const detailRecord = ref<PermissionDetailResponse | null>(null);

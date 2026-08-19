@@ -7,6 +7,20 @@ import ManagementPagedTable from './ManagementPagedTable.vue';
 const tableHostWidth = ref(0);
 const debugMocks = vi.hoisted(() => ({ emitDebugLog: vi.fn(), isDebugFlagEnabled: vi.fn(() => false) }));
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: ref('zh-CN'),
+    t: (key: string) =>
+      ({
+        'components.commonTable.columnSettings': '列设置',
+        'components.commonTable.compactDensity': '紧凑密度',
+        'components.commonTable.refresh': '刷新',
+        'components.commonTable.resetColumns': '恢复默认列',
+        'components.commonTable.standardDensity': '标准密度',
+      })[key] ?? key,
+  }),
+}));
+
 vi.mock('./use-table-host-width', () => ({
   useTableHostWidth: () => ({
     tableHostRef: ref(null),
@@ -17,7 +31,7 @@ vi.mock('@/shared/debug/runtime', () => debugMocks);
 
 const TTableStub = defineComponent({
   name: 'TTableStub',
-  props: ['columns', 'data', 'selectedRowKeys', 'tableContentWidth'],
+  props: ['columns', 'data', 'selectedRowKeys', 'size', 'tableContentWidth'],
   emits: ['page-change', 'row-click', 'select-change', 'sort-change'],
   setup(props, { slots }) {
     return () =>
@@ -107,6 +121,39 @@ describe('ManagementPagedTable', () => {
       { colKey: 'name', title: 'Name', width: 600 },
       { colKey: 'repository', title: 'Repository', width: 600 },
     ]);
+  });
+
+  it('provides refresh, column settings, and labeled density controls by default', async () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [
+          { colKey: 'name', title: 'Name' },
+          { colKey: 'status', title: 'Status' },
+        ],
+        current: 2,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 20,
+        rows: [{ id: 'container-1', name: 'web', status: 'running' }],
+        total: 1,
+      },
+    });
+
+    const toolbar = wrapper.findComponent({ name: 'TableViewToolbar' });
+    expect(toolbar.exists()).toBe(true);
+    expect(toolbar.text()).toContain('紧凑密度');
+
+    await toolbar.get('[aria-label="刷新"]').trigger('click');
+    expect(wrapper.emitted('page-change')?.[0]).toEqual([{ current: 2, pageSize: 20, previous: 2 }]);
+
+    await toolbar.get('[aria-label="紧凑密度"]').trigger('click');
+    expect(wrapper.findComponent(TTableStub).props('size')).toBe('small');
+    expect(toolbar.text()).toContain('标准密度');
+
+    await toolbar.get('[aria-label="列设置"]').trigger('click');
+    expect(wrapper.findComponent({ name: 'AdvancedQueryColumnDrawer' }).props('visible')).toBe(true);
   });
 
   it('routes table cell slots and renders the shared empty/pagination frame', async () => {

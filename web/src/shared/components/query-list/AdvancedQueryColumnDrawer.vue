@@ -44,6 +44,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { normalizeManagedColumnKeys } from '@/shared/components/management/table-columns';
 import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 export type AdvancedQueryColumnOption = {
@@ -51,10 +52,12 @@ export type AdvancedQueryColumnOption = {
   value: string;
 };
 
+// 列设置抽屉只管理展示字段选择，并统一阻止分页结果面进入零列状态。
 const props = defineProps<{
   columns: AdvancedQueryColumnOption[];
   defaultSelectedKeys?: string[];
   disabledKeys?: string[];
+  minimumSelected?: number;
   presetsLabel?: string;
   resetLabel?: string;
   title: string;
@@ -88,11 +91,13 @@ function applyPreset(keys: string[]) {
 }
 
 function normalizeSelectedKeys(keys: string[]) {
-  const nextKeys = new Set(keys);
-  for (const key of disabledKeySet.value) {
-    nextKeys.add(key);
-  }
-  return Array.from(nextKeys);
+  const supportedKeys = props.columns.map((column) => column.value);
+  return normalizeManagedColumnKeys(
+    [...keys, ...disabledKeySet.value],
+    supportedKeys,
+    [...selectedKeys.value, ...disabledKeySet.value, ...supportedKeys],
+    props.minimumSelected,
+  );
 }
 </script>
 <style scoped lang="less">

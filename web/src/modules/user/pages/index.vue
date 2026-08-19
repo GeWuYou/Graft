@@ -611,6 +611,7 @@ import {
   ManagementPageContent,
   ManagementPageHeader,
   ManagementStatisticsBar,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -751,6 +752,16 @@ const filters = ref<UserFilters>({
 });
 const appliedFilters = ref<UserFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
+);
 const columnDrawerVisible = ref(false);
 const userRoleDrawerVisible = ref(false);
 const selectedUser = ref<UserRow | null>(null);

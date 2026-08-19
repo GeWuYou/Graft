@@ -8,8 +8,17 @@
         </section>
       </slot>
     </template>
-    <template v-if="$slots.toolbar" #toolbar>
-      <slot name="toolbar" />
+    <template v-if="standardToolbarVisible || $slots.toolbar" #toolbar>
+      <slot name="toolbar">
+        <table-view-toolbar
+          :column-settings-visible="props.columnSettingsVisible"
+          :density-visible="props.densityVisible"
+          :refresh-label="defaultRefreshLabel"
+          :refresh-loading="props.loading"
+          :refresh-visible="props.refreshVisible"
+          @refresh="refreshCurrentPage"
+        />
+      </slot>
     </template>
     <template v-if="$slots.batch" #batch>
       <slot name="batch" />
@@ -37,14 +46,14 @@
           :data-table-mode="resolveTableModeFor(variant.density)"
         >
           <t-table
-            :key="props.size ?? 'default-size'"
+            :key="resolvedTableSize"
             :row-key="resolvedRowKey"
             :columns="resolveColumns(variant.density)"
             :data="props.rows"
             :loading="props.loading"
             :row-class-name="props.rowClassName"
             :selected-row-keys="resolveSelectedRowKeys(variant.density)"
-            :size="props.size"
+            :size="resolvedTableSize"
             :sort="props.sort"
             table-layout="fixed"
             :table-content-width="resolveTableContentWidthFor(variant.density)"
@@ -92,11 +101,34 @@
       </slot>
     </template>
   </management-table-card>
+
+  <advanced-query-column-drawer
+    v-if="columnDrawerVisible"
+    v-model:visible="columnDrawerVisible"
+    v-model:selected-keys="visibleColumnKeys"
+    :columns="columnSettingOptions"
+    :default-selected-keys="availableColumnKeys"
+    :reset-label="resetColumnsLabel"
+    :title="columnSettingsLabel"
+  />
 </template>
 <script setup lang="ts">
 import type { PageInfo, PaginationProps, TableRowData, TableSort, TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, useSlots, watch } from 'vue';
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  provide,
+  ref,
+  useSlots,
+  watch,
+} from 'vue';
+import { useI18n } from 'vue-i18n';
 
+import AdvancedQueryColumnDrawer from '@/shared/components/query-list/AdvancedQueryColumnDrawer.vue';
 import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
@@ -104,9 +136,11 @@ import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/respons
 import ManagementTableCard from './ManagementTableCard.vue';
 import ManagementTablePagination from './ManagementTablePagination.vue';
 import { resolveEmptyManagedColumns, resolveManagedColumns, resolveTableWidthPolicy } from './table-columns';
+import { managementTableViewToolsKey } from './table-view-tools';
+import TableViewToolbar from './TableViewToolbar.vue';
 import { useTableHostWidth } from './use-table-host-width';
 
-// 管理列表统一在此收口响应式列宽、空态和分页，调用方只提供领域数据与单元格插槽。
+// 管理列表统一在此收口标准工具、响应式列宽、空态和分页，调用方只提供领域数据与单元格插槽。
 const RESERVED_SLOT_NAMES = new Set([
   'batch',
   'cards',
@@ -128,7 +162,9 @@ const props = withDefaults(
     cellSlotNames?: string[];
     cardsVisible?: boolean;
     columnSets?: ResponsiveColumnSets;
+    columnSettingsVisible?: boolean;
     densityScope?: 'container' | 'viewport';
+    densityVisible?: boolean;
     columns: TdBaseTableProps['columns'];
     description?: string;
     emptyDescription: string;
@@ -144,6 +180,7 @@ const props = withDefaults(
     paginationVisible?: boolean;
     presentation?: ResponsivePresentation;
     preserveInactive?: boolean;
+    refreshVisible?: boolean;
     rowClassName?: TdBaseTableProps['rowClassName'];
     rowKey?: string;
     rows: TableRowData[];
@@ -157,7 +194,9 @@ const props = withDefaults(
     cellSlotNames: () => [],
     cardsVisible: false,
     columnSets: () => ({}),
+    columnSettingsVisible: true,
     densityScope: 'container',
+    densityVisible: true,
     description: '',
     entityCardLayout: 'compact',
     forceCards: false,
@@ -169,6 +208,7 @@ const props = withDefaults(
     paginationVisible: true,
     presentation: 'data',
     preserveInactive: false,
+    refreshVisible: true,
     rowClassName: undefined,
     rowKey: 'id',
     selectedRowKeys: () => [],
@@ -189,6 +229,70 @@ const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
 
 const slots = useSlots();
+const { t } = useI18n();
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref<string[]>([]);
+const internalTableSize = ref<TdBaseTableProps['size']>(props.size ?? 'medium');
+const availableColumnKeys = computed(() =>
+  (props.columns ?? []).map((column) => String(column?.colKey ?? '')).filter(Boolean),
+);
+const columnSettingOptions = computed(() =>
+  (props.columns ?? [])
+    .map((column) => {
+      const value = String(column?.colKey ?? '');
+      if (!value) return null;
+      return {
+        label: typeof column.title === 'string' ? column.title : value,
+        value,
+      };
+    })
+    .filter((column): column is { label: string; value: string } => Boolean(column)),
+);
+const resolvedTableSize = computed(() => internalTableSize.value ?? 'medium');
+const defaultRefreshLabel = computed(() => t('components.commonTable.refresh'));
+const columnSettingsLabel = computed(() => t('components.commonTable.columnSettings'));
+const resetColumnsLabel = computed(() => t('components.commonTable.resetColumns'));
+const densityLabel = computed(() => {
+  return t(
+    resolvedTableSize.value === 'small'
+      ? 'components.commonTable.standardDensity'
+      : 'components.commonTable.compactDensity',
+  );
+});
+const standardToolbarVisible = computed(
+  () => props.refreshVisible || props.columnSettingsVisible || props.densityVisible,
+);
+
+provide(managementTableViewToolsKey, {
+  columnSettingsLabel,
+  densityLabel,
+  openColumnSettings: () => {
+    columnDrawerVisible.value = true;
+  },
+  toggleDensity: () => {
+    internalTableSize.value = resolvedTableSize.value === 'small' ? 'medium' : 'small';
+  },
+});
+
+watch(
+  availableColumnKeys,
+  (keys, previousKeys = []) => {
+    const supportedKeys = new Set(keys);
+    const retainedKeys = visibleColumnKeys.value.filter((key) => supportedKeys.has(key));
+    const previousKeySet = new Set(previousKeys);
+    const addedKeys = keys.filter((key) => !previousKeySet.has(key));
+    const nextKeys = Array.from(new Set([...retainedKeys, ...addedKeys]));
+    visibleColumnKeys.value = nextKeys.length > 0 ? nextKeys : keys.slice(0, 1);
+  },
+  { immediate: true },
+);
+watch(
+  () => props.size,
+  (size) => {
+    if (size) internalTableSize.value = size;
+  },
+);
+
 const hasHeadContent = computed(() => Boolean(slots.head || props.description || props.summary));
 const tableSlotNames = computed(() => {
   if (props.cellSlotNames.length > 0) {
@@ -214,7 +318,8 @@ function resolveSelectedRowKeys(density: ResponsiveDensity) {
 }
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 function resolveColumns(density: ResponsiveDensity) {
-  const columns = resolveManagedColumns(props.columns, props.columnSets[density]);
+  const responsiveColumns = resolveManagedColumns(props.columns, props.columnSets[density]);
+  const columns = resolveManagedColumns(responsiveColumns, visibleColumnKeys.value);
   return props.rows.length === 0 ? resolveEmptyManagedColumns(columns) : columns;
 }
 
@@ -342,6 +447,10 @@ watch([tableHostWidth, () => props.rows.length, () => props.loading], () =>
 
 function emitPageChange(pageInfo: PageInfo) {
   emit('page-change', pageInfo);
+}
+
+function refreshCurrentPage() {
+  emitPageChange({ current: current.value, pageSize: pageSize.value, previous: current.value });
 }
 
 function emitRowClick(context: { row: TableRowData }) {

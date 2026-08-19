@@ -18,6 +18,7 @@ export {
   createTechnicalColumn,
   createTextColumn,
   createTimeColumn,
+  normalizeManagedColumnKeys,
   resolveManagedColumns,
   resolveTableWidthPolicy,
 } from './table-columns';

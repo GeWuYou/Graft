@@ -600,6 +600,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -766,6 +767,16 @@ const filters = ref<RoleFilters>({
 });
 const appliedFilters = ref<RoleFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
+);
 const roleDrawerVisible = ref(false);
 const roleDrawerMode = ref<RoleDrawerMode>('create');
 const roleDrawerRole = ref<RoleStatusCompat | null>(null);
