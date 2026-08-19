@@ -6,6 +6,9 @@
       },
       "jobs": {
         "title": "Build Jobs"
+      },
+      "workspaces": {
+        "title": "Build Workspaces"
       }
     }
   },
@@ -123,6 +126,7 @@
         "workspaceId": "Workspace ID",
         "workspaceIdRequired": "Workspace ID is required.",
         "workspacePlaceholder": "Select a Build workspace",
+        "createWorkspace": "Create Build workspace",
         "workspaceEmpty": "No build workspace is available. Create one or check its sharing scope.",
         "workspaceLoadFailed": "Unable to load build workspaces.",
         "runtimeTarget": "Build runtime target",
@@ -173,6 +177,47 @@
         "addRegistry": "Add Image Registry",
         "tag": "Image tag",
         "tagRequired": "Image tag is required."
+      }
+    },
+    "workspaces": {
+      "title": "Build Workspaces",
+      "eyebrow": "Build",
+      "description": "Register reusable application workspace sources for build jobs.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "summary": "{count} workspaces",
+      "empty": "No Build workspaces yet",
+      "emptyDescription": "Create a workspace before selecting an application source for a build job.",
+      "loadFailed": "Unable to load Build workspaces.",
+      "applicationLoadFailed": "Unable to load source applications; the original workspace reference is retained.",
+      "applicationUnavailable": "Application #{id} / unavailable account",
+      "sourceKinds": {
+        "application_workspace": "Application workspace"
+      },
+      "columns": {
+        "name": "Name",
+        "sourceKind": "Source type",
+        "sourceApplication": "Source application",
+        "retentionPolicy": "Retention policy",
+        "createdAt": "Created",
+        "updatedAt": "Updated"
+      },
+      "create": {
+        "title": "Create Build workspace",
+        "description": "Register a reusable source from an existing application; the server owns the frozen workspace facts used by Build.",
+        "name": "Workspace name",
+        "namePlaceholder": "For example: Orders service build source",
+        "nameRequired": "Workspace name is required.",
+        "application": "Source application",
+        "applicationPlaceholder": "Select an existing application",
+        "applicationHelp": "Only applications available to the current account can be selected; the server resolves the source path.",
+        "applicationRequired": "Select a source application.",
+        "applicationEmpty": "No applications are available. Create one or check application access.",
+        "applicationLoadFailed": "Unable to load available applications.",
+        "manageApplications": "Manage applications",
+        "back": "Back to Build Workspaces",
+        "submit": "Create workspace",
+        "submitFailed": "Unable to create Build workspace."
       }
     }
   }

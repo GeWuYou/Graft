@@ -30,4 +30,18 @@ describe('build bootstrap route registrations', () => {
       }),
     );
   });
+
+  it('registers Build Workspaces as a managed Build resource', () => {
+    expect(buildBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/build/workspaces',
+        routeName: 'BuildWorkspaceList',
+        meta: expect.objectContaining({
+          tabGroup: 'build-workspaces',
+          pageKind: 'list',
+          pageSurface: 'paged-table',
+        }),
+      }),
+    );
+  });
 });

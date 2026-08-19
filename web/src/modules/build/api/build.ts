@@ -8,12 +8,15 @@ import type {
   BuildJobCreateRequest,
   BuildJobDetail,
   BuildJobListResponse,
+  BuildWorkspace,
+  BuildWorkspaceCreateRequest,
 } from '../types/build';
 
 type ListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildJobs]['get'];
 type DetailOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildJob]['get'];
 type CreateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildJob]['post'];
 type WorkspaceListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildWorkspaces]['get'];
+type WorkspaceCreateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildWorkspace]['post'];
 type TargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets]['get'];
 type PoolListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildBuilderPools]['get'];
 type ArtifactListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifacts]['get'];
@@ -45,6 +48,14 @@ export function getBuildWorkspaces() {
   return request.get<NonNullable<WorkspaceListOperation['responses'][200]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.getBuildWorkspaces,
   });
+}
+
+export function createBuildWorkspace(payload: BuildWorkspaceCreateRequest) {
+  type ResponseData = NonNullable<WorkspaceCreateOperation['responses'][201]['content']['application/json']['data']>;
+  return request.post<ResponseData>({
+    url: OPENAPI_RUNTIME_PATH.postBuildWorkspace,
+    data: payload,
+  }) as Promise<BuildWorkspace>;
 }
 
 export function getBuildRuntimeTargets() {

@@ -5,7 +5,9 @@ import { BUILD_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const jobsTitle = localizeRouteTitleKey('build.jobs.title');
 const artifactsTitle = localizeRouteTitleKey('build.artifacts.title');
+const workspacesTitle = localizeRouteTitleKey('build.workspaces.title');
 const createTitle = localizeRouteTitleKey('build.jobs.create.title');
+const createWorkspaceTitle = localizeRouteTitleKey('build.workspaces.create.title');
 
 export const buildBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -32,6 +34,18 @@ export const buildBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       tabTitle: artifactsTitle,
     },
   },
+  {
+    ...BUILD_BOOTSTRAP_ROUTE.WORKSPACES,
+    loadPage: () => import('./pages/workspaces/index.vue'),
+    meta: {
+      tabGroup: 'build-workspaces',
+      pageKind: 'list',
+      pageSurface: 'paged-table',
+      semanticTitle: workspacesTitle,
+      breadcrumbTitle: workspacesTitle,
+      tabTitle: workspacesTitle,
+    },
+  },
 ];
 
 export const buildGlobalRouteRegistrations: GlobalRouteRegistration[] = [
@@ -51,6 +65,24 @@ export const buildGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createTitle,
       title: createTitle,
       titleKey: 'build.jobs.create.title',
+    },
+  },
+  {
+    ...BUILD_BOOTSTRAP_ROUTE.CREATE_WORKSPACE,
+    navigationParentPath: BUILD_BOOTSTRAP_ROUTE.WORKSPACES.menuPath,
+    loadPage: () => import('./pages/workspaces/create.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: false,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      tabGroup: 'build-workspaces',
+      semanticTitle: createWorkspaceTitle,
+      breadcrumbTitle: createWorkspaceTitle,
+      tabTitle: createWorkspaceTitle,
+      title: createWorkspaceTitle,
+      titleKey: 'build.workspaces.create.title',
     },
   },
 ];

@@ -1,4 +1,5 @@
 menu.build.jobs.title: 构建任务
+menu.build.workspaces.title: 构建工作区
 rbac.permissionCatalog.buildRead.display: 构建读取
 rbac.permissionCatalog.buildRead.description: 允许读取构建作业与任务状态。
 rbac.permissionCatalog.buildCreate.display: 创建构建

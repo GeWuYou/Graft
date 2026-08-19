@@ -21,14 +21,20 @@
                 name="workspace_id"
                 :label="t('build.jobs.create.workspace')"
               >
-                <t-select
-                  v-model="form.workspace_id"
-                  :options="workspaceOptions"
-                  :loading="workspaceLoading"
-                  :disabled="workspaceLoading || workspaceOptions.length === 0"
-                  :placeholder="t('build.jobs.create.workspacePlaceholder')"
-                  clearable
-                />
+                <div class="build-create-page__workspace-picker">
+                  <t-select
+                    v-model="form.workspace_id"
+                    :options="workspaceOptions"
+                    :loading="workspaceLoading"
+                    :disabled="workspaceLoading || workspaceOptions.length === 0"
+                    :placeholder="t('build.jobs.create.workspacePlaceholder')"
+                    clearable
+                  />
+                  <t-button variant="outline" size="small" @click="openWorkspaceCreate">
+                    <template #icon><add-icon /></template>
+                    {{ t('build.jobs.create.createWorkspace') }}
+                  </t-button>
+                </div>
               </t-form-item>
             </div>
             <div class="build-create-page__section-feedback">
@@ -206,6 +212,7 @@
 </template>
 <script setup lang="ts">
 // 创建表单只提交 Build 所有的规范请求，应用授权仍由服务端边界负责。
+import { AddIcon } from 'tdesign-icons-vue-next';
 import type { SubmitContext } from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -222,6 +229,7 @@ import {
   getBuildRuntimeTargets,
   getBuildWorkspaces,
 } from '../../api/build';
+import { BUILD_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildBuilderPool } from '../../types/build';
 import {
@@ -432,6 +440,9 @@ const rules = computed(() => ({
 function openRegistries() {
   void router.push(REGISTRY_ROUTE_PATH.LIST);
 }
+function openWorkspaceCreate() {
+  void router.push(BUILD_BOOTSTRAP_ROUTE.CREATE_WORKSPACE.path);
+}
 function returnToJobs() {
   void router.push(BUILD_ROUTE_PATH.JOBS);
 }
@@ -513,6 +524,18 @@ function createIdempotencyKey() {
   margin: var(--graft-density-gap-8) 0 0;
 }
 
+.build-create-page__workspace-picker {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.build-create-page__workspace-picker :deep(.t-select) {
+  flex: 1;
+  min-width: 0;
+}
+
 .build-create-page__section-header h2,
 .build-create-page__section-header p {
   margin: 0;
@@ -565,6 +588,11 @@ function createIdempotencyKey() {
 }
 
 @media (width <= 768px) {
+  .build-create-page__workspace-picker {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .build-create-page__grid {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -43,6 +43,7 @@ const menuIcons = {
   'infrastructure-domain': network,
   'build-domain': hammer,
   build: hammer,
+  'build-workspace': folder,
   'resources-domain': library,
   'observability-domain': activity,
   'security-domain': shield,

@@ -6,6 +6,9 @@
       },
       "jobs": {
         "title": "构建任务"
+      },
+      "workspaces": {
+        "title": "构建工作区"
       }
     }
   },
@@ -118,6 +121,7 @@
         "workspaceId": "工作区 ID",
         "workspaceIdRequired": "请输入工作区 ID。",
         "workspacePlaceholder": "选择构建工作区",
+        "createWorkspace": "创建构建工作区",
         "workspaceEmpty": "暂无可用的构建工作区，请先创建工作区或检查共享范围。",
         "workspaceLoadFailed": "无法加载构建工作区。",
         "runtimeTarget": "运行目标",
@@ -168,6 +172,47 @@
         "addRegistry": "添加镜像仓库",
         "tag": "镜像标签",
         "tagRequired": "请输入镜像标签。"
+      }
+    },
+    "workspaces": {
+      "title": "构建工作区",
+      "eyebrow": "构建",
+      "description": "登记可供构建任务复用的应用工作区来源。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "summary": "共 {count} 个工作区",
+      "empty": "暂无构建工作区",
+      "emptyDescription": "创建工作区后，构建任务才能选择可授权的应用来源。",
+      "loadFailed": "无法加载构建工作区。",
+      "applicationLoadFailed": "无法加载来源应用，列表仍保留工作区原始引用。",
+      "applicationUnavailable": "应用 #{id} / 账号不可用",
+      "sourceKinds": {
+        "application_workspace": "应用工作区"
+      },
+      "columns": {
+        "name": "名称",
+        "sourceKind": "来源类型",
+        "sourceApplication": "来源应用",
+        "retentionPolicy": "保留策略",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间"
+      },
+      "create": {
+        "title": "创建构建工作区",
+        "description": "从已有应用登记一个可复用的构建来源，构建任务将使用服务端冻结的应用工作区事实。",
+        "name": "工作区名称",
+        "namePlaceholder": "例如：订单服务构建源",
+        "nameRequired": "请输入工作区名称。",
+        "application": "来源应用",
+        "applicationPlaceholder": "选择已有应用",
+        "applicationHelp": "只能选择当前账号可访问的应用，源码路径由服务端解析。",
+        "applicationRequired": "请选择来源应用。",
+        "applicationEmpty": "暂无可用应用，请先创建或检查应用访问权限。",
+        "applicationLoadFailed": "无法加载可用应用。",
+        "manageApplications": "管理应用",
+        "back": "返回构建工作区",
+        "submit": "创建工作区",
+        "submitFailed": "无法创建构建工作区。"
       }
     }
   }
