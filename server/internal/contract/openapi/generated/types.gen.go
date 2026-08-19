@@ -8376,6 +8376,11 @@ type AuditLogListResponse struct {
 	Total              int                         `json:"total"`
 }
 
+// AuditLogsBatchDeleteRequest defines model for audit-logs-batch-delete-request.
+type AuditLogsBatchDeleteRequest struct {
+	Ids []int64 `json:"ids"`
+}
+
 // AuditTarget defines model for audit-target.
 type AuditTarget struct {
 	Id       *string         `json:"id,omitempty"`
@@ -16443,6 +16448,19 @@ type GetAuditLogsParamsRiskLevel string
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
 
+// PostAuditLogsBatchDeleteParams defines parameters for PostAuditLogsBatchDelete.
+type PostAuditLogsBatchDeleteParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Stable retry key for the destructive batch operation.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
 type GetAuditLogSavedViewsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -19392,6 +19410,9 @@ type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
 
 // PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
 type PutAppLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PostAuditLogsBatchDeleteJSONRequestBody defines body for PostAuditLogsBatchDelete for application/json ContentType.
+type PostAuditLogsBatchDeleteJSONRequestBody = AuditLogsBatchDeleteRequest
 
 // PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
 type PostAuditLogSavedViewJSONRequestBody = SavedViewRequest

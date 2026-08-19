@@ -61,12 +61,14 @@
           <management-batch-bar
             :selected-label="t('appLog.batch.selected', { count: selectedRowKeys.length })"
             :clear-label="t('appLog.batch.cancelSelection')"
+            :compact-action-label="t('appLog.batch.actions')"
+            :select-current-page-label="t('appLog.batch.selectAll')"
+            :invert-current-page-label="t('appLog.batch.invert')"
             clear-test-id="app-log-batch-clear"
             @clear="clearSelectionMode"
+            @select-current-page="selectCurrentPage"
+            @invert-current-page="invertCurrentPage"
           >
-            <t-button v-if="selectionMode" size="small" theme="default" variant="outline" @click="selectCurrentPage">
-              {{ t('appLog.batch.selectAll') }}
-            </t-button>
             <t-button
               v-permission="permissionCodes.DELETE"
               size="small"
@@ -382,7 +384,6 @@ function applyListResponse(response: Awaited<ReturnType<typeof getAppLogs>>) {
   hasLoadedList.value = true;
   rows.value = response.items;
   total.value = response.total;
-  selectedRowKeys.value = selectedRowKeys.value.filter((key) => rows.value.some((row) => row.id === Number(key)));
   selectionMode.value = false;
 }
 
@@ -398,7 +399,9 @@ async function openDetail(row: AppLogItem) {
 }
 
 function handleSelectChange(keys: Array<string | number>) {
-  selectedRowKeys.value = keys;
+  const currentPageIds = new Set(rows.value.map((row) => row.id));
+  const offPageKeys = selectedRowKeys.value.filter((key) => !currentPageIds.has(Number(key)));
+  selectedRowKeys.value = [...offPageKeys, ...keys];
 }
 
 function clearSelectionMode() {
@@ -407,7 +410,18 @@ function clearSelectionMode() {
 }
 
 function selectCurrentPage() {
-  selectedRowKeys.value = rows.value.map((row) => row.id);
+  const selected = new Set(selectedRowKeys.value.map((key) => Number(key)));
+  rows.value.forEach((row) => selected.add(row.id));
+  selectedRowKeys.value = [...selected];
+}
+
+function invertCurrentPage() {
+  const selected = new Set(selectedRowKeys.value.map((key) => Number(key)));
+  rows.value.forEach((row) => {
+    if (selected.has(row.id)) selected.delete(row.id);
+    else selected.add(row.id);
+  });
+  selectedRowKeys.value = [...selected];
 }
 
 function confirmDeleteOne(row: AppLogItem) {

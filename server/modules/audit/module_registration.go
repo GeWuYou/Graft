@@ -42,6 +42,16 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 		RiskLevel:      permission.RiskLevelHigh,
 		RiskCategory:   permission.RiskCategorySecurity,
 	})
+	registry.Register(permission.Item{
+		Code:           auditcontract.AuditDeletePermission.String(),
+		DisplayKey:     "rbac.permissionCatalog.auditDelete.display",
+		DescriptionKey: "rbac.permissionCatalog.auditDelete.description",
+		Module:         moduleName,
+		Resource:       "audit",
+		Action:         "delete",
+		RiskLevel:      permission.RiskLevelCritical,
+		RiskCategory:   permission.RiskCategoryDestructive,
+	})
 }
 
 // registerAuditMenu 注册审计日志菜单项，并为其配置审计读取权限。
@@ -121,6 +131,7 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 	return auditGuard{
 		read:   httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
 		manage: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditManagePermission.String(), publisher),
+		delete: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditDeletePermission.String(), publisher),
 	}, nil
 }
 

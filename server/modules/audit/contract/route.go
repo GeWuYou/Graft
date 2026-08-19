@@ -20,6 +20,8 @@ const (
 
 	// AuditItem 是审计日志详情路由片段。
 	AuditItem = AuditCollection + "/:" + AuditLogParam
+	// AuditBatchDeleteCollection 是审计日志批量删除路由片段。
+	AuditBatchDeleteCollection = AuditCollection + "/batch-delete"
 
 	// AuditVisibilityPolicyCollection 是审计可见性策略路由片段。
 	AuditVisibilityPolicyCollection = "/policies/visibility"

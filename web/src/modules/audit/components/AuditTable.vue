@@ -13,10 +13,12 @@
     presentation="log"
     row-key="id"
     :rows="rows"
+    :selected-row-keys="selectedRowKeys"
     :summary="summary"
     :total="total"
     @page-change="emitPageChange"
     @row-click="handleRowClick"
+    @select-change="handleTableSelectChange"
   >
     <template #head>
       <div class="table-head">
@@ -30,6 +32,7 @@
       </div>
     </template>
     <template v-if="$slots.toolbar" #toolbar><slot name="toolbar" /></template>
+    <template v-if="$slots.batch" #batch><slot name="batch" /></template>
 
     <template #action="{ row }">
       <div class="stack-cell">
@@ -89,27 +92,32 @@
     </template>
 
     <template #cards>
-      <article
-        v-for="row in rows"
-        :key="row.id"
-        class="audit-log-card"
-        role="button"
-        tabindex="0"
-        @click="emit('detail', row)"
-        @keydown.enter="emit('detail', row)"
-        @keydown.space.prevent="emit('detail', row)"
-      >
-        <div class="audit-log-card__header">
-          <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
-        </div>
-        <p class="audit-log-card__target">{{ resourceLabel(row, t) }}</p>
-        <div class="audit-log-card__badges">
-          <t-tag :theme="resultTone(row)" variant="light-outline" size="small">{{ resultLabel(row, t) }}</t-tag>
-          <t-tag :theme="riskTone(row)" variant="light-outline" size="small">{{ riskLabel(row, t) }}</t-tag>
-        </div>
-        <time class="audit-log-card__time">{{ formatAuditTimestamp(row.created_at, locale) }}</time>
-        <p class="audit-log-card__actor">{{ t('audit.logList.columns.actor') }}: {{ actorLabel(row, t) }}</p>
-        <div class="audit-log-card__request" @click.stop>
+      <article v-for="row in rows" :key="row.id" class="audit-log-card">
+        <t-checkbox
+          v-if="canDelete"
+          class="audit-log-card__select"
+          :aria-label="t('audit.logList.selectRecord', { id: row.id })"
+          :checked="selectedRowKeys.some((key) => Number(key) === row.id)"
+          @change="toggleCardSelection(row, $event)"
+        />
+        <button
+          type="button"
+          class="audit-log-card__detail"
+          :aria-label="`${t('audit.logList.detail')}: ${actionTitle(row, t)}`"
+          @click="emit('detail', row)"
+        >
+          <span class="audit-log-card__header">
+            <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
+          </span>
+          <span class="audit-log-card__target">{{ resourceLabel(row, t) }}</span>
+          <span class="audit-log-card__badges">
+            <t-tag :theme="resultTone(row)" variant="light-outline" size="small">{{ resultLabel(row, t) }}</t-tag>
+            <t-tag :theme="riskTone(row)" variant="light-outline" size="small">{{ riskLabel(row, t) }}</t-tag>
+          </span>
+          <time class="audit-log-card__time">{{ formatAuditTimestamp(row.created_at, locale) }}</time>
+          <span class="audit-log-card__actor">{{ t('audit.logList.columns.actor') }}: {{ actorLabel(row, t) }}</span>
+        </button>
+        <div class="audit-log-card__request">
           <span>{{ t('audit.logList.columns.correlation') }}</span>
           <log-id-text
             :display-value="requestIdForRecord(row)"
@@ -117,7 +125,7 @@
             v-bind="technicalCopyLabels"
           />
         </div>
-        <div class="audit-log-card__actions" @click.stop>
+        <div class="audit-log-card__actions">
           <table-action-menu
             :actions="rowActions(row)"
             :more-label="t('audit.logList.more')"
@@ -164,6 +172,7 @@ import {
 import { copyAuditRequestId } from '../shared/request-id-copy';
 import type { AuditLogListItem } from '../types/audit';
 
+// 审计表格负责当前页的展示与交互，跨页选择集合由日志页面统一持有和合并。
 type AuditRowAction = {
   fallbackLabel: string;
   label: string;
@@ -173,10 +182,12 @@ type AuditRowAction = {
 
 const props = defineProps<{
   description?: string;
+  canDelete?: boolean;
   footerSummary: string;
   loading?: boolean;
   localFilterActive?: boolean;
   rows: AuditLogListItem[];
+  selectedRowKeys?: Array<string | number>;
   summary?: string;
   total: number;
   visibleColumnKeys?: string[];
@@ -184,6 +195,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'detail', row: AuditLogListItem): void;
   (e: 'page-change'): void;
+  (e: 'select-change', currentPageRowIds: number[]): void;
   (e: 'view-access-log', row: AuditLogListItem): void;
   (e: 'view-app-log', row: AuditLogListItem): void;
   (e: 'view-security-event', row: AuditLogListItem): void;
@@ -191,6 +203,8 @@ const emit = defineEmits<{
 const { t, locale } = useI18n();
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
+const selectedRowKeys = computed(() => props.selectedRowKeys ?? []);
+const canDelete = computed(() => props.canDelete === true);
 const technicalCopyLabels = computed(() => ({
   copyable: true,
   copyLabel: t('audit.logList.drawer.actions.copyRequestId'),
@@ -199,23 +213,45 @@ const technicalCopyLabels = computed(() => ({
 }));
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
+  const selectionColumn = canDelete.value
+    ? [{ colKey: 'row-select', fixed: 'left' as const, type: 'multiple', width: 48 }]
+    : [];
+  const allColumns: TdBaseTableProps['columns'] = [
+    ...selectionColumn,
+    createMainTextColumn(t('audit.logList.columns.action'), 'action', 260),
+    createIdentifierColumn(t('audit.logList.columns.actor'), 'actor', 168),
+    createIdentifierColumn(t('audit.logList.columns.resource'), 'resource', 208),
+    createTechnicalColumn(t('audit.logList.columns.correlation'), 'correlation', 248),
+    createTechnicalColumn(t('audit.logList.columns.sessionId'), 'session_id', 220),
+    createIdentifierColumn(t('audit.logList.columns.ip'), 'ip', 160),
+    createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
+    createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
+    createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 200),
+    createActionColumn(t('audit.logList.columns.operation'), 156, 'center', 'operation'),
+  ];
   return resolveManagedColumns(
-    [
-      createMainTextColumn(t('audit.logList.columns.action'), 'action', 260),
-      createIdentifierColumn(t('audit.logList.columns.actor'), 'actor', 168),
-      createIdentifierColumn(t('audit.logList.columns.resource'), 'resource', 208),
-      createTechnicalColumn(t('audit.logList.columns.correlation'), 'correlation', 248),
-      createTechnicalColumn(t('audit.logList.columns.sessionId'), 'session_id', 220),
-      createIdentifierColumn(t('audit.logList.columns.ip'), 'ip', 160),
-      createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
-      createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
-      createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 200),
-      createActionColumn(t('audit.logList.columns.operation'), 156, 'center', 'operation'),
-    ],
+    allColumns,
     props.visibleColumnKeys,
-    ['operation'],
+    canDelete.value ? ['row-select', 'operation'] : ['operation'],
   );
 });
+function toggleCardSelection(row: AuditLogListItem, value: boolean | { checked?: boolean }) {
+  const checked = typeof value === 'boolean' ? value : value.checked === true;
+  const next = new Set(currentPageSelection(selectedRowKeys.value));
+  if (checked) {
+    next.add(row.id);
+  } else {
+    next.delete(row.id);
+  }
+  emit('select-change', [...next]);
+}
+function currentPageSelection(rowKeys: Array<string | number>): number[] {
+  const pageIds = new Set(props.rows.map((row) => row.id));
+  return [...new Set(rowKeys.map(Number).filter((rowId) => pageIds.has(rowId)))];
+}
+function handleTableSelectChange(rowKeys: Array<string | number>) {
+  emit('select-change', currentPageSelection(rowKeys));
+}
 function emitPageChange() {
   emit('page-change');
 }
@@ -286,9 +322,26 @@ void TableActionMenu;
 
 .audit-log-card {
   .log-card-surface(var(--td-component-stroke));
+
+  cursor: default;
 }
 
-.audit-log-card:focus-visible {
+.audit-log-card__detail {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.audit-log-card__detail:focus-visible {
   outline: 2px solid var(--td-brand-color);
   outline-offset: 2px;
 }
@@ -316,7 +369,6 @@ void TableActionMenu;
 }
 
 .audit-log-card__target {
-  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

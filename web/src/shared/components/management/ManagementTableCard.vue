@@ -9,12 +9,14 @@
           </div>
         </slot>
       </div>
+    </div>
+    <div v-if="$slots.toolbar || $slots.batch" class="management-table-card__toolbar-row">
+      <div v-if="$slots.batch" class="management-table-card__batch">
+        <slot name="batch" />
+      </div>
       <div v-if="$slots.toolbar" class="management-table-card__toolbar">
         <slot name="toolbar" />
       </div>
-    </div>
-    <div v-if="$slots.batch" class="management-table-card__batch">
-      <slot name="batch" />
     </div>
     <div class="management-table-card__body">
       <slot />
@@ -27,6 +29,7 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue';
 
+// 共享卡片统一管理列表摘要、批量区和右侧工具栏的位置，业务页面只提供各区域内容。
 const props = defineProps<{
   description?: string;
   title?: string;
@@ -34,7 +37,7 @@ const props = defineProps<{
 
 const slots = useSlots();
 
-const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.title || props.description));
+const hasHead = computed(() => Boolean(slots.head || props.title || props.description));
 </script>
 <style scoped lang="less">
 @import './card-surface.less';
@@ -50,7 +53,7 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 }
 
 .management-table-card__head,
-.management-table-card__batch,
+.management-table-card__toolbar-row,
 .management-table-card__footer {
   align-items: center;
   border-bottom: 1px solid var(--td-component-stroke);
@@ -82,6 +85,11 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
   justify-content: flex-end;
+  margin-inline-start: auto;
+}
+
+.management-table-card__batch {
+  flex: 1 1 auto;
 }
 
 .management-table-card__summary {
@@ -140,7 +148,7 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 
 @media (width <= 768px) {
   .management-table-card__head,
-  .management-table-card__batch,
+  .management-table-card__toolbar-row,
   .management-table-card__footer {
     align-items: stretch;
     flex-direction: column;
@@ -149,6 +157,11 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 
   .management-table-card__toolbar {
     justify-content: flex-start;
+    margin-inline-start: 0;
+  }
+
+  .management-table-card__batch {
+    width: 100%;
   }
 
   .management-table-card__head-main {

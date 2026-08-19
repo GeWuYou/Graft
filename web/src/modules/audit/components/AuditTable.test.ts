@@ -9,7 +9,7 @@ import AuditTable from './AuditTable.vue';
 const ManagementPagedTableStub = defineComponent({
   name: 'ManagementPagedTableStub',
   props: ['cardsVisible', 'columns', 'presentation', 'rows'],
-  emits: ['row-click'],
+  emits: ['row-click', 'select-change'],
   setup(props, { emit, slots }) {
     return () => {
       const row = props.rows?.[0] ?? auditRow();
@@ -23,9 +23,15 @@ const ManagementPagedTableStub = defineComponent({
           ),
         ),
         h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', row) }, 'open'),
+        h(
+          'button',
+          { 'data-testid': 'select-change', onClick: () => emit('select-change', [row.id, row.id, 99]) },
+          'select',
+        ),
         h('div', { 'data-testid': 'action-slot' }, slots.action?.({ row })),
         h('div', { 'data-testid': 'resource-slot' }, slots.resource?.({ row })),
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
+        h('div', { 'data-testid': 'batch-slot' }, slots.batch?.()),
         h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
     };
@@ -93,6 +99,7 @@ const translations: Record<string, string> = {
   'audit.logList.columns.createdAt': 'Time',
   'audit.logList.columns.operation': 'Operation',
   'audit.logList.detail': 'Detail',
+  'audit.logList.selectRecord': 'Select audit record {id}',
   'audit.logList.more': 'More',
   'audit.logList.currentPageFiltered': 'Current page filter',
   'audit.logList.emptyTitle': 'No audit logs',
@@ -136,7 +143,7 @@ function auditRow(): AuditLogListItem {
   } as AuditLogListItem;
 }
 
-function mountTable(row = auditRow()) {
+function mountTable(row = auditRow(), slots: Record<string, string> = {}) {
   return shallowMount(AuditTable, {
     global: {
       plugins: [i18n],
@@ -153,10 +160,17 @@ function mountTable(row = auditRow()) {
       total: 1,
       visibleColumnKeys: ['action', 'actor', 'resource'],
     },
+    slots,
   });
 }
 
 describe('AuditTable', () => {
+  it('forwards the batch operation slot to the shared paged table', () => {
+    const wrapper = mountTable(auditRow(), { batch: '<span>Batch actions</span>' });
+
+    expect(wrapper.get('[data-testid="batch-slot"]').text()).toBe('Batch actions');
+  });
+
   it('keeps the fixed operation column while row click opens detail', async () => {
     const wrapper = mountTable();
 
@@ -168,6 +182,26 @@ describe('AuditTable', () => {
     await wrapper.get('[data-testid="row-click"]').trigger('click');
 
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1, request_id: 'req-1' });
+  });
+
+  it('exposes the selection column and card checkbox only with delete capability', async () => {
+    const wrapper = mountTable();
+    expect(wrapper.get('[data-testid="table-columns"]').text()).not.toContain('row-select');
+    expect(wrapper.find('.audit-log-card__select').exists()).toBe(false);
+
+    const deletable = mountTable();
+    await deletable.setProps({ canDelete: true, selectedRowKeys: [1] });
+    expect(deletable.get('[data-testid="table-columns"]').text()).toContain('row-select');
+    expect(deletable.get('.audit-log-card__select').attributes('aria-label')).toBe('Select audit record 1');
+  });
+
+  it('emits only deduplicated current-page row keys from table selection', async () => {
+    const wrapper = mountTable();
+    await wrapper.setProps({ canDelete: true, selectedRowKeys: [99, 1] });
+
+    await wrapper.get('[data-testid="select-change"]').trigger('click');
+
+    expect(wrapper.emitted('select-change')).toEqual([[[1]]]);
   });
 
   it('emits non-destructive related log and raw JSON actions from the action menu', async () => {
@@ -216,6 +250,7 @@ describe('AuditTable', () => {
     const wrapper = mountTable();
 
     const card = wrapper.get('.audit-log-card');
+    const detailButton = card.get('button.audit-log-card__detail');
     expect(card.text()).toContain('Permission Denied');
     expect(card.text()).toContain('Denied');
     expect(card.text()).toContain('High');
@@ -224,10 +259,25 @@ describe('AuditTable', () => {
     expect(
       wrapper.findAllComponents({ name: 'LogIdText' }).some((item) => item.props('displayValue') === 'req-1'),
     ).toBe(true);
-    expect(card.attributes('role')).toBe('button');
-    expect(card.attributes('tabindex')).toBe('0');
+    expect(card.attributes('role')).toBeUndefined();
+    expect(card.attributes('tabindex')).toBeUndefined();
+    expect(detailButton.attributes('type')).toBe('button');
+    expect(detailButton.attributes('aria-label')).toBe('Detail: Permission Denied');
 
-    await card.trigger('keydown.enter');
+    await detailButton.trigger('click');
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1 });
+  });
+
+  it('keeps the checkbox, request copy action, and action menu outside the detail button', async () => {
+    const wrapper = mountTable();
+    await wrapper.setProps({ canDelete: true });
+
+    const detailButton = wrapper.get('.audit-log-card__detail');
+    expect(detailButton.find('.audit-log-card__select').exists()).toBe(false);
+    expect(detailButton.find('.audit-log-card__request').exists()).toBe(false);
+    expect(detailButton.find('.audit-log-card__actions').exists()).toBe(false);
+    expect(wrapper.get('.audit-log-card__select').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
+    expect(wrapper.get('.audit-log-card__request').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
+    expect(wrapper.get('.audit-log-card__actions').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
   });
 });

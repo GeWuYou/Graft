@@ -1,0 +1,45 @@
+migration:
+  path: server/modules/rbac/migrations/202608180001_audit_delete_permission.sql
+  version: '202608180001'
+owner: rbac
+risk_level: L3
+affected_tables:
+  - permissions
+  - role_permissions
+operation_categories:
+  - permission-catalog-backfill
+  - role-permission-reconciliation
+historical_data_assumptions:
+  - Built-in administrator roles use builtin_key admin.
+  - Permission codes remain the stable identity for audit permissions.
+  - Security auditors retain read-only audit access and must not receive audit.delete.
+referenced_tables:
+  - roles
+  - permissions
+  - role_permissions
+planned_upgrade_order:
+  - Upsert the audit.delete permission metadata by stable code.
+  - Reconcile the destructive permission only to the built-in administrator role.
+safety_strategy:
+  bounded_backfill: The migration upserts one fixed audit.delete permission and one administrator assignment; it does not modify security_auditor assignments.
+validation_scenarios:
+  - The audit.delete permission has critical destructive metadata after migration.
+  - The built-in administrator receives audit.delete.
+  - The built-in security auditor does not receive audit.delete.
+preflight_checks:
+  - name: duplicate-audit-delete-permission-codes
+    query: >-
+      SELECT COUNT(*) FROM (SELECT code FROM permissions WHERE code = 'audit.delete' AND deleted_at = 0 GROUP BY code HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+  - name: security-auditor-does-not-have-audit-delete
+    query: >-
+      SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE r.builtin_key = 'security_auditor' AND r.deleted_at = 0 AND p.code = 'audit.delete' AND p.deleted_at = 0
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids: []

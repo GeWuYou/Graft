@@ -490,6 +490,7 @@
       },
       "batch": {
         "selected": "已选择 {count} 个容器",
+        "selectRow": "选择容器 {name}",
         "start": "批量启动",
         "stop": "批量停止",
         "restart": "批量重启",

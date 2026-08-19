@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ type stubAuditRepository struct {
 	incidentID          uint64
 	detailID            uint64
 	deletedBefore       time.Time
+	deletedIDs          []uint64
+	deletionInput       auditstore.AuditLogDeletionInput
 	deletedRows         int64
 	policyRules         []auditstore.AuditPolicyRule
 	visibilityDefault   auditstore.AuditVisibilityDefault
@@ -235,6 +238,19 @@ func (r *stubAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBe
 	return r.deletedRows, nil
 }
 
+func (r *stubAuditRepository) DeleteAuditLogsByIDs(
+	_ context.Context,
+	ids []uint64,
+	input auditstore.AuditLogDeletionInput,
+) (int64, error) {
+	r.deletedIDs = append([]uint64(nil), ids...)
+	r.deletionInput = input
+	if r.deleteErr != nil {
+		return 0, r.deleteErr
+	}
+	return int64(len(ids)), nil
+}
+
 func TestServiceRecordSanitizesSensitiveFields(t *testing.T) {
 	repo := &stubAuditRepository{}
 	service, err := NewService(repo)
@@ -355,6 +371,66 @@ func TestServiceDeleteBeforeRejectsZeroCutoff(t *testing.T) {
 
 	if _, err := service.DeleteBefore(context.Background(), time.Time{}); err == nil {
 		t.Fatal("expected zero cutoff error")
+	}
+}
+
+func TestServiceDeleteByIDsValidatesBatchBeforeRepositoryCapability(t *testing.T) {
+	service, err := NewService(&stubAuditRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	for name, ids := range map[string][]uint64{
+		"empty":     nil,
+		"zero":      {0},
+		"duplicate": {7, 7},
+		"oversized": func() []uint64 {
+			ids := make([]uint64, maxAuditLogDeleteBatch+1)
+			for index := range ids {
+				ids[index] = uint64(index + 1)
+			}
+			return ids
+		}(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := service.DeleteByIDs(context.Background(), ids, auditstore.AuditLogDeletionInput{IdempotencyKey: "delete-1"})
+			if !errors.Is(err, auditstore.ErrAuditValidation) {
+				t.Fatalf("expected validation error, got %v", err)
+			}
+		})
+	}
+
+	_, err = service.DeleteByIDs(context.Background(), []uint64{7}, auditstore.AuditLogDeletionInput{})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected missing idempotency validation error, got %v", err)
+	}
+
+	_, err = service.DeleteByIDs(context.Background(), []uint64{7}, auditstore.AuditLogDeletionInput{
+		IdempotencyKey: strings.Repeat("界", 129),
+	})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected oversized idempotency key validation error, got %v", err)
+	}
+}
+
+func TestServiceDeleteByIDsUsesNamedDeletionCapability(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	deleted, err := service.DeleteByIDs(context.Background(), []uint64{9, 7}, auditstore.AuditLogDeletionInput{
+		IdempotencyKey: "  delete-1  ",
+	})
+	if err != nil {
+		t.Fatalf("delete audit logs: %v", err)
+	}
+	if deleted != 2 || len(repo.deletedIDs) != 2 {
+		t.Fatalf("expected named deletion capability to receive two ids, got deleted=%d ids=%v", deleted, repo.deletedIDs)
+	}
+	if repo.deletionInput.IdempotencyKey != "delete-1" || repo.deletionInput.DeletedAt.IsZero() {
+		t.Fatalf("expected normalized deletion input, got %#v", repo.deletionInput)
 	}
 }
 

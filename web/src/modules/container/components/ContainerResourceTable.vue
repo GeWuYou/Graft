@@ -8,8 +8,10 @@
     :empty-description="props.emptyDescription"
     :empty-title="props.emptyTitle"
     :footer-summary="props.footerSummary"
+    :force-cards="props.forceCards"
     :loading="props.loading"
     :pagination-props="props.paginationProps"
+    :presentation="props.presentation"
     :row-key="'id'"
     :rows="props.rows"
     :selected-row-keys="props.selectedRowKeys"
@@ -33,6 +35,9 @@
     </template>
     <template v-if="$slots['empty-action']" #empty-action>
       <slot name="empty-action" />
+    </template>
+    <template v-if="$slots.cards" #cards>
+      <slot name="cards" />
     </template>
 
     <template #state="{ row }">
@@ -173,6 +178,7 @@ import { useI18n } from 'vue-i18n';
 import { resolveManagedColumns, TableActionMenu } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { formatLocaleDateTime } from '@/shared/observability';
+import type { ResponsivePresentation } from '@/shared/responsive';
 
 import { localizeContainerResourceError } from '../shared/localize-resource-error';
 import {
@@ -205,11 +211,13 @@ const props = withDefaults(
     emptyDescription: string;
     emptyTitle: string;
     footerSummary: string;
+    forceCards?: boolean;
     headDescription?: string;
     headSummary?: string;
     loading?: boolean;
     moreActionsLabel?: string;
     paginationProps?: Partial<PaginationProps>;
+    presentation?: ResponsivePresentation;
     readonlyMode?: boolean;
     rowActions?: (row: ContainerSummaryRecord) => ContainerResourceRowAction[];
     rows: ContainerSummaryRecord[];
@@ -227,6 +235,7 @@ const props = withDefaults(
     loading: false,
     moreActionsLabel: '',
     paginationProps: () => ({}),
+    presentation: 'data',
     readonlyMode: false,
     rowActions: undefined,
     selectedRowKeys: () => [],

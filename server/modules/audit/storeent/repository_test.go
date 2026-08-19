@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/config"
@@ -293,6 +296,218 @@ func TestRepositoryCreateAuditLogReusesDurableEventRecord(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected one audit log after retry, got %d", count)
+	}
+}
+
+func TestRepositoryDeleteAuditLogsByIDsUniqueClaimReplaysCanonicalSet(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sql mock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	mock.MatchExpectationsInOrder(false)
+
+	deletedAt := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	for range 2 {
+		mock.ExpectBegin()
+	}
+	insertReceiptQuery := regexp.QuoteMeta("INSERT INTO audit_logs (")
+	mock.ExpectQuery(insertReceiptQuery).
+		WithArgs(nil, "operator", "operator", "batch", "2 audit logs", "req-delete", sqlmock.AnyArg(), deletedAt).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(101))
+	mock.ExpectQuery(insertReceiptQuery).
+		WithArgs(nil, "operator", "operator", "batch", "2 audit logs", "req-delete", sqlmock.AnyArg(), deletedAt).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM audit_logs WHERE id IN ($1, $2)")).
+		WithArgs(uint64(7), uint64(9)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM audit_logs WHERE id IN ($1, $2) AND (metadata ->> 'protected' = 'true' OR action = 'audit.logs.batch_deleted')")).
+		WithArgs(uint64(7), uint64(9)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM audit_logs WHERE id IN ($1, $2) AND metadata ->> 'auditDeletionIdempotencyKey' IS NULL")).
+		WithArgs(uint64(7), uint64(9)).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT metadata FROM audit_logs")).
+		WithArgs("delete-concurrent").
+		WillReturnRows(sqlmock.NewRows([]string{"metadata"}).AddRow([]byte(`{"auditDeletionIdempotencyKey":"delete-concurrent","deletedIds":[7,9],"protected":true}`)))
+	for range 2 {
+		mock.ExpectCommit()
+	}
+
+	repo := &repository{db: db}
+	start := make(chan struct{})
+	type result struct {
+		deleted int64
+		err     error
+	}
+	results := make(chan result, 2)
+	var group sync.WaitGroup
+	for _, ids := range [][]uint64{{9, 7}, {7, 9}} {
+		ids := ids
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			deleted, err := repo.DeleteAuditLogsByIDs(context.Background(), ids, auditstore.AuditLogDeletionInput{
+				IdempotencyKey: "delete-concurrent",
+				ActorUsername:  "operator",
+				RequestID:      "req-delete",
+				DeletedAt:      deletedAt,
+			})
+			results <- result{deleted: deleted, err: err}
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+
+	var deletedTotal int64
+	for item := range results {
+		if item.err != nil {
+			t.Fatalf("concurrent delete or replay: %v", item.err)
+		}
+		deletedTotal += item.deleted
+	}
+	if deletedTotal != 2 {
+		t.Fatalf("expected one delete and one successful replay, got total deleted %d", deletedTotal)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("verify concurrent idempotency expectations: %v", err)
+	}
+}
+
+func TestRepositoryDeleteAuditLogsByIDsPostgresConcurrency(t *testing.T) {
+	databaseURL := os.Getenv("GRAFT_AUDIT_POSTGRES_TEST_URL")
+	if databaseURL == "" {
+		t.Skip("GRAFT_AUDIT_POSTGRES_TEST_URL is required for the PostgreSQL concurrency seam")
+	}
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatalf("open PostgreSQL audit test database: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(4)
+	if err := db.PingContext(context.Background()); err != nil {
+		t.Fatalf("ping PostgreSQL audit test database: %v", err)
+	}
+
+	ctx := context.Background()
+	createdAt := time.Now().UTC()
+	ids := make([]uint64, 2)
+	for index := range ids {
+		if err := db.QueryRowContext(ctx, `INSERT INTO audit_logs (action, success, metadata, created_at)
+			VALUES ('audit.concurrent.delete.seed', true, '{}'::jsonb, $1) RETURNING id`, createdAt).Scan(&ids[index]); err != nil {
+			t.Fatalf("seed PostgreSQL audit log: %v", err)
+		}
+	}
+	idempotencyKey := "audit-delete-concurrency-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(context.Background(), `DELETE FROM audit_logs
+			WHERE id = $1 OR id = $2 OR metadata ->> 'auditDeletionIdempotencyKey' = $3`, ids[0], ids[1], idempotencyKey)
+	})
+
+	repo := &repository{db: db}
+	start := make(chan struct{})
+	type result struct {
+		deleted int64
+		err     error
+	}
+	results := make(chan result, 2)
+	var group sync.WaitGroup
+	for _, requestedIDs := range [][]uint64{{ids[1], ids[0]}, {ids[0], ids[1]}} {
+		requestedIDs := requestedIDs
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			deleted, deleteErr := repo.DeleteAuditLogsByIDs(ctx, requestedIDs, auditstore.AuditLogDeletionInput{
+				IdempotencyKey: idempotencyKey,
+				ActorUsername:  "postgres-test",
+				RequestID:      "req-postgres-concurrency",
+				DeletedAt:      createdAt,
+			})
+			results <- result{deleted: deleted, err: deleteErr}
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+
+	var deletedTotal int64
+	for item := range results {
+		if item.err != nil {
+			t.Fatalf("concurrent PostgreSQL delete or replay: %v", item.err)
+		}
+		deletedTotal += item.deleted
+	}
+	if deletedTotal != 2 {
+		t.Fatalf("expected one PostgreSQL delete and one successful replay, got total deleted %d", deletedTotal)
+	}
+	var receiptCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_logs
+		WHERE action = 'audit.logs.batch_deleted' AND metadata ->> 'auditDeletionIdempotencyKey' = $1`, idempotencyKey).Scan(&receiptCount); err != nil {
+		t.Fatalf("count PostgreSQL deletion receipts: %v", err)
+	}
+	if receiptCount != 1 {
+		t.Fatalf("expected one PostgreSQL deletion receipt, got %d", receiptCount)
+	}
+
+	_, err = repo.DeleteAuditLogsByIDs(ctx, ids[:1], auditstore.AuditLogDeletionInput{
+		IdempotencyKey: idempotencyKey,
+		ActorUsername:  "postgres-test",
+		RequestID:      "req-postgres-mismatch",
+		DeletedAt:      createdAt,
+	})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected PostgreSQL mismatched replay validation error, got %v", err)
+	}
+}
+
+func TestRepositoryDeleteAuditLogsByIDsRejectsMismatchedReplaySet(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sql mock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	deletedAt := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO audit_logs (")).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT metadata FROM audit_logs")).
+		WithArgs("delete-reused").
+		WillReturnRows(sqlmock.NewRows([]string{"metadata"}).AddRow([]byte(`{"auditDeletionIdempotencyKey":"delete-reused","deletedIds":[7,8],"protected":true}`)))
+	mock.ExpectRollback()
+
+	repo := &repository{db: db}
+	_, err = repo.DeleteAuditLogsByIDs(context.Background(), []uint64{9, 7}, auditstore.AuditLogDeletionInput{
+		IdempotencyKey: "delete-reused",
+		ActorUsername:  "operator",
+		RequestID:      "req-delete",
+		DeletedAt:      deletedAt,
+	})
+	if !errors.Is(err, auditstore.ErrAuditValidation) {
+		t.Fatalf("expected mismatched replay validation error, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("verify mismatched replay expectations: %v", err)
+	}
+}
+
+func TestAuditDeletionReceiptMetadataUsesCanonicalKeys(t *testing.T) {
+	metadata, err := auditDeletionReceiptMetadata([]uint64{7, 9}, "delete-keys")
+	if err != nil {
+		t.Fatalf("encode deletion receipt: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(metadata, &decoded); err != nil {
+		t.Fatalf("decode deletion receipt: %v", err)
+	}
+	if _, ok := decoded["deletedIds"]; !ok {
+		t.Fatalf("expected camelCase deletedIds metadata, got %#v", decoded)
+	}
+	if _, ok := decoded["deleted_ids"]; ok {
+		t.Fatalf("unexpected snake_case deletion metadata key: %#v", decoded)
 	}
 }
 

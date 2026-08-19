@@ -1,0 +1,44 @@
+migration:
+  path: server/modules/audit/migrations/202608190001_audit_deletion_idempotency.sql
+  version: '202608190001'
+owner: audit
+risk_level: L4
+affected_tables:
+  - audit_logs
+referenced_tables:
+  - audit_logs
+operation_categories:
+  - duplicate-scan
+  - partial-unique-index
+historical_data_assumptions:
+  - Existing audit deletion receipts may contain repeated non-empty auditDeletionIdempotencyKey values from concurrent requests.
+  - Audit deletion receipts are protected audit facts and must not be deleted or rewritten automatically during migration.
+planned_upgrade_order:
+  - Scan every audit deletion receipt with a non-empty idempotency key and abort if duplicates exist.
+  - Create the partial expression unique index only after the duplicate scan succeeds.
+safety_strategy:
+  duplicate_scan: Group all audit.logs.batch_deleted receipts by the exact auditDeletionIdempotencyKey expression used by the unique index.
+  live_reference_scan: Inspect every protected deletion receipt covered by the index predicate; no external table reference or receipt mutation is permitted.
+  reconcile_or_abort: Abort and require operator reconciliation when duplicate protected receipts exist; never choose or delete a receipt automatically.
+  post_migration_invariant: At most one audit deletion receipt exists for each non-empty auditDeletionIdempotencyKey value.
+  reference_impact: Existing audit deletion receipts remain unchanged; duplicate protected facts block the migration for explicit operator review.
+  recovery_or_retirement_rationale: The migration neither retires nor rewrites audit evidence; operators reconcile the source incident before retrying the forward-only index creation. If concurrent creation leaves the same-name index INVALID, first confirm pg_index.indisvalid is false, then run DROP INDEX CONCURRENTLY "audit_logs_deletion_idempotency_key_unique" before retrying the migration.
+validation_scenarios:
+  - Duplicate protected deletion receipts cause the migration to abort before index creation.
+  - Unique deletion receipts allow the partial expression unique index to be created.
+  - Ordinary audit logs without an audit deletion idempotency key remain outside the index.
+preflight_checks:
+  - name: duplicate-audit-deletion-idempotency-receipts
+    query: >-
+      SELECT COUNT(*) FROM (SELECT metadata ->> 'auditDeletionIdempotencyKey' AS idempotency_key FROM audit_logs WHERE action = 'audit.logs.batch_deleted' AND metadata ->> 'auditDeletionIdempotencyKey' IS NOT NULL GROUP BY metadata ->> 'auditDeletionIdempotencyKey' HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:c027f6b820d1be52114ea3add88f2c5ff2798250ca518e026f3a5cb36c04424c
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-001
+    - MIG-002

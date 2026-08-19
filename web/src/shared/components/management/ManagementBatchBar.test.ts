@@ -104,4 +104,44 @@ describe('ManagementBatchBar', () => {
 
     expect(wrapper.emitted('action')).toEqual([['assign-roles']]);
   });
+
+  it('renders and emits current-page selection shortcuts', async () => {
+    const wrapper = mount(ManagementBatchBar, {
+      global: { components: { 't-button': ButtonStub, 't-dropdown': DropdownStub, 't-space': SpaceStub } },
+      props: {
+        clearLabel: 'Clear',
+        invertCurrentPageLabel: 'Invert current page',
+        selectCurrentPageLabel: 'Select current page',
+        selectedLabel: 'Selected 2 items',
+      },
+    });
+
+    await wrapper.get('[data-testid="management-batch-select-current-page"]').trigger('click');
+    await wrapper.get('[data-testid="management-batch-invert-current-page"]').trigger('click');
+
+    expect(wrapper.emitted('select-current-page')).toHaveLength(1);
+    expect(wrapper.emitted('invert-current-page')).toHaveLength(1);
+  });
+
+  it('places selection shortcuts before custom actions in compact mode', async () => {
+    const wrapper = mount(ManagementBatchBar, {
+      global: { components: { 't-button': ButtonStub, 't-dropdown': DropdownStub, 't-space': SpaceStub } },
+      props: {
+        clearLabel: 'Clear',
+        compactActionLabel: 'Batch actions',
+        compactActions: [{ content: 'Assign roles', value: 'assign-roles' }],
+        invertCurrentPageLabel: 'Invert current page',
+        selectCurrentPageLabel: 'Select current page',
+        selectedLabel: 'Selected 2 items',
+      },
+    });
+
+    const menuButtons = wrapper.findAll('[data-testid^="compact-action-"]').map((button) => button.text());
+    expect(menuButtons).toEqual(['Select current page', 'Invert current page', 'Assign roles']);
+
+    await wrapper.get('[data-testid="compact-action-select-current-page"]').trigger('click');
+    await wrapper.get('[data-testid="compact-action-invert-current-page"]').trigger('click');
+    expect(wrapper.emitted('select-current-page')).toHaveLength(1);
+    expect(wrapper.emitted('invert-current-page')).toHaveLength(1);
+  });
 });

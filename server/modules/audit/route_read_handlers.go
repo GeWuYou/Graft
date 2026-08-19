@@ -35,6 +35,7 @@ type auditIncidentResult = IncidentResult
 type auditGuard struct {
 	read   gin.HandlerFunc
 	manage gin.HandlerFunc
+	delete gin.HandlerFunc
 }
 
 // handleListAuditLogs 创建审计日志列表查询的处理器。

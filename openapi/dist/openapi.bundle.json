@@ -6023,6 +6023,121 @@
         }
       }
     },
+    "/api/audit/logs/batch-delete": {
+      "post": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Delete audit logs in batch",
+        "operationId": "postAuditLogsBatchDelete",
+        "description": "Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Stable retry key for the destructive batch operation.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/audit-logs-batch-delete-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audit logs deleted, or a matching idempotent replay accepted without deleting records again.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or duplicated audit log id set.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "One or more audit logs were not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An audit log is protected from manual deletion.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/audit/logs/{id}": {
       "get": {
         "tags": [
@@ -24524,6 +24639,9 @@
       "AuditLogListResponse": {
         "$ref": "#/components/schemas/audit-log-list-response"
       },
+      "AuditLogsBatchDeleteRequest": {
+        "$ref": "#/components/schemas/audit-logs-batch-delete-request"
+      },
       "AuditLogDetailResponse": {
         "$ref": "#/components/schemas/audit-log-detail-response"
       },
@@ -27790,6 +27908,26 @@
             }
           }
         ]
+      },
+      "audit-logs-batch-delete-request": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "audit-log-detail-response": {
         "allOf": [

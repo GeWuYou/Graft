@@ -15,6 +15,8 @@ var (
 	ErrIncidentNotFound = errors.New("audit incident not found")
 	// ErrAuditValidation 表示服务边界收到审计模块判定为无效的输入。
 	ErrAuditValidation = errors.New("audit validation failed")
+	// ErrAuditLogProtected 表示记录属于不可手工删除的受保护证据。
+	ErrAuditLogProtected = errors.New("audit log is protected")
 )
 
 // AuditSource 标识审计候选记录的来源边界。
@@ -180,6 +182,20 @@ type CreateAuditLogInput struct {
 	Message          string
 	Metadata         json.RawMessage
 	CreatedAt        time.Time
+}
+
+// AuditLogDeletionInput 描述一批手工删除及其不可删除凭证所需的操作者信息。
+type AuditLogDeletionInput struct {
+	IdempotencyKey string
+	ActorUserID    *uint64
+	ActorUsername  string
+	RequestID      string
+	DeletedAt      time.Time
+}
+
+// AuditLogDeleter 定义审计日志手工删除能力；它与常规读写仓储分离，避免破坏性能力扩散到全部仓储替身。
+type AuditLogDeleter interface {
+	DeleteAuditLogsByIDs(ctx context.Context, ids []uint64, input AuditLogDeletionInput) (int64, error)
 }
 
 // AuditCandidate 是写入审计记录前经过来源和字段归一化、等待策略评估的候选事实。

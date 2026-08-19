@@ -6,18 +6,21 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"graft/server/internal/drilldown"
 	auditstore "graft/server/modules/audit/store"
 )
 
 const (
-	defaultPage                     = 1
-	defaultPageSize                 = 20
-	maxPageSize                     = 200
-	auditSortPartCount              = 2
-	auditVisibilityGlobalDefaultKey = "global"
-	maxAuditVisibilityOverrideBatch = 100
+	defaultPage                      = 1
+	defaultPageSize                  = 20
+	maxPageSize                      = 200
+	auditSortPartCount               = 2
+	auditVisibilityGlobalDefaultKey  = "global"
+	maxAuditVisibilityOverrideBatch  = 100
+	maxAuditLogDeleteBatch           = 100
+	maxAuditDeletionIdempotencyRunes = 128
 )
 
 var (
@@ -236,6 +239,56 @@ func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (in
 	}
 
 	return deleted, nil
+}
+
+// DeleteByIDs 原子删除一批审计记录，并要求仓储为该操作写入不可手工删除凭证。
+func (s *Service) DeleteByIDs(ctx context.Context, ids []uint64, input auditstore.AuditLogDeletionInput) (int64, error) {
+	repo, err := s.repository()
+	if err != nil {
+		return 0, err
+	}
+	if err := validateAuditLogDeletionIDs(ids); err != nil {
+		return 0, err
+	}
+	input.IdempotencyKey = strings.TrimSpace(input.IdempotencyKey)
+	if err := validateAuditDeletionIdempotencyKey(input.IdempotencyKey); err != nil {
+		return 0, err
+	}
+	if input.DeletedAt.IsZero() {
+		input.DeletedAt = time.Now().UTC()
+	}
+	deleter, ok := repo.(auditstore.AuditLogDeleter)
+	if !ok {
+		return 0, ErrAuditServiceUnavailable
+	}
+	return deleter.DeleteAuditLogsByIDs(ctx, ids, input)
+}
+
+func validateAuditLogDeletionIDs(ids []uint64) error {
+	if len(ids) == 0 || len(ids) > maxAuditLogDeleteBatch {
+		return fmt.Errorf("%w: audit log delete batch must contain 1-%d ids", auditstore.ErrAuditValidation, maxAuditLogDeleteBatch)
+	}
+	seen := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			return fmt.Errorf("%w: audit log id is required", auditstore.ErrAuditValidation)
+		}
+		if _, ok := seen[id]; ok {
+			return fmt.Errorf("%w: duplicate audit log id", auditstore.ErrAuditValidation)
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
+}
+
+func validateAuditDeletionIdempotencyKey(idempotencyKey string) error {
+	if idempotencyKey == "" {
+		return fmt.Errorf("%w: audit log deletion idempotency key is required", auditstore.ErrAuditValidation)
+	}
+	if utf8.RuneCountInString(idempotencyKey) > maxAuditDeletionIdempotencyRunes {
+		return fmt.Errorf("%w: audit log deletion idempotency key must not exceed %d characters", auditstore.ErrAuditValidation, maxAuditDeletionIdempotencyRunes)
+	}
+	return nil
 }
 
 // VisibilityPolicy 返回当前由审计模块拥有的可见性策略快照。

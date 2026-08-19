@@ -45,7 +45,9 @@
       "selected": "{count} app logs selected",
       "cancelSelection": "Cancel Selection",
       "select": "Select Multiple",
-      "selectAll": "Select Current Page"
+      "actions": "Batch Actions",
+      "selectAll": "Select Current Page",
+      "invert": "Invert Current Page"
     },
     "deleteDialog": {
       "title": "Delete App Log",

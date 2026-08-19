@@ -1,15 +1,37 @@
 <template>
   <div
     class="management-batch-bar"
-    :class="{ 'management-batch-bar--has-compact-actions': props.compactActions.length }"
+    :class="{
+      'management-batch-bar--has-compact-actions': compactMenuOptions.length,
+    }"
   >
     <span class="management-batch-bar__summary">{{ selectedLabel }}</span>
     <div class="management-batch-bar__actions">
       <t-space class="management-batch-bar__desktop-actions">
+        <t-button
+          v-if="props.selectCurrentPageLabel"
+          :data-testid="props.selectCurrentPageTestId"
+          :size="props.buttonSize"
+          theme="default"
+          variant="outline"
+          @click="emit('select-current-page')"
+        >
+          {{ props.selectCurrentPageLabel }}
+        </t-button>
+        <t-button
+          v-if="props.invertCurrentPageLabel"
+          :data-testid="props.invertCurrentPageTestId"
+          :size="props.buttonSize"
+          theme="default"
+          variant="outline"
+          @click="emit('invert-current-page')"
+        >
+          {{ props.invertCurrentPageLabel }}
+        </t-button>
         <slot />
       </t-space>
-      <t-space v-if="props.compactActions.length" class="management-batch-bar__compact-actions">
-        <t-dropdown :options="props.compactActions" trigger="click" @click="handleCompactAction">
+      <t-space v-if="compactMenuOptions.length" class="management-batch-bar__compact-actions">
+        <t-dropdown :options="compactMenuOptions" trigger="click" @click="handleCompactAction">
           <t-button :data-testid="props.compactActionTestId" :size="props.buttonSize" theme="primary" variant="outline">
             {{ props.compactActionLabel }}
           </t-button>
@@ -29,6 +51,7 @@
 </template>
 <script setup lang="ts">
 import type { DropdownProps } from 'tdesign-vue-next';
+import { computed } from 'vue';
 
 type ManagementBatchAction = NonNullable<DropdownProps['options']>[number];
 
@@ -41,6 +64,10 @@ const props = withDefaults(
     compactActionTestId?: string;
     compactActions?: ManagementBatchAction[];
     buttonSize?: 'small' | 'medium' | 'large';
+    invertCurrentPageLabel?: string;
+    invertCurrentPageTestId?: string;
+    selectCurrentPageLabel?: string;
+    selectCurrentPageTestId?: string;
     selectedLabel: string;
   }>(),
   {
@@ -49,17 +76,31 @@ const props = withDefaults(
     compactActions: () => [],
     clearTestId: '',
     buttonSize: 'small',
+    invertCurrentPageLabel: '',
+    invertCurrentPageTestId: 'management-batch-invert-current-page',
+    selectCurrentPageLabel: '',
+    selectCurrentPageTestId: 'management-batch-select-current-page',
   },
 );
 
 const emit = defineEmits<{
   action: [value: string];
   clear: [];
+  'invert-current-page': [];
+  'select-current-page': [];
 }>();
+
+const compactMenuOptions = computed<ManagementBatchAction[]>(() => [
+  ...(props.selectCurrentPageLabel ? [{ content: props.selectCurrentPageLabel, value: 'select-current-page' }] : []),
+  ...(props.invertCurrentPageLabel ? [{ content: props.invertCurrentPageLabel, value: 'invert-current-page' }] : []),
+  ...props.compactActions,
+]);
 
 const handleCompactAction: NonNullable<DropdownProps['onClick']> = (action) => {
   const value = typeof action === 'object' && action ? action.value : action;
-  if (typeof value === 'string') emit('action', value);
+  if (value === 'select-current-page') emit('select-current-page');
+  else if (value === 'invert-current-page') emit('invert-current-page');
+  else if (typeof value === 'string') emit('action', value);
 };
 </script>
 <style scoped lang="less">

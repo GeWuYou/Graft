@@ -69,10 +69,13 @@
         :loading="loading"
         :local-filter-active="hasClientOnlyFilters"
         :rows="displayRows"
+        :can-delete="canDeleteAuditLogs"
+        :selected-row-keys="selectedRowKeys"
         :total="tableTotal"
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
+        @select-change="handleSelectChange"
         @view-access-log="openAccessLog"
         @view-app-log="openAppLog"
         @view-security-event="openSecurityEvent"
@@ -85,6 +88,22 @@
             @column-settings="columnDrawerVisible = true"
             @refresh="fetchAuditLogs"
           />
+        </template>
+        <template v-if="selectedRowKeys.length > 0" #batch>
+          <management-batch-bar
+            :clear-label="t('audit.logList.batch.clear')"
+            :compact-action-label="t('audit.logList.batch.actions')"
+            :invert-current-page-label="t('audit.logList.batch.invertCurrentPage')"
+            :select-current-page-label="t('audit.logList.batch.selectCurrentPage')"
+            :selected-label="t('audit.logList.batch.selected', { count: selectedRowKeys.length })"
+            @clear="clearSelection"
+            @invert-current-page="invertCurrentPage"
+            @select-current-page="selectCurrentPage"
+          >
+            <t-button theme="danger" variant="outline" @click="confirmBatchDelete">
+              {{ t('audit.logList.batch.delete') }}
+            </t-button>
+          </management-batch-bar>
         </template>
       </audit-table>
     </template>
@@ -244,7 +263,7 @@
 </template>
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
 import { computed, nextTick, onActivated, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { LocationQueryValue } from 'vue-router';
@@ -252,7 +271,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
-import { TableViewToolbar } from '@/shared/components/management';
+import { ManagementBatchBar, TableViewToolbar } from '@/shared/components/management';
 import {
   AdvancedQueryColumnDrawer,
   AdvancedQueryListPage,
@@ -279,6 +298,7 @@ import { getPermissionStore } from '@/store/modules/permission';
 import { createLogger } from '@/utils/logger';
 
 import {
+  deleteAuditLogs,
   deleteAuditSavedView,
   deleteAuditVisibilityOverride,
   getAuditLogDetail,
@@ -294,6 +314,7 @@ import {
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
+import { AUDIT_LOG_BATCH_DELETE_MAX_IDS } from '../../contract/batch-delete';
 import { AUDIT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
 import {
@@ -371,6 +392,7 @@ const router = useRouter();
 
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
+const selectedRowKeys = ref<number[]>([]);
 const total = ref(0);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
@@ -470,6 +492,7 @@ const columnViewPresets = computed(() => [
 
 const hasClientOnlyFilters = computed(() => false);
 const canManageAuditPolicy = computed(() => getPermissionStore().hasPermission(AUDIT_PERMISSION_CODE.MANAGE));
+const canDeleteAuditLogs = computed(() => getPermissionStore().hasPermission(AUDIT_PERMISSION_CODE.DELETE));
 const visibilityStrategyOptions = computed(() => [
   { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
   { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
@@ -680,6 +703,73 @@ async function fetchAuditLogs() {
   listError.value = '';
   await nextTick();
   await auditLogListQuery.refetch();
+}
+
+function showBatchSelectionLimitWarning() {
+  MessagePlugin.warning(
+    t('audit.logList.batch.selectionLimit', {
+      limit: AUDIT_LOG_BATCH_DELETE_MAX_IDS,
+    }),
+  );
+}
+
+function handleSelectChange(rowKeys: number[]) {
+  const pageIds = new Set(rows.value.map((row) => row.id));
+  const preserved = selectedRowKeys.value.filter((key) => !pageIds.has(key));
+  const currentPageKeys = rowKeys.filter((key) => pageIds.has(key));
+  const nextSelection = [...new Set([...preserved, ...currentPageKeys])];
+  if (nextSelection.length > AUDIT_LOG_BATCH_DELETE_MAX_IDS) {
+    showBatchSelectionLimitWarning();
+    return;
+  }
+  selectedRowKeys.value = nextSelection;
+}
+
+function clearSelection() {
+  selectedRowKeys.value = [];
+}
+
+function selectCurrentPage() {
+  handleSelectChange(rows.value.map((row) => row.id));
+}
+
+function invertCurrentPage() {
+  const selected = new Set(selectedRowKeys.value.map(Number));
+  handleSelectChange(rows.value.filter((row) => !selected.has(row.id)).map((row) => row.id));
+}
+
+function createAuditDeleteIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() ?? `audit-delete-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function confirmBatchDelete() {
+  if (!canDeleteAuditLogs.value || selectedRowKeys.value.length === 0) return;
+  if (selectedRowKeys.value.length > AUDIT_LOG_BATCH_DELETE_MAX_IDS) {
+    showBatchSelectionLimitWarning();
+    return;
+  }
+  const dialog = DialogPlugin.confirm({
+    header: t('audit.logList.batch.confirmTitle'),
+    body: t('audit.logList.batch.confirmBody', { count: selectedRowKeys.value.length }),
+    theme: 'danger',
+    confirmBtn: t('audit.logList.batch.confirm'),
+    cancelBtn: t('audit.logList.batch.cancel'),
+    onConfirm: async () => {
+      dialog.setConfirmLoading(true);
+      try {
+        await deleteAuditLogs({ ids: selectedRowKeys.value.map(Number) }, createAuditDeleteIdempotencyKey());
+        clearSelection();
+        await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
+        await fetchAuditLogs();
+        dialog.hide();
+        MessagePlugin.success(t('audit.logList.batch.success'));
+      } catch (error) {
+        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.batch.failed')));
+      } finally {
+        dialog.setConfirmLoading(false);
+      }
+    },
+  });
 }
 
 async function openPolicyDrawer() {

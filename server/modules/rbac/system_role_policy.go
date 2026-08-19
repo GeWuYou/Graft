@@ -51,6 +51,7 @@ func SystemRolePolicy() []SystemRolePolicyEntry {
 	add("announcement.delete", nil)
 	add("audit.read", allScope(roleSecurityAuditor))
 	add("audit.manage", nil)
+	add("audit.delete", nil)
 	for _, entry := range systemRolePolicyGrants() {
 		add(entry.code, entry.grants)
 	}
@@ -95,7 +96,7 @@ func adminOnlySystemPermissions() []string {
 }
 
 func applyCriticalPolicyMetadata(entries []SystemRolePolicyEntry) {
-	critical := map[string]bool{"container.shell": true, "role.permission.assign": true, "user.role.assign": true, "system-config.write": true}
+	critical := map[string]bool{"audit.delete": true, "container.shell": true, "role.permission.assign": true, "user.role.assign": true, "system-config.write": true}
 	for index := range entries {
 		if !critical[entries[index].Code] {
 			continue

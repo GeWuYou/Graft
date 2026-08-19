@@ -20,6 +20,7 @@
     <responsive-table
       :density-scope="densityScope"
       :entity-card-layout="entityCardLayout"
+      :force-cards="forceCards"
       :preserve-inactive="preserveInactive"
       :presentation="responsivePresentation"
     >
@@ -133,6 +134,7 @@ const props = withDefaults(
     emptyDescription: string;
     emptyTitle: string;
     entityCardLayout?: ResponsiveEntityCardLayout;
+    forceCards?: boolean;
     footerSummary: string;
     headLabel?: string;
     hideFooterSummaryOnCompact?: boolean;
@@ -158,6 +160,7 @@ const props = withDefaults(
     densityScope: 'container',
     description: '',
     entityCardLayout: 'compact',
+    forceCards: false,
     headLabel: '',
     hideFooterSummaryOnCompact: false,
     loading: false,

@@ -7,6 +7,7 @@ import type {
   AuditLogDetailResponse,
   AuditLogListResponse,
   AuditLogQuery,
+  AuditLogsBatchDeleteRequest,
   AuditSavedView,
   AuditSavedViewRequest,
   AuditVisibilityDefaultResponse,
@@ -21,6 +22,12 @@ type AuditLogsPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogs;
 type GetAuditLogsOperation = paths[AuditLogsPath]['get'];
 type GetAuditLogsResponse = GetAuditLogsOperation['responses'][200]['content']['application/json'];
 type GetAuditLogsResponseData = NonNullable<GetAuditLogsResponse['data']>;
+
+type AuditLogsBatchDeletePath = typeof OPENAPI_RUNTIME_PATH.postAuditLogsBatchDelete;
+type PostAuditLogsBatchDeleteOperation = paths[AuditLogsBatchDeletePath]['post'];
+type PostAuditLogsBatchDeleteResponse =
+  PostAuditLogsBatchDeleteOperation['responses'][200]['content']['application/json'];
+type PostAuditLogsBatchDeleteResponseData = NonNullable<PostAuditLogsBatchDeleteResponse['data']>;
 
 type AuditVisibilityOverridesBatchPath = typeof OPENAPI_RUNTIME_PATH.putAuditVisibilityOverridesBatch;
 type PutAuditVisibilityOverridesBatchOperation = paths[AuditVisibilityOverridesBatchPath]['put'];
@@ -56,6 +63,15 @@ export function getAuditLogs(query: AuditLogQuery) {
     url: OPENAPI_RUNTIME_PATH.getAuditLogs,
     params: query,
   }) as Promise<AuditLogListResponse>;
+}
+
+/** 删除选中的审计日志，并使用幂等键保证重试不会重复执行。 */
+export function deleteAuditLogs(payload: AuditLogsBatchDeleteRequest, idempotencyKey: string) {
+  return request.post<PostAuditLogsBatchDeleteResponseData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
+    url: OPENAPI_RUNTIME_PATH.postAuditLogsBatchDelete,
+    data: payload,
+  });
 }
 
 /**

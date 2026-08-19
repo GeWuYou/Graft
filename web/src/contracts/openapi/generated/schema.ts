@@ -1005,6 +1005,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/logs/batch-delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Delete audit logs in batch
+     * @description Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.
+     */
+    post: operations['postAuditLogsBatchDelete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/audit/logs/{id}': {
     parameters: {
       query?: never;
@@ -4895,6 +4915,7 @@ export interface components {
     AuditDrilldownScope: components['schemas']['audit-drilldown-scope'];
     AuditBusinessCategory: components['schemas']['audit-business-category'];
     AuditLogListResponse: components['schemas']['audit-log-list-response'];
+    AuditLogsBatchDeleteRequest: components['schemas']['audit-logs-batch-delete-request'];
     AuditLogDetailResponse: components['schemas']['audit-log-detail-response'];
     EnvelopedAuditLogListResponse: components['schemas']['enveloped-audit-log-list-response'];
     EnvelopedAuditLogDetailResponse: components['schemas']['enveloped-audit-log-detail-response'];
@@ -5920,6 +5941,9 @@ export interface components {
     };
     'enveloped-audit-log-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-log-list-response'];
+    };
+    'audit-logs-batch-delete-request': {
+      ids: number[];
     };
     'audit-log-detail-response': components['schemas']['audit-log-list-item'];
     'enveloped-audit-log-detail-response': components['schemas']['api-envelope'] & {
@@ -14707,6 +14731,74 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuditLogsBatchDelete: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Stable retry key for the destructive batch operation. */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['audit-logs-batch-delete-request'];
+      };
+    };
+    responses: {
+      /** @description Audit logs deleted, or a matching idempotent replay accepted without deleting records again. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid or duplicated audit log id set. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description One or more audit logs were not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description An audit log is protected from manual deletion. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
