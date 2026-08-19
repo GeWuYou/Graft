@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue';
 
+// 共享卡片统一管理列表摘要、批量区和右侧工具栏的位置，业务页面只提供各区域内容。
 const props = defineProps<{
   description?: string;
   title?: string;
@@ -84,6 +85,7 @@ const hasHead = computed(() => Boolean(slots.head || props.title || props.descri
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
   justify-content: flex-end;
+  margin-inline-start: auto;
 }
 
 .management-table-card__batch {
@@ -155,6 +157,7 @@ const hasHead = computed(() => Boolean(slots.head || props.title || props.descri
 
   .management-table-card__toolbar {
     justify-content: flex-start;
+    margin-inline-start: 0;
   }
 
   .management-table-card__batch {
