@@ -96,6 +96,7 @@
         <t-checkbox
           v-if="canDelete"
           class="audit-log-card__select"
+          :aria-label="t('audit.logList.selectRecord', { id: row.id })"
           :checked="selectedRowKeys.some((key) => Number(key) === row.id)"
           @change="toggleCardSelection(row, $event)"
         />

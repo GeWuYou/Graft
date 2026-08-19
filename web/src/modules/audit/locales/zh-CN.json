@@ -145,6 +145,7 @@
       "columnSettings": "列设置",
       "retry": "重试",
       "detail": "详情",
+      "selectRecord": "选择审计记录 {id}",
       "more": "更多",
       "reasonFallback": "无补充原因",
       "footerTotal": "共 {count} 条审计事件",

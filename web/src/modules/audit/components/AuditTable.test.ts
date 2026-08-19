@@ -99,6 +99,7 @@ const translations: Record<string, string> = {
   'audit.logList.columns.createdAt': 'Time',
   'audit.logList.columns.operation': 'Operation',
   'audit.logList.detail': 'Detail',
+  'audit.logList.selectRecord': 'Select audit record {id}',
   'audit.logList.more': 'More',
   'audit.logList.currentPageFiltered': 'Current page filter',
   'audit.logList.emptyTitle': 'No audit logs',
@@ -191,7 +192,7 @@ describe('AuditTable', () => {
     const deletable = mountTable();
     await deletable.setProps({ canDelete: true, selectedRowKeys: [1] });
     expect(deletable.get('[data-testid="table-columns"]').text()).toContain('row-select');
-    expect(deletable.find('.audit-log-card__select').exists()).toBe(true);
+    expect(deletable.get('.audit-log-card__select').attributes('aria-label')).toBe('Select audit record 1');
   });
 
   it('emits only deduplicated current-page row keys from table selection', async () => {

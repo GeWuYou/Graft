@@ -145,6 +145,7 @@
       "columnSettings": "Columns",
       "retry": "Retry",
       "detail": "Detail",
+      "selectRecord": "Select audit record {id}",
       "more": "More",
       "reasonFallback": "No additional reason",
       "footerTotal": "{count} audit events total",
