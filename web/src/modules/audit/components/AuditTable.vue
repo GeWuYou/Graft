@@ -92,36 +92,31 @@
     </template>
 
     <template #cards>
-      <article
-        v-for="row in rows"
-        :key="row.id"
-        class="audit-log-card"
-        role="button"
-        tabindex="0"
-        @click="emit('detail', row)"
-        @keydown.enter="emit('detail', row)"
-        @keydown.space.prevent="emit('detail', row)"
-      >
+      <article v-for="row in rows" :key="row.id" class="audit-log-card">
         <t-checkbox
           v-if="canDelete"
           class="audit-log-card__select"
           :checked="selectedRowKeys.some((key) => Number(key) === row.id)"
-          @click.stop
-          @keydown.enter.stop
-          @keydown.space.stop
           @change="toggleCardSelection(row, $event)"
         />
-        <div class="audit-log-card__header">
-          <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
-        </div>
-        <p class="audit-log-card__target">{{ resourceLabel(row, t) }}</p>
-        <div class="audit-log-card__badges">
-          <t-tag :theme="resultTone(row)" variant="light-outline" size="small">{{ resultLabel(row, t) }}</t-tag>
-          <t-tag :theme="riskTone(row)" variant="light-outline" size="small">{{ riskLabel(row, t) }}</t-tag>
-        </div>
-        <time class="audit-log-card__time">{{ formatAuditTimestamp(row.created_at, locale) }}</time>
-        <p class="audit-log-card__actor">{{ t('audit.logList.columns.actor') }}: {{ actorLabel(row, t) }}</p>
-        <div class="audit-log-card__request" @click.stop>
+        <button
+          type="button"
+          class="audit-log-card__detail"
+          :aria-label="`${t('audit.logList.detail')}: ${actionTitle(row, t)}`"
+          @click="emit('detail', row)"
+        >
+          <span class="audit-log-card__header">
+            <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
+          </span>
+          <span class="audit-log-card__target">{{ resourceLabel(row, t) }}</span>
+          <span class="audit-log-card__badges">
+            <t-tag :theme="resultTone(row)" variant="light-outline" size="small">{{ resultLabel(row, t) }}</t-tag>
+            <t-tag :theme="riskTone(row)" variant="light-outline" size="small">{{ riskLabel(row, t) }}</t-tag>
+          </span>
+          <time class="audit-log-card__time">{{ formatAuditTimestamp(row.created_at, locale) }}</time>
+          <span class="audit-log-card__actor">{{ t('audit.logList.columns.actor') }}: {{ actorLabel(row, t) }}</span>
+        </button>
+        <div class="audit-log-card__request">
           <span>{{ t('audit.logList.columns.correlation') }}</span>
           <log-id-text
             :display-value="requestIdForRecord(row)"
@@ -129,7 +124,7 @@
             v-bind="technicalCopyLabels"
           />
         </div>
-        <div class="audit-log-card__actions" @click.stop @keydown.enter.stop @keydown.space.stop>
+        <div class="audit-log-card__actions">
           <table-action-menu
             :actions="rowActions(row)"
             :more-label="t('audit.logList.more')"
@@ -326,9 +321,26 @@ void TableActionMenu;
 
 .audit-log-card {
   .log-card-surface(var(--td-component-stroke));
+
+  cursor: default;
 }
 
-.audit-log-card:focus-visible {
+.audit-log-card__detail {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.audit-log-card__detail:focus-visible {
   outline: 2px solid var(--td-brand-color);
   outline-offset: 2px;
 }
@@ -356,7 +368,6 @@ void TableActionMenu;
 }
 
 .audit-log-card__target {
-  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

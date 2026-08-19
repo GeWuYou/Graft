@@ -249,6 +249,7 @@ describe('AuditTable', () => {
     const wrapper = mountTable();
 
     const card = wrapper.get('.audit-log-card');
+    const detailButton = card.get('button.audit-log-card__detail');
     expect(card.text()).toContain('Permission Denied');
     expect(card.text()).toContain('Denied');
     expect(card.text()).toContain('High');
@@ -257,22 +258,25 @@ describe('AuditTable', () => {
     expect(
       wrapper.findAllComponents({ name: 'LogIdText' }).some((item) => item.props('displayValue') === 'req-1'),
     ).toBe(true);
-    expect(card.attributes('role')).toBe('button');
-    expect(card.attributes('tabindex')).toBe('0');
+    expect(card.attributes('role')).toBeUndefined();
+    expect(card.attributes('tabindex')).toBeUndefined();
+    expect(detailButton.attributes('type')).toBe('button');
+    expect(detailButton.attributes('aria-label')).toBe('Detail: Permission Denied');
 
-    await card.trigger('keydown.enter');
+    await detailButton.trigger('click');
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1 });
   });
 
-  it('keeps checkbox and action-menu keyboard events from opening the card detail', async () => {
+  it('keeps the checkbox, request copy action, and action menu outside the detail button', async () => {
     const wrapper = mountTable();
     await wrapper.setProps({ canDelete: true });
 
-    await wrapper.get('.audit-log-card__select').trigger('keydown.space');
-    await wrapper.get('.audit-log-card__select').trigger('keydown.enter');
-    await wrapper.get('.audit-log-card__actions [data-testid="detail-action"]').trigger('keydown.space');
-    await wrapper.get('.audit-log-card__actions [data-testid="detail-action"]').trigger('keydown.enter');
-
-    expect(wrapper.emitted('detail')).toBeUndefined();
+    const detailButton = wrapper.get('.audit-log-card__detail');
+    expect(detailButton.find('.audit-log-card__select').exists()).toBe(false);
+    expect(detailButton.find('.audit-log-card__request').exists()).toBe(false);
+    expect(detailButton.find('.audit-log-card__actions').exists()).toBe(false);
+    expect(wrapper.get('.audit-log-card__select').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
+    expect(wrapper.get('.audit-log-card__request').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
+    expect(wrapper.get('.audit-log-card__actions').element.parentElement).toBe(wrapper.get('.audit-log-card').element);
   });
 });
