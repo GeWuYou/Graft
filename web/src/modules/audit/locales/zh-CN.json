@@ -156,6 +156,7 @@
         "actions": "批量操作",
         "selectCurrentPage": "全选当前页",
         "invertCurrentPage": "反选当前页",
+        "selectionLimit": "最多可选择 {limit} 条审计日志。",
         "delete": "批量删除",
         "confirmTitle": "确认删除审计日志",
         "confirmBody": "将永久删除选中的 {count} 条审计日志。",

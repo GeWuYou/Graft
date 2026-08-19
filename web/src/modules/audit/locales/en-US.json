@@ -156,6 +156,7 @@
         "actions": "Batch Actions",
         "selectCurrentPage": "Select current page",
         "invertCurrentPage": "Invert current page",
+        "selectionLimit": "You can select up to {limit} audit logs.",
         "delete": "Delete selected",
         "confirmTitle": "Delete audit logs",
         "confirmBody": "This permanently deletes {count} selected audit logs.",

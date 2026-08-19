@@ -22,7 +22,7 @@ safety_strategy:
   reconcile_or_abort: Abort and require operator reconciliation when duplicate protected receipts exist; never choose or delete a receipt automatically.
   post_migration_invariant: At most one audit deletion receipt exists for each non-empty auditDeletionIdempotencyKey value.
   reference_impact: Existing audit deletion receipts remain unchanged; duplicate protected facts block the migration for explicit operator review.
-  recovery_or_retirement_rationale: The migration neither retires nor rewrites audit evidence; operators reconcile the source incident before retrying the forward-only index creation.
+  recovery_or_retirement_rationale: The migration neither retires nor rewrites audit evidence; operators reconcile the source incident before retrying the forward-only index creation. If concurrent creation leaves the same-name index INVALID, first confirm pg_index.indisvalid is false, then run DROP INDEX CONCURRENTLY "audit_logs_deletion_idempotency_key_unique" before retrying the migration.
 validation_scenarios:
   - Duplicate protected deletion receipts cause the migration to abort before index creation.
   - Unique deletion receipts allow the partial expression unique index to be created.

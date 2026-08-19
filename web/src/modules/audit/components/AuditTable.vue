@@ -198,7 +198,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'detail', row: AuditLogListItem): void;
   (e: 'page-change'): void;
-  (e: 'select-change', rowKeys: Array<string | number>): void;
+  (e: 'select-change', currentPageRowIds: number[]): void;
   (e: 'view-access-log', row: AuditLogListItem): void;
   (e: 'view-app-log', row: AuditLogListItem): void;
   (e: 'view-security-event', row: AuditLogListItem): void;
@@ -248,7 +248,7 @@ function toggleCardSelection(row: AuditLogListItem, value: boolean | { checked?:
   }
   emit('select-change', [...next]);
 }
-function currentPageSelection(rowKeys: Array<string | number>) {
+function currentPageSelection(rowKeys: Array<string | number>): number[] {
   const pageIds = new Set(props.rows.map((row) => row.id));
   return [...new Set(rowKeys.map(Number).filter((rowId) => pageIds.has(rowId)))];
 }

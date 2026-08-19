@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { MessagePlugin } from 'tdesign-vue-next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, resolveComponent } from 'vue';
 import { createI18n } from 'vue-i18n';
@@ -441,6 +442,7 @@ const auditMessages: Record<string, string> = {
   'audit.logList.batch.clear': 'Clear selection',
   'audit.logList.batch.invertCurrentPage': 'Invert current page',
   'audit.logList.batch.selectCurrentPage': 'Select current page',
+  'audit.logList.batch.selectionLimit': 'You can select up to {limit} audit logs.',
   'audit.logList.batch.selected': '{count} selected',
   'audit.logList.presets.all': 'All',
   'audit.logList.presets.securityEvents': 'Security Events',
@@ -1485,6 +1487,47 @@ describe('AuditLogsPage', () => {
       sort: ['created_at:desc'],
     });
     expect(wrapper.text()).toContain('false');
+  });
+
+  it('preserves the valid cross-page selection when another page would exceed the batch limit', async () => {
+    const warningSpy = vi.spyOn(MessagePlugin, 'warning').mockResolvedValue({} as never);
+    const baseRow = createAuditLogsResponse().items[0];
+    const firstPageRows = Array.from({ length: 100 }, (_, index) => ({
+      ...baseRow,
+      id: index + 1,
+    }));
+    getAuditLogsMock.mockResolvedValue(
+      createAuditLogsResponse({
+        items: firstPageRows,
+        page_size: 100,
+        total: 101,
+      }),
+    );
+    const { wrapper } = await mountPage({});
+
+    await wrapper.get('[data-testid="audit-select-current-row"]').trigger('click');
+    await wrapper.get('[data-testid="audit-select-current-page"]').trigger('click');
+    expect(JSON.parse(wrapper.get('[data-testid="audit-selected-row-keys"]').text())).toEqual(
+      Array.from({ length: 100 }, (_, index) => index + 1),
+    );
+
+    getAuditLogsMock.mockResolvedValue(
+      createAuditLogsResponse({
+        items: [{ ...baseRow, id: 101 }],
+        page: 2,
+        page_size: 100,
+        total: 101,
+      }),
+    );
+    await wrapper.get('[data-testid="audit-page-change"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="audit-select-current-row"]').trigger('click');
+
+    expect(JSON.parse(wrapper.get('[data-testid="audit-selected-row-keys"]').text())).toEqual(
+      Array.from({ length: 100 }, (_, index) => index + 1),
+    );
+    expect(warningSpy).toHaveBeenCalledWith('You can select up to 100 audit logs.');
+    warningSpy.mockRestore();
   });
 
   it('syncs interactive filters into route query for reload and sharing', async () => {

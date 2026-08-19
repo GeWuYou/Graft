@@ -314,6 +314,7 @@ import {
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
+import { AUDIT_LOG_BATCH_DELETE_MAX_IDS } from '../../contract/batch-delete';
 import { AUDIT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
 import {
@@ -391,7 +392,7 @@ const router = useRouter();
 
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
-const selectedRowKeys = ref<Array<string | number>>([]);
+const selectedRowKeys = ref<number[]>([]);
 const total = ref(0);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
@@ -704,11 +705,24 @@ async function fetchAuditLogs() {
   await auditLogListQuery.refetch();
 }
 
-function handleSelectChange(rowKeys: Array<string | number>) {
+function showBatchSelectionLimitWarning() {
+  MessagePlugin.warning(
+    t('audit.logList.batch.selectionLimit', {
+      limit: AUDIT_LOG_BATCH_DELETE_MAX_IDS,
+    }),
+  );
+}
+
+function handleSelectChange(rowKeys: number[]) {
   const pageIds = new Set(rows.value.map((row) => row.id));
-  const preserved = selectedRowKeys.value.map(Number).filter((key) => !pageIds.has(key));
-  const currentPageKeys = rowKeys.map(Number).filter((key) => pageIds.has(key));
-  selectedRowKeys.value = [...new Set([...preserved, ...currentPageKeys])];
+  const preserved = selectedRowKeys.value.filter((key) => !pageIds.has(key));
+  const currentPageKeys = rowKeys.filter((key) => pageIds.has(key));
+  const nextSelection = [...new Set([...preserved, ...currentPageKeys])];
+  if (nextSelection.length > AUDIT_LOG_BATCH_DELETE_MAX_IDS) {
+    showBatchSelectionLimitWarning();
+    return;
+  }
+  selectedRowKeys.value = nextSelection;
 }
 
 function clearSelection() {
@@ -730,6 +744,10 @@ function createAuditDeleteIdempotencyKey() {
 
 function confirmBatchDelete() {
   if (!canDeleteAuditLogs.value || selectedRowKeys.value.length === 0) return;
+  if (selectedRowKeys.value.length > AUDIT_LOG_BATCH_DELETE_MAX_IDS) {
+    showBatchSelectionLimitWarning();
+    return;
+  }
   const dialog = DialogPlugin.confirm({
     header: t('audit.logList.batch.confirmTitle'),
     body: t('audit.logList.batch.confirmBody', { count: selectedRowKeys.value.length }),
