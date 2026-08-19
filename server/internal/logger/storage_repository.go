@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +91,76 @@ func (r *appLogRepository) DeleteAppLogsByIDs(ctx context.Context, ids []uint64)
 	}
 
 	return r.deleteAppLogsByNormalizedIDs(ctx, normalizedIDs)
+}
+
+// DeleteAppLogsByIDsWithReceipt 在同一事务中 claim 幂等回执并删除 App Log，重复请求只重放回执。
+func (r *appLogRepository) DeleteAppLogsByIDsWithReceipt(ctx context.Context, ids []uint64, key string) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("app log repository is unavailable")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return 0, errors.New("app log deletion idempotency key is required")
+	}
+	normalizedIDs, err := normalizeAppLogDeleteIDs(ids)
+	if err != nil {
+		return 0, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin app log deletion receipt transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	encoded, err := json.Marshal(normalizedIDs)
+	if err != nil {
+		return 0, fmt.Errorf("encode app log deletion receipt: %w", err)
+	}
+	result, err := tx.ExecContext(ctx, "INSERT INTO app_log_deletion_receipts (idempotency_key, deleted_ids) VALUES ("+r.placeholder(1)+", "+r.placeholder(2)+") ON CONFLICT (idempotency_key) DO NOTHING", key, encoded)
+	if err != nil {
+		return 0, fmt.Errorf("claim app log deletion receipt: %w", err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		var existing []byte
+		if err := tx.QueryRowContext(ctx, "SELECT deleted_ids FROM app_log_deletion_receipts WHERE idempotency_key = "+r.placeholder(1), key).Scan(&existing); err != nil {
+			return 0, fmt.Errorf("read app log deletion receipt: %w", err)
+		}
+		var existingIDs []uint64
+		if err := json.Unmarshal(existing, &existingIDs); err != nil || !slices.Equal(existingIDs, normalizedIDs) {
+			return 0, errors.New("app log deletion idempotency key was reused for a different id set")
+		}
+		if err := tx.Commit(); err != nil {
+			return 0, fmt.Errorf("commit app log deletion replay: %w", err)
+		}
+		return 0, nil
+	}
+	placeholders := make([]string, len(normalizedIDs))
+	args := make([]any, len(normalizedIDs))
+	for i, id := range normalizedIDs {
+		placeholders[i] = r.placeholder(i + 1)
+		args[i] = id
+	}
+	var count int64
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM app_logs WHERE id IN ("+strings.Join(placeholders, ", ")+")", args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count app logs before deletion: %w", err)
+	}
+	if count != int64(len(normalizedIDs)) {
+		return 0, ErrAppLogNotFound
+	}
+	res, err := tx.ExecContext(ctx, "DELETE FROM app_logs WHERE id IN ("+strings.Join(placeholders, ", ")+")", args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete app logs with receipt: %w", err)
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if deleted != int64(len(normalizedIDs)) {
+		return 0, fmt.Errorf("app log deletion affected %d of %d records", deleted, len(normalizedIDs))
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit app log deletion: %w", err)
+	}
+	return deleted, nil
 }
 
 func (r *appLogRepository) deleteAppLogsByNormalizedIDs(ctx context.Context, ids []uint64) (int64, error) {

@@ -1,0 +1,42 @@
+migration:
+  path: server/internal/logger/migrations/202608200001_app_log_deletion_receipts.sql
+  version: '202608200001'
+owner: logger
+risk_level: L4
+affected_tables:
+  - app_log_deletion_receipts
+  - app_logs
+referenced_tables:
+  - app_logs
+operation_categories:
+  - create-table
+  - idempotency-receipt
+historical_data_assumptions:
+  - The app_log_deletion_receipts table does not exist in the current live schema.
+  - Existing app_logs rows remain eligible for deletion only through the logger-owned command boundary.
+planned_upgrade_order:
+  - Create the receipt table before enabling the App Log deletion command.
+  - Claim a unique idempotency key and persist its normalized ID set in the same transaction as deletion.
+safety_strategy:
+  duplicate_scan: The primary key rejects duplicate idempotency keys at the database boundary.
+  live_reference_scan: Verify the receipt table is empty or contains only unique keys before enabling command traffic.
+  reconcile_or_abort: Abort deployment if the table or primary key already exists with an incompatible definition.
+  post_migration_invariant: At most one receipt exists for each non-empty idempotency key, and each receipt stores a normalized ID set.
+  reference_impact: Existing app_logs rows are unchanged by this migration.
+  recovery_or_retirement_rationale: The receipt table is append-only evidence for retry convergence; cleanup requires a later logger-owned retention decision.
+validation_scenarios:
+  - The migration creates the receipt table with its primary key and required comments.
+  - Duplicate idempotency keys are rejected.
+  - Existing app_logs rows remain unchanged after migration.
+preflight_checks:
+  - name: app-log-deletion-receipt-table-definition
+    query: >-
+      SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'app_log_deletion_receipts'
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb

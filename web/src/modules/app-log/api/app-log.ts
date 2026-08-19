@@ -20,13 +20,10 @@ type AppLogDetailPath = typeof OPENAPI_RUNTIME_PATH.getAppLogDetail;
 type GetAppLogDetailOperation = paths[AppLogDetailPath]['get'];
 type GetAppLogDetailResponse = GetAppLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAppLogDetailResponseData = NonNullable<GetAppLogDetailResponse['data']>;
-type DeleteAppLogOperation = paths[AppLogDetailPath]['delete'];
-type DeleteAppLogResponse = DeleteAppLogOperation['responses'][200]['content']['application/json'];
-type DeleteAppLogResponseData = NonNullable<DeleteAppLogResponse['data']>;
-type AppLogBatchDeletePath = typeof OPENAPI_RUNTIME_PATH.postAppLogBatchDelete;
-type PostAppLogBatchDeleteOperation = paths[AppLogBatchDeletePath]['post'];
-type PostAppLogBatchDeleteResponse = PostAppLogBatchDeleteOperation['responses'][200]['content']['application/json'];
-type PostAppLogBatchDeleteResponseData = NonNullable<PostAppLogBatchDeleteResponse['data']>;
+type AppLogDeletionPath = typeof OPENAPI_RUNTIME_PATH.postAppLogDeletion;
+type PostAppLogDeletionOperation = paths[AppLogDeletionPath]['post'];
+type PostAppLogDeletionResponse = PostAppLogDeletionOperation['responses'][200]['content']['application/json'];
+type PostAppLogDeletionResponseData = NonNullable<PostAppLogDeletionResponse['data']>;
 
 type AppLogSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getAppLogSavedViews;
 type GetAppLogSavedViewsOperation = paths[AppLogSavedViewsPath]['get'];
@@ -60,20 +57,11 @@ export function getAppLogDetail(id: number) {
   }) as Promise<AppLogDetailResponse>;
 }
 
-export function deleteAppLog(id: number) {
-  return request.delete<DeleteAppLogResponseData>({
-    url: buildOpenApiRuntimePath('deleteAppLog', { id }),
-  });
-}
-
-/**
- * 批量删除应用日志。
- *
- * @param payload - 包含待删除日志标识的批量删除请求参数
- */
-export function deleteAppLogs(payload: AppLogBatchDeleteRequest) {
-  return request.post<PostAppLogBatchDeleteResponseData>({
-    url: OPENAPI_RUNTIME_PATH.postAppLogBatchDelete,
+/** 删除选中的应用日志，并使用幂等键保证重试不会重复执行。 */
+export function deleteAppLogs(payload: AppLogBatchDeleteRequest, idempotencyKey: string) {
+  return request.post<PostAppLogDeletionResponseData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
+    url: OPENAPI_RUNTIME_PATH.postAppLogDeletion,
     data: payload,
   });
 }

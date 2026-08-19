@@ -9,7 +9,7 @@
 - Canonical authority:
   - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
   - `openapi/openapi.yaml`
-- Completed so far: contract foundation, the user soft-delete pilot, and relationship/RBAC convergence, including generated server/web consumers and completion validation.
+- Completed so far: contract foundation, the user soft-delete pilot, relationship/RBAC convergence, and audit/App Log hard-delete commands with durable idempotency receipts, including generated server/web consumers and completion validation.
 - Remaining: hard-delete commands, external Task destruction, and full inventory closeout.
 
 ## Recovery Receipt
@@ -55,7 +55,7 @@ Out of scope:
 - Existing operations are not annotated until their runtime behavior matches the metadata; the first gate validates truthful annotations instead of publishing target semantics as current behavior.
 - User deletion now uses `DELETE /api/users/{id}`: first delete and same-scope tombstone retry return 204, while normal detail/list reads continue to hide the tombstone.
 - RBAC relationship removals now use canonical `DELETE` collection operations without aliases; atomic role/permission/user-role batches return the shared ordered result contract and reject empty, duplicate, or over-100-item requests.
-- Next step: migrate audit and app-log irreversible deletion to `POST .../deletions` commands backed by persistent idempotency receipts.
+- Next step: migrate Docker/Compose removal to `202` Task receipts.
 
 ## Work Intake
 

@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func handleBatchDeleteAuditLogs(ctx *module.Context, moduleName string, reader a
 			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
-		var request auditopenapi.PostAuditLogsBatchDeleteJSONRequestBody
+		var request auditopenapi.PostAuditLogDeletionJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "ids"})
 			return
@@ -66,6 +67,14 @@ func handleBatchDeleteAuditLogs(ctx *module.Context, moduleName string, reader a
 			return
 		}
 		ginCtx.Set("audit.batch.deleted", deleted)
-		httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]any{})
+		results := make([]map[string]any, 0, len(ids))
+		for _, id := range ids {
+			results = append(results, map[string]any{"id": fmt.Sprint(id), "status": "deleted"})
+		}
+		httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]any{
+			"operation_id": ginCtx.GetHeader("Idempotency-Key"),
+			"summary":      map[string]int{"requested": len(ids), "succeeded": len(ids), "failed": 0},
+			"results":      results,
+		})
 	}
 }

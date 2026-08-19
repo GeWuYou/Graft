@@ -6215,14 +6215,41 @@
         }
       }
     },
-    "/api/audit/logs/batch-delete": {
+    "/api/audit/logs/deletions": {
       "post": {
         "tags": [
           "audit"
         ],
-        "summary": "Delete audit logs in batch",
-        "operationId": "postAuditLogsBatchDelete",
-        "description": "Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.",
+        "summary": "Delete audit logs",
+        "operationId": "postAuditLogDeletion",
+        "description": "Permanently deletes selected audit records and stores a durable idempotency receipt.",
+        "x-graft-destructive": {
+          "kind": "hard_delete",
+          "effect": "hard_delete",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "idempotency_key"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6234,7 +6261,6 @@
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
-            "description": "Stable retry key for the destructive batch operation.",
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -6259,34 +6285,17 @@
         },
         "responses": {
           "200": {
-            "description": "Audit logs deleted, or a matching idempotent replay accepted without deleting records again.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Deletion completed or matching receipt replayed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid or duplicated audit log id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -6295,34 +6304,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "One or more audit logs were not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "An audit log is protected from manual deletion.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12417,20 +12402,57 @@
         }
       }
     },
-    "/api/app-log/batch-delete": {
+    "/api/app-log/deletions": {
       "post": {
         "tags": [
           "app-log"
         ],
-        "summary": "Delete app logs in batch",
-        "operationId": "postAppLogBatchDelete",
-        "description": "Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.",
+        "summary": "Delete app logs",
+        "operationId": "postAppLogDeletion",
+        "description": "Permanently deletes selected retained app-log rows and stores a durable idempotency receipt.",
+        "x-graft-destructive": {
+          "kind": "hard_delete",
+          "effect": "hard_delete",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "idempotency_key"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
           }
         ],
         "security": [
@@ -12450,34 +12472,17 @@
         },
         "responses": {
           "200": {
-            "description": "App logs deleted.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Deletion completed or matching receipt replayed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid app log id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -12486,19 +12491,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "One or more app logs were not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/not-found"
+          },
+          "409": {
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12561,93 +12557,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-app-log-detail-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid app log id.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "App log not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "app-log"
-        ],
-        "summary": "Delete one app log",
-        "operationId": "deleteAppLog",
-        "description": "Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "App log deleted.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
                 }
               }
             }
@@ -48419,8 +48328,8 @@
           }
         }
       },
-      "conflict": {
-        "description": "Request could not be completed because the resource changed concurrently.",
+      "bad-request": {
+        "description": "Invalid request under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"
@@ -48434,8 +48343,23 @@
           }
         }
       },
-      "bad-request": {
-        "description": "Invalid request under existing error envelope semantics.",
+      "not-found": {
+        "description": "Requested resource was not found under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "conflict": {
+        "description": "Request could not be completed because the resource changed concurrently.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"
@@ -48469,21 +48393,6 @@
       },
       "precondition-required": {
         "description": "A strong If-Match header is required for Module Config mutations.",
-        "headers": {
-          "X-Request-Id": {
-            "$ref": "#/components/headers/request-id"
-          }
-        },
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/error-response"
-            }
-          }
-        }
-      },
-      "not-found": {
-        "description": "Requested resource was not found under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

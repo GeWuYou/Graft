@@ -957,7 +957,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/audit/logs/batch-delete': {
+  '/api/audit/logs/deletions': {
     parameters: {
       query?: never;
       header?: never;
@@ -967,10 +967,10 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Delete audit logs in batch
-     * @description Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.
+     * Delete audit logs
+     * @description Permanently deletes selected audit records and stores a durable idempotency receipt.
      */
-    post: operations['postAuditLogsBatchDelete'];
+    post: operations['postAuditLogDeletion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2242,7 +2242,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/app-log/batch-delete': {
+  '/api/app-log/deletions': {
     parameters: {
       query?: never;
       header?: never;
@@ -2252,10 +2252,10 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Delete app logs in batch
-     * @description Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.
+     * Delete app logs
+     * @description Permanently deletes selected retained app-log rows and stores a durable idempotency receipt.
      */
-    post: operations['postAppLogBatchDelete'];
+    post: operations['postAppLogDeletion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2273,11 +2273,7 @@ export interface paths {
     get: operations['getAppLogDetail'];
     put?: never;
     post?: never;
-    /**
-     * Delete one app log
-     * @description Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.
-     */
-    delete: operations['deleteAppLog'];
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -11543,8 +11539,8 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Request could not be completed because the resource changed concurrently. */
-    conflict: {
+    /** @description Invalid request under existing error envelope semantics. */
+    'bad-request': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -11553,8 +11549,18 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Invalid request under existing error envelope semantics. */
-    'bad-request': {
+    /** @description Requested resource was not found under existing error envelope semantics. */
+    'not-found': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description Request could not be completed because the resource changed concurrently. */
+    conflict: {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -11576,16 +11582,6 @@ export interface components {
     };
     /** @description A strong If-Match header is required for Module Config mutations. */
     'precondition-required': {
-      headers: {
-        'X-Request-Id': components['headers']['request-id'];
-        [name: string]: unknown;
-      };
-      content: {
-        'application/json': components['schemas']['error-response'];
-      };
-    };
-    /** @description Requested resource was not found under existing error envelope semantics. */
-    'not-found': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -14762,7 +14758,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postAuditLogsBatchDelete: {
+  postAuditLogDeletion: {
     parameters: {
       query?: never;
       header: {
@@ -14773,7 +14769,6 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
-        /** @description Stable retry key for the destructive batch operation. */
         'Idempotency-Key': string;
       };
       path?: never;
@@ -14785,48 +14780,20 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Audit logs deleted, or a matching idempotent replay accepted without deleting records again. */
+      /** @description Deletion completed or matching receipt replayed. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
-      /** @description Invalid or duplicated audit log id set. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more audit logs were not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description An audit log is protected from manual deletion. */
-      409: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -18323,10 +18290,10 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postAppLogBatchDelete: {
+  postAppLogDeletion: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -18334,6 +18301,7 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        'Idempotency-Key': string;
       };
       path?: never;
       cookie?: never;
@@ -18344,38 +18312,20 @@ export interface operations {
       };
     };
     responses: {
-      /** @description App logs deleted. */
+      /** @description Deletion completed or matching receipt replayed. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
-      /** @description Invalid app log id set. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more app logs were not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -18406,60 +18356,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-app-log-detail-response'];
-        };
-      };
-      /** @description Invalid app log id. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description App log not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  deleteAppLog: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description App log deleted. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
         };
       };
       /** @description Invalid app log id. */

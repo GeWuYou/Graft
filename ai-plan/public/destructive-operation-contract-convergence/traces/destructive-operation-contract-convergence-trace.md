@@ -42,6 +42,18 @@
   - canonical OpenAPI validation and generated freshness checks: passed
 - Semantic review outcome: OpenAPI remains wire authority, RBAC remains atomic domain authority, no compatibility bridge or generic destructive service was introduced, and redundant handler wrappers were deleted instead of exempted from lint.
 
+## 2026-08-20 Hard Delete Commands
+
+- Replaced audit-log `batch-delete` and App Log single/batch delete surfaces with `POST /api/audit/logs/deletions` and `POST /api/app-log/deletions`.
+- Both commands require `Idempotency-Key`, advertise truthful `hard_delete` metadata, and use the shared destructive result contract.
+- Audit deletion continues to persist protected deletion receipts in the audit-owned transaction; App Log deletion now claims and replays logger-owned receipts in `app_log_deletion_receipts` within the deletion transaction.
+- Removed the legacy OpenAPI paths and regenerated the embedded bundle, Go bindings, TypeScript schema, and runtime path projection. Web callers now send a fresh idempotency key for single and batch App Log deletion.
+- Completion evidence:
+  - focused server logger/audit/OpenAPI tests: passed
+  - `go run ./cmd/graft validate openapi`: passed
+  - `bun run typecheck`: passed
+  - `git diff --check`: passed
+
 ## Loop Batch State
 
 ```json
@@ -50,15 +62,15 @@
   "completed_batches": [
     "contract-foundation",
     "soft-delete-pilot",
-    "relationship-and-rbac"
+    "relationship-and-rbac",
+    "hard-delete-commands"
   ],
   "pending_batches": [
-    "hard-delete-commands",
     "external-destruction-tasks",
     "convergence-closeout"
   ],
-  "current_batch": "hard-delete-commands",
-  "next_batch": "external-destruction-tasks",
+  "current_batch": "external-destruction-tasks",
+  "next_batch": "convergence-closeout",
   "closeout_status": "batch-validated"
 }
 ```

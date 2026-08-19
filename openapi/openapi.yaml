@@ -177,8 +177,8 @@ paths:
     $ref: ./paths/users.roles.batch.add.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
-  /api/audit/logs/batch-delete:
-    $ref: ./paths/audit.logs.batch-delete.yaml
+  /api/audit/logs/deletions:
+    $ref: ./paths/audit.logs.deletions.yaml
   /api/audit/logs/{id}:
     $ref: ./paths/audit.logs.detail.yaml
   /api/audit/logs/saved-views:
@@ -309,8 +309,8 @@ paths:
     $ref: ./paths/access-log.saved-view.yaml
   /api/app-log:
     $ref: ./paths/app-log.logs.yaml
-  /api/app-log/batch-delete:
-    $ref: ./paths/app-log.batch-delete.yaml
+  /api/app-log/deletions:
+    $ref: ./paths/app-log.deletions.yaml
   /api/app-log/{id}:
     $ref: ./paths/app-log.detail.yaml
   /api/app-log/saved-views:

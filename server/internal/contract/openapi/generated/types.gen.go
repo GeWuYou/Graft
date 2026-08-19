@@ -16356,14 +16356,15 @@ type GetAppLogsParamsSeverity string
 // GetAppLogsParamsSort defines parameters for GetAppLogs.
 type GetAppLogsParamsSort string
 
-// PostAppLogBatchDeleteParams defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDeleteParams struct {
+// PostAppLogDeletionParams defines parameters for PostAppLogDeletion.
+type PostAppLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	XRequestId     *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string           `json:"Idempotency-Key"`
 }
 
 // GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
@@ -16398,16 +16399,6 @@ type DeleteAppLogSavedViewParams struct {
 
 // PutAppLogSavedViewParams defines parameters for PutAppLogSavedView.
 type PutAppLogSavedViewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// DeleteAppLogParams defines parameters for DeleteAppLog.
-type DeleteAppLogParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -16505,17 +16496,15 @@ type GetAuditLogsParamsRiskLevel string
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
 
-// PostAuditLogsBatchDeleteParams defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDeleteParams struct {
+// PostAuditLogDeletionParams defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-
-	// IdempotencyKey Stable retry key for the destructive batch operation.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	XRequestId     *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string           `json:"Idempotency-Key"`
 }
 
 // GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
@@ -19459,8 +19448,8 @@ type PutAnnouncementJSONRequestBody = UpdateAnnouncementRequest
 // PostAnnouncementPublishJSONRequestBody defines body for PostAnnouncementPublish for application/json ContentType.
 type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
-// PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
-type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
+// PostAppLogDeletionJSONRequestBody defines body for PostAppLogDeletion for application/json ContentType.
+type PostAppLogDeletionJSONRequestBody = AppLogBatchDeleteRequest
 
 // PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
 type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
@@ -19468,8 +19457,8 @@ type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
 // PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
 type PutAppLogSavedViewJSONRequestBody = SavedViewRequest
 
-// PostAuditLogsBatchDeleteJSONRequestBody defines body for PostAuditLogsBatchDelete for application/json ContentType.
-type PostAuditLogsBatchDeleteJSONRequestBody = AuditLogsBatchDeleteRequest
+// PostAuditLogDeletionJSONRequestBody defines body for PostAuditLogDeletion for application/json ContentType.
+type PostAuditLogDeletionJSONRequestBody = AuditLogsBatchDeleteRequest
 
 // PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
 type PostAuditLogSavedViewJSONRequestBody = SavedViewRequest

@@ -134,7 +134,6 @@ import { usePermissionStore } from '@/store';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
 import {
-  deleteAppLog,
   deleteAppLogs,
   deleteAppLogSavedView,
   getAppLogDetail,
@@ -470,10 +469,14 @@ function confirmBatchDelete() {
   });
 }
 
+function createAppLogDeleteIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() ?? `app-log-delete-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 async function deleteOne(row: AppLogItem) {
   deleting.value = true;
   try {
-    await deleteAppLog(row.id);
+    await deleteAppLogs({ ids: [row.id] }, createAppLogDeleteIdempotencyKey());
     await queryClient.invalidateQueries({ queryKey: ['app-log', 'list'] });
     selectedRowKeys.value = selectedRowKeys.value.filter((key) => Number(key) !== row.id);
     MessagePlugin.success(t('appLog.actions.deleteSuccess'));
@@ -496,7 +499,7 @@ async function deleteSelected() {
 
   deleting.value = true;
   try {
-    await deleteAppLogs({ ids });
+    await deleteAppLogs({ ids }, createAppLogDeleteIdempotencyKey());
     await queryClient.invalidateQueries({ queryKey: ['app-log', 'list'] });
     selectedRowKeys.value = [];
     MessagePlugin.success(t('appLog.actions.batchDeleteSuccess'));
