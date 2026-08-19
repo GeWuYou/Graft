@@ -93,8 +93,24 @@ function targetDetail() {
   };
 }
 
+function baseStubs() {
+  return {
+    'management-page-content': passthrough('ManagementPageContent'),
+    'management-page-header': passthrough('ManagementPageHeader'),
+    't-alert': alertStub,
+    't-card': passthrough('TCard'),
+    't-descriptions': passthrough('TDescriptions'),
+    't-descriptions-item': passthrough('TDescriptionsItem'),
+    't-tag': passthrough('TTag'),
+    't-statistic': statisticStub,
+    't-empty': passthrough('TEmpty'),
+    't-button': buttonStub,
+  };
+}
+
 function assignmentStubs() {
   return {
+    ...baseStubs(),
     't-table': tableStub,
     't-pagination': passthrough('TPagination'),
     'runtime-target-assignment-dialog': passthrough('RuntimeTargetAssignmentDialog'),
@@ -134,18 +150,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-        },
+        stubs: baseStubs(),
       },
     });
     await flushPromises();
@@ -182,18 +187,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-        },
+        stubs: baseStubs(),
       },
     });
     await flushPromises();
@@ -206,18 +200,7 @@ describe('RuntimeTargetDetailPage', () => {
     routeState.params.id = 'not-an-id';
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-        },
+        stubs: baseStubs(),
       },
     });
     await flushPromises();
@@ -248,19 +231,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-          ...assignmentStubs(),
-        },
+        stubs: assignmentStubs(),
       },
     });
     await flushPromises();
@@ -299,19 +270,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-          ...assignmentStubs(),
-        },
+        stubs: assignmentStubs(),
       },
     });
     await flushPromises();
@@ -339,19 +298,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: {
-          'management-page-content': passthrough('ManagementPageContent'),
-          'management-page-header': passthrough('ManagementPageHeader'),
-          't-alert': alertStub,
-          't-card': passthrough('TCard'),
-          't-descriptions': passthrough('TDescriptions'),
-          't-descriptions-item': passthrough('TDescriptionsItem'),
-          't-tag': passthrough('TTag'),
-          't-statistic': statisticStub,
-          't-empty': passthrough('TEmpty'),
-          't-button': buttonStub,
-          ...assignmentStubs(),
-        },
+        stubs: assignmentStubs(),
       },
     });
     await flushPromises();

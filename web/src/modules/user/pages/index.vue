@@ -752,16 +752,6 @@ const filters = ref<UserFilters>({
 });
 const appliedFilters = ref<UserFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
-watch(
-  visibleColumnKeys,
-  (keys) => {
-    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
-    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
-      visibleColumnKeys.value = normalizedKeys;
-    }
-  },
-  { flush: 'sync' },
-);
 const columnDrawerVisible = ref(false);
 const userRoleDrawerVisible = ref(false);
 const selectedUser = ref<UserRow | null>(null);
@@ -819,6 +809,21 @@ const userPermissionCodes = USER_PERMISSION_CODE;
 const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
 const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
+const supportedUserColumnKeys = computed(() =>
+  hasVisibleUserOperationActions()
+    ? [...DEFAULT_VISIBLE_COLUMNS]
+    : DEFAULT_VISIBLE_COLUMNS.filter((key) => key !== 'operation'),
+);
+watch(
+  [visibleColumnKeys, supportedUserColumnKeys],
+  ([keys]) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, supportedUserColumnKeys.value);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
+);
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
 const roleMutationPayload = computed(() => ({
   role_ids: roleMutationMode.value === 'replace' ? [...selectedRoleIds.value].sort((left, right) => left - right) : [],

@@ -750,6 +750,15 @@ type RolePageSnapshot = {
 };
 
 const DEFAULT_VISIBLE_COLUMNS = ['role', 'builtin', 'permission_count', 'user_count', 'updated_at', 'operation'];
+const SUPPORTED_ROLE_COLUMN_KEYS = [
+  'role',
+  'builtin',
+  'permission_count',
+  'user_count',
+  'remark',
+  'updated_at',
+  'operation',
+];
 
 const INITIAL_ROLE_FORM: RoleFormState = {
   description: '',
@@ -770,7 +779,7 @@ const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 watch(
   visibleColumnKeys,
   (keys) => {
-    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    const normalizedKeys = normalizeManagedColumnKeys(keys, SUPPORTED_ROLE_COLUMN_KEYS);
     if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
       visibleColumnKeys.value = normalizedKeys;
     }

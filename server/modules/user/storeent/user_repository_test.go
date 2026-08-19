@@ -122,7 +122,10 @@ func TestUserRepositoryListSummariesByIDsReturnsOnlyRequestedActiveUsers(t *test
 	if err != nil {
 		t.Fatalf("ListSummariesByIDs() error = %v", err)
 	}
-	if len(items) != 2 || items[0].Username != "first" || items[1].Username != "second" {
+	if len(items) != 2 ||
+		items[0].Username != "first" ||
+		items[1].Username != "second" ||
+		items[1].Status != "disabled" {
 		t.Fatalf("ListSummariesByIDs() = %#v", items)
 	}
 }

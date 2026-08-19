@@ -148,7 +148,7 @@
                   </div>
                 </dl>
                 <table-action-menu
-                  :actions="runtimeTargetRowActions()"
+                  :actions="runtimeTargetRowActions"
                   @action="handleRuntimeTargetRowAction($event, row.id)"
                 />
               </article>
@@ -163,7 +163,7 @@
             >
               <template #operation="{ row }">
                 <table-action-menu
-                  :actions="runtimeTargetRowActions()"
+                  :actions="runtimeTargetRowActions"
                   @action="handleRuntimeTargetRowAction($event, row.id)"
                 />
               </template>
@@ -778,14 +778,12 @@ function openAssignmentDialog(targetId: number) {
   assignmentDialogVisible.value = true;
 }
 
-function runtimeTargetRowActions() {
-  return [
-    { label: t('runtimeTarget.list.viewDetail'), value: 'detail' },
-    ...(canManageAssignments.value
-      ? [{ label: t('runtimeTarget.list.changeAuthorization'), value: 'change-authorization' }]
-      : []),
-  ];
-}
+const runtimeTargetRowActions = computed(() => [
+  { label: t('runtimeTarget.list.viewDetail'), value: 'detail' },
+  ...(canManageAssignments.value
+    ? [{ label: t('runtimeTarget.list.changeAuthorization'), value: 'change-authorization' }]
+    : []),
+]);
 
 function handleRuntimeTargetRowAction(action: string, targetId: number) {
   if (action === 'detail') {

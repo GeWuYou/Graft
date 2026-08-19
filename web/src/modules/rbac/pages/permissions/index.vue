@@ -336,11 +336,21 @@ const filters = ref<PermissionFilterState>({
 const appliedFilters = ref<PermissionFilterState>({ ...filters.value });
 const columnDrawerVisible = ref(false);
 const DEFAULT_VISIBLE_COLUMNS = ['permission', 'module', 'code', 'role_count', 'updated_at', 'operation'];
+const SUPPORTED_PERMISSION_COLUMN_KEYS = [
+  'permission',
+  'module',
+  'code',
+  'description',
+  'role_count',
+  'created_at',
+  'updated_at',
+  'operation',
+];
 const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 watch(
   visibleColumnKeys,
   (keys) => {
-    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    const normalizedKeys = normalizeManagedColumnKeys(keys, SUPPORTED_PERMISSION_COLUMN_KEYS);
     if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
       visibleColumnKeys.value = normalizedKeys;
     }

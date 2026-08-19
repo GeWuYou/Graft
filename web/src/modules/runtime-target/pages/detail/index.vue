@@ -128,7 +128,7 @@
               </t-tag>
             </template>
             <template #authorizedAt="{ row }">
-              {{ formatLocaleDateTime(row.authorized_at, locale) }}
+              {{ formatLocaleDateTime(row.created_at, locale) }}
             </template>
             <template #operation="{ row }">
               <t-button

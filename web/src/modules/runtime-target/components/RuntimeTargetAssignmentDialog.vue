@@ -94,6 +94,9 @@ async function open() {
   search.value = '';
   pagination.current = 1;
   errorMessage.value = '';
+  initialUserIds.value = new Set();
+  candidates.value = [];
+  total.value = 0;
   loading.value = true;
   try {
     const [assignments, candidatePage] = await Promise.all([
