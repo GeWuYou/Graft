@@ -82,7 +82,12 @@
         "cancelled": "Cancelled",
         "unknown": "Unknown"
       },
-      "actions": { "retry": "Retry", "cancel": "Cancel", "logs": "Logs", "details": "Details" },
+      "actions": {
+        "retry": "Retry",
+        "cancel": "Cancel",
+        "logs": "Logs",
+        "details": "Details"
+      },
       "error": {
         "title": "Build Service Not Available",
         "unavailable": "The build module is disabled or no Build Service is configured for this environment.",
@@ -106,15 +111,21 @@
         "workspaceId": "Workspace ID",
         "workspaceIdRequired": "Workspace ID is required.",
         "workspacePlaceholder": "Select a Build workspace",
+        "workspaceEmpty": "No build workspace is available. Create one or check its sharing scope.",
+        "workspaceLoadFailed": "Unable to load build workspaces.",
         "runtimeTarget": "Build runtime target",
         "runtimeTargetRequired": "Build runtime target is required.",
         "runtimeTargetPlaceholder": "Select a build-capable Runtime Target",
+        "runtimeTargetEmpty": "No runtime target is available for builds. Check access, availability, and image-build capability.",
+        "runtimeTargetLoadFailed": "Unable to load build-capable runtime targets.",
         "builderSelection": "Builder selection",
         "runtimeTargetMode": "Select a Runtime Target",
         "builderPoolMode": "Use a Builder Pool",
         "builderPool": "Builder Pool",
         "builderPoolRequired": "Builder Pool is required.",
         "builderPoolPlaceholder": "Select a Builder Pool",
+        "builderPoolEmpty": "No builder pool is available. Check pool members, access, and runtime status.",
+        "builderPoolLoadFailed": "Unable to load builder pools.",
         "builderPoolPolicy": {
           "manual": "Manual",
           "roundRobin": "Round Robin",
@@ -124,8 +135,6 @@
           "affinity": "Affinity"
         },
         "selectorsUnavailable": "Build selectors are unavailable until the Build read API is configured.",
-        "selectorsLoadFailed": "Unable to load Build selectors.",
-        "selectorsEmpty": "No authorized Build workspace and builder options are available.",
         "template": "Build template",
         "driver": "Build driver",
         "driverOptions": {
@@ -135,6 +144,8 @@
         "platforms": "Target platforms",
         "platformsRequired": "Select at least one target platform.",
         "multiPlatformDriverRequired": "Multi-platform builds require the Docker Buildx driver.",
+        "arm64PoolHint": "Select “Use a Builder Pool” before building for ARM64.",
+        "arm64BuildxRequired": "ARM64 or multi-platform builds require Docker Buildx.",
         "contextPath": "Build context path",
         "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",

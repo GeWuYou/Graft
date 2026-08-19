@@ -28,12 +28,21 @@ vi.mock('@/shared/localized-api-error', () => ({
 }));
 const testLocale = ref('en-US');
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ locale: testLocale, t: (key: string) => `${testLocale.value}:${key}` }),
+  useI18n: () => ({
+    locale: testLocale,
+    t: (key: string) => `${testLocale.value}:${key}`,
+  }),
 }));
 
 const WrapperStub = defineComponent({
   setup(_props, { slots }) {
     return () => h('div', [slots.default?.(), slots.operation?.()]);
+  },
+});
+const AlertStub = defineComponent({
+  props: { message: { type: String, default: '' } },
+  setup(props, { slots }) {
+    return () => h('div', { 'data-testid': 'alert' }, [props.message, slots.message?.(), slots.operation?.()]);
   },
 });
 const FormStub = defineComponent({
@@ -65,6 +74,8 @@ const InputStub = defineComponent({
 });
 const SelectStub = defineComponent({
   props: {
+    disabled: { type: Boolean, default: false },
+    loading: { type: Boolean, default: false },
     modelValue: { type: [Number, String], default: '' },
     options: { type: Array, default: () => [] },
   },
@@ -75,6 +86,8 @@ const SelectStub = defineComponent({
         'select',
         {
           value: props.modelValue,
+          disabled: props.disabled,
+          'data-loading': String(props.loading),
           'data-options': JSON.stringify(props.options),
           onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
         },
@@ -108,18 +121,29 @@ const RadioGroupStub = defineComponent({
   },
 });
 const CheckboxGroupStub = defineComponent({
-  props: { modelValue: { type: Array, default: () => [] }, options: { type: Array, default: () => [] } },
+  props: {
+    modelValue: { type: Array, default: () => [] },
+    options: { type: Array, default: () => [] },
+  },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     return () =>
       h(
         'div',
-        (props.options as Array<{ label: string; value: string }>).map((option) =>
+        (
+          props.options as Array<{
+            disabled?: boolean;
+            label: string;
+            value: string;
+          }>
+        ).map((option) =>
           h(
             'button',
             {
               type: 'button',
               'data-platform': option.value,
+              'data-disabled': String(Boolean(option.disabled)),
+              disabled: option.disabled,
               onClick: () => {
                 const selected = new Set(props.modelValue as string[]);
                 if (selected.has(option.value)) selected.delete(option.value);
@@ -145,7 +169,7 @@ function mountPage() {
   return mount(BuildCreatePage, {
     global: {
       stubs: {
-        't-alert': WrapperStub,
+        't-alert': AlertStub,
         't-button': ButtonStub,
         't-checkbox-group': CheckboxGroupStub,
         't-form': FormStub,
@@ -165,10 +189,20 @@ describe('BuildCreatePage', () => {
     vi.clearAllMocks();
     testLocale.value = 'en-US';
     mocks.push.mockResolvedValue(undefined);
-    mocks.getBuildWorkspaces.mockResolvedValue({ items: [{ workspace_id: 'workspace_app', name: 'Application' }] });
-    mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
+    mocks.getBuildWorkspaces.mockResolvedValue({
+      items: [{ workspace_id: 'workspace_app', name: 'Application' }],
+    });
+    mocks.getBuildRuntimeTargets.mockResolvedValue({
+      items: [{ target_id: 4, display_name: 'Local Docker' }],
+    });
     mocks.getBuildBuilderPools.mockResolvedValue({
-      items: [{ pool_id: 'pool:default', display_name: 'Default Pool', scheduling_policy: 'round_robin' }],
+      items: [
+        {
+          pool_id: 'pool:default',
+          display_name: 'Default Pool',
+          scheduling_policy: 'round_robin',
+        },
+      ],
     });
     mocks.getBuildRegistryDestinations.mockResolvedValue({
       items: [
@@ -229,12 +263,36 @@ describe('BuildCreatePage', () => {
   it('projects every server-authorized Pool policy beside its display name', async () => {
     mocks.getBuildBuilderPools.mockResolvedValue({
       items: [
-        { pool_id: 'pool:manual', display_name: 'Manual Pool', scheduling_policy: 'manual' },
-        { pool_id: 'pool:round-robin', display_name: 'Round Robin Pool', scheduling_policy: 'round_robin' },
-        { pool_id: 'pool:random', display_name: 'Random Pool', scheduling_policy: 'random' },
-        { pool_id: 'pool:least-load', display_name: 'Least Load Pool', scheduling_policy: 'least_load' },
-        { pool_id: 'pool:capacity', display_name: 'Capacity Pool', scheduling_policy: 'capacity' },
-        { pool_id: 'pool:affinity', display_name: 'Affinity Pool', scheduling_policy: 'affinity' },
+        {
+          pool_id: 'pool:manual',
+          display_name: 'Manual Pool',
+          scheduling_policy: 'manual',
+        },
+        {
+          pool_id: 'pool:round-robin',
+          display_name: 'Round Robin Pool',
+          scheduling_policy: 'round_robin',
+        },
+        {
+          pool_id: 'pool:random',
+          display_name: 'Random Pool',
+          scheduling_policy: 'random',
+        },
+        {
+          pool_id: 'pool:least-load',
+          display_name: 'Least Load Pool',
+          scheduling_policy: 'least_load',
+        },
+        {
+          pool_id: 'pool:capacity',
+          display_name: 'Capacity Pool',
+          scheduling_policy: 'capacity',
+        },
+        {
+          pool_id: 'pool:affinity',
+          display_name: 'Affinity Pool',
+          scheduling_policy: 'affinity',
+        },
       ],
     });
     const wrapper = mountPage();
@@ -287,7 +345,11 @@ describe('BuildCreatePage', () => {
     await nextTick();
 
     expect(
-      (JSON.parse(select.attributes('data-options') ?? '[]') as Array<{ label: string }>).map(({ label }) => label),
+      (
+        JSON.parse(select.attributes('data-options') ?? '[]') as Array<{
+          label: string;
+        }>
+      ).map(({ label }) => label),
     ).toEqual([
       'Manual Pool (zh-CN:build.jobs.create.builderPoolPolicy.manual)',
       'Round Robin Pool (zh-CN:build.jobs.create.builderPoolPolicy.roundRobin)',
@@ -298,11 +360,29 @@ describe('BuildCreatePage', () => {
     ]);
   });
 
-  it('moves a multi-platform submission to Buildx and a Builder Pool', async () => {
+  it('keeps ARM64 disabled without switching away from a direct runtime target', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const arm64 = wrapper.get('button[data-platform="linux/arm64"]');
+    expect(arm64.attributes('disabled')).toBeDefined();
+    expect(arm64.attributes('data-disabled')).toBe('true');
+    await arm64.trigger('click');
+    await nextTick();
+
+    expect(
+      wrapper.findAll('select').some((select) => select.attributes('data-options')?.includes('pool:default')),
+    ).toBe(false);
+    expect(wrapper.text()).toContain('build.jobs.create.arm64PoolHint');
+  });
+
+  it('uses Buildx for ARM64 only after the user explicitly chooses a Builder Pool', async () => {
     mocks.createBuildJob.mockResolvedValue({});
     const wrapper = mountPage();
     await flushPromises();
 
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await nextTick();
     await wrapper.get('button[data-platform="linux/arm64"]').trigger('click');
     await nextTick();
 
@@ -322,6 +402,90 @@ describe('BuildCreatePage', () => {
       }),
       expect.any(String),
     );
+  });
+
+  it('normalizes ARM64 and Buildx when switching back to a direct runtime target', async () => {
+    mocks.createBuildJob.mockResolvedValue({});
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await wrapper.get('button[data-platform="linux/arm64"]').trigger('click');
+    await wrapper.get('button[data-value="target"]').trigger('click');
+    await nextTick();
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    await targetSelect?.setValue('4');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.createBuildJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        builder_pool_id: undefined,
+        driver: 'docker-engine@v1',
+        platforms: ['linux/amd64'],
+        runtime_target_id: '4',
+      }),
+      expect.any(String),
+    );
+  });
+
+  it('keeps a populated runtime target enabled when no workspace is available', async () => {
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(targetSelect?.attributes('disabled')).toBeUndefined();
+    expect(wrapper.text()).toContain('build.jobs.create.workspaceEmpty');
+  });
+
+  it('keeps a loaded runtime target usable while the workspace request is still pending', async () => {
+    let resolveWorkspaces: ((value: { items: Array<{ workspace_id: string; name: string }> }) => void) | undefined;
+    mocks.getBuildWorkspaces.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkspaces = resolve;
+        }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const runtimeTargetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(runtimeTargetSelect?.attributes('disabled')).toBeUndefined();
+    expect(runtimeTargetSelect?.attributes('data-loading')).toBe('false');
+
+    resolveWorkspaces?.({ items: [] });
+    await flushPromises();
+  });
+
+  it('reports target and pool availability independently', async () => {
+    mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [] });
+    mocks.getBuildBuilderPools.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('build.jobs.create.runtimeTargetEmpty');
+    expect(wrapper.text()).not.toContain('build.jobs.create.builderPoolEmpty');
+
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await nextTick();
+    expect(wrapper.text()).toContain('build.jobs.create.builderPoolEmpty');
+  });
+
+  it('renders an empty direct target value instead of the sentinel zero', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(targetSelect?.element.value).toBe('');
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {

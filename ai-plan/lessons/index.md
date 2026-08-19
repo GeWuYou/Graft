@@ -28,6 +28,7 @@
 | LESSON-WEB-UI-SEMANTIC-PORT-001        | 从工作树移植功能时保留当前页面骨架             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-PROTECTED-STATE-001      | 系统保护状态不应伪装成错误告警                 | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-ROUTE-LOADING-001        | 路由切换不能让主内容区短暂卸载为空             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
+| LESSON-WEB-UI-SELECTOR-AUTHORITY-001   | 多来源选择器必须保留用户意图并独立表达可用性   | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-TAB-INDICATOR-001       | TDesign Tab 指示条必须定位在完整激活导航项边缘 | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 
 ## Promoted Rules
