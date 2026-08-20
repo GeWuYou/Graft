@@ -809,10 +809,19 @@ const userPermissionCodes = USER_PERMISSION_CODE;
 const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
 const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
+const columnSettingOptions = computed(() => [
+  { label: t('user.userList.columns.user'), value: 'user' },
+  { label: t('user.userList.columns.status'), value: 'status' },
+  { label: t('user.userList.columns.roles'), value: 'roles' },
+  { label: t('user.userList.columns.lastLoginAt'), value: 'last_login_at' },
+  { label: t('user.userList.columns.createdAt'), value: 'created_at' },
+  { label: t('user.userList.columns.updatedAt'), value: 'updated_at' },
+  { label: t('components.commonTable.operation'), value: 'operation' },
+]);
 const supportedUserColumnKeys = computed(() =>
   hasVisibleUserOperationActions()
-    ? [...DEFAULT_VISIBLE_COLUMNS]
-    : DEFAULT_VISIBLE_COLUMNS.filter((key) => key !== 'operation'),
+    ? columnSettingOptions.value.map((column) => column.value)
+    : columnSettingOptions.value.filter((column) => column.value !== 'operation').map((column) => column.value),
 );
 watch(
   [visibleColumnKeys, supportedUserColumnKeys],
@@ -822,7 +831,7 @@ watch(
       visibleColumnKeys.value = normalizedKeys;
     }
   },
-  { flush: 'sync' },
+  { flush: 'sync', immediate: true },
 );
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
 const roleMutationPayload = computed(() => ({
@@ -997,16 +1006,6 @@ const batchRoleOperationHint = computed(() => {
 
   return t('user.userList.roleDialog.batchOperationHint.replace');
 });
-
-const columnSettingOptions = computed(() => [
-  { label: t('user.userList.columns.user'), value: 'user' },
-  { label: t('user.userList.columns.status'), value: 'status' },
-  { label: t('user.userList.columns.roles'), value: 'roles' },
-  { label: t('user.userList.columns.lastLoginAt'), value: 'last_login_at' },
-  { label: t('user.userList.columns.createdAt'), value: 'created_at' },
-  { label: t('user.userList.columns.updatedAt'), value: 'updated_at' },
-  { label: t('components.commonTable.operation'), value: 'operation' },
-]);
 
 const userStatistics = computed(() => {
   return [

@@ -110,7 +110,6 @@ function baseStubs() {
 
 function assignmentStubs() {
   return {
-    ...baseStubs(),
     't-table': tableStub,
     't-pagination': passthrough('TPagination'),
     'runtime-target-assignment-dialog': passthrough('RuntimeTargetAssignmentDialog'),
@@ -231,7 +230,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: assignmentStubs(),
+        stubs: { ...baseStubs(), ...assignmentStubs() },
       },
     });
     await flushPromises();
@@ -270,7 +269,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: assignmentStubs(),
+        stubs: { ...baseStubs(), ...assignmentStubs() },
       },
     });
     await flushPromises();
@@ -298,7 +297,7 @@ describe('RuntimeTargetDetailPage', () => {
 
     const wrapper = mount(RuntimeTargetDetailPage, {
       global: {
-        stubs: assignmentStubs(),
+        stubs: { ...baseStubs(), ...assignmentStubs() },
       },
     });
     await flushPromises();
