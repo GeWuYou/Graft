@@ -67,11 +67,8 @@ type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshP
 export type ContainerListQuery = NonNullable<GetContainersOperation['parameters']['query']>;
 export type ContainerListQueryWithOrchestrator = ContainerListQuery & {
   orchestrator?: ContainerOrchestratorType;
-  source_scope_kind?: ContainerListSourceScopeKind;
-  source_scope?: string;
 };
-export type ContainerListSourceScopeKind =
-  'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
+export type ContainerListSourceScopeKind = NonNullable<ContainerListQuery['source_scope_kind']>;
 export type ContainerLogQuery = NonNullable<GetContainerLogsOperation['parameters']['query']>;
 export type ContainerRuntimeEventsPathParams = GetContainerEventsOperation['parameters']['path'];
 export type ContainerMountUsagePathParams = GetContainerMountUsageOperation['parameters']['path'];

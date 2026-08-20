@@ -5738,6 +5738,36 @@ func (e ContainerListHealth) Valid() bool {
 	}
 }
 
+// Defines values for ContainerListSourceScopeKind.
+const (
+	ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject      ContainerListSourceScopeKind = "compose_project"
+	ContainerListSourceScopeKindContainerListSourceScopeKindComposeService      ContainerListSourceScopeKind = "compose_service"
+	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace ContainerListSourceScopeKind = "kubernetes_namespace"
+	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod       ContainerListSourceScopeKind = "kubernetes_pod"
+	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack          ContainerListSourceScopeKind = "swarm_stack"
+	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask           ContainerListSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListSourceScopeKind enum.
+func (e ContainerListSourceScopeKind) Valid() bool {
+	switch e {
+	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeService:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerListState.
 const (
 	ContainerListStateContainerListStateCreated    ContainerListState = "created"
@@ -6482,6 +6512,36 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainersParamsSourceScopeKind.
+const (
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
+func (e GetContainersParamsSourceScopeKind) Valid() bool {
+	switch e {
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask:
 		return true
 	default:
 		return false
@@ -7519,6 +7579,7 @@ type ApplicationImportRuntimeInspectResponse struct {
 	Networks               []ApplicationImportRuntimeNetworkResource               `json:"networks"`
 	ResolvedWorkspacePath  string                                                  `json:"resolved_workspace_path"`
 	RuntimeMembers         []ApplicationImportRuntimeMember                        `json:"runtime_members"`
+	ServiceOptions         []ApplicationImportServiceOption                        `json:"service_options"`
 	Services               []string                                                `json:"services"`
 	ValidationStatus       ApplicationImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
 	Volumes                []ApplicationImportRuntimeVolumeResource                `json:"volumes"`
@@ -7561,6 +7622,12 @@ type ApplicationImportRuntimeVolumeResource struct {
 
 // ApplicationImportRuntimeWorkspacePathSource defines model for application-import-runtime-workspace-path-source.
 type ApplicationImportRuntimeWorkspacePathSource string
+
+// ApplicationImportServiceOption defines model for application-import-service-option.
+type ApplicationImportServiceOption struct {
+	DependsOn []string `json:"depends_on"`
+	Name      string   `json:"name"`
+}
 
 // ApplicationImportValidateRequest defines model for application-import-validate-request.
 type ApplicationImportValidateRequest struct {
@@ -7612,11 +7679,15 @@ type ApplicationLifecycleConfiguration struct {
 		Stop     ApplicationLifecycleGeneratedCommand `json:"stop"`
 		Up       ApplicationLifecycleGeneratedCommand `json:"up"`
 	} `json:"generated_commands"`
-	Profiles                 []string `json:"profiles"`
-	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
-	RemoveOrphans            bool     `json:"remove_orphans"`
-	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
+	ManagedServiceNames      []string  `json:"managed_service_names"`
+	Profiles                 []string  `json:"profiles"`
+	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
+	PullArgs                 *[]string `json:"pull_args,omitempty"`
+	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
+	RemoveOrphans            bool      `json:"remove_orphans"`
+	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
+	RestartArgs              *[]string `json:"restart_args,omitempty"`
+	StopArgs                 *[]string `json:"stop_args,omitempty"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7627,15 +7698,27 @@ type ApplicationLifecycleConfiguration struct {
 // ApplicationLifecycleConfigurationRequest defines model for application-lifecycle-configuration-request.
 type ApplicationLifecycleConfigurationRequest struct {
 	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.
-	AdditionalArgs           *[]string `json:"additional_args,omitempty"`
-	BuildBeforeUp            bool      `json:"build_before_up"`
-	DownBeforeRedeploy       bool      `json:"down_before_redeploy"`
-	ForceRecreate            bool      `json:"force_recreate"`
-	Profiles                 []string  `json:"profiles"`
-	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
-	RemoveOrphans            bool      `json:"remove_orphans"`
-	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
+	AdditionalArgs     *[]string `json:"additional_args,omitempty"`
+	BuildBeforeUp      bool      `json:"build_before_up"`
+	DownBeforeRedeploy bool      `json:"down_before_redeploy"`
+	ForceRecreate      bool      `json:"force_recreate"`
+
+	// ManagedServiceNames Services included in Graft lifecycle actions; empty means all declared services for legacy records.
+	ManagedServiceNames      []string `json:"managed_service_names"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+
+	// PullArgs Bounded argv tokens appended to docker compose pull.
+	PullArgs           *[]string `json:"pull_args,omitempty"`
+	PullBeforeRedeploy bool      `json:"pull_before_redeploy"`
+	RemoveOrphans      bool      `json:"remove_orphans"`
+	RenewAnonVolumes   bool      `json:"renew_anon_volumes"`
+
+	// RestartArgs Bounded argv tokens appended to docker compose restart.
+	RestartArgs *[]string `json:"restart_args,omitempty"`
+
+	// StopArgs Bounded argv tokens appended to docker compose stop.
+	StopArgs *[]string `json:"stop_args,omitempty"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7935,9 +8018,12 @@ type ApplicationServiceItem struct {
 	DeclaredPorts    *[]string `json:"declared_ports,omitempty"`
 	DeclaredVolumes  *[]string `json:"declared_volumes,omitempty"`
 	Image            *string   `json:"image,omitempty"`
-	RunningCount     int       `json:"running_count"`
-	ServiceName      string    `json:"service_name"`
-	StoppedCount     int       `json:"stopped_count"`
+
+	// Managed Whether Graft application lifecycle actions include this Compose service.
+	Managed      bool   `json:"managed"`
+	RunningCount int    `json:"running_count"`
+	ServiceName  string `json:"service_name"`
+	StoppedCount int    `json:"stopped_count"`
 }
 
 // ApplicationServicesResponse defines model for application-services-response.
@@ -15889,6 +15975,12 @@ type ContainerListOffset = int
 // ContainerListRuntimeTargetId defines model for container-list-runtime-target-id.
 type ContainerListRuntimeTargetId = int64
 
+// ContainerListSourceScope defines model for container-list-source-scope.
+type ContainerListSourceScope = string
+
+// ContainerListSourceScopeKind defines model for container-list-source-scope-kind.
+type ContainerListSourceScopeKind string
+
 // ContainerListState defines model for container-list-state.
 type ContainerListState string
 
@@ -17616,6 +17708,12 @@ type GetContainersParams struct {
 	// RuntimeTargetId Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
 	RuntimeTargetId *ContainerListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
 
+	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
+	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
+
+	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
+	SourceScope *ContainerListSourceScope `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -17632,6 +17730,9 @@ type GetContainersParamsHealth string
 
 // GetContainersParamsDeploymentType defines parameters for GetContainers.
 type GetContainersParamsDeploymentType string
+
+// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
+type GetContainersParamsSourceScopeKind string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {

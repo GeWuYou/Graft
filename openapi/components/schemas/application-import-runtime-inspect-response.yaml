@@ -10,6 +10,7 @@ required:
   - compose_files
   - env_files
   - services
+  - service_options
   - networks
   - volumes
   - runtime_members
@@ -47,6 +48,10 @@ properties:
     type: array
     items:
       type: string
+  service_options:
+    type: array
+    items:
+      $ref: ./application-import-service-option.yaml
   networks:
     type: array
     items:

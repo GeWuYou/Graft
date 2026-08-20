@@ -139,6 +139,9 @@ func (s *Service) importInspectionSession(
 	if err != nil {
 		return generated.ApplicationImportResponse{}, err
 	}
+	if err := validateManagedServiceSelection(normalizedLifecycleConfig.ManagedServiceNames, freshParse.ServiceNames, false); err != nil {
+		return generated.ApplicationImportResponse{}, err
+	}
 	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: defaultImportedDisplayName(input.DisplayName, freshParse.WorkspacePath, freshValidation.ComposeProjectName), ComposeProjectName: freshValidation.ComposeProjectName, ComposeProjectNameSource: freshValidation.ComposeProjectNameSource, SourceType: projectcontract.SourceTypeImported.String(), WorkspacePath: freshParse.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeExternal.String(), LifecycleConfig: normalizedLifecycleConfig, ParseResult: freshParse, ActorID: input.ActorID})
 	if err != nil {
 		return generated.ApplicationImportResponse{}, err

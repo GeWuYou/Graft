@@ -384,11 +384,15 @@
                       <t-checkbox
                         :aria-label="`${t('project.detail.services.columns.service')} ${row.name}`"
                         :checked="selectedServiceRowKeys.includes(row.service_name)"
+                        :disabled="row.raw.managed === false"
                         :data-testid="`project-service-card-select-${row.service_name}`"
                         @change="toggleServiceSelection(row.service_name, $event)"
                       />
                       <div class="project-service-mobile-card__identity">
                         <strong>{{ row.name }}</strong>
+                        <t-tag v-if="row.raw.managed === false" theme="default" variant="light-outline">
+                          {{ t('project.detail.services.unmanaged') }}
+                        </t-tag>
                         <span :title="row.image">{{ row.image }}</span>
                       </div>
                     </header>
@@ -421,6 +425,9 @@
                 <template #name="{ row }">
                   <div class="project-service-name">
                     <strong>{{ row.name }}</strong>
+                    <t-tag v-if="row.raw.managed === false" theme="default" variant="light-outline">
+                      {{ t('project.detail.services.unmanaged') }}
+                    </t-tag>
                     <span>{{ row.image }}</span>
                   </div>
                 </template>
@@ -1053,6 +1060,11 @@ const lifecycleDraft = reactive<ApplicationLifecycleConfigurationDraft>({
   renew_anon_volumes: false,
   prune_images_after_redeploy: false,
   additional_args: '',
+  managed_service_names: [],
+  declared_service_names: [],
+  stop_args: '',
+  restart_args: '',
+  pull_args: '',
 });
 const metricTrendState = ref<ApplicationMetricTrendState>({
   cpu: 'none',
@@ -2021,11 +2033,17 @@ function openFirstServiceContainer(service: ApplicationServiceItem) {
 function handleServiceSelectChange(rowKeys: Array<string | number>) {
   const currentPageKeys = new Set(pagedServiceTableRows.value.map((row) => row.service_name));
   const preservedKeys = selectedServiceRowKeys.value.filter((key) => !currentPageKeys.has(String(key)));
-  const normalizedCurrentKeys = rowKeys.filter((key) => currentPageKeys.has(String(key)));
+  const normalizedCurrentKeys = rowKeys.filter((key) => {
+    const row = serviceRowMap.value.get(String(key));
+    return currentPageKeys.has(String(key)) && row?.raw.managed !== false;
+  });
   selectedServiceRowKeys.value = [...preservedKeys, ...normalizedCurrentKeys];
 }
 
 function toggleServiceSelection(serviceName: string, checked: boolean) {
+  if (serviceRowMap.value.get(serviceName)?.raw.managed === false) {
+    return;
+  }
   const currentPageKeys = new Set(pagedServiceTableRows.value.map((row) => row.service_name));
   const nextCurrentKeys = new Set(
     selectedServiceRowKeys.value.filter((key) => currentPageKeys.has(String(key))).map(String),
@@ -2045,10 +2063,10 @@ function clearSelectedServices() {
 }
 
 function canRunServiceContainerAction(
-  row: Pick<ServiceTableRow, 'hasMembers' | 'runningCount'>,
+  row: Pick<ServiceTableRow, 'hasMembers' | 'runningCount' | 'raw'>,
   action: ProjectContainerAction,
 ) {
-  if (!row.hasMembers) {
+  if (row.raw.managed === false || !row.hasMembers) {
     return false;
   }
   if (action === 'start') {

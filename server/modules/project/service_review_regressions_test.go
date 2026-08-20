@@ -93,12 +93,49 @@ func TestUpdateLifecycleConfigurationReturnsRepositoryAggregate(t *testing.T) {
 	}
 }
 
+func TestUpdateLifecycleConfigurationRejectsUnknownManagedService(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{ApplicationRecordID: 77},
+		Snapshot: &projectstore.Snapshot{
+			NormalizedComposeJSON: []byte(`{"services":{"api":{},"db":{}}}`),
+			DeclaredServiceCount:  2,
+		},
+	}}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.UpdateLifecycleConfiguration(context.Background(), 77, LifecycleStandardConfig{
+		ManagedServiceNames: []string{"missing"},
+	}, nil)
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected unknown service rejection, got %v", err)
+	}
+}
+
 func TestNormalizeLifecycleAdditionalArgsRejectsProjectAuthorityOverrides(t *testing.T) {
 	t.Parallel()
 
 	for _, args := range [][]string{{"-f", "other.yaml"}, {"--project-name=other"}, {"--"}} {
 		if _, err := normalizeLifecycleStandardConfig(LifecycleStandardConfig{AdditionalArgs: args}); !errors.Is(err, errProjectInvalidArgument) {
 			t.Fatalf("expected args %#v to be rejected, got %v", args, err)
+		}
+	}
+}
+
+func TestNormalizeLifecycleActionArgsRejectsUncontrolledOptions(t *testing.T) {
+	t.Parallel()
+
+	for _, config := range []LifecycleStandardConfig{
+		{StopArgs: []string{"--volumes"}},
+		{RestartArgs: []string{"--project-name", "other"}},
+		{PullArgs: []string{"sh", "-c", "echo unsafe"}},
+	} {
+		if _, err := normalizeLifecycleStandardConfig(config); !errors.Is(err, errProjectInvalidArgument) {
+			t.Fatalf("expected invalid lifecycle argv for %#v, got %v", config, err)
 		}
 	}
 }

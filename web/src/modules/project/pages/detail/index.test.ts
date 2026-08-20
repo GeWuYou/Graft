@@ -1547,6 +1547,7 @@ describe('Application detail service tab', () => {
         strategy_kind: 'standard',
         wait_after_up: true,
         additional_args: [],
+        managed_service_names: [],
       },
       lifecycle_review_status: 'confirmed',
       application_id: 'app_7',

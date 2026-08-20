@@ -215,6 +215,36 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	}
 }
 
+// Defines values for GetContainersParamsSourceScopeKind.
+const (
+	ContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
+	ContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
+	ContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
+	ContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
+	ContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
+	ContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
+func (e GetContainersParamsSourceScopeKind) Valid() bool {
+	switch e {
+	case ContainerListSourceScopeKindComposeProject:
+		return true
+	case ContainerListSourceScopeKindComposeService:
+		return true
+	case ContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case ContainerListSourceScopeKindKubernetesPod:
+		return true
+	case ContainerListSourceScopeKindSwarmStack:
+		return true
+	case ContainerListSourceScopeKindSwarmTask:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel.
 const (
 	GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelAllow    GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel = "allow"
@@ -4192,6 +4222,12 @@ type GetContainersParams struct {
 	// RuntimeTargetId Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
 	RuntimeTargetId *int64 `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
 
+	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
+	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
+
+	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
+	SourceScope *string `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -4208,6 +4244,9 @@ type GetContainersParamsHealth string
 
 // GetContainersParamsDeploymentType defines parameters for GetContainers.
 type GetContainersParamsDeploymentType string
+
+// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
+type GetContainersParamsSourceScopeKind string
 
 // GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel string

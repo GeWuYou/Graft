@@ -14,7 +14,7 @@
       <t-button v-if="refreshLabel" variant="outline" :loading="refreshLoading" @click="$emit('refresh')">
         {{ refreshLabel }}
       </t-button>
-      <t-button theme="primary" @click="$emit('continue')">{{ continueLabel }}</t-button>
+      <t-button theme="primary" :disabled="continueDisabled" @click="$emit('continue')">{{ continueLabel }}</t-button>
     </div>
   </section>
 </template>
@@ -38,8 +38,9 @@ withDefaults(
     continueLabel: string;
     refreshLabel?: string;
     refreshLoading?: boolean;
+    continueDisabled?: boolean;
   }>(),
-  { refreshLabel: '', refreshLoading: false },
+  { refreshLabel: '', refreshLoading: false, continueDisabled: false },
 );
 
 defineEmits<{ (event: 'back'): void; (event: 'continue'): void; (event: 'refresh'): void }>();

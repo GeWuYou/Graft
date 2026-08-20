@@ -38,6 +38,32 @@ function createApplicationDetail(additionalArgs: string[] = []) {
 }
 
 describe('project lifecycle helpers', () => {
+  it('scopes lifecycle previews and per-action argv to selected services', () => {
+    const draft = buildLifecycleConfigurationDraft(createApplicationDetail());
+    draft.declared_service_names = ['api', 'db', 'worker'];
+    draft.managed_service_names = ['api', 'worker'];
+    draft.stop_args = '--timeout 30';
+    draft.restart_args = '--no-deps';
+    draft.pull_args = '--policy always';
+
+    expect(resolveLifecycleCommandSteps(draft, 'stop', { preferClientGenerated: true })[0]?.command).toContain(
+      'stop --timeout 30 api worker',
+    );
+    expect(resolveLifecycleCommandSteps(draft, 'restart', { preferClientGenerated: true })[0]?.command).toContain(
+      'restart --no-deps api worker',
+    );
+    expect(
+      resolveLifecycleCommandSteps(draft, 'restart', { preferClientGenerated: true })[0]?.absolute_command,
+    ).toContain('restart --no-deps api worker');
+    expect(resolveLifecycleCommandSteps(draft, 'redeploy', { preferClientGenerated: true })[0]?.command).toContain(
+      'stop --timeout 30 api worker',
+    );
+    draft.pull_before_redeploy = true;
+    expect(resolveLifecycleCommandSteps(draft, 'redeploy', { preferClientGenerated: true })[1]?.command).toContain(
+      'pull --policy always api worker',
+    );
+  });
+
   it('hydrates blank-create lifecycle defaults into a command-preview draft', () => {
     const draft = buildBlankLifecycleConfigurationDraft(
       {
@@ -94,6 +120,10 @@ describe('project lifecycle helpers', () => {
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
       additional_args: ['--progress', 'plain output'],
+      managed_service_names: [],
+      stop_args: [],
+      restart_args: [],
+      pull_args: [],
     });
 
     const refreshedDraft = buildLifecycleConfigurationDraft(createApplicationDetail(['--progress', 'plain output']));

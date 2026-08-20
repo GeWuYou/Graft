@@ -156,11 +156,24 @@ function buildUpCommand(config: ApplicationLifecycleConfigurationDraft, absolute
   }
 
   command.push(...normalizeAdditionalArgs(config.additional_args));
+  command.push(...config.managed_service_names);
   return command.map(formatAdditionalArg).join(' ');
 }
 
-function buildSimpleCommand(config: ApplicationLifecycleConfigurationDraft, action: 'stop' | 'restart' | 'down') {
-  return [...buildComposeBaseCommand(config), action].join(' ');
+function buildScopedCommand(
+  config: ApplicationLifecycleConfigurationDraft,
+  action: 'stop' | 'restart' | 'pull',
+  args: string,
+  absolutePaths = false,
+) {
+  return [
+    ...buildComposeBaseCommand(config, absolutePaths),
+    action,
+    ...normalizeAdditionalArgs(args),
+    ...config.managed_service_names,
+  ]
+    .map(formatAdditionalArg)
+    .join(' ');
 }
 
 function buildSimpleCommandWithPathMode(
@@ -168,7 +181,20 @@ function buildSimpleCommandWithPathMode(
   action: 'stop' | 'restart' | 'down',
   absolutePaths = false,
 ) {
-  return [...buildComposeBaseCommand(config, absolutePaths), action].join(' ');
+  const managesSubset =
+    config.declared_service_names.length > 0 &&
+    config.managed_service_names.length < config.declared_service_names.length;
+  const effectiveAction = action === 'down' && managesSubset ? 'stop' : action;
+  const actionArgs =
+    effectiveAction === 'stop' ? config.stop_args : effectiveAction === 'restart' ? config.restart_args : '';
+  return [
+    ...buildComposeBaseCommand(config, absolutePaths),
+    effectiveAction,
+    ...normalizeAdditionalArgs(actionArgs),
+    ...(effectiveAction === 'down' ? [] : config.managed_service_names),
+  ]
+    .map(formatAdditionalArg)
+    .join(' ');
 }
 
 function buildClientGeneratedCommands(
@@ -185,14 +211,14 @@ function buildClientGeneratedCommands(
     stop: [
       {
         title_key: 'project.detail.lifecycle.step.stop',
-        command: buildSimpleCommand(config, 'stop'),
+        command: buildScopedCommand(config, 'stop', config.stop_args),
         absolute_command: buildSimpleCommandWithPathMode(config, 'stop', true),
       },
     ],
     restart: [
       {
         title_key: 'project.detail.lifecycle.step.restart',
-        command: buildSimpleCommand(config, 'restart'),
+        command: buildScopedCommand(config, 'restart', config.restart_args),
         absolute_command: buildSimpleCommandWithPathMode(config, 'restart', true),
       },
     ],
@@ -202,7 +228,7 @@ function buildClientGeneratedCommands(
   if (config.down_before_redeploy) {
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.bringDown',
-      command: buildSimpleCommand(config, 'down'),
+      command: buildSimpleCommandWithPathMode(config, 'down'),
       absolute_command: buildSimpleCommandWithPathMode(config, 'down', true),
     });
   }
@@ -210,8 +236,8 @@ function buildClientGeneratedCommands(
   if (config.pull_before_redeploy) {
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.pullImages',
-      command: [...buildComposeBaseCommand(config), 'pull'].join(' '),
-      absolute_command: [...buildComposeBaseCommand(config, true), 'pull'].join(' '),
+      command: buildScopedCommand(config, 'pull', config.pull_args),
+      absolute_command: buildScopedCommand(config, 'pull', config.pull_args, true),
     });
   }
 
@@ -329,6 +355,10 @@ export type LifecycleDraftSource = {
   renew_anon_volumes?: boolean;
   prune_images_after_redeploy?: boolean;
   additional_args?: string[] | null;
+  managed_service_names?: string[] | null;
+  stop_args?: string[] | null;
+  restart_args?: string[] | null;
+  pull_args?: string[] | null;
 };
 
 function buildLifecycleDraftFromSource(
@@ -356,6 +386,11 @@ function buildLifecycleDraftFromSource(
     renew_anon_volumes: source.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source.prune_images_after_redeploy ?? false,
     additional_args: formatAdditionalArgs(source.additional_args ?? []),
+    managed_service_names: [...(source.managed_service_names ?? [])],
+    declared_service_names: [],
+    stop_args: formatAdditionalArgs(source.stop_args),
+    restart_args: formatAdditionalArgs(source.restart_args),
+    pull_args: formatAdditionalArgs(source.pull_args),
     review_status: options.reviewStatus,
     generated_commands: null,
   };
@@ -378,6 +413,10 @@ function comparableLifecycleDraftState(
     | 'renew_anon_volumes'
     | 'prune_images_after_redeploy'
     | 'additional_args'
+    | 'managed_service_names'
+    | 'stop_args'
+    | 'restart_args'
+    | 'pull_args'
   >,
 ) {
   return {
@@ -393,6 +432,10 @@ function comparableLifecycleDraftState(
     renew_anon_volumes: draft.renew_anon_volumes,
     prune_images_after_redeploy: draft.prune_images_after_redeploy,
     additional_args: draft.additional_args.trim(),
+    managed_service_names: [...draft.managed_service_names].sort(),
+    stop_args: draft.stop_args.trim(),
+    restart_args: draft.restart_args.trim(),
+    pull_args: draft.pull_args.trim(),
   };
 }
 
@@ -416,6 +459,11 @@ export function buildLifecycleConfigurationDraft(
     renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
     additional_args: formatAdditionalArgs(source?.additional_args),
+    managed_service_names: [...(source?.managed_service_names ?? [])],
+    declared_service_names: [],
+    stop_args: formatAdditionalArgs(source?.stop_args),
+    restart_args: formatAdditionalArgs(source?.restart_args),
+    pull_args: formatAdditionalArgs(source?.pull_args),
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_type),
     generated_commands: mapGeneratedCommands(source, detail.workspace_path),
   };
@@ -432,12 +480,17 @@ export function buildImportLifecycleConfigurationDraft(
   const composeFiles = result.compose_files
     .map((file) => file.display_path || file.absolute_path || '')
     .filter(Boolean);
-  return buildLifecycleDraftFromSource(result.lifecycle_configuration, {
+  const draft = buildLifecycleDraftFromSource(result.lifecycle_configuration, {
     workspacePath: result.resolved_workspace_path,
     composeFiles: composeFiles.length ? composeFiles : ['compose.yaml'],
     composeProjectName: result.compose_project_name,
     reviewStatus: 'review_required',
   });
+  if (!draft.managed_service_names.length) {
+    draft.managed_service_names = Array.isArray(result.services) ? [...result.services] : [];
+  }
+  draft.declared_service_names = Array.isArray(result.services) ? [...result.services] : [];
+  return { ...draft, generated_commands: buildClientGeneratedCommands(draft) };
 }
 
 /**
@@ -458,10 +511,13 @@ export function buildBlankLifecycleConfigurationDraft(
 export function buildLifecycleConfigurationRequest(
   draft: ApplicationLifecycleConfigurationDraft,
 ): ApplicationLifecycleConfigurationUpdateRequest {
-  const { additional_args, ...request } = comparableLifecycleDraftState(draft);
+  const { additional_args, stop_args, restart_args, pull_args, ...request } = comparableLifecycleDraftState(draft);
   return {
     ...request,
     additional_args: normalizeAdditionalArgs(additional_args),
+    stop_args: normalizeAdditionalArgs(stop_args),
+    restart_args: normalizeAdditionalArgs(restart_args),
+    pull_args: normalizeAdditionalArgs(pull_args),
   };
 }
 
@@ -516,7 +572,13 @@ export function resolveLifecycleCommandSteps(
   action: ApplicationLifecycleActionKey,
   options?: { preferClientGenerated?: boolean },
 ): ApplicationLifecycleCommandStep[] {
-  if (options?.preferClientGenerated || config.additional_args.trim()) {
+  if (
+    options?.preferClientGenerated ||
+    config.additional_args.trim() ||
+    config.stop_args.trim() ||
+    config.restart_args.trim() ||
+    config.pull_args.trim()
+  ) {
     return buildClientGeneratedCommands(config)[action] ?? [];
   }
 

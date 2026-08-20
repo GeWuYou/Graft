@@ -1,0 +1,15 @@
+type: object
+required:
+  - name
+  - depends_on
+properties:
+  name:
+    type: string
+    minLength: 1
+  depends_on:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+      minLength: 1
+additionalProperties: false

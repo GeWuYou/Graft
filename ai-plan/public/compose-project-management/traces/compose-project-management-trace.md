@@ -504,6 +504,13 @@
 - 模板详情为空被确认是前端对已解包 API 响应再次读取 `.data` 的显示 bug；模板详情 contract 仍返回完整定义，前端需修正客户端解包而非为该症状增加后端兼容数据。
 - 新 contract 固定为 `DELETE /api/ops/applications/templates/{templateId}`、`POST .../{templateId}/clone` 和 `POST .../{templateId}/withdraw`。克隆请求只接收新 `display_name`，返回独立草稿；撤回返回新建的下一版草稿，不保留 `/derive` 兼容路由。
 
+## 2026-08-20 Compose import service scope investigation
+
+- 截图中的 `sub2api` 候选由 Runtime Import Candidate authority 正确识别为 3 个服务；检查页出现 6 个容器，是因为 web 已发送 Compose project 精确范围参数，但 container collection OpenAPI 未声明参数、HTTP binder 也未映射到已有 `ListQuery.SourceScopeKind/SourceScope`，最终仅按 `deployment_type=compose` 查询了整个 Runtime Target。
+- 修复从 container-list OpenAPI authority 开始，不在页面增加本地数组过滤。导入检查继续保留完整声明服务与候选运行时成员，并新增依赖投影和显式受管服务选择。
+- 生命周期范围只影响 Graft 发起的 Compose 动作，不改写或裁剪原始 Compose 文件。默认全选，依赖缺失仅告警；服务子集重部署不得调用 project-wide `down`。
+- 自定义命令收敛为服务端校验的 argv token 列表，按 up/stop/restart/pull 分动作配置；禁止 shell、Compose 文件/项目名/目录/env/profile 等 authority override。
+
 ## 2026-07-17 Template creation workflow
 
 - 模板管理的创建入口从列表弹窗迁移为 `/applications/templates/create` 菜单外工作流路由，归属 Application > Templates；它不与 `/applications/create/template`（基于已发布模板创建 Application）混淆。

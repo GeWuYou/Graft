@@ -880,6 +880,25 @@ func bindContainerListStateFilters(
 		}
 		params.RuntimeTargetId = &value
 	}
+	return bindContainerListSourceScope(ginCtx, ctx, params)
+}
+
+func bindContainerListSourceScope(ginCtx *gin.Context, ctx *module.Context, params *containeropenapi.GetContainersParams) bool {
+	sourceScopeKind, ok := optionalEnumQueryValue(ginCtx, ctx, "source_scope_kind", isValidContainerSourceScopeKind)
+	if !ok {
+		return false
+	}
+	sourceScope := strings.TrimSpace(ginCtx.Query("source_scope"))
+	if (sourceScopeKind == "") != (sourceScope == "") {
+		writeInvalidContainerQuery(ginCtx, ctx, "source_scope")
+		return false
+	}
+	if sourceScopeKind == "" {
+		return true
+	}
+	kind := containeropenapi.GetContainersParamsSourceScopeKind(sourceScopeKind)
+	params.SourceScopeKind = &kind
+	params.SourceScope = &sourceScope
 	return true
 }
 
@@ -1199,6 +1218,12 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 	}
 	if params.RuntimeTargetId != nil {
 		query.RuntimeTargetID = params.RuntimeTargetId
+	}
+	if params.SourceScopeKind != nil {
+		query.SourceScopeKind = string(*params.SourceScopeKind)
+	}
+	if params.SourceScope != nil {
+		query.SourceScope = *params.SourceScope
 	}
 	return query
 }

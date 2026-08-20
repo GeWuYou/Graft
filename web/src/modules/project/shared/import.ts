@@ -7,6 +7,7 @@ import type {
   ApplicationImportRuntimeInspectNetworkResource,
   ApplicationImportRuntimeInspectVolumeResource,
   ApplicationImportRuntimeMember,
+  ApplicationImportServiceOption,
 } from '../types/import';
 
 export function buildDirectorySelection(
@@ -120,6 +121,22 @@ function normalizeRuntimeMembers(value: unknown): ApplicationImportRuntimeMember
   return value.filter(isApplicationImportRuntimeMember);
 }
 
+function normalizeServiceOptions(value: unknown): ApplicationImportServiceOption[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return [];
+    }
+    const option = item as Partial<ApplicationImportServiceOption>;
+    if (typeof option.name !== 'string') {
+      return [];
+    }
+    return [{ name: option.name, depends_on: normalizeStringArray(option.depends_on) }];
+  });
+}
+
 function isApplicationFileKind(value: unknown): value is 'compose' | 'env' {
   return value === 'compose' || value === 'env';
 }
@@ -190,6 +207,7 @@ export function normalizeApplicationImportInspectResponse(
     compose_files: normalizeInspectFileEntries(result.compose_files),
     env_files: normalizeInspectFileEntries(result.env_files),
     services: normalizeStringArray(result.services),
+    service_options: normalizeServiceOptions(result.service_options),
     networks: normalizeInspectNetworkResources(result.networks),
     volumes: normalizeInspectVolumeResources(result.volumes),
     runtime_members: normalizeRuntimeMembers(result.runtime_members),

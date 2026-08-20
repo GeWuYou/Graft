@@ -102,6 +102,7 @@ export type ApplicationImportRuntimeInspectNetworkResource =
 export type ApplicationImportRuntimeInspectVolumeResource =
   ApplicationSchemas['application-import-runtime-volume-resource'];
 export type ApplicationImportRuntimeMember = ApplicationSchemas['application-import-runtime-member'];
+export type ApplicationImportServiceOption = ApplicationSchemas['application-import-service-option'];
 export type ApplicationImportRuntimeInspectResponse = Omit<
   NonNullable<PostApplicationImportRuntimeInspectEnvelope['data']>,
   'networks' | 'volumes'

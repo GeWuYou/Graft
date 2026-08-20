@@ -70,6 +70,13 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - 复用现有容器运行时能力，而不是新增第二套运行时真相。
 - Phase 1 只做本机 `local host`，但模型要为未来远程主机预留边界。
 
+### 服务管理范围与生命周期命令
+
+- 导入检查必须区分 Compose 声明服务、运行时成员和 Graft 受管服务范围。默认所有声明服务纳入管理，但导入确认页允许用户取消任意服务；原始 Compose 文件保持不变。
+- 服务依赖来自 `depends_on` 的列表或映射形式。未选中的依赖不得被静默纳入管理；UI 必须显示依赖告警，服务端在导入边界校验名称并持久化显式选择。
+- `managed_service_names` 持久化在生命周期配置中。空值仅表示历史记录兼容语义“全部声明服务”；新导入写入显式选择。生命周期 `up`、`stop`、`restart`、`pull` 仅追加受管服务名；重部署在服务子集下使用 `stop` 代替无法按服务作用的 `down`。
+- 生命周期支持按动作配置有界 argv 模板（`additional_args`、`stop_args`、`restart_args`、`pull_args`）。服务端始终拥有可执行文件、Compose 文件、项目名、工作目录、动作和受管服务后缀；禁止 shell 解释及覆盖 `-f`、`-p`、`--project-directory`、`--env-file`、`--profile` 等权威参数。
+
 ## 2.2 非目标
 
 - 不复制 Compose 文件。

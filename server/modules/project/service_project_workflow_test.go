@@ -421,6 +421,9 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 				WorkspacePath:       tempDir,
 				OwnershipMode:       "external",
 				DriftStatus:         "clean",
+				LifecycleConfig: projectstore.LifecycleConfig{
+					ManagedServiceNames: []string{"web"},
+				},
 			},
 			Files: []projectstore.ApplicationFile{
 				{
@@ -468,6 +471,9 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 	}
 	if result.Items[0].StoppedCount+result.Items[1].StoppedCount != 1 {
 		t.Fatalf("expected one stopped member, got %#v", result.Items)
+	}
+	if !result.Items[0].Managed || result.Items[1].Managed {
+		t.Fatalf("expected only web service to be managed, got %#v", result.Items)
 	}
 }
 

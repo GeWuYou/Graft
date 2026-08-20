@@ -2,10 +2,12 @@ package project
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"graft/server/internal/contract/openapi/generated"
+	projectcompose "graft/server/modules/project/compose"
 )
 
 func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testing.T) {
@@ -62,6 +64,7 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 		ComposeFiles:     []FileView{{AbsolutePath: "/srv/demo/compose.yaml", DisplayPath: "compose.yaml", Kind: "compose", Role: "primary"}},
 		EnvFiles:         []FileView{{AbsolutePath: "/srv/demo/.env", DisplayPath: ".env", Kind: "env", Role: "primary"}},
 		ServiceNames:     []string{"web", "worker"},
+		ServiceOptions:   []projectcompose.ServiceProjection{{ServiceName: "web", DependsOn: []string{"db"}}, {ServiceName: "worker"}},
 		NetworkResources: []RuntimeImportNetworkResource{{Name: "backend", Driver: &overlay, Internal: &internal, Containers: []string{"demo-web-1", "demo-worker-1"}, ContainerCount: 2, Services: []string{"web", "worker"}, ServiceCount: 2}},
 		VolumeResources:  []RuntimeImportVolumeResource{{Name: "data", Driver: &local, Anonymous: false, MountTarget: "/data", MountedBy: []string{"web", "worker"}, Containers: []string{"demo-web-1", "demo-worker-1"}, ContainerCount: 2}},
 		RuntimeMembers:   []RuntimeImportMember{{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", State: "running"}},
@@ -72,10 +75,28 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	if !response.ExpiresAt.Equal(result.ExpiresAt) || response.LifecycleConfiguration.Profiles == nil {
 		t.Fatalf("unexpected inspection response: %#v", response)
 	}
+	assertRuntimeInspectNetworkMapping(t, response)
+	assertRuntimeInspectVolumeMapping(t, response)
+	assertRuntimeInspectServiceOptions(t, response)
+}
+
+func assertRuntimeInspectNetworkMapping(t *testing.T, response generated.ApplicationImportRuntimeInspectResponse) {
+	t.Helper()
 	if len(response.Networks) != 1 || response.Networks[0].Driver == nil || *response.Networks[0].Driver != "overlay" || response.Networks[0].Internal == nil || !*response.Networks[0].Internal || response.Networks[0].ContainerCount != 2 || response.Networks[0].ServiceCount != 2 {
 		t.Fatalf("unexpected network mapping: %#v", response.Networks)
 	}
+}
+
+func assertRuntimeInspectVolumeMapping(t *testing.T, response generated.ApplicationImportRuntimeInspectResponse) {
+	t.Helper()
 	if len(response.Volumes) != 1 || response.Volumes[0].Driver == nil || *response.Volumes[0].Driver != "local" || response.Volumes[0].MountTarget != "/data" || response.Volumes[0].Anonymous {
 		t.Fatalf("unexpected volume mapping: %#v", response.Volumes)
+	}
+}
+
+func assertRuntimeInspectServiceOptions(t *testing.T, response generated.ApplicationImportRuntimeInspectResponse) {
+	t.Helper()
+	if len(response.ServiceOptions) != 2 || !slices.Equal(response.ServiceOptions[0].DependsOn, []string{"db"}) {
+		t.Fatalf("unexpected service options: %#v", response.ServiceOptions)
 	}
 }
