@@ -40,10 +40,12 @@
 
 ```json
 {
-  "completed_batches": ["batch-1-architecture-authority-and-recovery"],
-  "current_batch": "batch-2-task-runtime-external-execution-foundation",
+  "completed_batches": [
+    "batch-1-architecture-authority-and-recovery",
+    "batch-2-task-runtime-external-execution-foundation"
+  ],
+  "current_batch": "batch-3-docker-runtime-agent-promotion",
   "pending_batches": [
-    "batch-2-task-runtime-external-execution-foundation",
     "batch-3-docker-runtime-agent-promotion",
     "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
@@ -51,7 +53,7 @@
     "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-2-task-runtime-external-execution-foundation",
+  "next_batch": "batch-3-docker-runtime-agent-promotion",
   "closeout_status": "active"
 }
 ```
@@ -74,6 +76,7 @@
 
 ## Next Recovery Point
 
-Batch 1 authority and recovery convergence passed `git diff --check` and the bounded AI-plan structure guard. Commit
-this docs slice before beginning Batch 2. After Batch 2 is separately validated and committed, advance this file to
-Batch 3 and provide a startup prompt that reruns root preflight before renaming the Agent.
+Batch 2 added the provider-neutral Runtime Agent gateway, Task-owned Stage-attempt lease/receipt persistence, atomic
+Agent claim, bounded logs, cancellation observation, restart survival, expiry recovery and retry fencing. Begin Batch 3
+by directly promoting the experimental Docker Builder Agent into the single Docker Runtime Agent; do not retain two
+Agent binaries or add aliases, and do not migrate Application/Container operations ahead of that promotion batch.

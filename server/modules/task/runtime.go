@@ -34,6 +34,10 @@ const (
 	errorCodeCancelled           = "cancelled"
 	errorCodeMissingExec         = "stage_executor_unavailable"
 	externalReceiptSHA256Length  = 64
+	externalProviderIDMaxLength  = 64
+	externalCapabilityMaxLength  = 64
+	externalProtocolMaxLength    = 128
+	externalOperationIDMaxLength = 256
 )
 
 // Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
@@ -158,7 +162,12 @@ func (r *Runtime) BeginSubmission(ctx context.Context, input moduleapi.BeginTask
 	if err := validateSubmissionPolicy(input.Policy); err != nil {
 		return moduleapi.TaskSubmissionHandle{}, err
 	}
-	plan, err := json.Marshal(input.Task.Plan)
+	frozenPlan, err := freezeExternalExecutionPayloads(input.Task.Plan)
+	if err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
+	}
+	input.Task.Plan = frozenPlan
+	plan, err := json.Marshal(frozenPlan)
 	if err != nil {
 		return moduleapi.TaskSubmissionHandle{}, fmt.Errorf("marshal submission task plan: %w", err)
 	}
@@ -327,6 +336,10 @@ func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationReq
 	if err != nil {
 		return taskmodel.Task{}, nil, err
 	}
+	planInput, err = freezeExternalExecutionPayloads(planInput)
+	if err != nil {
+		return taskmodel.Task{}, nil, err
+	}
 	if err := r.validatePlan(planInput); err != nil {
 		return taskmodel.Task{}, nil, err
 	}
@@ -353,7 +366,8 @@ func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationReq
 	for index, stage := range planInput.Stages {
 		stages = append(stages, taskmodel.Stage{
 			Key: stage.Key, Sequence: index + 1, ExecutorType: stage.ExecutorType, CoordinationGroup: stage.CoordinationGroup, LegID: stage.LegID,
-			Status: moduleapi.StageStatusPending, MaxAttempts: normalizedMaxAttempts(stage.RetryPolicy.MaxAttempts),
+			ExternalExecution: stage.ExternalExecution != nil,
+			Status:            moduleapi.StageStatusPending, MaxAttempts: normalizedMaxAttempts(stage.RetryPolicy.MaxAttempts),
 			RetryBackoffMS: stage.RetryPolicy.Backoff.Milliseconds(), Input: stage.Input,
 			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
 		})
@@ -375,7 +389,7 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 		return moduleapi.TaskPlan{}, errors.New("coordinated task requires exactly one stage template")
 	}
 	template := plan.Stages[0]
-	if template.ExternalReceipt != nil || template.ExecutorType == "" || template.Key == "" {
+	if !coordinatedStageTemplateSupported(template) {
 		return moduleapi.TaskPlan{}, errors.New("coordinated task stage template is unsupported")
 	}
 	plan.Stages = make([]moduleapi.StagePlan, 0, len(plan.Coordination.Legs)+1)
@@ -389,6 +403,10 @@ func expandCoordinatedPlan(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) 
 	// 聚合阶段沿用冻结模板输入，只有全部并行 leg 成功后才可由 Task Runtime 领取。
 	plan.Stages = append(plan.Stages, moduleapi.StagePlan{Key: plan.Coordination.AggregateStageKey, ExecutorType: template.ExecutorType, Input: template.Input, RetryPolicy: template.RetryPolicy, RecoveryPolicy: template.RecoveryPolicy})
 	return plan, nil
+}
+
+func coordinatedStageTemplateSupported(template moduleapi.StagePlan) bool {
+	return template.ExternalExecution == nil && template.ExternalReceipt == nil && template.ExecutorType != "" && template.Key != ""
 }
 
 func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (*string, *string, error) {
@@ -451,6 +469,28 @@ func canonicalSubmissionJSON(raw json.RawMessage) (json.RawMessage, error) {
 		return nil, err
 	}
 	return json.RawMessage(encoded), nil
+}
+
+func freezeExternalExecutionPayloads(plan moduleapi.TaskPlan) (moduleapi.TaskPlan, error) {
+	plan.Stages = append([]moduleapi.StagePlan(nil), plan.Stages...)
+	for index := range plan.Stages {
+		expectation := plan.Stages[index].ExternalExecution
+		if expectation == nil {
+			continue
+		}
+		canonical, err := canonicalSubmissionJSON(plan.Stages[index].Input)
+		if err != nil {
+			return moduleapi.TaskPlan{}, fmt.Errorf("canonicalize external execution payload: %w", err)
+		}
+		digest := fmt.Sprintf("%x", sha256.Sum256(canonical))
+		if expectation.PayloadSHA256 != "" && expectation.PayloadSHA256 != digest {
+			return moduleapi.TaskPlan{}, errors.New("external execution payload digest does not match stage input")
+		}
+		frozen := *expectation
+		frozen.PayloadSHA256 = digest
+		plan.Stages[index].ExternalExecution = &frozen
+	}
+	return plan, nil
 }
 
 // SettleExternalReceipt 通过 Task Runtime 边界接收短生命周期外部执行器的已绑定、无秘密回执。
@@ -878,6 +918,9 @@ func (r *Runtime) Start(ctx context.Context) error {
 	if r == nil || r.repository == nil || ctx == nil {
 		return errors.New("task runtime start dependencies are unavailable")
 	}
+	if _, err := r.repository.ExpireExternalExecutionLeases(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("expire external execution leases at startup: %w", err)
+	}
 	if _, err := r.repository.RecoverInterruptedStages(ctx, time.Now().UTC()); err != nil {
 		return err
 	}
@@ -917,6 +960,9 @@ func (r *Runtime) expireSubmissions(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if _, err := r.repository.ExpireExternalExecutionLeases(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil && !errors.Is(err, context.Canceled) {
+				r.logger.Error(ctx, "expire external execution leases", logger.StringField(logger.FieldOperation, "task_external_execution_expirer"), logger.ErrorField(err))
+			}
 			if _, err := r.repository.PromoteScheduledTasks(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil && !errors.Is(err, context.Canceled) {
 				r.logger.Error(ctx, "promote scheduled tasks", logger.StringField(logger.FieldOperation, "task_scheduled_promoter"), logger.ErrorField(err))
 			}
@@ -1189,7 +1235,32 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 			return err
 		}
 	}
+	return validateExternalOperationIdentities(plan.Stages)
+}
+
+func validateExternalOperationIdentities(stages []moduleapi.StagePlan) error {
+	seen := make(map[string]struct{}, len(stages))
+	for _, stage := range stages {
+		operationID, external := stageExternalOperationIdentity(stage)
+		if !external {
+			continue
+		}
+		if _, exists := seen[operationID]; exists {
+			return fmt.Errorf("task plan contains duplicate external operation %q", operationID)
+		}
+		seen[operationID] = struct{}{}
+	}
 	return nil
+}
+
+func stageExternalOperationIdentity(stage moduleapi.StagePlan) (string, bool) {
+	if stage.ExternalExecution != nil {
+		return stage.ExternalExecution.OperationID, true
+	}
+	if stage.ExternalReceipt != nil {
+		return stage.ExternalReceipt.OperationID, true
+	}
+	return "", false
 }
 
 // validateCoordinatedStages 确保 Runtime 持久化并行 leg 及其唯一的串行聚合阶段。
@@ -1221,14 +1292,32 @@ func (r *Runtime) validateStagePlan(stage moduleapi.StagePlan, index int, total 
 	if (stage.CoordinationGroup == "") != (stage.LegID == "") {
 		return errors.New("task plan coordinated stage identity is incomplete")
 	}
-	if stage.ExternalReceipt != nil {
-		if !externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
-			return errors.New("external receipt expectation must bind the final stage with a protocol and operation identity")
-		}
-	} else if _, exists := r.executorFor(stage.ExecutorType); !exists {
-		return fmt.Errorf("task plan references unregistered stage executor %q", stage.ExecutorType)
+	if err := r.validateStageExecutionBinding(stage, index, total); err != nil {
+		return err
 	}
 	seen[stage.Key] = struct{}{}
+	return nil
+}
+
+func (r *Runtime) validateStageExecutionBinding(stage moduleapi.StagePlan, index int, total int) error {
+	if stage.ExternalExecution != nil && stage.ExternalReceipt != nil {
+		return errors.New("task plan stage cannot declare both external execution and legacy receipt")
+	}
+	if stage.ExternalExecution != nil {
+		if externalExecutionExpectationValid(stage.ExternalExecution) {
+			return nil
+		}
+		return errors.New("external execution expectation is incomplete")
+	}
+	if stage.ExternalReceipt != nil {
+		if externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
+			return nil
+		}
+		return errors.New("external receipt expectation must bind the final stage with a protocol and operation identity")
+	}
+	if _, exists := r.executorFor(stage.ExecutorType); !exists {
+		return fmt.Errorf("task plan references unregistered stage executor %q", stage.ExecutorType)
+	}
 	return nil
 }
 
@@ -1243,11 +1332,29 @@ func (r *Runtime) claimedStageWaitsForExternalReceipt(claim taskstore.StageClaim
 		return false
 	}
 	stage := plan.Stages[index]
-	return stage.ExternalReceipt != nil && stage.Key == claim.Stage.Key && stage.ExecutorType == claim.Stage.ExecutorType
+	return (stage.ExternalExecution != nil || stage.ExternalReceipt != nil) && stage.Key == claim.Stage.Key && stage.ExecutorType == claim.Stage.ExecutorType
 }
 
 func externalReceiptExpectationValid(expectation *moduleapi.ExternalReceiptExpectation, index int, total int) bool {
-	return index == total-1 && strings.TrimSpace(expectation.Protocol) != "" && strings.TrimSpace(expectation.OperationID) != "" && len(expectation.Protocol) <= 128 && len(expectation.OperationID) <= 256
+	return index == total-1 && boundedNonBlank(expectation.Protocol, externalProtocolMaxLength) && boundedNonBlank(expectation.OperationID, externalOperationIDMaxLength)
+}
+
+func externalExecutionExpectationValid(expectation *moduleapi.ExternalExecutionExpectation) bool {
+	return externalExecutionIdentityValid(expectation) && externalExecutionTimingValid(expectation)
+}
+
+func externalExecutionIdentityValid(expectation *moduleapi.ExternalExecutionExpectation) bool {
+	return expectation.RuntimeTargetID > 0 && boundedNonBlank(expectation.ProviderID, externalProviderIDMaxLength) &&
+		boundedNonBlank(expectation.Capability, externalCapabilityMaxLength) && boundedNonBlank(expectation.Protocol, externalProtocolMaxLength) &&
+		boundedNonBlank(expectation.OperationID, externalOperationIDMaxLength) && lowercaseSHA256(expectation.PayloadSHA256)
+}
+
+func externalExecutionTimingValid(expectation *moduleapi.ExternalExecutionExpectation) bool {
+	return expectation.LeaseTTL > 0 && expectation.AbsoluteDeadline > expectation.LeaseTTL
+}
+
+func boundedNonBlank(value string, maximum int) bool {
+	return strings.TrimSpace(value) != "" && len(value) <= maximum
 }
 
 func (r *Runtime) executorFor(executorType moduleapi.StageExecutorType) (moduleapi.StageExecutor, bool) {

@@ -123,3 +123,12 @@
 - ADR-026 fixes one pull-based Runtime Agent, Task-owned external execution leases, a server without Docker socket/CLI,
   and a separate short-lived Update Controller.
 - The subtopic owns its own batch state and trace; this parent remains the runtime composition and archive authority.
+
+## 2026-08-21 docker-runtime-agent-batch-2
+
+- Task Runtime now owns provider-neutral external Stage claim, fencing, renewal, cancellation observation, bounded logs,
+  receipt settlement and expiry recovery.
+- Agent claim is one transaction across Stage activation and lease creation, so local workers and Runtime Agents cannot
+  create an unleased running window or claim the same Stage.
+- The bounded subtopic recovery point advances to Batch 3: direct promotion of the experimental Builder Agent into the
+  sole Docker Runtime Agent.

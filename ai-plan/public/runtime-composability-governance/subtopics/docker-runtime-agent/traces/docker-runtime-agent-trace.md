@@ -16,3 +16,19 @@
   recovery authority on ADR-026.
 - Preserved ADR-006/009 host-path, durable state, fencing and survivor invariants while superseding CLI/launcher details.
 - Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-21 batch-2-accepted
+
+- Added a provider-neutral `RuntimeAgentExecutionGateway` owned by Task Runtime for claim, renew, cancellation
+  observation, bounded logs, receipt settlement and expiry.
+- Persisted `external_execution` on Stage rows and made Agent claim atomically transition Stage/Task state while creating
+  the fenced lease; local workers exclude external Stage rows at the database claim boundary.
+- Extended the existing external receipt authority instead of creating a second receipt store. Lease and receipt
+  uniqueness include attempt so an operator-approved retry can reuse the frozen operation identity safely.
+- Preserved a still-valid lease across server restart; expired leases converge to `unknown`/`needs_attention`, while a
+  fully matching late receipt remains reconcilable and stale fences are rejected.
+- Classified migration `202608210001` as L4 because it replaces existing receipt constraints; preflight metadata records
+  historical assumptions, upgrade order, recovery rationale and MIG-002 evidence.
+- Retained the legacy final-stage receipt writer only as an explicitly temporary bridge until Update Controller migration.
+- Validation passed: focused Task tests, Task race tests, production/test lint, the complete `graft validate backend`
+  entrypoint, SQL migration/version gates, AI-plan structure guard and `git diff --check`.

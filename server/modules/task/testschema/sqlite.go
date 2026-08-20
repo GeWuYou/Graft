@@ -40,7 +40,7 @@ func CreateSQLite(db *sql.DB) error {
 		`CREATE UNIQUE INDEX uq_task_submissions_idempotency ON task_submissions (task_type, owner_type, owner_id, COALESCE(requested_by, 0), idempotency_key_hash) WHERE idempotency_key_hash IS NOT NULL`,
 		`CREATE TABLE task_stages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL,
-			executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,
+			executor_type TEXT NOT NULL, external_execution BOOLEAN NOT NULL DEFAULT FALSE, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,
 			retry_backoff_ms INTEGER NOT NULL, next_retry_at TIMESTAMP NULL, input_json BLOB NOT NULL,
 			coordination_group TEXT NOT NULL DEFAULT '', leg_id TEXT NOT NULL DEFAULT '', recovery_policy TEXT NOT NULL,
 			result_json BLOB NOT NULL, failure_code TEXT NULL, failure_message TEXT NULL, started_at TIMESTAMP NULL,
@@ -61,15 +61,32 @@ func CreateSQLite(db *sql.DB) error {
 			UNIQUE(task_id, sequence), CHECK (sequence > 0),
 			CHECK (event_type IN ('created', 'cancel_requested', 'cancelled', 'retry_requested', 'retry_scheduled', 'recovery_required', 'recovery_resolved', 'external_receipt_settled'))
 		)`,
-		`CREATE TABLE task_external_receipts (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_id INTEGER NOT NULL, executor_type TEXT NOT NULL,
-			receipt_protocol TEXT NOT NULL, operation_id TEXT NOT NULL, outcome TEXT NOT NULL, failure_code TEXT NULL,
-			integrity_sha256 TEXT NOT NULL, settled_task_status TEXT NOT NULL, created_at TIMESTAMP NOT NULL,
+		`CREATE TABLE task_external_execution_leases (
+			id TEXT PRIMARY KEY, task_id INTEGER NOT NULL, stage_id INTEGER NOT NULL, attempt INTEGER NOT NULL,
+			executor_type TEXT NOT NULL, runtime_target_id INTEGER NOT NULL, provider_id TEXT NOT NULL, capability TEXT NOT NULL,
+			receipt_protocol TEXT NOT NULL, operation_id TEXT NOT NULL, payload_sha256 TEXT NOT NULL, fence_token_hash TEXT NOT NULL,
+			state TEXT NOT NULL, lease_ttl_ms INTEGER NOT NULL, lease_expires_at TIMESTAMP NOT NULL, absolute_deadline_at TIMESTAMP NOT NULL,
+			cancel_observed_at TIMESTAMP NULL, settled_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(task_id, stage_id) REFERENCES task_stages(task_id, id),
-			UNIQUE(task_id, operation_id), CHECK (outcome IN ('success', 'failed', 'needs_attention')),
+			UNIQUE(task_id, stage_id, attempt), UNIQUE(task_id, operation_id, attempt),
+			CHECK (attempt > 0), CHECK (runtime_target_id > 0), CHECK (state IN ('claimed', 'settled', 'expired')),
+			CHECK (lease_ttl_ms > 0), CHECK (lease_expires_at <= absolute_deadline_at),
+			CHECK ((state = 'settled' AND settled_at IS NOT NULL) OR (state <> 'settled' AND settled_at IS NULL))
+		)`,
+		`CREATE TABLE task_external_receipts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, lease_id TEXT NULL, task_id INTEGER NOT NULL, stage_id INTEGER NOT NULL,
+			attempt INTEGER NOT NULL DEFAULT 1, executor_type TEXT NOT NULL,
+			receipt_protocol TEXT NOT NULL, operation_id TEXT NOT NULL, outcome TEXT NOT NULL, failure_code TEXT NULL,
+			integrity_sha256 TEXT NOT NULL, settled_stage_status TEXT GENERATED ALWAYS AS (
+				CASE outcome WHEN 'success' THEN 'success' WHEN 'failed' THEN 'failed' ELSE 'unknown' END
+			) STORED, settled_task_status TEXT NOT NULL, created_at TIMESTAMP NOT NULL,
+			FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(task_id, stage_id) REFERENCES task_stages(task_id, id),
+			FOREIGN KEY(lease_id) REFERENCES task_external_execution_leases(id),
+			UNIQUE(task_id, operation_id, attempt), CHECK (outcome IN ('success', 'failed', 'needs_attention')),
+			UNIQUE(lease_id), CHECK (attempt > 0), CHECK (settled_stage_status IN ('success', 'failed', 'unknown')),
 			CHECK (trim(executor_type) <> ''), CHECK (trim(receipt_protocol) <> ''), CHECK (trim(operation_id) <> ''),
 			CHECK ((outcome = 'success' AND failure_code IS NULL) OR (outcome IN ('failed', 'needs_attention') AND failure_code IS NOT NULL AND trim(failure_code) <> '')),
-			CHECK (settled_task_status IN ('success', 'failed', 'needs_attention'))
+			CHECK (settled_task_status IN ('running', 'success', 'failed', 'cancelled', 'needs_attention'))
 		)`,
 		`CREATE TABLE task_logs (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_id INTEGER NULL, sequence INTEGER NOT NULL,

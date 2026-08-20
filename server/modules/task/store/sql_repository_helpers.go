@@ -87,6 +87,8 @@ func taskColumns() string {
 }
 
 // taskColumnsFor 返回带指定表别名的任务表列名列表。
+//
+//nolint:dupl // Task 与 Stage 投影刻意保持同构，以便关联扫描顺序可独立审计。
 func taskColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_type, ` + alias + `.owner_type, ` + alias + `.owner_id, ` + alias + `.status, ` + alias + `.input_json, ` + alias + `.metadata_json, ` + alias + `.plan_json, ` + alias + `.state_json,
 		` + alias + `.activation_required, ` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.idempotency_key_hash, ` + alias + `.submission_fingerprint, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
@@ -101,14 +103,16 @@ func submissionColumns() string {
 
 // stageColumns 返回从 Stage 表选择的逗号分隔列名。
 func stageColumns() string {
-	return `id, task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
+	return `id, task_id, stage_key, sequence, executor_type, external_execution, status, attempt, max_attempts, retry_backoff_ms,
 		next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, failure_code, failure_message, started_at,
 		finished_at, duration_ms, created_at, updated_at`
 }
 
 // stageColumnsFor 返回使用指定表别名限定的 Stage 逗号分隔列名。
+//
+//nolint:dupl // Task 与 Stage 投影刻意保持同构，以便关联扫描顺序可独立审计。
 func stageColumnsFor(alias string) string {
-	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
+	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.external_execution, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
 		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.coordination_group, ` + alias + `.leg_id, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
 		` + alias + `.finished_at, ` + alias + `.duration_ms, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
@@ -201,7 +205,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState, &claim.Task.ActivationRequired,
 		&taskCurrentStageKey, &taskCreatedBy, &taskIdempotencyKeyHash, &taskSubmissionFingerprint, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
 		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
-		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
+		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &claim.Stage.ExternalExecution, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
 		&stageNextRetryAt, &stageInput, &stageCoordinationGroup, &stageLegID, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
 		&stageFinishedAt, &stageDurationMS, &claim.Stage.CreatedAt, &claim.Stage.UpdatedAt,
 	); err != nil {
@@ -266,7 +270,7 @@ func scanStage(scanner interface{ Scan(dest ...any) error }) (taskmodel.Stage, e
 	var failureCode, failureMessage sql.NullString
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
-		&item.ID, &item.TaskID, &item.Key, &item.Sequence, &executorType, &status, &item.Attempt, &item.MaxAttempts, &item.RetryBackoffMS,
+		&item.ID, &item.TaskID, &item.Key, &item.Sequence, &executorType, &item.ExternalExecution, &status, &item.Attempt, &item.MaxAttempts, &item.RetryBackoffMS,
 		&nextRetryAt, &input, &coordinationGroup, &legID, &recoveryPolicy, &result, &failureCode, &failureMessage, &startedAt,
 		&finishedAt, &durationMS, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {

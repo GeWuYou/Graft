@@ -232,10 +232,12 @@ type StagePlan struct {
 	// CoordinationGroup 仅由 CoordinatedTaskService 填充，用于允许同一协调组内的 Stage 并行领取。
 	CoordinationGroup string
 	// LegID 在一个协调任务内唯一，关联冻结的 Builder 和平台证据。
-	LegID           string
-	Input           json.RawMessage
-	RetryPolicy     StageRetryPolicy
-	RecoveryPolicy  StageRecoveryPolicy
+	LegID             string
+	Input             json.RawMessage
+	RetryPolicy       StageRetryPolicy
+	RecoveryPolicy    StageRecoveryPolicy
+	ExternalExecution *ExternalExecutionExpectation
+	// ExternalReceipt 是自更新 Controller 完成迁移前保留的 final-stage bridge；新外部执行必须使用 ExternalExecution。
 	ExternalReceipt *ExternalReceiptExpectation
 }
 
@@ -290,6 +292,79 @@ type ExternalReceiptExpectation struct {
 	OperationID string
 }
 
+// ExternalExecutionExpectation 冻结一个可由 Runtime Agent 领取的 Stage 执行身份；它不包含 endpoint、凭据或命令。
+type ExternalExecutionExpectation struct {
+	RuntimeTargetID  int64
+	ProviderID       string
+	Capability       string
+	Protocol         string
+	OperationID      string
+	PayloadSHA256    string
+	LeaseTTL         time.Duration
+	AbsoluteDeadline time.Duration
+}
+
+// ExternalExecutionLeaseState 标识 Task Runtime 持有的外部 Stage attempt 租约状态。
+type ExternalExecutionLeaseState string
+
+const (
+	// ExternalExecutionLeaseStateClaimed 表示 Runtime Agent 持有当前 fenced attempt。
+	ExternalExecutionLeaseStateClaimed ExternalExecutionLeaseState = "claimed"
+	// ExternalExecutionLeaseStateSettled 表示当前 attempt 已由完全匹配的 receipt 结算。
+	ExternalExecutionLeaseStateSettled ExternalExecutionLeaseState = "settled"
+	// ExternalExecutionLeaseStateExpired 表示租约到期且外部结果无法由 Task Runtime 确认。
+	ExternalExecutionLeaseStateExpired ExternalExecutionLeaseState = "expired"
+)
+
+// ExternalExecutionClaimRequest 将 claim 限定到经 Runtime Target 认证后的目标和能力绑定。
+type ExternalExecutionClaimRequest struct {
+	RuntimeTargetID int64
+	ProviderID      string
+	Capability      string
+}
+
+// ExternalExecutionLease 是 Agent 可见的无秘密执行句柄；FenceToken 只在首次 claim 时返回明文。
+type ExternalExecutionLease struct {
+	ID                    string
+	TaskID                uint64
+	StageID               uint64
+	Attempt               int
+	ExecutorType          StageExecutorType
+	RuntimeTargetID       int64
+	ProviderID            string
+	Capability            string
+	Protocol              string
+	OperationID           string
+	PayloadSHA256         string
+	Input                 json.RawMessage
+	FenceToken            string
+	State                 ExternalExecutionLeaseState
+	LeaseTTL              time.Duration
+	LeaseExpiresAt        time.Time
+	AbsoluteDeadlineAt    time.Time
+	CancellationRequested bool
+}
+
+// ExternalExecutionLeaseHandle 提供续租、日志与结算所需的 fenced lease 身份。
+type ExternalExecutionLeaseHandle struct {
+	LeaseID    string
+	FenceToken string
+}
+
+// ExternalExecutionLogBatch 是一次有界、按请求顺序追加的 Stage 日志。
+type ExternalExecutionLogBatch struct {
+	Handle  ExternalExecutionLeaseHandle
+	Entries []TaskLogEntry
+}
+
+// ExternalExecutionReceipt 是绑定 lease/fence 的受限外部执行结论。
+type ExternalExecutionReceipt struct {
+	Handle          ExternalExecutionLeaseHandle
+	Outcome         ExternalReceiptOutcome
+	FailureCode     string
+	IntegritySHA256 string
+}
+
 // ExternalReceiptOutcome 标识外部执行回执允许携带的受限终态结论。
 type ExternalReceiptOutcome string
 
@@ -319,6 +394,15 @@ type ExternalReceiptSettlement struct {
 	StageID    uint64
 	Status     TaskStatus
 	Idempotent bool
+}
+
+// RuntimeAgentExecutionGateway 是 Agent transport adapter 消费的 Task-owned 外部执行能力。
+type RuntimeAgentExecutionGateway interface {
+	ClaimExternalExecution(context.Context, ExternalExecutionClaimRequest) (ExternalExecutionLease, error)
+	RenewExternalExecution(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionLease, error)
+	AppendExternalExecutionLogs(context.Context, ExternalExecutionLogBatch) error
+	SettleExternalExecution(context.Context, ExternalExecutionReceipt) (ExternalReceiptSettlement, error)
+	ExpireExternalExecutions(context.Context, int) (int, error)
 }
 
 // TaskPlan 定义已提交 Task 的冻结有序 Stage 集合。

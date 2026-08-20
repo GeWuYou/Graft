@@ -156,13 +156,14 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		current.CreatedAt = now
 		current.UpdatedAt = now
 		if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO task_stages (
-			task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
+			task_id, stage_key, sequence, executor_type, external_execution, status, attempt, max_attempts, retry_backoff_ms,
 			next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
 			current.TaskID,
 			current.Key,
 			current.Sequence,
 			current.ExecutorType,
+			current.ExternalExecution,
 			current.Status,
 			current.Attempt,
 			current.MaxAttempts,
@@ -549,6 +550,7 @@ func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, 
 		FROM task_stages stage
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
+			AND stage.external_execution = false
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
 			AND task.status IN (?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
@@ -581,6 +583,7 @@ func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time)
 		FROM task_stages stage
 		JOIN tasks task ON task.id = stage.task_id
 		WHERE stage.status = ?
+			AND stage.external_execution = false
 			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
 			AND task.status IN (?, ?)
 			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
@@ -987,11 +990,12 @@ func (r *SQLRepository) lockSettlementTask(ctx context.Context, tx *sql.Tx, task
 
 func (r *SQLRepository) findExternalReceipt(ctx context.Context, tx *sql.Tx, taskID uint64, operationID string) (taskmodel.ExternalReceipt, bool, error) {
 	var item taskmodel.ExternalReceipt
-	var executorType, protocol, outcome, settledStatus string
-	var failureCode sql.NullString
-	err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id, task_id, stage_id, executor_type, receipt_protocol, operation_id, outcome, failure_code, integrity_sha256, settled_task_status, created_at
-		FROM task_external_receipts WHERE task_id = ? AND operation_id = ?`), taskID, operationID).Scan(
-		&item.ID, &item.TaskID, &item.StageID, &executorType, &protocol, &item.OperationID, &outcome, &failureCode, &item.IntegritySHA256, &settledStatus, &item.CreatedAt,
+	var executorType, protocol, outcome, settledStatus, settledStageStatus string
+	var leaseID, failureCode sql.NullString
+	err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id, lease_id, task_id, stage_id, attempt, executor_type, receipt_protocol, operation_id, outcome, failure_code, integrity_sha256, settled_stage_status, settled_task_status, created_at
+		FROM task_external_receipts WHERE task_id = ? AND operation_id = ? AND lease_id IS NULL`), taskID, operationID).Scan(
+		&item.ID, &leaseID, &item.TaskID, &item.StageID, &item.Attempt, &executorType, &protocol, &item.OperationID, &outcome,
+		&failureCode, &item.IntegritySHA256, &settledStageStatus, &settledStatus, &item.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return taskmodel.ExternalReceipt{}, false, nil
@@ -1000,10 +1004,12 @@ func (r *SQLRepository) findExternalReceipt(ctx context.Context, tx *sql.Tx, tas
 		return taskmodel.ExternalReceipt{}, false, fmt.Errorf("find external receipt: %w", err)
 	}
 	item.ExecutorType = moduleapi.StageExecutorType(executorType)
+	item.LeaseID = nullableString(leaseID)
 	item.Protocol = protocol
 	item.Outcome = moduleapi.ExternalReceiptOutcome(outcome)
 	item.FailureCode = nullableString(failureCode)
 	item.SettledStatus = moduleapi.TaskStatus(settledStatus)
+	item.SettledStageStatus = moduleapi.StageStatus(settledStageStatus)
 	return item, true, nil
 }
 
@@ -1090,7 +1096,13 @@ func (r *SQLRepository) cancelInterruptedRequestedStages(ctx context.Context, tx
 		) AND NOT EXISTS (
 			SELECT 1 FROM task_external_receipts receipt
 			WHERE receipt.task_id = task_stages.task_id AND receipt.stage_id = task_stages.id
-		)`), moduleapi.StageStatusCancelled, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.TaskStatusRunning)
+		) AND NOT EXISTS (
+			SELECT 1 FROM task_external_execution_leases lease
+			WHERE lease.task_id = task_stages.task_id AND lease.stage_id = task_stages.id
+				AND lease.attempt = task_stages.attempt AND lease.state = ?
+				AND lease.lease_expires_at > ? AND lease.absolute_deadline_at > ?
+		)`), moduleapi.StageStatusCancelled, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.TaskStatusRunning,
+		moduleapi.ExternalExecutionLeaseStateClaimed, now.UTC(), now.UTC())
 	if err != nil {
 		return 0, fmt.Errorf("cancel interrupted requested stages: %w", err)
 	}
@@ -1162,7 +1174,15 @@ func (r *SQLRepository) markManualRecoveryUnknown(ctx context.Context, tx *sql.T
 		SET status = ?, failure_code = ?, failure_message = ?, finished_at = ?,
 			duration_ms = NULL,
 			updated_at = ?
-		WHERE status = ? AND recovery_policy = ?`), moduleapi.StageStatusUnknown, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.StageRecoveryManualReconcile)
+		WHERE status = ? AND recovery_policy = ?
+			AND NOT EXISTS (
+				SELECT 1 FROM task_external_execution_leases lease
+				WHERE lease.task_id = task_stages.task_id AND lease.stage_id = task_stages.id
+					AND lease.attempt = task_stages.attempt AND lease.state = ?
+					AND lease.lease_expires_at > ? AND lease.absolute_deadline_at > ?
+			)`), moduleapi.StageStatusUnknown, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(),
+		moduleapi.StageStatusRunning, moduleapi.StageRecoveryManualReconcile,
+		moduleapi.ExternalExecutionLeaseStateClaimed, now.UTC(), now.UTC())
 	if err != nil {
 		return 0, fmt.Errorf("mark interrupted stages unknown: %w", err)
 	}
@@ -1224,8 +1244,15 @@ func (r *SQLRepository) rescheduleIdempotentRecovery(ctx context.Context, tx *sq
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
 			finished_at = NULL, duration_ms = NULL, updated_at = ?
-		WHERE status = ? AND recovery_policy = ?`),
+		WHERE status = ? AND recovery_policy = ?
+			AND NOT EXISTS (
+				SELECT 1 FROM task_external_execution_leases lease
+				WHERE lease.task_id = task_stages.task_id AND lease.stage_id = task_stages.id
+					AND lease.attempt = task_stages.attempt AND lease.state = ?
+					AND lease.lease_expires_at > ? AND lease.absolute_deadline_at > ?
+			)`),
 		moduleapi.StageStatusPending, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.StageRecoveryRetryIfIdempotent,
+		moduleapi.ExternalExecutionLeaseStateClaimed, now.UTC(), now.UTC(),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("reschedule idempotent interrupted stages: %w", err)
@@ -1338,6 +1365,13 @@ func normalizeLimit(limit int) int {
 		return maxPageLimit
 	}
 	return limit
+}
+
+func normalizeOffset(offset int) int {
+	if offset < 0 {
+		return 0
+	}
+	return offset
 }
 
 // expectOneAffected 要求数据库操作恰好影响一行；影响数不符时返回状态冲突，防止静默覆盖并发更新。
