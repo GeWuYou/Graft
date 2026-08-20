@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, reactive, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
@@ -793,8 +793,41 @@ describe('UserPage', () => {
     expect(filterBuilder.props('keyword')).toBe('alice');
     expect(filterBuilder.props('fieldValues')).toMatchObject({ roleId: '2', status: 'disabled' });
     expect(pagedTable.props('pageSize')).toBe(25);
+    expect(pagedTable.props('columns')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ colKey: 'row-select' })]),
+    );
+    expect(pagedTable.props('columns')).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ colKey: 'unknown-column' })]),
+    );
     expect(controller.selectedId.value).toBe(9);
     expect(userApiMocks.getUserSavedViews).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps row selection structural across permission changes without exposing it as a configurable column', async () => {
+    permissionState.grantedCodes = reactive([USER_PERMISSION_CODE.UPDATE]);
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    const pagedTable = wrapper.findComponent({ name: 'ManagementPagedTable' });
+    const columnKeys = () =>
+      (pagedTable.props('columns') as Array<{ colKey?: string }>).map((column) => String(column.colKey));
+
+    expect(columnKeys()).toContain('row-select');
+    expect(columnKeys()).toContain('operation');
+
+    permissionState.grantedCodes.splice(0);
+    await flushPromises();
+    expect(columnKeys()).toContain('row-select');
+    expect(columnKeys()).not.toContain('operation');
+
+    wrapper.findComponent({ name: 'TableViewToolbar' }).vm.$emit('column-settings');
+    await flushPromises();
+    const configurableKeys = wrapper
+      .findAllComponents(checkboxStub)
+      .map((checkbox) => checkbox.props('value'))
+      .filter((value) => typeof value === 'string');
+    expect(configurableKeys).not.toContain('row-select');
   });
 
   it('switches user records to the shared card presentation on compact screens', async () => {

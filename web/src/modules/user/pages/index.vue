@@ -711,6 +711,7 @@ const INITIAL_USER_FORM: UserFormState = {
 };
 
 const DEFAULT_VISIBLE_COLUMNS = ['row-select', 'user', 'status', 'roles', 'last_login_at', 'updated_at', 'operation'];
+const STRUCTURAL_USER_COLUMN_KEYS = ['row-select'];
 const userColumnSets = {
   compact: ['row-select', 'user', 'status', 'operation'],
 };
@@ -826,7 +827,13 @@ const supportedUserColumnKeys = computed(() =>
 watch(
   [visibleColumnKeys, supportedUserColumnKeys],
   ([keys]) => {
-    const normalizedKeys = normalizeManagedColumnKeys(keys, supportedUserColumnKeys.value);
+    const normalizedKeys = [
+      ...STRUCTURAL_USER_COLUMN_KEYS,
+      ...normalizeManagedColumnKeys(
+        keys.filter((key) => !STRUCTURAL_USER_COLUMN_KEYS.includes(key)),
+        supportedUserColumnKeys.value,
+      ),
+    ];
     if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
       visibleColumnKeys.value = normalizedKeys;
     }
@@ -1310,7 +1317,11 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     ? [...baseColumns, createActionColumn(t('components.commonTable.operation'), 160)]
     : baseColumns;
 
-  return buildVisibleColumns(allColumns, visibleColumnKeys.value) as TdBaseTableProps['columns'];
+  return buildVisibleColumns(
+    allColumns,
+    visibleColumnKeys.value,
+    STRUCTURAL_USER_COLUMN_KEYS,
+  ) as TdBaseTableProps['columns'];
 });
 
 const visibleColumns = computed(() => {
