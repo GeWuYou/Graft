@@ -234,7 +234,7 @@ jobs:
       web_image: ${{ steps.image_vars.outputs.web_image }}
       runner_image: ${{ steps.image_vars.outputs.runner_image }}
       agent_image: ${{ steps.image_vars.outputs.agent_image }}
-      is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
+      channel: ${{ needs.build-artifacts.outputs.channel }}
       server_digest: ${{ steps.publish_release_images.outputs.server_digest }}
       web_digest: ${{ steps.publish_release_images.outputs.web_digest }}
       runner_digest: ${{ steps.publish_release_images.outputs.runner_digest }}
@@ -1289,6 +1289,27 @@ jobs:
       packages: write
 
     steps:
+      - name: Resolve mutable channel tag
+        id: mutable_channel
+        env:
+          RELEASE_SOURCE_CHANNEL: ${{ needs.publish-images.outputs.channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${RELEASE_SOURCE_CHANNEL}" in
+            stable)
+              mutable_tag="latest"
+              ;;
+            beta)
+              mutable_tag="beta"
+              ;;
+            *)
+              echo "::error::Unsupported release channel '${RELEASE_SOURCE_CHANNEL}'."
+              exit 1
+              ;;
+          esac
+          echo "tag=${mutable_tag}" >> "${GITHUB_OUTPUT}"
+
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
@@ -1298,7 +1319,7 @@ jobs:
 
       - name: Publish channel tag after release creation
         env:
-          RELEASE_CHANNEL: ${{ needs.publish-images.outputs.is_prerelease && 'beta' || 'latest' }}
+          RELEASE_CHANNEL: ${{ steps.mutable_channel.outputs.tag }}
           RELEASE_REF_NAME: ${{ github.ref_name }}
           SERVER_IMAGE: ${{ needs.publish-images.outputs.server_image }}
           WEB_IMAGE: ${{ needs.publish-images.outputs.web_image }}

@@ -189,6 +189,38 @@
 - Updated at:
   2026-08-01
 
+## LESSON-GOVERNANCE-ACTIONS-OUTPUT-TYPE-001：GitHub Actions job output 不得按布尔值隐式判断
+
+- Status: active
+- Level: L1
+- Applies to:
+  - GitHub Actions 跨 job output
+  - release/publish channel 与可变容器镜像标签
+- Source:
+  - `v0.11.0` stable release 错误发布 `beta` 可变标签，而 `latest` 停留在 `v0.10.0`
+- Problem:
+  GitHub Actions 的 job output 以字符串传递；`"false"` 是非空字符串，在表达式中仍可能被当作真值。
+  因此使用 `output && 'beta' || 'latest'` 会把 stable release 错误映射为 `beta`，同时流水线仍显示成功。
+- Correct pattern:
+  跨 job 透传 canonical `stable|beta` channel，并在 registry 登录和写入前通过显式、fail-closed 的映射把
+  `stable` 转为 `latest`、`beta` 转为 `beta`；未知 channel 必须立即失败。
+- Anti-pattern:
+  - 从 boolean-like job output 推断 release channel
+  - 对 job output 字符串使用 `&& ||` 模拟三元表达式
+  - 允许未知 channel 进入 registry 写入阶段
+- Enforcement:
+  校验 workflow YAML 的 output wiring；分别执行提取出的 channel resolver，覆盖 `stable`、`beta` 和未知值失败场景。
+  实际发布后还应确认可变标签解析到对应不可变 release manifest 或平台 digest。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `.github/workflows/publish.yml`
+  - `ai-plan/design/release/versioning-policy.md`
+  - `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
+- Updated at:
+  2026-08-20
+
 ## LESSON-GOVERNANCE-EXTERNAL-SKILL-001：外部 skill 应按现有能力边界转换并路由
 
 - Status: active

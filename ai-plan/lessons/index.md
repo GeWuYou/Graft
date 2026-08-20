@@ -16,6 +16,7 @@
 | LESSON-GOVERNANCE-PORTABLE-WSL-MCP-001 | 共享 MCP 指引不得固化本机 WSL 发行版            | governance |    L2 | active | `ai-plan/lessons/governance.md` | `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`                 |
 | LESSON-GOVERNANCE-EXTERNAL-SKILL-001   | 外部 skill 应按现有能力边界转换并路由          | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-RELEASE-LINT-001     | Release tag checkout 不应 prune lint 基准分支  | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
+| LESSON-GOVERNANCE-ACTIONS-OUTPUT-TYPE-001 | GitHub Actions job output 不得按布尔值隐式判断 | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001        | 信息密度切换必须治理 token 消费面              | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-EMPTY-STATE-001          | 表格空状态不应做成小灰色卡片                   | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/graft-design-system/list-form-detail.md` |
