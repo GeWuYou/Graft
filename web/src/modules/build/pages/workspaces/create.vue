@@ -128,6 +128,8 @@ async function loadApplications(keyword = '') {
 
 function searchApplications(keyword: string) {
   if (applicationSearchTimer) clearTimeout(applicationSearchTimer);
+  // 输入变化时先让活动请求失效，避免其在新请求的防抖窗口内回写过期候选项。
+  applicationRequestGeneration += 1;
   applicationSearchTimer = setTimeout(() => void loadApplications(keyword.trim()), APPLICATION_SEARCH_DEBOUNCE_MS);
 }
 
