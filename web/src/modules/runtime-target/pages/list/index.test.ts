@@ -29,7 +29,12 @@ const realtimeMocks = vi.hoisted(() => ({
     }
   >(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
-const routerMocks = vi.hoisted(() => ({ replace: vi.fn(), route: { query: {} as Record<string, string> } }));
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  route: { query: {} as Record<string, string> },
+}));
+const permissionState = vi.hoisted(() => ({ manage: true }));
 
 vi.mock('../../api/runtime-target', () => apiMocks);
 vi.mock('tdesign-vue-next/es/dialog', () => ({ DialogPlugin: dialogMocks }));
@@ -53,7 +58,10 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-router')>()),
   useRoute: () => routerMocks.route,
-  useRouter: () => ({ replace: routerMocks.replace }),
+  useRouter: () => ({ push: routerMocks.push, replace: routerMocks.replace }),
+}));
+vi.mock('@/store/modules/permission', () => ({
+  getPermissionStore: () => ({ hasPermission: () => permissionState.manage }),
 }));
 
 const passthrough = (name: string) =>
@@ -88,6 +96,15 @@ function mountPage() {
         'management-page-content': passthrough('ManagementPageContent'),
         'management-page-header': passthrough('ManagementPageHeader'),
         'management-table-pagination': passthrough('ManagementTablePagination'),
+        'table-action-menu': defineComponent({
+          name: 'TableActionMenu',
+          props: {
+            actions: { type: Array, default: () => [] },
+          },
+          emits: ['action'],
+          template:
+            '<div data-testid="runtime-target-row-actions"><button v-for="action in actions" :key="action.value" @click="$emit(\'action\', action.value)">{{ action.label }}</button></div>',
+        }),
         'responsive-table': defineComponent({
           name: 'ResponsiveTable',
           template: '<div data-testid="runtime-target-responsive-table"><slot name="cards" /><slot /></div>',
@@ -102,11 +119,12 @@ function mountPage() {
         't-table': defineComponent({
           name: 'TTable',
           props: {
+            columns: { type: Array, default: () => [] },
             data: { type: Array, default: () => [] },
             loading: { type: Boolean, default: false },
           },
           template:
-            '<div data-testid="runtime-target-table" :data-ids="data.map((row) => row.id).join(\',\')" :data-loading="String(loading)" />',
+            '<div data-testid="runtime-target-table" :data-ids="data.map((row) => row.id).join(\',\')" :data-loading="String(loading)"><slot v-if="data[0]" name="operation" :row="data[0]" /></div>',
         }),
         't-button': defineComponent({
           name: 'TButton',
@@ -133,6 +151,15 @@ function mountPage() {
           emits: ['cancel', 'confirm', 'update:selection'],
           template: '<div data-testid="runtime-target-batch-authorization" :data-visible="String(visible)" />',
         }),
+        'runtime-target-assignment-dialog': defineComponent({
+          name: 'RuntimeTargetAssignmentDialog',
+          props: {
+            targetId: { type: Number, default: undefined },
+            visible: { type: Boolean, default: false },
+          },
+          template:
+            '<div data-testid="runtime-target-assignment-dialog" :data-target-id="targetId" :data-visible="String(visible)" />',
+        }),
       },
     },
   });
@@ -142,6 +169,7 @@ describe('RuntimeTargetListPage', () => {
   let wrapper: ReturnType<typeof mountPage> | undefined;
 
   beforeEach(() => {
+    permissionState.manage = true;
     routerMocks.route.query = {};
     apiMocks.getRuntimeTargetSavedViews.mockResolvedValue([]);
     apiMocks.getRuntimeTargetAssignmentCandidates.mockResolvedValue({ items: [], total: 0 });
@@ -247,6 +275,71 @@ describe('RuntimeTargetListPage', () => {
     expect(card.text()).toContain('runtimeTarget.metrics.storage:');
     expect(card.text()).toContain('runtimeTarget.list.viewDetail:');
     expect(wrapper.get('[data-testid="runtime-target-discover-local"]').text()).toBe('');
+  });
+
+  it('uses the shared row action menu for card and table operations', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(7)],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
+    });
+    wrapper = mountPage();
+    await flushPromises();
+
+    const actionMenus = wrapper.findAllComponents({ name: 'TableActionMenu' });
+    expect(actionMenus).toHaveLength(2);
+    actionMenus.forEach((menu) => {
+      expect(menu.props('actions')).toEqual([
+        { label: 'runtimeTarget.list.viewDetail:', value: 'detail' },
+        { label: 'runtimeTarget.list.changeAuthorization:', value: 'change-authorization' },
+      ]);
+    });
+
+    actionMenus[0]?.vm.$emit('action', 'detail');
+    await flushPromises();
+    expect(routerMocks.push).toHaveBeenCalledWith('/infrastructure/runtime-targets/7');
+  });
+
+  it('opens the shared authorization dialog for the selected card target', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(7)],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
+    });
+    wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'runtimeTarget.list.changeAuthorization:')
+      ?.trigger('click');
+
+    const dialog = wrapper.get('[data-testid="runtime-target-assignment-dialog"]');
+    expect(dialog.attributes('data-target-id')).toBe('7');
+    expect(dialog.attributes('data-visible')).toBe('true');
+  });
+
+  it('hides assignment selection and authorization actions without manage permission', async () => {
+    permissionState.manage = false;
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(7)],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
+    });
+    wrapper = mountPage();
+    await flushPromises();
+
+    const table = wrapper.findComponent({ name: 'TTable' });
+    const columns = table.props('columns') as Array<{ colKey: string }>;
+    expect(columns.some((column) => column.colKey === 'row-select')).toBe(false);
+    expect(wrapper.text()).not.toContain('runtimeTarget.list.changeAuthorization:');
+    expect(wrapper.find('[data-testid="runtime-target-assignment-dialog"]').exists()).toBe(false);
   });
 
   it('patches the current page from a realtime snapshot without reloading the table', async () => {

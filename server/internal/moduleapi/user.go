@@ -29,6 +29,14 @@ type UserCandidate struct {
 	Status   string
 }
 
+// UserAccountSummary 是按稳定 ID 装配跨模块资源列表时使用的最小账号投影。
+type UserAccountSummary struct {
+	ID       uint64
+	Username string
+	Display  string
+	Status   string
+}
+
 // UserCandidateQuery 描述跨模块候选选择器的服务端搜索和分页窗口。
 type UserCandidateQuery struct {
 	Search string
@@ -57,6 +65,11 @@ type UserService interface {
 // UserCandidateReader 仅暴露受限候选选择所需的用户摘要查询，避免消费者依赖 user store。
 type UserCandidateReader interface {
 	ListUserCandidates(ctx context.Context, query UserCandidateQuery) ([]UserCandidate, int, error)
+}
+
+// UserSummaryBatchReader 按稳定用户标识批量返回最小用户投影，供跨模块列表装配避免逐项查询。
+type UserSummaryBatchReader interface {
+	ListUserSummariesByIDs(ctx context.Context, userIDs []uint64) ([]UserAccountSummary, error)
 }
 
 // UserSecurityReader 暴露安全态势聚合所需的窄化账户状态投影。

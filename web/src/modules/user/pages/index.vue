@@ -611,6 +611,7 @@ import {
   ManagementPageContent,
   ManagementPageHeader,
   ManagementStatisticsBar,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -710,6 +711,7 @@ const INITIAL_USER_FORM: UserFormState = {
 };
 
 const DEFAULT_VISIBLE_COLUMNS = ['row-select', 'user', 'status', 'roles', 'last_login_at', 'updated_at', 'operation'];
+const STRUCTURAL_USER_COLUMN_KEYS = ['row-select'];
 const userColumnSets = {
   compact: ['row-select', 'user', 'status', 'operation'],
 };
@@ -808,6 +810,36 @@ const userPermissionCodes = USER_PERMISSION_CODE;
 const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
 const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
+const columnSettingOptions = computed(() => [
+  { label: t('user.userList.columns.user'), value: 'user' },
+  { label: t('user.userList.columns.status'), value: 'status' },
+  { label: t('user.userList.columns.roles'), value: 'roles' },
+  { label: t('user.userList.columns.lastLoginAt'), value: 'last_login_at' },
+  { label: t('user.userList.columns.createdAt'), value: 'created_at' },
+  { label: t('user.userList.columns.updatedAt'), value: 'updated_at' },
+  { label: t('components.commonTable.operation'), value: 'operation' },
+]);
+const supportedUserColumnKeys = computed(() =>
+  hasVisibleUserOperationActions()
+    ? columnSettingOptions.value.map((column) => column.value)
+    : columnSettingOptions.value.filter((column) => column.value !== 'operation').map((column) => column.value),
+);
+watch(
+  [visibleColumnKeys, supportedUserColumnKeys],
+  ([keys]) => {
+    const normalizedKeys = [
+      ...STRUCTURAL_USER_COLUMN_KEYS,
+      ...normalizeManagedColumnKeys(
+        keys.filter((key) => !STRUCTURAL_USER_COLUMN_KEYS.includes(key)),
+        supportedUserColumnKeys.value,
+      ),
+    ];
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync', immediate: true },
+);
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
 const roleMutationPayload = computed(() => ({
   role_ids: roleMutationMode.value === 'replace' ? [...selectedRoleIds.value].sort((left, right) => left - right) : [],
@@ -981,16 +1013,6 @@ const batchRoleOperationHint = computed(() => {
 
   return t('user.userList.roleDialog.batchOperationHint.replace');
 });
-
-const columnSettingOptions = computed(() => [
-  { label: t('user.userList.columns.user'), value: 'user' },
-  { label: t('user.userList.columns.status'), value: 'status' },
-  { label: t('user.userList.columns.roles'), value: 'roles' },
-  { label: t('user.userList.columns.lastLoginAt'), value: 'last_login_at' },
-  { label: t('user.userList.columns.createdAt'), value: 'created_at' },
-  { label: t('user.userList.columns.updatedAt'), value: 'updated_at' },
-  { label: t('components.commonTable.operation'), value: 'operation' },
-]);
 
 const userStatistics = computed(() => {
   return [
@@ -1295,7 +1317,11 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     ? [...baseColumns, createActionColumn(t('components.commonTable.operation'), 160)]
     : baseColumns;
 
-  return buildVisibleColumns(allColumns, visibleColumnKeys.value) as TdBaseTableProps['columns'];
+  return buildVisibleColumns(
+    allColumns,
+    visibleColumnKeys.value,
+    STRUCTURAL_USER_COLUMN_KEYS,
+  ) as TdBaseTableProps['columns'];
 });
 
 const visibleColumns = computed(() => {

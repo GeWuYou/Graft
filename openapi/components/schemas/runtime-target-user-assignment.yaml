@@ -16,3 +16,12 @@ properties:
     type: integer
     format: int64
     minimum: 0
+  username:
+    type: string
+    description: Current username when the assigned user remains available.
+  display:
+    type: string
+    description: Current display name when the assigned user remains available.
+  status:
+    type: string
+    description: Current account status when the assigned user remains available.

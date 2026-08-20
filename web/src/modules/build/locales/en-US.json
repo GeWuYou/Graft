@@ -6,6 +6,9 @@
       },
       "jobs": {
         "title": "Build Jobs"
+      },
+      "workspaces": {
+        "title": "Build Workspaces"
       }
     }
   },
@@ -99,6 +102,23 @@
       },
       "create": {
         "title": "Create Build Job",
+        "eyebrow": "Build",
+        "description": "Select the build source, execution strategy, and artifact destination, then track progress from Build Tasks.",
+        "sections": {
+          "source": {
+            "title": "Build source",
+            "description": "Select the authorized workspace for this build."
+          },
+          "execution": {
+            "title": "Execution configuration",
+            "description": "Choose the builder, template, driver, and target platforms."
+          },
+          "destination": {
+            "title": "Artifact publication",
+            "description": "Choose an authorized image repository and publication tag."
+          }
+        },
+        "back": "Back to Build Tasks",
         "submit": "Submit build",
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",
@@ -106,15 +126,22 @@
         "workspaceId": "Workspace ID",
         "workspaceIdRequired": "Workspace ID is required.",
         "workspacePlaceholder": "Select a Build workspace",
+        "createWorkspace": "Create Build workspace",
+        "workspaceEmpty": "No build workspace is available. Create one or check its sharing scope.",
+        "workspaceLoadFailed": "Unable to load build workspaces.",
         "runtimeTarget": "Build runtime target",
         "runtimeTargetRequired": "Build runtime target is required.",
         "runtimeTargetPlaceholder": "Select a build-capable Runtime Target",
+        "runtimeTargetEmpty": "No runtime target is available for builds. Check access, availability, and image-build capability.",
+        "runtimeTargetLoadFailed": "Unable to load build-capable runtime targets.",
         "builderSelection": "Builder selection",
         "runtimeTargetMode": "Select a Runtime Target",
         "builderPoolMode": "Use a Builder Pool",
         "builderPool": "Builder Pool",
         "builderPoolRequired": "Builder Pool is required.",
         "builderPoolPlaceholder": "Select a Builder Pool",
+        "builderPoolEmpty": "No builder pool is available. Check pool members, access, and runtime status.",
+        "builderPoolLoadFailed": "Unable to load builder pools.",
         "builderPoolPolicy": {
           "manual": "Manual",
           "roundRobin": "Round Robin",
@@ -124,8 +151,6 @@
           "affinity": "Affinity"
         },
         "selectorsUnavailable": "Build selectors are unavailable until the Build read API is configured.",
-        "selectorsLoadFailed": "Unable to load Build selectors.",
-        "selectorsEmpty": "No authorized Build workspace and builder options are available.",
         "template": "Build template",
         "driver": "Build driver",
         "driverOptions": {
@@ -135,6 +160,8 @@
         "platforms": "Target platforms",
         "platformsRequired": "Select at least one target platform.",
         "multiPlatformDriverRequired": "Multi-platform builds require the Docker Buildx driver.",
+        "arm64PoolHint": "Select “Use a Builder Pool” before building for ARM64.",
+        "arm64BuildxRequired": "ARM64 or multi-platform builds require Docker Buildx.",
         "contextPath": "Build context path",
         "contextPathRequired": "Build context path is required.",
         "dockerfilePath": "Dockerfile path",
@@ -150,6 +177,47 @@
         "addRegistry": "Add Image Registry",
         "tag": "Image tag",
         "tagRequired": "Image tag is required."
+      }
+    },
+    "workspaces": {
+      "title": "Build Workspaces",
+      "eyebrow": "Build",
+      "description": "Register reusable application workspace sources for build jobs.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "summary": "{count} workspaces",
+      "empty": "No Build workspaces yet",
+      "emptyDescription": "Create a workspace before selecting an application source for a build job.",
+      "loadFailed": "Unable to load Build workspaces.",
+      "applicationLoadFailed": "Unable to load source applications; the original workspace reference is retained.",
+      "applicationUnavailable": "Application #{id} / unavailable account",
+      "sourceKinds": {
+        "application_workspace": "Application workspace"
+      },
+      "columns": {
+        "name": "Name",
+        "sourceKind": "Source type",
+        "sourceApplication": "Source application",
+        "retentionPolicy": "Retention policy",
+        "createdAt": "Created",
+        "updatedAt": "Updated"
+      },
+      "create": {
+        "title": "Create Build workspace",
+        "description": "Register a reusable source from an existing application; the server owns the frozen workspace facts used by Build.",
+        "name": "Workspace name",
+        "namePlaceholder": "For example: Orders service build source",
+        "nameRequired": "Workspace name is required.",
+        "application": "Source application",
+        "applicationPlaceholder": "Select an existing application",
+        "applicationHelp": "Only applications available to the current account can be selected; the server resolves the source path.",
+        "applicationRequired": "Select a source application.",
+        "applicationEmpty": "No applications are available. Create one or check application access.",
+        "applicationLoadFailed": "Unable to load available applications.",
+        "manageApplications": "Manage applications",
+        "back": "Back to Build Workspaces",
+        "submit": "Create workspace",
+        "submitFailed": "Unable to create Build workspace."
       }
     }
   }

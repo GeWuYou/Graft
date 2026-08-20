@@ -1,4 +1,5 @@
 menu.build.jobs.title: Build Jobs
+menu.build.workspaces.title: Build Workspaces
 rbac.permissionCatalog.buildRead.display: Build Read
 rbac.permissionCatalog.buildRead.description: Allows reading build jobs and Task status.
 rbac.permissionCatalog.buildCreate.display: Create Build

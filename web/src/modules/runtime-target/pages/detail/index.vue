@@ -98,81 +98,103 @@
           <t-alert v-if="assignmentError" theme="error" :message="assignmentError" class="runtime-target-feedback" />
           <div class="runtime-target-assignment-actions">
             <span>{{ t('runtimeTarget.detail.authorizedUsersHint') }}</span>
-            <t-button
-              variant="outline"
-              :loading="assignmentsLoading || candidatesLoading || assignmentsSaving"
-              @click="openAssignmentDialog"
-            >
+            <t-button variant="outline" :loading="assignmentsLoading" @click="assignmentDialogVisible = true">
               {{ t('runtimeTarget.detail.changeAuthorizedUsers') }}
             </t-button>
+          </div>
+          <t-table
+            class="runtime-target-assignment-table"
+            row-key="user_id"
+            :columns="assignmentColumns"
+            :data="pagedAssignments"
+            :loading="assignmentsLoading"
+          >
+            <template #user="{ row }">
+              {{ assignmentDisplay(row) }}
+            </template>
+            <template #username="{ row }">
+              {{ assignmentUsername(row) }}
+            </template>
+            <template #accountStatus="{ row }">
+              <t-tag :theme="accountStatusTheme(row)" variant="light">{{ accountStatusLabel(row) }}</t-tag>
+            </template>
+            <template #authorizationStatus="{ row }">
+              <t-tag :theme="row.authorizationState === 'active' ? 'success' : 'default'" variant="light">
+                {{
+                  row.authorizationState === 'active'
+                    ? t('runtimeTarget.detail.authorizationActive')
+                    : t('runtimeTarget.detail.authorizationRevoked')
+                }}
+              </t-tag>
+            </template>
+            <template #authorizedAt="{ row }">
+              {{ formatLocaleDateTime(row.created_at, locale) }}
+            </template>
+            <template #operation="{ row }">
+              <t-button
+                size="small"
+                :theme="row.authorizationState === 'active' ? 'danger' : 'primary'"
+                variant="text"
+                :loading="assignmentChangingUserId === row.user_id"
+                @click="toggleAssignment(row)"
+              >
+                {{
+                  row.authorizationState === 'active'
+                    ? t('runtimeTarget.detail.revokeAuthorization')
+                    : t('runtimeTarget.detail.restoreAuthorization')
+                }}
+              </t-button>
+            </template>
+            <template #empty>
+              <t-empty :title="t('runtimeTarget.detail.authorizedUsersEmpty')" />
+            </template>
+          </t-table>
+          <div v-if="assignmentRows.length" class="runtime-target-assignment-pagination">
+            <t-pagination
+              v-model:current="assignmentPagination.current"
+              v-model:page-size="assignmentPagination.pageSize"
+              :page-size-options="[5, 10, 20]"
+              :total="assignmentRows.length"
+              :total-content="false"
+              @change="normalizeAssignmentPage"
+            />
           </div>
         </t-card>
       </template>
       <t-empty v-else :title="t('runtimeTarget.detail.notFound')" />
     </management-page-content>
-    <paged-multi-select
+    <runtime-target-assignment-dialog
       v-model:visible="assignmentDialogVisible"
-      v-model:current="candidatePagination.current"
-      v-model:keyword="candidateSearch"
-      v-model:page-size="candidatePagination.pageSize"
-      v-model:selection="assignmentSelection"
-      :cancel-label="t('runtimeTarget.detail.cancel')"
-      :cell-slot-names="['authorizationState']"
-      :columns="candidateColumns"
-      :confirm-label="t('runtimeTarget.detail.saveAuthorizedUsers')"
-      :confirm-loading="assignmentsSaving || candidatesLoading"
-      confirm-without-selection
-      :empty-description="t('runtimeTarget.detail.candidatesEmpty')"
-      :empty-title="t('runtimeTarget.detail.candidatesEmpty')"
-      :error-message="assignmentError"
-      :loading="candidatesLoading"
-      row-key="id"
-      :rows="assignmentCandidates"
-      :search="{
-        placeholder: t('runtimeTarget.detail.candidateSearchPlaceholder'),
-        clearLabel: t('runtimeTarget.detail.clearSearch'),
-      }"
-      :selected-count-label="(count) => t('runtimeTarget.detail.selectedUsers', { count })"
-      :title="t('runtimeTarget.detail.selectAuthorizedUsersTitle')"
-      :total="candidateTotal"
-      :total-label="(count) => t('runtimeTarget.detail.candidateTotal', { count })"
-      @cancel="closeAssignmentDialog"
-      @confirm="saveAssignments"
-      @page-change="loadCandidates"
-      @search="searchCandidates"
-    >
-      <template #authorizationState="{ row }">
-        <t-tag v-if="initialAssignmentUserIds.has(Number(row.id))" theme="success" variant="light">
-          {{ t('runtimeTarget.detail.alreadyAuthorized') }}
-        </t-tag>
-        <span v-else class="runtime-target-assignment-state-empty">-</span>
-      </template>
-    </paged-multi-select>
+      :target-id="targetID"
+      @saved="applyDialogAssignments"
+    />
   </div>
 </template>
 <script setup lang="ts">
 // 详情页展示 provider-owned 运行时投影；刷新只请求后端重新探测，不在前端改写运行时事实。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
+import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, defineComponent, h, onMounted, type PropType, ref } from 'vue';
+import { computed, defineComponent, h, onMounted, type PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { useLocale } from '@/locales/useLocale';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
-import { createExplicitSelection, type ExplicitSelection, PagedMultiSelect } from '@/shared/components/selection';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { getPermissionStore } from '@/store/modules/permission';
+import { isApiRequestError } from '@/utils/request';
 
 import {
   getRuntimeTarget,
-  getRuntimeTargetAssignmentCandidates,
   getRuntimeTargetAssignments,
   refreshRuntimeTarget,
   replaceRuntimeTargetAssignments,
+  type RuntimeTargetAssignment,
   type RuntimeTargetDetail,
   type RuntimeTargetUsageMetric,
 } from '../../api/runtime-target';
+import RuntimeTargetAssignmentDialog from '../../components/RuntimeTargetAssignmentDialog.vue';
 
 const { t } = useI18n();
 const { locale } = useLocale();
@@ -184,24 +206,42 @@ const errorMessage = ref('');
 const targetID = computed(() => Number(route.params.id));
 const permissionStore = getPermissionStore();
 const canManageAssignments = computed(() => permissionStore.hasPermission('runtime_target.assignment.manage'));
-type AssignmentCandidate = Awaited<ReturnType<typeof getRuntimeTargetAssignmentCandidates>>['items'][number];
-const assignmentCandidates = ref<AssignmentCandidate[]>([]);
-const candidateTotal = ref(0);
-const candidateSearch = ref('');
-const candidatePagination = ref({ current: 1, pageSize: 20 });
-const assignmentSelection = ref<ExplicitSelection<number>>(createExplicitSelection());
-const initialAssignmentUserIds = ref(new Set<number>());
+type AssignmentRow = RuntimeTargetAssignment & { authorizationState: 'active' | 'revoked' };
+const activeAssignments = ref<RuntimeTargetAssignment[]>([]);
+// 已撤销行仅属于当前详情实例，用于支持即时反悔；重新进入页面时完全以服务端有效授权为准。
+const revokedAssignments = ref(new Map<number, RuntimeTargetAssignment>());
+const assignmentOrder = ref<number[]>([]);
 const assignmentRevision = ref(1);
 const assignmentDialogVisible = ref(false);
 const assignmentsLoading = ref(false);
-const candidatesLoading = ref(false);
-const assignmentsSaving = ref(false);
+const assignmentChangingUserId = ref<number | null>(null);
 const assignmentError = ref('');
-const candidateColumns = computed(() => [
-  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'display', title: t('runtimeTarget.detail.candidateUser'), minWidth: 180 },
-  { colKey: 'username', title: t('runtimeTarget.detail.candidateUsername'), minWidth: 150 },
-  { colKey: 'authorizationState', title: t('runtimeTarget.detail.authorizationState'), width: 120 },
+const assignmentPagination = reactive({ current: 1, pageSize: 5 });
+const assignmentRows = computed<AssignmentRow[]>(() => {
+  const activeByID = new Map(activeAssignments.value.map((item) => [item.user_id, item]));
+  const rows: AssignmentRow[] = [];
+  assignmentOrder.value.forEach((userID) => {
+    const active = activeByID.get(userID);
+    if (active) {
+      rows.push({ ...active, authorizationState: 'active' });
+      return;
+    }
+    const revoked = revokedAssignments.value.get(userID);
+    if (revoked) rows.push({ ...revoked, authorizationState: 'revoked' });
+  });
+  return rows;
+});
+const pagedAssignments = computed(() => {
+  const start = (assignmentPagination.current - 1) * assignmentPagination.pageSize;
+  return assignmentRows.value.slice(start, start + assignmentPagination.pageSize);
+});
+const assignmentColumns = computed<TableProps['columns']>(() => [
+  { colKey: 'user', title: t('runtimeTarget.detail.assignmentUser'), minWidth: 150 },
+  { colKey: 'username', title: t('runtimeTarget.detail.assignmentUsername'), minWidth: 150 },
+  { colKey: 'accountStatus', title: t('runtimeTarget.detail.accountStatus'), width: 120 },
+  { colKey: 'authorizationStatus', title: t('runtimeTarget.detail.authorizationState'), width: 120 },
+  { colKey: 'authorizedAt', title: t('runtimeTarget.detail.authorizedAt'), minWidth: 180 },
+  { colKey: 'operation', title: t('runtimeTarget.detail.operation'), width: 120, fixed: 'right' },
 ]);
 type DockerProviderDetailsData = RuntimeTargetDetail['providerDetails']['docker'];
 
@@ -253,73 +293,99 @@ async function load() {
 }
 async function loadAssignments() {
   assignmentsLoading.value = true;
-  candidatesLoading.value = true;
   assignmentError.value = '';
   try {
     const assignments = await getRuntimeTargetAssignments(targetID.value);
-    assignmentRevision.value = assignments.revision;
-    initialAssignmentUserIds.value = new Set(assignments.items.map((item) => item.user_id));
-    assignmentSelection.value = createExplicitSelection(assignments.items.map((item) => item.user_id));
+    replaceVisibleAssignments(assignments.items, assignments.revision, true);
   } catch {
     assignmentError.value = t('runtimeTarget.detail.authorizedUsersLoadError');
   } finally {
     assignmentsLoading.value = false;
-    candidatesLoading.value = false;
   }
 }
-function openAssignmentDialog() {
-  candidateSearch.value = '';
-  candidatePagination.value.current = 1;
-  assignmentDialogVisible.value = true;
-  void loadCandidates();
+
+function replaceVisibleAssignments(items: RuntimeTargetAssignment[], revision: number, resetRevoked: boolean) {
+  activeAssignments.value = items;
+  assignmentRevision.value = revision;
+  if (resetRevoked) revokedAssignments.value = new Map();
+  const knownIDs = new Set(assignmentOrder.value);
+  const nextIDs = items.map((item) => item.user_id);
+  assignmentOrder.value = resetRevoked
+    ? nextIDs
+    : [...assignmentOrder.value.filter((id) => knownIDs.has(id)), ...nextIDs.filter((id) => !knownIDs.has(id))];
+  normalizeAssignmentPage();
 }
-function closeAssignmentDialog() {
-  if (assignmentsSaving.value) return;
-  assignmentDialogVisible.value = false;
-  assignmentSelection.value = createExplicitSelection([...initialAssignmentUserIds.value]);
+
+function applyDialogAssignments(result: { items: RuntimeTargetAssignment[]; revision: number }) {
+  const nextIDs = new Set(result.items.map((item) => item.user_id));
+  const nextRevoked = new Map(revokedAssignments.value);
+  activeAssignments.value.forEach((item) => {
+    if (!nextIDs.has(item.user_id)) nextRevoked.set(item.user_id, item);
+  });
+  result.items.forEach((item) => nextRevoked.delete(item.user_id));
+  revokedAssignments.value = nextRevoked;
+  replaceVisibleAssignments(result.items, result.revision, false);
 }
-async function loadCandidates() {
-  if (!Number.isInteger(targetID.value) || targetID.value <= 0) return;
-  candidatesLoading.value = true;
-  try {
-    const result = await getRuntimeTargetAssignmentCandidates(targetID.value, {
-      search: candidateSearch.value.trim() || undefined,
-      limit: candidatePagination.value.pageSize,
-      offset: (candidatePagination.value.current - 1) * candidatePagination.value.pageSize,
-    });
-    assignmentCandidates.value = result.items;
-    candidateTotal.value = result.total;
-  } catch {
-    assignmentError.value = t('runtimeTarget.detail.authorizedUsersLoadError');
-  } finally {
-    candidatesLoading.value = false;
-  }
+
+function normalizeAssignmentPage() {
+  const lastPage = Math.max(1, Math.ceil(assignmentRows.value.length / assignmentPagination.pageSize));
+  assignmentPagination.current = Math.min(assignmentPagination.current, lastPage);
 }
-function searchCandidates() {
-  candidatePagination.value.current = 1;
-  void loadCandidates();
+
+function assignmentDisplay(row: AssignmentRow) {
+  return row.display?.trim() || row.username?.trim() || t('runtimeTarget.detail.missingUser', { id: row.user_id });
 }
-async function saveAssignments() {
+
+function assignmentUsername(row: AssignmentRow) {
+  return row.username?.trim() || t('runtimeTarget.detail.accountUnavailable');
+}
+
+function accountStatusLabel(row: AssignmentRow) {
+  if (!row.username) return t('runtimeTarget.detail.accountUnavailable');
+  if (row.status === 'enabled') return t('runtimeTarget.detail.accountEnabled');
+  if (row.status === 'disabled') return t('runtimeTarget.detail.accountDisabled');
+  return t('runtimeTarget.detail.accountStatusUnknown');
+}
+
+function accountStatusTheme(row: AssignmentRow) {
+  if (!row.username) return 'default';
+  if (row.status === 'enabled') return 'success';
+  if (row.status === 'disabled') return 'danger';
+  return 'warning';
+}
+
+async function toggleAssignment(row: AssignmentRow) {
+  if (assignmentChangingUserId.value !== null) return;
+  const activeUserIDs = activeAssignments.value.map((item) => item.user_id);
+  const nextUserIDs =
+    row.authorizationState === 'active'
+      ? activeUserIDs.filter((userID) => userID !== row.user_id)
+      : [...activeUserIDs, row.user_id];
+  assignmentChangingUserId.value = row.user_id;
   assignmentError.value = '';
-  const selectedUserIds = Array.from(assignmentSelection.value.selectedIds).map(Number);
-  if (
-    selectedUserIds.length === initialAssignmentUserIds.value.size &&
-    selectedUserIds.every((id) => initialAssignmentUserIds.value.has(id))
-  ) {
-    closeAssignmentDialog();
-    return;
-  }
-  assignmentsSaving.value = true;
   try {
-    const result = await replaceRuntimeTargetAssignments(targetID.value, selectedUserIds, assignmentRevision.value);
-    assignmentRevision.value = result.revision;
-    initialAssignmentUserIds.value = new Set(selectedUserIds);
-    MessagePlugin.success(t('runtimeTarget.detail.authorizedUsersSaveSuccess'));
-    closeAssignmentDialog();
-  } catch {
-    assignmentError.value = t('runtimeTarget.detail.authorizedUsersSaveError');
+    const result = await replaceRuntimeTargetAssignments(targetID.value, nextUserIDs, assignmentRevision.value);
+    const nextRevoked = new Map(revokedAssignments.value);
+    if (row.authorizationState === 'active') nextRevoked.set(row.user_id, row);
+    else nextRevoked.delete(row.user_id);
+    revokedAssignments.value = nextRevoked;
+    replaceVisibleAssignments(result.items, result.revision, false);
+    MessagePlugin.success(
+      t(
+        row.authorizationState === 'active'
+          ? 'runtimeTarget.detail.authorizationRevokeSuccess'
+          : 'runtimeTarget.detail.authorizationRestoreSuccess',
+      ),
+    );
+  } catch (error) {
+    if (isApiRequestError(error) && error.status === 409) {
+      await loadAssignments();
+      assignmentError.value = t('runtimeTarget.detail.authorizationConflict');
+    } else {
+      assignmentError.value = t('runtimeTarget.detail.authorizationChangeError');
+    }
   } finally {
-    assignmentsSaving.value = false;
+    assignmentChangingUserId.value = null;
   }
 }
 async function refresh() {
@@ -352,10 +418,6 @@ onMounted(() => void load());
   margin-top: var(--td-comp-margin-l);
 }
 
-.runtime-target-assignment-select {
-  width: 100%;
-}
-
 .runtime-target-assignment-actions {
   align-items: center;
   display: flex;
@@ -368,8 +430,14 @@ onMounted(() => void load());
   color: var(--td-text-color-secondary);
 }
 
-.runtime-target-assignment-state-empty {
-  color: var(--td-text-color-placeholder);
+.runtime-target-assignment-table {
+  margin-top: var(--td-comp-margin-l);
+}
+
+.runtime-target-assignment-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--td-comp-margin-l);
 }
 
 @media (width <= 640px) {

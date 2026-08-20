@@ -8739,7 +8739,10 @@ type BuildWorkspaceCreateRequestSourceKind string
 
 // BuildWorkspaceList defines model for build-workspace-list.
 type BuildWorkspaceList struct {
-	Items []BuildWorkspace `json:"items"`
+	Items  []BuildWorkspace `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int64            `json:"total"`
 }
 
 // CapabilityCategory defines model for capability-category.
@@ -14543,8 +14546,17 @@ type RuntimeTargetUsageMetric struct {
 type RuntimeTargetUserAssignment struct {
 	CreatedAt time.Time `json:"created_at"`
 	CreatedBy *int64    `json:"created_by,omitempty"`
-	TargetId  int64     `json:"target_id"`
-	UserId    int64     `json:"user_id"`
+
+	// Display Current display name when the assigned user remains available.
+	Display *string `json:"display,omitempty"`
+
+	// Status Current account status when the assigned user remains available.
+	Status   *string `json:"status,omitempty"`
+	TargetId int64   `json:"target_id"`
+	UserId   int64   `json:"user_id"`
+
+	// Username Current username when the assigned user remains available.
+	Username *string `json:"username,omitempty"`
 }
 
 // RuntimeTargetUserAssignmentListResponse defines model for runtime-target-user-assignment-list-response.
@@ -16762,6 +16774,22 @@ type PostBuildJobParams struct {
 
 // GetBuildJobParams defines parameters for GetBuildJob.
 type GetBuildJobParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetBuildWorkspacesParams defines parameters for GetBuildWorkspaces.
+type GetBuildWorkspacesParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Search Optional case-insensitive search over Workspace name, identifier, and source reference.
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

@@ -381,20 +381,50 @@ func TestListWorkspacesScopesToCallerAndSharedSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT workspace_id, display_name, source_kind, source_reference").WithArgs(uint64(7)).WillReturnRows(
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM build_workspaces").WithArgs(uint64(7), "app").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectQuery("SELECT workspace_id, display_name, source_kind, source_reference").WithArgs(uint64(7), "app", 20, 20).WillReturnRows(
 		sqlmock.NewRows([]string{"workspace_id", "display_name", "source_kind", "source_reference", "retention_policy", "created_by", "created_at", "updated_at"}).
 			AddRow("workspace_shared", "Shared", moduleapi.WorkspaceSourceApplication, "app_shared", "workspace", nil, time.Now(), time.Now()).
 			AddRow("workspace_owned", "Owned", moduleapi.WorkspaceSourceGit, "git:main", "workspace", uint64(7), time.Now(), time.Now()),
 	)
-	items, err := repository.ListWorkspaces(context.Background(), 7)
+	search := "app"
+	result, err := repository.ListWorkspaces(context.Background(), 7, WorkspaceListQuery{Limit: 20, Offset: 20, Search: &search})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].ID != "workspace_shared" || items[1].CreatedBy != 7 {
-		t.Fatalf("unexpected workspace selector projection: %#v", items)
+	if result.Total != 2 || len(result.Items) != 2 || result.Items[0].ID != "workspace_shared" || result.Items[1].CreatedBy != 7 {
+		t.Fatalf("unexpected workspace selector projection: %#v", result)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestListWorkspacesEnforcesUnicodeSearchLimitBeforeQuery(t *testing.T) {
+	accepted := strings.Repeat("界", 255)
+	_, args, err := buildWorkspaceListFilter(7, &accepted)
+	if err != nil {
+		t.Fatalf("255-rune workspace query: %v", err)
+	}
+	if len(args) != 2 || args[1] != accepted {
+		t.Fatalf("255-rune workspace query arguments = %#v", args)
+	}
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected := strings.Repeat("界", 256)
+	if _, err := repository.ListWorkspaces(context.Background(), 7, WorkspaceListQuery{Search: &rejected}); err == nil || err.Error() != "invalid build workspace query" {
+		t.Fatalf("256-rune workspace query error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("over-limit workspace query reached SQL: %v", err)
 	}
 }
 

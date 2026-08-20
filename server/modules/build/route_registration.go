@@ -66,12 +66,17 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		httpx.WriteSuccess(c, http.StatusCreated, toBuildWorkspace(workspace))
 	})
 	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
-		items, listErr := service.ListWorkspaces(c.Request.Context(), requestUserID(c))
+		query, ok := buildWorkspaceListQuery(c)
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		result, listErr := service.ListWorkspaces(c.Request.Context(), requestUserID(c), query)
 		if listErr != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildWorkspaceList{Items: mapBuildWorkspaces(items)})
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildWorkspaceList{Items: mapBuildWorkspaces(result.Items), Total: result.Total, Limit: query.Limit, Offset: query.Offset})
 	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
@@ -272,6 +277,18 @@ func buildPaginationQuery(c *gin.Context) (buildstore.ListQuery, bool) {
 	return query, true
 }
 
+func buildWorkspaceListQuery(c *gin.Context) (buildstore.WorkspaceListQuery, bool) {
+	pagination, ok := buildPaginationQuery(c)
+	if !ok {
+		return buildstore.WorkspaceListQuery{}, false
+	}
+	search, ok := buildExactStringQuery(c, "search")
+	if !ok {
+		return buildstore.WorkspaceListQuery{}, false
+	}
+	return buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset, Search: search}, true
+}
+
 func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
 	search, ok := buildExactStringQuery(c, "search")
 	if !ok {
@@ -360,7 +377,7 @@ func buildExactStringQuery(c *gin.Context, key string) (*string, bool) {
 		return nil, true
 	}
 	value := strings.TrimSpace(raw)
-	if value == "" || len(value) > 255 {
+	if value == "" || utf8.RuneCountInString(value) > 255 {
 		return nil, false
 	}
 	return &value, true

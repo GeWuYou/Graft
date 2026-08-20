@@ -50,6 +50,7 @@ type Module struct {
 	savedViews      moduleapi.SavedViewService
 	users           moduleapi.UserIdentityProvider
 	candidates      moduleapi.UserCandidateReader
+	userSummaries   moduleapi.UserSummaryBatchReader
 }
 
 // NewModule 构造 runtime-target 模块实例。省略 pepper 时，Agent Bootstrap authority 保持未配置并拒绝引导请求。
@@ -86,6 +87,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	m.users = services.users
 	m.candidates = services.candidates
+	m.userSummaries = services.userSummaries
 	m.savedViews = services.savedViews
 	if err := m.configureRealtime(ctx, services.authorizer); err != nil {
 		return err
@@ -98,11 +100,12 @@ func (m *Module) Register(ctx *module.Context) error {
 }
 
 type registrationServices struct {
-	auth       moduleapi.AuthService
-	authorizer moduleapi.Authorizer
-	users      moduleapi.UserIdentityProvider
-	candidates moduleapi.UserCandidateReader
-	savedViews moduleapi.SavedViewService
+	auth          moduleapi.AuthService
+	authorizer    moduleapi.Authorizer
+	users         moduleapi.UserIdentityProvider
+	candidates    moduleapi.UserCandidateReader
+	userSummaries moduleapi.UserSummaryBatchReader
+	savedViews    moduleapi.SavedViewService
 }
 
 func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationServices, error) {
@@ -122,11 +125,15 @@ func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationS
 	if err != nil {
 		return registrationServices{}, err
 	}
+	userSummaries, err := module.ResolveService[moduleapi.UserSummaryBatchReader](ctx.Services, (*moduleapi.UserSummaryBatchReader)(nil))
+	if err != nil {
+		return registrationServices{}, err
+	}
 	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
 	if err != nil {
 		return registrationServices{}, err
 	}
-	return registrationServices{auth: auth, authorizer: authorizer, users: users, candidates: candidates, savedViews: savedViews}, nil
+	return registrationServices{auth: auth, authorizer: authorizer, users: users, candidates: candidates, userSummaries: userSummaries, savedViews: savedViews}, nil
 }
 
 //nolint:cyclop,gocyclo,gocognit // Runtime Target 在同一注册边界内装配公开读取器与 provider-owned build 能力。

@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref } from 'vue';
 
 import { REGISTRY_ROUTE_PATH } from '@/modules/registry/contract/paths';
 
+import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import BuildCreatePage from './index.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +37,29 @@ const WrapperStub = defineComponent({
     return () => h('div', [slots.default?.(), slots.operation?.()]);
   },
 });
+const AlertStub = defineComponent({
+  props: { message: { type: String, default: '' } },
+  setup(props, { slots }) {
+    return () => h('div', { 'data-testid': 'alert' }, [props.message, slots.message?.(), slots.operation?.()]);
+  },
+});
+const ManagementPageHeaderStub = defineComponent({
+  name: 'ManagementPageHeader',
+  props: {
+    descriptionKey: { type: String, default: '' },
+    source: { type: Object, default: () => ({}) },
+    titleKey: { type: String, default: '' },
+  },
+  setup(props) {
+    return () =>
+      h('header', {
+        'data-description-key': props.descriptionKey,
+        'data-source-key': (props.source as { labelKey?: string }).labelKey,
+        'data-testid': 'management-page-header',
+        'data-title-key': props.titleKey,
+      });
+  },
+});
 const FormStub = defineComponent({
   emits: ['submit'],
   setup(_props, { emit, slots }) {
@@ -65,23 +89,38 @@ const InputStub = defineComponent({
 });
 const SelectStub = defineComponent({
   props: {
+    disabled: { type: Boolean, default: false },
+    filterable: { type: Boolean, default: false },
+    loading: { type: Boolean, default: false },
     modelValue: { type: [Number, String], default: '' },
     options: { type: Array, default: () => [] },
   },
-  emits: ['update:modelValue'],
+  emits: ['search', 'update:modelValue'],
   setup(props, { emit }) {
     return () =>
-      h(
-        'select',
-        {
-          value: props.modelValue,
-          'data-options': JSON.stringify(props.options),
-          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
-        },
-        (props.options as Array<{ label: string; value: string | number }>).map((option) =>
-          h('option', { value: option.value }, option.label),
+      h('div', [
+        h(
+          'select',
+          {
+            value: props.modelValue,
+            disabled: props.disabled,
+            'data-filterable': String(props.filterable),
+            'data-loading': String(props.loading),
+            'data-options': JSON.stringify(props.options),
+            onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          },
+          (props.options as Array<{ label: string; value: string | number }>).map((option) =>
+            h('option', { value: option.value }, option.label),
+          ),
         ),
-      );
+        props.filterable
+          ? h(
+              'button',
+              { type: 'button', 'data-testid': 'search-workspaces', onClick: () => emit('search', 'later') },
+              'search',
+            )
+          : null,
+      ]);
   },
 });
 const RadioGroupStub = defineComponent({
@@ -114,12 +153,14 @@ const CheckboxGroupStub = defineComponent({
     return () =>
       h(
         'div',
-        (props.options as Array<{ label: string; value: string }>).map((option) =>
+        (props.options as Array<{ disabled?: boolean; label: string; value: string }>).map((option) =>
           h(
             'button',
             {
               type: 'button',
               'data-platform': option.value,
+              'data-disabled': String(Boolean(option.disabled)),
+              disabled: option.disabled,
               onClick: () => {
                 const selected = new Set(props.modelValue as string[]);
                 if (selected.has(option.value)) selected.delete(option.value);
@@ -145,8 +186,11 @@ function mountPage() {
   return mount(BuildCreatePage, {
     global: {
       stubs: {
-        't-alert': WrapperStub,
+        ManagementPageContent: WrapperStub,
+        ManagementPageHeader: ManagementPageHeaderStub,
+        't-alert': AlertStub,
         't-button': ButtonStub,
+        't-card': WrapperStub,
         't-checkbox-group': CheckboxGroupStub,
         't-form': FormStub,
         't-form-item': WrapperStub,
@@ -158,6 +202,14 @@ function mountPage() {
       },
     },
   });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
 }
 
 describe('BuildCreatePage', () => {
@@ -188,15 +240,98 @@ describe('BuildCreatePage', () => {
     });
   });
 
+  it('aligns the shared header and form card on one bounded workflow surface with three ordered sections', () => {
+    const wrapper = mountPage();
+    const pageHeader = wrapper.get('[data-testid="management-page-header"]');
+    const formCard = wrapper.get('[data-testid="build-create-form-card"]');
+
+    expect(wrapper.attributes('data-page-type')).toBe('workflow');
+    expect(pageHeader.attributes()).toMatchObject({
+      'data-description-key': 'build.jobs.create.description',
+      'data-source-key': 'build.jobs.create.eyebrow',
+      'data-title-key': 'build.jobs.create.title',
+    });
+    expect(pageHeader.element.parentElement).toBe(formCard.element.parentElement);
+    expect(pageHeader.classes()).toContain('build-create-page__surface');
+    expect(formCard.classes()).toContain('build-create-page__surface');
+    expect(formCard.find('.build-create-page__form').exists()).toBe(true);
+    expect(
+      wrapper.findAll('[data-testid^="build-create-section-"]').map((section) => section.attributes('data-testid')),
+    ).toEqual(['build-create-section-source', 'build-create-section-execution', 'build-create-section-destination']);
+  });
+
   it('loads selector options through the Build-owned read boundary', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledWith({ limit: 20, offset: 0, search: undefined });
     expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildRegistryDestinations).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).not.toContain('selectorsUnavailable');
+  });
+
+  it('searches the bounded Workspace endpoint so options beyond the first page remain selectable', async () => {
+    vi.useFakeTimers();
+    mocks.getBuildWorkspaces
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_first', name: 'First' }], total: 51 })
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_later', name: 'Later' }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const workspaceSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-filterable') === 'true');
+    expect(workspaceSelect).toBeDefined();
+
+    await wrapper.get('[data-testid="search-workspaces"]').trigger('click');
+    vi.advanceTimersByTime(299);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(2, { limit: 20, offset: 0, search: 'later' });
+    expect(JSON.parse(workspaceSelect?.attributes('data-options') ?? '[]')).toEqual([
+      { label: 'Later', value: 'workspace_later' },
+    ]);
+    vi.useRealTimers();
+  });
+
+  it('invalidates an active Workspace request as soon as the search input changes', async () => {
+    vi.useFakeTimers();
+    const staleSearch = deferred<{ items: Array<{ workspace_id: string; name: string }> }>();
+    const currentSearch = deferred<{ items: Array<{ workspace_id: string; name: string }> }>();
+    mocks.getBuildWorkspaces
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_initial', name: 'Initial' }] })
+      .mockReturnValueOnce(staleSearch.promise)
+      .mockReturnValueOnce(currentSearch.promise);
+    const wrapper = mountPage();
+    await flushPromises();
+    const workspaceSelect = wrapper.findAllComponents(SelectStub).find((candidate) => candidate.props('filterable'));
+    expect(workspaceSelect).toBeDefined();
+
+    workspaceSelect?.vm.$emit('search', 'stale');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(2);
+
+    workspaceSelect?.vm.$emit('search', 'current');
+    staleSearch.resolve({ items: [{ workspace_id: 'workspace_stale', name: 'Stale' }] });
+    await flushPromises();
+    expect(workspaceSelect?.props('options')).toEqual([{ label: 'Initial', value: 'workspace_initial' }]);
+    expect(workspaceSelect?.props('loading')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(3, {
+      limit: 20,
+      offset: 0,
+      search: 'current',
+    });
+    currentSearch.resolve({ items: [{ workspace_id: 'workspace_current', name: 'Current' }] });
+    await flushPromises();
+    expect(workspaceSelect?.props('options')).toEqual([{ label: 'Current', value: 'workspace_current' }]);
+    expect(workspaceSelect?.props('loading')).toBe(false);
+    vi.useRealTimers();
   });
 
   it('uses only assigned Registry destinations for the connection and repository selectors', async () => {
@@ -298,11 +433,29 @@ describe('BuildCreatePage', () => {
     ]);
   });
 
-  it('moves a multi-platform submission to Buildx and a Builder Pool', async () => {
+  it('keeps ARM64 disabled without switching away from a direct runtime target', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const arm64 = wrapper.get('button[data-platform="linux/arm64"]');
+    expect(arm64.attributes('disabled')).toBeDefined();
+    expect(arm64.attributes('data-disabled')).toBe('true');
+    await arm64.trigger('click');
+    await nextTick();
+
+    expect(
+      wrapper.findAll('select').some((select) => select.attributes('data-options')?.includes('pool:default')),
+    ).toBe(false);
+    expect(wrapper.text()).toContain('build.jobs.create.arm64PoolHint');
+  });
+
+  it('uses Buildx for ARM64 only after the user explicitly chooses a Builder Pool', async () => {
     mocks.createBuildJob.mockResolvedValue({});
     const wrapper = mountPage();
     await flushPromises();
 
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await nextTick();
     await wrapper.get('button[data-platform="linux/arm64"]').trigger('click');
     await nextTick();
 
@@ -322,6 +475,94 @@ describe('BuildCreatePage', () => {
       }),
       expect.any(String),
     );
+  });
+
+  it('normalizes ARM64 and Buildx when switching back to a direct runtime target', async () => {
+    mocks.createBuildJob.mockResolvedValue({});
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await wrapper.get('button[data-platform="linux/arm64"]').trigger('click');
+    await wrapper.get('button[data-value="target"]').trigger('click');
+    await nextTick();
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    await targetSelect?.setValue('4');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.createBuildJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        builder_pool_id: undefined,
+        driver: 'docker-engine@v1',
+        platforms: ['linux/amd64'],
+        runtime_target_id: '4',
+      }),
+      expect.any(String),
+    );
+  });
+
+  it('keeps a populated runtime target enabled when no workspace is available', async () => {
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const workspaceSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-filterable') === 'true');
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(workspaceSelect?.attributes('disabled')).toBeUndefined();
+    expect(targetSelect?.attributes('disabled')).toBeUndefined();
+    expect(wrapper.text()).toContain('build.jobs.create.workspaceEmpty');
+  });
+
+  it('keeps a loaded runtime target usable while the workspace request is still pending', async () => {
+    let resolveWorkspaces: ((value: { items: Array<{ workspace_id: string; name: string }> }) => void) | undefined;
+    mocks.getBuildWorkspaces.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkspaces = resolve;
+        }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const runtimeTargetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(runtimeTargetSelect?.attributes('disabled')).toBeUndefined();
+    expect(runtimeTargetSelect?.attributes('data-loading')).toBe('false');
+
+    resolveWorkspaces?.({ items: [] });
+    await flushPromises();
+  });
+
+  it('reports target and pool availability independently', async () => {
+    mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [] });
+    mocks.getBuildBuilderPools.mockResolvedValue({ items: [] });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('build.jobs.create.runtimeTargetEmpty');
+    expect(wrapper.text()).not.toContain('build.jobs.create.builderPoolEmpty');
+
+    await wrapper.get('button[data-value="pool"]').trigger('click');
+    await nextTick();
+    expect(wrapper.text()).toContain('build.jobs.create.builderPoolEmpty');
+  });
+
+  it('renders an empty direct target value instead of the sentinel zero', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const targetSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(targetSelect?.element.value).toBe('');
   });
 
   it('reuses the idempotency key when an unchanged failed form is retried', async () => {
@@ -351,5 +592,16 @@ describe('BuildCreatePage', () => {
       ?.trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith(REGISTRY_ROUTE_PATH.LIST);
+  });
+
+  it('returns to the Build Tasks list from the secondary action', async () => {
+    const wrapper = mountPage();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('build.jobs.create.back'))
+      ?.trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith(BUILD_ROUTE_PATH.JOBS);
   });
 });

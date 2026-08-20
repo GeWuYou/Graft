@@ -600,6 +600,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -749,6 +750,15 @@ type RolePageSnapshot = {
 };
 
 const DEFAULT_VISIBLE_COLUMNS = ['role', 'builtin', 'permission_count', 'user_count', 'updated_at', 'operation'];
+const SUPPORTED_ROLE_COLUMN_KEYS = [
+  'role',
+  'builtin',
+  'permission_count',
+  'user_count',
+  'remark',
+  'updated_at',
+  'operation',
+];
 
 const INITIAL_ROLE_FORM: RoleFormState = {
   description: '',
@@ -766,6 +776,16 @@ const filters = ref<RoleFilters>({
 });
 const appliedFilters = ref<RoleFilters>({ ...filters.value });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, SUPPORTED_ROLE_COLUMN_KEYS);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
+);
 const roleDrawerVisible = ref(false);
 const roleDrawerMode = ref<RoleDrawerMode>('create');
 const roleDrawerRole = ref<RoleStatusCompat | null>(null);

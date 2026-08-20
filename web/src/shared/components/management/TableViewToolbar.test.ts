@@ -66,6 +66,7 @@ describe('TableViewToolbar', () => {
 
     expect(wrapper.text()).toContain('Refresh');
     expect(wrapper.text()).toContain('Columns');
+    expect(wrapper.text()).toContain('Density');
     expect(wrapper.emitted('refresh')).toHaveLength(1);
     expect(wrapper.emitted('column-settings')).toHaveLength(1);
     expect(wrapper.emitted('density')).toHaveLength(1);

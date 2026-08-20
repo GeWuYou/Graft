@@ -63,7 +63,7 @@
               @refresh="load"
             />
           </template>
-          <template v-if="selectedTargetIds.length" #batch>
+          <template v-if="canManageAssignments && selectedTargetIds.length" #batch>
             <management-batch-bar
               :selected-label="t('runtimeTarget.list.batchSelected', { count: selectedTargetIds.length })"
               :clear-label="t('runtimeTarget.list.cancel')"
@@ -147,9 +147,10 @@
                     </dd>
                   </div>
                 </dl>
-                <router-link class="runtime-target-card__detail" :to="runtimeTargetDetailPath(row.id)">
-                  {{ t('runtimeTarget.list.viewDetail') }}
-                </router-link>
+                <table-action-menu
+                  :actions="runtimeTargetRowActions"
+                  @action="handleRuntimeTargetRowAction($event, row.id)"
+                />
               </article>
             </template>
             <t-table
@@ -160,6 +161,12 @@
               :selected-row-keys="selectedTargetIds"
               @select-change="handleTargetSelectionChange"
             >
+              <template #operation="{ row }">
+                <table-action-menu
+                  :actions="runtimeTargetRowActions"
+                  @action="handleRuntimeTargetRowAction($event, row.id)"
+                />
+              </template>
               <template #empty>
                 <t-empty
                   :title="t('runtimeTarget.list.emptyTitle')"
@@ -277,10 +284,16 @@
         </t-tag>
       </template>
     </paged-multi-select>
+    <runtime-target-assignment-dialog
+      v-if="canManageAssignments"
+      v-model:visible="assignmentDialogVisible"
+      :target-id="assignmentDialogTargetId"
+      @saved="assignmentDialogVisible = false"
+    />
   </div>
 </template>
 <script setup lang="ts">
-// 列表页负责运行目标的发现、列表状态与批量授权；详情数据和单目标授权由详情路由独立加载。
+// 列表页负责运行目标发现、列表状态和批量授权；单目标授权复用模块组件，不复制候选与 revision 状态机。
 import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { PrimaryTableCol, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
@@ -307,6 +320,7 @@ import {
   ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
+  TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
@@ -325,6 +339,7 @@ import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue'
 import { createExplicitSelection, type ExplicitSelection, PagedMultiSelect } from '@/shared/components/selection';
 import { formatBytes } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import { getPermissionStore } from '@/store/modules/permission';
 
 import {
   applyRuntimeTargetAssignmentBatch,
@@ -340,6 +355,7 @@ import {
   type RuntimeTargetAssignmentCandidate,
   type RuntimeTargetUsageMetric,
 } from '../../api/runtime-target';
+import RuntimeTargetAssignmentDialog from '../../components/RuntimeTargetAssignmentDialog.vue';
 import { runtimeTargetDetailPath } from '../../contract/paths';
 import { parseRuntimeTargetSummaryPayload } from '../../contract/realtime';
 
@@ -349,6 +365,8 @@ type MetricChanges = Record<'cpu' | 'memory' | 'storage', Change>;
 const CHANGE_HIGHLIGHT_MS = 800;
 const route = useRoute();
 const router = useRouter();
+const permissionStore = getPermissionStore();
+const canManageAssignments = computed(() => permissionStore.hasPermission('runtime_target.assignment.manage'));
 const loading = ref(false);
 const discovering = ref(false);
 const errorMessage = ref('');
@@ -357,6 +375,8 @@ const total = ref(0);
 const summary = ref({ total: 0, healthy: 0, unavailable: 0 });
 const pagination = reactive({ current: 1, pageSize: 10 });
 const selectedTargetIds = ref<number[]>([]);
+const assignmentDialogVisible = ref(false);
+const assignmentDialogTargetId = ref<number | null>(null);
 const batchAuthorizationDialogVisible = ref(false);
 const batchAuthorizationRevokeDialogVisible = ref(false);
 const batchAuthorizationLoading = ref(false);
@@ -736,13 +756,44 @@ const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
 const tableColumns = computed(
   () =>
     [
-      { colKey: 'row-select', type: 'multiple' as const, width: 48 },
+      ...(canManageAssignments.value ? [{ colKey: 'row-select', type: 'multiple' as const, width: 48 }] : []),
       ...columns.value.filter((column) => visibleColumnKeys.value.includes(String(column.colKey))),
+      {
+        colKey: 'operation',
+        title: t('runtimeTarget.list.operation'),
+        width: 160,
+        fixed: 'right' as const,
+      },
     ] as unknown as PrimaryTableCol[],
 );
 
 function handleTargetSelectionChange(keys: Array<string | number>) {
+  if (!canManageAssignments.value) return;
   selectedTargetIds.value = keys.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function openAssignmentDialog(targetId: number) {
+  if (!canManageAssignments.value) return;
+  assignmentDialogTargetId.value = targetId;
+  assignmentDialogVisible.value = true;
+}
+
+const runtimeTargetRowActions = computed(() => [
+  { label: t('runtimeTarget.list.viewDetail'), value: 'detail' },
+  ...(canManageAssignments.value
+    ? [{ label: t('runtimeTarget.list.changeAuthorization'), value: 'change-authorization' }]
+    : []),
+]);
+
+function handleRuntimeTargetRowAction(action: string, targetId: number) {
+  if (action === 'detail') {
+    void router.push(runtimeTargetDetailPath(targetId));
+    return;
+  }
+
+  if (action === 'change-authorization') {
+    openAssignmentDialog(targetId);
+  }
 }
 
 function openBatchAuthorization() {
@@ -1239,22 +1290,5 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--graft-density-gap-4);
   min-width: 0;
-}
-
-.runtime-target-card__detail {
-  align-items: center;
-  color: var(--td-brand-color);
-  display: inline-flex;
-  font: var(--td-font-body-medium);
-  justify-content: center;
-  min-height: var(--td-comp-size-xxxl);
-  padding: 0 var(--graft-density-gap-12);
-  text-decoration: none;
-}
-
-.runtime-target-card__detail:focus-visible {
-  border-radius: var(--td-radius-default);
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: 2px;
 }
 </style>

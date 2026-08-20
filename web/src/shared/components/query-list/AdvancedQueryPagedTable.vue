@@ -5,6 +5,7 @@
     :cell-slot-names="props.cellSlotNames"
     :cards-visible="props.cardsVisible"
     :column-sets="props.columnSets"
+    :column-settings-visible="props.columnSettingsVisible"
     :columns="props.columns"
     :description="props.description"
     :empty-description="props.emptyDescription"
@@ -13,11 +14,13 @@
     :head-label="props.headLabel"
     :loading="props.loading"
     :density-scope="props.densityScope"
+    :density-visible="props.densityVisible"
     :entity-card-layout="props.entityCardLayout"
     :pagination-props="props.paginationProps"
     :pagination-visible="paginationVisible"
     :presentation="props.presentation"
     :preserve-inactive="props.preserveInactive"
+    :refresh-visible="props.refreshVisible"
     :row-class-name="props.rowClassName"
     :row-key="props.rowKey"
     :rows="props.rows"
@@ -63,9 +66,11 @@ const props = withDefaults(
     cellSlotNames: string[];
     cardsVisible?: boolean;
     columnSets?: Partial<Record<ResponsiveDensity, string[]>>;
+    columnSettingsVisible?: boolean;
     columns: TdBaseTableProps['columns'];
     description?: string;
     densityScope?: 'container' | 'viewport';
+    densityVisible?: boolean;
     emptyDescription: string;
     emptyTitle: string;
     entityCardLayout?: 'adaptive' | 'compact';
@@ -76,6 +81,7 @@ const props = withDefaults(
     paginationVisible?: boolean;
     presentation?: ResponsivePresentation;
     preserveInactive?: boolean;
+    refreshVisible?: boolean;
     rowClassName?: TdBaseTableProps['rowClassName'];
     rowKey?: string;
     rows: TableRowData[];
@@ -86,14 +92,17 @@ const props = withDefaults(
   {
     cardsVisible: false,
     columnSets: () => ({}),
+    columnSettingsVisible: true,
     description: '',
     densityScope: 'container',
+    densityVisible: true,
     entityCardLayout: 'compact',
     loading: false,
     paginationProps: () => ({}),
     paginationVisible: true,
     presentation: 'data',
     preserveInactive: false,
+    refreshVisible: true,
     rowClassName: undefined,
     rowKey: 'id',
     selectedRowKeys: () => [],

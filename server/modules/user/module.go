@@ -276,6 +276,22 @@ func (s userService) ListUserCandidates(ctx context.Context, query moduleapi.Use
 	return items, total, nil
 }
 
+// ListUserSummariesByIDs 返回跨模块列表装配所需的批量用户摘要。
+func (s userService) ListUserSummariesByIDs(ctx context.Context, userIDs []uint64) ([]moduleapi.UserAccountSummary, error) {
+	if s.users == nil {
+		return nil, errors.New("user repository is unavailable")
+	}
+	users, err := s.users.ListSummariesByIDs(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.UserAccountSummary, 0, len(users))
+	for _, user := range users {
+		items = append(items, moduleapi.UserAccountSummary{ID: user.ID, Username: user.Username, Display: user.Display, Status: user.Status})
+	}
+	return items, nil
+}
+
 // ListSecuritySummaries 返回供授权聚合读取方使用的有界用户状态页，并按用户 ID 递增读取。
 func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
 	if s.users == nil {

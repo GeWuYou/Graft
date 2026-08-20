@@ -14,7 +14,12 @@
     "commonTable": {
       "operation": "Operation",
       "detail": "Detail",
-      "more": "More"
+      "more": "More",
+      "refresh": "Refresh",
+      "columnSettings": "Columns",
+      "compactDensity": "Compact Density",
+      "standardDensity": "Standard Density",
+      "resetColumns": "Reset Columns"
     }
   },
   "global": {

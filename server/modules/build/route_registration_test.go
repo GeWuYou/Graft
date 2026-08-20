@@ -125,10 +125,12 @@ func TestBuildRoutesUseModuleRouterPrefixExactlyOnce(t *testing.T) {
 
 func TestBuildRoutesRejectInvalidListQuery(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, &recordingBuildRepository{})
-	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, "/api/build/jobs?limit=0", ""))
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	for _, path := range []string{"/api/build/jobs?limit=0", "/api/build/workspaces?limit=101", "/api/build/workspaces?search=%20"} {
+		response := httptest.NewRecorder()
+		engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, path, ""))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("path = %s, status = %d, body=%s", path, response.Code, response.Body.String())
+		}
 	}
 }
 
@@ -137,9 +139,12 @@ func TestBuildRoutesExposeBuildSelectorReadModels(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
 
 	workspaceResponse := httptest.NewRecorder()
-	engine.ServeHTTP(workspaceResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/workspaces", ""))
-	if workspaceResponse.Code != http.StatusOK || !strings.Contains(workspaceResponse.Body.String(), "workspace_app") {
+	engine.ServeHTTP(workspaceResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/workspaces?limit=10&offset=20&search=Application", ""))
+	if workspaceResponse.Code != http.StatusOK || !strings.Contains(workspaceResponse.Body.String(), "workspace_app") || !strings.Contains(workspaceResponse.Body.String(), `"total":1`) || !strings.Contains(workspaceResponse.Body.String(), `"offset":20`) {
 		t.Fatalf("unexpected workspace selector response: status=%d body=%s", workspaceResponse.Code, workspaceResponse.Body.String())
+	}
+	if repository.workspaceQuery.Limit != 10 || repository.workspaceQuery.Offset != 20 || repository.workspaceQuery.Search == nil || *repository.workspaceQuery.Search != "Application" {
+		t.Fatalf("unexpected workspace list query: %#v", repository.workspaceQuery)
 	}
 
 	targetResponse := httptest.NewRecorder()

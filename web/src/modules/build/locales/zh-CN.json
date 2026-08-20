@@ -6,6 +6,9 @@
       },
       "jobs": {
         "title": "构建任务"
+      },
+      "workspaces": {
+        "title": "构建工作区"
       }
     }
   },
@@ -94,22 +97,46 @@
       "detail": { "title": "构建任务", "summary": "冻结快照", "artifact": "构建产物", "noArtifact": "尚无已结算产物" },
       "create": {
         "title": "创建构建任务",
+        "eyebrow": "构建",
+        "description": "选择构建来源、执行方式和产物目标，提交后可在构建任务中跟踪进度。",
+        "sections": {
+          "source": {
+            "title": "构建来源",
+            "description": "选择本次构建使用的构建工作区。"
+          },
+          "execution": {
+            "title": "执行配置",
+            "description": "选择构建资源、模板、驱动和目标平台。"
+          },
+          "destination": {
+            "title": "产物发布",
+            "description": "选择已授权的镜像仓库和发布标签。"
+          }
+        },
+        "back": "返回构建任务",
         "submit": "提交构建",
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",
         "workspace": "工作区",
         "workspaceId": "工作区 ID",
         "workspaceIdRequired": "请输入工作区 ID。",
-        "workspacePlaceholder": "选择 Build 工作区",
-        "runtimeTarget": "构建运行目标",
-        "runtimeTargetRequired": "请输入构建运行目标。",
-        "runtimeTargetPlaceholder": "选择支持构建的 Runtime Target",
-        "builderSelection": "构建器选择",
-        "runtimeTargetMode": "直接选择 Runtime Target",
-        "builderPoolMode": "使用 Builder Pool",
-        "builderPool": "Builder Pool",
-        "builderPoolRequired": "请输入 Builder Pool。",
-        "builderPoolPlaceholder": "选择 Builder Pool",
+        "workspacePlaceholder": "选择构建工作区",
+        "createWorkspace": "创建构建工作区",
+        "workspaceEmpty": "暂无可用的构建工作区，请先创建工作区或检查共享范围。",
+        "workspaceLoadFailed": "无法加载构建工作区。",
+        "runtimeTarget": "运行目标",
+        "runtimeTargetRequired": "请选择运行目标。",
+        "runtimeTargetPlaceholder": "选择支持镜像构建的运行目标",
+        "runtimeTargetEmpty": "暂无可用于构建的运行目标，请检查授权、在线状态和镜像构建能力。",
+        "runtimeTargetLoadFailed": "无法加载可用于构建的运行目标。",
+        "builderSelection": "构建资源",
+        "runtimeTargetMode": "指定运行目标",
+        "builderPoolMode": "由构建池调度",
+        "builderPool": "构建池",
+        "builderPoolRequired": "请选择构建池。",
+        "builderPoolPlaceholder": "选择构建池",
+        "builderPoolEmpty": "暂无可用的构建池，请检查构建池成员、授权和运行状态。",
+        "builderPoolLoadFailed": "无法加载构建池。",
         "builderPoolPolicy": {
           "manual": "手动",
           "roundRobin": "轮询",
@@ -119,8 +146,6 @@
           "affinity": "亲和"
         },
         "selectorsUnavailable": "Build 选择器暂不可用，请先配置 Build 读取 API。",
-        "selectorsLoadFailed": "无法加载 Build 选择器。",
-        "selectorsEmpty": "当前没有可用且已授权的 Build 工作区或构建器选项。",
         "template": "构建模板",
         "driver": "构建驱动",
         "driverOptions": {
@@ -130,21 +155,64 @@
         "platforms": "目标平台",
         "platformsRequired": "请至少选择一个目标平台。",
         "multiPlatformDriverRequired": "多平台构建必须使用 Docker Buildx 驱动。",
+        "arm64PoolHint": "ARM64 构建需要先选择“由构建池调度”。",
+        "arm64BuildxRequired": "ARM64 或多平台构建必须使用 Docker Buildx。",
         "contextPath": "构建上下文路径",
         "contextPathRequired": "请输入构建上下文路径。",
         "dockerfilePath": "Dockerfile 路径",
         "dockerfilePathRequired": "请输入 Dockerfile 路径。",
-        "registry": "Registry",
-        "registryRequired": "请选择 Registry。",
-        "registryPlaceholder": "选择已配置 Registry",
+        "registry": "镜像仓库",
+        "registryRequired": "请选择镜像仓库。",
+        "registryPlaceholder": "选择已配置的镜像仓库",
         "repository": "仓库路径",
         "repositoryRequired": "请选择仓库路径。",
         "repositoryPlaceholder": "选择已授权仓库路径",
-        "destinationsEmpty": "没有可用于推送的 Registry 仓库路径，请先添加 Registry 并配置授权。",
-        "destinationsLoadFailed": "无法加载可用 Registry 目的地。",
+        "destinationsEmpty": "没有可用于推送的镜像仓库路径，请先添加镜像仓库并配置授权。",
+        "destinationsLoadFailed": "无法加载可用的镜像仓库目的地。",
         "addRegistry": "添加镜像仓库",
         "tag": "镜像标签",
         "tagRequired": "请输入镜像标签。"
+      }
+    },
+    "workspaces": {
+      "title": "构建工作区",
+      "eyebrow": "构建",
+      "description": "登记可供构建任务复用的应用工作区来源。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "summary": "共 {count} 个工作区",
+      "empty": "暂无构建工作区",
+      "emptyDescription": "创建工作区后，构建任务才能选择可授权的应用来源。",
+      "loadFailed": "无法加载构建工作区。",
+      "applicationLoadFailed": "无法加载来源应用，列表仍保留工作区原始引用。",
+      "applicationUnavailable": "应用 #{id} / 账号不可用",
+      "sourceKinds": {
+        "application_workspace": "应用工作区"
+      },
+      "columns": {
+        "name": "名称",
+        "sourceKind": "来源类型",
+        "sourceApplication": "来源应用",
+        "retentionPolicy": "保留策略",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间"
+      },
+      "create": {
+        "title": "创建构建工作区",
+        "description": "从已有应用登记一个可复用的构建来源，构建任务将使用服务端冻结的应用工作区事实。",
+        "name": "工作区名称",
+        "namePlaceholder": "例如：订单服务构建源",
+        "nameRequired": "请输入工作区名称。",
+        "application": "来源应用",
+        "applicationPlaceholder": "选择已有应用",
+        "applicationHelp": "只能选择当前账号可访问的应用，源码路径由服务端解析。",
+        "applicationRequired": "请选择来源应用。",
+        "applicationEmpty": "暂无可用应用，请先创建或检查应用访问权限。",
+        "applicationLoadFailed": "无法加载可用应用。",
+        "manageApplications": "管理应用",
+        "back": "返回构建工作区",
+        "submit": "创建工作区",
+        "submitFailed": "无法创建构建工作区。"
       }
     }
   }

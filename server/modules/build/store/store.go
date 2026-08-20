@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"graft/server/internal/moduleapi"
 )
@@ -73,6 +74,18 @@ type TaskExecution struct {
 type ListResult struct {
 	Items []JobProjection
 	Total int64
+}
+
+// WorkspaceListResult 保存调用者可见 Workspace 的分页投影。
+type WorkspaceListResult struct {
+	Items []moduleapi.BuildWorkspace
+	Total int64
+}
+
+// WorkspaceListQuery 描述 Workspace 列表的分页窗口和可选搜索词。
+type WorkspaceListQuery struct {
+	Limit, Offset int
+	Search        *string
 }
 
 // V2ArtifactProjection 是独立于 Build Job 的不可变 Artifact 读取投影。
@@ -1301,17 +1314,54 @@ FROM build_workspaces WHERE workspace_id = $1 AND deleted_at = 0`, workspaceID).
 }
 
 // ListWorkspaces 只返回调用者创建或平台共享的来源定义，不包含物化路径。
-func (r *SQLRepository) ListWorkspaces(ctx context.Context, requestedBy uint64) ([]moduleapi.BuildWorkspace, error) {
+func (r *SQLRepository) ListWorkspaces(ctx context.Context, requestedBy uint64, query WorkspaceListQuery) (result WorkspaceListResult, err error) {
 	if r == nil || r.db == nil {
-		return nil, errors.New("build repository is unavailable")
+		return result, errors.New("build repository is unavailable")
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT workspace_id, display_name, source_kind, source_reference, retention_policy, COALESCE(created_by, 0), created_at, updated_at
-FROM build_workspaces WHERE deleted_at = 0 AND (created_by = $1 OR created_by IS NULL) ORDER BY display_name, workspace_id`, nullableUint64(requestedBy))
+	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
+	where, args, err := buildWorkspaceListFilter(requestedBy, query.Search)
+	if err != nil {
+		return result, err
+	}
+	if err = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_workspaces WHERE `+where, args...).Scan(&result.Total); err != nil {
+		return result, fmt.Errorf("count build workspaces: %w", err)
+	}
+	result.Items, err = r.listWorkspacePage(ctx, where, args, query)
+	return result, err
+}
+
+func buildWorkspaceListFilter(requestedBy uint64, searchQuery *string) (string, []any, error) {
+	where := `deleted_at = 0 AND (created_by = $1 OR created_by IS NULL)`
+	args := []any{nullableUint64(requestedBy)}
+	if searchQuery != nil {
+		search := strings.TrimSpace(*searchQuery)
+		if search == "" || utf8.RuneCountInString(search) > 255 {
+			return "", nil, errors.New("invalid build workspace query")
+		}
+		args = append(args, search)
+		placeholder := strconv.Itoa(len(args))
+		where += ` AND (display_name ILIKE '%' || $` + placeholder + ` || '%' OR workspace_id ILIKE '%' || $` + placeholder + ` || '%' OR source_reference ILIKE '%' || $` + placeholder + ` || '%')`
+	}
+	return where, args, nil
+}
+
+func (r *SQLRepository) listWorkspacePage(ctx context.Context, where string, args []any, query WorkspaceListQuery) (items []moduleapi.BuildWorkspace, err error) {
+	pageArgs := append(append([]any{}, args...), query.Limit, query.Offset)
+	limitPlaceholder := strconv.Itoa(len(args) + 1)
+	offsetPlaceholder := strconv.Itoa(len(args) + pageArgumentCount)
+	// #nosec G202 -- where 与占位符只由本函数的静态片段生成，搜索词始终通过参数绑定。
+	pageQuery := `SELECT workspace_id, display_name, source_kind, source_reference, retention_policy, COALESCE(created_by, 0), created_at, updated_at
+FROM build_workspaces WHERE ` + where + ` ORDER BY display_name, workspace_id LIMIT $` + limitPlaceholder + ` OFFSET $` + offsetPlaceholder
+	rows, err := r.db.QueryContext(ctx, pageQuery, pageArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("list build workspaces: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	items := make([]moduleapi.BuildWorkspace, 0)
+	defer func() {
+		if closeErr := rows.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close build workspace rows: %w", closeErr)
+		}
+	}()
+	items = make([]moduleapi.BuildWorkspace, 0)
 	for rows.Next() {
 		var item moduleapi.BuildWorkspace
 		var createdBy sql.NullInt64

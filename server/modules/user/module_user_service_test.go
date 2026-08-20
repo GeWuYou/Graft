@@ -25,6 +25,9 @@ func (*createUserRepository) ListPage(context.Context, userstore.UserListFilter)
 func (*createUserRepository) ListCandidates(context.Context, userstore.UserCandidateQuery) ([]userstore.User, int, error) {
 	return nil, 0, nil
 }
+func (*createUserRepository) ListSummariesByIDs(context.Context, []uint64) ([]userstore.User, error) {
+	return nil, nil
+}
 func (*createUserRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
 	return nil, nil
 }
@@ -63,7 +66,8 @@ func (a failingAuthTransactionAdapter) ProvisionPasswordCredential(context.Conte
 func (failingAuthTransactionAdapter) RevokeSessions(context.Context, uint64) error { return nil }
 
 type listPageRepository struct {
-	filter userstore.UserListFilter
+	filter     userstore.UserListFilter
+	summaryIDs []uint64
 }
 
 func (r *listPageRepository) GetByID(context.Context, uint64) (userstore.User, error) {
@@ -79,6 +83,10 @@ func (r *listPageRepository) ListPage(_ context.Context, filter userstore.UserLi
 }
 func (r *listPageRepository) ListCandidates(context.Context, userstore.UserCandidateQuery) ([]userstore.User, int, error) {
 	return nil, 0, nil
+}
+func (r *listPageRepository) ListSummariesByIDs(_ context.Context, userIDs []uint64) ([]userstore.User, error) {
+	r.summaryIDs = append([]uint64(nil), userIDs...)
+	return []userstore.User{{ID: 7, Username: "operator", Display: "Operator", Status: "enabled"}}, nil
 }
 func (r *listPageRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
 	return nil, nil
@@ -130,6 +138,22 @@ func TestListUsersPageNormalizesBoundsAndUsesRBACRoleFilter(t *testing.T) {
 	}
 	if len(repository.filter.UserIDs) != 2 || repository.filter.UserIDs[0] != 3 || repository.filter.UserIDs[1] != 9 {
 		t.Fatalf("role-filter user IDs = %#v", repository.filter.UserIDs)
+	}
+}
+
+func TestListUserSummariesByIDsUsesOneBatchRepositoryCall(t *testing.T) {
+	repository := &listPageRepository{}
+	service := userService{users: repository}
+
+	items, err := service.ListUserSummariesByIDs(context.Background(), []uint64{7, 11})
+	if err != nil {
+		t.Fatalf("ListUserSummariesByIDs() error = %v", err)
+	}
+	if len(repository.summaryIDs) != 2 || repository.summaryIDs[0] != 7 || repository.summaryIDs[1] != 11 {
+		t.Fatalf("summary ids = %#v", repository.summaryIDs)
+	}
+	if len(items) != 1 || items[0].Username != "operator" || items[0].Status != "enabled" {
+		t.Fatalf("summaries = %#v", items)
 	}
 }
 

@@ -128,13 +128,37 @@ export type ManagedColumnMeta = {
   label: string;
 };
 
+/** 将列选择限制在当前支持的键中，并在选择被清空时按回退顺序保留最少列数。 */
+export function normalizeManagedColumnKeys(
+  selectedKeys: string[],
+  supportedKeys: string[],
+  fallbackKeys: string[] = supportedKeys,
+  minimumSelected = 1,
+) {
+  const supportedKeySet = new Set(supportedKeys);
+  const nextKeys = Array.from(new Set(selectedKeys.filter((key) => supportedKeySet.has(key))));
+  const requiredCount = Math.min(Math.max(1, minimumSelected), supportedKeys.length);
+
+  for (const key of [...fallbackKeys, ...supportedKeys]) {
+    if (nextKeys.length >= requiredCount) break;
+    if (supportedKeySet.has(key) && !nextKeys.includes(key)) nextKeys.push(key);
+  }
+
+  return nextKeys;
+}
+
 export function buildVisibleColumns(
   columns: TdBaseTableProps['columns'],
   visibleKeys: string[],
   alwaysVisibleKeys: string[] = [],
 ) {
-  const visibleKeySet = new Set([...visibleKeys, ...alwaysVisibleKeys]);
-  return (columns ?? []).filter((column) => visibleKeySet.has(String(column?.colKey)));
+  const sourceColumns = columns ?? [];
+  const sourceColumnKeys = sourceColumns.map((column) => String(column?.colKey));
+  const visibleKeySet = new Set(
+    normalizeManagedColumnKeys([...visibleKeys, ...alwaysVisibleKeys], sourceColumnKeys, alwaysVisibleKeys),
+  );
+  const visibleColumns = sourceColumns.filter((column) => visibleKeySet.has(String(column?.colKey)));
+  return visibleColumns;
 }
 
 export function resolveManagedColumns(

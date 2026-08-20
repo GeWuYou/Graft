@@ -86,6 +86,8 @@ type UserRepository interface {
 	ListPage(ctx context.Context, filter UserListFilter) ([]User, int, error)
 	// ListCandidates 返回跨模块选择器所需的最小用户字段，且不暴露用户管理详情。
 	ListCandidates(ctx context.Context, query UserCandidateQuery) ([]User, int, error)
+	// ListSummariesByIDs 通过一次有界查询返回指定有效用户的最小摘要。
+	ListSummariesByIDs(ctx context.Context, userIDs []uint64) ([]User, error)
 	ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]User, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)

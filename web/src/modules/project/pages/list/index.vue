@@ -457,6 +457,7 @@ import {
   ManagementPageContent,
   ManagementPageHeader,
   ManagementStatisticsBar,
+  normalizeManagedColumnKeys,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -757,7 +758,7 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref([
+const DEFAULT_VISIBLE_COLUMNS = [
   'row-select',
   'name',
   'deploymentAdapterKind',
@@ -768,9 +769,20 @@ const visibleColumnKeys = ref([
   'resources',
   'drift',
   'operation',
-]);
+];
+const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
+);
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeManagedColumnKeys(keys, DEFAULT_VISIBLE_COLUMNS);
+    if (normalizedKeys.length !== keys.length || normalizedKeys.some((key, index) => key !== keys[index])) {
+      visibleColumnKeys.value = normalizedKeys;
+    }
+  },
+  { flush: 'sync' },
 );
 const projectSavedViews = useSavedQueryViews<ApplicationSavedQueryViewState, number>({
   adapter: {

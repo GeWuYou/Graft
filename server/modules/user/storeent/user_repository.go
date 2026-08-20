@@ -194,6 +194,39 @@ func (r *userRepository) ListCandidates(ctx context.Context, query userstore.Use
 	return items, total, nil
 }
 
+// ListSummariesByIDs 使用单次 ID 集合查询返回有效用户摘要，未命中或已删除用户不会伪造占位记录。
+func (r *userRepository) ListSummariesByIDs(ctx context.Context, userIDs []uint64) ([]userstore.User, error) {
+	if len(userIDs) == 0 {
+		return []userstore.User{}, nil
+	}
+	ids := make([]int, 0, len(userIDs))
+	for _, userID := range userIDs {
+		id, err := toEntID(userID)
+		if err != nil {
+			return nil, fmt.Errorf("convert user summary id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	records, err := r.client.User.Query().
+		Where(userent.DeletedAtEQ(0), userent.IDIn(ids...)).
+		Order(ent.Asc(userent.FieldID)).
+		Select(userent.FieldID, userent.FieldUsername, userent.FieldDisplay, userent.FieldStatus).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list user summaries by ids: %w", err)
+	}
+	items := make([]userstore.User, 0, len(records))
+	for _, record := range records {
+		items = append(items, userstore.User{
+			ID:       toStoreID(record.ID),
+			Username: record.Username,
+			Display:  record.Display,
+			Status:   normalizeStoredUserStatus(record.Status),
+		})
+	}
+	return items, nil
+}
+
 func (r *userRepository) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]userstore.User, error) {
 	if limit <= 0 {
 		return nil, fmt.Errorf("security summary limit must be positive")

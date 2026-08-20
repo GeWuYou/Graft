@@ -16708,6 +16708,48 @@
         ],
         "operationId": "getBuildWorkspaces",
         "summary": "List Build-owned Workspaces available to the caller",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "description": "Optional case-insensitive search over Workspace name, identifier, and source reference.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Build Workspaces.",
@@ -16733,6 +16775,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid pagination or search query."
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -19391,6 +19436,9 @@
           },
           "404": {
             "description": "Runtime target or user not found"
+          },
+          "409": {
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -38833,7 +38881,10 @@
       "build-workspace-list": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -38841,6 +38892,19 @@
             "items": {
               "$ref": "#/components/schemas/build-workspace"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -41080,6 +41144,18 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "username": {
+            "type": "string",
+            "description": "Current username when the assigned user remains available."
+          },
+          "display": {
+            "type": "string",
+            "description": "Current display name when the assigned user remains available."
+          },
+          "status": {
+            "type": "string",
+            "description": "Current account status when the assigned user remains available."
           }
         }
       },

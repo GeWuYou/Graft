@@ -2,6 +2,20 @@ get:
   tags: [build]
   operationId: getBuildWorkspaces
   summary: List Build-owned Workspaces available to the caller
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - in: query
+      name: offset
+      schema: { type: integer, minimum: 0, default: 0 }
+    - in: query
+      name: search
+      description: Optional case-insensitive search over Workspace name, identifier, and source reference.
+      schema: { type: string, minLength: 1, maxLength: 255 }
+  security: [{ bearerAuth: [] }]
   responses:
     '200':
       description: Build Workspaces.
@@ -16,6 +30,7 @@ get:
                   data: { $ref: ../components/schemas/build-workspace-list.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
+    '400': { description: Invalid pagination or search query. }
     '500': { $ref: ../components/responses/internal-server-error.yaml }
 
 post:

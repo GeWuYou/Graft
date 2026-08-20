@@ -1,5 +1,32 @@
 # Web UI Lessons
 
+## LESSON-WEB-UI-SELECTOR-AUTHORITY-001：多来源选择器必须保留用户意图并独立表达可用性
+
+- Status: active
+- Level: L1
+- Applies to:
+  - 依赖多个独立接口加载选项的创建表单和资源选择器
+  - 同时包含用户选择模式与驱动、平台等派生兼容字段的工作流页面
+- Source:
+  - 构建任务页面将 ARM64 派生约束反向写成构建资源模式切换，并把工作区、运行目标、构建池的空状态合并为同一授权错误
+- Problem:
+  独立数据源共用加载、禁用和空态判断时，一个空结果会遮蔽其他已就绪选项，错误文案也容易把在线状态、能力或空数据误报为授权问题。派生字段监听器若直接改写用户选择的资源模式，还会让一次平台勾选变成意外的执行位置变更。
+- Correct pattern:
+  每个权威数据源独立维护 loading、error、options 和空态；一个数据源失败不得禁用另一个已就绪选择器。用户显式选择的资源模式保持为交互权威，平台等兼容约束只能禁用不支持选项、解释原因并规范化该模式下的派生字段。
+- Anti-pattern:
+  - 用一个“无授权”告警概括多个接口的空结果
+  - 因某个选择器为空而禁用其他已有数据的选择器
+  - 在平台或驱动 watcher 中隐式切换用户选择的资源模式
+- Enforcement:
+  为每个数据源添加独立空态和慢请求回归测试；为模式切换添加“仅用户操作改变模式”的测试，并运行模块聚焦 Vitest、i18n lint 与 `bun run check`。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/modules/build/pages/create/index.vue`
+- Updated at:
+  2026-08-19
+
 ## LESSON-WEB-UI-SEMANTIC-PORT-001：从工作树移植功能时保留当前页面骨架
 
 - Status: active

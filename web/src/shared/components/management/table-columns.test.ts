@@ -1,17 +1,30 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildVisibleColumns,
   createCountColumn,
   createIdentifierColumn,
   createMainTextColumn,
   createStatusColumn,
   createTechnicalColumn,
   createTimeColumn,
+  normalizeManagedColumnKeys,
   resolveEmptyManagedColumns,
   resolveTableWidthPolicy,
 } from './table-columns';
 
 describe('table column width policy', () => {
+  it('keeps the first column when a page attempts to hide every field', () => {
+    const columns = [createIdentifierColumn('任务', 'task'), createStatusColumn('状态', 'status')];
+
+    expect(buildVisibleColumns(columns, [])).toEqual([columns[0]]);
+  });
+
+  it('normalizes empty and stale column selections against supported keys', () => {
+    expect(normalizeManagedColumnKeys([], ['name', 'status'])).toEqual(['name']);
+    expect(normalizeManagedColumnKeys(['removed', 'status'], ['name', 'status'])).toEqual(['status']);
+  });
+
   it('uses fill mode when visible columns fit the current table body', () => {
     const columns = [
       createTimeColumn('发生时间', 'occurred_at', 176),
