@@ -38,6 +38,10 @@ func newAppLogSQLiteDB(t *testing.T) *sql.DB {
 		error TEXT NULL,
 		message TEXT NOT NULL,
 		fields TEXT NOT NULL DEFAULT '{}'
+	);
+	CREATE TABLE app_log_deletion_receipts (
+		idempotency_key TEXT PRIMARY KEY,
+		deleted_ids TEXT NOT NULL
 	);`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("create app_logs schema: %v", err)
@@ -272,6 +276,36 @@ func TestAppLogRepositoryBatchDeleteDoesNotPartiallyDeleteMissingIDs(t *testing.
 	}
 	if result.Total != 1 {
 		t.Fatalf("expected no partial delete, got total=%d", result.Total)
+	}
+}
+
+func TestAppLogRepositoryDeleteWithReceiptIsIdempotent(t *testing.T) {
+	repo := newSQLiteAppLogRepository(t)
+	storageRepo, ok := repo.(*appLogRepository)
+	if !ok {
+		t.Fatalf("expected sqlite test repository to use appLogRepository, got %T", repo)
+	}
+	ctx := context.Background()
+	first, err := repo.CreateAppLog(ctx, CreateAppLogInput{Severity: AppLogSeverityInfo, Component: "core.app", Message: "first"})
+	if err != nil {
+		t.Fatalf("seed first app log: %v", err)
+	}
+	second, err := repo.CreateAppLog(ctx, CreateAppLogInput{Severity: AppLogSeverityInfo, Component: "core.app", Message: "second"})
+	if err != nil {
+		t.Fatalf("seed second app log: %v", err)
+	}
+
+	ids := []uint64{first.ID, second.ID}
+	deleted, err := storageRepo.DeleteAppLogsByIDsWithReceipt(ctx, ids, "delete-1")
+	if err != nil || deleted != 2 {
+		t.Fatalf("expected first receipted delete to remove two rows, deleted=%d err=%v", deleted, err)
+	}
+	deleted, err = storageRepo.DeleteAppLogsByIDsWithReceipt(ctx, ids, "delete-1")
+	if err != nil || deleted != 0 {
+		t.Fatalf("expected matching replay to return zero without error, deleted=%d err=%v", deleted, err)
+	}
+	if _, err := storageRepo.DeleteAppLogsByIDsWithReceipt(ctx, []uint64{first.ID}, "delete-1"); err == nil {
+		t.Fatal("expected reused idempotency key with different ids to fail")
 	}
 }
 

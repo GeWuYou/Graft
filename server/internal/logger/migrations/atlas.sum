@@ -1,4 +1,5 @@
-h1:PDrPqH59uBlh4/uzW3DqpyFeEcD9HCBGZiDab3BsY30=
+h1:bM07OWvuvQ9lSNJzt0k/Afk4bu/g9c9Slymfn8vSuqk=
 202606040001_logger_baseline.sql h1:iNqD+KjloBsA8EthiLMAutmSPkOet0zKN9RK3JXFfcg=
 202607160001_app_log_category.sql h1:On9tAD2VdpTcCAqSvh74mMM3Clp6WfCTeLW7ApokKhk=
 202607160002_app_log_application_category.sql h1:rjCTJqOvSpDQ+GDxqGNccg1tIYGePSDHxGndrzHzJDM=
+202608200001_app_log_deletion_receipts.sql h1:vfB9xxnypd6MJfyIypri4Aj36zyqfoA5xN83fOd8WZM=
