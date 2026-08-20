@@ -55,13 +55,13 @@ HANDLER_BOUNDARY_CHECKS = {
     "server/modules/rbac/route_write_generated.go": (
         "rbacopenapi.PostRolePermissionsReplaceJSONRequestBody",
         "rbacopenapi.PostRolePermissionsAddJSONRequestBody",
-        "rbacopenapi.PostRolePermissionsRemoveJSONRequestBody",
+        "rbacopenapi.DeleteRolePermissionsJSONRequestBody",
         "rbacopenapi.PostUserRolesReplaceJSONRequestBody",
         "rbacopenapi.PostUserRolesAddJSONRequestBody",
-        "rbacopenapi.PostUserRolesRemoveJSONRequestBody",
+        "rbacopenapi.DeleteUserRolesJSONRequestBody",
         "rbacopenapi.PostUsersRolesReplaceJSONRequestBody",
         "rbacopenapi.PostUsersRolesAddJSONRequestBody",
-        "rbacopenapi.PostUsersRolesRemoveJSONRequestBody",
+        "rbacopenapi.DeleteUsersRolesJSONRequestBody",
     ),
     "server/modules/monitor/module.go": (
         "monitoropenapi.GetMonitorServerStatusParams",

@@ -2,6 +2,8 @@ type: object
 properties:
   permission_ids:
     type: array
+    maxItems: 100
+    uniqueItems: true
     items:
       type: integer
       format: int64
@@ -9,6 +11,8 @@ properties:
     description: Legacy all-scope binding input. New clients must submit bindings.
   bindings:
     type: array
+    maxItems: 100
+    uniqueItems: true
     items:
       $ref: ./role-permission-binding-item.yaml
 anyOf:

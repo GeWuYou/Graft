@@ -1,0 +1,12 @@
+type: object
+required: [role_ids]
+properties:
+  role_ids:
+    type: array
+    minItems: 1
+    maxItems: 100
+    uniqueItems: true
+    items:
+      type: integer
+      format: int64
+      minimum: 1

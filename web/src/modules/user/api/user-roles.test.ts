@@ -7,6 +7,7 @@ import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } 
 
 vi.mock('@/utils/request', () => ({
   request: {
+    delete: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
   },
@@ -59,14 +60,26 @@ describe('user role api', () => {
     });
   });
 
+  it('calls the canonical single-user remove path with DELETE', async () => {
+    const requestDelete = vi.mocked(request.delete);
+    requestDelete.mockResolvedValueOnce({ operation_id: 'request-1' } as never);
+
+    await mutateUserRoles(42, 'remove', { role_ids: [2] });
+
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deleteUserRoles', { id: 42 }),
+      data: { role_ids: [2] },
+    });
+  });
+
   it('calls the batch remove path through request.ts', async () => {
-    const requestPost = vi.mocked(request.post);
-    requestPost.mockResolvedValueOnce(null as never);
+    const requestDelete = vi.mocked(request.delete);
+    requestDelete.mockResolvedValueOnce({ operation_id: 'request-1' } as never);
 
     await mutateBatchUserRoles('remove', { user_ids: [7, 9], role_ids: [2] });
 
-    expect(requestPost).toHaveBeenCalledWith({
-      url: OPENAPI_RUNTIME_PATH.postUsersRolesRemove,
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: OPENAPI_RUNTIME_PATH.deleteUsersRoles,
       data: { user_ids: [7, 9], role_ids: [2] },
     });
   });

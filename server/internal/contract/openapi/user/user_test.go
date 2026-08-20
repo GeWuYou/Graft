@@ -56,10 +56,10 @@ func TestPostUserResetPasswordHeadersRemainOptional(t *testing.T) {
 	}
 }
 
-func TestPostUserDeleteHeadersRemainOptional(t *testing.T) {
+func TestDeleteUserHeadersRemainOptional(t *testing.T) {
 	t.Parallel()
 
-	var params PostUserDeleteParams
+	var params DeleteUserParams
 	if params.XGraftLocale != nil || params.XRequestId != nil {
 		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
 	}

@@ -1001,90 +1001,90 @@ func (e GetAuditLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete400JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion400JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete400JSONResponseBodySuccessFalse PostAuditLogsBatchDelete400JSONResponseBodySuccess = false
+	PostAuditLogDeletion400JSONResponseBodySuccessFalse PostAuditLogDeletion400JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete400JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete400JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion400JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion400JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete400JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion400JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete401JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion401JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete401JSONResponseBodySuccessFalse PostAuditLogsBatchDelete401JSONResponseBodySuccess = false
+	PostAuditLogDeletion401JSONResponseBodySuccessFalse PostAuditLogDeletion401JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete401JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete401JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion401JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion401JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete401JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion401JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete403JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion403JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete403JSONResponseBodySuccessFalse PostAuditLogsBatchDelete403JSONResponseBodySuccess = false
+	PostAuditLogDeletion403JSONResponseBodySuccessFalse PostAuditLogDeletion403JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete403JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete403JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion403JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion403JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete403JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion403JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete404JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion404JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete404JSONResponseBodySuccessFalse PostAuditLogsBatchDelete404JSONResponseBodySuccess = false
+	PostAuditLogDeletion404JSONResponseBodySuccessFalse PostAuditLogDeletion404JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete404JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete404JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion404JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion404JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete404JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion404JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete409JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion409JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete409JSONResponseBodySuccessFalse PostAuditLogsBatchDelete409JSONResponseBodySuccess = false
+	PostAuditLogDeletion409JSONResponseBodySuccessFalse PostAuditLogDeletion409JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete409JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete409JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion409JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion409JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete409JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion409JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAuditLogsBatchDelete500JSONResponseBodySuccess.
+// Defines values for PostAuditLogDeletion500JSONResponseBodySuccess.
 const (
-	PostAuditLogsBatchDelete500JSONResponseBodySuccessFalse PostAuditLogsBatchDelete500JSONResponseBodySuccess = false
+	PostAuditLogDeletion500JSONResponseBodySuccessFalse PostAuditLogDeletion500JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAuditLogsBatchDelete500JSONResponseBodySuccess enum.
-func (e PostAuditLogsBatchDelete500JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAuditLogDeletion500JSONResponseBodySuccess enum.
+func (e PostAuditLogDeletion500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAuditLogsBatchDelete500JSONResponseBodySuccessFalse:
+	case PostAuditLogDeletion500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2223,41 +2223,39 @@ type GetAuditLogs403JSONResponseBodySuccess bool
 // GetAuditLogs500JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs500JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDeleteJSONBody defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDeleteJSONBody struct {
+// PostAuditLogDeletionJSONBody defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletionJSONBody struct {
 	Ids []int64 `json:"ids"`
 }
 
-// PostAuditLogsBatchDeleteParams defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDeleteParams struct {
+// PostAuditLogDeletionParams defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-
-	// IdempotencyKey Stable retry key for the destructive batch operation.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	XRequestId     *string `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string  `json:"Idempotency-Key"`
 }
 
-// PostAuditLogsBatchDelete400JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete400JSONResponseBodySuccess bool
+// PostAuditLogDeletion400JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion400JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDelete401JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete401JSONResponseBodySuccess bool
+// PostAuditLogDeletion401JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion401JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDelete403JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete403JSONResponseBodySuccess bool
+// PostAuditLogDeletion403JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion403JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDelete404JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete404JSONResponseBodySuccess bool
+// PostAuditLogDeletion404JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion404JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDelete409JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete409JSONResponseBodySuccess bool
+// PostAuditLogDeletion409JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion409JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDelete500JSONResponseBodySuccess defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDelete500JSONResponseBodySuccess bool
+// PostAuditLogDeletion500JSONResponseBodySuccess defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletion500JSONResponseBodySuccess bool
 
 // GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
 type GetAuditLogSavedViewsParams struct {
@@ -2564,8 +2562,8 @@ type PutAuditVisibilityOverridesBatch403JSONResponseBodySuccess bool
 // PutAuditVisibilityOverridesBatch500JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverridesBatch.
 type PutAuditVisibilityOverridesBatch500JSONResponseBodySuccess bool
 
-// PostAuditLogsBatchDeleteJSONRequestBody defines body for PostAuditLogsBatchDelete for application/json ContentType.
-type PostAuditLogsBatchDeleteJSONRequestBody PostAuditLogsBatchDeleteJSONBody
+// PostAuditLogDeletionJSONRequestBody defines body for PostAuditLogDeletion for application/json ContentType.
+type PostAuditLogDeletionJSONRequestBody PostAuditLogDeletionJSONBody
 
 // PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
 type PostAuditLogSavedViewJSONRequestBody PostAuditLogSavedViewJSONBody

@@ -1,0 +1,8 @@
+type: object
+description: Counts for one bounded synchronous destructive batch operation.
+required: [requested, succeeded, failed]
+properties:
+  requested: { type: integer, minimum: 1 }
+  succeeded: { type: integer, minimum: 0 }
+  failed: { type: integer, minimum: 0 }
+additionalProperties: false

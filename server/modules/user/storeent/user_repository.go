@@ -68,6 +68,35 @@ func (r *userRepository) GetByID(ctx context.Context, id uint64) (userstore.User
 	}, nil
 }
 
+// GetDeletionState 读取删除命令需要的最小事实，并刻意与默认隐藏 tombstone 的普通查询分离。
+func (r *userRepository) GetDeletionState(ctx context.Context, id uint64) (userstore.UserDeletionState, error) {
+	entID, err := toEntID(id)
+	if err != nil {
+		if err == userstore.ErrInvalidID {
+			return userstore.UserDeletionState{}, userstore.ErrUserNotFound
+		}
+		return userstore.UserDeletionState{}, err
+	}
+
+	record, err := r.client.User.Query().
+		Where(userent.IDEQ(entID)).
+		Select(userent.FieldID, userent.FieldUsername, userent.FieldDeletedAt).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return userstore.UserDeletionState{}, userstore.ErrUserNotFound
+		}
+		return userstore.UserDeletionState{}, fmt.Errorf("query user deletion state: %w", err)
+	}
+
+	return userstore.UserDeletionState{
+		ID:                    toStoreID(record.ID),
+		Username:              record.Username,
+		ProtectedDefaultAdmin: isProtectedDefaultAdminUsername(record.Username),
+		Deleted:               record.DeletedAt != 0,
+	}, nil
+}
+
 func (r *userRepository) GetByUsername(ctx context.Context, username string) (userstore.User, error) {
 	record, err := r.client.User.Query().
 		Where(

@@ -1,5 +1,5 @@
 import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
-import type { paths } from '@/contracts/openapi/generated/schema';
+import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import type { RoleListItem, RoleListResponse } from '../contract/role';
@@ -41,6 +41,7 @@ type PostRoleCloneRequest = PostRoleCloneOperation['requestBody']['content']['ap
 type PostRoleUpdateRequest = PostRoleUpdateOperation['requestBody']['content']['application/json'];
 type PostRolePermissionsReplaceRequest =
   PostRolePermissionsReplaceOperation['requestBody']['content']['application/json'];
+type DestructiveBatchResult = components['schemas']['DestructiveBatchResult'];
 export type PermissionSavedViewPayload = NonNullable<
   PermissionSavedViewsOperation['post']['requestBody']
 >['content']['application/json'];
@@ -167,8 +168,8 @@ export function addRolePermissions(roleId: number, payload: RolePermissionMutati
 }
 
 export function removeRolePermissions(roleId: number, payload: RolePermissionMutationPayload) {
-  return request.post<null>({
-    url: buildOpenApiRuntimePath('postRolePermissionsRemove', { id: roleId }),
+  return request.delete<DestructiveBatchResult>({
+    url: buildOpenApiRuntimePath('deleteRolePermissions', { id: roleId }),
     data: payload,
   });
 }

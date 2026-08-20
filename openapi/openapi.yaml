@@ -5,6 +5,8 @@ info:
   description: Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation.
 x-graft-mcp-schema:
   $ref: ./components/schemas/graft-mcp-operation-metadata.yaml
+x-graft-destructive-schema:
+  $ref: ./components/schemas/graft-destructive-operation-metadata.yaml
 x-tagGroups:
   - name: Platform
     tags:
@@ -125,8 +127,6 @@ paths:
     $ref: ./paths/users.status.yaml
   /api/users/{id}/reset-password:
     $ref: ./paths/users.reset-password.yaml
-  /api/users/{id}/delete:
-    $ref: ./paths/users.delete.yaml
   /api/users/{id}/sessions:
     $ref: ./paths/users.sessions.yaml
   /api/users/{id}/sessions/{sessionID}/revoke:
@@ -147,8 +147,6 @@ paths:
     $ref: ./paths/roles.permissions.replace.yaml
   /api/roles/{id}/permissions/add:
     $ref: ./paths/roles.permissions.add.yaml
-  /api/roles/{id}/permissions/remove:
-    $ref: ./paths/roles.permissions.remove.yaml
   /api/roles/{id}/clone:
     $ref: ./paths/roles.clone.yaml
   /api/roles/{id}/update:
@@ -171,18 +169,16 @@ paths:
     $ref: ./paths/users.roles.replace.yaml
   /api/users/{id}/roles/add:
     $ref: ./paths/users.roles.add.yaml
-  /api/users/{id}/roles/remove:
-    $ref: ./paths/users.roles.remove.yaml
+  /api/users/roles:
+    $ref: ./paths/users.roles.batch.yaml
   /api/users/roles/replace:
     $ref: ./paths/users.roles.batch.replace.yaml
   /api/users/roles/add:
     $ref: ./paths/users.roles.batch.add.yaml
-  /api/users/roles/remove:
-    $ref: ./paths/users.roles.batch.remove.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
-  /api/audit/logs/batch-delete:
-    $ref: ./paths/audit.logs.batch-delete.yaml
+  /api/audit/logs/deletions:
+    $ref: ./paths/audit.logs.deletions.yaml
   /api/audit/logs/{id}:
     $ref: ./paths/audit.logs.detail.yaml
   /api/audit/logs/saved-views:
@@ -313,8 +309,8 @@ paths:
     $ref: ./paths/access-log.saved-view.yaml
   /api/app-log:
     $ref: ./paths/app-log.logs.yaml
-  /api/app-log/batch-delete:
-    $ref: ./paths/app-log.batch-delete.yaml
+  /api/app-log/deletions:
+    $ref: ./paths/app-log.deletions.yaml
   /api/app-log/{id}:
     $ref: ./paths/app-log.detail.yaml
   /api/app-log/saved-views:
@@ -588,6 +584,16 @@ paths:
     $ref: ./paths/ops-applications.destroy.yaml
 components:
   schemas:
+    GraftDestructiveOperationMetadata:
+      $ref: ./components/schemas/graft-destructive-operation-metadata.yaml
+    DestructiveBatchResultSummary:
+      $ref: ./components/schemas/destructive-batch-result-summary.yaml
+    DestructiveBatchResultItem:
+      $ref: ./components/schemas/destructive-batch-result-item.yaml
+    DestructiveBatchResult:
+      $ref: ./components/schemas/destructive-batch-result.yaml
+    EnvelopedDestructiveBatchResult:
+      $ref: ./components/schemas/enveloped-destructive-batch-result.yaml
     ApiEnvelope:
       $ref: ./components/schemas/api-envelope.yaml
     ErrorResponse:

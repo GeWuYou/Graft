@@ -395,3 +395,79 @@ CI 适合做：
 - deprecated 标记与兼容说明模板
 
 在没有自动化前，本规范仍作为 code review 与设计评审阻断依据。
+
+## 12. 消除性操作契约
+
+本节是资源删除、关系解除、凭据撤销、不可逆销毁和外部资源清理的 HTTP 契约 authority。领域是否允许删除、资源级授权、审计事件和持久化写入仍由 owning module 负责；不得据此新增跨模块通用 `DeleteService`。
+
+### 12.1 操作类型与 HTTP 形态
+
+| 语义 | HTTP 形态 | 成功结果 | 重试 authority |
+| --- | --- | --- | --- |
+| 普通资源软删除 | `DELETE /resources/{id}` | `204 No Content` | 同授权作用域 tombstone |
+| 关系解除 | `DELETE /resources/{id}/relationships/{relationId}` | `204 No Content` | 关系 tombstone 或当前无绑定事实 |
+| 不可逆数据库硬删除 | `POST /resources/{id}/deletions` | `200` operation result 或 `202` Task receipt | 持久化 `Idempotency-Key` receipt |
+| 外部资源销毁 | `POST .../remove|destroy|untag` | `202 Accepted` + canonical Task receipt | Task operation identity 与 receipt |
+
+硬删除表达的是不可逆命令，不使用 HTTP DELETE 假装成无回执的资源状态转换。相同 `Idempotency-Key` 与相同规范化输入必须返回原 operation/task receipt；相同 key 绑定不同输入返回 `409`。receipt 不能随着目标业务记录一起被删除。
+
+### 12.2 软删除 tombstone 幂等
+
+软删除必须同时满足：
+
+1. 第一次合法 `DELETE` 返回 204。
+2. 目标已由同一授权作用域软删除时，再次 `DELETE` 仍返回 204，不重复执行领域副作用。
+3. 资源从未存在，或不属于调用者可操作作用域时返回 404，避免泄露跨作用域存在性。
+4. `GET`、列表、候选读取、计数和关联读取默认只查询 `deleted_at = 0`；已删除 tombstone 对这些读取表现为 404 或不可见。
+
+因此 DELETE 的幂等成功不意味着 tombstone 重新对查询可见。任何“删除成功后刷新仍出现”的实现都违反本节。
+
+### 12.3 批量提交模型
+
+- 所有批量消除请求必须有明确 `maxItems`，拒绝空集合和重复 ID，并在可信后端边界执行逐项资源授权。
+- 普通资源默认允许 `partial`：合法项可提交，失败项在 200 结果中逐项返回稳定 code。
+- role、permission、access binding、credential grant 等安全敏感对象必须使用 `atomic`：先完成全部存在性、生命周期和授权校验，再在一个数据库事务中写入；任一失败时零提交并返回统一 4xx error envelope。
+- 会触发外部副作用、跨 authority owner 或无法回滚的批量操作不得伪装成数据库原子事务，应提交 Task 并返回 202。
+
+同步批量成功结果统一使用：
+
+```json
+{
+  "operation_id": "op_01J...",
+  "summary": {"requested": 3, "succeeded": 2, "failed": 1},
+  "results": [
+    {"id": "user1", "status": "deleted"},
+    {"id": "user2", "status": "failed", "code": "FORBIDDEN"},
+    {"id": "user3", "status": "deleted"}
+  ]
+}
+```
+
+`results` 必须保持请求顺序并为每个请求 ID 返回恰好一项。`summary.requested = summary.succeeded + summary.failed`。幂等 no-op 可使用 `unchanged` 状态并计入 succeeded，不得凭空省略结果项。
+
+### 12.4 OpenAPI destructive metadata
+
+已迁移的消除性 operation 必须声明 `x-graft-destructive`：
+
+```yaml
+x-graft-destructive:
+  kind: resource_delete
+  effect: soft_delete
+  execution: synchronous
+  retry:
+    mode: tombstone_idempotent
+  result:
+    status: 204
+  authorization:
+    owner_check: true
+  audit:
+    required: true
+  confirmation:
+    required: false
+  exposure:
+    mcp: false
+```
+
+批量 operation 还必须声明 `batch.mode` 与 `batch.max_items`。`exposure.mcp: true` 必须同时存在合法 `x-graft-mcp`；false 时不得留下 MCP capability metadata。该字段是生成和治理输入，不代替后端认证、授权或确认执行。
+
+迁移期间不得把目标 metadata 提前写到仍使用旧语义的 operation。最终收敛必须让完整消除性操作清单具备 metadata coverage，并删除所有旧 action path、局部 envelope 和兼容 alias。

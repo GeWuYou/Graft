@@ -34,7 +34,7 @@ const (
 	// RolePermissionAddRoute 标识追加角色权限绑定接口的路径片段。
 	RolePermissionAddRoute = "/:id/permissions/add"
 	// RolePermissionRemoveRoute 标识移除角色权限绑定接口的路径片段。
-	RolePermissionRemoveRoute = "/:id/permissions/remove"
+	RolePermissionRemoveRoute = RolePermissionBindingRoute
 	// RolePermissionBindingRoute 标识角色权限绑定快照接口的路径片段。
 	RolePermissionBindingRoute = "/:id/permissions"
 
@@ -58,11 +58,11 @@ const (
 	// UserRoleAddRoute 标识追加用户角色绑定接口的路径片段。
 	UserRoleAddRoute = "/:id/roles/add"
 	// UserRoleRemoveRoute 标识移除用户角色绑定接口的路径片段。
-	UserRoleRemoveRoute = "/:id/roles/remove"
+	UserRoleRemoveRoute = UserRoleBindingRoute
 	// BatchUserRoleReplaceRoute 标识批量覆盖用户角色绑定接口的路径片段。
 	BatchUserRoleReplaceRoute = "/roles/replace"
 	// BatchUserRoleAddRoute 标识批量追加用户角色绑定接口的路径片段。
 	BatchUserRoleAddRoute = "/roles/add"
 	// BatchUserRoleRemoveRoute 标识批量移除用户角色绑定接口的路径片段。
-	BatchUserRoleRemoveRoute = "/roles/remove"
+	BatchUserRoleRemoveRoute = "/roles"
 )

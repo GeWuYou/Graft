@@ -84,9 +84,9 @@ func bindGeneratedUserResetPasswordParams(ginCtx *gin.Context) useropenapi.PostU
 
 // bindGeneratedUserDeleteParams 从请求头生成用户删除接口的 OpenAPI 参数。
 // 它将 `XGraft-Locale` 和 `X-Request-Id` 绑定到返回值的 `XGraftLocale` 与 `XRequestId` 字段。
-func bindGeneratedUserDeleteParams(ginCtx *gin.Context) useropenapi.PostUserDeleteParams {
-	return generatedUserParams(ginCtx, func(locale *string, requestID *string) useropenapi.PostUserDeleteParams {
-		return useropenapi.PostUserDeleteParams{XGraftLocale: locale, XRequestId: requestID}
+func bindGeneratedUserDeleteParams(ginCtx *gin.Context) useropenapi.DeleteUserParams {
+	return generatedUserParams(ginCtx, func(locale *string, requestID *string) useropenapi.DeleteUserParams {
+		return useropenapi.DeleteUserParams{XGraftLocale: locale, XRequestId: requestID}
 	})
 }
 

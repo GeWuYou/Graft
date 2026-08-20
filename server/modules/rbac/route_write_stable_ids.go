@@ -3,48 +3,17 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	messagecontract "graft/server/internal/contract/message"
+	generated "graft/server/internal/contract/openapi/generated"
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	rbacstore "graft/server/modules/rbac/store"
 )
-
-// handleUserScopedStableIDsRoute 处理单个目标的稳定 ID 替换路由。
-//
-// 它将指定的读取、绑定和写入逻辑交给通用替换处理器执行。
-func handleUserScopedStableIDsRoute(
-	ginCtx *gin.Context,
-	ctx *module.Context,
-	moduleName string,
-	invalidField string,
-	readAndBindGenerated func(ginCtx *gin.Context, targetID uint64) ([]uint64, error),
-	write func(ctx context.Context, targetID uint64, ids []uint64) error,
-) {
-	handleReplaceStableIDsRoute(ginCtx, ctx, moduleName, replaceStableIDsHandlerConfig{
-		invalidField:         invalidField,
-		readAndBindGenerated: readAndBindGenerated,
-		write:                write,
-	})
-}
-
-// handleBatchUserRoleRoute 处理批量用户角色稳定 ID 写入路由。
-func handleBatchUserRoleRoute(
-	ginCtx *gin.Context,
-	ctx *module.Context,
-	moduleName string,
-	readAndBindGenerated func(ginCtx *gin.Context) (batchStableIDSet, error),
-	write func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error,
-) {
-	handleBatchStableIDsRoute(ginCtx, ctx, moduleName, batchStableIDsHandlerConfig{
-		invalidField:         "role_ids",
-		readAndBindGenerated: readAndBindGenerated,
-		write:                write,
-	})
-}
 
 // handleReplaceRolePermissionsRoute 处理为单个角色替换权限的请求。
 // 它将请求体中的权限 ID 绑定到生成的操作，并写入角色权限替换结果。
@@ -59,6 +28,7 @@ func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplacePermissionsForRole(ctx, rbacstore.ReplacePermissionsForRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
+			allowEmptyIDs: true,
 		},
 	)
 }
@@ -75,6 +45,7 @@ func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, mod
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.AddPermissionsToRole(ctx, rbacstore.AddPermissionsToRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
+			allowEmptyIDs: true,
 		},
 	)
 }
@@ -83,14 +54,15 @@ func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, mod
 func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostRolePermissionsRemoveJSONRequestBody, rbacopenapi.PostRolePermissionsRemoveParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.DeleteRolePermissionsJSONRequestBody, rbacopenapi.DeleteRolePermissionsParams]{
 			invalidField: "permission_ids",
 			read:         readGeneratedRolePermissionRemoveRequest,
 			bindParams:   bindGeneratedRolePermissionRemoveParams,
-			record:       rbacWriteGeneratedHandler{}.PostRolePermissionsRemove,
+			record:       rbacWriteGeneratedHandler{}.DeleteRolePermissions,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.RemovePermissionsFromRole(ctx, rbacstore.RemovePermissionsFromRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
+			resultStatus: stableIDBatchResultStatusRemoved,
 		},
 	)
 }
@@ -107,6 +79,7 @@ func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, modul
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplaceRolesForUser(ctx, rbacstore.ReplaceRolesForUserInput{UserID: targetID, RoleIDs: ids})
 			},
+			allowEmptyIDs: true,
 		},
 	)
 }
@@ -123,6 +96,7 @@ func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleNam
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.AddRolesToUser(ctx, rbacstore.AddRolesToUserInput{UserID: targetID, RoleIDs: ids})
 			},
+			allowEmptyIDs: true,
 		},
 	)
 }
@@ -133,14 +107,15 @@ func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleNam
 func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostUserRolesRemoveJSONRequestBody, rbacopenapi.PostUserRolesRemoveParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.DeleteUserRolesJSONRequestBody, rbacopenapi.DeleteUserRolesParams]{
 			invalidField: "role_ids",
 			read:         readGeneratedUserRoleRemoveRequest,
 			bindParams:   bindGeneratedUserRoleRemoveParams,
-			record:       rbacWriteGeneratedHandler{}.PostUserRolesRemove,
+			record:       rbacWriteGeneratedHandler{}.DeleteUserRoles,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.RemoveRolesFromUser(ctx, rbacstore.RemoveRolesFromUserInput{UserID: targetID, RoleIDs: ids})
 			},
+			resultStatus: stableIDBatchResultStatusRemoved,
 		},
 	)
 }
@@ -156,6 +131,8 @@ func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, 
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.ReplaceRolesForUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
+			allowEmptyRoleIDs: true,
+			resultStatus:      stableIDBatchResultStatusAccepted,
 		},
 	)
 }
@@ -173,6 +150,8 @@ func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, modu
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.AddRolesToUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
+			allowEmptyRoleIDs: true,
+			resultStatus:      stableIDBatchResultStatusAccepted,
 		},
 	)
 }
@@ -182,13 +161,14 @@ func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, modu
 func handleBatchRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleBatchStableIDsOperation(
 		ginCtx, ctx, moduleName,
-		batchGeneratedStableIDsRouteConfig[rbacopenapi.PostUsersRolesRemoveJSONRequestBody, rbacopenapi.PostUsersRolesRemoveParams]{
+		batchGeneratedStableIDsRouteConfig[rbacopenapi.DeleteUsersRolesJSONRequestBody, rbacopenapi.DeleteUsersRolesParams]{
 			read:       readGeneratedBatchUserRoleRemoveRequest,
 			bindParams: bindGeneratedUsersRoleRemoveParams,
-			record:     rbacWriteGeneratedHandler{}.PostUsersRolesRemove,
+			record:     rbacWriteGeneratedHandler{}.DeleteUsersRoles,
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.RemoveRolesFromUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
+			resultStatus: stableIDBatchResultStatusRemoved,
 		},
 	)
 }
@@ -216,7 +196,7 @@ func handleReplaceStableIDsRoute(
 		})
 		return
 	}
-	if ids == nil || hasInvalidStableIDs(ids) {
+	if invalidStableIDBatch(ids, config.allowEmptyIDs) {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": config.invalidField,
 		})
@@ -229,7 +209,11 @@ func handleReplaceStableIDsRoute(
 		return
 	}
 
-	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	if config.resultStatus == "" {
+		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+		return
+	}
+	writeStableIDBatchResult(ginCtx, ids, config.resultStatus)
 }
 
 // handleBatchStableIDsRoute 处理批量稳定 ID 写入请求，完成请求解析、ID 校验和持久化。
@@ -246,10 +230,10 @@ func handleBatchStableIDsRoute(
 		return
 	}
 	switch {
-	case request.userIDs == nil || hasInvalidStableIDs(request.userIDs):
+	case invalidStableIDBatch(request.userIDs, false):
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "user_ids"})
 		return
-	case request.roleIDs == nil || hasInvalidStableIDs(request.roleIDs):
+	case invalidStableIDBatch(request.roleIDs, config.allowEmptyRoleIDs):
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": config.invalidField})
 		return
 	}
@@ -258,7 +242,7 @@ func handleBatchStableIDsRoute(
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, config.invalidField)
 		return
 	}
-	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	writeStableIDBatchResult(ginCtx, request.userIDs, config.resultStatus)
 }
 
 // handleStableIDsRoute 处理单实体稳定 ID 写入路由，并记录生成的操作。
@@ -269,8 +253,9 @@ func handleStableIDsRoute[Body any, Params any](
 	moduleName string,
 	config generatedStableIDsRouteConfig[Body, Params],
 ) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, config.invalidField,
-		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
+	handleReplaceStableIDsRoute(ginCtx, ctx, moduleName, replaceStableIDsHandlerConfig{
+		invalidField: config.invalidField,
+		readAndBindGenerated: func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := config.read(ginCtx)
 			if err != nil {
 				return nil, err
@@ -278,8 +263,10 @@ func handleStableIDsRoute[Body any, Params any](
 			config.record(targetID, config.bindParams(ginCtx), body)
 			return ids, nil
 		},
-		config.write,
-	)
+		write:         config.write,
+		allowEmptyIDs: config.allowEmptyIDs,
+		resultStatus:  config.resultStatus,
+	})
 }
 
 // handleBatchStableIDsOperation 处理批量稳定 ID 写入操作，并记录对应的生成请求。
@@ -290,8 +277,9 @@ func handleBatchStableIDsOperation[Body any, Params any](
 	moduleName string,
 	config batchGeneratedStableIDsRouteConfig[Body, Params],
 ) {
-	handleBatchUserRoleRoute(ginCtx, ctx, moduleName,
-		func(ginCtx *gin.Context) (batchStableIDSet, error) {
+	handleBatchStableIDsRoute(ginCtx, ctx, moduleName, batchStableIDsHandlerConfig{
+		invalidField: "role_ids",
+		readAndBindGenerated: func(ginCtx *gin.Context) (batchStableIDSet, error) {
 			body, request, err := config.read(ginCtx)
 			if err != nil {
 				return batchStableIDSet{}, err
@@ -299,6 +287,50 @@ func handleBatchStableIDsOperation[Body any, Params any](
 			config.record(config.bindParams(ginCtx), body)
 			return request, nil
 		},
-		config.write,
-	)
+		write:             config.write,
+		allowEmptyRoleIDs: config.allowEmptyRoleIDs,
+		resultStatus:      config.resultStatus,
+	})
+}
+
+const maxRBACAtomicBatchItems = 100
+
+// invalidStableIDBatch 校验 RBAC 原子批次的边界与稳定 ID 合法性。
+func invalidStableIDBatch(ids []uint64, allowEmpty bool) bool {
+	return ids == nil || (!allowEmpty && len(ids) == 0) || len(ids) > maxRBACAtomicBatchItems || hasInvalidStableIDs(ids) || hasDuplicateStableIDs(ids)
+}
+
+func hasDuplicateStableIDs(ids []uint64) bool {
+	seen := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		if _, exists := seen[id]; exists {
+			return true
+		}
+		seen[id] = struct{}{}
+	}
+	return false
+}
+
+// writeStableIDBatchResult 按请求顺序返回已原子提交的共享批次结果。
+func writeStableIDBatchResult(
+	ginCtx *gin.Context,
+	requestedIDs []uint64,
+	status stableIDBatchResultStatus,
+) {
+	results := make([]generated.DestructiveBatchResultItem, 0, len(requestedIDs))
+	for _, id := range requestedIDs {
+		results = append(results, map[string]any{
+			"id":     strconv.FormatUint(id, 10),
+			"status": status,
+		})
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.DestructiveBatchResult{
+		OperationId: httpx.EnsureRequestID(ginCtx),
+		Summary: generated.DestructiveBatchResultSummary{
+			Requested: len(results),
+			Succeeded: len(results),
+			Failed:    0,
+		},
+		Results: results,
+	})
 }
