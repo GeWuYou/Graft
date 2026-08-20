@@ -400,6 +400,34 @@ func TestListWorkspacesScopesToCallerAndSharedSources(t *testing.T) {
 	}
 }
 
+func TestListWorkspacesEnforcesUnicodeSearchLimitBeforeQuery(t *testing.T) {
+	accepted := strings.Repeat("界", 255)
+	_, args, err := buildWorkspaceListFilter(7, &accepted)
+	if err != nil {
+		t.Fatalf("255-rune workspace query: %v", err)
+	}
+	if len(args) != 2 || args[1] != accepted {
+		t.Fatalf("255-rune workspace query arguments = %#v", args)
+	}
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected := strings.Repeat("界", 256)
+	if _, err := repository.ListWorkspaces(context.Background(), 7, WorkspaceListQuery{Search: &rejected}); err == nil || err.Error() != "invalid build workspace query" {
+		t.Fatalf("256-rune workspace query error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("over-limit workspace query reached SQL: %v", err)
+	}
+}
+
 func TestListBuilderPoolsReturnsOnlyLivePoolProjection(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

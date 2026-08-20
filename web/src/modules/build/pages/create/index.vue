@@ -345,6 +345,7 @@ function showWorkspaceSearchResult() {
 
 function scheduleWorkspaceSearch(keyword: string) {
   cancelWorkspaceSearch();
+  workspaceRequestSequence += 1;
   workspaceSearchTimer = setTimeout(() => {
     workspaceSearchTimer = undefined;
     void loadWorkspaces(keyword);

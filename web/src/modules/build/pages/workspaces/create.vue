@@ -59,7 +59,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { getApplications } from '@/modules/project/api/project';
+import { type ApplicationCatalogItem, getApplicationCatalog } from '@/modules/project/contract/application-catalog';
 import { APPLICATION_ROUTE_PATH } from '@/modules/project/contract/paths';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -72,7 +72,7 @@ import type { BuildWorkspaceCreateRequest } from '../../types/build';
 const { t } = useI18n();
 const router = useRouter();
 const form = ref<BuildWorkspaceCreateRequest>({ name: '', source_kind: 'application_workspace', source_reference: '' });
-type ApplicationCandidate = NonNullable<Awaited<ReturnType<typeof getApplications>>['items']>[number];
+type ApplicationCandidate = ApplicationCatalogItem;
 
 const APPLICATION_SEARCH_LIMIT = 20;
 const APPLICATION_SEARCH_DEBOUNCE_MS = 250;
@@ -109,7 +109,7 @@ async function loadApplications(keyword = '') {
   applicationLoading.value = true;
   applicationError.value = '';
   try {
-    const response = await getApplications({
+    const response = await getApplicationCatalog({
       limit: APPLICATION_SEARCH_LIMIT,
       offset: 0,
       ...(keyword ? { keyword } : {}),

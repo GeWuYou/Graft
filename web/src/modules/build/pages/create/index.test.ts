@@ -204,6 +204,14 @@ function mountPage() {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+}
+
 describe('BuildCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -287,6 +295,42 @@ describe('BuildCreatePage', () => {
     expect(JSON.parse(workspaceSelect?.attributes('data-options') ?? '[]')).toEqual([
       { label: 'Later', value: 'workspace_later' },
     ]);
+    vi.useRealTimers();
+  });
+
+  it('invalidates an active Workspace request as soon as the search input changes', async () => {
+    vi.useFakeTimers();
+    const staleSearch = deferred<{ items: Array<{ workspace_id: string; name: string }> }>();
+    const currentSearch = deferred<{ items: Array<{ workspace_id: string; name: string }> }>();
+    mocks.getBuildWorkspaces
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_initial', name: 'Initial' }] })
+      .mockReturnValueOnce(staleSearch.promise)
+      .mockReturnValueOnce(currentSearch.promise);
+    const wrapper = mountPage();
+    await flushPromises();
+    const workspaceSelect = wrapper.findAllComponents(SelectStub).find((candidate) => candidate.props('filterable'));
+    expect(workspaceSelect).toBeDefined();
+
+    workspaceSelect?.vm.$emit('search', 'stale');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(2);
+
+    workspaceSelect?.vm.$emit('search', 'current');
+    staleSearch.resolve({ items: [{ workspace_id: 'workspace_stale', name: 'Stale' }] });
+    await flushPromises();
+    expect(workspaceSelect?.props('options')).toEqual([{ label: 'Initial', value: 'workspace_initial' }]);
+    expect(workspaceSelect?.props('loading')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(3, {
+      limit: 20,
+      offset: 0,
+      search: 'current',
+    });
+    currentSearch.resolve({ items: [{ workspace_id: 'workspace_current', name: 'Current' }] });
+    await flushPromises();
+    expect(workspaceSelect?.props('options')).toEqual([{ label: 'Current', value: 'workspace_current' }]);
+    expect(workspaceSelect?.props('loading')).toBe(false);
     vi.useRealTimers();
   });
 

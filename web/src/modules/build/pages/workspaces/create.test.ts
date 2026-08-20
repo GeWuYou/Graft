@@ -4,12 +4,12 @@ import { defineComponent, h } from 'vue';
 
 import WorkspaceCreatePage from './create.vue';
 
-const projectApiMocks = vi.hoisted(() => ({
-  getApplications: vi.fn(),
+const projectContractMocks = vi.hoisted(() => ({
+  getApplicationCatalog: vi.fn(),
 }));
 
-vi.mock('@/modules/project/api/project', () => ({
-  getApplications: projectApiMocks.getApplications,
+vi.mock('@/modules/project/contract/application-catalog', () => ({
+  getApplicationCatalog: projectContractMocks.getApplicationCatalog,
 }));
 
 vi.mock('../../api/build', () => ({
@@ -89,7 +89,7 @@ function mountPage() {
 describe('WorkspaceCreatePage', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    projectApiMocks.getApplications.mockReset();
+    projectContractMocks.getApplicationCatalog.mockReset();
   });
 
   afterEach(() => {
@@ -100,7 +100,7 @@ describe('WorkspaceCreatePage', () => {
     const staleSearch = deferred<{ items: Array<ReturnType<typeof application>> }>();
     const currentSearch = deferred<{ items: Array<ReturnType<typeof application>> }>();
     const replacementSearch = deferred<{ items: Array<ReturnType<typeof application>> }>();
-    projectApiMocks.getApplications
+    projectContractMocks.getApplicationCatalog
       .mockResolvedValueOnce({ items: [application('initial', 'Initial application')] })
       .mockReturnValueOnce(staleSearch.promise)
       .mockReturnValueOnce(currentSearch.promise)
@@ -110,14 +110,14 @@ describe('WorkspaceCreatePage', () => {
     await flushPromises();
     const select = wrapper.getComponent(selectStub);
 
-    expect(projectApiMocks.getApplications).toHaveBeenNthCalledWith(1, { limit: 20, offset: 0 });
+    expect(projectContractMocks.getApplicationCatalog).toHaveBeenNthCalledWith(1, { limit: 20, offset: 0 });
     expect(select.props('filterable')).toBe(true);
 
     select.vm.$emit('search', 'stale keyword', { e: new KeyboardEvent('keydown') });
     await vi.advanceTimersByTimeAsync(250);
     select.vm.$emit('search', 'remote candidate', { e: new KeyboardEvent('keydown') });
     await vi.advanceTimersByTimeAsync(250);
-    expect(projectApiMocks.getApplications).toHaveBeenNthCalledWith(3, {
+    expect(projectContractMocks.getApplicationCatalog).toHaveBeenNthCalledWith(3, {
       keyword: 'remote candidate',
       limit: 20,
       offset: 0,
