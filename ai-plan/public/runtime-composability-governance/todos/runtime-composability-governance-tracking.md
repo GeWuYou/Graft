@@ -47,15 +47,15 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `phase-5-remaining-p0-lifecycle-evidence`.
+- Current batch: `docker-runtime-agent-subtopic`.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
 - Phase 1 result: Task Runtime nil-context shutdown is safe; durable Dispatcher has terminal post-shutdown state and forced-timeout evidence.
 - Phase 2 result: no repeated cross-owner cancellation/cleanup pattern was found that existing Module, Task Runtime,
   realtime subscription, Agent, Provider or Runner owners cannot express. No Resource Scope API is introduced.
-- Archive readiness found three P0 evidence gaps. Next step: complete `phase-5-remaining-p0-lifecycle-evidence`
-  before another archive-readiness check.
+- Phase 5 lifecycle evidence is complete. The Docker Runtime Agent subtopic now owns the active migration batches and
+  this parent retains cross-runtime authority and archive status.
 
 ## Task Checklist
 
@@ -82,9 +82,9 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation"],
-  "pending_batches": [],
-  "current_batch": null,
-  "next_batch": null,
+  "pending_batches": ["docker-runtime-agent-subtopic"],
+  "current_batch": "docker-runtime-agent-subtopic",
+  "next_batch": "docker-runtime-agent-subtopic",
   "closeout_status": "active"
 }
 ```
@@ -96,6 +96,8 @@ closeout:
 - Conformance tests prove registration does not invoke module lifecycle methods, MemoryBus remains synchronous, and cronx Registry is declaration-only.
 - Focused validation passed for internal/module, internal/eventbus, internal/cronx, internal/httpx, modules/project, modules/container, and modules/runtime-target; conformance race tests, git diff --check, and the AI-plan structure guard also passed.
 - Phase 5 evidence is complete; topic remains active until normal task-closeout/archive review.
+- Docker Runtime Agent is an active bounded subtopic. Its tracking file owns the eight migration batches; the parent
+  retains only cross-runtime authority and archive status.
 
 ## Phase 1 Lifecycle Cleanup Result
 

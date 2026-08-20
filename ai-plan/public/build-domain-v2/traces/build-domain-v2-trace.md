@@ -739,3 +739,8 @@
   "closeout_status": "scope-complete-topic-active"
 }
 ```
+## 2026-08-21 ADR-026 Runtime Agent convergence
+
+- Accepted the single Docker Runtime Agent execution boundary beneath the existing Build Provider SPI.
+- Kept Build Plan/Placement/Reservation/Artifact/Publication authority and public `docker-buildx@v1` identity stable;
+  CLI invocation becomes a temporary migration adapter rather than design authority.

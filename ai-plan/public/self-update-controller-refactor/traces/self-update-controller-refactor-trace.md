@@ -100,3 +100,8 @@
   "closeout_status": "active"
 }
 ```
+## 2026-08-21 ADR-026 launcher convergence
+
+- Preserved ADR-009 controller-owned durable state and server read-only projection.
+- Changed the future launcher to Docker Runtime Agent and fixed Agent-last replacement so the controller survives both
+  server and Agent recreation before writing terminal state.

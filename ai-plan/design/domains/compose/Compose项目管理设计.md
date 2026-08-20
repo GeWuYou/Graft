@@ -277,11 +277,14 @@ Docker container labels
 推荐拆分为两个边界：
 
 - 静态解析与导入校验：`compose-go`
-- 生命周期执行：`docker compose` CLI
+- 生命周期执行：由 Task Runtime 冻结 external execution lease，`docker-runtime-agent` 内的 Docker Provider
+  使用官方 Compose SDK；server 不执行 CLI、不挂载 Docker socket
 
 理由：
 
 - Compose 文件导入、合并、插值、标准化更适合静态解析库。
+- 生命周期 Provider 消费不可变 operation snapshot，不消费 argv、Docker endpoint、证书路径或凭据；页面中的
+  command preview 仅表达用户可理解的 Compose 意图，不是持久化执行契约。
 - 真实 `up/stop/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
 - 这样可以把“读配置”和“改运行态”分开治理。
 
@@ -320,7 +323,7 @@ server/modules/project/
 - `compose/loader.go`
   - 使用 `compose-go` 读取、标准化、验证、生成快照。
 - `compose/executor.go`
-  - 使用参数化命令执行 `docker compose up/stop/restart`，并把 `docker compose down` 保留给 destroy。
+  - 通过 `ComposeLifecycleExecutionProvider` 提交受控的 up/stop/restart operation，并把 down 保留给 destroy。
 - `fs/`
   - 负责 working directory 解析、文件存在性检查、hash 计算、symlink 安全校验。
 
@@ -361,7 +364,9 @@ web/src/modules/project
     -> server/modules/project/service.go
       -> ProjectRepository(database/sql)
       -> ComposeLoader(compose-go)
-      -> ComposeExecutor(docker compose CLI)
+      -> ComposeLifecycleExecutionProvider
+      -> Task Runtime external execution lease
+      -> Docker Runtime Agent(official Compose SDK)
       -> FilesystemResolver / Hashing
       -> moduleapi.ContainerRuntimeReadService(future narrow boundary)
       -> moduleapi.SystemConfigResolver
@@ -1550,7 +1555,7 @@ Phase 1 处理：
 
 - 无法读取配置文件
 - Docker socket 无权限
-- `docker compose` 不可用
+- Runtime Agent 未连接或 `compose_execution` capability 不可用
 - 命令拼接注入
 
 要求：

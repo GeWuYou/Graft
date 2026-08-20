@@ -33,9 +33,10 @@ Deployable Agent trust and wire semantics follow
 - `RuntimeTargetBuilderTelemetryReader` remains the Build-visible read facade. A historical generic signed ingress is
   not a real Docker Builder Agent source and cannot admit a Provider. UI summaries, Monitor charts, Docker/host metrics
   and Task JSON cannot enable dynamic placement.
-- Runtime Target now couples the real Docker CLI execution boundary to a durable Driver-controller ledger and permits
-  one enabled Agent scope per target. This is source evidence, not an out-of-process Agent deployment protocol; no
-  transport, private-key bootstrap or operator lifecycle authority exists yet.
+- ADR-026 promotes the provisioned Docker Agent into the single out-of-process `docker-runtime-agent`. Runtime Target
+  retains mTLS identity and capability binding, Task Runtime owns external execution leases, and Build retains Plan,
+  Placement, Reservation, Artifact and Publication authority. The current CLI boundary is now a migration bridge with
+  SDK conformance and deletion as its cleanup trigger.
 - Existing Pool/Placement material is retained, but public capability exposure is reset to the RFC's four phases.
   `least_load`, `capacity`, `affinity` and `region` are latent/disabled until Phase 4 evidence exists.
 - Provider lifecycle and adapter conformance are defined by the separate SDK/SPI RFC; no concrete new provider is

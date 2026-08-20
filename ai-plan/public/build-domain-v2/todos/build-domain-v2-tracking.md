@@ -263,3 +263,9 @@ state below. A historical item may support an RFC phase but cannot independently
   "closeout_status": "scope-complete-topic-active"
 }
 ```
+## ADR-026 Convergence Note
+
+- `docker-builder-agent` is scheduled for direct promotion to one `docker-runtime-agent`; no parallel Agent identity or
+  Build-owned work queue is permitted.
+- Build execution migrates beneath the existing Provider SPI and public Driver IDs. Task Runtime, not Build or Agent,
+  owns claim, renewal, cancellation observation, receipt and expiry recovery.

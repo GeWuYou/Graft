@@ -166,6 +166,14 @@ mirror, registry alias and cache namespace values. It excludes endpoint details,
 The adapter MUST honor fencing, cancellation and timeout, return digest-preserving receipts, and surface uncertain
 external state as `Unknown` for Task Runtime recovery. It MUST not retry or reschedule independently.
 
+For Docker, the execution adapter is hosted by the single `docker-runtime-agent` defined by ADR-026. Build retains
+Plan, Placement, Reservation, Artifact and Publication authority; Task Runtime issues and settles the external execution
+lease; Runtime Target authenticates the Agent and projects its capability binding. The Agent may translate the frozen
+request to Moby Engine or approved OCI SDK calls, but it cannot select a target, alter a reservation, create a Task or
+persist a second execution ledger. The public `docker-buildx@v1` Driver ID remains stable during migration even when its
+implementation stops invoking buildx CLI. Any temporary CLI adapter must declare an owner, conformance equivalence and
+deletion trigger.
+
 ### Evidence Writer
 
 `EvidenceWriter` appends redacted provider facts through the existing owning authority; it is not a database:

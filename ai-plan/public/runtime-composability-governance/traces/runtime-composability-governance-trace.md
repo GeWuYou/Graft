@@ -116,3 +116,10 @@
 - Phase 5 implementation evidence is complete for project/container stream lifecycle ownership, RuntimeTarget and Agent/collector observability, and Register/MemoryBus/cron Registry conformance.
 - Focused backend tests and conformance race tests passed; `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` passed.
 - No Resource Scope API, second scheduler, hidden worker, dynamic loader, or compatibility bridge was introduced. Topic remains active pending normal closeout/archive review.
+
+## 2026-08-21 docker-runtime-agent-subtopic
+
+- Reused this topic for the long-running Docker execution convergence and added a bounded subtopic recovery entry.
+- ADR-026 fixes one pull-based Runtime Agent, Task-owned external execution leases, a server without Docker socket/CLI,
+  and a separate short-lived Update Controller.
+- The subtopic owns its own batch state and trace; this parent remains the runtime composition and archive authority.

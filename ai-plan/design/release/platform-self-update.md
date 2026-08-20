@@ -147,7 +147,14 @@ runner 没有 PostgreSQL credentials、HTTP API、SSE 或 WebSocket service。se
 
 ## Compose Execution Boundary
 
-官方 Compose 安装的已确认升级由短生命周期 `graft-compose-runner` 执行。runner 接收由 server 预检并冻结的 target immutable references、manifest identity、operation identity、host Compose root 与受限 Compose command input，并成为该 operation 的 controller。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 和其专用 named update-state volume 后执行备份、runner-scoped Compose override、`docker compose pull`、实际 digest 验证、bootstrap migration、受控 recreate 与 health check。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release tag，也不得以 retained container logs 作为状态存储或向数据库直写。
+官方 Compose 安装的已确认升级由 `docker-runtime-agent` 从 Task-owned lease 启动短生命周期、digest-pinned
+Update Controller 执行。Controller 接收由 server 预检并冻结的 target immutable references、manifest identity、
+operation identity、host Compose root 与受限 Compose operation snapshot，并成为该 operation 的 controller。
+输入通过受控启动 API inline 传入，不要求 server 直接访问自动发现的宿主路径；Controller 临时挂载 Docker
+socket 和其专用 named update-state volume，使用 Compose SDK 执行备份、pull、实际 digest 验证、bootstrap
+migration、受控 recreate 与 health check。它先更新 server/web、验证新 server，再最后替换 Runtime Agent 并
+验证新 Agent 的 mTLS 与 capability readiness。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release
+tag，也不得以 retained container logs 作为状态存储或向数据库直写。
 
 state volume 是 active execution/recovery authority：runner 使用 schema-v2 atomic snapshot/event persistence、30 秒 heartbeat、五分钟 expiry 和 `lease_epoch` fencing 保证只有一个 non-terminal operation。server 仅用 read-only mount 每分钟 reconcile、在读取时计算 lease 并投影 terminal history；state corruption、operation mismatch 或 stale lease 均 fail closed 并要求受保护的 recovery-runner 操作。Docker inventory 不参与活动状态、失联投影或 recovery 授权；runner logs 仅可作为已存在 terminal receipt 的最佳努力诊断，不结算 update operation。详细的 lifecycle ownership 由 ADR-009 固定。
 

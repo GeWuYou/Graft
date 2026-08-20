@@ -14,6 +14,8 @@ and compiler batches begin.
 runtime, Compose, template, and CI consumers converge.
 `ADR-025-provider-oriented-project-layout.md` fixes the Provider-oriented project layout and legacy-frozen migration
 boundary before new external capability implementations are added.
+`ADR-026-docker-runtime-agent-execution-boundary.md` fixes the single Docker Runtime Agent, Task-owned external
+execution lease, server no-socket and independent Update Controller boundary before Docker capability migration.
 
 ## Rules
 

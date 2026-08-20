@@ -12,6 +12,8 @@
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
 - Completed: Work Intake, design, roadmap, topic bootstrap, lifecycle inventory/cleanup, narrow-scope evaluation,
   Phase 3 typed composition declarations, Phase 4 controlled-change evaluation, and Phase 5 remaining P0 lifecycle evidence.
+- Active subtopic: `subtopics/docker-runtime-agent/todos/docker-runtime-agent-tracking.md`; it owns the migration from
+  server-local Docker execution to one Task-governed Runtime Agent.
 
 ## Recovery Receipt
 
@@ -38,16 +40,13 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Design authority is fixed for Graft's runtime composition model.
-- Phase 4 controlled-change evaluation is complete: runtime Module/Provider enable/disable remains unapproved.
-- Default operational paths remain process restart, config reconcile, or Agent reconnect.
+- Runtime composition Phase 5 evidence is complete and its dynamic-change rejection remains unchanged.
+- Continue the Docker Runtime Agent subtopic. Current batches are architecture authority/recovery followed by Task
+  Runtime external execution foundation.
 
 ## Archive Readiness
 
-- Decision: archive is not yet approved.
-- The Phase 0 P0 inventory still lacks completion evidence for the project/container detached-context shutdown paths,
-  RuntimeTarget and Agent/collector failure observability, and lifecycle conformance checks. These require a bounded
-  follow-up before archive readiness can be accepted.
+- Decision: archive is not approved while the Docker Runtime Agent subtopic is active.
 
 ## Work Intake
 
@@ -64,4 +63,4 @@ python3 scripts/validate_ai_plan_structure.py
 ## Loop Entry
 
 - Preferred entry: `ai-plan/public/runtime-composability-governance/startup-prompt.md`
-- Preferred execution mode: `$graft-multi-agent-loop`
+- Current bounded recovery: `subtopics/docker-runtime-agent/todos/docker-runtime-agent-tracking.md`

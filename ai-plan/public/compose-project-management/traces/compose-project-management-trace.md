@@ -1,5 +1,12 @@
 # Compose Project Management Trace
 
+## 2026-08-21 ADR-026 execution-boundary convergence
+
+- Replaced the historical server-local Compose CLI design decision with a Task-owned external execution lease and the
+  Docker Runtime Agent official Compose SDK adapter.
+- Application lifecycle intent, Workspace and Container runtime authority are unchanged; command preview remains
+  explanatory and cannot become persisted argv.
+
 ## 2026-07-15 PR #156 migration immutability repair
 
 - 撤回对已提交 `server/internal/httpx/migrations/202607150001_access_log_connection_type.sql` 的改写，新增 `202607150002_access_log_connection_type_backfill_fix.sql` 修复失败握手被误标为 WebSocket 的历史数据。

@@ -1,5 +1,9 @@
 # ADR-009: Self Update Controller State Authority
 
+> Subsequent decision: ADR-026 changes the launcher to `docker-runtime-agent` and migrates the short-lived controller to
+> SDK-backed execution. This ADR remains authoritative for the controller-owned durable state volume, lease fencing,
+> server read-only projection and terminal recovery across server and Agent replacement.
+
 - Status: accepted
 - Date: 2026-08-01
 - Scope: `graft-compose-runner`, self-update state ownership, server projection, and Update Center realtime recovery

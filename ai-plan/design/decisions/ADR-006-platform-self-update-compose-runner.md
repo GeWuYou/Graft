@@ -1,5 +1,9 @@
 # ADR-006: Platform Self Update Compose Runner
 
+> Subsequent decision: ADR-026 supersedes the Compose-CLI launcher and server-to-runner handoff portions. This ADR
+> remains authoritative for the host Compose-root trust boundary, immutable update input, digest pinning and the need
+> for an executor that survives server recreation.
+
 - Status: accepted
 - Date: 2026-07-22
 - Scope: `server/modules/update/**`, Compose update execution, and release delivery artifacts

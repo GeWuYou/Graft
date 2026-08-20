@@ -91,6 +91,10 @@ certificate URI SAN and active generation, never a request body field.
 | --- | --- | --- |
 | Pull controller snapshot | `GET /agent/v1/ledger-snapshot` | returns one certificate-bound Driver-controller snapshot |
 | Submit telemetry acknowledgement | `POST /agent/v1/telemetry-reports` | admits one issued snapshot as an observation |
+| Claim execution lease | `POST /agent/v1/execution-leases/claim` | claims one Task-owned, capability-bound Stage attempt |
+| Renew execution lease | `POST /agent/v1/execution-leases/{leaseId}/renew` | renews the same fenced attempt within its absolute deadline |
+| Append bounded logs | `POST /agent/v1/execution-leases/{leaseId}/logs` | appends redacted Stage logs with sequence and size limits |
+| Settle execution receipt | `POST /agent/v1/execution-leases/{leaseId}/receipts` | idempotently settles one bound Stage attempt |
 
 Snapshots carry generation, sequence, snapshot ID/digest, observation and expiry timestamps, and canonical ledger
 values. Reports echo generation, snapshot ID and digest and may contain only bounded liveness/implementation
@@ -102,9 +106,18 @@ diagnostics. Runtime Target validates identity, generation, issuance, expiry, di
 
 ## Ledger And Migration
 
-Agent pull is the sole Phase 4 feed: snapshot issuance atomically allocates its monotonic sequence and one-time ID.
-The Agent cannot change ledger values or synthesize its source. Server push and streaming are rejected because they
-would add connection-lifecycle authority. Expired or unacknowledged snapshots are not placement input.
+Agent pull is the sole Phase 4 telemetry and work feed: snapshot issuance atomically allocates its monotonic sequence
+and one-time ID, while execution claim atomically leases one Task-owned Stage attempt. The Agent cannot change ledger
+values, synthesize its source, choose work outside its target/capability binding or settle a mismatched fence. Server push
+and server-initiated streaming remain rejected because they would add connection-lifecycle authority. Expired or
+unacknowledged snapshots are not placement input; expired running execution leases enter Task Runtime
+`unknown`/`needs_attention` recovery and are never silently reassigned.
+
+Execution endpoints extend the existing mTLS listener; they do not publish an operator API or create an Agent-owned
+queue. Identity comes only from the active certificate generation. Claim filters are derived from the authenticated
+target and capability binding, never request-body Agent identity. Lease payloads exclude secrets and host endpoints;
+operation-scoped credentials use a separate one-time mTLS delivery boundary. Log and receipt submissions are bounded,
+redacted and bound to task, stage, attempt, lease, fence and payload digest.
 
 Migration creates generation-aware, provider-neutral Agent Identity, pending enrollment, delivery-grant,
 delivery-receipt and certificate-evidence facts without reinterpreting Ed25519 public-key rows. Delivery grants bind

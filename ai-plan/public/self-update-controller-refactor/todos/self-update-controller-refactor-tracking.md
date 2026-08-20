@@ -115,3 +115,8 @@ closeout:
   `go test ./modules/update/...`, and `go build ./cmd/graft`; `bun run lint:i18n` and the repository-wide `bun run
   check` also pass. Compose interruption/restart evidence and archive-readiness review remain pending before the topic
   can close.
+## ADR-026 Convergence Note
+
+- The short-lived Update Controller and its durable state/fencing authority remain intact.
+- Docker Runtime Agent becomes its launcher and the Controller migrates to SDK-backed Compose operations. Replacement
+  order is server/web first and Runtime Agent last, followed by mTLS/capability readiness verification.
