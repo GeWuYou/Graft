@@ -139,9 +139,13 @@ func toGeneratedProjectLifecycleConfiguration(
 
 // toGeneratedLifecycleConfiguration 将生命周期配置转换为生成的 API 表示形式，包括标准选项、附加参数和生成的命令。
 func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ApplicationLifecycleConfiguration {
+	stopArgs := append([]string(nil), config.Standard.StopArgs...)
+	restartArgs := append([]string(nil), config.Standard.RestartArgs...)
+	pullArgs := append([]string(nil), config.Standard.PullArgs...)
 	return generated.ApplicationLifecycleConfiguration{
 		StrategyKind:             generated.ApplicationLifecycleStrategyKind(config.StrategyKind),
 		Profiles:                 append([]string(nil), config.Standard.Profiles...),
+		ManagedServiceNames:      append([]string(nil), config.Standard.ManagedServiceNames...),
 		DownBeforeRedeploy:       config.Standard.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.Standard.PullBeforeRedeploy,
 		BuildBeforeUp:            config.Standard.BuildBeforeUp,
@@ -152,6 +156,9 @@ func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.
 		RenewAnonVolumes:         config.Standard.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
 		AdditionalArgs:           append([]string{}, config.Standard.AdditionalArgs...),
+		StopArgs:                 &stopArgs,
+		RestartArgs:              &restartArgs,
+		PullArgs:                 &pullArgs,
 		GeneratedCommands:        toGeneratedLifecycleCommands(config),
 	}
 }
@@ -200,16 +207,20 @@ func buildLifecycleCommandSteps(
 	case "up":
 		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
 	case "stop":
-		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("stop", append(base, "stop"))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("stop", buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames))}
 	case "restart":
-		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("restart", append(base, "restart"))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("restart", buildLifecycleActionArgv(base, "restart", config.Standard.RestartArgs, config.Standard.ManagedServiceNames))}
 	case "redeploy":
 		steps := make([]generated.ApplicationLifecycleCommandStep, 0, lifecycleRedeployStepCap)
 		if config.Standard.DownBeforeRedeploy {
-			steps = append(steps, buildLifecycleCommandStep("down", append(append([]string(nil), base...), "down")))
+			if lifecycleManagesAllServices(config) {
+				steps = append(steps, buildLifecycleCommandStep("down", append(append([]string(nil), base...), "down")))
+			} else {
+				steps = append(steps, buildLifecycleCommandStep("stop", buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames)))
+			}
 		}
 		if config.Standard.PullBeforeRedeploy {
-			steps = append(steps, buildLifecycleCommandStep("pull", append(append([]string(nil), base...), "pull")))
+			steps = append(steps, buildLifecycleCommandStep("pull", buildLifecycleActionArgv(base, "pull", config.Standard.PullArgs, config.Standard.ManagedServiceNames)))
 		}
 		steps = append(steps, buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard)))
 		if config.Standard.PruneImagesAfterRedeploy {
@@ -219,6 +230,11 @@ func buildLifecycleCommandSteps(
 	default:
 		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
 	}
+}
+
+func lifecycleManagesAllServices(config LifecycleConfiguration) bool {
+	return len(config.Standard.ManagedServiceNames) == 0 ||
+		(config.DeclaredServiceCount > 0 && len(config.Standard.ManagedServiceNames) == config.DeclaredServiceCount)
 }
 
 // buildLifecycleBaseArgv 构建包含 Compose 文件、配置文件和项目名称的 Docker Compose 基础命令参数。
@@ -256,6 +272,14 @@ func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []str
 		args = append(args, "--wait-timeout", fmt.Sprintf("%d", standard.WaitTimeoutSeconds))
 	}
 	args = append(args, standard.AdditionalArgs...)
+	args = append(args, standard.ManagedServiceNames...)
+	return args
+}
+
+func buildLifecycleActionArgv(base []string, action string, actionArgs []string, services []string) []string {
+	args := append(append([]string(nil), base...), action)
+	args = append(args, actionArgs...)
+	args = append(args, services...)
 	return args
 }
 

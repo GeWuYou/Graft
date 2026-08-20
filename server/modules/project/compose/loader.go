@@ -62,6 +62,7 @@ type FileProjection struct {
 // ServiceProjection 保存从 Compose YAML 静态提取的服务摘要，不代表运行时服务状态。
 type ServiceProjection struct {
 	ServiceName      string
+	DependsOn        []string
 	Image            *string
 	BuildContext     *string
 	DeclaredPorts    []string
@@ -345,6 +346,7 @@ func buildServiceProjection(name string, projection ServiceProjection) ServicePr
 	sort.Strings(projection.DeclaredPorts)
 	sort.Strings(projection.DeclaredVolumes)
 	sort.Strings(projection.DeclaredNetworks)
+	sort.Strings(projection.DependsOn)
 	return projection
 }
 
@@ -656,7 +658,7 @@ func composeRole(index int) string {
 
 // mergeServiceProjection 合并服务投影中可静态提取的字段。
 //
-// 会从服务节点中提取并合并 image、build.context、ports、volumes 和 networks 等信息，
+// 会从服务节点中提取并合并 image、build.context、depends_on、ports、volumes 和 networks 等信息，
 // 并保留已有投影中已收集的值。
 func mergeServiceProjection(existing ServiceProjection, raw any) ServiceProjection {
 	result := existing
@@ -673,7 +675,26 @@ func mergeServiceProjection(existing ServiceProjection, raw any) ServiceProjecti
 	result.DeclaredPorts = mergeStringList(result.DeclaredPorts, listValues(node["ports"]))
 	result.DeclaredVolumes = mergeStringList(result.DeclaredVolumes, listValues(node["volumes"]))
 	result.DeclaredNetworks = mergeStringList(result.DeclaredNetworks, networkValues(node["networks"]))
+	result.DependsOn = mergeStringList(result.DependsOn, dependencyValues(node["depends_on"]))
 	return result
+}
+
+// dependencyValues 提取 Compose depends_on 的列表或映射形式，返回非空服务名。
+func dependencyValues(raw any) []string {
+	switch value := raw.(type) {
+	case []any:
+		return listValues(value)
+	case map[string]any:
+		result := make([]string, 0, len(value))
+		for name := range value {
+			if trimmed := strings.TrimSpace(name); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
 }
 
 // buildContextValue 提取可静态识别的构建上下文路径。

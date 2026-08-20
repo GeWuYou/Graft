@@ -289,6 +289,7 @@
             v-if="lifecycleDraft"
             v-model:draft="lifecycleDraft"
             :inspection-refresh-loading="inspectLoading"
+            :service-options="inspectResult?.service_options ?? []"
             @back="goToStep('inspect', true)"
             @confirm="goToConfirmStep"
             @refresh="handleRefreshInspect"

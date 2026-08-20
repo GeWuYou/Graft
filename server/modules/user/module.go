@@ -555,36 +555,18 @@ func (s userService) validateSetUserStatusPreconditions(
 }
 
 func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
-	if s.users == nil {
-		return errors.New("user repository is unavailable")
-	}
-	if s.authTx == nil {
-		return errors.New("auth repository is unavailable")
-	}
-	if requestActorOwnsUser(ctx, userID) {
-		return errCannotDeleteOwnUser
-	}
-	current, err := s.users.GetByID(ctx, userID)
+	alreadyDeleted, err := s.validateDeleteUserPreconditions(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if current.ProtectedDefaultAdmin {
-		return errProtectedDefaultAdminImmutable
+	if alreadyDeleted {
+		return nil
 	}
 
-	if err := s.runCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, auth moduleapi.AuthTransactionAdapter) error {
-		if err := profiles.Delete(txCtx, userstore.DeleteUserInput{
-			ID:        userID,
-			DeletedAt: time.Now().UTC(),
-			ActorID:   requestActorID(ctx),
-		}); err != nil {
-			return fmt.Errorf("delete user profile: %w", err)
+	if err := s.deleteUserAndRevokeSessions(ctx, userID); err != nil {
+		if s.deletionCompletedConcurrently(ctx, userID, err) {
+			return nil
 		}
-		if err := auth.RevokeSessions(txCtx, userID); err != nil {
-			return fmt.Errorf("revoke user sessions after deleting profile: %w", err)
-		}
-		return nil
-	}); err != nil {
 		return err
 	}
 
@@ -598,6 +580,53 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	})
 
 	return nil
+}
+
+func (s userService) validateDeleteUserPreconditions(ctx context.Context, userID uint64) (bool, error) {
+	if s.users == nil {
+		return false, errors.New("user repository is unavailable")
+	}
+	if s.authTx == nil {
+		return false, errors.New("auth repository is unavailable")
+	}
+	if requestActorOwnsUser(ctx, userID) {
+		return false, errCannotDeleteOwnUser
+	}
+	deletionState, err := s.users.GetDeletionState(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if deletionState.Deleted {
+		return true, nil
+	}
+	if deletionState.ProtectedDefaultAdmin {
+		return false, errProtectedDefaultAdminImmutable
+	}
+	return false, nil
+}
+
+func (s userService) deleteUserAndRevokeSessions(ctx context.Context, userID uint64) error {
+	return s.runCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, auth moduleapi.AuthTransactionAdapter) error {
+		if err := profiles.Delete(txCtx, userstore.DeleteUserInput{
+			ID:        userID,
+			DeletedAt: time.Now().UTC(),
+			ActorID:   requestActorID(ctx),
+		}); err != nil {
+			return fmt.Errorf("delete user profile: %w", err)
+		}
+		if err := auth.RevokeSessions(txCtx, userID); err != nil {
+			return fmt.Errorf("revoke user sessions after deleting profile: %w", err)
+		}
+		return nil
+	})
+}
+
+func (s userService) deletionCompletedConcurrently(ctx context.Context, userID uint64, deleteErr error) bool {
+	if !errors.Is(deleteErr, userstore.ErrUserNotFound) {
+		return false
+	}
+	currentState, lookupErr := s.users.GetDeletionState(ctx, userID)
+	return lookupErr == nil && currentState.Deleted
 }
 
 func (s userService) runCompositeTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository, moduleapi.AuthTransactionAdapter) error) error {

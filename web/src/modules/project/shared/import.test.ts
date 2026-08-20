@@ -14,6 +14,7 @@ const lifecycleConfiguration = {
   wait_timeout_seconds: 120,
   renew_anon_volumes: false,
   prune_images_after_redeploy: false,
+  managed_service_names: [],
 };
 
 describe('project import normalization helpers', () => {
@@ -29,6 +30,7 @@ describe('project import normalization helpers', () => {
       compose_files: [],
       env_files: [],
       services: ['web'],
+      service_options: [{ name: 'web', depends_on: [] }],
       networks: [
         {
           name: 'frontend',
@@ -120,6 +122,7 @@ describe('project import normalization helpers', () => {
         },
       ] as never,
       services: [],
+      service_options: [],
       networks: [],
       volumes: [],
       runtime_members: [],
@@ -164,6 +167,7 @@ describe('project import normalization helpers', () => {
         compose_files: [],
         env_files: [],
         services: [],
+        service_options: [],
         networks: [],
         volumes: [],
         runtime_members: [],

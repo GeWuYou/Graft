@@ -378,3 +378,13 @@ Compose Project Management
 - [ ] 管理页需支持状态/关键字筛选、空白草稿创建、草稿编辑、工作区与 lifecycle preset 编辑、发布、独立克隆、撤回发布、归档和软删除；移除旧目录导入与“派生草稿”入口。
 - [x] 创建者目录继续只消费 `/templates` 的已发布版本；管理目录使用独立 `/templates/manage` authority，避免草稿、撤回或归档状态泄露。
 - [ ] OpenAPI bundle、server/web consumer、路由单测和模板管理 UI 单测需同步到新生命周期。
+
+## 2026-08-20 Compose Import Service Scope
+
+- [x] Root cause confirmed: the Application runtime-container request sent `source_scope_kind=compose_project` and `source_scope`, but the canonical container-list OpenAPI and HTTP binder discarded both fields, so every Compose container on the runtime was returned.
+- [x] Add exact source-scope parameters to the container-list authority and cover the HTTP-to-runtime query mapping with regression tests.
+- [x] Keep declared services, runtime members, and managed services as separate concepts; default every declared service selected during import and persist the explicit lifecycle scope without rewriting Compose files.
+- [x] Parse both Compose `depends_on` forms and warn when selected services depend on unselected services without silently selecting them.
+- [x] Scope `up`, `stop`, `restart`, `pull`, and redeploy stages to managed services; use service-scoped `stop` instead of project-wide `down` when only a subset is managed.
+- [x] Add controlled per-action argv fields for up, stop, restart, and pull while keeping executable, identity flags, workspace, verb, and service suffix server-owned.
+- [x] Complete focused server/web tests, generated-contract freshness, backend/web validation, comment governance, and final change review.

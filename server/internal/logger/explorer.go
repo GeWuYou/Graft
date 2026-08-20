@@ -48,15 +48,9 @@ func (h appLogGeneratedHandler) GetAppLogDetail(id int64, params applogopenapi.G
 	_ = params
 }
 
-func (h appLogGeneratedHandler) DeleteAppLog(id int64, params applogopenapi.DeleteAppLogParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func (h appLogGeneratedHandler) PostAppLogBatchDelete(
-	params applogopenapi.PostAppLogBatchDeleteParams,
-	body applogopenapi.PostAppLogBatchDeleteJSONRequestBody,
+func (h appLogGeneratedHandler) PostAppLogDeletion(
+	params applogopenapi.PostAppLogDeletionParams,
+	body applogopenapi.PostAppLogDeletionJSONRequestBody,
 ) {
 	_ = h
 	_ = params
@@ -176,9 +170,8 @@ func registerAppLogExplorerRoutes(router gin.IRouter, dependencies appLogExplore
 	group := router.Group(appLogRouteGroup)
 	group.GET("", guard.read, handleListAppLogs(dependencies.localizer, dependencies.repo))
 	registerAppLogSavedViewRoutes(group, dependencies.localizer, guard.read, dependencies.savedViews)
-	group.POST(appLogBatchDeleteRoute, guard.delete, handleBatchDeleteAppLogs(dependencies.localizer, dependencies.repo, dependencies.bus))
+	group.POST("/deletions", guard.delete, handleBatchDeleteAppLogs(dependencies.localizer, dependencies.repo, dependencies.bus))
 	group.GET("/:"+appLogRouteItemParam, guard.read, handleGetAppLogDetail(dependencies.localizer, dependencies.repo))
-	group.DELETE("/:"+appLogRouteItemParam, guard.delete, handleDeleteAppLog(dependencies.localizer, dependencies.repo, dependencies.bus))
 	return nil
 }
 
@@ -253,33 +246,6 @@ type appLogBatchDeleteRequest struct {
 	IDs []uint64 `json:"ids"`
 }
 
-func handleDeleteAppLog(localizer *i18n.Service, repo AppLogRepository, bus eventbus.Bus) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		id, ok := bindAppLogID(ctx, localizer)
-		if !ok {
-			return
-		}
-
-		deleted, err := repo.DeleteAppLogByID(ctx.Request.Context(), id)
-		if err != nil {
-			httpx.AbortAppError(ctx, localizer, zap.L(), err)
-			return
-		}
-		if !deleted {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusNotFound, "common.not_found", map[string]any{
-				"field": appLogRouteItemParam,
-			})
-			return
-		}
-
-		if err := publishAppLogDeleteAudit(ctx, bus, []uint64{id}, 1); err != nil {
-			httpx.AbortAppError(ctx, localizer, zap.L(), err)
-			return
-		}
-		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
-	}
-}
-
 func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bus eventbus.Bus) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var request appLogBatchDeleteRequest
@@ -298,7 +264,15 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 			return
 		}
 
-		deleted, err := deleteNormalizedAppLogsByIDs(ctx.Request.Context(), repo, ids)
+		receipted, ok := repo.(interface {
+			DeleteAppLogsByIDsWithReceipt(context.Context, []uint64, string) (int64, error)
+		})
+		var deleted int64
+		if ok {
+			deleted, err = receipted.DeleteAppLogsByIDsWithReceipt(ctx.Request.Context(), ids, ctx.GetHeader("Idempotency-Key"))
+		} else {
+			deleted, err = deleteNormalizedAppLogsByIDs(ctx.Request.Context(), repo, ids)
+		}
 		if err != nil {
 			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
@@ -314,7 +288,15 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
-		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
+		results := make([]map[string]any, 0, len(ids))
+		for _, id := range ids {
+			results = append(results, map[string]any{"id": strconv.FormatUint(id, 10), "status": "deleted"})
+		}
+		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{
+			"operation_id": ctx.GetHeader("Idempotency-Key"),
+			"summary":      map[string]int{"requested": len(ids), "succeeded": len(ids), "failed": 0},
+			"results":      results,
+		})
 	}
 }
 

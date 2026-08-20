@@ -149,75 +149,90 @@ func (e GetAppLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostAppLogBatchDelete400JSONResponseBodySuccess.
+// Defines values for PostAppLogDeletion400JSONResponseBodySuccess.
 const (
-	PostAppLogBatchDelete400JSONResponseBodySuccessFalse PostAppLogBatchDelete400JSONResponseBodySuccess = false
+	PostAppLogDeletion400JSONResponseBodySuccessFalse PostAppLogDeletion400JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAppLogBatchDelete400JSONResponseBodySuccess enum.
-func (e PostAppLogBatchDelete400JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAppLogDeletion400JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion400JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAppLogBatchDelete400JSONResponseBodySuccessFalse:
+	case PostAppLogDeletion400JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAppLogBatchDelete401JSONResponseBodySuccess.
+// Defines values for PostAppLogDeletion401JSONResponseBodySuccess.
 const (
-	PostAppLogBatchDelete401JSONResponseBodySuccessFalse PostAppLogBatchDelete401JSONResponseBodySuccess = false
+	PostAppLogDeletion401JSONResponseBodySuccessFalse PostAppLogDeletion401JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAppLogBatchDelete401JSONResponseBodySuccess enum.
-func (e PostAppLogBatchDelete401JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAppLogDeletion401JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion401JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAppLogBatchDelete401JSONResponseBodySuccessFalse:
+	case PostAppLogDeletion401JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAppLogBatchDelete403JSONResponseBodySuccess.
+// Defines values for PostAppLogDeletion403JSONResponseBodySuccess.
 const (
-	PostAppLogBatchDelete403JSONResponseBodySuccessFalse PostAppLogBatchDelete403JSONResponseBodySuccess = false
+	PostAppLogDeletion403JSONResponseBodySuccessFalse PostAppLogDeletion403JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAppLogBatchDelete403JSONResponseBodySuccess enum.
-func (e PostAppLogBatchDelete403JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAppLogDeletion403JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion403JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAppLogBatchDelete403JSONResponseBodySuccessFalse:
+	case PostAppLogDeletion403JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAppLogBatchDelete404JSONResponseBodySuccess.
+// Defines values for PostAppLogDeletion404JSONResponseBodySuccess.
 const (
-	PostAppLogBatchDelete404JSONResponseBodySuccessFalse PostAppLogBatchDelete404JSONResponseBodySuccess = false
+	PostAppLogDeletion404JSONResponseBodySuccessFalse PostAppLogDeletion404JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAppLogBatchDelete404JSONResponseBodySuccess enum.
-func (e PostAppLogBatchDelete404JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAppLogDeletion404JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion404JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAppLogBatchDelete404JSONResponseBodySuccessFalse:
+	case PostAppLogDeletion404JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostAppLogBatchDelete500JSONResponseBodySuccess.
+// Defines values for PostAppLogDeletion409JSONResponseBodySuccess.
 const (
-	PostAppLogBatchDelete500JSONResponseBodySuccessFalse PostAppLogBatchDelete500JSONResponseBodySuccess = false
+	PostAppLogDeletion409JSONResponseBodySuccessFalse PostAppLogDeletion409JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the PostAppLogBatchDelete500JSONResponseBodySuccess enum.
-func (e PostAppLogBatchDelete500JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the PostAppLogDeletion409JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion409JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostAppLogBatchDelete500JSONResponseBodySuccessFalse:
+	case PostAppLogDeletion409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAppLogDeletion500JSONResponseBodySuccess.
+const (
+	PostAppLogDeletion500JSONResponseBodySuccessFalse PostAppLogDeletion500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAppLogDeletion500JSONResponseBodySuccess enum.
+func (e PostAppLogDeletion500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAppLogDeletion500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -338,81 +353,6 @@ const (
 func (e PutAppLogSavedView403JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PutAppLogSavedView403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeleteAppLog400JSONResponseBodySuccess.
-const (
-	DeleteAppLog400JSONResponseBodySuccessFalse DeleteAppLog400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the DeleteAppLog400JSONResponseBodySuccess enum.
-func (e DeleteAppLog400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case DeleteAppLog400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeleteAppLog401JSONResponseBodySuccess.
-const (
-	DeleteAppLog401JSONResponseBodySuccessFalse DeleteAppLog401JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the DeleteAppLog401JSONResponseBodySuccess enum.
-func (e DeleteAppLog401JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case DeleteAppLog401JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeleteAppLog403JSONResponseBodySuccess.
-const (
-	DeleteAppLog403JSONResponseBodySuccessFalse DeleteAppLog403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the DeleteAppLog403JSONResponseBodySuccess enum.
-func (e DeleteAppLog403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case DeleteAppLog403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeleteAppLog404JSONResponseBodySuccess.
-const (
-	DeleteAppLog404JSONResponseBodySuccessFalse DeleteAppLog404JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the DeleteAppLog404JSONResponseBodySuccess enum.
-func (e DeleteAppLog404JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case DeleteAppLog404JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DeleteAppLog500JSONResponseBodySuccess.
-const (
-	DeleteAppLog500JSONResponseBodySuccessFalse DeleteAppLog500JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the DeleteAppLog500JSONResponseBodySuccess enum.
-func (e DeleteAppLog500JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case DeleteAppLog500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -587,35 +527,39 @@ type GetAppLogs403JSONResponseBodySuccess bool
 // GetAppLogs500JSONResponseBodySuccess defines parameters for GetAppLogs.
 type GetAppLogs500JSONResponseBodySuccess bool
 
-// PostAppLogBatchDeleteJSONBody defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDeleteJSONBody struct {
+// PostAppLogDeletionJSONBody defines parameters for PostAppLogDeletion.
+type PostAppLogDeletionJSONBody struct {
 	Ids []int64 `json:"ids"`
 }
 
-// PostAppLogBatchDeleteParams defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDeleteParams struct {
+// PostAppLogDeletionParams defines parameters for PostAppLogDeletion.
+type PostAppLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
+	XRequestId     *string `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string  `json:"Idempotency-Key"`
 }
 
-// PostAppLogBatchDelete400JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDelete400JSONResponseBodySuccess bool
+// PostAppLogDeletion400JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion400JSONResponseBodySuccess bool
 
-// PostAppLogBatchDelete401JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDelete401JSONResponseBodySuccess bool
+// PostAppLogDeletion401JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion401JSONResponseBodySuccess bool
 
-// PostAppLogBatchDelete403JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDelete403JSONResponseBodySuccess bool
+// PostAppLogDeletion403JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion403JSONResponseBodySuccess bool
 
-// PostAppLogBatchDelete404JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDelete404JSONResponseBodySuccess bool
+// PostAppLogDeletion404JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion404JSONResponseBodySuccess bool
 
-// PostAppLogBatchDelete500JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDelete500JSONResponseBodySuccess bool
+// PostAppLogDeletion409JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion409JSONResponseBodySuccess bool
+
+// PostAppLogDeletion500JSONResponseBodySuccess defines parameters for PostAppLogDeletion.
+type PostAppLogDeletion500JSONResponseBodySuccess bool
 
 // GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
 type GetAppLogSavedViewsParams struct {
@@ -701,31 +645,6 @@ type PutAppLogSavedView401JSONResponseBodySuccess bool
 // PutAppLogSavedView403JSONResponseBodySuccess defines parameters for PutAppLogSavedView.
 type PutAppLogSavedView403JSONResponseBodySuccess bool
 
-// DeleteAppLogParams defines parameters for DeleteAppLog.
-type DeleteAppLogParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// DeleteAppLog400JSONResponseBodySuccess defines parameters for DeleteAppLog.
-type DeleteAppLog400JSONResponseBodySuccess bool
-
-// DeleteAppLog401JSONResponseBodySuccess defines parameters for DeleteAppLog.
-type DeleteAppLog401JSONResponseBodySuccess bool
-
-// DeleteAppLog403JSONResponseBodySuccess defines parameters for DeleteAppLog.
-type DeleteAppLog403JSONResponseBodySuccess bool
-
-// DeleteAppLog404JSONResponseBodySuccess defines parameters for DeleteAppLog.
-type DeleteAppLog404JSONResponseBodySuccess bool
-
-// DeleteAppLog500JSONResponseBodySuccess defines parameters for DeleteAppLog.
-type DeleteAppLog500JSONResponseBodySuccess bool
-
 // GetAppLogDetailParams defines parameters for GetAppLogDetail.
 type GetAppLogDetailParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -754,8 +673,8 @@ type GetAppLogDetail404JSONResponseBodySuccess bool
 // GetAppLogDetail500JSONResponseBodySuccess defines parameters for GetAppLogDetail.
 type GetAppLogDetail500JSONResponseBodySuccess bool
 
-// PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
-type PostAppLogBatchDeleteJSONRequestBody PostAppLogBatchDeleteJSONBody
+// PostAppLogDeletionJSONRequestBody defines body for PostAppLogDeletion for application/json ContentType.
+type PostAppLogDeletionJSONRequestBody PostAppLogDeletionJSONBody
 
 // PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
 type PostAppLogSavedViewJSONRequestBody PostAppLogSavedViewJSONBody

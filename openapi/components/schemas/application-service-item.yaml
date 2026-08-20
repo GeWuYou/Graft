@@ -4,9 +4,13 @@ required:
   - container_members
   - running_count
   - stopped_count
+  - managed
 properties:
   service_name:
     type: string
+  managed:
+    type: boolean
+    description: Whether Graft application lifecycle actions include this Compose service.
   image:
     type: string
     nullable: true

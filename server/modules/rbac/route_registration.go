@@ -222,10 +222,10 @@ func registerUserRoleRoutes(
 	group.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, handleListUserRoleBindings(ctx, moduleName, reader))
 	group.POST(rbaccontract.UserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleReplaceUserRolesRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.UserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleAddUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.UserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
+	group.DELETE(rbaccontract.UserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.BatchUserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchReplaceUserRolesRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.BatchUserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchAddUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.BatchUserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
+	group.DELETE(rbaccontract.BatchUserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
 }
 
 var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}

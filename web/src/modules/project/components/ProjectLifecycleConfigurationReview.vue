@@ -25,6 +25,30 @@
                 :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
               />
             </label>
+            <label class="project-lifecycle-configuration-review__field">
+              <span>{{ t('project.detail.lifecycle.stopArgs') }}</span>
+              <t-input
+                v-model="draft.stop_args"
+                :disabled="disabled"
+                :placeholder="t('project.detail.lifecycle.stopArgsPlaceholder')"
+              />
+            </label>
+            <label class="project-lifecycle-configuration-review__field">
+              <span>{{ t('project.detail.lifecycle.restartArgs') }}</span>
+              <t-input
+                v-model="draft.restart_args"
+                :disabled="disabled"
+                :placeholder="t('project.detail.lifecycle.restartArgsPlaceholder')"
+              />
+            </label>
+            <label class="project-lifecycle-configuration-review__field">
+              <span>{{ t('project.detail.lifecycle.pullArgs') }}</span>
+              <t-input
+                v-model="draft.pull_args"
+                :disabled="disabled"
+                :placeholder="t('project.detail.lifecycle.pullArgsPlaceholder')"
+              />
+            </label>
           </div>
           <template v-for="definition in lifecycleSwitchHelpDefinitions" :key="definition.key">
             <div class="project-lifecycle-configuration-review__option">

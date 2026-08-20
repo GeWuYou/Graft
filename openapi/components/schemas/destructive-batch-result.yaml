@@ -1,0 +1,18 @@
+type: object
+description: >-
+  Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in
+  request order, and summary.requested equals summary.succeeded plus summary.failed.
+required: [operation_id, summary, results]
+properties:
+  operation_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+  summary:
+    $ref: ./destructive-batch-result-summary.yaml
+  results:
+    type: array
+    minItems: 1
+    items:
+      $ref: ./destructive-batch-result-item.yaml
+additionalProperties: false

@@ -136,6 +136,10 @@ describe('useApplicationImportFlow', () => {
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
         additional_args: ['--label', 'release channel'],
+        managed_service_names: [],
+        stop_args: [],
+        restart_args: [],
+        pull_args: [],
       },
     });
     mocks.postApplicationImportExecute.mockResolvedValue({
@@ -180,6 +184,10 @@ describe('useApplicationImportFlow', () => {
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
         additional_args: ['--label', 'release channel'],
+        managed_service_names: [],
+        stop_args: [],
+        restart_args: [],
+        pull_args: [],
       },
     });
   });

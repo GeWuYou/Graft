@@ -9,6 +9,5 @@ type ServerInterface interface {
 	PutAppLogSavedView(viewID int64, params PutAppLogSavedViewParams, body PutAppLogSavedViewJSONRequestBody)
 	DeleteAppLogSavedView(viewID int64, params DeleteAppLogSavedViewParams)
 	GetAppLogDetail(id int64, params GetAppLogDetailParams)
-	DeleteAppLog(id int64, params DeleteAppLogParams)
-	PostAppLogBatchDelete(params PostAppLogBatchDeleteParams, body PostAppLogBatchDeleteJSONRequestBody)
+	PostAppLogDeletion(params PostAppLogDeletionParams, body PostAppLogDeletionJSONRequestBody)
 }

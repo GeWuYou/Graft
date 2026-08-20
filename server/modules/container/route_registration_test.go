@@ -609,6 +609,33 @@ func TestRoutesRejectInvalidListQuery(t *testing.T) {
 	}
 }
 
+func TestBindGetContainersParamsIncludesExactSourceScope(t *testing.T) {
+	t.Parallel()
+
+	response := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(response)
+	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/ops/containers?deployment_type=compose&source_scope_kind=compose_project&source_scope=sub2api", nil)
+	params, ok := bindGetContainersParams(ginCtx, &module.Context{})
+	if !ok {
+		t.Fatal("expected source scope query to bind")
+	}
+	query := listQueryFromParams(params)
+	if query.SourceScopeKind != composeProjectScopeKind || query.SourceScope != "sub2api" {
+		t.Fatalf("source scope query = %#v", query)
+	}
+}
+
+func TestRoutesRejectUnpairedSourceScopeQuery(t *testing.T) {
+	t.Parallel()
+
+	_, engine := newRegisteredRouteTestService(t)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers?source_scope=sub2api"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestRoutesRejectInvalidBatchAction(t *testing.T) {
 	t.Parallel()
 

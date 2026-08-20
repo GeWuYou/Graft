@@ -319,11 +319,7 @@ const projectLifecycleStageCapacity = 4
 // appendOptionalRedeployStages 将重新部署所需的 Compose 阶段追加到任务计划中，并根据配置可选地包含停止、拉取和镜像清理阶段。
 func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) error {
 	if config.Standard.DownBeforeRedeploy {
-		args, err := lifecycleRedeployDownArgs(aggregate, config)
-		if err != nil {
-			return err
-		}
-		if err := appendTaskPlanStage(stages, aggregate, "down", args); err != nil {
+		if err := appendRedeployStopStage(stages, aggregate, config); err != nil {
 			return err
 		}
 	}
@@ -347,6 +343,18 @@ func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate proje
 		return appendTaskPlanStage(stages, aggregate, "image-prune", []string{"image", "prune", "-f"})
 	}
 	return nil
+}
+
+func appendRedeployStopStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) error {
+	args, err := lifecycleRedeployDownArgs(aggregate, config)
+	if err != nil {
+		return err
+	}
+	stageKey := "down"
+	if !lifecycleManagesAllServices(config) {
+		stageKey = "stop"
+	}
+	return appendTaskPlanStage(stages, aggregate, stageKey, args)
 }
 
 // taskPlanWithStage 创建只包含一个 Compose 执行阶段的任务计划，并保留手动恢复策略。
@@ -685,7 +693,7 @@ func lifecycleCommandArgsForRuntime(
 		if err != nil {
 			return nil, err
 		}
-		return append(base, "stop"), nil
+		return buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames), nil
 	case generated.ApplicationActionResponseActionApplicationActionRestart:
 		if runtimeStatus != nil && *runtimeStatus == generated.ApplicationRuntimeStatusMissing {
 			return lifecycleUpArgs(aggregate, config)
@@ -694,7 +702,7 @@ func lifecycleCommandArgsForRuntime(
 		if err != nil {
 			return nil, err
 		}
-		return append(base, "restart"), nil
+		return buildLifecycleActionArgv(base, "restart", config.Standard.RestartArgs, config.Standard.ManagedServiceNames), nil
 	default:
 		return nil, errProjectInvalidArgument
 	}
@@ -726,6 +734,7 @@ func lifecycleUpArgs(aggregate projectstore.ApplicationAggregate, config Lifecyc
 		args = append(args, "--wait-timeout", fmt.Sprintf("%d", config.Standard.WaitTimeoutSeconds))
 	}
 	args = append(args, config.Standard.AdditionalArgs...)
+	args = append(args, config.Standard.ManagedServiceNames...)
 	return args, nil
 }
 
@@ -734,7 +743,7 @@ func lifecyclePullArgs(aggregate projectstore.ApplicationAggregate, config Lifec
 	if err != nil {
 		return nil, err
 	}
-	return append(base, "pull"), nil
+	return buildLifecycleActionArgv(base, "pull", config.Standard.PullArgs, config.Standard.ManagedServiceNames), nil
 }
 
 func lifecycleRedeployDownArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
@@ -742,7 +751,10 @@ func lifecycleRedeployDownArgs(aggregate projectstore.ApplicationAggregate, conf
 	if err != nil {
 		return nil, err
 	}
-	return append(base, "down"), nil
+	if lifecycleManagesAllServices(config) {
+		return append(base, "down"), nil
+	}
+	return buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames), nil
 }
 
 func lifecycleBlockedResult(

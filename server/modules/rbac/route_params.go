@@ -16,33 +16,48 @@ type replaceStableIDsHandlerConfig struct {
 	invalidField         string
 	readAndBindGenerated func(ginCtx *gin.Context, targetID uint64) ([]uint64, error)
 	write                func(ctx context.Context, targetID uint64, ids []uint64) error
+	allowEmptyIDs        bool
+	resultStatus         stableIDBatchResultStatus
 }
 
 type batchStableIDsHandlerConfig struct {
 	invalidField         string
 	readAndBindGenerated func(ginCtx *gin.Context) (batchStableIDSet, error)
 	write                func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error
+	allowEmptyRoleIDs    bool
+	resultStatus         stableIDBatchResultStatus
 }
 
 type generatedStableIDsRouteConfig[Body any, Params any] struct {
-	invalidField string
-	read         func(*gin.Context) (Body, []uint64, error)
-	bindParams   func(*gin.Context) Params
-	record       func(uint64, Params, Body)
-	write        func(context.Context, uint64, []uint64) error
+	invalidField  string
+	read          func(*gin.Context) (Body, []uint64, error)
+	bindParams    func(*gin.Context) Params
+	record        func(uint64, Params, Body)
+	write         func(context.Context, uint64, []uint64) error
+	allowEmptyIDs bool
+	resultStatus  stableIDBatchResultStatus
 }
 
 type batchGeneratedStableIDsRouteConfig[Body any, Params any] struct {
-	read       func(*gin.Context) (Body, batchStableIDSet, error)
-	bindParams func(*gin.Context) Params
-	record     func(Params, Body)
-	write      func(context.Context, []uint64, []uint64) error
+	read              func(*gin.Context) (Body, batchStableIDSet, error)
+	bindParams        func(*gin.Context) Params
+	record            func(Params, Body)
+	write             func(context.Context, []uint64, []uint64) error
+	allowEmptyRoleIDs bool
+	resultStatus      stableIDBatchResultStatus
 }
 
 type batchStableIDSet struct {
 	userIDs []uint64
 	roleIDs []uint64
 }
+
+type stableIDBatchResultStatus string
+
+const (
+	stableIDBatchResultStatusAccepted stableIDBatchResultStatus = "accepted"
+	stableIDBatchResultStatusRemoved  stableIDBatchResultStatus = "removed"
+)
 
 func normalizeCreateRoleInput(request rbacopenapi.PostRolesJSONRequestBody) (rbacstore.CreateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
@@ -88,12 +103,12 @@ func readGeneratedRolePermissionAddRequest(ginCtx *gin.Context) (rbacopenapi.Pos
 	return request, optionalStableIDPointer(request.PermissionIds), nil
 }
 
-func readGeneratedRolePermissionRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsRemoveJSONRequestBody, []uint64, error) {
-	var request rbacopenapi.PostRolePermissionsRemoveJSONRequestBody
+func readGeneratedRolePermissionRemoveRequest(ginCtx *gin.Context) (rbacopenapi.DeleteRolePermissionsJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.DeleteRolePermissionsJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return rbacopenapi.PostRolePermissionsRemoveJSONRequestBody{}, nil, err
+		return rbacopenapi.DeleteRolePermissionsJSONRequestBody{}, nil, err
 	}
-	return request, optionalStableIDPointer(request.PermissionIds), nil
+	return request, optionalStableIDs(request.PermissionIds), nil
 }
 
 func readGeneratedUserRoleReplaceRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesReplaceJSONRequestBody, []uint64, error) {
@@ -112,10 +127,10 @@ func readGeneratedUserRoleAddRequest(ginCtx *gin.Context) (rbacopenapi.PostUserR
 	return request, optionalStableIDs(request.RoleIds), nil
 }
 
-func readGeneratedUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesRemoveJSONRequestBody, []uint64, error) {
-	var request rbacopenapi.PostUserRolesRemoveJSONRequestBody
+func readGeneratedUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.DeleteUserRolesJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.DeleteUserRolesJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return rbacopenapi.PostUserRolesRemoveJSONRequestBody{}, nil, err
+		return rbacopenapi.DeleteUserRolesJSONRequestBody{}, nil, err
 	}
 	return request, optionalStableIDs(request.RoleIds), nil
 }
@@ -142,10 +157,10 @@ func readGeneratedBatchUserRoleAddRequest(ginCtx *gin.Context) (rbacopenapi.Post
 	}, nil
 }
 
-func readGeneratedBatchUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostUsersRolesRemoveJSONRequestBody, batchStableIDSet, error) {
-	var request rbacopenapi.PostUsersRolesRemoveJSONRequestBody
+func readGeneratedBatchUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.DeleteUsersRolesJSONRequestBody, batchStableIDSet, error) {
+	var request rbacopenapi.DeleteUsersRolesJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return rbacopenapi.PostUsersRolesRemoveJSONRequestBody{}, batchStableIDSet{}, err
+		return rbacopenapi.DeleteUsersRolesJSONRequestBody{}, batchStableIDSet{}, err
 	}
 	return request, batchStableIDSet{
 		userIDs: optionalStableIDs(request.UserIds),

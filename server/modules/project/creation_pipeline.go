@@ -38,7 +38,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	if strings.TrimSpace(command.WorkspacePath) == "" || strings.TrimSpace(command.ParseResult.ConfigHash) == "" {
 		return projectstore.ApplicationAggregate{}, time.Time{}, errProjectInvalidArgument
 	}
-	lifecycle, err := normalizeLifecycleStandardConfig(command.LifecycleConfig)
+	lifecycle, err := normalizeLifecycleForDeclaredServices(command.LifecycleConfig, command.ParseResult.ServiceNames)
 	if err != nil {
 		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
@@ -87,6 +87,17 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ApplicationAggregate{}, time.Time{}, mapStoreError(err)
 	}
 	return aggregate, now, nil
+}
+
+func normalizeLifecycleForDeclaredServices(config LifecycleStandardConfig, declared []string) (LifecycleStandardConfig, error) {
+	normalized, err := normalizeLifecycleStandardConfig(config)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
+	if err := validateManagedServiceSelection(normalized.ManagedServiceNames, declared, false); err != nil {
+		return LifecycleStandardConfig{}, err
+	}
+	return normalized, nil
 }
 
 // ensureComposeProjectNameAvailableForCreate 防止受管工作区占用其它 Compose 项目已拥有的运行时名称。
@@ -165,7 +176,7 @@ func defaultManagedLifecycleConfig(config *LifecycleStandardConfig) LifecycleSta
 
 // lifecycleStandardConfigFromStore 将存储层生命周期配置转换为领域层标准生命周期配置。
 func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) LifecycleStandardConfig {
-	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...)}
+	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), ManagedServiceNames: append([]string(nil), config.ManagedServiceNames...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...), StopArgs: append([]string(nil), config.StopArgs...), RestartArgs: append([]string(nil), config.RestartArgs...), PullArgs: append([]string(nil), config.PullArgs...)}
 }
 
 // managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。

@@ -124,13 +124,13 @@ describe('users api', () => {
   });
 
   it('calls the canonical user-delete path through request.ts', async () => {
-    const requestPost = vi.mocked(request.post);
-    requestPost.mockResolvedValueOnce(null as never);
+    const requestDelete = vi.mocked(request.delete);
+    requestDelete.mockResolvedValueOnce(undefined as never);
 
     await deleteUser(1);
 
-    expect(requestPost).toHaveBeenCalledWith({
-      url: buildOpenApiRuntimePath('postUserDelete', { id: 1 }),
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('deleteUser', { id: 1 }),
     });
   });
 

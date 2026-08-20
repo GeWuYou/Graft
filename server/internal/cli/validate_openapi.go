@@ -63,6 +63,9 @@ func runValidateOpenAPI(cmd *cobra.Command, specPath string) error {
 	if err := document.Validate(loader.Context); err != nil {
 		return fmt.Errorf("validate openapi spec %q: %w", rootSpec, err)
 	}
+	if err := validateOpenAPIDestructiveOperations(document); err != nil {
+		return fmt.Errorf("validate openapi destructive operations: %w", err)
+	}
 
 	if err := backendOpenAPIFreshnessRunner(cmd); err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"graft/server/internal/moduleapi"
+	projectcompose "graft/server/modules/project/compose"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -380,7 +381,7 @@ func runtimeImportInspectResultFromSession(
 ) RuntimeImportInspectResult {
 	preview := inspectionPreviewFromSession(session)
 	members := append([]RuntimeImportMember(nil), runtimeMembers...)
-	return RuntimeImportInspectResult{
+	result := RuntimeImportInspectResult{
 		InspectionID:             preview.inspectionID,
 		ExpiresAt:                session.ExpiresAt,
 		CandidateKey:             candidateKey,
@@ -391,6 +392,7 @@ func runtimeImportInspectResultFromSession(
 		ComposeFiles:             preview.composeFiles,
 		EnvFiles:                 preview.envFiles,
 		ServiceNames:             preview.serviceNames,
+		ServiceOptions:           append([]projectcompose.ServiceProjection(nil), session.ParseResult.Services...),
 		NetworkResources:         buildRuntimeImportNetworkResources(session.ParseResult, members),
 		VolumeResources:          buildRuntimeImportVolumeResources(session.ParseResult, members),
 		RuntimeMembers:           members,
@@ -400,6 +402,8 @@ func runtimeImportInspectResultFromSession(
 		ValidationStatus:         preview.validationStatus,
 		LifecycleConfiguration:   defaultLifecycleStandardConfig(),
 	}
+	result.LifecycleConfiguration.ManagedServiceNames = append([]string(nil), preview.serviceNames...)
+	return result
 }
 
 func inspectionValidationStatus(session importInspectionSession) string {

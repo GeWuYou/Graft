@@ -21,6 +21,7 @@ import (
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
+	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
@@ -63,6 +64,15 @@ type testRBACRepository struct {
 
 type testUserService struct {
 	users map[uint64]moduleapi.UserSummary
+}
+
+type testDestructiveBatchResult struct {
+	OperationID string                                  `json:"operation_id"`
+	Summary     generated.DestructiveBatchResultSummary `json:"summary"`
+	Results     []struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	} `json:"results"`
 }
 
 func (r testRBACRepository) RunInTransaction(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
@@ -1340,5 +1350,139 @@ func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T
 	}
 	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 8, RoleIDs: []uint64{2}}) {
 		t.Fatalf("unexpected replace input for other user: %#v", received)
+	}
+}
+
+// TestRolePermissionRemoveUsesCanonicalDeleteAndOrderedBatchResult 验证角色权限解除只暴露 DELETE，并按请求顺序返回共享批次结果。
+func TestRolePermissionRemoveUsesCanonicalDeleteAndOrderedBatchResult(t *testing.T) {
+	repo := testRBACRepository{
+		roleByID:          map[uint64]store.Role{1: {ID: 1, Name: "editor", Display: "编辑"}},
+		permissions:       []store.Permission{{ID: 3, Code: "role.read"}, {ID: 2, Code: "user.read"}},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RolePermissionAssignPermission.String()}},
+	}
+	_, engine := newModuleTestContext(t, repo)
+
+	request := newAuthorizedJSONRequest(http.MethodDelete, "/api/roles/1/permissions", map[string]any{
+		"permission_ids": []uint64{3, 2},
+	})
+	request.Header.Set(httpx.RequestIDHeader, "rbac-role-permission-remove")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	result := testassert.DecodeSuccessData[testDestructiveBatchResult](t, recorder)
+	if result.OperationID != "rbac-role-permission-remove" || result.Summary.Requested != 2 || result.Summary.Succeeded != 2 || result.Summary.Failed != 0 {
+		t.Fatalf("unexpected destructive batch summary: %#v", result)
+	}
+	if len(result.Results) != 2 || result.Results[0].ID != "3" || result.Results[1].ID != "2" || result.Results[0].Status != string(stableIDBatchResultStatusRemoved) {
+		t.Fatalf("unexpected ordered destructive batch results: %#v", result.Results)
+	}
+
+	legacy := httptest.NewRecorder()
+	engine.ServeHTTP(legacy, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/remove", map[string]any{
+		"permission_ids": []uint64{3},
+	}))
+	if legacy.Code != http.StatusNotFound {
+		t.Fatalf("expected removed action path to return 404, got %d", legacy.Code)
+	}
+}
+
+// TestRelationshipRemovalRejectsInvalidAtomicBatches 验证关系解除在进入写入边界前拒绝空集合、重复 ID 和超限批次。
+func TestRelationshipRemovalRejectsInvalidAtomicBatches(t *testing.T) {
+	overLimitIDs := make([]uint64, maxRBACAtomicBatchItems+1)
+	for index := range overLimitIDs {
+		overLimitIDs[index] = uint64(index + 1)
+	}
+
+	writeCalled := false
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{
+			{Code: rbaccontract.RolePermissionAssignPermission.String()},
+			{Code: rbaccontract.UserRoleAssignPermission.String()},
+		},
+		removePermission: func(context.Context, store.RemovePermissionsFromRoleInput) error {
+			writeCalled = true
+			return nil
+		},
+		removeUserRolesBatch: func(context.Context, store.BatchUserRoleMutationInput) error {
+			writeCalled = true
+			return nil
+		},
+	}
+	_, engine := newModuleTestContext(t, repo)
+
+	for _, testCase := range []struct {
+		name    string
+		path    string
+		payload map[string]any
+	}{
+		{name: "empty role permissions", path: "/api/roles/1/permissions", payload: map[string]any{"permission_ids": []uint64{}}},
+		{name: "duplicate role permissions", path: "/api/roles/1/permissions", payload: map[string]any{"permission_ids": []uint64{2, 2}}},
+		{name: "empty users", path: "/api/users/roles", payload: map[string]any{"user_ids": []uint64{}, "role_ids": []uint64{2}}},
+		{name: "duplicate users", path: "/api/users/roles", payload: map[string]any{"user_ids": []uint64{7, 7}, "role_ids": []uint64{2}}},
+		{name: "over limit roles", path: "/api/users/roles", payload: map[string]any{"user_ids": []uint64{7}, "role_ids": overLimitIDs}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodDelete, testCase.path, testCase.payload))
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+	if writeCalled {
+		t.Fatal("invalid relationship batch reached the repository write boundary")
+	}
+}
+
+// TestBatchUserRoleMutationsReturnAtomicSharedResults 验证 RBAC 多用户写入以用户请求顺序返回共享原子批次结果。
+func TestBatchUserRoleMutationsReturnAtomicSharedResults(t *testing.T) {
+	repo := testRBACRepository{
+		roles:             []store.Role{{ID: 2, Name: "editor", Display: "编辑"}},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newModuleTestContext(t, repo)
+
+	for _, testCase := range []struct {
+		name   string
+		method string
+		path   string
+		status stableIDBatchResultStatus
+	}{
+		{name: "add", method: http.MethodPost, path: "/api/users/roles/add", status: stableIDBatchResultStatusAccepted},
+		{name: "remove", method: http.MethodDelete, path: "/api/users/roles", status: stableIDBatchResultStatusRemoved},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			request := newAuthorizedJSONRequest(testCase.method, testCase.path, map[string]any{
+				"user_ids": []uint64{8, 7},
+				"role_ids": []uint64{2},
+			})
+			request.Header.Set(httpx.RequestIDHeader, "rbac-batch-"+testCase.name)
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+			}
+			result := testassert.DecodeSuccessData[testDestructiveBatchResult](t, recorder)
+			if result.OperationID != "rbac-batch-"+testCase.name || result.Summary.Requested != 2 || result.Summary.Succeeded != 2 {
+				t.Fatalf("unexpected batch result: %#v", result)
+			}
+			if len(result.Results) != 2 || result.Results[0].ID != "8" || result.Results[1].ID != "7" || result.Results[0].Status != string(testCase.status) {
+				t.Fatalf("unexpected ordered batch items: %#v", result.Results)
+			}
+		})
+	}
+
+	legacy := httptest.NewRecorder()
+	engine.ServeHTTP(legacy, newAuthorizedJSONRequest(http.MethodPost, "/api/users/roles/remove", map[string]any{
+		"user_ids": []uint64{8},
+		"role_ids": []uint64{2},
+	}))
+	if legacy.Code != http.StatusNotFound {
+		t.Fatalf("expected removed batch action path to return 404, got %d", legacy.Code)
 	}
 }

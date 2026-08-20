@@ -1,0 +1,12 @@
+type: object
+required: [permission_ids]
+properties:
+  permission_ids:
+    type: array
+    minItems: 1
+    maxItems: 100
+    uniqueItems: true
+    items:
+      type: integer
+      format: int64
+      minimum: 1

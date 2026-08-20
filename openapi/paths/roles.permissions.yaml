@@ -99,3 +99,81 @@ get:
                 data: {}
     '500':
       $ref: ../components/responses/internal-server-error.yaml
+delete:
+  tags: [rbac]
+  summary: Remove role permissions
+  operationId: deleteRolePermissions
+  description: >-
+    Removes the provided stable permission ids from the target role in one atomic transaction. All permission ids are
+    validated before the write; validation failure returns an error envelope and commits no relationship change.
+  x-graft-destructive:
+    kind: relationship_remove
+    effect: relationship_removal
+    execution: synchronous
+    retry:
+      mode: tombstone_idempotent
+    result:
+      status: 200
+    authorization:
+      owner_check: false
+    audit:
+      required: true
+    confirmation:
+      required: true
+    exposure:
+      mcp: false
+    batch:
+      mode: atomic
+      max_items: 100
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/remove-role-permissions-request.yaml
+  responses:
+    '200':
+      description: Role permissions were removed atomically.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-destructive-batch-result.yaml
+    '400':
+      description: Invalid request payload; no relationship change was committed.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Role or permission not found; no relationship change was committed.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

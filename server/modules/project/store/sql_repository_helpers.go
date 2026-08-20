@@ -8,6 +8,7 @@ import (
 	"math"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -365,16 +366,41 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
 	config.Profiles = normalizedProfiles
-	additionalArgs, err := normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	managedServiceNames, err := normalizeLifecycleStringSet(config.ManagedServiceNames)
 	if err != nil {
 		return LifecycleConfig{}, err
 	}
-	config.AdditionalArgs = additionalArgs
+	config.ManagedServiceNames = managedServiceNames
+	config, err = normalizeLifecycleArgv(config)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
 	if config.WaitTimeoutSeconds == 0 {
 		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
 	}
 	if config.WaitTimeoutSeconds < minLifecycleWaitTimeoutSeconds || config.WaitTimeoutSeconds > maxLifecycleWaitTimeoutSeconds {
 		return LifecycleConfig{}, ErrInvalidInput
+	}
+	return config, nil
+}
+
+func normalizeLifecycleArgv(config LifecycleConfig) (LifecycleConfig, error) {
+	var err error
+	config.AdditionalArgs, err = normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config.StopArgs, err = normalizeLifecycleActionArgs("stop", config.StopArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config.RestartArgs, err = normalizeLifecycleActionArgs("restart", config.RestartArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config.PullArgs, err = normalizeLifecycleActionArgs("pull", config.PullArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
 	}
 	return config, nil
 }
@@ -386,6 +412,32 @@ func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
 		return nil, ErrInvalidInput
 	}
 	return normalized, nil
+}
+
+func normalizeLifecycleActionArgs(action string, values []string) ([]string, error) {
+	normalized, valid := projectcontract.NormalizeLifecycleActionArgs(action, values)
+	if !valid {
+		return nil, ErrInvalidInput
+	}
+	return normalized, nil
+}
+
+func normalizeLifecycleStringSet(values []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 // normalizeTemporalPointers 将提供的时间指针统一转换为 UTC。
@@ -756,6 +808,7 @@ func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
 
 type lifecycleConfigPayload struct {
 	Profiles                 *[]string `json:"profiles"`
+	ManagedServiceNames      *[]string `json:"managed_service_names"`
 	DownBeforeRedeploy       *bool     `json:"down_before_redeploy"`
 	PullBeforeRedeploy       *bool     `json:"pull_before_redeploy"`
 	BuildBeforeUp            *bool     `json:"build_before_up"`
@@ -766,6 +819,9 @@ type lifecycleConfigPayload struct {
 	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
 	AdditionalArgs           *[]string `json:"additional_args"`
+	StopArgs                 *[]string `json:"stop_args"`
+	RestartArgs              *[]string `json:"restart_args"`
+	PullArgs                 *[]string `json:"pull_args"`
 }
 
 // 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
@@ -784,6 +840,7 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 	}
 	return LifecycleConfig{
 		Profiles:                 append([]string(nil), (*payload.Profiles)...),
+		ManagedServiceNames:      append([]string(nil), (*payload.ManagedServiceNames)...),
 		DownBeforeRedeploy:       *payload.DownBeforeRedeploy,
 		PullBeforeRedeploy:       *payload.PullBeforeRedeploy,
 		BuildBeforeUp:            *payload.BuildBeforeUp,
@@ -794,12 +851,16 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 		RenewAnonVolumes:         *payload.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
 		AdditionalArgs:           append([]string(nil), (*payload.AdditionalArgs)...),
+		StopArgs:                 append([]string(nil), (*payload.StopArgs)...),
+		RestartArgs:              append([]string(nil), (*payload.RestartArgs)...),
+		PullArgs:                 append([]string(nil), (*payload.PullArgs)...),
 	}, nil
 }
 
 // applyLegacyDefaults 为生命周期配置支持前写入的历史记录补齐读取默认值。
 func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.Profiles = lifecycleSliceOrDefault(payload.Profiles, []string{})
+	payload.ManagedServiceNames = lifecycleSliceOrDefault(payload.ManagedServiceNames, []string{})
 	payload.DownBeforeRedeploy = lifecycleBoolOrDefault(payload.DownBeforeRedeploy, false)
 	payload.PullBeforeRedeploy = lifecycleBoolOrDefault(payload.PullBeforeRedeploy, false)
 	payload.BuildBeforeUp = lifecycleBoolOrDefault(payload.BuildBeforeUp, false)
@@ -810,6 +871,9 @@ func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
 	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
 	payload.AdditionalArgs = lifecycleSliceOrDefault(payload.AdditionalArgs, []string{})
+	payload.StopArgs = lifecycleSliceOrDefault(payload.StopArgs, []string{})
+	payload.RestartArgs = lifecycleSliceOrDefault(payload.RestartArgs, []string{})
+	payload.PullArgs = lifecycleSliceOrDefault(payload.PullArgs, []string{})
 }
 
 // lifecycleSliceOrDefault 返回 value 指向的切片；当 value 为 nil 时返回 fallback 的地址。
@@ -837,6 +901,7 @@ func lifecycleIntOrDefault(value *int, fallback int) *int {
 func (payload lifecycleConfigPayload) validateRequiredFields() error {
 	required := []bool{
 		payload.Profiles != nil,
+		payload.ManagedServiceNames != nil,
 		payload.DownBeforeRedeploy != nil,
 		payload.PullBeforeRedeploy != nil,
 		payload.BuildBeforeUp != nil,
@@ -847,6 +912,9 @@ func (payload lifecycleConfigPayload) validateRequiredFields() error {
 		payload.RenewAnonVolumes != nil,
 		payload.PruneImagesAfterRedeploy != nil,
 		payload.AdditionalArgs != nil,
+		payload.StopArgs != nil,
+		payload.RestartArgs != nil,
+		payload.PullArgs != nil,
 	}
 	for _, present := range required {
 		if !present {

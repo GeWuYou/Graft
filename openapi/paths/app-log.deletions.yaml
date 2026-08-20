@@ -1,0 +1,41 @@
+post:
+  tags: [app-log]
+  summary: Delete app logs
+  operationId: postAppLogDeletion
+  description: Permanently deletes selected retained app-log rows and stores a durable idempotency receipt.
+  x-graft-destructive:
+    kind: hard_delete
+    effect: hard_delete
+    execution: synchronous
+    retry: { mode: idempotency_key }
+    result: { status: 200 }
+    authorization: { owner_check: false }
+    audit: { required: true }
+    confirmation: { required: true }
+    exposure: { mcp: false }
+    batch: { mode: atomic, max_items: 100 }
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/app-log-batch-delete-request.yaml }
+  responses:
+    '200':
+      description: Deletion completed or matching receipt replayed.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-destructive-batch-result.yaml }
+    '400': { $ref: ../components/responses/bad-request.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { $ref: ../components/responses/not-found.yaml }
+    '409': { $ref: ../components/responses/conflict.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

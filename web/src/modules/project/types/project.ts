@@ -119,7 +119,12 @@ export type ApplicationLifecycleConfigurationDraft = {
   wait_timeout_seconds: number;
   renew_anon_volumes: boolean;
   prune_images_after_redeploy: boolean;
+  managed_service_names: string[];
+  declared_service_names: string[];
   additional_args: string;
+  stop_args: string;
+  restart_args: string;
+  pull_args: string;
   review_status?: ApplicationLifecycleReviewStatus | null;
   generated_commands?: ApplicationLifecycleCommandPreview | null;
 };

@@ -393,7 +393,11 @@ export interface paths {
     get: operations['getUserById'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Soft delete one user
+     * @description Soft deletes the managed user. A repeat DELETE for an existing tombstone in the same authorized management scope returns 204 without repeating domain side effects. GET and list operations continue to hide the tombstone.
+     */
+    delete: operations['deleteUser'];
     options?: never;
     head?: never;
     patch?: never;
@@ -453,26 +457,6 @@ export interface paths {
      * @description Resets the managed user password using the existing backend reset semantics.
      */
     post: operations['postUserResetPassword'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/users/{id}/delete': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Delete one user
-     * @description Deletes the specified managed user without changing current backend delete semantics.
-     */
-    post: operations['postUserDelete'];
     delete?: never;
     options?: never;
     head?: never;
@@ -628,7 +612,11 @@ export interface paths {
     get: operations['getRolePermissions'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Remove role permissions
+     * @description Removes the provided stable permission ids from the target role in one atomic transaction. All permission ids are validated before the write; validation failure returns an error envelope and commits no relationship change.
+     */
+    delete: operations['deleteRolePermissions'];
     options?: never;
     head?: never;
     patch?: never;
@@ -668,26 +656,6 @@ export interface paths {
      * @description Adds the provided stable permission ids to the target role without clearing existing bindings.
      */
     post: operations['postRolePermissionsAdd'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/roles/{id}/permissions/remove': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Remove role permissions
-     * @description Removes the provided stable permission ids from the target role.
-     */
-    post: operations['postRolePermissionsRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -859,7 +827,11 @@ export interface paths {
     get: operations['getUserRoles'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Remove role bindings for one user
+     * @description Removes the supplied role ids from the target user in one atomic transaction. All role ids and protected-account invariants are validated before the write; validation failure commits no relationship change.
+     */
+    delete: operations['deleteUserRoles'];
     options?: never;
     head?: never;
     patch?: never;
@@ -905,7 +877,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/users/{id}/roles/remove': {
+  '/api/users/roles': {
     parameters: {
       query?: never;
       header?: never;
@@ -914,12 +886,12 @@ export interface paths {
     };
     get?: never;
     put?: never;
+    post?: never;
     /**
-     * Remove role bindings for one user
-     * @description Removes the supplied role ids from the target user.
+     * Remove role bindings for many users
+     * @description Removes the supplied role ids from the supplied user id set in one atomic transaction. All users, roles, and protected-account invariants are validated before the write; validation failure commits no relationship change.
      */
-    post: operations['postUserRolesRemove'];
-    delete?: never;
+    delete: operations['deleteUsersRoles'];
     options?: never;
     head?: never;
     patch?: never;
@@ -965,26 +937,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/users/roles/remove': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Remove role bindings for many users
-     * @description Removes the supplied role ids from the supplied user id set in one batch transaction.
-     */
-    post: operations['postUsersRolesRemove'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/audit/logs': {
     parameters: {
       query?: never;
@@ -1005,7 +957,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/audit/logs/batch-delete': {
+  '/api/audit/logs/deletions': {
     parameters: {
       query?: never;
       header?: never;
@@ -1015,10 +967,10 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Delete audit logs in batch
-     * @description Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.
+     * Delete audit logs
+     * @description Permanently deletes selected audit records and stores a durable idempotency receipt.
      */
-    post: operations['postAuditLogsBatchDelete'];
+    post: operations['postAuditLogDeletion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2290,7 +2242,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/app-log/batch-delete': {
+  '/api/app-log/deletions': {
     parameters: {
       query?: never;
       header?: never;
@@ -2300,10 +2252,10 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Delete app logs in batch
-     * @description Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.
+     * Delete app logs
+     * @description Permanently deletes selected retained app-log rows and stores a durable idempotency receipt.
      */
-    post: operations['postAppLogBatchDelete'];
+    post: operations['postAppLogDeletion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2321,11 +2273,7 @@ export interface paths {
     get: operations['getAppLogDetail'];
     put?: never;
     post?: never;
-    /**
-     * Delete one app log
-     * @description Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.
-     */
-    delete: operations['deleteAppLog'];
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -4866,6 +4814,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    GraftDestructiveOperationMetadata: components['schemas']['graft-destructive-operation-metadata'];
+    DestructiveBatchResultSummary: components['schemas']['destructive-batch-result-summary'];
+    DestructiveBatchResultItem: components['schemas']['destructive-batch-result-item'];
+    DestructiveBatchResult: components['schemas']['destructive-batch-result'];
+    EnvelopedDestructiveBatchResult: components['schemas']['enveloped-destructive-batch-result'];
     ApiEnvelope: components['schemas']['api-envelope'];
     ErrorResponse: components['schemas']['error-response'];
     EnvelopedEmptyResponse: components['schemas']['enveloped-empty-response'];
@@ -5737,6 +5690,32 @@ export interface components {
     'enveloped-role-permission-binding-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-permission-binding-response'];
     };
+    'remove-role-permissions-request': {
+      permission_ids: number[];
+    };
+    /** @description Counts for one bounded synchronous destructive batch operation. */
+    'destructive-batch-result-summary': {
+      requested: number;
+      succeeded: number;
+      failed: number;
+    };
+    /** @description Result for one requested resource identifier, preserved in request order. */
+    'destructive-batch-result-item': {
+      id: string;
+      /** @enum {string} */
+      status: 'deleted' | 'removed' | 'revoked' | 'unchanged' | 'accepted' | 'failed';
+      /** @description Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise. */
+      code?: string;
+    } & unknown;
+    /** @description Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed. */
+    'destructive-batch-result': {
+      operation_id: string;
+      summary: components['schemas']['destructive-batch-result-summary'];
+      results: components['schemas']['destructive-batch-result-item'][];
+    };
+    'enveloped-destructive-batch-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['destructive-batch-result'];
+    };
     'replace-role-permissions-request':
       | {
           /**
@@ -5820,6 +5799,9 @@ export interface components {
     'enveloped-user-role-binding-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['user-role-binding-response'];
     };
+    'remove-user-roles-request': {
+      role_ids: number[];
+    };
     /**
      * @example {
      *       "role_ids": [
@@ -5829,6 +5811,10 @@ export interface components {
      *     }
      */
     'replace-user-roles-request': {
+      role_ids: number[];
+    };
+    'batch-remove-user-roles-request': {
+      user_ids: number[];
       role_ids: number[];
     };
     'batch-user-roles-request': {
@@ -10564,6 +10550,10 @@ export interface components {
       order_index: number;
       last_observed_hash?: string | null;
     };
+    'application-import-service-option': {
+      name: string;
+      depends_on: string[];
+    };
     'application-import-runtime-network-resource': {
       name: string;
       driver: string | null;
@@ -10611,6 +10601,14 @@ export interface components {
       renew_anon_volumes: boolean;
       /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server. */
       additional_args?: string[];
+      /** @description Services included in Graft lifecycle actions; empty means all declared services for legacy records. */
+      managed_service_names: string[];
+      /** @description Bounded argv tokens appended to docker compose stop. */
+      stop_args?: string[];
+      /** @description Bounded argv tokens appended to docker compose restart. */
+      restart_args?: string[];
+      /** @description Bounded argv tokens appended to docker compose pull. */
+      pull_args?: string[];
     };
     'application-import-runtime-inspect-response': {
       inspection_id: string;
@@ -10627,6 +10625,7 @@ export interface components {
       compose_files: components['schemas']['application-import-inspect-file-item'][];
       env_files: components['schemas']['application-import-inspect-file-item'][];
       services: string[];
+      service_options: components['schemas']['application-import-service-option'][];
       networks: components['schemas']['application-import-runtime-network-resource'][];
       volumes: components['schemas']['application-import-runtime-volume-resource'][];
       runtime_members: components['schemas']['application-import-runtime-member'][];
@@ -10707,6 +10706,10 @@ export interface components {
       /** @default false */
       renew_anon_volumes: boolean;
       additional_args: string[];
+      managed_service_names: string[];
+      stop_args?: string[];
+      restart_args?: string[];
+      pull_args?: string[];
       generated_commands: {
         up: components['schemas']['application-lifecycle-generated-command'];
         stop: components['schemas']['application-lifecycle-generated-command'];
@@ -11203,6 +11206,8 @@ export interface components {
     };
     'application-service-item': {
       service_name: string;
+      /** @description Whether Graft application lifecycle actions include this Compose service. */
+      managed: boolean;
       image?: string | null;
       build_context?: string | null;
       declared_ports?: string[];
@@ -11383,6 +11388,46 @@ export interface components {
       delete_workspace: boolean;
       confirm_application_id: components['schemas']['application-id'];
     };
+    /** @description Validation anchor for operation-level x-graft-destructive metadata. The metadata describes implemented destructive behavior and governance requirements; it does not authorize the operation or replace owning-module policy. */
+    'graft-destructive-operation-metadata': {
+      /** @enum {string} */
+      kind:
+        | 'resource_delete'
+        | 'relationship_remove'
+        | 'credential_revoke'
+        | 'lifecycle_termination'
+        | 'hard_delete'
+        | 'external_destroy';
+      /** @enum {string} */
+      effect: 'soft_delete' | 'hard_delete' | 'relationship_removal' | 'revocation' | 'external_side_effect';
+      /** @enum {string} */
+      execution: 'synchronous' | 'asynchronous';
+      retry: {
+        /** @enum {string} */
+        mode: 'tombstone_idempotent' | 'idempotency_key' | 'task_receipt';
+      };
+      result: {
+        /** @enum {integer} */
+        status: 200 | 202 | 204;
+      };
+      authorization: {
+        owner_check: boolean;
+      };
+      audit: {
+        required: boolean;
+      };
+      confirmation: {
+        required: boolean;
+      };
+      exposure: {
+        mcp: boolean;
+      };
+      batch?: {
+        /** @enum {string} */
+        mode: 'partial' | 'atomic';
+        max_items: number;
+      };
+    };
     'dashboard-stat-group-payload': {
       items: {
         key: string;
@@ -11523,8 +11568,8 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Request could not be completed because the resource changed concurrently. */
-    conflict: {
+    /** @description Invalid request under existing error envelope semantics. */
+    'bad-request': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -11533,8 +11578,18 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
-    /** @description Invalid request under existing error envelope semantics. */
-    'bad-request': {
+    /** @description Requested resource was not found under existing error envelope semantics. */
+    'not-found': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description Request could not be completed because the resource changed concurrently. */
+    conflict: {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -11556,16 +11611,6 @@ export interface components {
     };
     /** @description A strong If-Match header is required for Module Config mutations. */
     'precondition-required': {
-      headers: {
-        'X-Request-Id': components['headers']['request-id'];
-        [name: string]: unknown;
-      };
-      content: {
-        'application/json': components['schemas']['error-response'];
-      };
-    };
-    /** @description Requested resource was not found under existing error envelope semantics. */
-    'not-found': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -11620,6 +11665,11 @@ export interface components {
     'container-list-deployment-type': 'standalone' | 'compose' | 'unknown';
     /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
     'container-list-runtime-target-id': number;
+    /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
+    'container-list-source-scope-kind':
+      'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
+    /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
+    'container-list-source-scope': string;
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
     /** @description Runtime target numeric identifier. */
@@ -12753,6 +12803,58 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  deleteUser: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User was soft deleted or the same authorized scope retried an existing tombstone. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid user id or protected self-delete attempt. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User never existed in the authorized management scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postUserUpdate: {
     parameters: {
       query?: never;
@@ -12906,60 +13008,6 @@ export interface operations {
         };
       };
       /** @description Invalid request or password policy violation. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description User not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postUserDelete: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description User deleted. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
-        };
-      };
-      /** @description Invalid user id or protected self-delete attempt. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13522,6 +13570,64 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  deleteRolePermissions: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['remove-role-permissions-request'];
+      };
+    };
+    responses: {
+      /** @description Role permissions were removed atomically. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
+        };
+      };
+      /** @description Invalid request payload; no relationship change was committed. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role or permission not found; no relationship change was committed. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postRolePermissionsReplace: {
     parameters: {
       query?: never;
@@ -13604,64 +13710,6 @@ export interface operations {
     };
     responses: {
       /** @description Role permissions added. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
-        };
-      };
-      /** @description Invalid request payload. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Role or permission not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postRolePermissionsRemove: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['replace-role-permissions-request'];
-      };
-    };
-    responses: {
-      /** @description Role permissions removed. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14266,6 +14314,74 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  deleteUserRoles: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['remove-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User role bindings were removed atomically. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
+        };
+      };
+      /** @description Invalid user id or role id set; no relationship change was committed. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found; no relationship change was committed. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict; no relationship change was committed. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postUserRolesReplace: {
     parameters: {
       query?: never;
@@ -14402,7 +14518,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postUserRolesRemove: {
+  deleteUsersRoles: {
     parameters: {
       query?: never;
       header?: {
@@ -14414,28 +14530,26 @@ export interface operations {
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
-      path: {
-        id: number;
-      };
+      path?: never;
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['replace-user-roles-request'];
+        'application/json': components['schemas']['batch-remove-user-roles-request'];
       };
     };
     responses: {
-      /** @description User roles removed. */
+      /** @description User role bindings were removed atomically. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
-      /** @description Invalid user id or invalid role id list. */
+      /** @description Invalid user id set or role id set; no relationship change was committed. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14447,7 +14561,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description User or role not found. */
+      /** @description User or role not found; no relationship change was committed. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14457,7 +14571,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description User-role lifecycle conflict. */
+      /** @description User-role lifecycle conflict; no relationship change was committed. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14491,14 +14605,14 @@ export interface operations {
       };
     };
     responses: {
-      /** @description User roles replaced in batch. */
+      /** @description User roles replaced atomically. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
       /** @description Invalid user id set or role id set. */
@@ -14557,80 +14671,14 @@ export interface operations {
       };
     };
     responses: {
-      /** @description User roles added in batch. */
+      /** @description User roles added atomically. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
-        };
-      };
-      /** @description Invalid user id set or role id set. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description User or role not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description User-role lifecycle conflict. */
-      409: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postUsersRolesRemove: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['batch-user-roles-request'];
-      };
-    };
-    responses: {
-      /** @description User roles removed in batch. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
       /** @description Invalid user id set or role id set. */
@@ -14744,7 +14792,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postAuditLogsBatchDelete: {
+  postAuditLogDeletion: {
     parameters: {
       query?: never;
       header: {
@@ -14755,7 +14803,6 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
-        /** @description Stable retry key for the destructive batch operation. */
         'Idempotency-Key': string;
       };
       path?: never;
@@ -14767,48 +14814,20 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Audit logs deleted, or a matching idempotent replay accepted without deleting records again. */
+      /** @description Deletion completed or matching receipt replayed. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
-      /** @description Invalid or duplicated audit log id set. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more audit logs were not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description An audit log is protected from manual deletion. */
-      409: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -18305,10 +18324,10 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postAppLogBatchDelete: {
+  postAppLogDeletion: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -18316,6 +18335,7 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        'Idempotency-Key': string;
       };
       path?: never;
       cookie?: never;
@@ -18326,38 +18346,20 @@ export interface operations {
       };
     };
     responses: {
-      /** @description App logs deleted. */
+      /** @description Deletion completed or matching receipt replayed. */
       200: {
         headers: {
-          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-destructive-batch-result'];
         };
       };
-      /** @description Invalid app log id set. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more app logs were not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      404: components['responses']['not-found'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
     };
   };
@@ -18388,60 +18390,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-app-log-detail-response'];
-        };
-      };
-      /** @description Invalid app log id. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description App log not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  deleteAppLog: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description App log deleted. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
         };
       };
       /** @description Invalid app log id. */
@@ -19774,6 +19722,10 @@ export interface operations {
         deployment_type?: components['parameters']['container-list-deployment-type'];
         /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
         runtime_target_id?: components['parameters']['container-list-runtime-target-id'];
+        /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
+        source_scope_kind?: components['parameters']['container-list-source-scope-kind'];
+        /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
+        source_scope?: components['parameters']['container-list-source-scope'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

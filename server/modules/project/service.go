@@ -20,6 +20,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
+	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -295,7 +296,9 @@ const (
 
 // LifecycleStandardConfig 保存可编辑的标准 Compose 执行选项。
 type LifecycleStandardConfig struct {
-	Profiles                 []string
+	Profiles []string
+	// ManagedServiceNames 限定 Graft 生命周期动作的服务范围；空值保留历史记录的全量服务语义。
+	ManagedServiceNames      []string
 	DownBeforeRedeploy       bool
 	PullBeforeRedeploy       bool
 	BuildBeforeUp            bool
@@ -306,16 +309,21 @@ type LifecycleStandardConfig struct {
 	RenewAnonVolumes         bool
 	PruneImagesAfterRedeploy bool
 	AdditionalArgs           []string
+	// StopArgs、RestartArgs 和 PullArgs 只接受服务端白名单内的 Compose argv，不包含可执行文件或动作名。
+	StopArgs    []string
+	RestartArgs []string
+	PullArgs    []string
 }
 
 // LifecycleConfiguration 保存项目拥有的生命周期执行配置。
 type LifecycleConfiguration struct {
-	StrategyKind    LifecycleStrategyKind
-	ReviewStatus    LifecycleReviewStatus
-	WorkingDir      string
-	ComposeFiles    []string
-	ApplicationName string
-	Standard        LifecycleStandardConfig
+	StrategyKind         LifecycleStrategyKind
+	ReviewStatus         LifecycleReviewStatus
+	WorkingDir           string
+	ComposeFiles         []string
+	ApplicationName      string
+	DeclaredServiceCount int
+	Standard             LifecycleStandardConfig
 }
 
 // ActionResult 返回第一阶段有界动作状态。
@@ -910,6 +918,7 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.
 		return generated.ApplicationImportResponse{}, err
 	}
 	lifecycleConfig := defaultLifecycleStandardConfig()
+	lifecycleConfig.ManagedServiceNames = append([]string(nil), session.ParseResult.ServiceNames...)
 	return s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
 		CanonicalOverride: request.ComposeProjectNameOverride,
@@ -967,38 +976,41 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.App
 	}
 	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
 	serviceMembers := membersByService(runtimeSummary.Members)
+	managedServices := make(map[string]struct{}, len(aggregate.Application.LifecycleConfig.ManagedServiceNames))
+	for _, serviceName := range aggregate.Application.LifecycleConfig.ManagedServiceNames {
+		managedServices[serviceName] = struct{}{}
+	}
+	managesAllServices := len(managedServices) == 0
 	items := make([]generated.ApplicationServiceItem, 0, len(parseResult.Services))
 	for _, item := range parseResult.Services {
-		members := serviceMembers[item.ServiceName]
-		generatedItem := generated.ApplicationServiceItem{
-			ServiceName: item.ServiceName,
-		}
-		applyGeneratedServiceMembers(&generatedItem, members)
-		if item.Image != nil {
-			generatedItem.Image = item.Image
-		}
-		if item.BuildContext != nil {
-			generatedItem.BuildContext = item.BuildContext
-		}
-		if len(item.DeclaredPorts) > 0 {
-			ports := append([]string(nil), item.DeclaredPorts...)
-			generatedItem.DeclaredPorts = &ports
-		}
-		if len(item.DeclaredVolumes) > 0 {
-			volumes := append([]string(nil), item.DeclaredVolumes...)
-			generatedItem.DeclaredVolumes = &volumes
-		}
-		if len(item.DeclaredNetworks) > 0 {
-			networks := append([]string(nil), item.DeclaredNetworks...)
-			generatedItem.DeclaredNetworks = &networks
-		}
-		items = append(items, generatedItem)
+		_, managed := managedServices[item.ServiceName]
+		items = append(items, applicationServiceItem(item, serviceMembers[item.ServiceName], managesAllServices || managed))
 	}
 	return generated.ApplicationServicesResponse{
 		ComposeProjectName: aggregate.Application.ComposeProjectName,
 		Items:              items,
 		ApplicationId:      aggregate.Application.ApplicationID,
 	}, nil
+}
+
+func applicationServiceItem(item projectcompose.ServiceProjection, members []moduleapi.ContainerProjectMember, managed bool) generated.ApplicationServiceItem {
+	generatedItem := generated.ApplicationServiceItem{ServiceName: item.ServiceName, Managed: managed}
+	applyGeneratedServiceMembers(&generatedItem, members)
+	generatedItem.Image = item.Image
+	generatedItem.BuildContext = item.BuildContext
+	if len(item.DeclaredPorts) > 0 {
+		ports := append([]string(nil), item.DeclaredPorts...)
+		generatedItem.DeclaredPorts = &ports
+	}
+	if len(item.DeclaredVolumes) > 0 {
+		volumes := append([]string(nil), item.DeclaredVolumes...)
+		generatedItem.DeclaredVolumes = &volumes
+	}
+	if len(item.DeclaredNetworks) > 0 {
+		networks := append([]string(nil), item.DeclaredNetworks...)
+		generatedItem.DeclaredNetworks = &networks
+	}
+	return generatedItem
 }
 
 // Overview 返回应用概览；运行时资源数据始终来自 Container 模块聚合。

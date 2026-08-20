@@ -88,6 +88,155 @@
     },
     "additionalProperties": true
   },
+  "x-graft-destructive-schema": {
+    "type": "object",
+    "description": "Validation anchor for operation-level x-graft-destructive metadata. The metadata describes implemented destructive behavior and governance requirements; it does not authorize the operation or replace owning-module policy.",
+    "required": [
+      "kind",
+      "effect",
+      "execution",
+      "retry",
+      "result",
+      "authorization",
+      "audit",
+      "confirmation",
+      "exposure"
+    ],
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": [
+          "resource_delete",
+          "relationship_remove",
+          "credential_revoke",
+          "lifecycle_termination",
+          "hard_delete",
+          "external_destroy"
+        ]
+      },
+      "effect": {
+        "type": "string",
+        "enum": [
+          "soft_delete",
+          "hard_delete",
+          "relationship_removal",
+          "revocation",
+          "external_side_effect"
+        ]
+      },
+      "execution": {
+        "type": "string",
+        "enum": [
+          "synchronous",
+          "asynchronous"
+        ]
+      },
+      "retry": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "tombstone_idempotent",
+              "idempotency_key",
+              "task_receipt"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "integer",
+            "enum": [
+              200,
+              202,
+              204
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "authorization": {
+        "type": "object",
+        "required": [
+          "owner_check"
+        ],
+        "properties": {
+          "owner_check": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "audit": {
+        "type": "object",
+        "required": [
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "confirmation": {
+        "type": "object",
+        "required": [
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "exposure": {
+        "type": "object",
+        "required": [
+          "mcp"
+        ],
+        "properties": {
+          "mcp": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "batch": {
+        "type": "object",
+        "required": [
+          "mode",
+          "max_items"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "partial",
+              "atomic"
+            ]
+          },
+          "max_items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
   "x-tagGroups": [
     {
       "name": "Platform",
@@ -2084,6 +2233,109 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Soft delete one user",
+        "operationId": "deleteUser",
+        "description": "Soft deletes the managed user. A repeat DELETE for an existing tombstone in the same authorized management scope returns 204 without repeating domain side effects. GET and list operations continue to hide the tombstone.",
+        "x-graft-destructive": {
+          "kind": "resource_delete",
+          "effect": "soft_delete",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 204
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User was soft deleted or the same authorized scope retried an existing tombstone.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id or protected self-delete attempt.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User never existed in the authorized management scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/users/{id}/update": {
@@ -2477,143 +2729,6 @@
                 },
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/users/{id}/delete": {
-      "post": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Delete one user",
-        "operationId": "postUserDelete",
-        "description": "Deletes the specified managed user without changing current backend delete semantics.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            },
-            "examples": {
-              "existing": {
-                "summary": "Existing user id",
-                "value": 42
-              }
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User deleted.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
-                },
-                "examples": {
-                  "success": {
-                    "summary": "Delete succeeded",
-                    "value": {
-                      "success": true,
-                      "code": "OK",
-                      "message": "success",
-                      "traceId": "7d952f27-8f5f-44c9-8c98-17688a64f18d",
-                      "data": null
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid user id or protected self-delete attempt.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                },
-                "examples": {
-                  "invalidUserID": {
-                    "summary": "Invalid user id",
-                    "value": {
-                      "success": false,
-                      "code": "COMMON_INVALID_ARGUMENT",
-                      "message": "请求参数不合法",
-                      "traceId": "3dd097e3-6a8d-4daa-b60f-f79652c1f20f",
-                      "messageKey": "common.invalid_argument",
-                      "locale": "zh-CN",
-                      "data": {
-                        "field": "id"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "User not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                },
-                "examples": {
-                  "userNotFound": {
-                    "summary": "Target user does not exist",
-                    "value": {
-                      "success": false,
-                      "code": "USER_NOT_FOUND",
-                      "message": "用户不存在",
-                      "traceId": "7a2fc871-f5cb-4dd4-9eaf-4a5f71e9d756",
-                      "messageKey": "user.not_found",
-                      "locale": "zh-CN",
-                      "data": {}
-                    }
-                  }
                 }
               }
             }
@@ -3749,6 +3864,130 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role permissions",
+        "operationId": "deleteRolePermissions",
+        "description": "Removes the provided stable permission ids from the target role in one atomic transaction. All permission ids are validated before the write; validation failure returns an error envelope and commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/remove-role-permissions-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions were removed atomically.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role or permission not found; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/roles/{id}/permissions/replace": {
@@ -3894,105 +4133,6 @@
         "responses": {
           "200": {
             "description": "Role permissions added.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request payload.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Role or permission not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/roles/{id}/permissions/remove": {
-      "post": {
-        "tags": [
-          "rbac"
-        ],
-        "summary": "Remove role permissions",
-        "operationId": "postRolePermissionsRemove",
-        "description": "Removes the provided stable permission ids from the target role.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/replace-role-permissions-request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Role permissions removed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -4972,6 +5112,145 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role bindings for one user",
+        "operationId": "deleteUserRoles",
+        "description": "Removes the supplied role ids from the target user in one atomic transaction. All role ids and protected-account invariants are validated before the write; validation failure commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/remove-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User role bindings were removed atomically.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id or role id set; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict; no relationship change was committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/users/{id}/roles/replace": {
@@ -5202,30 +5481,47 @@
         }
       }
     },
-    "/api/users/{id}/roles/remove": {
-      "post": {
+    "/api/users/roles": {
+      "delete": {
         "tags": [
           "rbac"
         ],
-        "summary": "Remove role bindings for one user",
-        "operationId": "postUserRolesRemove",
-        "description": "Removes the supplied role ids from the target user.",
+        "summary": "Remove role bindings for many users",
+        "operationId": "deleteUsersRoles",
+        "description": "Removes the supplied role ids from the supplied user id set in one atomic transaction. All users, roles, and protected-account invariants are validated before the write; validation failure commits no relationship change.",
+        "x-graft-destructive": {
+          "kind": "relationship_remove",
+          "effect": "relationship_removal",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "tombstone_idempotent"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
           }
         ],
         "security": [
@@ -5238,14 +5534,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/replace-user-roles-request"
+                "$ref": "#/components/schemas/batch-remove-user-roles-request"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "User roles removed.",
+            "description": "User role bindings were removed atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5254,13 +5550,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid user id or invalid role id list.",
+            "description": "Invalid user id set or role id set; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5281,7 +5577,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "User or role not found.",
+            "description": "User or role not found; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5296,7 +5592,7 @@
             }
           },
           "409": {
-            "description": "User-role lifecycle conflict.",
+            "description": "User-role lifecycle conflict; no relationship change was committed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5349,7 +5645,7 @@
         },
         "responses": {
           "200": {
-            "description": "User roles replaced in batch.",
+            "description": "User roles replaced atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5358,7 +5654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
@@ -5453,7 +5749,7 @@
         },
         "responses": {
           "200": {
-            "description": "User roles added in batch.",
+            "description": "User roles added atomically.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -5462,111 +5758,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid user id set or role id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "User or role not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "User-role lifecycle conflict.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/users/roles/remove": {
-      "post": {
-        "tags": [
-          "rbac"
-        ],
-        "summary": "Remove role bindings for many users",
-        "operationId": "postUsersRolesRemove",
-        "description": "Removes the supplied role ids from the supplied user id set in one batch transaction.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/batch-user-roles-request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User roles removed in batch.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
@@ -6023,14 +6215,41 @@
         }
       }
     },
-    "/api/audit/logs/batch-delete": {
+    "/api/audit/logs/deletions": {
       "post": {
         "tags": [
           "audit"
         ],
-        "summary": "Delete audit logs in batch",
-        "operationId": "postAuditLogsBatchDelete",
-        "description": "Permanently deletes selected audit records when the caller has the dedicated destructive audit permission.",
+        "summary": "Delete audit logs",
+        "operationId": "postAuditLogDeletion",
+        "description": "Permanently deletes selected audit records and stores a durable idempotency receipt.",
+        "x-graft-destructive": {
+          "kind": "hard_delete",
+          "effect": "hard_delete",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "idempotency_key"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6042,7 +6261,6 @@
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
-            "description": "Stable retry key for the destructive batch operation.",
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -6067,34 +6285,17 @@
         },
         "responses": {
           "200": {
-            "description": "Audit logs deleted, or a matching idempotent replay accepted without deleting records again.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Deletion completed or matching receipt replayed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid or duplicated audit log id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -6103,34 +6304,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "One or more audit logs were not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/not-found"
           },
           "409": {
-            "description": "An audit log is protected from manual deletion.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12225,20 +12402,57 @@
         }
       }
     },
-    "/api/app-log/batch-delete": {
+    "/api/app-log/deletions": {
       "post": {
         "tags": [
           "app-log"
         ],
-        "summary": "Delete app logs in batch",
-        "operationId": "postAppLogBatchDelete",
-        "description": "Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.",
+        "summary": "Delete app logs",
+        "operationId": "postAppLogDeletion",
+        "description": "Permanently deletes selected retained app-log rows and stores a durable idempotency receipt.",
+        "x-graft-destructive": {
+          "kind": "hard_delete",
+          "effect": "hard_delete",
+          "execution": "synchronous",
+          "retry": {
+            "mode": "idempotency_key"
+          },
+          "result": {
+            "status": 200
+          },
+          "authorization": {
+            "owner_check": false
+          },
+          "audit": {
+            "required": true
+          },
+          "confirmation": {
+            "required": true
+          },
+          "exposure": {
+            "mcp": false
+          },
+          "batch": {
+            "mode": "atomic",
+            "max_items": 100
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
           }
         ],
         "security": [
@@ -12258,34 +12472,17 @@
         },
         "responses": {
           "200": {
-            "description": "App logs deleted.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
+            "description": "Deletion completed or matching receipt replayed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-destructive-batch-result"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid app log id set.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -12294,19 +12491,10 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "One or more app logs were not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/not-found"
+          },
+          "409": {
+            "$ref": "#/components/responses/conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12369,93 +12557,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-app-log-detail-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid app log id.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "App log not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "app-log"
-        ],
-        "summary": "Delete one app log",
-        "operationId": "deleteAppLog",
-        "description": "Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "App log deleted.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
                 }
               }
             }
@@ -14591,6 +14692,12 @@
           },
           {
             "$ref": "#/components/parameters/container-list-runtime-target-id"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope-kind"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope"
           }
         ],
         "security": [
@@ -24540,6 +24647,21 @@
   },
   "components": {
     "schemas": {
+      "GraftDestructiveOperationMetadata": {
+        "$ref": "#/components/schemas/graft-destructive-operation-metadata"
+      },
+      "DestructiveBatchResultSummary": {
+        "$ref": "#/components/schemas/destructive-batch-result-summary"
+      },
+      "DestructiveBatchResultItem": {
+        "$ref": "#/components/schemas/destructive-batch-result-item"
+      },
+      "DestructiveBatchResult": {
+        "$ref": "#/components/schemas/destructive-batch-result"
+      },
+      "EnvelopedDestructiveBatchResult": {
+        "$ref": "#/components/schemas/enveloped-destructive-batch-result"
+      },
       "ApiEnvelope": {
         "$ref": "#/components/schemas/api-envelope"
       },
@@ -27271,11 +27393,158 @@
           }
         ]
       },
+      "remove-role-permissions-request": {
+        "type": "object",
+        "required": [
+          "permission_ids"
+        ],
+        "properties": {
+          "permission_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "destructive-batch-result-summary": {
+        "type": "object",
+        "description": "Counts for one bounded synchronous destructive batch operation.",
+        "required": [
+          "requested",
+          "succeeded",
+          "failed"
+        ],
+        "properties": {
+          "requested": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "succeeded": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "destructive-batch-result-item": {
+        "type": "object",
+        "description": "Result for one requested resource identifier, preserved in request order.",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "deleted",
+              "removed",
+              "revoked",
+              "unchanged",
+              "accepted",
+              "failed"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "required": [
+                "code"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "destructive-batch-result": {
+        "type": "object",
+        "description": "Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.",
+        "required": [
+          "operation_id",
+          "summary",
+          "results"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "summary": {
+            "$ref": "#/components/schemas/destructive-batch-result-summary"
+          },
+          "results": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/destructive-batch-result-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-destructive-batch-result": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/destructive-batch-result"
+              }
+            }
+          }
+        ]
+      },
       "replace-role-permissions-request": {
         "type": "object",
         "properties": {
           "permission_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64"
@@ -27285,6 +27554,8 @@
           },
           "bindings": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "$ref": "#/components/schemas/role-permission-binding-item"
             }
@@ -27534,6 +27805,25 @@
           }
         ]
       },
+      "remove-user-roles-request": {
+        "type": "object",
+        "required": [
+          "role_ids"
+        ],
+        "properties": {
+          "role_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
       "replace-user-roles-request": {
         "type": "object",
         "required": [
@@ -27542,6 +27832,8 @@
         "properties": {
           "role_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -27556,6 +27848,37 @@
           ]
         }
       },
+      "batch-remove-user-roles-request": {
+        "type": "object",
+        "required": [
+          "user_ids",
+          "role_ids"
+        ],
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        }
+      },
       "batch-user-roles-request": {
         "type": "object",
         "required": [
@@ -27565,6 +27888,8 @@
         "properties": {
           "user_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -27573,6 +27898,8 @@
           },
           "role_ids": {
             "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
             "items": {
               "type": "integer",
               "format": "int64",
@@ -42816,6 +43143,28 @@
           }
         }
       },
+      "application-import-service-option": {
+        "type": "object",
+        "required": [
+          "name",
+          "depends_on"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "depends_on": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "application-import-runtime-network-resource": {
         "type": "object",
         "required": [
@@ -42955,7 +43304,8 @@
           "wait_after_up",
           "wait_timeout_seconds",
           "renew_anon_volumes",
-          "prune_images_after_redeploy"
+          "prune_images_after_redeploy",
+          "managed_service_names"
         ],
         "properties": {
           "strategy_kind": {
@@ -43009,7 +43359,52 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 256,
-              "pattern": "^\\S+$"
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "managed_service_names": {
+            "type": "array",
+            "description": "Services included in Graft lifecycle actions; empty means all declared services for legacy records.",
+            "uniqueItems": true,
+            "maxItems": 256,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "stop_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose stop.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "restart_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose restart.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
+            }
+          },
+          "pull_args": {
+            "type": "array",
+            "description": "Bounded argv tokens appended to docker compose pull.",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\r\\n]+$"
             }
           }
         },
@@ -43028,6 +43423,7 @@
           "compose_files",
           "env_files",
           "services",
+          "service_options",
           "networks",
           "volumes",
           "runtime_members",
@@ -43077,6 +43473,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "service_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-import-service-option"
             }
           },
           "networks": {
@@ -43417,7 +43819,8 @@
           "renew_anon_volumes",
           "prune_images_after_redeploy",
           "generated_commands",
-          "additional_args"
+          "additional_args",
+          "managed_service_names"
         ],
         "properties": {
           "strategy_kind": {
@@ -43464,6 +43867,31 @@
             "default": false
           },
           "additional_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "managed_service_names": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "stop_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "restart_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pull_args": {
             "type": "array",
             "items": {
               "type": "string"
@@ -45477,11 +45905,16 @@
           "service_name",
           "container_members",
           "running_count",
-          "stopped_count"
+          "stopped_count",
+          "managed"
         ],
         "properties": {
           "service_name": {
             "type": "string"
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "Whether Graft application lifecycle actions include this Compose service."
           },
           "image": {
             "type": "string",
@@ -46268,6 +46701,155 @@
           }
         }
       },
+      "graft-destructive-operation-metadata": {
+        "type": "object",
+        "description": "Validation anchor for operation-level x-graft-destructive metadata. The metadata describes implemented destructive behavior and governance requirements; it does not authorize the operation or replace owning-module policy.",
+        "required": [
+          "kind",
+          "effect",
+          "execution",
+          "retry",
+          "result",
+          "authorization",
+          "audit",
+          "confirmation",
+          "exposure"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "resource_delete",
+              "relationship_remove",
+              "credential_revoke",
+              "lifecycle_termination",
+              "hard_delete",
+              "external_destroy"
+            ]
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "soft_delete",
+              "hard_delete",
+              "relationship_removal",
+              "revocation",
+              "external_side_effect"
+            ]
+          },
+          "execution": {
+            "type": "string",
+            "enum": [
+              "synchronous",
+              "asynchronous"
+            ]
+          },
+          "retry": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "tombstone_idempotent",
+                  "idempotency_key",
+                  "task_receipt"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "integer",
+                "enum": [
+                  200,
+                  202,
+                  204
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "authorization": {
+            "type": "object",
+            "required": [
+              "owner_check"
+            ],
+            "properties": {
+              "owner_check": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "audit": {
+            "type": "object",
+            "required": [
+              "required"
+            ],
+            "properties": {
+              "required": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "confirmation": {
+            "type": "object",
+            "required": [
+              "required"
+            ],
+            "properties": {
+              "required": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "exposure": {
+            "type": "object",
+            "required": [
+              "mcp"
+            ],
+            "properties": {
+              "mcp": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "batch": {
+            "type": "object",
+            "required": [
+              "mode",
+              "max_items"
+            ],
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "partial",
+                  "atomic"
+                ]
+              },
+              "max_items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "dashboard-stat-group-payload": {
         "type": "object",
         "required": [
@@ -47009,6 +47591,40 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "container-list-source-scope-kind": {
+        "name": "source_scope_kind",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "compose_project",
+            "compose_service",
+            "swarm_stack",
+            "swarm_task",
+            "kubernetes_namespace",
+            "kubernetes_pod"
+          ],
+          "x-enum-varnames": [
+            "ContainerListSourceScopeKindComposeProject",
+            "ContainerListSourceScopeKindComposeService",
+            "ContainerListSourceScopeKindSwarmStack",
+            "ContainerListSourceScopeKindSwarmTask",
+            "ContainerListSourceScopeKindKubernetesNamespace",
+            "ContainerListSourceScopeKindKubernetesPod"
+          ]
+        }
+      },
+      "container-list-source-scope": {
+        "name": "source_scope",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope value. Must be paired with source_scope_kind.",
+        "schema": {
+          "type": "string"
         }
       },
       "container-id-path": {
@@ -47934,8 +48550,8 @@
           }
         }
       },
-      "conflict": {
-        "description": "Request could not be completed because the resource changed concurrently.",
+      "bad-request": {
+        "description": "Invalid request under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"
@@ -47949,8 +48565,23 @@
           }
         }
       },
-      "bad-request": {
-        "description": "Invalid request under existing error envelope semantics.",
+      "not-found": {
+        "description": "Requested resource was not found under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "conflict": {
+        "description": "Request could not be completed because the resource changed concurrently.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"
@@ -47984,21 +48615,6 @@
       },
       "precondition-required": {
         "description": "A strong If-Match header is required for Module Config mutations.",
-        "headers": {
-          "X-Request-Id": {
-            "$ref": "#/components/headers/request-id"
-          }
-        },
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/error-response"
-            }
-          }
-        }
-      },
-      "not-found": {
-        "description": "Requested resource was not found under existing error envelope semantics.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

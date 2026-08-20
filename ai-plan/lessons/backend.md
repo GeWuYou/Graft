@@ -1,5 +1,33 @@
 # Backend Lessons
 
+## LESSON-BACKEND-DESTRUCTIVE-CONTRACT-001：删除资源与执行销毁命令必须分型治理
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `openapi/**` 中的软删除、关系解除、不可逆销毁和批量消除性操作
+  - `server/modules/*` 的删除授权、审计、持久化与 Task 提交边界
+  - `web/src/modules/*` 的删除 mutation 与批量结果消费
+- Source:
+  - 2026-08-19 消除性操作契约收敛设计中，用户指出 tombstone 重删、不可逆硬删除命令和批量 partial/atomic 语义不能继续由各模块自行解释。
+- Problem:
+  仅凭 HTTP `DELETE` 名称统一接口，会把资源状态变化、关系解除、不可逆命令和外部系统销毁混成一种行为；同时让各模块自定义批量结果与失败提交策略，会令重试、权限、审计、MCP 暴露和前端刷新行为不可预测。
+- Correct pattern:
+  普通软删除和关系解除使用幂等 `DELETE`，tombstone 重删返回成功而普通查询默认隐藏；不可逆硬删除与外部资源销毁使用显式 `POST .../deletions|remove|destroy|untag` 命令，高风险命令持久化幂等回执，外部副作用经 Task Runtime 返回 `202`。批量操作必须在契约中声明 `partial` 或 `atomic`，并复用统一 summary/results envelope；RBAC 等安全敏感批量操作默认 atomic。
+- Anti-pattern:
+  认为 `DELETE` 方法本身足以证明业务幂等；同步等待 Docker、Kubernetes 或云资源删除；让每个模块定义自己的批量删除响应；或在未声明 owner check、审计、确认和 MCP 暴露策略时仅靠人工判断危险性。
+- Enforcement:
+  每个消除性 OpenAPI operation 必须声明 `x-graft-destructive`；OpenAPI 校验器检查方法、状态码、幂等键、Task receipt、统一批量 envelope 和 MCP 暴露一致性。模块回归测试必须覆盖重删、查询隐藏、权限/审计副作用次数以及批量提交模式。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
+  - `openapi/components/schemas/graft-destructive-operation-metadata.yaml`
+  - `server/internal/cli/validate_openapi_destructive.go`
+- Updated at:
+  2026-08-19
+
 ## LESSON-BACKEND-CAPABILITY-AUTHORITY-001：能力健康必须与平台可达性分层
 
 - Status: active

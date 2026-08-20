@@ -1,6 +1,9 @@
 package contract
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 const (
 	// ApplicationLifecycleMaxAdditionalArgs 限制调用方可追加的 Compose 参数数量，避免任务载荷无界增长。
@@ -24,4 +27,79 @@ func NormalizeLifecycleAdditionalArgs(values []string) ([]string, bool) {
 		normalized = append(normalized, argument)
 	}
 	return normalized, true
+}
+
+// NormalizeLifecycleActionArgs 校验指定 Compose 动作的受控 argv 模板。
+func NormalizeLifecycleActionArgs(action string, values []string) ([]string, bool) {
+	normalized, valid := NormalizeLifecycleAdditionalArgs(values)
+	if !valid {
+		return nil, false
+	}
+	allowed := lifecycleActionOptions(action)
+	if allowed == nil {
+		return nil, false
+	}
+	for index := 0; index < len(normalized); index++ {
+		nextIndex, valid := validateLifecycleActionArgument(normalized, index, allowed)
+		if !valid {
+			return nil, false
+		}
+		index = nextIndex
+	}
+	return normalized, true
+}
+
+func validateLifecycleActionArgument(values []string, index int, allowed map[string]bool) (int, bool) {
+	option, value, hasInlineValue := splitLifecycleOption(values[index])
+	requiresValue, exists := allowed[option]
+	if !exists || (hasInlineValue && !requiresValue) {
+		return index, false
+	}
+	if !requiresValue {
+		return index, true
+	}
+	if !hasInlineValue {
+		index++
+		if index >= len(values) || strings.HasPrefix(values[index], "-") {
+			return index, false
+		}
+		value = values[index]
+	}
+	return index, validLifecycleOptionValue(option, value)
+}
+
+func splitLifecycleOption(argument string) (string, string, bool) {
+	option, value, found := strings.Cut(argument, "=")
+	return option, value, found
+}
+
+func validLifecycleOptionValue(option string, value string) bool {
+	if value == "" {
+		return false
+	}
+	switch option {
+	case "--policy":
+		return value == "always" || value == "missing"
+	case "--timeout", "-t":
+		seconds, err := strconv.Atoi(value)
+		return err == nil && seconds >= 0 && seconds <= 3600
+	default:
+		return false
+	}
+}
+
+func lifecycleActionOptions(action string) map[string]bool {
+	switch action {
+	case "stop":
+		return map[string]bool{"--timeout": true, "-t": true}
+	case "restart":
+		return map[string]bool{"--no-deps": false, "--timeout": true, "-t": true}
+	case "pull":
+		return map[string]bool{
+			"--ignore-buildable": false, "--ignore-pull-failures": false,
+			"--include-deps": false, "--policy": true, "--quiet": false,
+		}
+	default:
+		return nil
+	}
 }

@@ -5738,6 +5738,36 @@ func (e ContainerListHealth) Valid() bool {
 	}
 }
 
+// Defines values for ContainerListSourceScopeKind.
+const (
+	ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject      ContainerListSourceScopeKind = "compose_project"
+	ContainerListSourceScopeKindContainerListSourceScopeKindComposeService      ContainerListSourceScopeKind = "compose_service"
+	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace ContainerListSourceScopeKind = "kubernetes_namespace"
+	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod       ContainerListSourceScopeKind = "kubernetes_pod"
+	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack          ContainerListSourceScopeKind = "swarm_stack"
+	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask           ContainerListSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListSourceScopeKind enum.
+func (e ContainerListSourceScopeKind) Valid() bool {
+	switch e {
+	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeService:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack:
+		return true
+	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerListState.
 const (
 	ContainerListStateContainerListStateCreated    ContainerListState = "created"
@@ -6482,6 +6512,36 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainersParamsSourceScopeKind.
+const (
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
+	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
+func (e GetContainersParamsSourceScopeKind) Valid() bool {
+	switch e {
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack:
+		return true
+	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask:
 		return true
 	default:
 		return false
@@ -7519,6 +7579,7 @@ type ApplicationImportRuntimeInspectResponse struct {
 	Networks               []ApplicationImportRuntimeNetworkResource               `json:"networks"`
 	ResolvedWorkspacePath  string                                                  `json:"resolved_workspace_path"`
 	RuntimeMembers         []ApplicationImportRuntimeMember                        `json:"runtime_members"`
+	ServiceOptions         []ApplicationImportServiceOption                        `json:"service_options"`
 	Services               []string                                                `json:"services"`
 	ValidationStatus       ApplicationImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
 	Volumes                []ApplicationImportRuntimeVolumeResource                `json:"volumes"`
@@ -7561,6 +7622,12 @@ type ApplicationImportRuntimeVolumeResource struct {
 
 // ApplicationImportRuntimeWorkspacePathSource defines model for application-import-runtime-workspace-path-source.
 type ApplicationImportRuntimeWorkspacePathSource string
+
+// ApplicationImportServiceOption defines model for application-import-service-option.
+type ApplicationImportServiceOption struct {
+	DependsOn []string `json:"depends_on"`
+	Name      string   `json:"name"`
+}
 
 // ApplicationImportValidateRequest defines model for application-import-validate-request.
 type ApplicationImportValidateRequest struct {
@@ -7612,11 +7679,15 @@ type ApplicationLifecycleConfiguration struct {
 		Stop     ApplicationLifecycleGeneratedCommand `json:"stop"`
 		Up       ApplicationLifecycleGeneratedCommand `json:"up"`
 	} `json:"generated_commands"`
-	Profiles                 []string `json:"profiles"`
-	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
-	RemoveOrphans            bool     `json:"remove_orphans"`
-	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
+	ManagedServiceNames      []string  `json:"managed_service_names"`
+	Profiles                 []string  `json:"profiles"`
+	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
+	PullArgs                 *[]string `json:"pull_args,omitempty"`
+	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
+	RemoveOrphans            bool      `json:"remove_orphans"`
+	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
+	RestartArgs              *[]string `json:"restart_args,omitempty"`
+	StopArgs                 *[]string `json:"stop_args,omitempty"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7627,15 +7698,27 @@ type ApplicationLifecycleConfiguration struct {
 // ApplicationLifecycleConfigurationRequest defines model for application-lifecycle-configuration-request.
 type ApplicationLifecycleConfigurationRequest struct {
 	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.
-	AdditionalArgs           *[]string `json:"additional_args,omitempty"`
-	BuildBeforeUp            bool      `json:"build_before_up"`
-	DownBeforeRedeploy       bool      `json:"down_before_redeploy"`
-	ForceRecreate            bool      `json:"force_recreate"`
-	Profiles                 []string  `json:"profiles"`
-	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
-	RemoveOrphans            bool      `json:"remove_orphans"`
-	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
+	AdditionalArgs     *[]string `json:"additional_args,omitempty"`
+	BuildBeforeUp      bool      `json:"build_before_up"`
+	DownBeforeRedeploy bool      `json:"down_before_redeploy"`
+	ForceRecreate      bool      `json:"force_recreate"`
+
+	// ManagedServiceNames Services included in Graft lifecycle actions; empty means all declared services for legacy records.
+	ManagedServiceNames      []string `json:"managed_service_names"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+
+	// PullArgs Bounded argv tokens appended to docker compose pull.
+	PullArgs           *[]string `json:"pull_args,omitempty"`
+	PullBeforeRedeploy bool      `json:"pull_before_redeploy"`
+	RemoveOrphans      bool      `json:"remove_orphans"`
+	RenewAnonVolumes   bool      `json:"renew_anon_volumes"`
+
+	// RestartArgs Bounded argv tokens appended to docker compose restart.
+	RestartArgs *[]string `json:"restart_args,omitempty"`
+
+	// StopArgs Bounded argv tokens appended to docker compose stop.
+	StopArgs *[]string `json:"stop_args,omitempty"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7935,9 +8018,12 @@ type ApplicationServiceItem struct {
 	DeclaredPorts    *[]string `json:"declared_ports,omitempty"`
 	DeclaredVolumes  *[]string `json:"declared_volumes,omitempty"`
 	Image            *string   `json:"image,omitempty"`
-	RunningCount     int       `json:"running_count"`
-	ServiceName      string    `json:"service_name"`
-	StoppedCount     int       `json:"stopped_count"`
+
+	// Managed Whether Graft application lifecycle actions include this Compose service.
+	Managed      bool   `json:"managed"`
+	RunningCount int    `json:"running_count"`
+	ServiceName  string `json:"service_name"`
+	StoppedCount int    `json:"stopped_count"`
 }
 
 // ApplicationServicesResponse defines model for application-services-response.
@@ -8463,6 +8549,12 @@ type AuditVisibilityPolicyResponse struct {
 	Catalog   []AuditEventCatalogItem           `json:"catalog"`
 	Default   AuditVisibilityDefaultResponse    `json:"default"`
 	Overrides []AuditVisibilityOverrideResponse `json:"overrides"`
+}
+
+// BatchRemoveUserRolesRequest defines model for batch-remove-user-roles-request.
+type BatchRemoveUserRolesRequest struct {
+	RoleIds []int64 `json:"role_ids"`
+	UserIds []int64 `json:"user_ids"`
 }
 
 // BatchUserRolesRequest defines model for batch-user-roles-request.
@@ -9649,6 +9741,25 @@ type DashboardWidgetStatus string
 
 // DashboardWidgetType defines model for dashboard-widget-type.
 type DashboardWidgetType string
+
+// DestructiveBatchResult Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.
+type DestructiveBatchResult struct {
+	OperationId string                       `json:"operation_id"`
+	Results     []DestructiveBatchResultItem `json:"results"`
+
+	// Summary Counts for one bounded synchronous destructive batch operation.
+	Summary DestructiveBatchResultSummary `json:"summary"`
+}
+
+// DestructiveBatchResultItem defines model for destructive-batch-result-item.
+type DestructiveBatchResultItem = interface{}
+
+// DestructiveBatchResultSummary Counts for one bounded synchronous destructive batch operation.
+type DestructiveBatchResultSummary struct {
+	Failed    int `json:"failed"`
+	Requested int `json:"requested"`
+	Succeeded int `json:"succeeded"`
+}
 
 // DockerImage defines model for docker-image.
 type DockerImage struct {
@@ -11262,6 +11373,28 @@ type EnvelopedDashboardWidget struct {
 	// Code Existing canonical response code.
 	Code string          `json:"code"`
 	Data DashboardWidget `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDestructiveBatchResult defines model for enveloped-destructive-batch-result.
+type EnvelopedDestructiveBatchResult struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.
+	Data DestructiveBatchResult `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -14130,6 +14263,16 @@ type RegistryRepositoryAssignmentCandidateListResponse struct {
 // RegistryVerificationResult Terminal Registry-owned result of one Runtime Target authentication verification attempt. verified never claims repository pull or push authorization.
 type RegistryVerificationResult string
 
+// RemoveRolePermissionsRequest defines model for remove-role-permissions-request.
+type RemoveRolePermissionsRequest struct {
+	PermissionIds []int64 `json:"permission_ids"`
+}
+
+// RemoveUserRolesRequest defines model for remove-user-roles-request.
+type RemoveUserRolesRequest struct {
+	RoleIds []int64 `json:"role_ids"`
+}
+
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {
 	Bindings *[]RolePermissionBindingItem `json:"bindings,omitempty"`
@@ -15832,6 +15975,12 @@ type ContainerListOffset = int
 // ContainerListRuntimeTargetId defines model for container-list-runtime-target-id.
 type ContainerListRuntimeTargetId = int64
 
+// ContainerListSourceScope defines model for container-list-source-scope.
+type ContainerListSourceScope = string
+
+// ContainerListSourceScopeKind defines model for container-list-source-scope-kind.
+type ContainerListSourceScopeKind string
+
 // ContainerListState defines model for container-list-state.
 type ContainerListState string
 
@@ -16311,14 +16460,15 @@ type GetAppLogsParamsSeverity string
 // GetAppLogsParamsSort defines parameters for GetAppLogs.
 type GetAppLogsParamsSort string
 
-// PostAppLogBatchDeleteParams defines parameters for PostAppLogBatchDelete.
-type PostAppLogBatchDeleteParams struct {
+// PostAppLogDeletionParams defines parameters for PostAppLogDeletion.
+type PostAppLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	XRequestId     *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string           `json:"Idempotency-Key"`
 }
 
 // GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
@@ -16353,16 +16503,6 @@ type DeleteAppLogSavedViewParams struct {
 
 // PutAppLogSavedViewParams defines parameters for PutAppLogSavedView.
 type PutAppLogSavedViewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// DeleteAppLogParams defines parameters for DeleteAppLog.
-type DeleteAppLogParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -16460,17 +16600,15 @@ type GetAuditLogsParamsRiskLevel string
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
 
-// PostAuditLogsBatchDeleteParams defines parameters for PostAuditLogsBatchDelete.
-type PostAuditLogsBatchDeleteParams struct {
+// PostAuditLogDeletionParams defines parameters for PostAuditLogDeletion.
+type PostAuditLogDeletionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-
-	// IdempotencyKey Stable retry key for the destructive batch operation.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	XRequestId     *RequestIdHeader `json:"X-Request-Id,omitempty"`
+	IdempotencyKey string           `json:"Idempotency-Key"`
 }
 
 // GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
@@ -17570,6 +17708,12 @@ type GetContainersParams struct {
 	// RuntimeTargetId Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
 	RuntimeTargetId *ContainerListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
 
+	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
+	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
+
+	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
+	SourceScope *ContainerListSourceScope `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -17586,6 +17730,9 @@ type GetContainersParamsHealth string
 
 // GetContainersParamsDeploymentType defines parameters for GetContainers.
 type GetContainersParamsDeploymentType string
+
+// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
+type GetContainersParamsSourceScopeKind string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
@@ -18636,6 +18783,16 @@ type PostRoleDeleteParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// DeleteRolePermissionsParams defines parameters for DeleteRolePermissions.
+type DeleteRolePermissionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetRolePermissionsParams defines parameters for GetRolePermissions.
 type GetRolePermissionsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -18648,16 +18805,6 @@ type GetRolePermissionsParams struct {
 
 // PostRolePermissionsAddParams defines parameters for PostRolePermissionsAdd.
 type PostRolePermissionsAddParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostRolePermissionsRemoveParams defines parameters for PostRolePermissionsRemove.
-type PostRolePermissionsRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19178,8 +19325,8 @@ type PostUsersParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUsersRolesAddParams defines parameters for PostUsersRolesAdd.
-type PostUsersRolesAddParams struct {
+// DeleteUsersRolesParams defines parameters for DeleteUsersRoles.
+type DeleteUsersRolesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19188,8 +19335,8 @@ type PostUsersRolesAddParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUsersRolesRemoveParams defines parameters for PostUsersRolesRemove.
-type PostUsersRolesRemoveParams struct {
+// PostUsersRolesAddParams defines parameters for PostUsersRolesAdd.
+type PostUsersRolesAddParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19248,6 +19395,16 @@ type PutUserSavedViewParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// DeleteUserParams defines parameters for DeleteUser.
+type DeleteUserParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetUserByIdParams defines parameters for GetUserById.
 type GetUserByIdParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -19258,8 +19415,8 @@ type GetUserByIdParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUserDeleteParams defines parameters for PostUserDelete.
-type PostUserDeleteParams struct {
+// PostUserResetPasswordParams defines parameters for PostUserResetPassword.
+type PostUserResetPasswordParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19268,8 +19425,8 @@ type PostUserDeleteParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUserResetPasswordParams defines parameters for PostUserResetPassword.
-type PostUserResetPasswordParams struct {
+// DeleteUserRolesParams defines parameters for DeleteUserRoles.
+type DeleteUserRolesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19290,16 +19447,6 @@ type GetUserRolesParams struct {
 
 // PostUserRolesAddParams defines parameters for PostUserRolesAdd.
 type PostUserRolesAddParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostUserRolesRemoveParams defines parameters for PostUserRolesRemove.
-type PostUserRolesRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19430,8 +19577,8 @@ type PutAnnouncementJSONRequestBody = UpdateAnnouncementRequest
 // PostAnnouncementPublishJSONRequestBody defines body for PostAnnouncementPublish for application/json ContentType.
 type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
-// PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
-type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
+// PostAppLogDeletionJSONRequestBody defines body for PostAppLogDeletion for application/json ContentType.
+type PostAppLogDeletionJSONRequestBody = AppLogBatchDeleteRequest
 
 // PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
 type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
@@ -19439,8 +19586,8 @@ type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
 // PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
 type PutAppLogSavedViewJSONRequestBody = SavedViewRequest
 
-// PostAuditLogsBatchDeleteJSONRequestBody defines body for PostAuditLogsBatchDelete for application/json ContentType.
-type PostAuditLogsBatchDeleteJSONRequestBody = AuditLogsBatchDeleteRequest
+// PostAuditLogDeletionJSONRequestBody defines body for PostAuditLogDeletion for application/json ContentType.
+type PostAuditLogDeletionJSONRequestBody = AuditLogsBatchDeleteRequest
 
 // PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
 type PostAuditLogSavedViewJSONRequestBody = SavedViewRequest
@@ -19667,11 +19814,11 @@ type PutRoleSavedViewJSONRequestBody = SavedViewRequest
 // PostRoleCloneJSONRequestBody defines body for PostRoleClone for application/json ContentType.
 type PostRoleCloneJSONRequestBody = CloneRoleRequest
 
+// DeleteRolePermissionsJSONRequestBody defines body for DeleteRolePermissions for application/json ContentType.
+type DeleteRolePermissionsJSONRequestBody = RemoveRolePermissionsRequest
+
 // PostRolePermissionsAddJSONRequestBody defines body for PostRolePermissionsAdd for application/json ContentType.
 type PostRolePermissionsAddJSONRequestBody = ReplaceRolePermissionsRequest
-
-// PostRolePermissionsRemoveJSONRequestBody defines body for PostRolePermissionsRemove for application/json ContentType.
-type PostRolePermissionsRemoveJSONRequestBody = ReplaceRolePermissionsRequest
 
 // PostRolePermissionsReplaceJSONRequestBody defines body for PostRolePermissionsReplace for application/json ContentType.
 type PostRolePermissionsReplaceJSONRequestBody = ReplaceRolePermissionsRequest
@@ -19718,11 +19865,11 @@ type PutSystemConfigJSONRequestBody = UpdateSystemConfigRequest
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
 
+// DeleteUsersRolesJSONRequestBody defines body for DeleteUsersRoles for application/json ContentType.
+type DeleteUsersRolesJSONRequestBody = BatchRemoveUserRolesRequest
+
 // PostUsersRolesAddJSONRequestBody defines body for PostUsersRolesAdd for application/json ContentType.
 type PostUsersRolesAddJSONRequestBody = BatchUserRolesRequest
-
-// PostUsersRolesRemoveJSONRequestBody defines body for PostUsersRolesRemove for application/json ContentType.
-type PostUsersRolesRemoveJSONRequestBody = BatchUserRolesRequest
 
 // PostUsersRolesReplaceJSONRequestBody defines body for PostUsersRolesReplace for application/json ContentType.
 type PostUsersRolesReplaceJSONRequestBody = BatchUserRolesRequest
@@ -19736,11 +19883,11 @@ type PutUserSavedViewJSONRequestBody = SavedViewRequest
 // PostUserResetPasswordJSONRequestBody defines body for PostUserResetPassword for application/json ContentType.
 type PostUserResetPasswordJSONRequestBody = ResetUserPasswordRequest
 
+// DeleteUserRolesJSONRequestBody defines body for DeleteUserRoles for application/json ContentType.
+type DeleteUserRolesJSONRequestBody = RemoveUserRolesRequest
+
 // PostUserRolesAddJSONRequestBody defines body for PostUserRolesAdd for application/json ContentType.
 type PostUserRolesAddJSONRequestBody = ReplaceUserRolesRequest
-
-// PostUserRolesRemoveJSONRequestBody defines body for PostUserRolesRemove for application/json ContentType.
-type PostUserRolesRemoveJSONRequestBody = ReplaceUserRolesRequest
 
 // PostUserRolesReplaceJSONRequestBody defines body for PostUserRolesReplace for application/json ContentType.
 type PostUserRolesReplaceJSONRequestBody = ReplaceUserRolesRequest

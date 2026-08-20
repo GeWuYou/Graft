@@ -15,6 +15,9 @@ type createUserRepository struct{}
 func (*createUserRepository) GetByID(context.Context, uint64) (userstore.User, error) {
 	return userstore.User{}, nil
 }
+func (*createUserRepository) GetDeletionState(context.Context, uint64) (userstore.UserDeletionState, error) {
+	return userstore.UserDeletionState{}, nil
+}
 func (*createUserRepository) GetByUsername(context.Context, string) (userstore.User, error) {
 	return userstore.User{}, nil
 }
@@ -72,6 +75,9 @@ type listPageRepository struct {
 
 func (r *listPageRepository) GetByID(context.Context, uint64) (userstore.User, error) {
 	return userstore.User{}, nil
+}
+func (r *listPageRepository) GetDeletionState(context.Context, uint64) (userstore.UserDeletionState, error) {
+	return userstore.UserDeletionState{}, nil
 }
 func (r *listPageRepository) GetByUsername(context.Context, string) (userstore.User, error) {
 	return userstore.User{}, nil

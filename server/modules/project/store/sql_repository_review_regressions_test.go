@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -112,6 +113,7 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 
 	encoded, err := encodeLifecycleConfigJSON(LifecycleConfig{
 		Profiles:                 []string{"blue"},
+		ManagedServiceNames:      []string{"api"},
 		DownBeforeRedeploy:       true,
 		PullBeforeRedeploy:       true,
 		BuildBeforeUp:            true,
@@ -122,6 +124,9 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 		RenewAnonVolumes:         true,
 		PruneImagesAfterRedeploy: true,
 		AdditionalArgs:           []string{"--progress", "plain"},
+		StopArgs:                 []string{"--timeout", "30"},
+		RestartArgs:              []string{"--no-deps"},
+		PullArgs:                 []string{"--include-deps"},
 	})
 	if err != nil {
 		t.Fatalf("encode lifecycle config: %v", err)
@@ -132,6 +137,7 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 	}
 	for _, key := range []string{
 		"profiles",
+		"managed_service_names",
 		"down_before_redeploy",
 		"pull_before_redeploy",
 		"build_before_up",
@@ -142,6 +148,9 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 		"renew_anon_volumes",
 		"prune_images_after_redeploy",
 		"additional_args",
+		"stop_args",
+		"restart_args",
+		"pull_args",
 	} {
 		if _, ok := raw[key]; !ok {
 			t.Fatalf("expected encoded lifecycle config to contain %q, got %#v", key, raw)
@@ -154,6 +163,7 @@ func TestDecodeLifecycleConfigJSONAcceptsSnakeCasePayload(t *testing.T) {
 
 	config, err := decodeLifecycleConfigJSON([]byte(`{
 		"profiles":["blue","green"],
+		"managed_service_names":["api","worker"],
 		"down_before_redeploy":true,
 		"pull_before_redeploy":true,
 		"build_before_up":true,
@@ -163,12 +173,22 @@ func TestDecodeLifecycleConfigJSONAcceptsSnakeCasePayload(t *testing.T) {
 		"wait_timeout_seconds":180,
 		"renew_anon_volumes":true,
 		"prune_images_after_redeploy":true
-		,"additional_args":["--progress","plain"]
+		,"additional_args":["--progress","plain"],
+		"stop_args":["--timeout","30"],
+		"restart_args":["--no-deps"],
+		"pull_args":["--include-deps"]
 	}`))
 	if err != nil {
 		t.Fatalf("decode lifecycle config: %v", err)
 	}
-	if len(config.Profiles) != 2 || !config.DownBeforeRedeploy || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.ForceRecreate || config.RemoveOrphans || !config.WaitAfterUp || config.WaitTimeoutSeconds != 180 || !config.RenewAnonVolumes || !config.PruneImagesAfterRedeploy || len(config.AdditionalArgs) != 2 || config.AdditionalArgs[0] != "--progress" || config.AdditionalArgs[1] != "plain" {
+	expected := LifecycleConfig{
+		Profiles: []string{"blue", "green"}, ManagedServiceNames: []string{"api", "worker"},
+		DownBeforeRedeploy: true, PullBeforeRedeploy: true, BuildBeforeUp: true, ForceRecreate: true,
+		RemoveOrphans: false, WaitAfterUp: true, WaitTimeoutSeconds: 180, RenewAnonVolumes: true,
+		PruneImagesAfterRedeploy: true, AdditionalArgs: []string{"--progress", "plain"},
+		StopArgs: []string{"--timeout", "30"}, RestartArgs: []string{"--no-deps"}, PullArgs: []string{"--include-deps"},
+	}
+	if !reflect.DeepEqual(config, expected) {
 		t.Fatalf("expected snake_case payload to round-trip, got %#v", config)
 	}
 }

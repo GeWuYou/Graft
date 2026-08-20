@@ -13,7 +13,7 @@ type WriteServerInterface interface {
 	PostUserUpdate(id uint64, params PostUserUpdateParams, body PostUserUpdateJSONRequestBody)
 	PostUserStatus(id uint64, params PostUserStatusParams, body PostUserStatusJSONRequestBody)
 	PostUserResetPassword(id uint64, params PostUserResetPasswordParams, body PostUserResetPasswordJSONRequestBody)
-	PostUserDelete(id uint64, params PostUserDeleteParams)
+	DeleteUser(id uint64, params DeleteUserParams)
 	PostUserSessionsRevokeAll(id uint64, params PostUserSessionsRevokeAllParams)
 	PostUserSessionRevoke(id uint64, sessionID string, params PostUserSessionRevokeParams)
 }
