@@ -26,9 +26,12 @@
                     v-model="form.workspace_id"
                     :options="workspaceOptions"
                     :loading="workspaceLoading"
-                    :disabled="workspaceLoading || workspaceOptions.length === 0"
+                    :disabled="workspaceLoading"
                     :placeholder="t('build.jobs.create.workspacePlaceholder')"
+                    :filter="showWorkspaceSearchResult"
                     clearable
+                    filterable
+                    @search="scheduleWorkspaceSearch"
                   />
                   <t-button variant="outline" size="small" @click="openWorkspaceCreate">
                     <template #icon><add-icon /></template>
@@ -214,7 +217,7 @@
 // 创建表单只提交 Build 所有的规范请求，应用授权仍由服务端边界负责。
 import { AddIcon } from 'tdesign-icons-vue-next';
 import type { SubmitContext } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -255,6 +258,7 @@ const form = ref<BuildJobForm>({
 });
 type SelectorOption = { label: string; value: string | number };
 type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
+type WorkspaceSelectorOption = { label: string; value: string };
 const driverOptions = computed(() => [
   {
     label: t('build.jobs.create.driverOptions.dockerEngine'),
@@ -270,7 +274,8 @@ const platformOptions = computed(() =>
     disabled: selectionMode.value === 'target' && platform === 'linux/arm64',
   })),
 );
-const workspaceOptions = ref<SelectorOption[]>([]);
+const workspaceOptions = ref<WorkspaceSelectorOption[]>([]);
+const workspaceSelectorLimit = 20;
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
 const builderPools = ref<BuildBuilderPool[]>([]);
 const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
@@ -288,6 +293,8 @@ const runtimeTargetError = ref('');
 const builderPoolError = ref('');
 const destinationLoading = ref(false);
 const destinationError = ref('');
+let workspaceSearchTimer: ReturnType<typeof setTimeout> | undefined;
+let workspaceRequestSequence = 0;
 type RegistryDestination = Awaited<ReturnType<typeof getBuildRegistryDestinations>>['items'][number];
 const destinations = ref<RegistryDestination[]>([]);
 const registryOptions = computed(() => {
@@ -301,22 +308,53 @@ const repositoryOptions = computed(() =>
     .map((item) => ({ value: item.repository_ref, label: item.repository_display_name || item.repository_ref })),
 );
 onMounted(loadSelectorOptions);
+onBeforeUnmount(cancelWorkspaceSearch);
 
 async function loadSelectorOptions() {
   await Promise.all([loadWorkspaces(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
 }
 
-async function loadWorkspaces() {
+// Selector 只加载受限结果；服务端搜索覆盖首屏外 Workspace，保留当前选项避免搜索切换后丢失标签。
+async function loadWorkspaces(search = '') {
+  const sequence = ++workspaceRequestSequence;
   workspaceLoading.value = true;
   workspaceError.value = '';
   try {
-    const workspaces = await getBuildWorkspaces();
-    workspaceOptions.value = (workspaces.items ?? []).map((item) => ({ label: item.name, value: item.workspace_id }));
+    const keyword = search.trim();
+    const workspaces = await getBuildWorkspaces({
+      limit: workspaceSelectorLimit,
+      offset: 0,
+      search: keyword || undefined,
+    });
+    if (sequence !== workspaceRequestSequence) return;
+    const selected = workspaceOptions.value.find((option) => option.value === form.value.workspace_id);
+    const options = workspaces.items.map((item) => ({ label: item.name, value: item.workspace_id }));
+    if (selected && !options.some((option) => option.value === selected.value)) options.unshift(selected);
+    workspaceOptions.value = options;
   } catch (error) {
+    if (sequence !== workspaceRequestSequence) return;
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.workspaceLoadFailed'));
   } finally {
-    workspaceLoading.value = false;
+    if (sequence === workspaceRequestSequence) workspaceLoading.value = false;
   }
+}
+
+function showWorkspaceSearchResult() {
+  return true;
+}
+
+function scheduleWorkspaceSearch(keyword: string) {
+  cancelWorkspaceSearch();
+  workspaceSearchTimer = setTimeout(() => {
+    workspaceSearchTimer = undefined;
+    void loadWorkspaces(keyword);
+  }, 300);
+}
+
+function cancelWorkspaceSearch() {
+  if (workspaceSearchTimer === undefined) return;
+  clearTimeout(workspaceSearchTimer);
+  workspaceSearchTimer = undefined;
 }
 
 async function loadRuntimeTargets() {

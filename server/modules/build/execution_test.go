@@ -26,6 +26,7 @@ type recordingBuildRepository struct {
 	artifactResult         buildstore.V2ArtifactListResult
 	v2Plan                 moduleapi.BuildExecutionPlan
 	workspaces             []moduleapi.BuildWorkspace
+	workspaceQuery         buildstore.WorkspaceListQuery
 	publicationSources     []moduleapi.ArtifactPublicationSource
 	promotionInput         moduleapi.OCIArtifactCopyInput
 	promotionResult        moduleapi.OCIArtifactCopyResult
@@ -65,8 +66,10 @@ func (r *recordingBuildRepository) GetWorkspace(context.Context, string) (module
 	return moduleapi.BuildWorkspace{ID: "workspace_app", Name: "Application", SourceKind: moduleapi.WorkspaceSourceApplication, SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"}, nil
 }
 
-func (r *recordingBuildRepository) ListWorkspaces(context.Context, uint64) ([]moduleapi.BuildWorkspace, error) {
-	return append([]moduleapi.BuildWorkspace(nil), r.workspaces...), nil
+func (r *recordingBuildRepository) ListWorkspaces(_ context.Context, _ uint64, query buildstore.WorkspaceListQuery) (buildstore.WorkspaceListResult, error) {
+	r.workspaceQuery = query
+	items := append([]moduleapi.BuildWorkspace(nil), r.workspaces...)
+	return buildstore.WorkspaceListResult{Items: items, Total: int64(len(items))}, nil
 }
 
 func (r *recordingBuildRepository) MaterializeExecutionPlan(_ context.Context, _ *sql.Tx, submission moduleapi.TaskSubmission, plan moduleapi.BuildExecutionPlan, _ uint64) (string, error) {

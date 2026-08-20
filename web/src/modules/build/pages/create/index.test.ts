@@ -90,26 +90,37 @@ const InputStub = defineComponent({
 const SelectStub = defineComponent({
   props: {
     disabled: { type: Boolean, default: false },
+    filterable: { type: Boolean, default: false },
     loading: { type: Boolean, default: false },
     modelValue: { type: [Number, String], default: '' },
     options: { type: Array, default: () => [] },
   },
-  emits: ['update:modelValue'],
+  emits: ['search', 'update:modelValue'],
   setup(props, { emit }) {
     return () =>
-      h(
-        'select',
-        {
-          value: props.modelValue,
-          disabled: props.disabled,
-          'data-loading': String(props.loading),
-          'data-options': JSON.stringify(props.options),
-          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
-        },
-        (props.options as Array<{ label: string; value: string | number }>).map((option) =>
-          h('option', { value: option.value }, option.label),
+      h('div', [
+        h(
+          'select',
+          {
+            value: props.modelValue,
+            disabled: props.disabled,
+            'data-filterable': String(props.filterable),
+            'data-loading': String(props.loading),
+            'data-options': JSON.stringify(props.options),
+            onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          },
+          (props.options as Array<{ label: string; value: string | number }>).map((option) =>
+            h('option', { value: option.value }, option.label),
+          ),
         ),
-      );
+        props.filterable
+          ? h(
+              'button',
+              { type: 'button', 'data-testid': 'search-workspaces', onClick: () => emit('search', 'later') },
+              'search',
+            )
+          : null,
+      ]);
   },
 });
 const RadioGroupStub = defineComponent({
@@ -246,10 +257,37 @@ describe('BuildCreatePage', () => {
     await flushPromises();
 
     expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledWith({ limit: 20, offset: 0, search: undefined });
     expect(mocks.getBuildRuntimeTargets).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildBuilderPools).toHaveBeenCalledTimes(1);
     expect(mocks.getBuildRegistryDestinations).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).not.toContain('selectorsUnavailable');
+  });
+
+  it('searches the bounded Workspace endpoint so options beyond the first page remain selectable', async () => {
+    vi.useFakeTimers();
+    mocks.getBuildWorkspaces
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_first', name: 'First' }], total: 51 })
+      .mockResolvedValueOnce({ items: [{ workspace_id: 'workspace_later', name: 'Later' }], total: 1 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const workspaceSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-filterable') === 'true');
+    expect(workspaceSelect).toBeDefined();
+
+    await wrapper.get('[data-testid="search-workspaces"]').trigger('click');
+    vi.advanceTimersByTime(299);
+    expect(mocks.getBuildWorkspaces).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(2, { limit: 20, offset: 0, search: 'later' });
+    expect(JSON.parse(workspaceSelect?.attributes('data-options') ?? '[]')).toEqual([
+      { label: 'Later', value: 'workspace_later' },
+    ]);
+    vi.useRealTimers();
   });
 
   it('uses only assigned Registry destinations for the connection and repository selectors', async () => {
@@ -427,9 +465,13 @@ describe('BuildCreatePage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
+    const workspaceSelect = wrapper
+      .findAll('select')
+      .find((candidate) => candidate.attributes('data-filterable') === 'true');
     const targetSelect = wrapper
       .findAll('select')
       .find((candidate) => candidate.attributes('data-options')?.includes('Local Docker'));
+    expect(workspaceSelect?.attributes('disabled')).toBeUndefined();
     expect(targetSelect?.attributes('disabled')).toBeUndefined();
     expect(wrapper.text()).toContain('build.jobs.create.workspaceEmpty');
   });

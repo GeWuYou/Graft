@@ -38,37 +38,35 @@
       density-scope="viewport"
       :empty-description="t('build.workspaces.emptyDescription')"
       :empty-title="t('build.workspaces.empty')"
-      :footer-summary="t('build.workspaces.summary', { count: items.length })"
+      :footer-summary="t('build.workspaces.summary', { count: total })"
       :loading="loading"
       :rows="items"
-      :total="items.length"
+      :total="total"
       row-key="workspace_id"
-      :pagination-visible="false"
+      :pagination-props="{ showPageSize: true }"
+      :page-size-options="[20, 50, 100]"
       :cell-slot-names="['source_kind', 'source_reference', 'created_at', 'updated_at']"
+      @page-change="changePage"
     >
       <template #source_kind="{ row }">
         {{ t(`build.workspaces.sourceKinds.${(row as BuildWorkspace).source_kind}`) }}
       </template>
       <template #source_reference="{ row }">
-        <span :title="(row as BuildWorkspace).source_reference">{{ applicationLabel(row as BuildWorkspace) }}</span>
+        <span :title="(row as BuildWorkspace).source_reference">{{ (row as BuildWorkspace).source_reference }}</span>
       </template>
       <template #created_at="{ row }">{{ formatLocaleDateTime((row as BuildWorkspace).created_at, locale) }}</template>
       <template #updated_at="{ row }">{{ formatLocaleDateTime((row as BuildWorkspace).updated_at, locale) }}</template>
-      <template #feedback>
-        <t-alert v-if="applicationError" theme="warning" :message="applicationError" />
-      </template>
     </management-paged-table>
   </section>
 </template>
 <script setup lang="ts">
-// 工作区列表以 Build 服务端投影为准，应用名称仅作为来源引用的可读补充，缺失时保留原始 ID。
+// 工作区列表以 Build 服务端分页投影为准，来源引用始终保留 canonical ID。
 import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { getApplications } from '@/modules/project/api/project';
 import { ManagementPageHeader, ManagementTableCard, ManagementToolbar } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -82,12 +80,12 @@ import type { BuildWorkspace } from '../../types/build';
 const { locale, t } = useI18n();
 const router = useRouter();
 const items = ref<BuildWorkspace[]>([]);
-const applicationLabels = ref(new Map<string, string>());
+const total = ref(0);
 const loading = ref(false);
 const errorMessage = ref('');
-const applicationError = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
+let requestSequence = 0;
 
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'name', title: t('build.workspaces.columns.name'), minWidth: 220, ellipsis: true },
@@ -104,47 +102,39 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'updated_at', title: t('build.workspaces.columns.updatedAt'), cell: 'updated_at', width: 180 },
 ]);
 
-function applicationLabel(workspace: BuildWorkspace) {
-  return (
-    applicationLabels.value.get(workspace.source_reference) ??
-    t('build.workspaces.applicationUnavailable', { id: workspace.source_reference })
-  );
-}
-
 function openCreate() {
   void router.push(BUILD_ROUTE_PATH.CREATE_WORKSPACE);
 }
 
+function fetchCurrentWorkspacePage() {
+  return getBuildWorkspaces({
+    limit: pageSize.value,
+    offset: (currentPage.value - 1) * pageSize.value,
+  });
+}
+
 async function load() {
+  const sequence = ++requestSequence;
   loading.value = true;
   errorMessage.value = '';
-  applicationError.value = '';
-  const [workspaceResult, applicationResult] = await Promise.allSettled([
-    getBuildWorkspaces(),
-    getApplications({ limit: 100, offset: 0 }),
-  ]);
-  if (workspaceResult.status === 'fulfilled') {
-    items.value = workspaceResult.value.items ?? [];
-  } else {
+  try {
+    const page = await fetchCurrentWorkspacePage();
+    if (sequence !== requestSequence) return;
+    items.value = page.items;
+    total.value = page.total;
+  } catch (error) {
+    if (sequence !== requestSequence) return;
     items.value = [];
-    errorMessage.value = resolveLocalizedErrorMessage(t, workspaceResult.reason, t('build.workspaces.loadFailed'));
+    total.value = 0;
+    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('build.workspaces.loadFailed'));
   }
-  if (applicationResult.status === 'fulfilled') {
-    applicationLabels.value = new Map(
-      (applicationResult.value.items ?? []).map((application) => [
-        application.application_id,
-        application.display_name,
-      ]),
-    );
-  } else {
-    applicationLabels.value = new Map();
-    applicationError.value = resolveLocalizedErrorMessage(
-      t,
-      applicationResult.reason,
-      t('build.workspaces.applicationLoadFailed'),
-    );
-  }
-  loading.value = false;
+  if (sequence === requestSequence) loading.value = false;
+}
+
+function changePage(info: { current: number; pageSize: number }) {
+  currentPage.value = info.current;
+  pageSize.value = info.pageSize;
+  void load();
 }
 
 onMounted(() => void load());

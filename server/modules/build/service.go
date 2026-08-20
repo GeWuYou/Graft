@@ -276,16 +276,16 @@ func (s *Service) CreateWorkspace(ctx context.Context, name, sourceKind, sourceR
 }
 
 type workspaceLister interface {
-	ListWorkspaces(context.Context, uint64) ([]moduleapi.BuildWorkspace, error)
+	ListWorkspaces(context.Context, uint64, buildstore.WorkspaceListQuery) (buildstore.WorkspaceListResult, error)
 }
 
 // ListWorkspaces 返回当前调用者可选择的 Build-owned Workspace 投影。
-func (s *Service) ListWorkspaces(ctx context.Context, requestedBy uint64) ([]moduleapi.BuildWorkspace, error) {
+func (s *Service) ListWorkspaces(ctx context.Context, requestedBy uint64, query buildstore.WorkspaceListQuery) (buildstore.WorkspaceListResult, error) {
 	lister, ok := s.repository.(workspaceLister)
 	if !ok {
-		return nil, errors.New("build workspace listing is unavailable")
+		return buildstore.WorkspaceListResult{}, errors.New("build workspace listing is unavailable")
 	}
-	return lister.ListWorkspaces(ctx, requestedBy)
+	return lister.ListWorkspaces(ctx, requestedBy, query)
 }
 
 // ListBuildTargets 返回授权且具备 Build 能力的 Runtime Target 投影。

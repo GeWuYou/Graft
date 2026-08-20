@@ -44,9 +44,10 @@ export function createBuildJob(payload: BuildJobCreateRequest, idempotencyKey: s
   });
 }
 
-export function getBuildWorkspaces() {
+export function getBuildWorkspaces(query?: WorkspaceListOperation['parameters']['query']) {
   return request.get<NonNullable<WorkspaceListOperation['responses'][200]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.getBuildWorkspaces,
+    params: query,
   });
 }
 

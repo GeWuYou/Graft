@@ -18,9 +18,12 @@
               v-model="form.source_reference"
               :options="applicationOptions"
               :loading="applicationLoading"
-              :disabled="applicationLoading || applicationOptions.length === 0"
               :placeholder="t('build.workspaces.create.applicationPlaceholder')"
               clearable
+              filterable
+              :filter="() => true"
+              @change="handleApplicationChange"
+              @search="searchApplications"
             />
             <template #help>
               <span>{{ t('build.workspaces.create.applicationHelp') }}</span>
@@ -51,8 +54,8 @@
 <script setup lang="ts">
 // 创建页只登记 Build 对既有 Application workspace 的引用，不复制或编辑应用源码。
 import { SaveIcon } from 'tdesign-icons-vue-next';
-import type { SubmitContext } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import type { SelectValue, SubmitContext } from 'tdesign-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -69,34 +72,72 @@ import type { BuildWorkspaceCreateRequest } from '../../types/build';
 const { t } = useI18n();
 const router = useRouter();
 const form = ref<BuildWorkspaceCreateRequest>({ name: '', source_kind: 'application_workspace', source_reference: '' });
-const applications = ref<Awaited<ReturnType<typeof getApplications>>['items']>([]);
+type ApplicationCandidate = NonNullable<Awaited<ReturnType<typeof getApplications>>['items']>[number];
+
+const APPLICATION_SEARCH_LIMIT = 20;
+const APPLICATION_SEARCH_DEBOUNCE_MS = 250;
+const applications = ref<ApplicationCandidate[]>([]);
+const selectedApplication = ref<ApplicationCandidate | null>(null);
 const applicationLoading = ref(false);
 const applicationError = ref('');
 const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
+let applicationRequestGeneration = 0;
+let applicationSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
-const applicationOptions = computed(() =>
-  applications.value.map((application) => ({ label: application.display_name, value: application.application_id })),
-);
+const applicationOptions = computed(() => {
+  const candidates = [...applications.value];
+  if (
+    selectedApplication.value &&
+    !candidates.some((application) => application.application_id === selectedApplication.value?.application_id)
+  ) {
+    candidates.unshift(selectedApplication.value);
+  }
+  return candidates.map((application) => ({
+    label: application.display_name,
+    value: application.application_id,
+  }));
+});
 const rules = computed(() => ({
   name: [{ required: true, message: t('build.workspaces.create.nameRequired') }],
   source_reference: [{ required: true, message: t('build.workspaces.create.applicationRequired') }],
 }));
 
-async function loadApplications() {
+async function loadApplications(keyword = '') {
+  const requestGeneration = ++applicationRequestGeneration;
   applicationLoading.value = true;
   applicationError.value = '';
   try {
-    const response = await getApplications({ limit: 100, offset: 0 });
+    const response = await getApplications({
+      limit: APPLICATION_SEARCH_LIMIT,
+      offset: 0,
+      ...(keyword ? { keyword } : {}),
+    });
+    if (requestGeneration !== applicationRequestGeneration) return;
     applications.value = response.items ?? [];
     if (applications.value.length === 0) applicationError.value = t('build.workspaces.create.applicationEmpty');
   } catch (error) {
+    if (requestGeneration !== applicationRequestGeneration) return;
     applications.value = [];
     applicationError.value = resolveLocalizedErrorMessage(t, error, t('build.workspaces.create.applicationLoadFailed'));
   } finally {
-    applicationLoading.value = false;
+    if (requestGeneration === applicationRequestGeneration) applicationLoading.value = false;
   }
+}
+
+function searchApplications(keyword: string) {
+  if (applicationSearchTimer) clearTimeout(applicationSearchTimer);
+  applicationSearchTimer = setTimeout(() => void loadApplications(keyword.trim()), APPLICATION_SEARCH_DEBOUNCE_MS);
+}
+
+function handleApplicationChange(value: SelectValue) {
+  if (typeof value !== 'string' || !value) {
+    selectedApplication.value = null;
+    return;
+  }
+  selectedApplication.value =
+    applications.value.find((application) => application.application_id === value) ?? selectedApplication.value;
 }
 
 function openApplications() {
@@ -123,6 +164,9 @@ async function submit({ validateResult }: SubmitContext) {
 }
 
 onMounted(() => void loadApplications());
+onBeforeUnmount(() => {
+  if (applicationSearchTimer) clearTimeout(applicationSearchTimer);
+});
 </script>
 <style scoped lang="less">
 .build-workspace-create-page {

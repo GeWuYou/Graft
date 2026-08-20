@@ -9541,6 +9541,10 @@ export interface components {
     };
     'build-workspace-list': {
       items: components['schemas']['build-workspace'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'build-workspace-create-request': {
       name: string;
@@ -21169,8 +21173,21 @@ export interface operations {
   };
   getBuildWorkspaces: {
     parameters: {
-      query?: never;
-      header?: never;
+      query?: {
+        limit?: number;
+        offset?: number;
+        /** @description Optional case-insensitive search over Workspace name, identifier, and source reference. */
+        search?: string;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path?: never;
       cookie?: never;
     };
@@ -21186,6 +21203,13 @@ export interface operations {
             data: components['schemas']['build-workspace-list'];
           };
         };
+      };
+      /** @description Invalid pagination or search query. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
