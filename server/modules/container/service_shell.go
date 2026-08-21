@@ -284,7 +284,7 @@ func (s *service) publishShellSessionClosed(
 	metadata := map[string]any{
 		"container_id":   handshake.ResourceID,
 		"container_name": handshake.ResourceName,
-		"command":        handshake.Command,
+		"shell_profile":  handshake.Command,
 		"result":         auditResult(err),
 		"session_id":     handshake.SessionID,
 		"duration_ms":    duration.Milliseconds(),
@@ -338,7 +338,7 @@ func (s *service) publishShellSessionFailed(ctx context.Context, handshake Shell
 	metadata := map[string]any{
 		"container_id":   handshake.ResourceID,
 		"container_name": handshake.ResourceName,
-		"command":        handshake.Command,
+		"shell_profile":  handshake.Command,
 		"result":         auditResult(err),
 		"session_id":     handshake.SessionID,
 		"reason":         strings.TrimSpace(reason),
@@ -389,7 +389,7 @@ func (s *service) publishShellAudit(ctx context.Context, payload shellAuditPaylo
 	metadata := map[string]any{
 		"container_id":   payload.detail.ID,
 		"container_name": payload.detail.Name,
-		"command":        strings.TrimSpace(payload.command),
+		"shell_profile":  strings.TrimSpace(payload.command),
 		"result":         auditResult(payload.err),
 	}
 	if payload.reason != "" {
@@ -463,18 +463,6 @@ func (disabledRuntime) StreamRuntimeEvents(context.Context, func(RuntimeEventCan
 }
 func (disabledRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, errRuntimeDisabled
-}
-func (disabledRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, errRuntimeDisabled
-}
-func (disabledRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, errRuntimeDisabled
-}
-func (disabledRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, errRuntimeDisabled
-}
-func (disabledRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, errRuntimeDisabled
 }
 func (disabledRuntime) Close() error { return nil }
 

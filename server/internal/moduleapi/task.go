@@ -296,14 +296,15 @@ type ExternalReceiptExpectation struct {
 
 // ExternalExecutionExpectation 冻结一个可由 Runtime Agent 领取的 Stage 执行身份；它不包含 endpoint、凭据或命令。
 type ExternalExecutionExpectation struct {
-	RuntimeTargetID  int64
-	ProviderID       string
-	Capability       string
-	Protocol         string
-	OperationID      string
-	PayloadSHA256    string
-	LeaseTTL         time.Duration
-	AbsoluteDeadline time.Duration
+	RuntimeTargetID   int64
+	ProviderID        string
+	Capability        string
+	CapabilityVersion string
+	Protocol          string
+	OperationID       string
+	PayloadSHA256     string
+	LeaseTTL          time.Duration
+	AbsoluteDeadline  time.Duration
 }
 
 // ExternalExecutionLeaseState 标识 Task Runtime 持有的外部 Stage attempt 租约状态。
@@ -320,9 +321,10 @@ const (
 
 // ExternalExecutionClaimRequest 将 claim 限定到经 Runtime Target 认证后的目标和能力绑定。
 type ExternalExecutionClaimRequest struct {
-	RuntimeTargetID int64
-	ProviderID      string
-	Capability      string
+	RuntimeTargetID   int64
+	ProviderID        string
+	Capability        string
+	CapabilityVersion string
 }
 
 // ExternalExecutionLease 是 Agent 可见的无秘密执行句柄；FenceToken 只在首次 claim 时返回明文。
@@ -335,6 +337,7 @@ type ExternalExecutionLease struct {
 	RuntimeTargetID       int64
 	ProviderID            string
 	Capability            string
+	CapabilityVersion     string
 	Protocol              string
 	OperationID           string
 	PayloadSHA256         string
@@ -357,6 +360,28 @@ type ExternalExecutionLeaseHandle struct {
 type ExternalExecutionLogBatch struct {
 	Handle  ExternalExecutionLeaseHandle
 	Entries []TaskLogEntry
+}
+
+// ExternalExecutionMaterialRequest 描述一次已围栏 lease 对瞬时执行材料的读取。
+// Input 只包含已持久化的 provider-neutral 领域意图；解析器返回的材料不得由 Task Runtime 持久化或记录。
+type ExternalExecutionMaterialRequest struct {
+	TaskID       uint64
+	StageID      uint64
+	Attempt      int
+	ExecutorType StageExecutorType
+	Input        json.RawMessage
+}
+
+// ExternalExecutionMaterial 是只在 mTLS Agent transport 中传递的瞬时执行材料。
+type ExternalExecutionMaterial struct {
+	Protocol string
+	Payload  json.RawMessage
+}
+
+// ExternalExecutionMaterialResolver 由领域模块实现，把 provider-neutral 意图解析为一次性执行材料。
+type ExternalExecutionMaterialResolver interface {
+	Type() StageExecutorType
+	ResolveExternalExecutionMaterial(context.Context, ExternalExecutionMaterialRequest) (ExternalExecutionMaterial, error)
 }
 
 // ExternalExecutionReceipt 是绑定 lease/fence 的受限外部执行结论。
@@ -401,7 +426,9 @@ type ExternalReceiptSettlement struct {
 // RuntimeAgentExecutionGateway 是 Agent transport adapter 消费的 Task-owned 外部执行能力。
 type RuntimeAgentExecutionGateway interface {
 	ClaimExternalExecution(context.Context, ExternalExecutionClaimRequest) (ExternalExecutionLease, error)
+	InspectExternalExecution(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionLease, error)
 	RenewExternalExecution(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionLease, error)
+	ResolveExternalExecutionMaterial(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionMaterial, error)
 	AppendExternalExecutionLogs(context.Context, ExternalExecutionLogBatch) error
 	SettleExternalExecution(context.Context, ExternalExecutionReceipt) (ExternalReceiptSettlement, error)
 	ExpireExternalExecutions(context.Context, int) (int, error)
@@ -565,6 +592,7 @@ type TaskOwnerAuthorizer interface {
 type TaskRuntimeRegistrar interface {
 	RegisterStageExecutor(executor StageExecutor) error
 	RegisterTaskOwnerAuthorizer(authorizer TaskOwnerAuthorizer) error
+	RegisterExternalExecutionMaterialResolver(resolver ExternalExecutionMaterialResolver) error
 }
 
 // TaskCapabilities 向 API 消费者暴露当前允许的 Task 详情操作。

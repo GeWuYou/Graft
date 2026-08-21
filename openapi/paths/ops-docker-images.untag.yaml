@@ -5,6 +5,7 @@ post:
   description: Removes the specified Repository:Tag reference only after the server verifies it currently belongs to the Image ID. This operation never forces image deletion.
   parameters:
     - $ref: ../components/parameters/docker-image-id-path.yaml
+    - $ref: ../components/parameters/idempotency-key.yaml
   requestBody:
     required: true
     content:
@@ -12,18 +13,18 @@ post:
         schema:
           $ref: ../components/schemas/docker-image-untag-request.yaml
   responses:
-    '200':
-      description: Docker image tag removal result.
+    '202':
+      description: Docker image tag removal Task accepted.
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-docker-image-action-response.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400': { description: Invalid image ID or Repository:Tag reference }
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
     '404': { description: Image not found }
-    '409': { description: Repository:Tag does not currently reference this image }
+    '409': { description: Repository:Tag mismatch or Idempotency-Key conflict. }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

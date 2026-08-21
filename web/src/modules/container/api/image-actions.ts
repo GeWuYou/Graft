@@ -19,12 +19,12 @@ export type DockerImageRemoveRequest = NonNullable<
 >['content']['application/json'];
 export type DockerImageBatchRemoveRequest =
   DockerImageBatchRemoveOperation['requestBody']['content']['application/json'];
-export type DockerImageBatchResult = NonNullable<
-  DockerImageBatchRemoveOperation['responses'][200]['content']['application/json']['data']
->;
-type DockerImageActionResponse = NonNullable<
-  DockerImageTagOperation['responses'][200]['content']['application/json']['data']
->;
+let mutationSequence = 0;
+
+function createMutationIdempotencyKey(operation: string, resource: string) {
+  mutationSequence += 1;
+  return `container-${operation}-${resource}-${Date.now()}-${mutationSequence}`.slice(0, 128);
+}
 
 /** 拉取命令只提交 Task；后续日志与状态由 Task Runtime 统一提供。 */
 export function pullDockerImage(payload: DockerImagePullRequest, idempotencyKey: string) {
@@ -36,31 +36,35 @@ export function pullDockerImage(payload: DockerImagePullRequest, idempotencyKey:
 }
 
 export function tagDockerImage(imageId: string, payload: DockerImageTagRequest) {
-  return request.post<DockerImageActionResponse>({
+  return request.post<DockerImagePullReceipt>({
     url: buildOpenApiRuntimePath('postDockerImageTag', { id: imageId }),
     data: payload,
+    headers: { 'Idempotency-Key': createMutationIdempotencyKey('image-tag', imageId) },
   });
 }
 
 /** 标签移除固定按完整 Repository:Tag 调用，不能退化成按 Image ID 删除。 */
 export function untagDockerImage(imageId: string, payload: DockerImageUntagRequest) {
-  return request.post<DockerImageActionResponse>({
+  return request.post<DockerImagePullReceipt>({
     url: buildOpenApiRuntimePath('postDockerImageUntag', { id: imageId }),
     data: payload,
+    headers: { 'Idempotency-Key': createMutationIdempotencyKey('image-untag', imageId) },
   });
 }
 
 export function removeDockerImage(imageId: string, payload: DockerImageRemoveRequest) {
-  return request.post<DockerImageActionResponse>({
+  return request.post<DockerImagePullReceipt>({
     url: buildOpenApiRuntimePath('postDockerImageRemove', { id: imageId }),
     data: payload,
+    headers: { 'Idempotency-Key': createMutationIdempotencyKey('image-remove', imageId) },
   });
 }
 
-/** 批量移除由服务端按请求顺序返回逐项结果；调用方必须处理部分成功而不能只判断请求是否成功。 */
+/** 批量移除提交一个有序、fail-fast 的 Task，运行结果由 Task Runtime 解释。 */
 export function batchRemoveDockerImages(payload: DockerImageBatchRemoveRequest) {
-  return request.post<DockerImageBatchResult>({
+  return request.post<DockerImagePullReceipt>({
     url: OPENAPI_RUNTIME_PATH.postDockerImageBatchRemove,
     data: payload,
+    headers: { 'Idempotency-Key': createMutationIdempotencyKey('image-batch-remove', String(payload.ids.length)) },
   });
 }

@@ -165,14 +165,4 @@ func (r listOnlyRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChun
 func (r listOnlyRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil
 }
-func (r listOnlyRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (r listOnlyRuntime) Stop(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
-func (r listOnlyRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (r listOnlyRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (r listOnlyRuntime) Close() error { return nil }

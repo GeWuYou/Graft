@@ -368,8 +368,7 @@ func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Aut
 }
 
 type runtimeTargetReader struct {
-	repository              *store.SQLRepository
-	composeProjectNameProbe dockerComposeProjectNameProbe
+	repository *store.SQLRepository
 }
 
 func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (moduleapi.RuntimeTargetSummary, error) {

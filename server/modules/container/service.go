@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/eventbus"
-	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -21,7 +20,6 @@ import (
 
 const (
 	containerResourceType        = "container"
-	containerBatchResourceType   = "container_batch"
 	containerOperationTTL        = 30 * time.Second
 	containerAuditPublishTimeout = 3 * time.Second
 	maskedEnvironmentPlaceholder = "*****"
@@ -435,158 +433,6 @@ func (s *service) DockerImages(ctx context.Context, query DockerImageListQuery) 
 	}, nil
 }
 
-// DockerImageBatchRemoveResult 汇总镜像批量删除结果，并保留请求顺序和逐项失败原因。
-type DockerImageBatchRemoveResult struct {
-	Total        int
-	SuccessCount int
-	FailedCount  int
-	RequestID    string
-	Items        []DockerImageBatchRemoveItem
-}
-
-// DockerImageBatchRemoveItem 表示一个镜像删除请求的脱敏结果。
-type DockerImageBatchRemoveItem struct {
-	ID         string
-	Success    bool
-	ErrorCode  string
-	MessageKey string
-	Message    string
-}
-
-// DockerVolumeBatchRemoveResult 汇总数据卷批量删除结果，并保留请求顺序和逐项失败原因。
-type DockerVolumeBatchRemoveResult struct {
-	Total, SuccessCount, FailedCount int
-	RequestID                        string
-	Items                            []DockerVolumeBatchRemoveItem
-}
-
-// DockerVolumeBatchRemoveItem 表示一个数据卷删除请求的脱敏结果。
-type DockerVolumeBatchRemoveItem struct {
-	Name                           string
-	Success                        bool
-	ErrorCode, MessageKey, Message string
-}
-
-// DockerVolumeBatchRemove 按请求顺序逐项删除数据卷，允许运行时返回部分成功。
-func (s *service) DockerVolumeBatchRemove(ctx context.Context, names []string, force bool) (DockerVolumeBatchRemoveResult, error) {
-	if len(names) == 0 || len(names) > maxDockerVolumeBatchRemoveIDs {
-		return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
-	}
-	normalizedNames := make([]string, 0, len(names))
-	seenNames := make(map[string]struct{}, len(names))
-	for _, rawName := range names {
-		name := strings.TrimSpace(rawName)
-		if name == "" {
-			return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
-		}
-		if _, exists := seenNames[name]; exists {
-			return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
-		}
-		seenNames[name] = struct{}{}
-		normalizedNames = append(normalizedNames, name)
-	}
-	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return DockerVolumeBatchRemoveResult{}, err
-	}
-	if !s.dangerousActionsAllowed(ctx) {
-		return DockerVolumeBatchRemoveResult{}, errDangerousActionsDisabled
-	}
-	result := DockerVolumeBatchRemoveResult{Total: len(normalizedNames), RequestID: requestIDFromContext(ctx), Items: make([]DockerVolumeBatchRemoveItem, 0, len(normalizedNames))}
-	for _, name := range normalizedNames {
-		item := DockerVolumeBatchRemoveItem{Name: name}
-		err := s.RemoveDockerVolume(ctx, name, force)
-		if err != nil {
-			logsafe.Error(s.logger, "docker volume batch removal failed", zap.String("volume_name", name), zap.Bool("force", force), zap.Error(err))
-			item.ErrorCode = messageKeyForError(err).String()
-			item.MessageKey, item.Message = item.ErrorCode, fallbackMessageForError(err)
-			result.FailedCount++
-		} else {
-			item.Success = true
-			result.SuccessCount++
-		}
-		result.Items = append(result.Items, item)
-	}
-	s.publishDockerVolumeBatchAudit(ctx, result, force)
-	return result, nil
-}
-
-// DockerImageBatchRemove 按请求顺序逐项删除镜像，允许 Docker daemon 返回部分成功。
-func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, force bool) (DockerImageBatchRemoveResult, error) {
-	if len(ids) == 0 || len(ids) > maxContainerBatchActionIDs {
-		return DockerImageBatchRemoveResult{}, errInvalidListQuery
-	}
-	if err := s.requireRuntimeAccess(ctx); err != nil {
-		result := dockerImageBatchRemoveRejectedResult(ctx, ids, err)
-		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(err))
-		return DockerImageBatchRemoveResult{}, err
-	}
-	if !s.dangerousActionsAllowed(ctx) {
-		result := dockerImageBatchRemoveRejectedResult(ctx, ids, errDangerousActionsDisabled)
-		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(errDangerousActionsDisabled))
-		return DockerImageBatchRemoveResult{}, errDangerousActionsDisabled
-	}
-	result := DockerImageBatchRemoveResult{Total: len(ids), RequestID: requestIDFromContext(ctx), Items: make([]DockerImageBatchRemoveItem, 0, len(ids))}
-	for _, rawID := range ids {
-		id := strings.TrimSpace(rawID)
-		item := DockerImageBatchRemoveItem{ID: id}
-		if err := validateDockerImageReference(id); err != nil {
-			item = dockerImageBatchRemoveFailure(item, err)
-		} else if _, err := s.RemoveDockerImage(ctx, id, force); err != nil {
-			logsafe.Error(s.logger, "docker image batch removal failed", zap.String("image_id", id), zap.Error(err))
-			item = dockerImageBatchRemoveFailure(item, err)
-		} else {
-			item.Success = true
-		}
-		if item.Success {
-			result.SuccessCount++
-		} else {
-			result.FailedCount++
-		}
-		result.Items = append(result.Items, item)
-	}
-	s.publishDockerImageBatchAudit(ctx, result, force)
-	return result, nil
-}
-
-func dockerImageBatchRemoveFailure(item DockerImageBatchRemoveItem, err error) DockerImageBatchRemoveItem {
-	key := messageKeyForError(err).String()
-	item.ErrorCode, item.MessageKey, item.Message = dockerImageRemoveErrorCodeFor(err).String(), key, key
-	return item
-}
-
-func dockerImageRemoveErrorCodeFor(err error) containercontract.DockerImageRemoveErrorCode {
-	switch {
-	case errors.Is(err, errDockerImageMultipleTags):
-		return containercontract.DockerImageMultipleTagsError
-	case errors.Is(err, errDockerImageInUse):
-		return containercontract.DockerImageInUseError
-	case errors.Is(err, errDockerImageNotFound):
-		return containercontract.DockerImageNotFoundError
-	case errors.Is(err, errDockerImageRuntimeUnavailable), errors.Is(err, errRuntimeDaemonUnavailable), errors.Is(err, errRuntimeSocketMissing), errors.Is(err, errUnsupportedContainerRuntime):
-		return containercontract.DockerRuntimeUnavailable
-	case errors.Is(err, errDockerImageTimeout), errors.Is(err, errContainerRuntimeTimeout):
-		return containercontract.DockerTimeout
-	case errors.Is(err, errDockerImageCommunication):
-		return containercontract.DockerCommunicationError
-	default:
-		return containercontract.DockerImageRemoveUnknown
-	}
-}
-
-func dockerImageBatchRemoveRejectedResult(ctx context.Context, ids []string, err error) DockerImageBatchRemoveResult {
-	items := make([]DockerImageBatchRemoveItem, 0, len(ids))
-	for _, rawID := range ids {
-		item := dockerImageBatchRemoveFailure(DockerImageBatchRemoveItem{ID: strings.TrimSpace(rawID)}, err)
-		items = append(items, item)
-	}
-	return DockerImageBatchRemoveResult{
-		Total:       len(items),
-		FailedCount: len(items),
-		RequestID:   requestIDFromContext(ctx),
-		Items:       items,
-	}
-}
-
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
@@ -599,65 +445,6 @@ func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, erro
 	return image, nil
 }
 
-func (s *service) dockerImageWriter(ctx context.Context) (DockerImageWriter, error) {
-	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return nil, fmt.Errorf("require Docker image writer runtime access: %w", err)
-	}
-	runtime, err := s.runtimeForRequestContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Docker image writer runtime: %w", err)
-	}
-	writer, ok := runtime.(DockerImageWriter)
-	if !ok {
-		return nil, errUnsupportedContainerRuntime
-	}
-	return writer, nil
-}
-
-func (s *service) PullDockerImage(ctx context.Context, reference string, emit func(DockerImagePullEvent) error) error {
-	writer, err := s.dockerImageWriter(ctx)
-	if err != nil {
-		return err
-	}
-	return writer.PullDockerImage(ctx, reference, emit)
-}
-
-func (s *service) TagDockerImage(ctx context.Context, id, target string) (DockerImageActionResult, error) {
-	writer, err := s.dockerImageWriter(ctx)
-	if err != nil {
-		return DockerImageActionResult{ID: id, Action: "tag"}, err
-	}
-	if err := writer.TagDockerImage(ctx, id, target); err != nil {
-		return DockerImageActionResult{ID: id, Action: "tag"}, err
-	}
-	return DockerImageActionResult{ID: id, Action: "tag", MessageKey: containercontract.DockerImageTagCompleted.String()}, nil
-}
-
-// UntagDockerImage 从镜像移除经归属校验的 Repository:Tag 引用，不会强制 daemon 清理镜像。
-func (s *service) UntagDockerImage(ctx context.Context, id, reference string) (DockerImageActionResult, error) {
-	if !s.dangerousActionsAllowed(ctx) {
-		return DockerImageActionResult{ID: id, Action: "untag"}, errDangerousActionsDisabled
-	}
-	if err := validateDockerImageReference(reference); err != nil {
-		return DockerImageActionResult{ID: id, Action: "untag"}, err
-	}
-	image, err := s.DockerImage(ctx, id)
-	if err != nil {
-		return DockerImageActionResult{ID: id, Action: "untag"}, err
-	}
-	if !dockerImageHasRepositoryTag(image, reference) {
-		return DockerImageActionResult{ID: id, Action: "untag"}, errDockerImageTagNotAssociated
-	}
-	writer, err := s.dockerImageWriter(ctx)
-	if err != nil {
-		return DockerImageActionResult{ID: id, Action: "untag"}, err
-	}
-	if err := writer.UntagDockerImage(ctx, reference); err != nil {
-		return DockerImageActionResult{ID: id, Action: "untag"}, fmt.Errorf("untag Docker image %q: %w", reference, err)
-	}
-	return DockerImageActionResult{ID: id, Action: "untag", MessageKey: containercontract.DockerImageUntagCompleted.String()}, nil
-}
-
 func dockerImageHasRepositoryTag(image DockerImage, reference string) bool {
 	for _, tag := range image.RepositoryTags {
 		if strings.TrimSpace(tag) == reference {
@@ -665,20 +452,6 @@ func dockerImageHasRepositoryTag(image DockerImage, reference string) bool {
 		}
 	}
 	return false
-}
-
-func (s *service) RemoveDockerImage(ctx context.Context, id string, force bool) (DockerImageActionResult, error) {
-	if !s.dangerousActionsAllowed(ctx) {
-		return DockerImageActionResult{ID: id, Action: "remove"}, errDangerousActionsDisabled
-	}
-	writer, err := s.dockerImageWriter(ctx)
-	if err != nil {
-		return DockerImageActionResult{ID: id, Action: "remove"}, err
-	}
-	if err := writer.RemoveDockerImage(ctx, id, force); err != nil {
-		return DockerImageActionResult{ID: id, Action: "remove"}, err
-	}
-	return DockerImageActionResult{ID: id, Action: "remove", MessageKey: containercontract.DockerImageRemoveCompleted.String()}, nil
 }
 
 func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
@@ -720,32 +493,6 @@ func (s *service) DockerVolumes(ctx context.Context, query DockerVolumeListQuery
 		return DockerVolumeListResult{}, err
 	}
 	return listDockerVolumes(items, query), nil
-}
-
-// RemoveDockerVolume 在 Docker 删除前读取数据卷，以保留安全审计所需元数据。
-func (s *service) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
-	if !s.dangerousActionsAllowed(ctx) {
-		return errDangerousActionsDisabled
-	}
-	reader, err := s.dockerResources(ctx)
-	if err != nil {
-		return err
-	}
-	volume, err := reader.ReadDockerVolume(ctx, id)
-	if err != nil {
-		return err
-	}
-	remover, ok := reader.(interface {
-		RemoveDockerVolume(context.Context, string, bool) error
-	})
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	actionCtx, cancel := context.WithTimeout(ctx, containerOperationTTL)
-	defer cancel()
-	err = remover.RemoveDockerVolume(actionCtx, id, force)
-	s.publishDockerVolumeAudit(ctx, volume, force, err)
-	return err
 }
 
 func (s *service) DockerVolume(ctx context.Context, id string) (DockerVolume, error) {
@@ -865,22 +612,6 @@ func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, erro
 	return runtime.Logs(ctx, ref, normalized)
 }
 
-func (s *service) Start(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionStart, ActionOptions{})
-}
-
-func (s *service) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionStop, ActionOptions{})
-}
-
-func (s *service) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionRestart, ActionOptions{})
-}
-
-func (s *service) Remove(ctx context.Context, ref Ref, options RemoveOptions) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionRemove, ActionOptions(options))
-}
-
 // BatchLifecycleActionResult 表示容器生命周期批量提交的有序聚合结果；它只记录 Task 接收事实，不代表外部动作已完成。
 type BatchLifecycleActionResult struct {
 	Action        string
@@ -967,50 +698,4 @@ func (s *service) appendBatchLifecycleSubmissionResults(ctx context.Context, res
 func batchLifecycleActionFailure(id string, action string, err error) BatchLifecycleActionItem {
 	messageKey := messageKeyForError(err).String()
 	return BatchLifecycleActionItem{ID: id, Action: action, ErrorCode: messageKey, MessageKey: messageKey, Message: fallbackMessageForError(err)}
-}
-
-func (s *service) runAction(
-	ctx context.Context,
-	ref Ref,
-	action string,
-	options ActionOptions,
-) (ActionResult, error) {
-	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return ActionResult{}, err
-	}
-	runtime, err := s.runtimeForRequestContext(ctx)
-	if err != nil {
-		return ActionResult{}, err
-	}
-	if !s.dangerousActionsAllowed(ctx) {
-		result := ActionResult{ID: ref.Value, Action: action, Runtime: runtimeNameDocker}
-		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
-		return ActionResult{}, errDangerousActionsDisabled
-	}
-	policy := s.effectiveActionPolicy(ctx)
-	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestrator := actionAuditOrchestrator(detail, detailErr)
-	orchestratorType := effectiveActionAuditOrchestratorType(orchestrator, detailErr)
-	if policy.singleBlockedFor(orchestratorType) {
-		result := blockedActionAuditResult(ref, detail, action, orchestrator)
-		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
-		return ActionResult{}, errDangerousActionsDisabled
-	}
-	actionCtx, cancel := context.WithTimeout(ctx, containerOperationTTL)
-	defer cancel()
-	result, err := runWithRuntime(actionCtx, ref, action, options, runtime)
-	if result.Action == "" {
-		result.Action = action
-	}
-	if shouldBackfillActionAuditOrchestrator(result.Orchestrator, detailErr) {
-		result.Orchestrator = orchestrator
-	}
-	if err == nil {
-		result = withActionMessage(result)
-	}
-	s.publishActionAudit(ctx, result, options, err)
-	if err != nil {
-		return ActionResult{}, err
-	}
-	return result, nil
 }

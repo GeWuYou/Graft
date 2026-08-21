@@ -1479,7 +1479,7 @@ describe('Application list page', () => {
         { action: 'stop', message: '', application_id: 'app_2', result: 'completed', skipped: false },
         {
           action: 'stop',
-          message: 'docker compose failed',
+          message: 'runtime execution failed',
           application_id: 'app_3',
           result: 'blocked',
           skipped: false,
@@ -1503,7 +1503,7 @@ describe('Application list page', () => {
 
     const bodyVNode = options.body();
     expect(bodyVNode.props?.style).toEqual({ whiteSpace: 'pre-line' });
-    expect(bodyVNode.children).toBe('app_3: docker compose failed');
+    expect(bodyVNode.children).toBe('app_3: runtime execution failed');
 
     wrapper.unmount();
   });

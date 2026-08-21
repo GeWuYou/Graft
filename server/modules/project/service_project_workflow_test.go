@@ -57,10 +57,6 @@ func (s *stubComposeRuntimeTargetReader) ListComposeTargets(context.Context) ([]
 	return []moduleapi.ComposeRuntimeTargetSummary{s.target}, nil
 }
 
-func (s *stubComposeRuntimeTargetReader) CheckComposeProjectName(context.Context, int64, string) (moduleapi.ComposeProjectNameAvailability, error) {
-	return moduleapi.ComposeProjectNameAvailability{}, nil
-}
-
 func (s *stubProjectRepository) List(_ context.Context, query projectstore.ListQuery) (projectstore.ListResult, error) {
 	recorded := query
 	s.listInput = &recorded
@@ -784,229 +780,6 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 	}
 	if repo.unregisterCalled {
 		t.Fatalf("destroy without confirmation should not unregister project")
-	}
-}
-
-func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name       string
-		status     generated.ApplicationRuntimeStatus
-		wantReason string
-		wantSkip   bool
-	}{
-		{name: "running", status: generated.ApplicationRuntimeStatusRunning, wantReason: "", wantSkip: false},
-		{name: "degraded", status: generated.ApplicationRuntimeStatusDegraded, wantReason: "", wantSkip: false},
-		{name: "stopped", status: generated.ApplicationRuntimeStatusStopped, wantReason: "", wantSkip: false},
-		{name: "missing", status: generated.ApplicationRuntimeStatusMissing, wantReason: "", wantSkip: false},
-		{name: "transitioning", status: generated.ApplicationRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
-		{name: "unknown", status: generated.ApplicationRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotReason, gotSkip := skipBatchRestartForStatus(tc.status)
-			if gotReason != tc.wantReason || gotSkip != tc.wantSkip {
-				t.Fatalf("skipBatchRestartForStatus(%q) = (%q, %v), want (%q, %v)", tc.status, gotReason, gotSkip, tc.wantReason, tc.wantSkip)
-			}
-		})
-	}
-}
-
-func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
-	t.Parallel()
-
-	repo := &stubProjectRepository{
-		aggregate: projectstore.ApplicationAggregate{
-			Application: projectstore.Application{
-				ApplicationRecordID: 1,
-				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				ComposeProjectName:  "demo",
-				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
-				OwnershipMode:       projectcontract.OwnershipModeExternal.String(),
-			},
-			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
-		},
-	}
-	service, err := NewService(repo)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
-
-	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
-		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
-		ApplicationRecordIDs:      []uint64{1},
-		ConfirmComposeProjectName: &confirmName,
-	})
-	if err != nil {
-		t.Fatalf("batch destroy: %v", err)
-	}
-	if result.BlockedCount != 1 || len(result.Items) != 1 {
-		t.Fatalf("expected one blocked destroy item, got %#v", result)
-	}
-	for _, guard := range result.Items[0].GuardResults {
-		if guard.Code == "compose_down_completed" {
-			t.Fatalf("unexpected success guard on failed destroy: %#v", result.Items[0].GuardResults)
-		}
-	}
-}
-
-func TestBatchDestroyReturnsBlockedItemOnWorkspacePathDeleteFailure(t *testing.T) {
-	dockerBinDir := t.TempDir()
-	if err := os.Symlink("/bin/sh", filepath.Join(dockerBinDir, "docker")); err != nil {
-		t.Fatalf("symlink docker stub: %v", err)
-	}
-	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	workingDirectory := filepath.Join(t.TempDir(), "managed-root", "demo")
-	if err := os.MkdirAll(workingDirectory, 0o750); err != nil {
-		t.Fatalf("mkdir working directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(workingDirectory, "compose"), []byte("rm -rf \"$(dirname \"$PWD\")\"\nexit 0\n"), 0o600); err != nil {
-		t.Fatalf("write compose stub: %v", err)
-	}
-
-	repo := &stubProjectRepository{
-		aggregate: projectstore.ApplicationAggregate{
-			Application: projectstore.Application{
-				ApplicationRecordID: 1,
-				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				ComposeProjectName:  "demo",
-				WorkspacePath:       workingDirectory,
-				OwnershipMode:       projectcontract.OwnershipModeManagedRootDedicated.String(),
-			},
-			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
-		},
-	}
-	service, err := NewService(repo)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
-
-	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
-		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
-		ApplicationRecordIDs:      []uint64{1},
-		DeleteWorkspacePath:       true,
-		ConfirmComposeProjectName: &confirmName,
-	})
-	if err != nil {
-		t.Fatalf("batch destroy: %v", err)
-	}
-	if result.BlockedCount != 1 || len(result.Items) != 1 {
-		t.Fatalf("expected one blocked destroy item, got %#v", result)
-	}
-	if result.Items[0].Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
-		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
-	}
-	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
-		return guard.Code == "compose_down_completed"
-	}) {
-		t.Fatalf("expected compose-down guard after partial destroy, got %#v", result.Items[0].GuardResults)
-	}
-	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
-		return guard.Code == "workspace_path_delete_failed" && guard.Detail != nil && *guard.Detail == "filesystem_error"
-	}) {
-		t.Fatalf("expected working-directory delete failure guard, got %#v", result.Items[0].GuardResults)
-	}
-}
-
-func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
-	dockerBinDir := t.TempDir()
-	if err := os.Symlink("/bin/sh", filepath.Join(dockerBinDir, "docker")); err != nil {
-		t.Fatalf("symlink docker stub: %v", err)
-	}
-	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	workingDirectory := filepath.Join(t.TempDir(), "demo")
-	if err := os.MkdirAll(workingDirectory, 0o750); err != nil {
-		t.Fatalf("mkdir working directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(workingDirectory, "compose"), []byte("exit 0\n"), 0o600); err != nil {
-		t.Fatalf("write compose stub: %v", err)
-	}
-
-	repo := &stubProjectRepository{
-		aggregate: projectstore.ApplicationAggregate{
-			Application: projectstore.Application{
-				ApplicationRecordID: 1,
-				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				ComposeProjectName:  "demo",
-				WorkspacePath:       workingDirectory,
-				OwnershipMode:       projectcontract.OwnershipModeExternal.String(),
-			},
-			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
-		},
-		unregisterErr: projectstore.ErrApplicationConflict,
-	}
-	service, err := NewService(repo)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
-
-	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
-		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
-		ApplicationRecordIDs:      []uint64{1},
-		AutoUnregister:            true,
-		ConfirmComposeProjectName: &confirmName,
-	})
-	if err != nil {
-		t.Fatalf("batch destroy: %v", err)
-	}
-	if result.BlockedCount != 1 || len(result.Items) != 1 {
-		t.Fatalf("expected one blocked destroy item, got %#v", result)
-	}
-	if !repo.unregisterCalled {
-		t.Fatalf("expected unregister to be attempted")
-	}
-	if result.Items[0].Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
-		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
-	}
-	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
-		return guard.Code == "compose_down_completed"
-	}) {
-		t.Fatalf("expected compose-down guard after partial destroy, got %#v", result.Items[0].GuardResults)
-	}
-	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
-		return guard.Code == "registry_delete_failed" && guard.Detail != nil && *guard.Detail == "persistence_error"
-	}) {
-		t.Fatalf("expected registry delete failure guard, got %#v", result.Items[0].GuardResults)
-	}
-}
-
-func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
-	t.Parallel()
-
-	repo := &stubProjectRepository{
-		aggregate: projectstore.ApplicationAggregate{
-			Application: projectstore.Application{
-				ApplicationRecordID: 1,
-				ComposeProjectName:  "demo",
-				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
-			},
-			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
-		},
-	}
-	service, err := NewService(repo)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
-		Action:               generated.ApplicationBatchActionRequestActionRedeploy,
-		ApplicationRecordIDs: []uint64{1},
-	})
-	if err != nil {
-		t.Fatalf("batch redeploy: %v", err)
-	}
-	if result.BlockedCount != 1 {
-		t.Fatalf("expected blocked redeploy result, got %#v", result)
-	}
-	if repo.getCalls != 1 {
-		t.Fatalf("expected one aggregate lookup, got %d", repo.getCalls)
 	}
 }
 
@@ -2247,43 +2020,6 @@ func TestRestoreManagedDraftOnFailureRestoresOnlyWhenErrSet(t *testing.T) {
 	}
 }
 
-func TestWithComposeCommandTimeoutAddsFallbackDeadline(t *testing.T) {
-	t.Parallel()
-
-	start := time.Now()
-	ctx, cancel := withComposeCommandTimeout(context.Background())
-	defer cancel()
-
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		t.Fatalf("expected fallback deadline")
-	}
-	if deadline.Before(start.Add(projectComposeTimeout-time.Second)) || deadline.After(start.Add(projectComposeTimeout+time.Second)) {
-		t.Fatalf("expected deadline near fallback timeout, got %v", deadline.Sub(start))
-	}
-}
-
-func TestWithComposeCommandTimeoutPreservesExistingDeadline(t *testing.T) {
-	t.Parallel()
-
-	parent, parentCancel := context.WithTimeout(context.Background(), time.Second)
-	defer parentCancel()
-	parentDeadline, ok := parent.Deadline()
-	if !ok {
-		t.Fatalf("expected parent deadline")
-	}
-
-	ctx, cancel := withComposeCommandTimeout(parent)
-	defer cancel()
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		t.Fatalf("expected derived deadline")
-	}
-	if !deadline.Equal(parentDeadline) {
-		t.Fatalf("expected deadline %v, got %v", parentDeadline, deadline)
-	}
-}
-
 func TestBrowseImportDirectoriesStaysRootRelative(t *testing.T) {
 	t.Parallel()
 
@@ -2421,7 +2157,6 @@ func importedLifecycleConfigFixture() LifecycleStandardConfig {
 	config.BuildBeforeUp = true
 	config.WaitAfterUp = true
 	config.WaitTimeoutSeconds = 75
-	config.AdditionalArgs = []string{"--ansi", "never"}
 	return config
 }
 
@@ -2434,7 +2169,7 @@ func assertImportedLifecycleConfigPersisted(t *testing.T, input *projectstore.Im
 		t.Fatalf("expected imported lifecycle configuration to be confirmed, got %q", input.LifecycleReviewStatus)
 	}
 	config := input.LifecycleConfig
-	if !config.DownBeforeRedeploy || !config.RemoveOrphans || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.WaitAfterUp || config.WaitTimeoutSeconds != 75 || !slices.Equal(config.Profiles, []string{"production"}) || !slices.Equal(config.AdditionalArgs, []string{"--ansi", "never"}) {
+	if !config.DownBeforeRedeploy || !config.RemoveOrphans || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.WaitAfterUp || config.WaitTimeoutSeconds != 75 || !slices.Equal(config.Profiles, []string{"production"}) {
 		t.Fatalf("expected supplied lifecycle configuration to be persisted, got %#v", config)
 	}
 }

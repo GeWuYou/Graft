@@ -65,15 +65,6 @@ func (r *DockerRuntime) currentResourceSummary(id string) ResourceSummary {
 	return cache.current(ref)
 }
 
-func (r *DockerRuntime) invalidateResourceSummary(ids ...string) {
-	cache := r.ensureResourceStatsCache()
-	if r == nil || cache == nil {
-		return
-	}
-	cache.invalidate(ids...)
-	r.clearCPUStatsBaselines(ids...)
-}
-
 func (r *DockerRuntime) ensureResourceStatsCache() *resourceStatsCache {
 	if r == nil {
 		return nil
@@ -379,21 +370,6 @@ func (r *DockerRuntime) recordCPUStatsBaseline(containerID string, baseline dock
 	}
 	baseline.collectedAt = time.Now().UTC()
 	r.cpuBaselines[strings.TrimSpace(containerID)] = baseline
-}
-
-func (r *DockerRuntime) clearCPUStatsBaselines(ids ...string) {
-	if r == nil || len(ids) == 0 {
-		return
-	}
-	r.cpuBaselinesMu.Lock()
-	defer r.cpuBaselinesMu.Unlock()
-	for _, id := range ids {
-		normalizedID := strings.TrimSpace(id)
-		if normalizedID == "" {
-			continue
-		}
-		delete /* cpu baseline */ (r.cpuBaselines, normalizedID)
-	}
 }
 
 // dockerStatsOnlineCPUs 返回统计信息中的在线 CPU 数。

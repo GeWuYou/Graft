@@ -1322,10 +1322,6 @@ components:
       $ref: ./components/schemas/application-lifecycle-strategy-kind.yaml
     ApplicationLifecycleReviewStatus:
       $ref: ./components/schemas/application-lifecycle-review-status.yaml
-    ApplicationLifecycleCommandStep:
-      $ref: ./components/schemas/application-lifecycle-command-step.yaml
-    ApplicationLifecycleGeneratedCommand:
-      $ref: ./components/schemas/application-lifecycle-generated-command.yaml
     ApplicationLifecycleConfiguration:
       $ref: ./components/schemas/application-lifecycle-configuration.yaml
     ApplicationLifecycleConfigurationRequest:

@@ -13,6 +13,8 @@ func TestShouldReusePendingLocalDockerRuntimeGenerationRejectsTrustBundleRotatio
 		Generation:         3,
 		Status:             moduleapi.RuntimeTargetAgentStatusPending,
 		TrustBundleVersion: "bundle-v1",
+		CapabilityVersion:  "docker/v1",
+		Capabilities:       append([]string(nil), localDockerRuntimeAgentCapabilities...),
 	}
 	currentBundle := moduleapi.TrustBundleReference{Version: "bundle-v2", ExpiresAt: time.Now().Add(time.Hour)}
 

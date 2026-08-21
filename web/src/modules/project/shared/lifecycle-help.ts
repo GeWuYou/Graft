@@ -33,7 +33,6 @@ export type LifecycleHelpDefinition = {
   tooltipKey: string;
   detailKeyPrefix: string;
   recommendation: LifecycleHelpRecommendation;
-  commandExample: string[] | ((draft: ApplicationLifecycleConfigurationDraft) => string[]);
   visible?: (draft: ApplicationLifecycleConfigurationDraft) => boolean;
   switchTestId?: string;
 };
@@ -58,16 +57,6 @@ export type LifecycleNumberHelpDefinition = LifecycleHelpDefinition & {
   field: 'wait_timeout_seconds';
 };
 
-/**
- * 生成包含等待超时时间的 Docker Compose 启动命令。
- *
- * @param draft - 项目生命周期配置草稿
- * @returns 包含 Docker Compose 启动命令的单元素数组
- */
-function waitTimeoutCommand(draft: ApplicationLifecycleConfigurationDraft) {
-  return [`docker compose up -d --wait --wait-timeout ${draft.wait_timeout_seconds}`];
-}
-
 export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
   {
     key: 'downBeforeRedeploy',
@@ -78,7 +67,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.downBeforeRedeploy.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.downBeforeRedeploy',
     recommendation: 'optional',
-    commandExample: ['docker compose down'],
   },
   {
     key: 'pullBeforeRedeploy',
@@ -89,7 +77,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.pullBeforeRedeploy.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.pullBeforeRedeploy',
     recommendation: 'optional',
-    commandExample: ['docker compose pull'],
     switchTestId: 'project-lifecycle-pull-before-redeploy-switch',
   },
   {
@@ -101,7 +88,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.buildBeforeUp.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.buildBeforeUp',
     recommendation: 'defaultOff',
-    commandExample: ['docker compose up -d --build'],
     switchTestId: 'project-lifecycle-build-before-up-switch',
   },
   {
@@ -113,7 +99,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.forceRecreate.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.forceRecreate',
     recommendation: 'defaultOff',
-    commandExample: ['docker compose up -d --force-recreate'],
   },
   {
     key: 'removeOrphans',
@@ -124,7 +109,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.removeOrphans.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.removeOrphans',
     recommendation: 'recommended',
-    commandExample: ['docker compose up -d --remove-orphans'],
     switchTestId: 'project-lifecycle-remove-orphans-switch',
   },
   {
@@ -136,7 +120,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.waitAfterUp.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.waitAfterUp',
     recommendation: 'optional',
-    commandExample: waitTimeoutCommand,
     switchTestId: 'project-lifecycle-wait-after-up-switch',
   },
   {
@@ -148,7 +131,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.waitTimeoutSeconds.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.waitTimeoutSeconds',
     recommendation: 'tunePerEnv',
-    commandExample: waitTimeoutCommand,
     visible: (draft) => draft.wait_after_up,
   },
   {
@@ -160,7 +142,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.renewAnonVolumes.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.renewAnonVolumes',
     recommendation: 'dangerous',
-    commandExample: ['docker compose up -d --renew-anon-volumes'],
     switchTestId: 'project-lifecycle-renew-anon-volumes-switch',
   },
   {
@@ -172,7 +153,6 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     tooltipKey: 'project.detail.lifecycle.help.items.pruneImagesAfterRedeploy.tooltip',
     detailKeyPrefix: 'project.detail.lifecycle.help.items.pruneImagesAfterRedeploy',
     recommendation: 'defaultOff',
-    commandExample: ['docker image prune -f'],
     switchTestId: 'project-lifecycle-prune-images-after-redeploy-switch',
   },
 ];

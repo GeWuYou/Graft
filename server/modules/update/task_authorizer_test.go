@@ -163,6 +163,9 @@ func (*updateTaskRuntimeStub) SettleExternalReceipt(context.Context, moduleapi.E
 func (*updateTaskRuntimeStub) Cancel(context.Context, uint64) error                { return nil }
 func (*updateTaskRuntimeStub) RetryStage(context.Context, uint64, uint64) error    { return nil }
 func (*updateTaskRuntimeStub) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
+func (*updateTaskRuntimeStub) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
 
 func (s *updateTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	s.authorizers = append(s.authorizers, authorizer)

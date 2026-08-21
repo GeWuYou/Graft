@@ -42,8 +42,8 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 		t.Fatalf("resolve task runtime registrar: %v", err)
 	}
 	tasks, ok := resolved.(*containerTaskRuntimeStub)
-	if !ok || len(tasks.executors) != 5 || len(tasks.authorizers) != 9 {
-		t.Fatalf("expected Docker image and lifecycle task registrations, got %#v", resolved)
+	if !ok || len(tasks.executors) != 0 || len(tasks.authorizers) != 17 {
+		t.Fatalf("expected external Container owner registrations without local executors, got %#v", resolved)
 	}
 	for _, key := range []any{(*moduleapi.DockerImageBuildCapability)(nil), (*moduleapi.TargetBoundDockerImageBuildCapability)(nil), (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil)} {
 		if _, err := ctx.Services.Resolve(key); err != nil {
@@ -51,11 +51,6 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 		}
 	}
 	for _, action := range containerLifecycleTaskActions() {
-		if !slices.ContainsFunc(tasks.executors, func(executor moduleapi.StageExecutor) bool {
-			return executor.Type() == containerLifecycleTaskExecutorType(action)
-		}) {
-			t.Fatalf("expected %s lifecycle executor, got %#v", action, tasks.executors)
-		}
 		if !slices.ContainsFunc(tasks.authorizers, func(authorizer moduleapi.TaskOwnerAuthorizer) bool {
 			return authorizer.OwnerType() == containerLifecycleTaskOwnerType(action)
 		}) {
@@ -297,6 +292,10 @@ func (s *containerTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer module
 	return nil
 }
 
+func (*containerTaskRuntimeStub) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
+
 type moduleCloseRuntime struct {
 	closeCalls atomic.Int64
 }
@@ -314,18 +313,6 @@ func (*moduleCloseRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogCh
 }
 func (*moduleCloseRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
-}
-func (*moduleCloseRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (*moduleCloseRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (*moduleCloseRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (*moduleCloseRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
 }
 func (r *moduleCloseRuntime) Close() error {
 	r.closeCalls.Add(1)

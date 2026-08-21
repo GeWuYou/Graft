@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -212,10 +211,6 @@ func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
 	receipt, err := r.service.SubmitDockerImagePull(c.Request.Context(), request.Reference, requestedBy, idempotencyKey)
 	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionPull, request.Reference, request.Reference, false, err)
 	if err != nil {
-		if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
-			httpx.WriteLocalizedError(c, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
-			return
-		}
 		r.writeRouteError(c, err)
 		return
 	}
@@ -231,7 +226,17 @@ func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
 	if !ok {
 		return
 	}
-	r.handleDockerImageAction(c, ref, request.Target, containercontract.DockerImageAuditActionTag, r.service.TagDockerImage)
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerImageTag(c.Request.Context(), ref, request.Target, requestedBy, idempotencyKey)
+	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionTag, ref, request.Target, false, err)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
@@ -247,17 +252,17 @@ func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	r.handleDockerImageAction(c, ref, request.Reference, containercontract.DockerImageAuditActionUntag, r.service.UntagDockerImage)
-}
-
-func (r routeRuntime) handleDockerImageAction(c *gin.Context, ref, target string, auditAction containercontract.AuditAction, action func(context.Context, string, string) (DockerImageActionResult, error)) {
-	result, err := action(c.Request.Context(), ref, target)
-	r.service.publishDockerImageAudit(c.Request.Context(), auditAction, ref, target, false, err)
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerImageUntag(c.Request.Context(), ref, request.Reference, requestedBy, idempotencyKey)
+	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionUntag, ref, request.Reference, false, err)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
@@ -270,13 +275,17 @@ func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
 		return
 	}
 	force := boolPtrValue(request.Force)
-	result, err := r.service.RemoveDockerImage(c.Request.Context(), ref, force)
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerImageRemove(c.Request.Context(), ref, force, requestedBy, idempotencyKey)
 	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionRemove, ref, "", force, err)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerImageBatchRemove(c *gin.Context) {
@@ -284,12 +293,16 @@ func (r routeRuntime) handleDockerImageBatchRemove(c *gin.Context) {
 	if !bindRequiredJSON(c, r, &request) {
 		return
 	}
-	result, err := r.service.DockerImageBatchRemove(c.Request.Context(), request.Ids, boolPtrValue(request.Force))
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerImageBatchRemove(c.Request.Context(), request.Ids, boolPtrValue(request.Force), requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageBatchRemove(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func readDockerImageRef(c *gin.Context, r routeRuntime) (string, bool) {
@@ -337,18 +350,19 @@ func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context) {
 		return
 	}
 	command := DockerNetworkCreateCommand{Name: strings.TrimSpace(request.Name), Driver: string(request.Driver), Internal: boolPtrValue(request.Internal), Attachable: boolPtrValue(request.Attachable)}
-	if request.Labels != nil {
-		command.Labels = *request.Labels
-	}
 	if request.Ipam != nil {
 		command.IPAM = &DockerNetworkIPAMConfig{Subnet: stringPtrValue(request.Ipam.Subnet), Gateway: stringPtrValue(request.Ipam.Gateway)}
 	}
-	result, err := r.service.CreateDockerNetwork(c.Request.Context(), command)
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerNetworkCreate(c.Request.Context(), command, requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkAction(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerNetworkRemove(c *gin.Context) {
@@ -360,12 +374,16 @@ func (r routeRuntime) handleDockerNetworkRemove(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := r.service.RemoveDockerNetwork(c.Request.Context(), ref.Value, request.ConfirmNetworkName)
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerNetworkRemove(c.Request.Context(), ref.Value, request.ConfirmNetworkName, requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkAction(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerVolumes(c *gin.Context) {
@@ -392,11 +410,16 @@ func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context) {
 	if !bindRequiredJSON(c, r, &request) {
 		return
 	}
-	if err := r.service.RemoveDockerVolume(c.Request.Context(), ref.Value, request.Force); err != nil {
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerVolumeRemove(c.Request.Context(), ref.Value, request.Force, requestedBy, idempotencyKey)
+	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeRemoveResponse(ref.Value))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context) {
@@ -404,12 +427,16 @@ func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context) {
 	if !bindRequiredJSON(c, r, &request) {
 		return
 	}
-	result, err := r.service.DockerVolumeBatchRemove(c.Request.Context(), request.Names, boolPtrValue(request.Force))
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitDockerVolumeBatchRemove(c.Request.Context(), request.Names, boolPtrValue(request.Force), requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeBatchRemove(result))
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerVolume(c *gin.Context) {
@@ -582,12 +609,16 @@ func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := r.service.Remove(ginCtx.Request.Context(), ref, RemoveOptions{Force: boolPtrValue(request.Force)})
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := r.service.SubmitContainerLifecycleAction(ginCtx.Request.Context(), ref, containerActionRemove, ActionOptions{Force: boolPtrValue(request.Force)}, requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerAction(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
@@ -685,26 +716,30 @@ func permissionForAction(action string) string {
 	}
 }
 
-func (r routeRuntime) handleLifecycleTaskAction(ginCtx *gin.Context, action string) {
-	ref, ok := readRef(ginCtx, r)
-	if !ok {
-		return
-	}
+func taskSubmissionRequest(ginCtx *gin.Context, moduleCtx *module.Context) (uint64, string, bool) {
 	idempotencyKey := ginCtx.GetHeader("Idempotency-Key")
 	if strings.TrimSpace(idempotencyKey) == "" || utf8.RuneCountInString(idempotencyKey) > 128 {
-		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return
+		httpx.WriteLocalizedError(ginCtx, moduleCtx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return 0, "", false
 	}
 	requestedBy := uint64(0)
 	if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
 		requestedBy = auth.User.ID
 	}
+	return requestedBy, idempotencyKey, true
+}
+
+func (r routeRuntime) handleLifecycleTaskAction(ginCtx *gin.Context, action string) {
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
 	receipt, err := r.service.SubmitContainerLifecycleAction(ginCtx.Request.Context(), ref, action, ActionOptions{}, requestedBy, idempotencyKey)
 	if err != nil {
-		if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
-			httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
-			return
-		}
 		r.writeRouteError(ginCtx, err)
 		return
 	}
@@ -721,6 +756,10 @@ func readRef(ginCtx *gin.Context, r routeRuntime) (Ref, bool) {
 }
 
 func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
+	if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
 	status := statusForError(err)
 	if status != http.StatusInternalServerError {
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, status, messageKeyForError(err).String(), nil)

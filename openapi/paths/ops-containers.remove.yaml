@@ -7,6 +7,7 @@ post:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/container-id-path.yaml
+    - $ref: ../components/parameters/idempotency-key.yaml
   security:
     - bearerAuth: []
   requestBody:
@@ -16,15 +17,15 @@ post:
         schema:
           $ref: ../components/schemas/container-remove-request.yaml
   responses:
-    '200':
-      description: Container action result.
+    '202':
+      description: Container removal Task accepted.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-container-action-response.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400':
       description: Invalid container reference or remove request.
       headers:
@@ -48,7 +49,7 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '409':
-      description: Container state does not allow this action.
+      description: Idempotency-Key conflicts with a different submission.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

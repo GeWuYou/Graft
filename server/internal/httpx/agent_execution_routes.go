@@ -22,6 +22,7 @@ const (
 	agentExecutionClaimPath              = "/agent/v1/execution-leases/claim"
 	agentExecutionRenewPath              = "/agent/v1/execution-leases/:leaseID/renew"
 	agentExecutionLogsPath               = "/agent/v1/execution-leases/:leaseID/logs"
+	agentExecutionMaterialPath           = "/agent/v1/execution-leases/:leaseID/material"
 	agentExecutionReceiptPath            = "/agent/v1/execution-leases/:leaseID/receipts"
 	maxAgentExecutionRequestBytes  int64 = 1 << 20
 	agentExecutionLongPollWindow         = 20 * time.Second
@@ -46,9 +47,10 @@ func (s *AgentServer) ConfigureExecutionRoutes(gateway moduleapi.RuntimeAgentExe
 		return errors.New("agent execution routes are already configured")
 	}
 	s.engine.POST(agentExecutionClaimPath, agentExecutionClaimHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionRenewPath, agentExecutionRenewHandler(gateway, s.logger))
-	s.engine.POST(agentExecutionLogsPath, agentExecutionLogsHandler(gateway, s.logger))
-	s.engine.POST(agentExecutionReceiptPath, agentExecutionReceiptHandler(gateway, s.logger))
+	s.engine.POST(agentExecutionRenewPath, agentExecutionRenewHandler(gateway, bindings, s.logger))
+	s.engine.POST(agentExecutionLogsPath, agentExecutionLogsHandler(gateway, bindings, s.logger))
+	s.engine.POST(agentExecutionMaterialPath, agentExecutionMaterialHandler(gateway, bindings, s.logger))
+	s.engine.POST(agentExecutionReceiptPath, agentExecutionReceiptHandler(gateway, bindings, s.logger))
 	s.executionRoutesConfigured = true
 	return nil
 }
@@ -68,6 +70,7 @@ type agentExecutionLeaseResponse struct {
 	RuntimeTargetID       int64           `json:"runtime_target_id"`
 	ProviderID            string          `json:"provider_id"`
 	Capability            string          `json:"capability"`
+	CapabilityVersion     string          `json:"capability_version"`
 	Protocol              string          `json:"protocol"`
 	OperationID           string          `json:"operation_id"`
 	PayloadSHA256         string          `json:"payload_sha256"`
@@ -92,7 +95,7 @@ func agentExecutionClaimHandler(gateway moduleapi.RuntimeAgentExecutionGateway, 
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		lease, err := longPollAgentExecution(ctx.Request.Context(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: identity.TargetID, ProviderID: strings.TrimSpace(request.ProviderID), Capability: strings.TrimSpace(request.Capability)})
+		lease, err := longPollAgentExecution(ctx.Request.Context(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: identity.TargetID, ProviderID: strings.TrimSpace(request.ProviderID), Capability: strings.TrimSpace(request.Capability), CapabilityVersion: strings.TrimSpace(request.CapabilityVersion)})
 		if errors.Is(err, moduleapi.ErrExternalExecutionNotFound) {
 			ctx.Status(http.StatusNoContent)
 			return
@@ -130,9 +133,10 @@ type agentExecutionHandleRequest struct {
 	FenceToken string `json:"fence_token"`
 }
 
-func agentExecutionRenewHandler(gateway moduleapi.RuntimeAgentExecutionGateway, logger *zap.Logger) gin.HandlerFunc {
+func agentExecutionRenewHandler(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, logger *zap.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if _, ok := AgentMTLSIdentityFromGinContext(ctx); !ok || agentLedgerHasForbiddenHeaders(ctx) {
+		identity, ok := AgentMTLSIdentityFromGinContext(ctx)
+		if !ok || !agentIdentityBindingActive(ctx, bindings, identity) || agentLedgerHasForbiddenHeaders(ctx) {
 			abortAgentLedgerIdentity(ctx, logger)
 			return
 		}
@@ -141,7 +145,12 @@ func agentExecutionRenewHandler(gateway moduleapi.RuntimeAgentExecutionGateway, 
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		lease, err := gateway.RenewExternalExecution(ctx.Request.Context(), moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken})
+		handle := moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
+		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, handle) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
+		lease, err := gateway.RenewExternalExecution(ctx.Request.Context(), handle)
 		if err != nil {
 			abortAgentExecutionFailure(ctx, logger)
 			return
@@ -155,9 +164,10 @@ type agentExecutionLogsRequest struct {
 	Entries    []moduleapi.TaskLogEntry `json:"entries"`
 }
 
-func agentExecutionLogsHandler(gateway moduleapi.RuntimeAgentExecutionGateway, logger *zap.Logger) gin.HandlerFunc {
+func agentExecutionLogsHandler(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, logger *zap.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if _, ok := AgentMTLSIdentityFromGinContext(ctx); !ok || agentLedgerHasForbiddenHeaders(ctx) {
+		identity, ok := AgentMTLSIdentityFromGinContext(ctx)
+		if !ok || !agentIdentityBindingActive(ctx, bindings, identity) || agentLedgerHasForbiddenHeaders(ctx) {
 			abortAgentLedgerIdentity(ctx, logger)
 			return
 		}
@@ -166,11 +176,42 @@ func agentExecutionLogsHandler(gateway moduleapi.RuntimeAgentExecutionGateway, l
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		if err := gateway.AppendExternalExecutionLogs(ctx.Request.Context(), moduleapi.ExternalExecutionLogBatch{Handle: moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}, Entries: request.Entries}); err != nil {
+		handle := moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
+		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, handle) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
+		if err := gateway.AppendExternalExecutionLogs(ctx.Request.Context(), moduleapi.ExternalExecutionLogBatch{Handle: handle, Entries: request.Entries}); err != nil {
 			abortAgentExecutionFailure(ctx, logger)
 			return
 		}
 		ctx.Status(http.StatusNoContent)
+	}
+}
+
+func agentExecutionMaterialHandler(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, logger *zap.Logger) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		identity, ok := AgentMTLSIdentityFromGinContext(ctx)
+		if !ok || !agentIdentityBindingActive(ctx, bindings, identity) || agentLedgerHasForbiddenHeaders(ctx) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
+		var request agentExecutionHandleRequest
+		if err := decodeAgentExecutionJSON(ctx, &request); err != nil || strings.TrimSpace(ctx.Param("leaseID")) == "" {
+			abortInvalidAgentLedgerRequest(ctx, logger)
+			return
+		}
+		handle := moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
+		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, handle) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
+		material, err := gateway.ResolveExternalExecutionMaterial(ctx.Request.Context(), handle)
+		if err != nil {
+			abortAgentExecutionFailure(ctx, logger)
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"protocol": material.Protocol, "payload": material.Payload})
 	}
 }
 
@@ -181,9 +222,10 @@ type agentExecutionReceiptRequest struct {
 	IntegritySHA256 string `json:"integrity_sha256"`
 }
 
-func agentExecutionReceiptHandler(gateway moduleapi.RuntimeAgentExecutionGateway, logger *zap.Logger) gin.HandlerFunc {
+func agentExecutionReceiptHandler(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, logger *zap.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if _, ok := AgentMTLSIdentityFromGinContext(ctx); !ok || agentLedgerHasForbiddenHeaders(ctx) {
+		identity, ok := AgentMTLSIdentityFromGinContext(ctx)
+		if !ok || !agentIdentityBindingActive(ctx, bindings, identity) || agentLedgerHasForbiddenHeaders(ctx) {
 			abortAgentLedgerIdentity(ctx, logger)
 			return
 		}
@@ -192,7 +234,12 @@ func agentExecutionReceiptHandler(gateway moduleapi.RuntimeAgentExecutionGateway
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		settlement, err := gateway.SettleExternalExecution(ctx.Request.Context(), moduleapi.ExternalExecutionReceipt{Handle: moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}, Outcome: moduleapi.ExternalReceiptOutcome(strings.TrimSpace(request.Outcome)), FailureCode: strings.TrimSpace(request.FailureCode), IntegritySHA256: strings.TrimSpace(request.IntegritySHA256)})
+		handle := moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
+		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, handle) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
+		settlement, err := gateway.SettleExternalExecution(ctx.Request.Context(), moduleapi.ExternalExecutionReceipt{Handle: handle, Outcome: moduleapi.ExternalReceiptOutcome(strings.TrimSpace(request.Outcome)), FailureCode: strings.TrimSpace(request.FailureCode), IntegritySHA256: strings.TrimSpace(request.IntegritySHA256)})
 		if err != nil {
 			abortAgentExecutionFailure(ctx, logger)
 			return
@@ -222,12 +269,13 @@ func decodeAgentExecutionJSON(ctx *gin.Context, destination any) error {
 }
 
 func marshalAgentExecutionLease(lease moduleapi.ExternalExecutionLease) agentExecutionLeaseResponse {
-	return agentExecutionLeaseResponse{ID: lease.ID, TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: string(lease.ExecutorType), RuntimeTargetID: lease.RuntimeTargetID, ProviderID: lease.ProviderID, Capability: lease.Capability, Protocol: lease.Protocol, OperationID: lease.OperationID, PayloadSHA256: lease.PayloadSHA256, Input: lease.Input, FenceToken: lease.FenceToken, State: string(lease.State), LeaseTTLMS: lease.LeaseTTL.Milliseconds(), LeaseExpiresAt: lease.LeaseExpiresAt.UTC(), AbsoluteDeadlineAt: lease.AbsoluteDeadlineAt.UTC(), CancellationRequested: lease.CancellationRequested}
+	return agentExecutionLeaseResponse{ID: lease.ID, TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: string(lease.ExecutorType), RuntimeTargetID: lease.RuntimeTargetID, ProviderID: lease.ProviderID, Capability: lease.Capability, CapabilityVersion: lease.CapabilityVersion, Protocol: lease.Protocol, OperationID: lease.OperationID, PayloadSHA256: lease.PayloadSHA256, Input: lease.Input, FenceToken: lease.FenceToken, State: string(lease.State), LeaseTTLMS: lease.LeaseTTL.Milliseconds(), LeaseExpiresAt: lease.LeaseExpiresAt.UTC(), AbsoluteDeadlineAt: lease.AbsoluteDeadlineAt.UTC(), CancellationRequested: lease.CancellationRequested}
 }
 
 func agentCapabilityAllowed(ctx *gin.Context, bindings moduleapi.RuntimeTargetAgentBindingReader, identity AgentMTLSIdentity, providerID, capability, capabilityVersion string) bool {
 	binding, err := bindings.ReadAgentBinding(ctx.Request.Context(), identity.TargetID, identity.AgentID)
-	if err != nil || binding.Status != moduleapi.RuntimeTargetAgentStatusActive || binding.ProviderID != strings.TrimSpace(providerID) || binding.CapabilityVersion != strings.TrimSpace(capabilityVersion) {
+	if err != nil || !agentIdentityMatchesBinding(identity, binding) ||
+		binding.ProviderID != strings.TrimSpace(providerID) || binding.CapabilityVersion != strings.TrimSpace(capabilityVersion) {
 		return false
 	}
 	for _, candidate := range binding.Capabilities {
@@ -236,4 +284,21 @@ func agentCapabilityAllowed(ctx *gin.Context, bindings moduleapi.RuntimeTargetAg
 		}
 	}
 	return false
+}
+
+func agentIdentityBindingActive(ctx *gin.Context, bindings moduleapi.RuntimeTargetAgentBindingReader, identity AgentMTLSIdentity) bool {
+	binding, err := bindings.ReadAgentBinding(ctx.Request.Context(), identity.TargetID, identity.AgentID)
+	return err == nil && agentIdentityMatchesBinding(identity, binding)
+}
+
+func agentIdentityMatchesBinding(identity AgentMTLSIdentity, binding moduleapi.RuntimeTargetAgentBinding) bool {
+	return binding.Status == moduleapi.RuntimeTargetAgentStatusActive && binding.IdentityID == identity.IdentityID &&
+		binding.TargetID == identity.TargetID && binding.AgentID == identity.AgentID && binding.Generation == identity.Generation &&
+		binding.CertificateSerial == identity.CertificateSerial && binding.PublicKeyFingerprint == identity.PublicKeyFingerprint
+}
+
+func agentExecutionHandleAllowed(ctx *gin.Context, gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, identity AgentMTLSIdentity, handle moduleapi.ExternalExecutionLeaseHandle) bool {
+	lease, err := gateway.InspectExternalExecution(ctx.Request.Context(), handle)
+	return err == nil && lease.RuntimeTargetID == identity.TargetID &&
+		agentCapabilityAllowed(ctx, bindings, identity, lease.ProviderID, lease.Capability, lease.CapabilityVersion)
 }

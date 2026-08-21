@@ -135,7 +135,7 @@ func (d *DockerRuntimeAgentConformanceDriver) Prepare(ctx context.Context, scena
 	}
 	enrollment, err := d.enrollment.CreateEnrollment(ctx, moduleapi.AgentEnrollmentRequest{
 		TargetID: targetID, AgentID: scenario.AgentID, ProviderID: target.Provider, BuilderScope: "docker-runtime-agent-conformance",
-		CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", Capabilities: []string{"oci-build"}, RuntimeProtocol: "runtime/v1", ImageDigest: scenario.ImageDigest,
+		CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", Capabilities: append([]string(nil), localDockerRuntimeAgentCapabilities...), RuntimeProtocol: "runtime/v1", ImageDigest: scenario.ImageDigest,
 		AgentVersion: scenario.AgentVersion, EnrollmentRef: scenario.EnrollmentRef, TrustBundle: trustBundle, ExpiresAt: now.Add(time.Hour),
 	})
 	if err != nil {
@@ -261,7 +261,7 @@ func writeDockerRuntimeAgentConformanceConfig(s DockerRuntimeAgentFixtureScenari
 		ProviderID        string   `json:"provider_id"`
 		Capabilities      []string `json:"capabilities"`
 		CapabilityVersion string   `json:"capability_version"`
-	}{s.BootstrapURL, s.AgentURL, targetID, s.AgentID, s.AgentSecretFile, s.BootstrapCAFile, s.TrustBundleFile, "/var/run/docker.sock", "docker", []string{"oci-build"}, "runtime/v1"})
+	}{s.BootstrapURL, s.AgentURL, targetID, s.AgentID, s.AgentSecretFile, s.BootstrapCAFile, s.TrustBundleFile, "unix:///var/run/docker.sock", "docker", append([]string(nil), localDockerRuntimeAgentCapabilities...), "docker/v1"})
 	if err != nil {
 		return errors.New("encode fixture agent configuration")
 	}

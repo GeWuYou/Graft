@@ -157,7 +157,6 @@ func projectActionAuditMetadata(aggregate projectstore.ApplicationAggregate, res
 		"deployment_adapter_kind": projectcontract.DeploymentAdapterKindCompose.String(),
 		"source_type":             aggregate.Application.SourceType,
 		"ownership_mode":          aggregate.Application.OwnershipMode,
-		"workspace_path":          aggregate.Application.WorkspacePath,
 		"action_result":           result.Result,
 		"guard_results":           guardResultsAuditMetadata(result.GuardResults),
 	}
@@ -170,6 +169,7 @@ func projectBatchAuditMetadata(request BatchActionRequest, result BatchActionRes
 		"requested_total":           result.TotalCount,
 		"requested_application_ids": batchApplicationIDs(result.Items),
 		"completed_count":           result.CompletedCount,
+		"accepted_count":            result.AcceptedCount,
 		"blocked_count":             result.BlockedCount,
 		"skipped_count":             result.SkippedCount,
 		"blocked_application_ids":   batchBlockedApplicationIDs(result.Items),

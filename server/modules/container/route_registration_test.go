@@ -105,25 +105,6 @@ func dockerNetworkListLimits(t *testing.T, ginCtx *gin.Context) (int, int) {
 	return result.Limit, toDockerNetworkList(result).Limit
 }
 
-type pullErrorRuntime struct {
-	fakeRuntime
-}
-
-func (pullErrorRuntime) PullDockerImage(_ context.Context, _ string, emit func(DockerImagePullEvent) error) error {
-	if err := emit(DockerImagePullEvent{Status: "error", Error: true}); err != nil {
-		return err
-	}
-	return errDockerImagePullFailed
-}
-
-func (pullErrorRuntime) TagDockerImage(context.Context, string, string) error { return nil }
-
-func (pullErrorRuntime) UntagDockerImage(context.Context, string) error { return nil }
-
-func (pullErrorRuntime) RemoveDockerImage(context.Context, string, bool) error { return nil }
-
-var _ DockerImageWriter = pullErrorRuntime{}
-
 func newRouteTestService(options containerServiceOptions) (*service, error) {
 	if options.shellEnabled && len(options.websocketAllowedOrigins) == 0 {
 		options.websocketAllowedOrigins = []string{"https://console.example.com"}
@@ -142,6 +123,9 @@ func newRouteTestService(options containerServiceOptions) (*service, error) {
 	}
 	if options.tasks == nil {
 		options.tasks = &containerTaskRuntimeStub{}
+	}
+	if options.runtimeTargets == nil {
+		options.runtimeTargets = &runtimeTargetReaderStub{target: moduleapi.RuntimeTargetSummary{ID: 1, DisplayName: "Local Docker", Provider: containerExecutionProvider}}
 	}
 	return newService(options)
 }
@@ -273,9 +257,11 @@ func assertRemoveRoutePermission(t *testing.T, engine *gin.Engine, authorizer *r
 
 	authorizer.reset()
 	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/remove", `{"force":true}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected remove 200, got %d: %s", response.Code, response.Body.String())
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/remove", `{"force":true}`)
+	request.Header.Set("Idempotency-Key", "remove-abc123")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected remove 202, got %d: %s", response.Code, response.Body.String())
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected remove permission, got %#v", authorizer.permissions)
@@ -359,7 +345,7 @@ func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 		t.Fatalf("unexpected remove task submission: %#v", tasks.submissions)
 	}
 	var removeInput containerLifecycleTaskInput
-	if err := json.Unmarshal(tasks.submissions[1].Plan.Stages[0].Input, &removeInput); err != nil || removeInput.Ref != "container-2" || !removeInput.Force {
+	if err := json.Unmarshal(tasks.submissions[1].Plan.Stages[0].Input, &removeInput); err != nil || removeInput.ContainerRef != "container-2" || !removeInput.Force {
 		t.Fatalf("expected frozen force remove input, got %s: %v", tasks.submissions[1].Plan.Stages[0].Input, err)
 	}
 }
@@ -409,7 +395,7 @@ func TestDockerImagePullRouteAcceptsTaskSubmission(t *testing.T) {
 
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
 	service, err := newRouteTestService(containerServiceOptions{
-		runtime:                 pullErrorRuntime{},
+		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
 		defaultTail:             defaultContainerLogsDefaultTail,

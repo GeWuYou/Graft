@@ -3,7 +3,6 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import type {
-  ContainerActionResponse,
   ContainerBatchActionRequest,
   ContainerDetailRecord,
   ContainerListQueryWithOrchestrator,
@@ -83,8 +82,6 @@ type PostContainerRestartPathParams = PostContainerRestartOperation['parameters'
 
 type ContainerRemovePath = typeof OPENAPI_RUNTIME_PATH.postContainerRemove;
 type PostContainerRemoveOperation = paths[ContainerRemovePath]['post'];
-type PostContainerRemoveEnvelope = PostContainerRemoveOperation['responses'][200]['content']['application/json'];
-type PostContainerRemoveData = NonNullable<PostContainerRemoveEnvelope['data']>;
 type PostContainerRemovePathParams = PostContainerRemoveOperation['parameters']['path'];
 type PostContainerRemoveRequest = NonNullable<
   PostContainerRemoveOperation['requestBody']
@@ -127,9 +124,6 @@ type DockerResourceSavedViewList = NonNullable<
 type DockerVolumeBatchRemoveOperation = paths['/api/ops/docker/volumes/batch-remove']['post'];
 export type DockerVolumeBatchRemoveRequest =
   DockerVolumeBatchRemoveOperation['requestBody']['content']['application/json'];
-export type DockerVolumeBatchRemoveResult = NonNullable<
-  DockerVolumeBatchRemoveOperation['responses'][200]['content']['application/json']['data']
->;
 export type DockerImageListQuery = NonNullable<DockerImagesOperation['parameters']['query']>;
 type DockerImagesData = NonNullable<DockerImagesOperation['responses'][200]['content']['application/json']['data']>;
 type DockerNetworksData = NonNullable<
@@ -142,9 +136,6 @@ type DockerNetworkCreateOperation = paths['/api/ops/docker/networks']['post'];
 type DockerNetworkCreateRequest = NonNullable<
   DockerNetworkCreateOperation['requestBody']
 >['content']['application/json'];
-type DockerNetworkCreateData = NonNullable<
-  DockerNetworkCreateOperation['responses'][200]['content']['application/json']['data']
->;
 type DockerNetworkRemoveOperation = paths['/api/ops/docker/networks/{id}']['delete'];
 type DockerNetworkRemoveRequest = NonNullable<
   DockerNetworkRemoveOperation['requestBody']
@@ -163,6 +154,13 @@ export type DockerImageRecord = DockerImagesData['items'][number];
 export type DockerSavedViewPayload = DockerImageSavedViewRequest;
 export type DockerSavedViewRecord = DockerImageSavedView | DockerResourceSavedView;
 export type DockerSavedViewList = DockerImageSavedViewList | DockerResourceSavedViewList;
+
+let dockerMutationSequence = 0;
+
+function dockerMutationIdempotencyKey(operation: string, resource: string) {
+  dockerMutationSequence += 1;
+  return `container-${operation}-${resource}-${Date.now()}-${dockerMutationSequence}`.slice(0, 128);
+}
 
 export const getDockerImages = (query?: DockerImageListQuery) =>
   request.get<DockerImagesData>({
@@ -237,9 +235,17 @@ export const getDockerNetworks = (query?: DockerNetworkListQuery) =>
 export const getDockerNetwork = (id: string) =>
   request.get<DockerNetworkDetail>({ url: buildOpenApiRuntimePath('getDockerNetwork', { id }) });
 export const createDockerNetwork = (data: DockerNetworkCreateRequest) =>
-  request.post<DockerNetworkCreateData>({ url: OPENAPI_RUNTIME_PATH.postDockerNetwork, data });
+  request.post<PostContainerStartData>({
+    url: OPENAPI_RUNTIME_PATH.postDockerNetwork,
+    data,
+    headers: { 'Idempotency-Key': dockerMutationIdempotencyKey('network-create', data.name) },
+  });
 export const removeDockerNetwork = (id: string, data: DockerNetworkRemoveRequest) =>
-  request.delete({ url: buildOpenApiRuntimePath('deleteDockerNetwork', { id }), data });
+  request.delete<PostContainerStartData>({
+    url: buildOpenApiRuntimePath('deleteDockerNetwork', { id }),
+    data,
+    headers: { 'Idempotency-Key': dockerMutationIdempotencyKey('network-remove', id) },
+  });
 export const listDockerVolumes = (query?: DockerVolumeListQuery) =>
   request.get<DockerVolumesData>({
     url: OPENAPI_RUNTIME_PATH.getDockerVolumes,
@@ -250,11 +256,16 @@ export const getDockerVolume = (id: string) =>
     url: buildOpenApiRuntimePath('getDockerVolume', { id }),
   }) as Promise<DockerVolumeDetail>;
 export const removeDockerVolume = (id: string, options: { force?: boolean } = {}) =>
-  request.post({ url: buildOpenApiRuntimePath('postDockerVolumeRemove', { id }), data: options });
+  request.post<PostContainerStartData>({
+    url: buildOpenApiRuntimePath('postDockerVolumeRemove', { id }),
+    data: options,
+    headers: { 'Idempotency-Key': dockerMutationIdempotencyKey('volume-remove', id) },
+  });
 export function batchRemoveDockerVolumes(payload: DockerVolumeBatchRemoveRequest) {
-  return request.post<DockerVolumeBatchRemoveResult>({
+  return request.post<PostContainerStartData>({
     url: OPENAPI_RUNTIME_PATH.postDockerVolumeBatchRemove,
     data: payload,
+    headers: { 'Idempotency-Key': dockerMutationIdempotencyKey('volume-batch-remove', String(payload.names.length)) },
   });
 }
 
@@ -384,11 +395,13 @@ export function restartContainer(containerId: PostContainerRestartPathParams['id
 export function removeContainer(
   containerId: PostContainerRemovePathParams['id'],
   body: ContainerRemoveRequest & PostContainerRemoveRequest,
+  idempotencyKey: string,
 ) {
-  return request.post<PostContainerRemoveData>({
+  return request.post<PostContainerStartData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: buildOpenApiRuntimePath('postContainerRemove', { id: containerId }),
     data: body,
-  }) as Promise<ContainerActionResponse>;
+  }) as Promise<PostContainerStartData>;
 }
 
 export function batchContainerActions(

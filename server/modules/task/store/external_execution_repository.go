@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 )
 
 const externalExecutionLeaseExpiryFailureCode = "external_execution_lease_expired"
+
+var stableExternalFailureCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,127}$`)
 
 // ListExternalExecutionCandidates 返回满足串行前置条件、且只能由 Runtime Agent 领取的 pending Stage。
 func (r *SQLRepository) ListExternalExecutionCandidates(ctx context.Context, limit int, offset int) ([]StageClaim, error) {
@@ -555,10 +558,14 @@ func validExternalExecutionSettlement(input SettleExternalExecutionInput) bool {
 	case moduleapi.ExternalReceiptOutcomeSuccess:
 		return input.FailureCode == ""
 	case moduleapi.ExternalReceiptOutcomeFailed, moduleapi.ExternalReceiptOutcomeNeedsAttention:
-		return strings.TrimSpace(input.FailureCode) != "" && len(input.FailureCode) <= 128
+		return stableExternalFailureCode(input.FailureCode)
 	default:
 		return false
 	}
+}
+
+func stableExternalFailureCode(value string) bool {
+	return stableExternalFailureCodePattern.MatchString(value)
 }
 
 func externalExecutionStageStatus(outcome moduleapi.ExternalReceiptOutcome) moduleapi.StageStatus {

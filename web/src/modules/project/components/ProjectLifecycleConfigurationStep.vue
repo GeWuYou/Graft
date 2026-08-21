@@ -6,7 +6,6 @@
       :description="description"
       :authority-message="authorityMessage"
       :configuration-title="configurationTitle"
-      :command-preview-title="commandPreviewTitle"
     />
 
     <div class="project-lifecycle-step-actions">
@@ -33,7 +32,6 @@ withDefaults(
     description: string;
     authorityMessage: string;
     configurationTitle: string;
-    commandPreviewTitle: string;
     backLabel: string;
     continueLabel: string;
     refreshLabel?: string;

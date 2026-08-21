@@ -130,18 +130,6 @@ func (r *streamingRuntime) StreamLogs(_ context.Context, _ Ref, _ LogQuery, emit
 func (r *streamingRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
 }
-func (r *streamingRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (r *streamingRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (r *streamingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (r *streamingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (r *streamingRuntime) Close() error { return nil }
 
 var _ Runtime = (*streamingRuntime)(nil)

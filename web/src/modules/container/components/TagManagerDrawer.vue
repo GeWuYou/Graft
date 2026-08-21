@@ -149,11 +149,9 @@ async function submitRemoveTag() {
   if (!image.value || !selectedReference.value) return;
   removing.value = true;
   try {
-    await untagDockerImage(image.value.id, { reference: selectedReference.value });
+    const receipt = await untagDockerImage(image.value.id, { reference: selectedReference.value });
+    void receipt.task_id;
     removeDialogVisible.value = false;
-    MessagePlugin.success(t('container.images.untag.success'));
-    await loadImage();
-    emit('refreshed', image.value);
   } catch {
     MessagePlugin.error(t('container.images.untag.failed'));
   } finally {

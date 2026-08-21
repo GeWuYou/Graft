@@ -46,3 +46,22 @@
 - Kept Application, Container, Build and Update Docker operations unchanged for their explicitly later batches.
 - Validation passed: focused behavior and conformance-tag tests, Agent race tests, SQL/version/ai-plan gates,
   `git diff --check` and the complete `graft validate backend` entrypoint.
+
+## 2026-08-21 batch-4-accepted
+
+- Assigned Application Compose lifecycle and finite Container mutations to domain-owned provider-neutral intents and
+  Task-owned external Stages. Task Runtime remains the only owner of lease, fence, renewal, cancellation, bounded logs,
+  receipt, retry and recovery transitions.
+- Extended Runtime Target binding authority from identity-only rows to immutable generation snapshots. Claim and all
+  post-claim endpoints compare the authenticated certificate and the frozen provider/capability/version with the active
+  generation, covering capability expansion, removal, version mismatch and reconnect recovery without credential drift.
+- Added strict Moby/Compose SDK dispatch for the Application and Container operation allowlists, fair capability polling,
+  fixed redacted logs and a mode-0600 execution journal. Application workspace/config/env material is resolved only
+  after a fenced claim and is neither embedded in Stage input nor persisted in Task, logs or receipts.
+- Removed Application and Container server-local mutation executors, Docker CLI command assembly, command-bearing
+  OpenAPI/Web contracts, legacy adapters, fallbacks and aliases. Kept snapshot reads and interactive streams on their
+  ADR-026 transport boundaries and retained the server Docker socket for Build SDK, Update Controller and remaining
+  explicitly unmigrated runtime transports.
+- Validation passed: focused and race tests across Agent, HTTP transport, Task, Application, Container and Runtime
+  Target; OpenAPI and generated-Web freshness checks; SQL/version/AI-plan/shared-asset gates; full Web validation;
+  `git diff --check`; and the complete backend validation entrypoint.

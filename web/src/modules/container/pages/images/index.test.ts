@@ -274,21 +274,14 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('const preserved = selectedRowKeys.value.filter');
     expect(sourceText).toContain('index += 100');
     expect(sourceText).toContain('batchRemoveDockerImages');
-    expect(sourceText).toContain('results.push(...response.items);');
-    expect(sourceText).toContain('error_code: DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN');
-    expect(sourceText).toContain('unknownResponseIds.push(...chunkIds);');
-    expect(sourceText).toContain('let requestError: unknown;');
-    expect(sourceText).toContain('return { items: results, unknownResponseIds, requestError };');
+    expect(sourceText).toContain('taskIds.push(receipt.task_id);');
+    expect(sourceText).toContain('pullTaskId.value = lastTaskId;');
+    expect(sourceText).not.toContain('response.items');
   });
 
-  it('renders every daemon-reported batch failure by stable error code without parsing raw Docker text', () => {
-    expect(sourceText).toContain('DOCKER_IMAGE_REMOVE_ERROR_CODES');
-    expect(sourceText).toContain('normalizeBatchFailureCode(item.error_code)');
-    expect(sourceText).toContain('batchFailureGroups');
-    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
-    expect(sourceText).toContain('showBatchFailureDetails(failed, items.length - failed.length);');
-    expect(sourceText).not.toContain('items.slice(0, 5)');
-    expect(sourceText).not.toContain('item.message ||');
+  it('does not interpret synchronous daemon batch results', () => {
+    expect(sourceText).not.toContain('response.items');
+    expect(sourceText).not.toContain("t('container.images.batch.partial'");
   });
 
   it('keeps batch results visible and provides one tag-management entry for every multi-tag failure', () => {
@@ -310,22 +303,15 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('selectedBatchReferences');
   });
 
-  it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
-    expect(sourceText).toContain('if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);');
-    expect(sourceText).toContain('await cleanup.reconcile(confirmedSuccessfulIds);');
-    expect(cleanupSourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
-    expect(sourceText).toContain('if (!requestError && !hasUnknownResponse');
-    expect(sourceText).toContain('if (!cleanup) cleanupDialogVisible.value = false;');
-    expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
+  it('submits cleanup as a Task and leaves reconciliation to Task Runtime', () => {
+    expect(sourceText).toContain('await submitBatchRemove(cleanupSelectedIds.value, false);');
+    expect(sourceText).toContain('pullTaskDrawerVisible.value = true;');
+    expect(sourceText).not.toContain('hasUnknownResponse');
   });
 
-  it('clears normal-batch selections only when an uncertain deletion is confirmed missing', () => {
-    expect(sourceText).toContain('await reconcileSelectedImages(unknownResponseIds);');
-    expect(sourceText).toContain('selectedImages.value.set(id, await getDockerImage(id));');
-    expect(sourceText).toContain('isApiRequestError(error) && error.status === 404');
-    expect(sourceText).toContain('forgetSelectedImages(removedIds);');
-    expect(sourceText).toContain('if (requestError || hasUnknownResponse)');
-    expect(sourceText).toContain('showUnknownBatchResult();');
+  it('does not clear selections based on Task acceptance', () => {
+    expect(sourceText).not.toContain('forgetSelectedImages(removedIds);');
+    expect(sourceText).not.toContain('await reconcileSelectedImages');
   });
 
   it('keeps translated table columns reactive instead of unwrapping them during setup', () => {
@@ -451,14 +437,10 @@ describe('docker image list page', () => {
     expect(sourceText).not.toContain('management-table-pagination');
   });
 
-  it('reports full, partial, and failed batch removal outcomes', () => {
-    expect(sourceText).toContain("t('container.images.batch.success'");
-    expect(sourceText).toContain("t('container.images.batch.partial'");
-    expect(sourceText).toContain("t('container.images.batch.failed'");
-    expect(sourceText).toContain('successfulIds');
+  it('reports submission failures without claiming removal outcomes', () => {
+    expect(sourceText).not.toContain("t('container.images.batch.partial'");
+    expect(sourceText).not.toContain('successfulIds');
     expect(sourceText).toContain("t('container.images.batch.requestFailed')");
-    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
-    expect(sourceText).toContain('@confirm="batchResultDialogVisible = false"');
     expect(sourceText).toContain('closeBatchDialogs();');
     expect(sourceText).toContain('removeDialogVisible.value = false;');
     expect(sourceText).toContain('cleanupDialogVisible.value = false;');

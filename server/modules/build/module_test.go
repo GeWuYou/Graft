@@ -73,6 +73,9 @@ func (testBuildRepository) GetJobByBuildID(context.Context, string) (buildstore.
 type testBuildRegistrar struct{}
 
 func (testBuildRegistrar) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
+func (testBuildRegistrar) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
 func (testBuildRegistrar) RegisterTaskOwnerAuthorizer(moduleapi.TaskOwnerAuthorizer) error {
 	return nil
 }

@@ -327,7 +327,7 @@ func (r runtimeTargetAgentBindingReader) ReadAgentBinding(ctx context.Context, t
 	if err != nil {
 		return moduleapi.RuntimeTargetAgentBinding{}, fmt.Errorf("read runtime target agent binding for target %d agent %q: %w", targetID, agentID, err)
 	}
-	capabilityBinding, err := r.repository.ReadAgentCapabilityBinding(ctx, generation.Identity.ID)
+	capabilityBinding, err := r.repository.ReadAgentCapabilityBinding(ctx, generation.ID)
 	if err != nil {
 		return moduleapi.RuntimeTargetAgentBinding{}, fmt.Errorf("read runtime target agent capability binding for target %d agent %q: %w", targetID, agentID, err)
 	}

@@ -44,50 +44,14 @@ properties:
   renew_anon_volumes:
     type: boolean
     default: false
-  additional_args:
-    type: array
-    description: Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.
-    maxItems: 32
-    items:
-      type: string
-      minLength: 1
-      maxLength: 256
-      pattern: '^[^\r\n]+$'
   managed_service_names:
     type: array
-    description: Services included in Graft lifecycle actions; empty means all declared services for legacy records.
+    description: Services included in Graft lifecycle actions; empty means all declared services.
     uniqueItems: true
     maxItems: 256
     items:
       type: string
       minLength: 1
       maxLength: 128
-      pattern: '^[^\r\n]+$'
-  stop_args:
-    type: array
-    description: Bounded argv tokens appended to docker compose stop.
-    maxItems: 16
-    items:
-      type: string
-      minLength: 1
-      maxLength: 256
-      pattern: '^[^\r\n]+$'
-  restart_args:
-    type: array
-    description: Bounded argv tokens appended to docker compose restart.
-    maxItems: 16
-    items:
-      type: string
-      minLength: 1
-      maxLength: 256
-      pattern: '^[^\r\n]+$'
-  pull_args:
-    type: array
-    description: Bounded argv tokens appended to docker compose pull.
-    maxItems: 16
-    items:
-      type: string
-      minLength: 1
-      maxLength: 256
       pattern: '^[^\r\n]+$'
 additionalProperties: false

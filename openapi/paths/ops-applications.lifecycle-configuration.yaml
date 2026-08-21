@@ -20,7 +20,7 @@ put:
     - bearerAuth: []
   responses:
     '200':
-      description: Saved lifecycle configuration and regenerated command previews.
+      description: Saved provider-neutral application lifecycle policy.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

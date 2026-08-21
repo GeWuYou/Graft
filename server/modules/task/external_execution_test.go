@@ -54,7 +54,7 @@ func settleFirstExternalExecutionStage(t *testing.T, runtime *Runtime, taskID ui
 	}
 	if err := runtime.AppendExternalExecutionLogs(context.Background(), moduleapi.ExternalExecutionLogBatch{
 		Handle:  externalExecutionHandle(lease),
-		Entries: []moduleapi.TaskLogEntry{{Stream: "stdout", Level: "info", Line: "compose operation started"}},
+		Entries: []moduleapi.TaskLogEntry{{Stream: "system", Level: "info", Line: "provider operation started"}},
 	}); err != nil {
 		t.Fatalf("append external logs: %v", err)
 	}
@@ -100,6 +100,35 @@ func TestExternalExecutionReceiptReplayAndFenceConflict(t *testing.T) {
 	wrongFence.Handle.FenceToken = strings.Repeat("f", 64)
 	if _, err := runtime.SettleExternalExecution(context.Background(), wrongFence); !errors.Is(err, taskstore.ErrStateConflict) {
 		t.Fatalf("wrong fence error = %v", err)
+	}
+}
+
+func TestExternalExecutionRejectsUnstableFailureCode(t *testing.T) {
+	runtime, _, lease := claimedExternalExecutionTask(t, 1)
+	receipt := testExternalExecutionReceipt(lease, moduleapi.ExternalReceiptOutcomeFailed, "connect unix:///var/run/docker.sock")
+	if _, err := runtime.SettleExternalExecution(context.Background(), receipt); !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("unsafe failure code error = %v", err)
+	}
+}
+
+func TestInspectExternalExecutionValidatesFenceWithoutRenewing(t *testing.T) {
+	runtime, repository, lease := claimedExternalExecutionTask(t, 1)
+	before, _, err := repository.GetExternalExecutionLease(context.Background(), lease.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inspected, err := runtime.InspectExternalExecution(context.Background(), externalExecutionHandle(lease))
+	if err != nil || inspected.Capability != lease.Capability || inspected.CapabilityVersion != lease.CapabilityVersion {
+		t.Fatalf("inspected lease = %#v err=%v", inspected, err)
+	}
+	after, _, err := repository.GetExternalExecutionLease(context.Background(), lease.ID)
+	if err != nil || !after.LeaseExpiresAt.Equal(before.LeaseExpiresAt) {
+		t.Fatalf("inspection changed lease expiry: before=%s after=%s err=%v", before.LeaseExpiresAt, after.LeaseExpiresAt, err)
+	}
+	wrongFence := externalExecutionHandle(lease)
+	wrongFence.FenceToken = strings.Repeat("f", 64)
+	if _, err := runtime.InspectExternalExecution(context.Background(), wrongFence); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("wrong fence inspection error = %v", err)
 	}
 }
 
@@ -188,6 +217,11 @@ func TestExternalExecutionRejectsIncompleteExpectationAndOversizedLogs(t *testin
 	}); !errors.Is(err, taskstore.ErrInvalidInput) {
 		t.Fatalf("oversized log error = %v", err)
 	}
+	if err := runtime.AppendExternalExecutionLogs(context.Background(), moduleapi.ExternalExecutionLogBatch{
+		Handle: externalExecutionHandle(lease), Entries: []moduleapi.TaskLogEntry{{Stream: "system", Level: "error", Line: "connect unix:///var/run/docker.sock"}},
+	}); !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("unapproved provider log error = %v", err)
+	}
 	input := testSubmitInput(1, 1)
 	input.Plan.Stages[0].ExternalExecution = &moduleapi.ExternalExecutionExpectation{RuntimeTargetID: 1}
 	if _, err := runtime.Submit(context.Background(), input); err == nil {
@@ -199,6 +233,53 @@ func TestExternalExecutionRejectsIncompleteExpectationAndOversizedLogs(t *testin
 	if _, err := runtime.Submit(context.Background(), duplicate); err == nil {
 		t.Fatal("duplicate external operation identity was accepted")
 	}
+}
+
+func TestExternalExecutionBindsCapabilityVersionAndResolvesTransientMaterial(t *testing.T) {
+	runtime, _ := newRuntimeForTest(t)
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].RecoveryPolicy = moduleapi.StageRecoveryManualReconcile
+	input.Plan.Stages[0].ExternalExecution = testExternalExecutionExpectation("version-bound")
+	if _, err := runtime.Submit(context.Background(), input); err != nil {
+		t.Fatalf("submit version-bound task: %v", err)
+	}
+	if _, err := runtime.ClaimExternalExecution(context.Background(), moduleapi.ExternalExecutionClaimRequest{
+		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "docker/v2",
+	}); !errors.Is(err, moduleapi.ErrExternalExecutionNotFound) {
+		t.Fatalf("mismatched capability version error = %v", err)
+	}
+
+	runtime, _, lease := claimedExternalExecutionTask(t, 1)
+	resolver := &recordingExternalMaterialResolver{}
+	if err := runtime.RegisterExternalExecutionMaterialResolver(resolver); err != nil {
+		t.Fatalf("register material resolver: %v", err)
+	}
+	material, err := runtime.ResolveExternalExecutionMaterial(context.Background(), externalExecutionHandle(lease))
+	if err != nil {
+		t.Fatalf("resolve material: %v", err)
+	}
+	if material.Protocol != "application-compose-material/v1" || string(material.Payload) != `{"workspace":"transient"}` {
+		t.Fatalf("material = %#v", material)
+	}
+	if resolver.request.TaskID != lease.TaskID || resolver.request.StageID != lease.StageID || resolver.request.Attempt != lease.Attempt {
+		t.Fatalf("resolver request = %#v", resolver.request)
+	}
+	stale := externalExecutionHandle(lease)
+	stale.FenceToken = "stale"
+	if _, err := runtime.ResolveExternalExecutionMaterial(context.Background(), stale); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("stale material error = %v", err)
+	}
+}
+
+type recordingExternalMaterialResolver struct {
+	request moduleapi.ExternalExecutionMaterialRequest
+}
+
+func (*recordingExternalMaterialResolver) Type() moduleapi.StageExecutorType { return "test.executor" }
+
+func (r *recordingExternalMaterialResolver) ResolveExternalExecutionMaterial(_ context.Context, request moduleapi.ExternalExecutionMaterialRequest) (moduleapi.ExternalExecutionMaterial, error) {
+	r.request = request
+	return moduleapi.ExternalExecutionMaterial{Protocol: "application-compose-material/v1", Payload: []byte(`{"workspace":"transient"}`)}, nil
 }
 
 func claimedExternalExecutionTask(t *testing.T, stageCount int) (*Runtime, *taskstore.SQLRepository, moduleapi.ExternalExecutionLease) {
@@ -238,7 +319,7 @@ func submitExternalExecutionForTarget(t *testing.T, runtime *Runtime, runtimeTar
 func claimTestExternalExecution(t *testing.T, runtime *Runtime) moduleapi.ExternalExecutionLease {
 	t.Helper()
 	lease, err := runtime.ClaimExternalExecution(context.Background(), moduleapi.ExternalExecutionClaimRequest{
-		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution",
+		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "docker/v1",
 	})
 	if err != nil {
 		t.Fatalf("claim external execution: %v", err)
@@ -248,7 +329,7 @@ func claimTestExternalExecution(t *testing.T, runtime *Runtime) moduleapi.Extern
 
 func testExternalExecutionExpectation(operationID string) *moduleapi.ExternalExecutionExpectation {
 	return &moduleapi.ExternalExecutionExpectation{
-		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution", Protocol: "runtime-agent/v1",
+		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "docker/v1", Protocol: "runtime-agent/v1",
 		OperationID: operationID, LeaseTTL: time.Minute, AbsoluteDeadline: 10 * time.Minute,
 	}
 }

@@ -19,7 +19,7 @@ func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *test
 	for _, action := range containerLifecycleTaskActions() {
 		t.Run(action, func(t *testing.T) {
 			tasks := &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}}
-			service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, tasks: tasks})
+			service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks})
 			if err != nil {
 				t.Fatalf("new service: %v", err)
 			}
@@ -41,8 +41,9 @@ func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *test
 			if stage.Key != action || stage.ExecutorType != containerLifecycleTaskExecutorType(action) || stage.RetryPolicy.MaxAttempts != 1 || stage.RecoveryPolicy != moduleapi.StageRecoveryManualReconcile {
 				t.Fatalf("unexpected stage plan: %#v", stage)
 			}
+			assertContainerExternalExecution(t, stage, containerLifecycleOperation(action))
 			var input containerLifecycleTaskInput
-			if err := json.Unmarshal(stage.Input, &input); err != nil || input.Ref != "container-1" || input.Force != (action == containerActionRemove) {
+			if err := json.Unmarshal(stage.Input, &input); err != nil || input.ContainerRef != "container-1" || input.Force != (action == containerActionRemove) {
 				t.Fatalf("unexpected frozen stage input %s: %v", stage.Input, err)
 			}
 		})
@@ -54,13 +55,14 @@ func TestSubmitContainerLifecycleActionPublishesAcceptedTaskAudit(t *testing.T) 
 
 	bus, eventsPtr := newAuditCaptureBus(t, 1)
 	service, err := newRouteTestService(containerServiceOptions{
-		runtime:     fakeRuntime{},
-		auditBus:    bus,
-		moduleName:  moduleID,
-		enabled:     true,
-		tasks:       &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}},
-		defaultTail: defaultContainerLogsDefaultTail,
-		maxTail:     defaultContainerLogsMaxTail,
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		tasks:                   &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -122,13 +124,35 @@ func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan, 
 		if stage.Key != fmt.Sprintf("%s-%d", action, index+1) {
 			t.Fatalf("unexpected batch stage key %#v", stage)
 		}
+		assertContainerExternalExecution(t, stage, containerLifecycleOperation(action))
 		var input containerLifecycleTaskInput
 		if err := json.Unmarshal(stage.Input, &input); err != nil {
 			t.Fatalf("decode batch stage input: %v", err)
 		}
-		if input.Ref != expectedRefs[index] {
-			t.Fatalf("expected stage %d to target %q, got %q", index, expectedRefs[index], input.Ref)
+		if input.ContainerRef != expectedRefs[index] {
+			t.Fatalf("expected stage %d to target %q, got %q", index, expectedRefs[index], input.ContainerRef)
 		}
+	}
+}
+
+func assertContainerExternalExecution(t *testing.T, stage moduleapi.StagePlan, operation string) {
+	t.Helper()
+	execution := stage.ExternalExecution
+	if execution == nil || execution.RuntimeTargetID != 1 || execution.ProviderID != containerExecutionProvider ||
+		execution.Capability != containerExecutionCapability || execution.CapabilityVersion != containerExecutionCapabilityVersion ||
+		execution.Protocol != containerExecutionProtocol || execution.OperationID != operation || execution.PayloadSHA256 == "" ||
+		execution.LeaseTTL != containerExecutionLeaseTTL || execution.AbsoluteDeadline <= execution.LeaseTTL {
+		t.Fatalf("unexpected container external execution binding %#v", execution)
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(stage.Input, &envelope); err != nil {
+		t.Fatalf("decode provider-neutral input: %v", err)
+	}
+	if _, exists := envelope["operation"]; exists {
+		t.Fatalf("operation must be owned by ExternalExecution, got %s", stage.Input)
+	}
+	if _, exists := envelope["version"]; exists {
+		t.Fatalf("version must be owned by ExternalExecution, got %s", stage.Input)
 	}
 }
 
@@ -207,7 +231,7 @@ func TestBatchLifecycleActionPublishesPolicyFailureAudit(t *testing.T) {
 
 	bus, eventsPtr := newAuditCaptureBus(t, 1)
 	service, err := newRouteTestService(containerServiceOptions{
-		runtime: &managedActionRuntime{detail: Detail{Summary: Summary{
+		runtime: &countingRuntime{detail: Detail{Summary: Summary{
 			ID: "web", Name: "graft-web", Image: "graft/web:latest", Runtime: runtimeNameDocker,
 			Orchestrator: OrchestratorInfo{Type: containerOrchestratorCompose, Managed: true, GroupScopeKind: composeProjectScopeKind, GroupValue: "graft", MemberScopeKind: composeServiceScopeKind, MemberValue: "web"},
 		}}},
@@ -241,107 +265,6 @@ func TestBatchLifecycleActionPublishesPolicyFailureAudit(t *testing.T) {
 	}
 }
 
-func TestContainerLifecycleTaskExecutorUsesRunAction(t *testing.T) {
-	t.Parallel()
-
-	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
-	if err != nil {
-		t.Fatalf("marshal task input: %v", err)
-	}
-	run := &dockerImagePullStageRun{input: input, stageID: 13}
-	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRestart, cancels: make(map[uint64]context.CancelFunc)}
-	if err := executor.Execute(context.Background(), run); err != nil {
-		t.Fatalf("execute lifecycle task: %v", err)
-	}
-	if len(run.logs) != 1 || run.logs[0].Stream != "system" || run.logs[0].Level != "info" || run.logs[0].Line != "container lifecycle action restart completed" {
-		t.Fatalf("expected sanitized success result log, got %#v", run.logs)
-	}
-}
-
-func TestContainerLifecycleTaskExecutorWritesFailureResultLog(t *testing.T) {
-	t.Parallel()
-
-	actionErr := errors.New("runtime action failed")
-	service, err := newRouteTestService(containerServiceOptions{runtime: failingRuntime{err: actionErr}, enabled: true, dangerousActionsEnabled: true})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
-	if err != nil {
-		t.Fatalf("marshal task input: %v", err)
-	}
-	run := &dockerImagePullStageRun{input: input, stageID: 13}
-	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRemove, cancels: make(map[uint64]context.CancelFunc)}
-	if err := executor.Execute(context.Background(), run); !errors.Is(err, actionErr) {
-		t.Fatalf("expected action failure, got %v", err)
-	}
-	if len(run.logs) != 1 || run.logs[0].Stream != "system" || run.logs[0].Level != "error" || run.logs[0].Line != "container lifecycle action remove failed" {
-		t.Fatalf("expected sanitized failure result log, got %#v", run.logs)
-	}
-}
-
-func TestContainerLifecycleTaskExecutorKeepsSuccessfulActionWhenResultLogFails(t *testing.T) {
-	t.Parallel()
-
-	logErr := errors.New("append log failed")
-	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
-	if err != nil {
-		t.Fatalf("marshal task input: %v", err)
-	}
-	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
-	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRestart, cancels: make(map[uint64]context.CancelFunc)}
-	if err := executor.Execute(context.Background(), run); err != nil {
-		t.Fatalf("successful lifecycle action must not fail when result log append fails: %v", err)
-	}
-}
-
-func TestContainerLifecycleTaskExecutorJoinsActionAndResultLogFailures(t *testing.T) {
-	t.Parallel()
-
-	actionErr := errors.New("runtime action failed")
-	logErr := errors.New("append log failed")
-	service, err := newRouteTestService(containerServiceOptions{runtime: failingRuntime{err: actionErr}, enabled: true, dangerousActionsEnabled: true})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
-	if err != nil {
-		t.Fatalf("marshal task input: %v", err)
-	}
-	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
-	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRemove, cancels: make(map[uint64]context.CancelFunc)}
-	err = executor.Execute(context.Background(), run)
-	if !errors.Is(err, actionErr) || !errors.Is(err, logErr) {
-		t.Fatalf("expected joined action and log failures, got %v", err)
-	}
-}
-
-func TestContainerLifecycleTaskExecutorRetainsDangerousActionPolicy(t *testing.T) {
-	t.Parallel()
-
-	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: false})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
-	if err != nil {
-		t.Fatalf("marshal task input: %v", err)
-	}
-	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionStart, cancels: make(map[uint64]context.CancelFunc)}
-	err = executor.Execute(context.Background(), &dockerImagePullStageRun{input: input, stageID: 13})
-	if !errors.Is(err, errDangerousActionsDisabled) {
-		t.Fatalf("expected existing dangerous action policy error, got %v", err)
-	}
-}
-
 func TestContainerLifecycleTaskOwnerAuthorizerUsesActionPermission(t *testing.T) {
 	t.Parallel()
 
@@ -365,18 +288,6 @@ func TestValidateContainerLifecycleTaskOwnerWrapsMalformedLegacyBatchOwner(t *te
 	if err := validateContainerLifecycleTaskOwner(`[]`, true); err == nil {
 		t.Fatal("expected empty legacy batch owner to stay invalid")
 	}
-}
-
-type lifecycleTaskStageRun struct {
-	dockerImagePullStageRun
-	appendLogErr error
-}
-
-func (r *lifecycleTaskStageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) error {
-	if r.appendLogErr != nil {
-		return r.appendLogErr
-	}
-	return r.dockerImagePullStageRun.AppendLog(ctx, entry)
 }
 
 func assertContainerLifecycleTaskOwnerAuthorization(t *testing.T, action string, batch bool) {

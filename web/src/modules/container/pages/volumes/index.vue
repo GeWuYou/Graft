@@ -662,14 +662,8 @@ async function removeCleanupVolumes(ids: string[]): Promise<CleanupBatchOutcome>
   for (let index = 0; index < ids.length; index += 50) {
     const chunk = ids.slice(index, index + 50);
     try {
-      const response = await batchRemoveDockerVolumes({ names: chunk, force: false });
-      items.push(
-        ...response.items.map((item) => ({
-          id: item.name,
-          success: item.success,
-          error_code: item.error_code ?? undefined,
-        })),
-      );
+      const receipt = await batchRemoveDockerVolumes({ names: chunk, force: false });
+      void receipt.task_id;
     } catch (cause) {
       requestError = cause;
       items.push(...chunk.map((id) => ({ id, success: false, error_code: 'UNKNOWN' })));
@@ -679,19 +673,11 @@ async function removeCleanupVolumes(ids: string[]): Promise<CleanupBatchOutcome>
   return { items, unknownResponseIds: [], requestError };
 }
 async function handleCleanupOutcome(outcome: CleanupBatchOutcome) {
-  const successCount = outcome.items.filter((item) => item.success).length;
-  const failedCount = outcome.items.length - successCount;
   if (outcome.requestError) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, outcome.requestError, t('container.volume.cleanup.failed')));
-  } else if (!failedCount) {
-    MessagePlugin.success(t('container.volume.cleanup.success', { count: successCount }));
-    cleanup.visible.value = false;
-  } else if (successCount) {
-    MessagePlugin.warning(t('container.volume.cleanup.partial', { success: successCount, failed: failedCount }));
   } else {
-    MessagePlugin.error(t('container.volume.cleanup.failed'));
+    cleanup.visible.value = false;
   }
-  await refresh();
 }
 function clearSelection() {
   selectedRowKeys.value = [];
@@ -720,13 +706,8 @@ function handleBatchRemove() {
     t,
     onConfirm: async (force) => {
       try {
-        const response = await batchRemoveDockerVolumes({ names: selectedRowKeys.value, force });
-        const successful = response.items.filter((item) => item.success).map((item) => item.name);
-        const failed = response.items.length - successful.length;
-        selectedRowKeys.value = selectedRowKeys.value.filter((name) => !successful.includes(name));
-        if (!failed) MessagePlugin.success(t('container.volume.batch.success', { count: successful.length }));
-        else MessagePlugin.warning(t('container.volume.batch.partial', { success: successful.length, failed }));
-        await refresh();
+        const receipt = await batchRemoveDockerVolumes({ names: selectedRowKeys.value, force });
+        void receipt.task_id;
         return true;
       } catch (cause) {
         MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.batch.failed')));
@@ -786,10 +767,9 @@ function confirmRemove(row: VolumeRow) {
     t,
     onConfirm: async (force) => {
       try {
-        await removeDockerVolume(row.name, { force });
-        MessagePlugin.success(t('container.volume.actions.removeSuccess'));
+        const receipt = await removeDockerVolume(row.name, { force });
+        void receipt.task_id;
         detailDrawerVisible.value = false;
-        await refresh();
         return true;
       } catch (cause) {
         MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.actions.removeFailed')));

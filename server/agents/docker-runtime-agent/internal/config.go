@@ -16,14 +16,15 @@ import (
 var agentIDPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?$`)
 
 const (
-	defaultConfigPath     = "/etc/graft/config/agent.json"
-	configPathEnvironment = "GRAFT_DOCKER_RUNTIME_AGENT_CONFIG_FILE"
-	defaultStateDir       = "/var/lib/graft-runtime-agent/state"
-	version               = "0.1.0"
-	defaultProviderID     = "docker"
-	defaultCapability     = "oci-build"
-	defaultPollInterval   = 2 * time.Second
-	defaultRenewBefore    = 15 * time.Second
+	defaultConfigPath        = "/etc/graft/config/agent.json"
+	configPathEnvironment    = "GRAFT_DOCKER_RUNTIME_AGENT_CONFIG_FILE"
+	defaultStateDir          = "/var/lib/graft-runtime-agent/state"
+	defaultDockerSocket      = "unix:///var/run/docker.sock"
+	version                  = "0.1.0"
+	defaultProviderID        = "docker"
+	defaultCapabilityVersion = "docker/v1"
+	defaultPollInterval      = 2 * time.Second
+	defaultRenewBefore       = 15 * time.Second
 )
 
 type config struct {
@@ -77,11 +78,14 @@ func (c *config) applyDefaultsAndValidate() error {
 	if c.ProviderID == "" {
 		c.ProviderID = defaultProviderID
 	}
+	if c.DockerSocket == "" {
+		c.DockerSocket = defaultDockerSocket
+	}
 	if len(c.Capabilities) == 0 {
-		c.Capabilities = []string{defaultCapability}
+		c.Capabilities = []string{"oci-build", "compose_execution", "container_execution"}
 	}
 	if c.CapabilityVersion == "" {
-		c.CapabilityVersion = "runtime/v1"
+		c.CapabilityVersion = defaultCapabilityVersion
 	}
 	if c.PollInterval <= 0 {
 		c.PollInterval = defaultPollInterval

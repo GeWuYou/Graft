@@ -36,6 +36,7 @@ type AgentTrustIdentity struct {
 // 执行准入只读取该事实，不再从实验期单 profile 字段推导能力。
 type AgentCapabilityBinding struct {
 	IdentityID        int64
+	GenerationID      int64
 	ProviderID        string
 	Capabilities      []string
 	CapabilityVersion string
@@ -76,9 +77,6 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 		if err != nil {
 			return err
 		}
-		if err := r.UpsertAgentCapabilityBinding(txCtx, AgentCapabilityBinding{IdentityID: identityID, ProviderID: identity.ProviderID, Capabilities: identity.Capabilities, CapabilityVersion: identity.RuntimeProtocol}); err != nil {
-			return err
-		}
 		var nextGeneration int64
 		if err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT COALESCE(MAX(generation), 0) + 1 FROM runtime_target_agent_generations WHERE identity_id = $1`, identityID).Scan(&nextGeneration); err != nil {
 			return fmt.Errorf("allocate runtime target agent trust generation: %w", err)
@@ -91,11 +89,16 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 				return fmt.Errorf("retire active runtime target agent trust generation before rotation: %w", err)
 			}
 		}
-		_, err = r.executor(txCtx).ExecContext(txCtx, `INSERT INTO runtime_target_agent_generations (identity_id, generation, enrollment_ref, trust_bundle_ref, trust_bundle_version, expires_at, status) VALUES ($1,$2,$3,$4,$5,$6,'pending')`, identityID, generation.Generation, generation.EnrollmentRef, generation.TrustBundleRef, generation.TrustBundleVersion, generation.ExpiresAt.UTC())
+		var generationID int64
+		err = r.executor(txCtx).QueryRowContext(txCtx, `INSERT INTO runtime_target_agent_generations (identity_id, generation, enrollment_ref, trust_bundle_ref, trust_bundle_version, expires_at, status) VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING id`, identityID, generation.Generation, generation.EnrollmentRef, generation.TrustBundleRef, generation.TrustBundleVersion, generation.ExpiresAt.UTC()).Scan(&generationID)
 		if err != nil {
 			return fmt.Errorf("create runtime target agent trust generation: %w", err)
 		}
+		if err := r.UpsertAgentCapabilityBinding(txCtx, AgentCapabilityBinding{IdentityID: identityID, GenerationID: generationID, ProviderID: identity.ProviderID, Capabilities: identity.Capabilities, CapabilityVersion: identity.CapabilityVersion}); err != nil {
+			return err
+		}
 		result = generation
+		result.ID = generationID
 		result.Identity = identity
 		result.Status = "pending"
 		return nil
@@ -103,20 +106,20 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 	return result, err
 }
 
-// UpsertAgentCapabilityBinding 在身份登记事务中建立唯一的 capability binding。
-// 同一身份的后续世代只能重申完全相同的 provider、能力集合和协议版本。
+// UpsertAgentCapabilityBinding 在身份登记事务中建立不可改写的世代级 capability binding。
+// 能力扩容只能随新世代写入，旧证书关联的世代事实不会被原地授予新能力。
 //
 //nolint:cyclop // 写入前校验、JSON 编码和冲突行数共同保证 binding 不被静默改写。
 func (r *SQLRepository) UpsertAgentCapabilityBinding(ctx context.Context, binding AgentCapabilityBinding) error {
 	capabilities, err := normalizeAgentCapabilities(binding.Capabilities)
-	if r == nil || r.db == nil || binding.IdentityID < 1 || strings.TrimSpace(binding.ProviderID) == "" || strings.TrimSpace(binding.CapabilityVersion) == "" || err != nil {
+	if r == nil || r.db == nil || binding.IdentityID < 1 || binding.GenerationID < 1 || strings.TrimSpace(binding.ProviderID) == "" || strings.TrimSpace(binding.CapabilityVersion) == "" || err != nil {
 		return ErrAgentTrustNotActive
 	}
 	payload, err := json.Marshal(capabilities)
 	if err != nil {
 		return fmt.Errorf("encode runtime target agent capability binding: %w", err)
 	}
-	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_agent_capability_bindings (identity_id, provider_id, capabilities, capability_version) VALUES ($1,$2,$3,$4) ON CONFLICT (identity_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP WHERE runtime_target_agent_capability_bindings.provider_id = excluded.provider_id AND runtime_target_agent_capability_bindings.capabilities = excluded.capabilities AND runtime_target_agent_capability_bindings.capability_version = excluded.capability_version AND runtime_target_agent_capability_bindings.deleted_at = 0`, binding.IdentityID, strings.TrimSpace(binding.ProviderID), string(payload), strings.TrimSpace(binding.CapabilityVersion))
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_agent_capability_bindings (identity_id, generation_id, provider_id, capabilities, capability_version) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (generation_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP WHERE runtime_target_agent_capability_bindings.identity_id = excluded.identity_id AND runtime_target_agent_capability_bindings.provider_id = excluded.provider_id AND runtime_target_agent_capability_bindings.capabilities = excluded.capabilities AND runtime_target_agent_capability_bindings.capability_version = excluded.capability_version AND runtime_target_agent_capability_bindings.deleted_at = 0`, binding.IdentityID, binding.GenerationID, strings.TrimSpace(binding.ProviderID), string(payload), strings.TrimSpace(binding.CapabilityVersion))
 	if err != nil {
 		return fmt.Errorf("write runtime target agent capability binding: %w", err)
 	}
@@ -130,14 +133,14 @@ func (r *SQLRepository) UpsertAgentCapabilityBinding(ctx context.Context, bindin
 	return nil
 }
 
-// ReadAgentCapabilityBinding 读取 execution admission 使用的显式能力集合。
-func (r *SQLRepository) ReadAgentCapabilityBinding(ctx context.Context, identityID int64) (AgentCapabilityBinding, error) {
-	if r == nil || r.db == nil || identityID < 1 {
+// ReadAgentCapabilityBinding 读取 execution admission 使用的精确世代能力集合。
+func (r *SQLRepository) ReadAgentCapabilityBinding(ctx context.Context, generationID int64) (AgentCapabilityBinding, error) {
+	if r == nil || r.db == nil || generationID < 1 {
 		return AgentCapabilityBinding{}, ErrAgentTrustNotFound
 	}
 	var binding AgentCapabilityBinding
 	var payload []byte
-	err := r.executor(ctx).QueryRowContext(ctx, `SELECT identity_id, provider_id, capabilities, capability_version FROM runtime_target_agent_capability_bindings WHERE identity_id = $1 AND deleted_at = 0`, identityID).Scan(&binding.IdentityID, &binding.ProviderID, &payload, &binding.CapabilityVersion)
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT identity_id, generation_id, provider_id, capabilities, capability_version FROM runtime_target_agent_capability_bindings WHERE generation_id = $1 AND deleted_at = 0`, generationID).Scan(&binding.IdentityID, &binding.GenerationID, &binding.ProviderID, &payload, &binding.CapabilityVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AgentCapabilityBinding{}, ErrAgentTrustNotFound
 	}

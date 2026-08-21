@@ -3,9 +3,7 @@ package container
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -15,7 +13,7 @@ import (
 	containercontract "graft/server/modules/container/contract"
 )
 
-func (s *service) publishActionAudit(ctx context.Context, result ActionResult, options ActionOptions, err error) {
+func (s *service) publishActionAudit(ctx context.Context, result actionAuditSnapshot, options ActionOptions, err error) {
 	detached := startDetachedAuditContext(ctx, s)
 	if !detached.ok {
 		return
@@ -29,7 +27,6 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		"image":          result.Image,
 		"action":         action,
 		"runtime":        firstNonEmpty(result.Runtime, runtimeNameDocker),
-		"endpoint":       safeEndpointLabel(s.runtimeOptions.endpoint),
 		"force":          options.Force,
 		"result":         auditResult(err),
 		"error":          messageKey,
@@ -75,7 +72,6 @@ func (s *service) publishLifecycleTaskSubmissionAudit(ctx context.Context, ref R
 		"container_id":    ref.Value,
 		"action":          auditAction,
 		"runtime":         runtimeNameDocker,
-		"endpoint":        safeEndpointLabel(s.runtimeOptions.endpoint),
 		"force":           options.Force,
 		"submission":      auditResult(err),
 		"task_id":         receipt.TaskID,
@@ -110,7 +106,6 @@ func (s *service) publishDockerImageAudit(ctx context.Context, action containerc
 		"image_id": imageID,
 		"target":   target,
 		"runtime":  runtimeNameDocker,
-		"endpoint": safeEndpointLabel(s.runtimeOptions.endpoint),
 		"force":    force,
 		"result":   auditResult(err),
 		"error":    messageKey,
@@ -133,51 +128,10 @@ func (s *service) publishDockerImageAudit(ctx context.Context, action containerc
 	}, "publish docker image audit event failed")
 }
 
-func (s *service) publishDockerImageBatchAudit(ctx context.Context, result DockerImageBatchRemoveResult, force bool) {
-	s.publishDockerImageBatchAuditWithStatus(ctx, result, force, batchDockerImageAuditStatus(result))
-}
-
-func (s *service) publishDockerImageBatchAuditWithStatus(ctx context.Context, result DockerImageBatchRemoveResult, force bool, statusCode int) {
-	detached := startDetachedAuditContext(ctx, s)
-	if !detached.ok {
-		return
-	}
-	defer detached.cancel()
-	metadata := map[string]any{"batch": true, "requested_total": result.Total, "success_count": result.SuccessCount, "failed_count": result.FailedCount, "force": force, "items": dockerImageBatchAuditItems(result.Items)}
-	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, result.RequestID)
-	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.DockerImageAuditActionBatchRemove.String(), ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_image_remove", detached.now)), ResourceName: "docker_image_remove x" + strconv.Itoa(result.Total), StatusCode: statusCode, Success: result.FailedCount == 0, Metadata: metadata}, "publish docker image batch audit event failed")
-}
-
-func dockerImageBatchAuditItems(items []DockerImageBatchRemoveItem) []map[string]any {
-	auditItems := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		auditItems = append(auditItems, map[string]any{
-			"id":          item.ID,
-			"success":     item.Success,
-			"error_code":  item.ErrorCode,
-			"message_key": item.MessageKey,
-		})
-	}
-	return auditItems
-}
-
-func batchDockerImageAuditStatus(result DockerImageBatchRemoveResult) int {
-	if result.FailedCount > 0 {
-		return http.StatusConflict
-	}
-	return http.StatusOK
-}
-
 type detachedAuditRuntime struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	ok     bool
-	now    time.Time
-}
-
-// batchAuditResourceID 在请求没有关联 ID 时生成可追溯的批量审计资源标识。
-func batchAuditResourceID(action string, now time.Time) string {
-	return "batch:" + strings.TrimSpace(action) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 
 // startDetachedAuditContext 创建用于审计发布的独立上下文。
@@ -191,7 +145,6 @@ func startDetachedAuditContext(ctx context.Context, s *service) detachedAuditRun
 		ctx:    auditCtx,
 		cancel: cancel,
 		ok:     true,
-		now:    time.Now().UTC(),
 	}
 }
 
@@ -295,17 +248,6 @@ func (s *service) publishDockerVolumeAudit(ctx context.Context, volume DockerVol
 	}
 	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
 	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.ContainerAuditActionVolumeRemove.String(), ResourceType: "docker_volume", ResourceID: volume.Name, ResourceName: volume.Name, StatusCode: auditStatusCode(err), Success: err == nil, MessageKey: messageKey, Message: message, Metadata: metadata}, "publish Docker volume audit event failed")
-}
-
-func (s *service) publishDockerVolumeBatchAudit(ctx context.Context, result DockerVolumeBatchRemoveResult, force bool) {
-	detached := startDetachedAuditContext(ctx, s)
-	if !detached.ok {
-		return
-	}
-	defer detached.cancel()
-	metadata := map[string]any{"runtime": runtimeNameDocker, "force": force, "total": result.Total, "success_count": result.SuccessCount, "failed_count": result.FailedCount, "items": result.Items}
-	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
-	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.ContainerAuditActionVolumeBatchRemove.String(), ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_volume_remove", detached.now)), ResourceName: "docker_volume_remove", StatusCode: http.StatusOK, Success: result.FailedCount == 0, Metadata: metadata}, "publish Docker volume batch audit event failed")
 }
 
 func detachedAuditContext(ctx context.Context) (context.Context, context.CancelFunc) {

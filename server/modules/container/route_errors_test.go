@@ -18,9 +18,6 @@ func TestStatusForErrorClassifiesRuntimeFailures(t *testing.T) {
 		{name: "permission denied", err: errRuntimePermissionDenied, want: http.StatusForbidden},
 		{name: "daemon unavailable", err: errRuntimeDaemonUnavailable, want: http.StatusServiceUnavailable},
 		{name: "timeout", err: errContainerRuntimeTimeout, want: http.StatusServiceUnavailable},
-		{name: "image runtime unavailable", err: errDockerImageRuntimeUnavailable, want: http.StatusServiceUnavailable},
-		{name: "image communication", err: errDockerImageCommunication, want: http.StatusServiceUnavailable},
-		{name: "image timeout", err: errDockerImageTimeout, want: http.StatusServiceUnavailable},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

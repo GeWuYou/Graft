@@ -1,0 +1,8 @@
+name: Idempotency-Key
+in: header
+required: true
+description: Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128

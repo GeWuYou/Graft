@@ -99,21 +99,6 @@ func (c *resourceStatsCache) current(key string) ResourceSummary {
 	return unavailableResourceSummary(containerStatsNotCollectedReason)
 }
 
-func (c *resourceStatsCache) invalidate(keys ...string) {
-	if c == nil {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, key := range keys {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
-		}
-		delete(c.items, key)
-	}
-}
-
 // resourceStatsFreshHit 判断缓存条目是否仍处于新鲜期并可直接返回。
 // 当条目存在且当前时间早于 freshUntil 时，返回缓存的 ResourceSummary。
 func resourceStatsFreshHit(entry resourceStatsCacheEntry, ok bool, now time.Time) (ResourceSummary, bool) {

@@ -26,18 +26,19 @@ import (
 const submissionSecretByteLength = 32
 
 const (
-	defaultWorkerCount           = 2
-	defaultPollInterval          = 250 * time.Millisecond
-	defaultSubmissionExpiryPoll  = 30 * time.Second
-	defaultSubmissionExpiryBatch = 100
-	errorCodeExecutor            = "stage_executor_failed"
-	errorCodeCancelled           = "cancelled"
-	errorCodeMissingExec         = "stage_executor_unavailable"
-	externalReceiptSHA256Length  = 64
-	externalProviderIDMaxLength  = 64
-	externalCapabilityMaxLength  = 64
-	externalProtocolMaxLength    = 128
-	externalOperationIDMaxLength = 256
+	defaultWorkerCount                 = 2
+	defaultPollInterval                = 250 * time.Millisecond
+	defaultSubmissionExpiryPoll        = 30 * time.Second
+	defaultSubmissionExpiryBatch       = 100
+	errorCodeExecutor                  = "stage_executor_failed"
+	errorCodeCancelled                 = "cancelled"
+	errorCodeMissingExec               = "stage_executor_unavailable"
+	externalReceiptSHA256Length        = 64
+	externalProviderIDMaxLength        = 64
+	externalCapabilityMaxLength        = 64
+	externalCapabilityVersionMaxLength = 128
+	externalProtocolMaxLength          = 128
+	externalOperationIDMaxLength       = 256
 )
 
 // Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
@@ -46,18 +47,19 @@ type Runtime struct {
 	workers    int
 	pollEvery  time.Duration
 
-	mu              sync.RWMutex
-	eventMu         sync.Mutex
-	executors       map[moduleapi.StageExecutorType]moduleapi.StageExecutor
-	authorizers     map[string]moduleapi.TaskOwnerAuthorizer
-	running         map[uint64]runningStage
-	cancel          context.CancelFunc
-	wake            chan struct{}
-	waitGroup       sync.WaitGroup
-	realtimeTickets realtimeauth.Service
-	realtimeHub     realtime.Hub
-	topicIssuers    realtime.TopicIssuerRegistry
-	logger          logger.AppLogger
+	mu                sync.RWMutex
+	eventMu           sync.Mutex
+	executors         map[moduleapi.StageExecutorType]moduleapi.StageExecutor
+	materialResolvers map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver
+	authorizers       map[string]moduleapi.TaskOwnerAuthorizer
+	running           map[uint64]runningStage
+	cancel            context.CancelFunc
+	wake              chan struct{}
+	waitGroup         sync.WaitGroup
+	realtimeTickets   realtimeauth.Service
+	realtimeHub       realtime.Hub
+	topicIssuers      realtime.TopicIssuerRegistry
+	logger            logger.AppLogger
 }
 
 var _ moduleapi.CoordinatedTaskService = (*Runtime)(nil)
@@ -71,14 +73,15 @@ type runningStage struct {
 // NewRuntime 创建任务运行时，并初始化执行器、owner 授权器和 worker 唤醒通道。
 func NewRuntime(repository taskstore.Repository) *Runtime {
 	return &Runtime{
-		repository:  repository,
-		workers:     defaultWorkerCount,
-		pollEvery:   defaultPollInterval,
-		executors:   make(map[moduleapi.StageExecutorType]moduleapi.StageExecutor),
-		authorizers: make(map[string]moduleapi.TaskOwnerAuthorizer),
-		running:     make(map[uint64]runningStage),
-		wake:        make(chan struct{}, 1),
-		logger:      logger.NewAppLogger(nil),
+		repository:        repository,
+		workers:           defaultWorkerCount,
+		pollEvery:         defaultPollInterval,
+		executors:         make(map[moduleapi.StageExecutorType]moduleapi.StageExecutor),
+		materialResolvers: make(map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver),
+		authorizers:       make(map[string]moduleapi.TaskOwnerAuthorizer),
+		running:           make(map[uint64]runningStage),
+		wake:              make(chan struct{}, 1),
+		logger:            logger.NewAppLogger(nil),
 	}
 }
 
@@ -103,6 +106,20 @@ func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error 
 		return fmt.Errorf("task stage executor %q is already registered", executor.Type())
 	}
 	r.executors[executor.Type()] = executor
+	return nil
+}
+
+// RegisterExternalExecutionMaterialResolver 注册领域拥有的瞬时执行材料解析器。
+func (r *Runtime) RegisterExternalExecutionMaterialResolver(resolver moduleapi.ExternalExecutionMaterialResolver) error {
+	if r == nil || resolver == nil || resolver.Type() == "" {
+		return errors.New("external execution material resolver is required")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.materialResolvers[resolver.Type()]; exists {
+		return fmt.Errorf("external execution material resolver %q is already registered", resolver.Type())
+	}
+	r.materialResolvers[resolver.Type()] = resolver
 	return nil
 }
 
@@ -1345,7 +1362,8 @@ func externalExecutionExpectationValid(expectation *moduleapi.ExternalExecutionE
 
 func externalExecutionIdentityValid(expectation *moduleapi.ExternalExecutionExpectation) bool {
 	return expectation.RuntimeTargetID > 0 && boundedNonBlank(expectation.ProviderID, externalProviderIDMaxLength) &&
-		boundedNonBlank(expectation.Capability, externalCapabilityMaxLength) && boundedNonBlank(expectation.Protocol, externalProtocolMaxLength) &&
+		boundedNonBlank(expectation.Capability, externalCapabilityMaxLength) && boundedNonBlank(expectation.CapabilityVersion, externalCapabilityVersionMaxLength) &&
+		boundedNonBlank(expectation.Protocol, externalProtocolMaxLength) &&
 		boundedNonBlank(expectation.OperationID, externalOperationIDMaxLength) && lowercaseSHA256(expectation.PayloadSHA256)
 }
 

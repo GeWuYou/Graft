@@ -24,12 +24,17 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
    compatibility alias period. The Agent is the only always-on process that mounts `docker.sock`.
 2. The server depends on provider-neutral Application, Container, Build and Update contracts. It neither installs Docker
    CLI nor mounts `docker.sock` in the target topology.
-3. Task Runtime owns external execution leases, Stage state, bounded logs, cancellation observation, receipt settlement,
-   expiry and recovery. The Agent pulls leases through the existing certificate-authenticated listener and never accepts
-   server push or owns a queue, retry policy, Task status or business database.
+3. Task Runtime owns external execution leases, Stage state, bounded fixed logs, cancellation observation, receipt settlement,
+   expiry and recovery. External logs are an allowlisted progress vocabulary, and receipt failures are stable typed codes;
+   neither boundary accepts provider stderr or diagnostic text. The Agent pulls leases through the existing
+   certificate-authenticated listener and never accepts server push or owns a queue, retry policy, Task status or business database.
 4. A lease is bound to task, stage, attempt, Runtime Target, provider, capability, operation, payload digest, fencing
-   token and expiry. The frozen Stage plan contains no argv, Docker endpoint, certificate path, host credential or SDK
-   type. Secrets are delivered through a separate operation-scoped credential boundary.
+   token and expiry. Capability version is part of the frozen Stage expectation, claim admission and Agent-visible lease;
+   changing an Agent generation cannot let a differently versioned capability claim older work. The frozen Stage plan
+   contains no argv, Docker endpoint, certificate path, host credential, host path or SDK type. When Application execution
+   needs an existing workspace, the Agent may fetch lease/fence-bound transient execution material after claim. The
+   Application owner resolves that material in memory, Task Runtime never persists or logs it, and the Agent journal
+   excludes it. Secrets continue to use a separate operation-scoped credential boundary.
 5. A successful receipt for a non-final Stage atomically settles that Stage and makes the next Stage eligible. A failed
    receipt settles the Task as failed. An uncertain receipt or an expired running lease settles the Stage as `unknown`
    and the Task as `needs_attention`. Task Runtime never automatically replays an external Docker side effect whose
@@ -41,8 +46,14 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
    Task-owned lease. During that operation only, the Controller may also mount `docker.sock`; it updates server/web,
    verifies the new server, replaces the Agent last, verifies the new Agent mTLS/capability readiness and writes the
    terminal durable update fact.
-8. Agent pull remains the sole work feed. A later transport-only, Agent-initiated interactive channel for Container
-   logs/exec may be designed separately; it cannot claim leases, settle Tasks or become a streaming work queue.
+8. Agent pull remains the sole work feed. External execution leases are limited to finite Application and Container
+   side effects. Container list/detail snapshots, stats, runtime events, logs and exec are not disguised as long-running
+   Tasks or encoded into Task logs/receipts. Their later transport-only, Agent-initiated snapshot/interactive channel is
+   designed separately; it cannot claim leases, settle Tasks or become a streaming work queue.
+9. Agent recovery preserves the same fenced attempt. Before a side effect starts, the Agent journals the lease locally;
+   after the provider returns, it journals the normalized terminal receipt before transmission. Reconnect may renew work
+   that provably has not started or replay the exact terminal receipt. If a restart interrupts an unproven side effect,
+   the Agent must not execute it again and instead leaves the Task to `needs_attention` reconciliation.
 
 ## Authority Boundaries
 
@@ -52,6 +63,7 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
 | Agent identity, generation, target binding, mTLS authentication and capability projection | Runtime Target |
 | Application lifecycle intent and immutable operation snapshot | Application/Project module |
 | Container resource semantics and authorization | Container module |
+| Application and Container stable failure-code interpretation | owning Application or Container module |
 | Build plan, placement, reservation, artifact and publication | Build module |
 | Provider SDK translation and Docker side effects | Docker Runtime Agent provider adapters |
 | Update durable state, fencing and survival across server/Agent replacement | short-lived Update Controller |
@@ -65,6 +77,9 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
   CLI, Compose and buildx packages and keeps privileged dependencies out of server.
 - Existing CLI-backed non-terminal work must be drained or explicitly cancelled before the final cutover. There is no
   silent fallback to server-local Docker execution.
+- The Application/Container migration removes only their finite server-local side-effect paths. Server-local Build,
+  Update and the still-unmigrated Container snapshot/interactive paths keep the socket temporarily; later batches must
+  remove those remaining consumers before the deployment may claim the server no longer mounts `docker.sock`.
 - ADR-006 and ADR-009 continue to govern Compose-root trust, durable update state, fencing and the need for an executor
   that survives server recreation. ADR-026 changes the launcher and SDK boundary, not those recovery invariants.
 

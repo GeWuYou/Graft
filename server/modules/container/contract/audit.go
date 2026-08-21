@@ -19,8 +19,6 @@ const (
 	ContainerAuditActionRemove AuditAction = "ops.container.action.remove"
 	// ContainerAuditActionVolumeRemove 表示 Docker 数据卷删除审计。
 	ContainerAuditActionVolumeRemove AuditAction = "ops.container.volume.remove"
-	// ContainerAuditActionVolumeBatchRemove 表示 Docker 数据卷批量删除汇总审计。
-	ContainerAuditActionVolumeBatchRemove AuditAction = "ops.container.volume.remove.batch"
 	// DockerImageAuditActionPull 表示 Docker 镜像拉取审计。
 	DockerImageAuditActionPull AuditAction = "ops.container.image.pull"
 	// DockerImageAuditActionTag 表示 Docker 镜像标签审计。
@@ -29,8 +27,6 @@ const (
 	DockerImageAuditActionUntag AuditAction = "ops.container.image.untag"
 	// DockerImageAuditActionRemove 表示 Docker 镜像删除审计。
 	DockerImageAuditActionRemove AuditAction = "ops.container.image.remove"
-	// DockerImageAuditActionBatchRemove 表示 Docker 镜像批量删除汇总审计。
-	DockerImageAuditActionBatchRemove AuditAction = "ops.container.image.remove.batch"
 	// ContainerAuditActionShellSessionRequested 表示 Shell 会话请求审计。
 	ContainerAuditActionShellSessionRequested AuditAction = "ops.container.shell.session.requested"
 	// ContainerAuditActionShellTicketIssued 表示 Shell 票据签发审计。

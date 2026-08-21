@@ -371,10 +371,6 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		return LifecycleConfig{}, err
 	}
 	config.ManagedServiceNames = managedServiceNames
-	config, err = normalizeLifecycleArgv(config)
-	if err != nil {
-		return LifecycleConfig{}, err
-	}
 	if config.WaitTimeoutSeconds == 0 {
 		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
 	}
@@ -383,45 +379,6 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	}
 	return config, nil
 }
-
-func normalizeLifecycleArgv(config LifecycleConfig) (LifecycleConfig, error) {
-	var err error
-	config.AdditionalArgs, err = normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
-	if err != nil {
-		return LifecycleConfig{}, err
-	}
-	config.StopArgs, err = normalizeLifecycleActionArgs("stop", config.StopArgs)
-	if err != nil {
-		return LifecycleConfig{}, err
-	}
-	config.RestartArgs, err = normalizeLifecycleActionArgs("restart", config.RestartArgs)
-	if err != nil {
-		return LifecycleConfig{}, err
-	}
-	config.PullArgs, err = normalizeLifecycleActionArgs("pull", config.PullArgs)
-	if err != nil {
-		return LifecycleConfig{}, err
-	}
-	return config, nil
-}
-
-// normalizeLifecycleAdditionalArgs 裁剪并校验生命周期配置参数；数量、长度或内容违反约束时返回 ErrInvalidInput。
-func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
-	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
-	if !valid {
-		return nil, ErrInvalidInput
-	}
-	return normalized, nil
-}
-
-func normalizeLifecycleActionArgs(action string, values []string) ([]string, error) {
-	normalized, valid := projectcontract.NormalizeLifecycleActionArgs(action, values)
-	if !valid {
-		return nil, ErrInvalidInput
-	}
-	return normalized, nil
-}
-
 func normalizeLifecycleStringSet(values []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(values))
 	result := make([]string, 0, len(values))
@@ -818,10 +775,6 @@ type lifecycleConfigPayload struct {
 	WaitTimeoutSeconds       *int      `json:"wait_timeout_seconds"`
 	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
-	AdditionalArgs           *[]string `json:"additional_args"`
-	StopArgs                 *[]string `json:"stop_args"`
-	RestartArgs              *[]string `json:"restart_args"`
-	PullArgs                 *[]string `json:"pull_args"`
 }
 
 // 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
@@ -834,7 +787,7 @@ func unmarshalLifecycleConfigPayload(raw []byte) (lifecycleConfigPayload, error)
 }
 
 func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error) {
-	payload.applyLegacyDefaults()
+	payload.applyDefaults()
 	if err := payload.validateRequiredFields(); err != nil {
 		return LifecycleConfig{}, err
 	}
@@ -850,15 +803,11 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 		WaitTimeoutSeconds:       *payload.WaitTimeoutSeconds,
 		RenewAnonVolumes:         *payload.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
-		AdditionalArgs:           append([]string(nil), (*payload.AdditionalArgs)...),
-		StopArgs:                 append([]string(nil), (*payload.StopArgs)...),
-		RestartArgs:              append([]string(nil), (*payload.RestartArgs)...),
-		PullArgs:                 append([]string(nil), (*payload.PullArgs)...),
 	}, nil
 }
 
-// applyLegacyDefaults 为生命周期配置支持前写入的历史记录补齐读取默认值。
-func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
+// applyDefaults 为缺省的 provider-neutral 生命周期策略补齐确定性默认值。
+func (payload *lifecycleConfigPayload) applyDefaults() {
 	payload.Profiles = lifecycleSliceOrDefault(payload.Profiles, []string{})
 	payload.ManagedServiceNames = lifecycleSliceOrDefault(payload.ManagedServiceNames, []string{})
 	payload.DownBeforeRedeploy = lifecycleBoolOrDefault(payload.DownBeforeRedeploy, false)
@@ -870,10 +819,6 @@ func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.WaitTimeoutSeconds = lifecycleIntOrDefault(payload.WaitTimeoutSeconds, defaultLifecycleWaitTimeoutSeconds)
 	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
 	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
-	payload.AdditionalArgs = lifecycleSliceOrDefault(payload.AdditionalArgs, []string{})
-	payload.StopArgs = lifecycleSliceOrDefault(payload.StopArgs, []string{})
-	payload.RestartArgs = lifecycleSliceOrDefault(payload.RestartArgs, []string{})
-	payload.PullArgs = lifecycleSliceOrDefault(payload.PullArgs, []string{})
 }
 
 // lifecycleSliceOrDefault 返回 value 指向的切片；当 value 为 nil 时返回 fallback 的地址。
@@ -911,10 +856,6 @@ func (payload lifecycleConfigPayload) validateRequiredFields() error {
 		payload.WaitTimeoutSeconds != nil,
 		payload.RenewAnonVolumes != nil,
 		payload.PruneImagesAfterRedeploy != nil,
-		payload.AdditionalArgs != nil,
-		payload.StopArgs != nil,
-		payload.RestartArgs != nil,
-		payload.PullArgs != nil,
 	}
 	for _, present := range required {
 		if !present {

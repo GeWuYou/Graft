@@ -1970,13 +1970,13 @@ async function executeBatchAction(
       remove_named_volumes: overrides.remove_named_volumes ?? false,
     });
     if (pendingAction) {
-      const completedRowIds = response.items
-        .filter((item) => !item.skipped && item.result === 'completed')
+      const acceptedRowIds = response.items
+        .filter((item) => !item.skipped && (item.result === 'accepted' || item.result === 'completed'))
         .map((item) => String(item.application_id));
       const blockedRowIds = response.items
-        .filter((item) => item.skipped || item.result !== 'completed')
+        .filter((item) => item.skipped || (item.result !== 'accepted' && item.result !== 'completed'))
         .map((item) => String(item.application_id));
-      markPendingRowActionsAwaitingChange(completedRowIds);
+      markPendingRowActionsAwaitingChange(acceptedRowIds);
       clearPendingRowActions(blockedRowIds);
     }
     handleBatchActionResult(action, response);
@@ -1994,7 +1994,7 @@ async function executeBatchAction(
 
 function batchFailureSummary(items: ApplicationBatchActionItem[]) {
   return items
-    .filter((item) => !item.skipped && item.result !== 'completed')
+    .filter((item) => !item.skipped && item.result !== 'accepted' && item.result !== 'completed')
     .map((item) => `${item.application_id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
     .join('\n');
 }
@@ -2004,7 +2004,8 @@ function batchActionLocaleSegment(action: ApplicationBatchActionUi) {
 }
 
 function handleBatchActionResult(action: ApplicationBatchActionUi, response: ApplicationBatchActionResponse) {
-  const successCount = response.completed_count;
+  const successCount =
+    response.completed_count + response.items.filter((item) => !item.skipped && item.result === 'accepted').length;
   const skippedCount = response.skipped_count;
   const title = t(`project.list.batch.${batchActionLocaleSegment(action)}ResultTitle`);
   const dialogTheme = 'warning' as const;

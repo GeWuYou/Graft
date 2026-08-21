@@ -9,56 +9,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
-	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
-
-func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
-	t.Parallel()
-
-	aggregate := projectstore.ApplicationAggregate{
-		Application: projectstore.Application{
-			ApplicationRecordID:   1,
-			WorkspacePath:         "/srv/demo",
-			ComposeProjectName:    "demo",
-			LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
-		},
-		Files: []projectstore.ApplicationFile{
-			{
-				Kind:         projectcontract.FileKindCompose.String(),
-				Role:         projectcontract.FileRolePrimary.String(),
-				AbsolutePath: "/srv/demo/compose.old.yaml",
-				DisplayPath:  "compose.old.yaml",
-			},
-		},
-		Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
-	}
-	parseResult := projectcompose.Result{
-		ComposeFiles: []projectcompose.FileProjection{
-			{
-				Kind:         projectcontract.FileKindCompose.String(),
-				Role:         projectcontract.FileRolePrimary.String(),
-				AbsolutePath: "/srv/demo/compose.new.yaml",
-				DisplayPath:  "compose.new.yaml",
-			},
-		},
-	}
-
-	deployAggregate := aggregate
-	deployAggregate.Files = toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles)
-	args, err := lifecycleUpArgs(deployAggregate, lifecycleConfigurationFromAggregate(deployAggregate))
-	if err != nil {
-		t.Fatalf("build deploy lifecycle args: %v", err)
-	}
-	assertContainsArg(t, args, "/srv/demo/compose.new.yaml")
-	assertNotContainsArg(t, args, "/srv/demo/compose.old.yaml")
-}
 
 func TestUpdateLifecycleConfigurationReturnsRepositoryAggregate(t *testing.T) {
 	t.Parallel()
@@ -113,30 +70,6 @@ func TestUpdateLifecycleConfigurationRejectsUnknownManagedService(t *testing.T) 
 	}, nil)
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected unknown service rejection, got %v", err)
-	}
-}
-
-func TestNormalizeLifecycleAdditionalArgsRejectsProjectAuthorityOverrides(t *testing.T) {
-	t.Parallel()
-
-	for _, args := range [][]string{{"-f", "other.yaml"}, {"--project-name=other"}, {"--"}} {
-		if _, err := normalizeLifecycleStandardConfig(LifecycleStandardConfig{AdditionalArgs: args}); !errors.Is(err, errProjectInvalidArgument) {
-			t.Fatalf("expected args %#v to be rejected, got %v", args, err)
-		}
-	}
-}
-
-func TestNormalizeLifecycleActionArgsRejectsUncontrolledOptions(t *testing.T) {
-	t.Parallel()
-
-	for _, config := range []LifecycleStandardConfig{
-		{StopArgs: []string{"--volumes"}},
-		{RestartArgs: []string{"--project-name", "other"}},
-		{PullArgs: []string{"sh", "-c", "echo unsafe"}},
-	} {
-		if _, err := normalizeLifecycleStandardConfig(config); !errors.Is(err, errProjectInvalidArgument) {
-			t.Fatalf("expected invalid lifecycle argv for %#v, got %v", config, err)
-		}
 	}
 }
 
@@ -649,23 +582,4 @@ func (r *pagedConflictRepository) UpdateWorkspaceAnnotation(context.Context, pro
 
 func (r *pagedConflictRepository) UnregisterApplication(context.Context, projectstore.UnregisterApplicationInput) error {
 	return projectstore.ErrInvalidInput
-}
-
-func assertContainsArg(t *testing.T, args []string, want string) {
-	t.Helper()
-	for _, arg := range args {
-		if arg == want {
-			return
-		}
-	}
-	t.Fatalf("expected args %#v to contain %q", args, want)
-}
-
-func assertNotContainsArg(t *testing.T, args []string, want string) {
-	t.Helper()
-	for _, arg := range args {
-		if arg == want {
-			t.Fatalf("expected args %#v not to contain %q", args, want)
-		}
-	}
 }

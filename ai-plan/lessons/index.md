@@ -5,6 +5,7 @@
 | ID                                     | Title                                          | Area       | Level | Status | Location                        | Promoted                                                                  |
 | -------------------------------------- | ---------------------------------------------- | ---------- | ----: | ------ | ------------------------------- | ------------------------------------------------------------------------- |
 | LESSON-BACKEND-CAPABILITY-AUTHORITY-001 | 能力健康必须与平台可达性分层                  | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
+| LESSON-BACKEND-AGENT-EXECUTION-AUTHORITY-001 | 特权 Agent 执行必须同时冻结意图、世代能力与瞬时材料边界 | backend | L2 | active | `ai-plan/lessons/backend.md` | `ADR-026`, Agent 协议与 Task Runtime 设计 |
 | LESSON-BACKEND-DESTRUCTIVE-CONTRACT-001 | 删除资源与执行销毁命令必须分型治理           | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`       |
 | LESSON-BACKEND-HTTPX-CONTEXT-001       | 守卫发布安全审计前必须先写回增强后的请求上下文 | backend    |    L1 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | MIG-001                               | Existing-data uniqueness must reconcile or abort before the index | migrations | L4 | active | `ai-plan/lessons/migrations.md` | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md` |

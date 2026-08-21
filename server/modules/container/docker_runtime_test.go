@@ -288,8 +288,7 @@ func TestDockerCanonicalRuntimeEventNormalizesActionSuffixes(t *testing.T) {
 			attributes:   map[string]string{"execID": "exec-1"},
 			expectedType: containercontract.RuntimeEventTypeContainerExecStarted,
 			expectedFields: map[string]string{
-				"exec_id":      "exec-1",
-				"exec_command": "/bin/sh",
+				"exec_id": "exec-1",
 			},
 		},
 	}
@@ -880,77 +879,6 @@ func TestDockerRuntimeListReusesCollectedResourceStatsAcrossPolls(t *testing.T) 
 	}
 }
 
-func TestDockerRuntimeActionInvalidatesCollectedResourceStats(t *testing.T) {
-	t.Parallel()
-
-	client := &countingDockerClient{
-		list: []container.Summary{
-			{
-				ID:      "1234567890abcdef",
-				Names:   []string{"/graft-web"},
-				Image:   "graft/web:latest",
-				State:   container.StateRunning,
-				Status:  "Up 10 minutes",
-				Created: 1781409600,
-			},
-		},
-		inspect: container.InspectResponse{
-			ID:      "1234567890abcdef",
-			Name:    "/graft-web",
-			State:   &container.State{Status: container.StateRunning},
-			Created: "2026-06-14T00:00:00Z",
-			Config:  &container.Config{Image: "graft/web:latest"},
-		},
-		stats: richDockerStatsFixture(),
-	}
-	runtime := &DockerRuntime{
-		client:        client,
-		endpoint:      "unix:///var/run/docker.sock",
-		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
-		cpuBaselines:  make(map[string]dockerCPUStatsBaseline),
-	}
-	if _, err := runtime.CollectStatsSnapshots(context.Background()); err != nil {
-		t.Fatalf("collect stats snapshots warmup: %v", err)
-	}
-	if _, err := runtime.CollectStatsSnapshots(context.Background()); err != nil {
-		t.Fatalf("collect stats snapshots: %v", err)
-	}
-	if calls := client.statsCalls.Load(); calls != 1 {
-		t.Fatalf("expected seeded cache to collect one stats sample, got %d", calls)
-	}
-
-	client.stats = container.StatsResponse{
-		CPUStats: container.CPUStats{
-			CPUUsage:    container.CPUUsage{TotalUsage: 400, PercpuUsage: []uint64{200, 200}},
-			SystemUsage: 2000,
-			OnlineCPUs:  2,
-		},
-		PreCPUStats: container.CPUStats{
-			CPUUsage:    container.CPUUsage{TotalUsage: 100},
-			SystemUsage: 1000,
-		},
-		MemoryStats: container.MemoryStats{Usage: 512, Limit: 1024},
-	}
-
-	if _, err := runtime.Restart(context.Background(), Ref{Value: "graft-web"}); err != nil {
-		t.Fatalf("restart: %v", err)
-	}
-	if calls := client.statsCalls.Load(); calls != 1 {
-		t.Fatalf("expected action path not to recollect stats synchronously, got %d", calls)
-	}
-
-	detail, err := runtime.Detail(context.Background(), Ref{Value: "graft-web"})
-	if err != nil {
-		t.Fatalf("detail after restart: %v", err)
-	}
-	if detail.Resource.Available || detail.Resource.StatsAvailable {
-		t.Fatalf("expected invalidated cache to report not collected after action, got %#v", detail.Resource)
-	}
-	if calls := client.statsCalls.Load(); calls != 1 {
-		t.Fatalf("expected post-restart detail not to recollect stats, got %d", calls)
-	}
-}
-
 type dockerOrchestratorLabelsCase struct {
 	name        string
 	labels      map[string]string
@@ -1133,106 +1061,6 @@ func assertSwarmScopeSemantics(t *testing.T, info OrchestratorInfo, stack string
 	}
 	if info.MemberScopeKind != swarmTaskScopeKind || info.MemberValue != task {
 		t.Fatalf("unexpected swarm member scope %#v", info)
-	}
-}
-
-func TestDockerRuntimeRejectsActionsWhenKnownStateDisallowsThem(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name   string
-		state  container.ContainerState
-		action func(context.Context, *DockerRuntime) (ActionResult, error)
-		calls  func(*countingDockerClient) int64
-	}{
-		{
-			name:  "start running",
-			state: container.StateRunning,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Start(ctx, Ref{Value: "web"})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.startCalls.Load()
-			},
-		},
-		{
-			name:  "start paused",
-			state: container.StatePaused,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Start(ctx, Ref{Value: "web"})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.startCalls.Load()
-			},
-		},
-		{
-			name:  "stop exited",
-			state: container.StateExited,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Stop(ctx, Ref{Value: "web"})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.stopCalls.Load()
-			},
-		},
-		{
-			name:  "restart dead",
-			state: container.StateDead,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Restart(ctx, Ref{Value: "web"})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.restartCalls.Load()
-			},
-		},
-		{
-			name:  "remove running without force",
-			state: container.StateRunning,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Remove(ctx, Ref{Value: "web"}, RemoveOptions{Force: false})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.removeCalls.Load()
-			},
-		},
-		{
-			name:  "remove paused without force",
-			state: container.StatePaused,
-			action: func(ctx context.Context, runtime *DockerRuntime) (ActionResult, error) {
-				return runtime.Remove(ctx, Ref{Value: "web"}, RemoveOptions{Force: false})
-			},
-			calls: func(client *countingDockerClient) int64 {
-				return client.removeCalls.Load()
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := &countingDockerClient{
-				inspect: container.InspectResponse{
-					ID:     "abc123",
-					Name:   "/web",
-					State:  &container.State{Status: tc.state},
-					Config: &container.Config{Image: "nginx:latest"},
-				},
-			}
-			runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
-
-			result, err := tc.action(context.Background(), runtime)
-			if !errors.Is(err, errInvalidContainerState) {
-				t.Fatalf("expected invalid state, got %v", err)
-			}
-			if result.StatusBefore == "" || result.StatusAfter != result.StatusBefore {
-				t.Fatalf("expected status context, got %#v", result)
-			}
-			if calls := tc.calls(client); calls != 0 {
-				t.Fatalf("expected runtime action not to be called, got %d", calls)
-			}
-		})
 	}
 }
 
@@ -1482,34 +1310,6 @@ func TestDockerDetailOmitsDisabledHealthcheck(t *testing.T) {
 	}
 	if detail.Health != containerHealthNone {
 		t.Fatalf("expected no healthcheck health, got %q", detail.Health)
-	}
-}
-
-func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
-	t.Parallel()
-
-	client := &countingDockerClient{
-		inspect: container.InspectResponse{
-			ID:     "abc123",
-			Name:   "/web",
-			State:  &container.State{Status: container.StateRunning},
-			Config: &container.Config{Image: "nginx:latest"},
-		},
-	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
-
-	result, err := runtime.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
-	if err != nil {
-		t.Fatalf("remove: %v", err)
-	}
-	if !client.removeForce.Load() {
-		t.Fatalf("expected force remove option")
-	}
-	if result.Action != containerActionRemove || result.StatusBefore != "running" || result.StatusAfter != actionStatusRemoved {
-		t.Fatalf("unexpected remove result %#v", result)
-	}
-	if calls := client.removeCalls.Load(); calls != 1 {
-		t.Fatalf("expected one remove call, got %d", calls)
 	}
 }
 

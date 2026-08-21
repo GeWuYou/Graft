@@ -354,16 +354,4 @@ func (s runtimeEventSourceStub) StreamRuntimeEvents(
 func (runtimeEventSourceStub) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
 }
-func (runtimeEventSourceStub) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventSourceStub) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventSourceStub) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventSourceStub) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (runtimeEventSourceStub) Close() error { return nil }

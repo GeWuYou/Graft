@@ -31,6 +31,8 @@ const localDeliverySecretDirPerm = 0o700
 const localDeliverySecretFilePerm = 0o600
 const localDeliveryGrantTTL = 15 * time.Minute
 
+var localDockerRuntimeAgentCapabilities = []string{"oci-build", "compose_execution", "container_execution"}
+
 // PrepareLocalDockerRuntimeAgent 使用 Runtime Target 的既有 authority 生成一次本地 Agent 交付。
 // 该函数只适用于本地开发编排；调用方负责限制环境、路径和目录权限。
 //
@@ -58,7 +60,7 @@ func PrepareLocalDockerRuntimeAgent(ctx context.Context, db *sql.DB, pepper *con
 	generation := int64(0)
 	//nolint:nestif // 本地交付必须在同一 authority 边界内区分活动、待激活和漂移恢复。
 	if bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusActive {
-		if binding.TrustBundleVersion == trustBundle.Version {
+		if binding.TrustBundleVersion == trustBundle.Version && sameRuntimeAgentCapabilities(binding.Capabilities, localDockerRuntimeAgentCapabilities) && binding.CapabilityVersion == "docker/v1" {
 			if _, err := os.Stat(input.ConfigFile); err == nil {
 				return nil
 			} else if errors.Is(err, os.ErrNotExist) {
@@ -66,12 +68,12 @@ func PrepareLocalDockerRuntimeAgent(ctx context.Context, db *sql.DB, pepper *con
 			}
 			return fmt.Errorf("read local Docker Runtime Agent delivery config: %w", err)
 		}
-		// 本地 Vault 重建会替换 CA；通过 Runtime Target 轮换保留旧世代审计事实并阻止其继续恢复。
+		// 信任束或能力集合变化都必须创建新世代，避免旧证书在原地获得扩展能力。
 		rotated, err := newRuntimeTargetAgentEnrollmentAuthority(repository, nil).RotateGeneration(ctx, moduleapi.AgentEnrollmentRotationRequest{
 			IdentityID: binding.IdentityID, TargetID: targetID, AgentID: input.AgentID, ProviderID: target.Provider,
 			BuilderScope: "docker-runtime-agent-local", CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1",
-			Capabilities: []string{"oci-build"}, RuntimeProtocol: "runtime/v1",
-			EnrollmentRef: input.EnrollmentRef, TrustBundle: trustBundle, ExpiresAt: now.Add(time.Hour), Reason: "local_trust_bundle_rotated",
+			Capabilities: append([]string(nil), localDockerRuntimeAgentCapabilities...), RuntimeProtocol: "runtime/v1",
+			EnrollmentRef: input.EnrollmentRef, TrustBundle: trustBundle, ExpiresAt: now.Add(time.Hour), Reason: "local_agent_contract_rotated",
 		})
 		if err != nil {
 			return fmt.Errorf("rotate local agent enrollment after trust bundle change: %w", err)
@@ -86,7 +88,7 @@ func PrepareLocalDockerRuntimeAgent(ctx context.Context, db *sql.DB, pepper *con
 	if generation == 0 {
 		enrollment, err := newRuntimeTargetAgentEnrollmentAuthority(repository, nil).CreateEnrollment(ctx, moduleapi.AgentEnrollmentRequest{
 			TargetID: targetID, AgentID: input.AgentID, ProviderID: target.Provider, BuilderScope: "docker-runtime-agent-local",
-			CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", Capabilities: []string{"oci-build"}, RuntimeProtocol: "runtime/v1", ImageDigest: input.ImageDigest,
+			CapabilityProfile: "oci-build", CapabilityVersion: "docker/v1", Capabilities: append([]string(nil), localDockerRuntimeAgentCapabilities...), RuntimeProtocol: "runtime/v1", ImageDigest: input.ImageDigest,
 			AgentVersion: input.AgentVersion, EnrollmentRef: input.EnrollmentRef, TrustBundle: trustBundle, ExpiresAt: now.Add(time.Hour),
 		})
 		if err != nil {
@@ -123,7 +125,19 @@ func PrepareLocalDockerRuntimeAgent(ctx context.Context, db *sql.DB, pepper *con
 }
 
 func shouldReusePendingLocalDockerRuntimeGeneration(binding moduleapi.RuntimeTargetAgentBinding, bindingErr error, trustBundle moduleapi.TrustBundleReference) bool {
-	return bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending && binding.TrustBundleVersion == trustBundle.Version
+	return bindingErr == nil && binding.Status == moduleapi.RuntimeTargetAgentStatusPending && binding.TrustBundleVersion == trustBundle.Version && binding.CapabilityVersion == "docker/v1" && sameRuntimeAgentCapabilities(binding.Capabilities, localDockerRuntimeAgentCapabilities)
+}
+
+func sameRuntimeAgentCapabilities(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func writeLocalDockerRuntimeAgentFiles(input LocalDockerRuntimeAgentDelivery, targetID int64, bootstrapToken string) error {
@@ -146,7 +160,7 @@ func writeLocalDockerRuntimeAgentFiles(input LocalDockerRuntimeAgentDelivery, ta
 		ProviderID        string   `json:"provider_id"`
 		Capabilities      []string `json:"capabilities"`
 		CapabilityVersion string   `json:"capability_version"`
-	}{input.BootstrapURL, input.AgentURL, targetID, input.AgentID, input.BootstrapTokenFile, input.BootstrapCAFile, input.TrustBundleFile, input.StateDir, "/var/run/docker.sock", "docker", []string{"oci-build"}, "runtime/v1"})
+	}{input.BootstrapURL, input.AgentURL, targetID, input.AgentID, input.BootstrapTokenFile, input.BootstrapCAFile, input.TrustBundleFile, input.StateDir, "unix:///var/run/docker.sock", "docker", append([]string(nil), localDockerRuntimeAgentCapabilities...), "docker/v1"})
 	if err != nil {
 		return fmt.Errorf("marshal local agent delivery config: %w", err)
 	}

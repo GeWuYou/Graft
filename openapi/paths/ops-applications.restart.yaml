@@ -1,8 +1,8 @@
 post:
   tags: [application]
-  summary: Run docker compose restart for a registered application
+  summary: Restart a registered application
   operationId: postApplicationRestart
-  description: Runs the saved lifecycle configuration `restart` command preview for the selected application.
+  description: Submits the saved application restart policy for external execution.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

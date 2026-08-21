@@ -1,8 +1,8 @@
 post:
   tags: [application]
-  summary: Run docker compose up for a registered application
+  summary: Start a registered application
   operationId: postApplicationUp
-  description: Runs the saved lifecycle configuration `up` command preview for the selected application.
+  description: Submits the saved application bring-up policy for external execution.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

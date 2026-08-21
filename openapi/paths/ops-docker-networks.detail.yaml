@@ -2,7 +2,9 @@ get:
   tags: [container]
   summary: Read Docker network
   operationId: getDockerNetwork
-  parameters: [{ $ref: ../components/parameters/docker-network-id-path.yaml }]
+  parameters:
+    - $ref: ../components/parameters/docker-network-id-path.yaml
+    - $ref: ../components/parameters/idempotency-key.yaml
   security: [{ bearerAuth: [] }]
   responses:
     '200': { description: Docker network., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-detail.yaml } } } }
@@ -22,7 +24,7 @@ delete:
       application/json:
         schema: { $ref: ../components/schemas/docker-network-remove-request.yaml }
   responses:
-    '200': { description: Docker network removed., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-action-response.yaml } } } }
+    '202': { description: Docker network removal Task accepted., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-task-receipt.yaml } } } }
     '400': { description: The network confirmation does not match. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

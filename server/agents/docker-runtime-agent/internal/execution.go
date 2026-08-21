@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,6 +19,7 @@ const (
 	executionClaimPath      = "/agent/v1/execution-leases/claim"
 	executionRenewPath      = "/agent/v1/execution-leases/"
 	executionLogsSuffix     = "/logs"
+	executionMaterialSuffix = "/material"
 	executionReceiptsSuffix = "/receipts"
 	executionRenewalDivisor = 2
 )
@@ -33,6 +36,7 @@ type executionLease struct {
 	RuntimeTargetID       int64           `json:"runtime_target_id"`
 	ProviderID            string          `json:"provider_id"`
 	Capability            string          `json:"capability"`
+	CapabilityVersion     string          `json:"capability_version"`
 	Protocol              string          `json:"protocol"`
 	OperationID           string          `json:"operation_id"`
 	PayloadSHA256         string          `json:"payload_sha256"`
@@ -63,6 +67,11 @@ type executionSettlement struct {
 	StageID    uint64 `json:"StageID"`
 	Status     string `json:"Status"`
 	Idempotent bool   `json:"Idempotent"`
+}
+
+type executionMaterial struct {
+	Protocol string          `json:"protocol"`
+	Payload  json.RawMessage `json:"payload"`
 }
 
 type executionResult struct {
@@ -125,6 +134,21 @@ func appendExecutionLogs(ctx context.Context, client *http.Client, agentURL stri
 	return nil
 }
 
+func resolveExecutionMaterial(ctx context.Context, client *http.Client, agentURL string, lease executionLease) (executionMaterial, error) {
+	var material executionMaterial
+	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionRenewPath+lease.ID+executionMaterialSuffix, executionHandleRequest{FenceToken: lease.FenceToken}, &material)
+	if err != nil {
+		return executionMaterial{}, err
+	}
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return executionMaterial{}, errAgentIdentityRejected
+	}
+	if status != http.StatusOK || strings.TrimSpace(material.Protocol) == "" || len(material.Payload) == 0 {
+		return executionMaterial{}, errors.New("agent execution material rejected")
+	}
+	return material, nil
+}
+
 func settleExecution(ctx context.Context, client *http.Client, agentURL string, lease executionLease, outcome, failureCode string) (executionSettlement, error) {
 	var settlement executionSettlement
 	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionRenewPath+lease.ID+executionReceiptsSuffix, executionReceipt{FenceToken: lease.FenceToken, Outcome: outcome, FailureCode: failureCode, IntegritySHA256: leaseIntegrity(lease)}, &settlement)
@@ -149,9 +173,8 @@ type executionLogsRequest struct {
 }
 
 func executeLease(ctx context.Context, client *http.Client, c config, lease executionLease) error {
-	return executeLeaseWithOperation(ctx, client, c, lease, func(context.Context, executionLease) executionResult {
-		// Batch 3 只升格 transport 与 fencing；Provider Docker 操作由后续迁移批次接入。
-		return executionResult{Outcome: "needs_attention", FailureCode: "provider_execution_not_migrated"}
+	return executeLeaseWithOperation(ctx, client, c, lease, func(operationCtx context.Context, operationLease executionLease) executionResult {
+		return executeProviderOperation(operationCtx, client, c, operationLease)
 	})
 }
 
@@ -161,12 +184,51 @@ func executeLeaseWithOperation(ctx context.Context, client *http.Client, c confi
 		return err
 	}
 	lease = renewed
-	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "agent", Level: "info", Line: "execution lease accepted"}}); err != nil {
+	journal, terminal, err := prepareExecutionJournal(c.StateDir, lease)
+	if err != nil {
+		return err
+	}
+	if terminal {
+		return replayTerminalExecution(ctx, client, c, journal)
+	}
+	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "system", Level: "info", Line: "execution lease accepted"}}); err != nil {
 		return err
 	}
 	if lease.CancellationRequested {
 		return settleObservedCancellation(ctx, client, c, lease)
 	}
+	journal.Lease = lease
+	journal.Phase = executionJournalRunning
+	if err := saveExecutionJournal(c.StateDir, journal); err != nil {
+		return err
+	}
+	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "system", Level: "info", Line: "provider operation started"}}); err != nil {
+		return err
+	}
+	return waitForProviderOperation(ctx, client, c, lease, journal, operation)
+}
+
+func prepareExecutionJournal(stateDir string, lease executionLease) (executionJournal, bool, error) {
+	journal, exists, err := executionJournalForLease(stateDir, lease.ID)
+	if err != nil {
+		return executionJournal{}, false, err
+	}
+	if !exists {
+		journal = executionJournal{Lease: lease, Phase: executionJournalPrepared}
+		return journal, false, saveExecutionJournal(stateDir, journal)
+	}
+	journal.Lease = lease
+	if journal.Phase == executionJournalTerminal {
+		return journal, true, nil
+	}
+	if journal.Phase != executionJournalRunning {
+		return journal, false, nil
+	}
+	journal.Phase, journal.Outcome, journal.FailureCode = executionJournalTerminal, "needs_attention", failureInterrupted
+	return journal, true, saveExecutionJournal(stateDir, journal)
+}
+
+func waitForProviderOperation(ctx context.Context, client *http.Client, c config, lease executionLease, journal executionJournal, operation executionOperation) error {
 	operationCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	resultCh := make(chan executionResult, 1)
@@ -179,8 +241,7 @@ func executeLeaseWithOperation(ctx context.Context, client *http.Client, c confi
 		case <-ctx.Done():
 			return ctx.Err()
 		case result := <-resultCh:
-			_, err := settleExecution(ctx, client, c.AgentURL, lease, result.Outcome, result.FailureCode)
-			return err
+			return completeProviderOperation(ctx, client, c, lease, journal, result)
 		case <-ticker.C:
 			renewed, err := renewExecutionLease(ctx, client, c.AgentURL, lease)
 			if err != nil {
@@ -196,12 +257,46 @@ func executeLeaseWithOperation(ctx context.Context, client *http.Client, c confi
 	}
 }
 
-func settleObservedCancellation(ctx context.Context, client *http.Client, c config, lease executionLease) error {
-	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "agent", Level: "info", Line: "cancellation observed"}}); err != nil {
+func completeProviderOperation(ctx context.Context, client *http.Client, c config, lease executionLease, journal executionJournal, result executionResult) error {
+	journal.Lease, journal.Phase, journal.Outcome, journal.FailureCode = lease, executionJournalTerminal, result.Outcome, result.FailureCode
+	if err := saveExecutionJournal(c.StateDir, journal); err != nil {
 		return err
 	}
-	_, err := settleExecution(ctx, client, c.AgentURL, lease, "success", "")
-	return err
+	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "system", Level: "info", Line: "provider operation completed"}}); err != nil {
+		return err
+	}
+	return replayTerminalExecution(ctx, client, c, journal)
+}
+
+func settleObservedCancellation(ctx context.Context, client *http.Client, c config, lease executionLease) error {
+	if err := appendExecutionLogs(ctx, client, c.AgentURL, lease, []executionLogEntry{{Stream: "system", Level: "info", Line: "cancellation observed"}}); err != nil {
+		return err
+	}
+	journal := executionJournal{Lease: lease, Phase: executionJournalTerminal, Outcome: "success"}
+	if err := saveExecutionJournal(c.StateDir, journal); err != nil {
+		return err
+	}
+	return replayTerminalExecution(ctx, client, c, journal)
+}
+
+func replayTerminalExecution(ctx context.Context, client *http.Client, c config, journal executionJournal) error {
+	if _, err := settleExecution(ctx, client, c.AgentURL, journal.Lease, journal.Outcome, journal.FailureCode); err != nil {
+		return err
+	}
+	return removeExecutionJournal(c.StateDir, journal.Lease.ID)
+}
+
+func executionJournalForLease(stateDir, leaseID string) (executionJournal, bool, error) {
+	journals, err := loadExecutionJournals(stateDir)
+	if err != nil {
+		return executionJournal{}, false, err
+	}
+	for _, journal := range journals {
+		if journal.Lease.ID == leaseID {
+			return journal, true, nil
+		}
+	}
+	return executionJournal{}, false, nil
 }
 
 func executionRenewInterval(lease executionLease) time.Duration {
@@ -246,26 +341,29 @@ func requestJSON(ctx context.Context, client *http.Client, method, endpoint stri
 
 func runExecutionLoop(ctx context.Context, c config, state persistedState) error {
 	for {
-		var ready bool
-		state, ready = ensureExecutionIdentity(ctx, c, state)
-		if !ready {
-			if err := waitExecutionPoll(ctx, c.PollInterval); err != nil {
-				return err
-			}
-			continue
-		}
-		client, err := newMTLSClient(c, state)
-		if err != nil {
-			if waitErr := waitExecutionPoll(ctx, c.PollInterval); waitErr != nil {
-				return waitErr
-			}
-			continue
-		}
-		state = pollExecutionCapabilities(ctx, client, c, state)
+		state = runExecutionCycle(ctx, c, state)
 		if err := waitExecutionPoll(ctx, c.PollInterval); err != nil {
 			return err
 		}
 	}
+}
+
+func runExecutionCycle(ctx context.Context, c config, state persistedState) persistedState {
+	refreshed, ready := ensureExecutionIdentity(ctx, c, state)
+	if !ready {
+		return state
+	}
+	client, err := newMTLSClient(c, refreshed)
+	if err != nil {
+		return refreshed
+	}
+	if err := recoverExecutionJournals(ctx, client, c); err != nil {
+		if errors.Is(err, errAgentIdentityRejected) {
+			return persistedState{}
+		}
+		return refreshed
+	}
+	return pollExecutionCapabilities(ctx, client, c, refreshed)
 }
 
 func ensureExecutionIdentity(ctx context.Context, c config, state persistedState) (persistedState, bool) {
@@ -280,25 +378,60 @@ func ensureExecutionIdentity(ctx context.Context, c config, state persistedState
 }
 
 func pollExecutionCapabilities(ctx context.Context, client *http.Client, c config, state persistedState) persistedState {
+	type claimResult struct {
+		lease executionLease
+		err   error
+	}
+	results := make(chan claimResult, len(c.Capabilities))
+	var claims sync.WaitGroup
 	for _, capability := range c.Capabilities {
-		lease, err := claimExecutionLease(ctx, client, c.AgentURL, c.ProviderID, capability, c.CapabilityVersion)
-		if errors.Is(err, errExecutionNoWork) {
+		claims.Add(1)
+		go func(capability string) {
+			defer claims.Done()
+			lease, err := claimExecutionLease(ctx, client, c.AgentURL, c.ProviderID, capability, c.CapabilityVersion)
+			results <- claimResult{lease: lease, err: err}
+		}(capability)
+	}
+	go func() {
+		claims.Wait()
+		close(results)
+	}()
+	var executions sync.WaitGroup
+	var identityRejected atomic.Bool
+	for result := range results {
+		if errors.Is(result.err, errAgentIdentityRejected) {
+			identityRejected.Store(true)
 			continue
 		}
-		if errors.Is(err, errAgentIdentityRejected) {
-			return persistedState{}
+		if result.err != nil {
+			continue
 		}
-		if err != nil {
-			return state
-		}
-		if err := executeLease(ctx, client, c, lease); err != nil {
-			if errors.Is(err, errAgentIdentityRejected) {
-				return persistedState{}
+		executions.Add(1)
+		go func(lease executionLease) {
+			defer executions.Done()
+			if errors.Is(executeLease(ctx, client, c, lease), errAgentIdentityRejected) {
+				identityRejected.Store(true)
 			}
-			return state
-		}
+		}(result.lease)
+	}
+	executions.Wait()
+	if identityRejected.Load() {
+		return persistedState{}
 	}
 	return state
+}
+
+func recoverExecutionJournals(ctx context.Context, client *http.Client, c config) error {
+	journals, err := loadExecutionJournals(c.StateDir)
+	if err != nil {
+		return err
+	}
+	for _, journal := range journals {
+		if err := executeLease(ctx, client, c, journal.Lease); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func waitExecutionPoll(ctx context.Context, interval time.Duration) error {

@@ -2,7 +2,6 @@ package container
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -29,7 +28,6 @@ type dockerResourceClient interface {
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
 	VolumeDiskUsage(context.Context) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
-	VolumeRemove(context.Context, string, bool) error
 }
 
 // DockerImage 是列表和详情读取共用的脱敏镜像投影，引用容器来自同一 runtime 快照。
@@ -799,29 +797,6 @@ func dockerVolumeMountName(itemMount container.MountPoint) (string, bool) {
 	}
 	name := strings.TrimSpace(itemMount.Name)
 	return name, name != ""
-}
-
-// RemoveDockerVolume 删除指定 Docker 数据卷；运行时错误会先映射为模块级错误。
-func (r *DockerRuntime) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
-	client, ok := r.client.(dockerResourceClient)
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	if err := client.VolumeRemove(ctx, id, force); err != nil {
-		return mapDockerVolumeError(err)
-	}
-	return nil
-}
-
-func mapDockerVolumeError(err error) error {
-	mapped := mapDockerError(err)
-	if errors.Is(mapped, errContainerNotFound) {
-		return errDockerVolumeNotFound
-	}
-	if strings.Contains(strings.ToLower(err.Error()), "in use") {
-		return errDockerVolumeConflict
-	}
-	return mapped
 }
 
 // dockerImageSummary 将 Docker 镜像概要转换为脱敏的 DockerImage 基础投影。

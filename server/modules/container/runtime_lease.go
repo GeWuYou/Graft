@@ -2,7 +2,6 @@ package container
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"graft/server/modules/container/terminal"
@@ -127,38 +126,6 @@ func (l *runtimeLease) Shell(ctx context.Context, ref Ref, command string) (term
 	}
 	return &leasedSession{Session: session, release: done}, nil
 }
-func (l *runtimeLease) Start(ctx context.Context, ref Ref) (ActionResult, error) {
-	done, err := l.acquire()
-	if err != nil {
-		return ActionResult{}, err
-	}
-	defer done()
-	return l.runtime.Start(ctx, ref)
-}
-func (l *runtimeLease) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	done, err := l.acquire()
-	if err != nil {
-		return ActionResult{}, err
-	}
-	defer done()
-	return l.runtime.Stop(ctx, ref)
-}
-func (l *runtimeLease) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	done, err := l.acquire()
-	if err != nil {
-		return ActionResult{}, err
-	}
-	defer done()
-	return l.runtime.Restart(ctx, ref)
-}
-func (l *runtimeLease) Remove(ctx context.Context, ref Ref, opts RemoveOptions) (ActionResult, error) {
-	done, err := l.acquire()
-	if err != nil {
-		return ActionResult{}, err
-	}
-	defer done()
-	return l.runtime.Remove(ctx, ref, opts)
-}
 func (l *runtimeLease) Close() error { return l.retire() }
 
 func (l *runtimeLease) CollectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error) {
@@ -235,34 +202,6 @@ func (l *runtimeLease) ReadDockerNetwork(ctx context.Context, id string) (Docker
 	defer done()
 	return r.ReadDockerNetwork(ctx, id)
 }
-func (l *runtimeLease) CreateDockerNetwork(ctx context.Context, command DockerNetworkCreateCommand) (DockerNetworkActionResult, error) {
-	r, ok := l.runtime.(interface {
-		CreateDockerNetwork(context.Context, DockerNetworkCreateCommand) (DockerNetworkActionResult, error)
-	})
-	if !ok {
-		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return DockerNetworkActionResult{}, err
-	}
-	defer done()
-	return r.CreateDockerNetwork(ctx, command)
-}
-func (l *runtimeLease) RemoveDockerNetwork(ctx context.Context, id, confirmation string) (DockerNetworkActionResult, error) {
-	r, ok := l.runtime.(interface {
-		RemoveDockerNetwork(context.Context, string, string) (DockerNetworkActionResult, error)
-	})
-	if !ok {
-		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return DockerNetworkActionResult{}, err
-	}
-	defer done()
-	return r.RemoveDockerNetwork(ctx, id, confirmation)
-}
 func (l *runtimeLease) ListDockerVolumes(ctx context.Context) ([]DockerVolume, error) {
 	r, ok := l.runtime.(DockerResourceReader)
 	if !ok {
@@ -286,71 +225,6 @@ func (l *runtimeLease) ReadDockerVolume(ctx context.Context, id string) (DockerV
 	}
 	defer done()
 	return r.ReadDockerVolume(ctx, id)
-}
-func (l *runtimeLease) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
-	r, ok := l.runtime.(interface {
-		RemoveDockerVolume(context.Context, string, bool) error
-	})
-	if !ok {
-		return fmt.Errorf("remove docker volume: %w", errUnsupportedContainerRuntime)
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return fmt.Errorf("remove docker volume: acquire runtime lease: %w", err)
-	}
-	defer done()
-	if err := r.RemoveDockerVolume(ctx, id, force); err != nil {
-		return fmt.Errorf("remove docker volume %q: %w", id, err)
-	}
-	return nil
-}
-func (l *runtimeLease) PullDockerImage(ctx context.Context, ref string, emit func(DockerImagePullEvent) error) error {
-	r, ok := l.runtime.(DockerImageWriter)
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return err
-	}
-	defer done()
-	return r.PullDockerImage(ctx, ref, emit)
-}
-func (l *runtimeLease) TagDockerImage(ctx context.Context, source, target string) error {
-	r, ok := l.runtime.(DockerImageWriter)
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return err
-	}
-	defer done()
-	return r.TagDockerImage(ctx, source, target)
-}
-func (l *runtimeLease) UntagDockerImage(ctx context.Context, ref string) error {
-	r, ok := l.runtime.(DockerImageWriter)
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return err
-	}
-	defer done()
-	return r.UntagDockerImage(ctx, ref)
-}
-func (l *runtimeLease) RemoveDockerImage(ctx context.Context, id string, force bool) error {
-	r, ok := l.runtime.(DockerImageWriter)
-	if !ok {
-		return errUnsupportedContainerRuntime
-	}
-	done, err := l.acquire()
-	if err != nil {
-		return err
-	}
-	defer done()
-	return r.RemoveDockerImage(ctx, id, force)
 }
 
 type leasedSession struct {

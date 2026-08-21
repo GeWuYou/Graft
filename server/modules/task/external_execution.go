@@ -20,6 +20,13 @@ const (
 	externalExecutionLogLineMaxRunes = 4096
 )
 
+var externalExecutionLogLines = map[string]struct{}{
+	"execution lease accepted":     {},
+	"cancellation observed":        {},
+	"provider operation started":   {},
+	"provider operation completed": {},
+}
+
 var _ moduleapi.RuntimeAgentExecutionGateway = (*Runtime)(nil)
 
 // ClaimExternalExecution 为已认证的 Runtime Target capability 领取一个冻结 Stage attempt。
@@ -65,7 +72,8 @@ func (r *Runtime) claimExternalExecutionCandidate(ctx context.Context, request m
 }
 
 func externalExecutionBindingMatches(expectation *moduleapi.ExternalExecutionExpectation, request moduleapi.ExternalExecutionClaimRequest) bool {
-	return expectation.RuntimeTargetID == request.RuntimeTargetID && expectation.ProviderID == request.ProviderID && expectation.Capability == request.Capability
+	return expectation.RuntimeTargetID == request.RuntimeTargetID && expectation.ProviderID == request.ProviderID &&
+		expectation.Capability == request.Capability && expectation.CapabilityVersion == request.CapabilityVersion
 }
 
 func (r *Runtime) createExternalExecutionLease(ctx context.Context, candidate taskstore.StageClaim, expectation *moduleapi.ExternalExecutionExpectation) (moduleapi.ExternalExecutionLease, error) {
@@ -92,7 +100,7 @@ func (r *Runtime) createExternalExecutionLease(ctx context.Context, candidate ta
 		return moduleapi.ExternalExecutionLease{}, err
 	}
 	r.publishTask(created.TaskID, taskcontract.TaskRealtimeEventStageStarted)
-	return externalExecutionLeaseView(created, candidate.Stage.Input, fenceToken, candidate.Task.CancelRequestedAt != nil), nil
+	return externalExecutionLeaseView(created, candidate.Stage.Input, expectation.CapabilityVersion, fenceToken, candidate.Task.CancelRequestedAt != nil), nil
 }
 
 // RenewExternalExecution 延长同一 fenced attempt，并返回 Task 已持久化的取消请求观察值。
@@ -111,11 +119,78 @@ func (r *Runtime) RenewExternalExecution(ctx context.Context, handle moduleapi.E
 	if err != nil {
 		return moduleapi.ExternalExecutionLease{}, err
 	}
-	input, err := r.externalExecutionStageInput(ctx, updated.TaskID, updated.StageID)
+	stage, err := r.externalExecutionStage(ctx, updated.TaskID, updated.StageID)
 	if err != nil {
 		return moduleapi.ExternalExecutionLease{}, err
 	}
-	return externalExecutionLeaseView(updated, input, handle.FenceToken, cancelRequested), nil
+	return externalExecutionLeaseView(updated, stage.input, stage.expectation.CapabilityVersion, handle.FenceToken, cancelRequested), nil
+}
+
+// InspectExternalExecution 验证当前 fence 并返回冻结的执行绑定，不续租也不改变 Task 状态。
+func (r *Runtime) InspectExternalExecution(ctx context.Context, handle moduleapi.ExternalExecutionLeaseHandle) (moduleapi.ExternalExecutionLease, error) {
+	if r == nil || r.repository == nil || !validExternalExecutionHandle(handle) {
+		return moduleapi.ExternalExecutionLease{}, taskstore.ErrInvalidInput
+	}
+	lease, cancelRequested, err := r.repository.GetExternalExecutionLease(ctx, handle.LeaseID)
+	if err != nil {
+		return moduleapi.ExternalExecutionLease{}, err
+	}
+	now := time.Now().UTC()
+	if lease.FenceTokenHash != hashSubmissionSecret(handle.FenceToken) || lease.State != moduleapi.ExternalExecutionLeaseStateClaimed ||
+		!lease.LeaseExpiresAt.After(now) || !lease.AbsoluteDeadlineAt.After(now) {
+		return moduleapi.ExternalExecutionLease{}, taskstore.ErrStateConflict
+	}
+	stage, err := r.externalExecutionStage(ctx, lease.TaskID, lease.StageID)
+	if err != nil {
+		return moduleapi.ExternalExecutionLease{}, err
+	}
+	return externalExecutionLeaseView(lease, stage.input, stage.expectation.CapabilityVersion, handle.FenceToken, cancelRequested), nil
+}
+
+// ResolveExternalExecutionMaterial 在验证 lease fence 后调用领域解析器，并且不保存返回材料。
+func (r *Runtime) ResolveExternalExecutionMaterial(ctx context.Context, handle moduleapi.ExternalExecutionLeaseHandle) (moduleapi.ExternalExecutionMaterial, error) {
+	if r == nil || r.repository == nil || !validExternalExecutionHandle(handle) {
+		return moduleapi.ExternalExecutionMaterial{}, taskstore.ErrInvalidInput
+	}
+	lease, _, err := r.repository.GetExternalExecutionLease(ctx, handle.LeaseID)
+	if err != nil {
+		return moduleapi.ExternalExecutionMaterial{}, err
+	}
+	if !externalExecutionLeaseFenceValid(lease, handle, time.Now().UTC()) {
+		return moduleapi.ExternalExecutionMaterial{}, taskstore.ErrStateConflict
+	}
+	stage, err := r.externalExecutionStage(ctx, lease.TaskID, lease.StageID)
+	if err != nil {
+		return moduleapi.ExternalExecutionMaterial{}, err
+	}
+	r.mu.RLock()
+	resolver := r.materialResolvers[stage.executorType]
+	r.mu.RUnlock()
+	if resolver == nil {
+		return moduleapi.ExternalExecutionMaterial{}, taskstore.ErrNotFound
+	}
+	material, err := resolver.ResolveExternalExecutionMaterial(ctx, moduleapi.ExternalExecutionMaterialRequest{
+		TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: stage.executorType, Input: stage.input,
+	})
+	if err != nil {
+		return moduleapi.ExternalExecutionMaterial{}, err
+	}
+	if !validExternalExecutionMaterial(material) {
+		return moduleapi.ExternalExecutionMaterial{}, taskstore.ErrInvalidInput
+	}
+	material.Payload = append(json.RawMessage(nil), material.Payload...)
+	return material, nil
+}
+
+func externalExecutionLeaseFenceValid(lease taskmodel.ExternalExecutionLease, handle moduleapi.ExternalExecutionLeaseHandle, now time.Time) bool {
+	return lease.FenceTokenHash == hashSubmissionSecret(handle.FenceToken) &&
+		lease.State == moduleapi.ExternalExecutionLeaseStateClaimed && lease.LeaseExpiresAt.After(now) &&
+		lease.AbsoluteDeadlineAt.After(now)
+}
+
+func validExternalExecutionMaterial(material moduleapi.ExternalExecutionMaterial) bool {
+	return strings.TrimSpace(material.Protocol) != "" && len(material.Payload) > 0 &&
+		len(material.Payload) <= 1<<20 && json.Valid(material.Payload)
 }
 
 // AppendExternalExecutionLogs 将一批受限日志写入 lease 绑定的 Stage；批次和单行均有固定上限。
@@ -142,7 +217,11 @@ func validExternalExecutionLogBatch(batch moduleapi.ExternalExecutionLogBatch) b
 		return false
 	}
 	for _, entry := range batch.Entries {
-		if strings.TrimSpace(entry.Line) == "" || utf8.RuneCountInString(entry.Line) > externalExecutionLogLineMaxRunes {
+		line := strings.TrimSpace(entry.Line)
+		if utf8.RuneCountInString(line) > externalExecutionLogLineMaxRunes {
+			return false
+		}
+		if _, allowed := externalExecutionLogLines[line]; !allowed {
 			return false
 		}
 	}
@@ -198,10 +277,10 @@ func externalExecutionExpectation(claim taskstore.StageClaim) (*moduleapi.Extern
 	return stage.ExternalExecution, true
 }
 
-func externalExecutionLeaseView(lease taskmodel.ExternalExecutionLease, input json.RawMessage, fenceToken string, cancelRequested bool) moduleapi.ExternalExecutionLease {
+func externalExecutionLeaseView(lease taskmodel.ExternalExecutionLease, input json.RawMessage, capabilityVersion, fenceToken string, cancelRequested bool) moduleapi.ExternalExecutionLease {
 	return moduleapi.ExternalExecutionLease{
 		ID: lease.ID, TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: lease.ExecutorType,
-		RuntimeTargetID: lease.RuntimeTargetID, ProviderID: lease.ProviderID, Capability: lease.Capability,
+		RuntimeTargetID: lease.RuntimeTargetID, ProviderID: lease.ProviderID, Capability: lease.Capability, CapabilityVersion: capabilityVersion,
 		Protocol: lease.Protocol, OperationID: lease.OperationID, PayloadSHA256: lease.PayloadSHA256,
 		Input: append(json.RawMessage(nil), input...), FenceToken: fenceToken, State: lease.State, LeaseTTL: lease.LeaseTTL,
 		LeaseExpiresAt: lease.LeaseExpiresAt, AbsoluteDeadlineAt: lease.AbsoluteDeadlineAt,
@@ -209,21 +288,42 @@ func externalExecutionLeaseView(lease taskmodel.ExternalExecutionLease, input js
 	}
 }
 
-func (r *Runtime) externalExecutionStageInput(ctx context.Context, taskID uint64, stageID uint64) (json.RawMessage, error) {
+type externalExecutionStageBinding struct {
+	input        json.RawMessage
+	executorType moduleapi.StageExecutorType
+	expectation  *moduleapi.ExternalExecutionExpectation
+}
+
+func (r *Runtime) externalExecutionStage(ctx context.Context, taskID uint64, stageID uint64) (externalExecutionStageBinding, error) {
+	task, err := r.repository.Get(ctx, taskID)
+	if err != nil {
+		return externalExecutionStageBinding{}, err
+	}
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(task.Plan, &plan); err != nil {
+		return externalExecutionStageBinding{}, err
+	}
 	stages, err := r.repository.ListStages(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return externalExecutionStageBinding{}, err
 	}
 	for _, stage := range stages {
 		if stage.ID == stageID {
-			return append(json.RawMessage(nil), stage.Input...), nil
+			index := stage.Sequence - 1
+			if index < 0 || index >= len(plan.Stages) || plan.Stages[index].ExternalExecution == nil {
+				return externalExecutionStageBinding{}, taskstore.ErrStateConflict
+			}
+			return externalExecutionStageBinding{
+				input: append(json.RawMessage(nil), stage.Input...), executorType: stage.ExecutorType,
+				expectation: plan.Stages[index].ExternalExecution,
+			}, nil
 		}
 	}
-	return nil, taskstore.ErrNotFound
+	return externalExecutionStageBinding{}, taskstore.ErrNotFound
 }
 
 func validExternalExecutionClaimRequest(request moduleapi.ExternalExecutionClaimRequest) bool {
-	return request.RuntimeTargetID > 0 && strings.TrimSpace(request.ProviderID) != "" && strings.TrimSpace(request.Capability) != ""
+	return request.RuntimeTargetID > 0 && strings.TrimSpace(request.ProviderID) != "" && strings.TrimSpace(request.Capability) != "" && strings.TrimSpace(request.CapabilityVersion) != ""
 }
 
 func validExternalExecutionHandle(handle moduleapi.ExternalExecutionLeaseHandle) bool {

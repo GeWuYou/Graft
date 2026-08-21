@@ -1,15 +1,13 @@
 package project
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"graft/server/internal/apperror"
 	"graft/server/internal/contract/errorcode"
@@ -21,12 +19,12 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// Up 异步提交 docker compose up -d，并限定在项目已登记的工作目录执行。
+// Up 异步提交应用启动意图，由 Task Runtime 通过外部执行租约调度。
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionUp)
 }
 
-// Stop 异步提交 docker compose stop，并限定在项目已登记的工作目录执行。
+// Stop 异步提交应用停止意图，由 Task Runtime 通过外部执行租约调度。
 func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionStop)
 }
@@ -60,6 +58,8 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 			result.SkippedCount++
 		case item.Result == generated.ApplicationActionResponseResultApplicationActionResultCompleted:
 			result.CompletedCount++
+		case item.Result == generated.ApplicationActionResponseResultApplicationActionResultAccepted:
+			result.AcceptedCount++
 		default:
 			result.BlockedCount++
 		}
@@ -104,7 +104,7 @@ func (s *Service) Destroy(ctx context.Context, projectID uint64, request Destroy
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, blockErr)
 		return result, blockErr
 	}
-	result, actionErr := s.destroyAfterGuard(ctx, aggregate, request, actor)
+	result, actionErr := s.submitDestroyTask(ctx, aggregate, request, actor)
 	s.publishApplicationActionAudit(ctx, aggregate, actor, result, actionErr)
 	return result, actionErr
 }
@@ -138,52 +138,13 @@ func validateDestroyRequest(
 	return ActionResult{}, nil
 }
 
-func (s *Service) destroyAfterGuard(
+func (s *Service) submitDestroyTask(
 	ctx context.Context,
 	aggregate projectstore.ApplicationAggregate,
 	request DestroyRequest,
 	actor actionActor,
 ) (ActionResult, error) {
-	projectID := aggregate.Application.ApplicationRecordID
-	guardResults := []GuardResult{guardCode("confirm_compose_project_name_matched")}
-	downArgs, err := destroyDownArgs(aggregate, request.RemoveNamedVolumes)
-	if err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionDestroy, err), err
-	}
-	downResult, err := s.executeLifecycleActionWithAggregate(
-		ctx,
-		aggregate,
-		generated.ApplicationActionResponseActionApplicationActionDestroy,
-		downArgs,
-	)
-	if err != nil {
-		return downResult, err
-	}
-	guardResults = appendDestroyDownGuards(guardResults, request.RemoveNamedVolumes)
-	nextGuards, autoUnregister, err := s.applyDestroyWorkspacePathStep(aggregate, request, guardResults)
-	if err != nil {
-		return destroyCleanupBlockedResult(projectID, guardResults, "workspace_path_delete_failed", "filesystem_error"), err
-	}
-	guardResults = nextGuards
-	blockedResult, nextGuards, err := s.applyDestroyImagePruneStep(ctx, aggregate, guardResults, request.ImagePrune)
-	if err != nil {
-		return blockedResult, err
-	}
-	guardResults = nextGuards
-	nextGuards, err = s.applyDestroyUnregisterStep(ctx, projectID, actor, guardResults, autoUnregister)
-	if err != nil {
-		return destroyCleanupBlockedResult(projectID, guardResults, "registry_delete_failed", "persistence_error"), err
-	}
-	guardResults = nextGuards
-	messageKey := projectcontract.ApplicationDestroyCompleted.String()
-	return ActionResult{
-		ApplicationRecordID: projectID,
-		Action:              generated.ApplicationActionResponseActionApplicationActionDestroy,
-		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
-		MessageKey:          &messageKey,
-		Message:             &messageKey,
-		GuardResults:        guardResults,
-	}, nil
+	return s.submitLifecycleTaskWithActor(ctx, aggregate, actor, generated.ApplicationActionResponseActionApplicationActionDestroy, &request)
 }
 
 // UnsupportedLifecycleAction 返回明确标记为当前阶段阻断的生命周期动作结果。
@@ -210,62 +171,50 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	if err != nil {
 		return blocked, err
 	}
+	result, actionErr := s.submitLifecycleTaskWithActor(ctx, aggregate, actor, action, nil)
+	s.publishApplicationActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
+}
+
+func (s *Service) submitLifecycleTaskWithActor(
+	ctx context.Context,
+	aggregate projectstore.ApplicationAggregate,
+	actor actionActor,
+	action generated.ApplicationActionResponseAction,
+	destroy *DestroyRequest,
+) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
+	target, err := s.lifecycleExecutionTarget(ctx, aggregate)
+	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	if s.taskService == nil {
 		err := errors.New("task service is unavailable")
 		err = s.reportLifecycleTaskSubmissionFailure(ctx, aggregate, action, err)
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	plan, err := lifecycleTaskPlan(aggregate, action)
+	plan, err := lifecycleTaskPlan(aggregate, action, target, actor.id, destroy)
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("application.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: aggregate.Application.ApplicationID}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
 		if errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
 			result := lifecycleBlockedResult(aggregate, action, err)
-			s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 			return result, err
 		}
 		err = s.reportLifecycleTaskSubmissionFailure(ctx, aggregate, action, err)
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	messageKey := projectcontract.ApplicationLifecycleAccepted.String()
-	result := ActionResult{ApplicationRecordID: projectID, Action: action, Result: generated.ApplicationActionResponseResultApplicationActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
-	s.publishApplicationActionAudit(ctx, aggregate, actor, result, nil)
-	return result, nil
-}
-
-// lifecycleRuntimeStatus 仅为 restart 判定是否需要由 up -d 恢复一个已不存在的 Compose 项目。
-// 运行时读取失败时保留 restart 参数，避免状态读取失败阻止任务提交或执行。
-func (s *Service) lifecycleRuntimeStatus(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	action generated.ApplicationActionResponseAction,
-) *generated.ApplicationRuntimeStatus {
-	if action != generated.ApplicationActionResponseActionApplicationActionRestart {
-		return nil
-	}
-	summary, runtimeErr := s.runtimeSummary(ctx, aggregate)
-	if runtimeErr != nil {
-		return nil
-	}
-	return deriveProjectRuntimeStatus(&summary, nil)
+	return ActionResult{ApplicationRecordID: aggregate.Application.ApplicationRecordID, Action: action, Result: generated.ApplicationActionResponseResultApplicationActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}, nil
 }
 
 // reportLifecycleTaskSubmissionFailure 在 Project 仍掌握应用和动作语义时记录一次任务提交失败。
@@ -293,187 +242,183 @@ func (s *Service) reportLifecycleTaskSubmissionFailure(
 func lifecycleTaskPlan(
 	aggregate projectstore.ApplicationAggregate,
 	action generated.ApplicationActionResponseAction,
+	target moduleapi.ComposeRuntimeTargetSummary,
+	actorID uint64,
+	destroy *DestroyRequest,
 ) (moduleapi.TaskPlan, error) {
-	if action == generated.ApplicationActionResponseActionApplicationActionRedeploy {
-		return redeployTaskPlan(aggregate)
+	if aggregate.Snapshot == nil {
+		return moduleapi.TaskPlan{}, errProjectUnsupportedLifecycle
 	}
-	args, err := lifecycleCommandArgsForRuntime(aggregate, action, nil)
-	if err != nil {
-		return moduleapi.TaskPlan{}, err
+	config := lifecycleConfigurationFromAggregate(aggregate)
+	policy := composeExecutionPolicy{
+		SnapshotDigest:     aggregate.Snapshot.ConfigHash,
+		BuildBeforeUp:      config.Standard.BuildBeforeUp,
+		ForceRecreate:      config.Standard.ForceRecreate,
+		RemoveOrphans:      config.Standard.RemoveOrphans,
+		WaitAfterUp:        config.Standard.WaitAfterUp,
+		WaitTimeoutSeconds: config.Standard.WaitTimeoutSeconds,
+		RenewAnonVolumes:   config.Standard.RenewAnonVolumes,
+		ActorID:            actorID,
 	}
-	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
+	switch action {
+	case generated.ApplicationActionResponseActionApplicationActionRedeploy:
+		return redeployTaskPlan(aggregate, target, policy, config)
+	case generated.ApplicationActionResponseActionApplicationActionDestroy:
+		if destroy == nil {
+			return moduleapi.TaskPlan{}, errProjectInvalidArgument
+		}
+		return destroyTaskPlan(aggregate, target, policy, *destroy)
+	case generated.ApplicationActionResponseActionApplicationActionUp,
+		generated.ApplicationActionResponseActionApplicationActionStop,
+		generated.ApplicationActionResponseActionApplicationActionRestart:
+		return taskPlanWithExternalStage(aggregate, target, strings.ToLower(string(action)), policy)
+	default:
+		return moduleapi.TaskPlan{}, errProjectInvalidArgument
+	}
 }
 
 // redeployTaskPlan 按固定顺序构建重部署阶段，并根据配置追加停止、拉取和镜像清理等可选阶段。
-func redeployTaskPlan(aggregate projectstore.ApplicationAggregate) (moduleapi.TaskPlan, error) {
-	config := lifecycleConfigurationFromAggregate(aggregate)
+func redeployTaskPlan(aggregate projectstore.ApplicationAggregate, target moduleapi.ComposeRuntimeTargetSummary, policy composeExecutionPolicy, config LifecycleConfiguration) (moduleapi.TaskPlan, error) {
 	stages := make([]moduleapi.StagePlan, 0, projectLifecycleStageCapacity)
-	if err := appendOptionalRedeployStages(&stages, aggregate, config); err != nil {
-		return moduleapi.TaskPlan{}, err
-	}
-	return moduleapi.TaskPlan{Stages: stages}, nil
-}
-
-const projectLifecycleStageCapacity = 4
-
-// appendOptionalRedeployStages 将重新部署所需的 Compose 阶段追加到任务计划中，并根据配置可选地包含停止、拉取和镜像清理阶段。
-func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) error {
 	if config.Standard.DownBeforeRedeploy {
-		if err := appendRedeployStopStage(stages, aggregate, config); err != nil {
-			return err
+		action := "down"
+		if !lifecycleManagesAllServices(config) {
+			action = "stop"
+		}
+		if err := appendExternalTaskStage(&stages, aggregate, target, action, policy); err != nil {
+			return moduleapi.TaskPlan{}, err
 		}
 	}
 	if config.Standard.PullBeforeRedeploy {
-		args, err := lifecyclePullArgs(aggregate, config)
-		if err != nil {
-			return err
-		}
-		if err := appendTaskPlanStage(stages, aggregate, "pull", args); err != nil {
-			return err
+		if err := appendExternalTaskStage(&stages, aggregate, target, "pull", policy); err != nil {
+			return moduleapi.TaskPlan{}, err
 		}
 	}
-	up, err := lifecycleUpArgs(aggregate, config)
-	if err != nil {
-		return err
-	}
-	if err := appendTaskPlanStage(stages, aggregate, "up", up); err != nil {
-		return err
+	if err := appendExternalTaskStage(&stages, aggregate, target, "up", policy); err != nil {
+		return moduleapi.TaskPlan{}, err
 	}
 	if config.Standard.PruneImagesAfterRedeploy {
-		return appendTaskPlanStage(stages, aggregate, "image-prune", []string{"image", "prune", "-f"})
+		if err := appendExternalTaskStage(&stages, aggregate, target, "image-prune", policy); err != nil {
+			return moduleapi.TaskPlan{}, err
+		}
 	}
-	return nil
+	return moduleapi.TaskPlan{Stages: stages}, nil
 }
 
-func appendRedeployStopStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) error {
-	args, err := lifecycleRedeployDownArgs(aggregate, config)
+func destroyTaskPlan(
+	aggregate projectstore.ApplicationAggregate,
+	target moduleapi.ComposeRuntimeTargetSummary,
+	policy composeExecutionPolicy,
+	request DestroyRequest,
+) (moduleapi.TaskPlan, error) {
+	policy.RemoveNamedVolumes = request.RemoveNamedVolumes
+	policy.DeleteWorkspacePath = request.DeleteWorkspacePath
+	policy.AutoUnregister = request.AutoUnregister
+	stages := make([]moduleapi.StagePlan, 0, projectDestroyStageCapacity)
+	if err := appendExternalTaskStage(&stages, aggregate, target, "down", policy); err != nil {
+		return moduleapi.TaskPlan{}, err
+	}
+	if request.ImagePrune {
+		if err := appendExternalTaskStage(&stages, aggregate, target, "image-prune", policy); err != nil {
+			return moduleapi.TaskPlan{}, err
+		}
+	}
+	input, err := json.Marshal(composeStageInput{ApplicationID: aggregate.Application.ApplicationID, Policy: cleanupExecutionPolicy(policy)})
 	if err != nil {
-		return err
+		return moduleapi.TaskPlan{}, err
 	}
-	stageKey := "down"
-	if !lifecycleManagesAllServices(config) {
-		stageKey = "stop"
-	}
-	return appendTaskPlanStage(stages, aggregate, stageKey, args)
+	stages = append(stages, moduleapi.StagePlan{
+		Key: "cleanup", ExecutorType: moduleapi.StageExecutorType(destroyCleanupStageType), Input: input,
+		RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
+	})
+	return moduleapi.TaskPlan{Stages: stages}, nil
 }
 
-// taskPlanWithStage 创建只包含一个 Compose 执行阶段的任务计划，并保留手动恢复策略。
-func taskPlanWithStage(aggregate projectstore.ApplicationAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
+const (
+	projectLifecycleStageCapacity    = 4
+	projectDestroyStageCapacity      = 3
+	projectExternalExecutionDeadline = 2 * time.Hour
+)
+
+func taskPlanWithExternalStage(aggregate projectstore.ApplicationAggregate, target moduleapi.ComposeRuntimeTargetSummary, action string, policy composeExecutionPolicy) (moduleapi.TaskPlan, error) {
 	stages := make([]moduleapi.StagePlan, 0, 1)
-	if err := appendTaskPlanStage(&stages, aggregate, key, args); err != nil {
+	if err := appendExternalTaskStage(&stages, aggregate, target, action, policy); err != nil {
 		return moduleapi.TaskPlan{}, err
 	}
 	return moduleapi.TaskPlan{Stages: stages}, nil
 }
 
-// appendTaskPlanStage 将已校验的 Compose 执行阶段追加到计划；参数无效或阶段输入无法序列化时返回错误。
-func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, key string, args []string) error {
-	if err := ensureLifecycleCommandArgs(args); err != nil {
-		return err
+func appendExternalTaskStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, target moduleapi.ComposeRuntimeTargetSummary, action string, policy composeExecutionPolicy) error {
+	if !composeExternalOperationAllowed(action) {
+		return errProjectInvalidArgument
 	}
-	input, err := json.Marshal(composeStageInput{
-		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
-		WorkspacePath:       aggregate.Application.WorkspacePath,
-		Args:                args,
-	})
+	input, err := json.Marshal(composeStageInput{ApplicationID: aggregate.Application.ApplicationID, Policy: externalOperationPolicy(action, policy)})
 	if err != nil {
 		return err
 	}
-	*stages = append(*stages, moduleapi.StagePlan{Key: key, ExecutorType: moduleapi.StageExecutorType(composeStagePrefix + key), Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile})
+	*stages = append(*stages, moduleapi.StagePlan{
+		Key: action, ExecutorType: moduleapi.StageExecutorType(composeStagePrefix + action), Input: input,
+		RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
+		ExternalExecution: &moduleapi.ExternalExecutionExpectation{
+			RuntimeTargetID: target.ID, ProviderID: target.Provider, Capability: composeExecutionCapability,
+			CapabilityVersion: composeExecutionCapabilityVersion, Protocol: composeExecutionProtocol,
+			OperationID: "application.compose." + action + ".v1",
+			LeaseTTL:    time.Minute, AbsoluteDeadline: projectExternalExecutionDeadline,
+		},
+	})
 	return nil
 }
 
-func (s *Service) executeLifecycleActionWithAggregate(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	action generated.ApplicationActionResponseAction,
-	args []string,
-) (ActionResult, error) {
-	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return lifecycleBlockedResult(aggregate, action, err), err
+func composeExternalOperationAllowed(action string) bool {
+	switch action {
+	case "down", "pull", "up", "stop", "restart", "image-prune":
+		return true
+	default:
+		return false
 	}
-	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
-		return lifecycleBlockedResult(aggregate, action, err), err
-	}
-	if err := ensureLifecycleCommandArgs(args); err != nil {
-		return blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
-	}
-	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
-	if err != nil {
-		result := blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
-		return result, fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
-	}
-	messageKey := lifecycleMessageKey(action).String()
-	return ActionResult{
-		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
-		Action:              action,
-		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
-		MessageKey:          &messageKey,
-		Message:             &messageKey,
-		GuardResults: []GuardResult{
-			guardDetail("command", strings.Join(args, " ")),
-		},
-	}, nil
 }
 
-func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ApplicationAggregate, args []string) (string, error) {
-	return s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, args)
+func externalOperationPolicy(action string, policy composeExecutionPolicy) composeExecutionPolicy {
+	result := composeExecutionPolicy{SnapshotDigest: policy.SnapshotDigest}
+	switch action {
+	case "up":
+		result.BuildBeforeUp = policy.BuildBeforeUp
+		result.ForceRecreate = policy.ForceRecreate
+		result.RemoveOrphans = policy.RemoveOrphans
+		result.WaitAfterUp = policy.WaitAfterUp
+		if policy.WaitAfterUp {
+			result.WaitTimeoutSeconds = policy.WaitTimeoutSeconds
+		}
+		result.RenewAnonVolumes = policy.RenewAnonVolumes
+	case "down":
+		result.RemoveNamedVolumes = policy.RemoveNamedVolumes
+	}
+	return result
 }
 
-// ensureLifecycleRuntimeTargetAvailable 校验选定运行目标在项目提交或执行生命周期任务前是否可达。
-// Compose 名称占用检查只属于创建阶段；已登记项目通常拥有使用自身 Compose 名称的运行时资源。
-func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, aggregate projectstore.ApplicationAggregate) error {
+func cleanupExecutionPolicy(policy composeExecutionPolicy) composeExecutionPolicy {
+	return composeExecutionPolicy{
+		SnapshotDigest: policy.SnapshotDigest, DeleteWorkspacePath: policy.DeleteWorkspacePath,
+		AutoUnregister: policy.AutoUnregister, ActorID: policy.ActorID,
+	}
+}
+
+func (s *Service) lifecycleExecutionTarget(ctx context.Context, aggregate projectstore.ApplicationAggregate) (moduleapi.ComposeRuntimeTargetSummary, error) {
 	if s == nil || s.runtimeTargets == nil {
-		return nil
+		return moduleapi.ComposeRuntimeTargetSummary{}, errProjectRuntimeUnavailable
 	}
 	if aggregate.Application.RuntimeTargetID == nil || *aggregate.Application.RuntimeTargetID == 0 {
-		return errProjectRuntimeUnavailable
+		return moduleapi.ComposeRuntimeTargetSummary{}, errProjectRuntimeUnavailable
 	}
 	if *aggregate.Application.RuntimeTargetID > uint64(^uint64(0)>>1) {
-		return errProjectRuntimeUnavailable
+		return moduleapi.ComposeRuntimeTargetSummary{}, errProjectRuntimeUnavailable
 	}
 	id := int64(*aggregate.Application.RuntimeTargetID) // #nosec G115 -- bounded by max signed int64 immediately above.
 	target, err := s.runtimeTargets.ReadComposeTarget(ctx, &id)
-	if err != nil || !target.Available {
-		return errProjectRuntimeUnavailable
+	if err != nil || !target.Available || strings.TrimSpace(target.Provider) == "" || !slices.Contains(target.Capabilities, composeExecutionCapability) {
+		return moduleapi.ComposeRuntimeTargetSummary{}, errProjectRuntimeUnavailable
 	}
-	return nil
-}
-
-func (s *Service) runDockerCommand(ctx context.Context, workingDirectory string, args []string) (string, error) {
-	commandCtx, cancel := withComposeCommandTimeout(ctx)
-	defer cancel()
-	// #nosec G204 -- 可执行文件固定为 docker，参数均为已校验的命令片段且不经过 shell 展开。
-	command := exec.CommandContext(commandCtx, "docker", args...)
-	command.Dir = workingDirectory
-	command.Env = os.Environ()
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-	err := command.Run()
-	return strings.TrimSpace(stdout.String() + "\n" + stderr.String()), err
-}
-
-func withComposeCommandTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if _, hasDeadline := ctx.Deadline(); hasDeadline {
-		return context.WithCancel(ctx)
-	}
-	return context.WithTimeout(ctx, projectComposeTimeout)
-}
-
-// ensureLifecycleCommandArgs 校验生命周期命令参数。
-// 只有当参数数量满足要求且每个参数都包含非空白内容时才通过。
-func ensureLifecycleCommandArgs(args []string) error {
-	if len(args) < minLifecycleArgCount {
-		return errProjectInvalidArgument
-	}
-	for _, arg := range args {
-		if strings.TrimSpace(arg) == "" {
-			return errProjectInvalidArgument
-		}
-	}
-	return nil
+	return target, nil
 }
 
 // ensureProjectLifecycleReady 检查项目是否满足执行生命周期操作的条件。
@@ -503,118 +448,6 @@ func blockedActionResult(projectID uint64, action generated.ApplicationActionRes
 		Message:             &messageKey,
 		GuardResults:        append([]GuardResult(nil), guardResults...),
 	}
-}
-
-func destroyCleanupBlockedResult(projectID uint64, guardResults []GuardResult, code string, detail string) ActionResult {
-	return blockedActionResult(
-		projectID,
-		generated.ApplicationActionResponseActionApplicationActionDestroy,
-		append(append([]GuardResult(nil), guardResults...), guardDetail(code, detail)),
-	)
-}
-
-// lifecycleMessageKey 返回指定生命周期动作对应的完成消息键。
-func lifecycleMessageKey(action generated.ApplicationActionResponseAction) projectcontract.MessageKey {
-	switch action {
-	case generated.ApplicationActionResponseActionApplicationActionUp:
-		return projectcontract.ApplicationUpCompleted
-	case generated.ApplicationActionResponseActionApplicationActionStop:
-		return projectcontract.ApplicationStopCompleted
-	case generated.ApplicationActionResponseActionApplicationActionRestart:
-		return projectcontract.ApplicationRestartCompleted
-	case generated.ApplicationActionResponseActionApplicationActionRedeploy:
-		return projectcontract.ApplicationRedeployCompleted
-	case generated.ApplicationActionResponseActionApplicationActionDestroy:
-		return projectcontract.ApplicationDestroyCompleted
-	case generated.ApplicationActionResponseActionApplicationActionUnregister:
-		return projectcontract.ApplicationUnregisterCompleted
-	default:
-		return projectcontract.ApplicationLifecycleAccepted
-	}
-}
-
-func (s *Service) redeployWithActor(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	_ actionActor,
-) (ActionResult, error) {
-	if err := s.ensureRedeployReady(ctx, aggregate); err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionRedeploy, err), err
-	}
-	config := lifecycleConfigurationFromAggregate(aggregate)
-	guards := []GuardResult{}
-	if config.Standard.DownBeforeRedeploy {
-		var err error
-		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecycleRedeployDownArgs, "compose_down_completed")
-		if err != nil {
-			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, guards), err
-		}
-	}
-	if config.Standard.PullBeforeRedeploy {
-		var err error
-		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecyclePullArgs, "compose_pull_completed")
-		if err != nil {
-			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, guards), err
-		}
-	}
-	upArgs, err := lifecycleUpArgs(aggregate, config)
-	if err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionRedeploy, err), err
-	}
-	output, err := s.runComposeCommand(ctx, aggregate, upArgs)
-	if err != nil {
-		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
-	}
-	guards = append(guards, guardDetail("command", strings.Join(upArgs, " ")))
-	if config.Standard.PruneImagesAfterRedeploy {
-		output, err = s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
-		if err != nil {
-			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
-		}
-		guards = append(guards, guardCode("image_prune_completed"))
-	}
-	messageKey := lifecycleMessageKey(generated.ApplicationActionResponseActionApplicationActionRedeploy).String()
-	return ActionResult{
-		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
-		Action:              generated.ApplicationActionResponseActionApplicationActionRedeploy,
-		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
-		MessageKey:          &messageKey,
-		Message:             &messageKey,
-		GuardResults:        guards,
-	}, nil
-}
-
-func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstore.ApplicationAggregate) error {
-	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return err
-	}
-	return s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate)
-}
-
-func (s *Service) runRedeployComposeStep(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	config LifecycleConfiguration,
-	guards []GuardResult,
-	argsBuilder func(projectstore.ApplicationAggregate, LifecycleConfiguration) ([]string, error),
-	successCode string,
-) ([]GuardResult, error) {
-	args, err := argsBuilder(aggregate, config)
-	if err != nil {
-		return lifecycleBlockedGuardResults(guards, err), err
-	}
-	output, err := s.runComposeCommand(ctx, aggregate, args)
-	if err != nil {
-		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
-	}
-	return append(guards, guardCode(successCode)), nil
-}
-
-func lifecycleBlockedGuardResults(guards []GuardResult, err error) []GuardResult {
-	if err == nil {
-		return append([]GuardResult(nil), guards...)
-	}
-	return append(append([]GuardResult(nil), guards...), guardDetail("lifecycle_blocked", err.Error()))
 }
 
 func (s *Service) unregisterWithActor(
@@ -647,116 +480,6 @@ func (s *Service) unregisterWithActor(
 	}, nil
 }
 
-// composeProjectArgs 根据项目聚合数据和生命周期配置构建 Docker Compose 命令参数；缺少 Compose 文件或项目规范名称无效时返回错误。
-func composeProjectArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
-	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
-	if len(composeFiles) == 0 {
-		return nil, errProjectInvalidArgument
-	}
-	base := []string{"compose"}
-	for _, file := range composeFiles {
-		if strings.TrimSpace(file.AbsolutePath) == "" {
-			return nil, errProjectInvalidArgument
-		}
-		path := file.AbsolutePath
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(aggregate.Application.WorkspacePath, path)
-		}
-		base = append(base, "-f", path)
-	}
-	for _, profile := range config.Standard.Profiles {
-		base = append(base, "--profile", profile)
-	}
-	if strings.TrimSpace(config.ApplicationName) == "" {
-		return nil, errProjectInvalidCanonicalName
-	}
-	canonicalProjectName, err := validateExplicitComposeProjectName(config.ApplicationName)
-	if err != nil {
-		return nil, err
-	}
-	base = append(base, "-p", canonicalProjectName)
-	return base, nil
-}
-
-// lifecycleCommandArgsForRuntime 在运行时准确确认 Compose 项目没有任何成员时，以 up -d 实现 restart 的恢复语义。
-func lifecycleCommandArgsForRuntime(
-	aggregate projectstore.ApplicationAggregate,
-	action generated.ApplicationActionResponseAction,
-	runtimeStatus *generated.ApplicationRuntimeStatus,
-) ([]string, error) {
-	config := lifecycleConfigurationFromAggregate(aggregate)
-	switch action {
-	case generated.ApplicationActionResponseActionApplicationActionUp:
-		return lifecycleUpArgs(aggregate, config)
-	case generated.ApplicationActionResponseActionApplicationActionStop:
-		base, err := composeProjectArgs(aggregate, config)
-		if err != nil {
-			return nil, err
-		}
-		return buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames), nil
-	case generated.ApplicationActionResponseActionApplicationActionRestart:
-		if runtimeStatus != nil && *runtimeStatus == generated.ApplicationRuntimeStatusMissing {
-			return lifecycleUpArgs(aggregate, config)
-		}
-		base, err := composeProjectArgs(aggregate, config)
-		if err != nil {
-			return nil, err
-		}
-		return buildLifecycleActionArgv(base, "restart", config.Standard.RestartArgs, config.Standard.ManagedServiceNames), nil
-	default:
-		return nil, errProjectInvalidArgument
-	}
-}
-
-// lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数，并根据配置添加构建、重建、孤立容器清理、匿名卷更新及等待选项。
-// lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数列表。
-// 返回包含配置选项和附加参数的命令参数；配置无效时返回错误。
-func lifecycleUpArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
-	base, err := composeProjectArgs(aggregate, config)
-	if err != nil {
-		return nil, err
-	}
-	args := append(base, "up", "-d")
-	if config.Standard.BuildBeforeUp {
-		args = append(args, "--build")
-	}
-	if config.Standard.ForceRecreate {
-		args = append(args, "--force-recreate")
-	}
-	if config.Standard.RemoveOrphans {
-		args = append(args, "--remove-orphans")
-	}
-	if config.Standard.RenewAnonVolumes {
-		args = append(args, "--renew-anon-volumes")
-	}
-	if config.Standard.WaitAfterUp {
-		args = append(args, "--wait")
-		args = append(args, "--wait-timeout", fmt.Sprintf("%d", config.Standard.WaitTimeoutSeconds))
-	}
-	args = append(args, config.Standard.AdditionalArgs...)
-	args = append(args, config.Standard.ManagedServiceNames...)
-	return args, nil
-}
-
-func lifecyclePullArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
-	base, err := composeProjectArgs(aggregate, config)
-	if err != nil {
-		return nil, err
-	}
-	return buildLifecycleActionArgv(base, "pull", config.Standard.PullArgs, config.Standard.ManagedServiceNames), nil
-}
-
-func lifecycleRedeployDownArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
-	base, err := composeProjectArgs(aggregate, config)
-	if err != nil {
-		return nil, err
-	}
-	if lifecycleManagesAllServices(config) {
-		return append(base, "down"), nil
-	}
-	return buildLifecycleActionArgv(base, "stop", config.Standard.StopArgs, config.Standard.ManagedServiceNames), nil
-}
-
 func lifecycleBlockedResult(
 	aggregate projectstore.ApplicationAggregate,
 	action generated.ApplicationActionResponseAction,
@@ -772,25 +495,10 @@ func lifecycleBlockedReason(err error) string {
 	case errors.Is(err, errProjectLifecycleReview):
 		return "review_required"
 	case errors.Is(err, errProjectInvalidArgument):
-		return "invalid_command"
+		return "invalid_policy"
 	default:
 		return "refresh_required"
 	}
-}
-
-// summarizeCommandOutput 归一化并截断命令输出摘要。
-// 它会去除首尾空白，空输出返回 "command_failed"，并将过长内容截断到最大摘要长度。
-// @param output 原始命令输出。
-// @returns 处理后的输出摘要。
-func summarizeCommandOutput(output string) string {
-	trimmed := strings.TrimSpace(output)
-	if trimmed == "" {
-		return "command_failed"
-	}
-	if len(trimmed) > maxCommandOutputSummary {
-		return trimmed[:maxCommandOutputSummary]
-	}
-	return trimmed
 }
 
 func (s *Service) batchActionItem(
@@ -813,7 +521,7 @@ func (s *Service) batchActionItem(
 	defer func() {
 		itemResult.ApplicationID = aggregate.Application.ApplicationID
 	}()
-	if item, ok, err := s.batchLifecycleActionItem(ctx, aggregate, projectID, request, actor); ok {
+	if item, ok, err := s.batchLifecycleActionItem(ctx, aggregate, request, actor); ok {
 		return item, err
 	}
 	switch request.Action {
@@ -836,7 +544,7 @@ func (s *Service) batchActionItem(
 		if _, blockErr := validateDestroyRequest(projectID, aggregate, destroyReq); blockErr != nil {
 			return skippedBatchActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, "destroy_not_applicable"), nil
 		}
-		action, err := s.destroyAfterGuard(ctx, aggregate, destroyReq, actor)
+		action, err := s.submitDestroyTask(ctx, aggregate, destroyReq, actor)
 		return BatchActionItemResult{ActionResult: action}, err
 	default:
 		return BatchActionItemResult{}, errProjectInvalidArgument
@@ -846,143 +554,25 @@ func (s *Service) batchActionItem(
 func (s *Service) batchLifecycleActionItem(
 	ctx context.Context,
 	aggregate projectstore.ApplicationAggregate,
-	projectID uint64,
 	request BatchActionRequest,
 	actor actionActor,
 ) (BatchActionItemResult, bool, error) {
 	switch request.Action {
 	case generated.ApplicationBatchActionRequestActionStart:
-		item, err := s.batchLifecycleItem(
-			ctx,
-			aggregate,
-			generated.ApplicationActionResponseActionApplicationActionUp,
-		)
-		return item, true, err
+		action, err := s.submitLifecycleTaskWithActor(ctx, aggregate, actor, generated.ApplicationActionResponseActionApplicationActionUp, nil)
+		return BatchActionItemResult{ActionResult: action}, true, err
 	case generated.ApplicationBatchActionRequestActionStop:
-		item, err := s.batchLifecycleItem(
-			ctx,
-			aggregate,
-			generated.ApplicationActionResponseActionApplicationActionStop,
-		)
-		return item, true, err
+		action, err := s.submitLifecycleTaskWithActor(ctx, aggregate, actor, generated.ApplicationActionResponseActionApplicationActionStop, nil)
+		return BatchActionItemResult{ActionResult: action}, true, err
 	case generated.ApplicationBatchActionRequestActionRestart:
-		item, err := s.batchLifecycleItem(
-			ctx,
-			aggregate,
-			generated.ApplicationActionResponseActionApplicationActionRestart,
-		)
-		return item, true, err
+		action, err := s.submitLifecycleTaskWithActor(ctx, aggregate, actor, generated.ApplicationActionResponseActionApplicationActionRestart, nil)
+		return BatchActionItemResult{ActionResult: action}, true, err
 	case generated.ApplicationBatchActionRequestActionRedeploy:
-		if err := ensureProjectLifecycleReady(aggregate); err != nil {
-			return skippedBatchActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionRedeploy, lifecycleBlockedReason(err)), true, nil
-		}
-		action, err := s.redeployWithActor(ctx, aggregate, actor)
+		action, err := s.submitLifecycleTaskWithActor(ctx, aggregate, actor, generated.ApplicationActionResponseActionApplicationActionRedeploy, nil)
 		return BatchActionItemResult{ActionResult: action}, true, err
 	default:
 		return BatchActionItemResult{}, false, nil
 	}
-}
-
-func (s *Service) batchLifecycleItem(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	action generated.ApplicationActionResponseAction,
-) (BatchActionItemResult, error) {
-	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
-	}
-	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
-		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
-	}
-	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
-	if skipReason, shouldSkip := skipBatchLifecycleAction(action, &runtimeSummary, runtimeErr); shouldSkip {
-		return skippedBatchActionResult(aggregate.Application.ApplicationRecordID, action, skipReason), nil
-	}
-	runtimeStatus := deriveProjectRuntimeStatus(&runtimeSummary, runtimeErr)
-	args, err := lifecycleCommandArgsForRuntime(aggregate, action, runtimeStatus)
-	if err != nil {
-		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
-	}
-	result, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
-	return BatchActionItemResult{ActionResult: result}, err
-}
-
-func skipBatchLifecycleAction(
-	action generated.ApplicationActionResponseAction,
-	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
-	runtimeErr error,
-) (string, bool) {
-	runtimeStatus := deriveProjectRuntimeStatus(runtimeSummary, runtimeErr)
-	if runtimeStatus == nil {
-		return "", false
-	}
-	switch action {
-	case generated.ApplicationActionResponseActionApplicationActionUp:
-		return skipBatchStartForStatus(*runtimeStatus)
-	case generated.ApplicationActionResponseActionApplicationActionStop:
-		return skipBatchStopForStatus(*runtimeStatus)
-	case generated.ApplicationActionResponseActionApplicationActionRestart:
-		return skipBatchRestartForStatus(*runtimeStatus)
-	default:
-		return "", false
-	}
-}
-
-func skipBatchStartForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
-	switch status {
-	case generated.ApplicationRuntimeStatusRunning:
-		return "already_running", true
-	case generated.ApplicationRuntimeStatusDegraded:
-		return "already_partially_running", true
-	case generated.ApplicationRuntimeStatusTransitioning:
-		return "currently_transitioning", true
-	default:
-		return "", false
-	}
-}
-
-func skipBatchStopForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
-	switch status {
-	case generated.ApplicationRuntimeStatusStopped:
-		return "already_stopped", true
-	case generated.ApplicationRuntimeStatusUnknown:
-		return "runtime_status_unknown", true
-	default:
-		return "", false
-	}
-}
-
-func skipBatchRestartForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
-	switch status {
-	case generated.ApplicationRuntimeStatusRunning, generated.ApplicationRuntimeStatusDegraded, generated.ApplicationRuntimeStatusStopped, generated.ApplicationRuntimeStatusMissing:
-		return "", false
-	case generated.ApplicationRuntimeStatusTransitioning:
-		return "currently_transitioning", true
-	case generated.ApplicationRuntimeStatusUnknown:
-		return "runtime_status_unknown", true
-	default:
-		return "runtime_status_unknown", true
-	}
-}
-
-func destroyDownArgs(aggregate projectstore.ApplicationAggregate, removeNamedVolumes bool) ([]string, error) {
-	base, err := composeProjectArgs(aggregate, lifecycleConfigurationFromAggregate(aggregate))
-	if err != nil {
-		return nil, err
-	}
-	downArgs := append(base, "down")
-	if removeNamedVolumes {
-		downArgs = append(downArgs, "--volumes")
-	}
-	return downArgs, nil
-}
-
-func appendDestroyDownGuards(guardResults []GuardResult, removeNamedVolumes bool) []GuardResult {
-	guardResults = append(guardResults, guardCode("compose_down_completed"))
-	if removeNamedVolumes {
-		guardResults = append(guardResults, guardCode("named_volumes_removed"))
-	}
-	return guardResults
 }
 
 func (s *Service) applyDestroyWorkspacePathStep(
@@ -1001,29 +591,6 @@ func (s *Service) applyDestroyWorkspacePathStep(
 	}
 	guardResults = append(guardResults, guardCode("workspace_path_preserved"))
 	return guardResults, autoUnregister, nil
-}
-
-func (s *Service) applyDestroyImagePruneStep(
-	ctx context.Context,
-	aggregate projectstore.ApplicationAggregate,
-	guardResults []GuardResult,
-	imagePrune bool,
-) (ActionResult, []GuardResult, error) {
-	if !imagePrune {
-		return ActionResult{}, guardResults, nil
-	}
-	output, err := s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
-	if err != nil {
-		return blockedActionResult(
-				aggregate.Application.ApplicationRecordID,
-				generated.ApplicationActionResponseActionApplicationActionDestroy,
-				append(guardResults, guardDetail("image_prune_failed", summarizeCommandOutput(output))),
-			),
-			nil,
-			fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
-	}
-	guardResults = append(guardResults, guardCode("image_prune_completed"))
-	return ActionResult{}, guardResults, nil
 }
 
 func (s *Service) applyDestroyUnregisterStep(

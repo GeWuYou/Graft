@@ -252,6 +252,7 @@ services:
       - ${GRAFT_DOCKER_RUNTIME_AGENT_TRUST_HOST_PATH:-./.data/docker-runtime-agent/trust}:/run/graft-agent-trust:ro
       - ${GRAFT_DOCKER_RUNTIME_AGENT_STATE_HOST_PATH:-./.data/docker-runtime-agent/state}:/var/lib/graft-runtime-agent/state
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
     healthcheck:
       test: ["CMD", "/app/graft-docker-runtime-agent", "--healthcheck"]
       interval: 15s

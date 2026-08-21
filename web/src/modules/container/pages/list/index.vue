@@ -1084,12 +1084,13 @@ async function executeDangerousAction(row: ContainerSummaryRecord, action: Dange
       return;
     }
 
-    const response = await removeContainer(row.id, { force });
-    const messageKey = response.message_key;
-    MessagePlugin.success(messageKey ? t(messageKey) : response.message || t('container.list.actionSuccess'));
+    const receipt = await removeContainer(row.id, { force }, createBatchIdempotencyKey('remove'));
+    lifecycleTaskId.value = receipt.task_id;
+    lifecycleTaskDrawerVisible.value = true;
+    observeLifecycleTask(receipt.task_id);
+    MessagePlugin.success(t('container.list.actionSuccess'));
     selectedRowKeys.value = selectedRowKeys.value.filter((key) => String(key) !== row.id);
     selectedRowRecords.value = selectedRowRecords.value.filter((selectedRow) => selectedRow.id !== row.id);
-    await refreshContainers();
   } catch (error) {
     logger.warn(`failed to ${action} container`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.actionFailed')));

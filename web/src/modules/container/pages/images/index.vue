@@ -716,13 +716,7 @@ import {
   postDockerImageSavedView,
   putDockerImageSavedView,
 } from '../../api/container';
-import {
-  batchRemoveDockerImages,
-  type DockerImageBatchResult,
-  pullDockerImage,
-  removeDockerImage,
-  tagDockerImage,
-} from '../../api/image-actions';
+import { batchRemoveDockerImages, pullDockerImage, removeDockerImage, tagDockerImage } from '../../api/image-actions';
 import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
 import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
@@ -827,7 +821,10 @@ const pulling = ref(false);
 let pullTaskObserver: TaskObserver | null = null;
 const cleanup = useDockerCleanup<DockerImage>({
   fetchCandidates: fetchCleanupCandidates,
-  execute: (ids) => removeImageIds(ids, false),
+  execute: async (ids) => {
+    await submitImageBatchTasks(ids, false);
+    return { items: [], unknownResponseIds: [] };
+  },
 });
 const cleanupDialogVisible = cleanup.visible;
 const cleanupLoading = cleanup.loading;
@@ -1041,10 +1038,10 @@ async function submitTag() {
   if (!selectedImage.value || !tagTarget.value) return;
   tagging.value = true;
   try {
-    await tagDockerImage(selectedImage.value.id, { target: tagTarget.value });
+    const receipt = await tagDockerImage(selectedImage.value.id, { target: tagTarget.value });
+    pullTaskId.value = receipt.task_id;
+    pullTaskDrawerVisible.value = true;
     tagDialogVisible.value = false;
-    await refresh();
-    MessagePlugin.success(t('container.images.tag.success'));
   } catch {
     MessagePlugin.error(t('container.images.tag.failed'));
   } finally {
@@ -1065,11 +1062,10 @@ async function submitRemove() {
   if (selectedImage.value.container_references?.length && !forceRemove.value) return;
   removing.value = true;
   try {
-    await removeDockerImage(selectedImage.value.id, { force: forceRemove.value });
+    const receipt = await removeDockerImage(selectedImage.value.id, { force: forceRemove.value });
+    pullTaskId.value = receipt.task_id;
+    pullTaskDrawerVisible.value = true;
     removeDialogVisible.value = false;
-    forgetSelectedImages([selectedImage.value.id]);
-    await refresh();
-    MessagePlugin.success(t('container.images.remove.success'));
   } catch (error) {
     if (isMultipleTagFailure(error)) {
       failedMultiTagImageId.value = selectedImage.value.id;
@@ -1088,76 +1084,29 @@ function openBatchRemove() {
   selectedImage.value = null;
   removeDialogVisible.value = true;
 }
-function forgetSelectedImages(ids: string[]) {
-  const removedIds = new Set(ids);
-  selectedRowKeys.value = selectedRowKeys.value.filter((key) => !removedIds.has(String(key)));
-  ids.forEach((id) => selectedImages.value.delete(id));
-}
-async function removeImageIds(ids: string[], force = false) {
-  const results: DockerImageBatchResult['items'] = [];
-  const unknownResponseIds: string[] = [];
-  let requestError: unknown;
+async function submitImageBatchTasks(ids: string[], force = false) {
+  const taskIds: number[] = [];
   for (let index = 0; index < ids.length; index += 100) {
     const chunkIds = ids.slice(index, index + 100);
-    try {
-      const response = await batchRemoveDockerImages({ ids: chunkIds, force });
-      results.push(...response.items);
-    } catch (error) {
-      logBatchRequestError('batch image removal request failed', error);
-      if (isApiRequestError(error) && error.status > 0) {
-        requestError = error;
-        break;
-      }
-      unknownResponseIds.push(...chunkIds);
-      results.push(
-        ...chunkIds.map((id) => ({ id, success: false, error_code: DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN })),
-      );
-    }
+    const receipt = await batchRemoveDockerImages({ ids: chunkIds, force });
+    taskIds.push(receipt.task_id);
   }
-  return { items: results, unknownResponseIds, requestError };
+  return taskIds;
 }
 async function submitCleanup() {
   if (!cleanupSelectedIds.value.length) return;
-  await submitBatchRemove(cleanupSelectedIds.value, false, true);
+  await submitBatchRemove(cleanupSelectedIds.value, false);
 }
-async function submitBatchRemove(ids: string[], force: boolean, cleanup = false) {
+async function submitBatchRemove(ids: string[], force: boolean) {
   batchRemoving.value = true;
   try {
-    const { items, unknownResponseIds, requestError } = await removeImageIds(ids, force);
-    const hasUnknownResponse = unknownResponseIds.length > 0;
-    const successfulIds = new Set(items.filter((item) => item.success).map((item) => item.id));
-    forgetSelectedImages([...successfulIds]);
-    if (cleanup) {
-      cleanupSelectedIds.value = cleanupSelectedIds.value.filter((id) => !successfulIds.has(id));
-      cleanupImages.value = cleanupImages.value.filter((image) => !successfulIds.has(image.id));
-      cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
-      if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);
-    } else if (hasUnknownResponse) {
-      await reconcileSelectedImages(unknownResponseIds);
+    const taskIds = await submitImageBatchTasks(ids, force);
+    const lastTaskId = taskIds.at(-1);
+    if (lastTaskId !== undefined) {
+      pullTaskId.value = lastTaskId;
+      pullTaskDrawerVisible.value = true;
     }
-    const failed = items.filter((item) => !item.success);
-    if (requestError || hasUnknownResponse) {
-      closeBatchDialogs();
-      MessagePlugin.error(t('container.images.batch.requestFailed'));
-      showUnknownBatchResult();
-    } else if (!failed.length) {
-      MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
-    } else {
-      if (failed.length < items.length) {
-        MessagePlugin.warning(
-          t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
-        );
-      } else {
-        MessagePlugin.error(t('container.images.batch.failed', { count: failed.length }));
-      }
-      closeBatchDialogs();
-      showBatchFailureDetails(failed, items.length - failed.length);
-    }
-    if (!requestError && !hasUnknownResponse && (!failed.length || failed.length < items.length)) {
-      removeDialogVisible.value = false;
-      if (!cleanup) cleanupDialogVisible.value = false;
-    }
-    await refresh();
+    closeBatchDialogs();
   } catch (error) {
     logBatchRequestError('batch image removal flow failed', error);
     MessagePlugin.error(t('container.images.batch.requestFailed'));
@@ -1170,18 +1119,6 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
 function closeBatchDialogs() {
   removeDialogVisible.value = false;
   cleanupDialogVisible.value = false;
-}
-
-function showBatchFailureDetails(items: DockerImageBatchResult['items'], successCount: number) {
-  batchResultUnknown.value = false;
-  batchResultSuccessCount.value = successCount;
-  batchFailureDetails.value = items.map((item) => {
-    const image =
-      selectedImages.value.get(item.id) ?? cleanupImages.value.find((candidate) => candidate.id === item.id);
-    const tags = image ? imageTags(image) : [];
-    return { id: item.id, name: tags[0] ?? shortId(item.id), tags, code: normalizeBatchFailureCode(item.error_code) };
-  });
-  batchResultDialogVisible.value = true;
 }
 
 function showUnknownBatchResult() {
@@ -1204,12 +1141,6 @@ function logBatchRequestError(message: string, error: unknown) {
     return;
   }
   logger.error(error instanceof Error ? error : new Error(String(error)), { message });
-}
-
-function normalizeBatchFailureCode(errorCode?: string): DockerImageRemoveErrorCode {
-  return Object.values(DOCKER_IMAGE_REMOVE_ERROR_CODES).includes(errorCode as DockerImageRemoveErrorCode)
-    ? (errorCode as DockerImageRemoveErrorCode)
-    : DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN;
 }
 
 function isMultipleTagFailure(error: unknown) {
@@ -1243,27 +1174,6 @@ async function fetchCleanupCandidates() {
     all.push(...page.items);
   }
   return all;
-}
-async function reconcileCleanupCandidates(confirmedSuccessfulIds: Set<string>) {
-  try {
-    await cleanup.reconcile(confirmedSuccessfulIds);
-  } catch {
-    MessagePlugin.error(t('container.images.cleanup.loadFailed'));
-  }
-}
-async function reconcileSelectedImages(ids: string[]) {
-  const removedIds: string[] = [];
-  await Promise.all(
-    ids.map(async (id) => {
-      try {
-        selectedImages.value.set(id, await getDockerImage(id));
-      } catch (error) {
-        if (isApiRequestError(error) && error.status === 404) removedIds.push(id);
-      }
-    }),
-  );
-  selectedImages.value = new Map(selectedImages.value);
-  forgetSelectedImages(removedIds);
 }
 function clearCleanupSelection() {
   cleanup.clearSelection();

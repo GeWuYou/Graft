@@ -38,7 +38,7 @@ func TestExecutionTransportRenewsLogsAndSettlesWithoutSecrets(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(paths) != 3 || paths[0] != "/agent/v1/execution-leases/lease-1/renew" || paths[1] != "/agent/v1/execution-leases/lease-1/logs" || paths[2] != "/agent/v1/execution-leases/lease-1/receipts" {
+	if len(paths) != 5 || paths[0] != "/agent/v1/execution-leases/lease-1/renew" || paths[1] != "/agent/v1/execution-leases/lease-1/logs" || paths[2] != "/agent/v1/execution-leases/lease-1/logs" || paths[3] != "/agent/v1/execution-leases/lease-1/logs" || paths[4] != "/agent/v1/execution-leases/lease-1/receipts" {
 		t.Fatalf("paths=%v", paths)
 	}
 }
@@ -91,7 +91,7 @@ func TestExecutionRenewsUntilCancellationAndSubmitsBoundedReceipt(t *testing.T) 
 	if renewals < 2 || receiptOutcome != "success" {
 		t.Fatalf("renewals=%d receipt=%q", renewals, receiptOutcome)
 	}
-	if len(logLines) != 2 || logLines[0] != "execution lease accepted" || logLines[1] != "cancellation observed" {
+	if len(logLines) != 3 || logLines[0] != "execution lease accepted" || logLines[1] != "provider operation started" || logLines[2] != "cancellation observed" {
 		t.Fatalf("logs=%v", logLines)
 	}
 }
@@ -150,5 +150,91 @@ func TestExecutionLoopRetriesTransientClientFailureUntilCancellation(t *testing.
 	err := runExecutionLoop(ctx, config{StateDir: t.TempDir(), PollInterval: time.Millisecond, RenewBefore: time.Minute}, state)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("execution loop error=%v", err)
+	}
+}
+
+func TestExecutionJournalRunningLeaseSettlesNeedsAttentionWithoutReplay(t *testing.T) {
+	stateDir := t.TempDir()
+	lease := executionLease{ID: "lease-recover", FenceToken: "fence-recover", OperationID: "container.lifecycle.start.v1", Protocol: containerExecutionProtocol, Capability: "container_execution", LeaseTTLMS: 1000}
+	if err := saveExecutionJournal(stateDir, executionJournal{Lease: lease, Phase: executionJournalRunning}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(executionJournalPath(stateDir, lease.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("journal mode=%v", info.Mode().Perm())
+	}
+	replayed := false
+	var receipt executionReceipt
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/agent/v1/execution-leases/lease-recover/renew":
+			_ = json.NewEncoder(w).Encode(lease)
+		case "/agent/v1/execution-leases/lease-recover/receipts":
+			_ = json.NewDecoder(r.Body).Decode(&receipt)
+			_ = json.NewEncoder(w).Encode(executionSettlement{})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	if err := executeLeaseWithOperation(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}, lease, func(context.Context, executionLease) executionResult {
+		replayed = true
+		return executionResult{Outcome: "success"}
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if replayed || receipt.Outcome != "needs_attention" || receipt.FailureCode != failureInterrupted {
+		t.Fatalf("replayed=%v receipt=%#v", replayed, receipt)
+	}
+	if _, err := os.Stat(executionJournalPath(stateDir, lease.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("terminal receipt did not clear journal: %v", err)
+	}
+}
+
+func TestPollExecutionCapabilitiesClaimsWithoutSequentialStarvation(t *testing.T) {
+	var mu sync.Mutex
+	claims := 0
+	allClaims := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != executionClaimPath {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		mu.Lock()
+		claims++
+		if claims == 3 {
+			close(allClaims)
+		}
+		mu.Unlock()
+		select {
+		case <-allClaims:
+			w.WriteHeader(http.StatusNoContent)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	pollExecutionCapabilities(ctx, server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"oci-build", "compose_execution", "container_execution"}}, persistedState{})
+	mu.Lock()
+	defer mu.Unlock()
+	if claims != 3 {
+		t.Fatalf("claims=%d", claims)
+	}
+}
+
+func TestContainerProviderRejectsUnknownAndCrossOperationFields(t *testing.T) {
+	tests := []json.RawMessage{
+		json.RawMessage(`{"container_ref":"container-1","endpoint":"secret"}`),
+		json.RawMessage(`{"container_ref":"container-1","image_ref":"image-1"}`),
+	}
+	for _, payload := range tests {
+		result := executeContainerOperation(context.Background(), config{DockerSocket: "unix:///missing"}, executionLease{Protocol: containerExecutionProtocol, OperationID: "container.lifecycle.start.v1", Input: payload})
+		if result.Outcome != "failed" || result.FailureCode != failureInvalidIntent {
+			t.Fatalf("result=%#v", result)
+		}
 	}
 }

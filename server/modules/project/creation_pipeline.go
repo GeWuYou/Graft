@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -50,9 +49,6 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	if err := s.ensureComposeTargetUse(ctx, targetID); err != nil {
 		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
-	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.ComposeProjectName); err != nil {
-		return projectstore.ApplicationAggregate{}, time.Time{}, err
-	}
 	strictCreate := command.SourceType == projectcontract.SourceTypeManaged.String() || command.SourceType == projectcontract.SourceTypeTemplate.String()
 	aggregate, err := repository.ImportApplication(ctx, projectstore.ImportApplicationInput{
 		ApplicationID:            newApplicationID(),
@@ -98,34 +94,6 @@ func normalizeLifecycleForDeclaredServices(config LifecycleStandardConfig, decla
 		return LifecycleStandardConfig{}, err
 	}
 	return normalized, nil
-}
-
-// ensureComposeProjectNameAvailableForCreate 防止受管工作区占用其它 Compose 项目已拥有的运行时名称。
-// 目标暂不可用时有意不阻断创建，使用户可以在目标恢复前准备工作区。
-func (s *Service) ensureComposeProjectNameAvailableForCreate(ctx context.Context, targetID uint64, name string) error {
-	state := s.composeProjectNameState(ctx, targetID, name)
-	switch state {
-	case moduleapi.ComposeProjectNameStateOccupied:
-		return errors.Join(errProjectConflict, errProjectComposeNameOccupied)
-	case moduleapi.ComposeProjectNameStateAvailable, moduleapi.ComposeProjectNameStateUnavailable:
-		return nil
-	default:
-		return errProjectRuntimeUnavailable
-	}
-}
-
-func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, name string) moduleapi.ComposeProjectNameState {
-	if s == nil || s.runtimeTargets == nil {
-		return moduleapi.ComposeProjectNameStateUnavailable
-	}
-	if targetID == 0 || targetID > uint64(^uint64(0)>>1) || strings.TrimSpace(name) == "" {
-		return moduleapi.ComposeProjectNameStateError
-	}
-	availability, err := s.runtimeTargets.CheckComposeProjectName(ctx, int64(targetID), strings.TrimSpace(name))
-	if err != nil {
-		return moduleapi.ComposeProjectNameStateError
-	}
-	return availability.State
 }
 
 // composeProjectNameSource 将 Compose 名称来源收敛到公开契约值。
@@ -176,7 +144,7 @@ func defaultManagedLifecycleConfig(config *LifecycleStandardConfig) LifecycleSta
 
 // lifecycleStandardConfigFromStore 将存储层生命周期配置转换为领域层标准生命周期配置。
 func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) LifecycleStandardConfig {
-	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), ManagedServiceNames: append([]string(nil), config.ManagedServiceNames...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...), StopArgs: append([]string(nil), config.StopArgs...), RestartArgs: append([]string(nil), config.RestartArgs...), PullArgs: append([]string(nil), config.PullArgs...)}
+	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), ManagedServiceNames: append([]string(nil), config.ManagedServiceNames...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy}
 }
 
 // managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。

@@ -43,17 +43,17 @@
   "completed_batches": [
     "batch-1-architecture-authority-and-recovery",
     "batch-2-task-runtime-external-execution-foundation",
-    "batch-3-docker-runtime-agent-promotion"
+    "batch-3-docker-runtime-agent-promotion",
+    "batch-4-application-and-container-migration"
   ],
-  "current_batch": "batch-4-application-and-container-migration",
+  "current_batch": "batch-5-build-sdk-migration",
   "pending_batches": [
-    "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
     "batch-6-update-controller-launch-boundary",
     "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-4-application-and-container-migration",
+  "next_batch": "batch-5-build-sdk-migration",
   "closeout_status": "active"
 }
 ```
@@ -85,9 +85,28 @@
 - Application, Container, Build and Update Docker operations remain at their pre-Batch-3 owners for later migration.
 - Focused Agent/transport/Runtime Target/Task behavior tests, Agent race tests, migration gates and full backend validation pass.
 
+## Batch 4 Acceptance
+
+- Application Compose lifecycle and finite Container mutations now submit provider-neutral intent as ordered external
+  Stages and reach the Docker Runtime Agent only through Task-owned fenced leases. Application and Container retain
+  domain intent and result interpretation; Task Runtime remains the sole owner of Task, Stage, lease, renewal,
+  cancellation, logs, receipt, retry and recovery state.
+- Runtime Target capability bindings are generation-scoped. Claim and every post-claim operation re-authorize the
+  frozen provider, capability and version against the authenticated active generation, so old credentials, missing
+  capabilities and version mismatches fail closed.
+- The Agent strictly dispatches the Application and Container operation allowlists through the Moby and Compose SDKs,
+  persists only a mode-0600 recovery journal, emits fixed redacted diagnostics and resolves workspace material through
+  a lease-fenced transient endpoint that never writes paths, endpoints, credentials or commands to Task persistence.
+- Server-local Application and Container mutation execution, CLI command contracts, adapters, fallbacks and
+  compatibility aliases are removed. Container snapshot reads and interactive streams remain outside the Task lease
+  protocol as required by ADR-026; Build SDK and Update Controller execution remain unmigrated, so the server Docker
+  socket mount is intentionally retained.
+- Focused Application, Container, Task, Runtime Target, HTTP transport and Agent behavior tests, related race tests,
+  OpenAPI/generated-Web checks, migration gates, full Web validation and the complete backend validation entrypoint pass.
+
 ## Next Recovery Point
 
-Batch 3 promoted the single Docker Runtime Agent and connected its mTLS transport to the Task-owned external execution
-gateway with explicit capability binding, long polling, renewal, cancellation observation, bounded logs, receipt,
-rotation and readiness behavior. Begin Batch 4 by migrating Application and Container Docker capabilities through
-provider-neutral leases; do not begin Build SDK or Update Controller migration.
+Batch 4 migrated Application Compose lifecycle and finite Container mutations to the single Docker Runtime Agent through
+Task-owned external execution leases, generation-scoped capability binding and transient material resolution, while
+removing their server-local mutation paths. Begin Batch 5 by migrating Build SDK execution only; do not begin Update
+Controller migration or remove Docker socket access still required by explicitly unmigrated/runtime-stream boundaries.

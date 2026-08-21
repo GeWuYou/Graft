@@ -629,65 +629,6 @@
 
                 <t-card
                   size="small"
-                  :title="t('project.detail.lifecycle.generatedCommandsTitle')"
-                  data-testid="project-lifecycle-command-card"
-                >
-                  <div class="project-lifecycle-command-section">
-                    <p class="project-inline-head__hint">
-                      {{ t('project.detail.lifecycle.generatedCommandsDescription') }}
-                    </p>
-                    <p class="project-inline-head__hint">
-                      {{ t('project.detail.lifecycle.copyCommandHint') }}
-                    </p>
-                    <div class="project-lifecycle-command-toolbar">
-                      <label class="project-lifecycle-command-toolbar__toggle">
-                        <span>{{ t('project.detail.lifecycle.copyAbsolutePaths') }}</span>
-                        <t-switch
-                          v-model="lifecycleCopyUsesAbsolutePaths"
-                          data-testid="project-lifecycle-copy-path-mode"
-                        />
-                      </label>
-                    </div>
-                    <div class="project-lifecycle-command-grid">
-                      <article
-                        v-for="group in lifecycleCommandPreviewCards"
-                        :key="group.key"
-                        class="project-lifecycle-command-card"
-                        :data-testid="`project-lifecycle-command-preview-${group.key}`"
-                      >
-                        <div class="project-lifecycle-command-card__header">
-                          <div class="project-lifecycle-command-card__title">
-                            <strong>{{ group.title }}</strong>
-                            <p>{{ group.description }}</p>
-                          </div>
-                          <t-button
-                            size="small"
-                            theme="default"
-                            variant="outline"
-                            :disabled="!group.preview"
-                            @click="copyLifecycleCommand(group.copyText)"
-                          >
-                            {{ t('project.detail.lifecycle.copyCommand') }}
-                          </t-button>
-                        </div>
-                        <div v-if="group.preview" class="project-code-panel project-lifecycle-command-preview">
-                          <div class="project-lifecycle-command-meta">
-                            <span>{{ group.stepSummary }}</span>
-                          </div>
-                          <code-block :code="group.preview" lang="shell" />
-                        </div>
-                        <t-empty
-                          v-else
-                          size="small"
-                          :description="t('project.detail.lifecycle.generatedCommandsEmpty')"
-                        />
-                      </article>
-                    </div>
-                  </div>
-                </t-card>
-
-                <t-card
-                  size="small"
                   :title="t('project.detail.lifecycle.configurationTitle')"
                   data-testid="project-lifecycle-configuration-card"
                 >
@@ -707,15 +648,6 @@
                           <t-input
                             v-model="lifecycleProfilesInput"
                             :placeholder="t('project.detail.lifecycle.profilesPlaceholder')"
-                          />
-                        </label>
-                        <label class="project-lifecycle-field">
-                          <span class="project-lifecycle-field__label">
-                            {{ t('project.detail.lifecycle.additionalArgs') }}
-                          </span>
-                          <t-input
-                            v-model="lifecycleDraft.additional_args"
-                            :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
                           />
                         </label>
                       </div>
@@ -740,7 +672,7 @@
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
                               <span>{{ t(definition.titleKey) }}</span>
-                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
+                              <lifecycle-help-trigger :definition="definition" />
                             </div>
                             <p>{{ t(definition.summaryKey) }}</p>
                           </div>
@@ -759,10 +691,7 @@
                         >
                           <span class="project-lifecycle-field__label project-lifecycle-field__label--with-help">
                             <span>{{ t(lifecycleWaitTimeoutDefinition.titleKey) }}</span>
-                            <lifecycle-help-trigger
-                              :definition="lifecycleWaitTimeoutDefinition"
-                              :draft="lifecycleDraft"
-                            />
+                            <lifecycle-help-trigger :definition="lifecycleWaitTimeoutDefinition" />
                           </span>
                           <t-input-number
                             v-model="lifecycleDraft.wait_timeout_seconds"
@@ -782,7 +711,7 @@
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
                               <span>{{ t(definition.titleKey) }}</span>
-                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
+                              <lifecycle-help-trigger :definition="definition" />
                             </div>
                             <p>{{ t(definition.summaryKey) }}</p>
                           </div>
@@ -870,7 +799,6 @@ import {
   getApplicationRuntimeTargetDetail,
 } from '@/modules/runtime-target/contract/application-target-detail';
 import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task/contract/task-ui';
-import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,
   createMainTextColumn,
@@ -934,12 +862,10 @@ import {
 import {
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
-  formatLifecycleCommandCopyText,
   isLifecycleDraftDirty,
   lifecycleDraftProfilesText,
   projectLifecycleReviewStatusLabel,
   projectLifecycleReviewStatusTheme,
-  resolveLifecycleCommandSteps,
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
 import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../../shared/lifecycle-help';
@@ -1059,12 +985,8 @@ const lifecycleDraft = reactive<ApplicationLifecycleConfigurationDraft>({
   wait_timeout_seconds: 120,
   renew_anon_volumes: false,
   prune_images_after_redeploy: false,
-  additional_args: '',
   managed_service_names: [],
   declared_service_names: [],
-  stop_args: '',
-  restart_args: '',
-  pull_args: '',
 });
 const metricTrendState = ref<ApplicationMetricTrendState>({
   cpu: 'none',
@@ -1207,51 +1129,12 @@ const lifecycleDraftDirty = computed(() => {
   return isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
 });
 const lifecycleCanSave = computed(() => lifecycleReviewRequired.value || lifecycleDraftDirty.value);
-const lifecycleCopyUsesAbsolutePaths = ref(true);
 const lifecycleProfilesInput = computed({
   get: () => lifecycleDraftProfilesText(lifecycleDraft),
   set: (value: string) => {
     updateLifecycleDraftProfiles(lifecycleDraft, value);
   },
 });
-const lifecycleCommandPreviewSections = computed(() => [
-  {
-    key: 'up',
-    title: t('project.detail.lifecycle.generatedCommands.up'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'up', { preferClientGenerated: lifecycleDraftDirty.value }),
-  },
-  {
-    key: 'stop',
-    title: t('project.detail.lifecycle.generatedCommands.stop'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'stop', { preferClientGenerated: lifecycleDraftDirty.value }),
-  },
-  {
-    key: 'restart',
-    title: t('project.detail.lifecycle.generatedCommands.restart'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'restart', {
-      preferClientGenerated: lifecycleDraftDirty.value,
-    }),
-  },
-  {
-    key: 'redeploy',
-    title: t('project.detail.lifecycle.generatedCommands.redeploy'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy', {
-      preferClientGenerated: lifecycleDraftDirty.value,
-    }),
-  },
-]);
-const lifecycleCommandPreviewCards = computed(() =>
-  lifecycleCommandPreviewSections.value.map((section) => ({
-    copyText: formatLifecycleCommandCopyText(section.steps, {
-      absolutePaths: lifecycleCopyUsesAbsolutePaths.value,
-    }),
-    description: t(`project.detail.lifecycle.generatedCommandsDescriptions.${section.key}`),
-    key: section.key,
-    preview: section.steps.map((step) => step.command).join('\n'),
-    stepSummary: section.steps.map((step) => t(step.title_key)).join(' / '),
-    title: section.title,
-  })),
-);
 const lifecycleWaitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
 const waitAfterUpDefinitionIndex = lifecycleSwitchHelpDefinitions.findIndex((item) => item.key === 'waitAfterUp');
 const lifecycleSwitchOptionDefinitionsBeforeWaitTimeout =
@@ -1599,7 +1482,6 @@ function assignLifecycleDraft(
   Object.assign(target, {
     ...nextConfig,
     compose_files: [...nextConfig.compose_files],
-    generated_commands: nextConfig.generated_commands ? { ...nextConfig.generated_commands } : null,
     profiles: [...nextConfig.profiles],
   });
 }
@@ -2637,18 +2519,6 @@ async function copyPath(path: string) {
     MessagePlugin.success(t('project.detail.actions.copyPathSuccess'));
   } catch {
     MessagePlugin.error(t('project.detail.actions.copyPathError'));
-  }
-}
-
-async function copyLifecycleCommand(command: string) {
-  if (!command.trim()) {
-    return;
-  }
-  try {
-    await copyText(command);
-    MessagePlugin.success(t('project.detail.lifecycle.copyCommandSuccess'));
-  } catch {
-    MessagePlugin.error(t('project.detail.lifecycle.copyCommandError'));
   }
 }
 

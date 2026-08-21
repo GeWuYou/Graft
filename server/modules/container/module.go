@@ -49,7 +49,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve task runtime registrar: %w", err)
 	}
-	if err := registerDockerImagePullTask(taskRegistrar, service); err != nil {
+	if err := registerContainerExternalTaskOwners(taskRegistrar, service); err != nil {
 		return err
 	}
 	if err := registerContainerLifecycleTasks(taskRegistrar, service); err != nil {

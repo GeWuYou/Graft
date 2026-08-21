@@ -10,7 +10,6 @@ const messages: Record<string, string> = {
   'project.detail.lifecycle.downBeforeRedeploy': 'Down Before Redeploy',
   'project.detail.lifecycle.help.common.ariaLabel': 'View help for {item}',
   'project.detail.lifecycle.help.common.sections.effect': 'Effect',
-  'project.detail.lifecycle.help.common.sections.command': 'Actual Command',
   'project.detail.lifecycle.help.common.sections.scenarios': 'Recommended When',
   'project.detail.lifecycle.help.common.sections.risks': 'Costs and Risks',
   'project.detail.lifecycle.help.common.sections.recommendation': 'Default Guidance',
@@ -89,18 +88,13 @@ vi.mock('vue-i18n', () => ({
 }));
 
 const draft: ApplicationLifecycleConfigurationDraft = {
-  additional_args: '',
   managed_service_names: [],
   declared_service_names: [],
-  stop_args: '',
-  restart_args: '',
-  pull_args: '',
   build_before_up: false,
   compose_project_name: 'compose-demo',
   compose_files: ['compose.yaml'],
   down_before_redeploy: true,
   force_recreate: false,
-  generated_commands: null,
   profiles: [],
   prune_images_after_redeploy: false,
   pull_before_redeploy: false,
@@ -167,8 +161,7 @@ describe('LifecycleHelpTrigger', () => {
     expect(popup.attributes('data-attach')).toBe('body');
     expect(popup.attributes('data-popup-visible')).toBe('true');
     expect(tooltip.attributes('data-disabled')).toBe('true');
-    expect(wrapper.text()).toContain('Actual Command');
-    expect(wrapper.text()).toContain('docker compose down');
+    expect(wrapper.text()).toContain('Run down before up.');
     expect(wrapper.text()).toContain('This creates downtime.');
   });
 });

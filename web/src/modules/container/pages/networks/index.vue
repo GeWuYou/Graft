@@ -265,13 +265,6 @@
             />
           </t-space>
         </t-form-item>
-        <t-form-item :label="t('container.networks.form.labels')">
-          <t-textarea
-            v-model="createForm.labelsText"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-            :placeholder="t('container.networks.form.labelsHint')"
-          />
-        </t-form-item>
         <t-form-item :label="t('container.networks.form.subnet')">
           <t-input v-model="createForm.subnet" :placeholder="t('container.networks.form.subnetPlaceholder')" />
         </t-form-item>
@@ -554,7 +547,6 @@ const createForm = reactive({
   driver: 'bridge' as DockerNetworkDriver,
   internal: false,
   attachable: false,
-  labelsText: '',
   subnet: '',
   gateway: '',
 });
@@ -754,7 +746,6 @@ function openCreateDrawer() {
     driver: 'bridge',
     internal: false,
     attachable: false,
-    labelsText: '',
     subnet: '',
     gateway: '',
   });
@@ -811,19 +802,6 @@ function resetFilters() {
   Object.assign(draftFilters, { keyword: '', driver: '', scope: '', usage: '', source: '', compose_project: '' });
   applyFilters();
 }
-function parseLabels(source: string) {
-  const labels = Object.fromEntries(
-    source
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const separator = line.indexOf('=');
-        return separator < 0 ? [line, ''] : [line.slice(0, separator).trim(), line.slice(separator + 1).trim()];
-      }),
-  );
-  return Object.keys(labels).length ? labels : undefined;
-}
 async function submitCreate() {
   if (!createForm.name.trim()) {
     MessagePlugin.warning(t('container.networks.form.nameRequired'));
@@ -838,15 +816,13 @@ async function submitCreate() {
     driver: createForm.driver,
     internal: createForm.internal,
     attachable: createForm.attachable,
-    labels: parseLabels(createForm.labelsText),
     ipam,
   };
   creating.value = true;
   try {
-    await createDockerNetwork(body);
-    await invalidateDockerNetworkQueries();
+    const receipt = await createDockerNetwork(body);
+    void receipt.task_id;
     createDrawerVisible.value = false;
-    MessagePlugin.success(t('container.networks.createSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.networks.createFailed')));
   } finally {
@@ -860,11 +836,12 @@ async function submitRemove() {
   }
   removing.value = true;
   try {
-    await removeDockerNetwork(selectedNetwork.value.id, { confirm_network_name: removeConfirmation.value });
-    await invalidateDockerNetworkQueries();
+    const receipt = await removeDockerNetwork(selectedNetwork.value.id, {
+      confirm_network_name: removeConfirmation.value,
+    });
+    void receipt.task_id;
     removeDialogVisible.value = false;
     detailDrawerVisible.value = false;
-    MessagePlugin.success(t('container.networks.removeSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.networks.removeFailed')));
   } finally {
@@ -881,11 +858,8 @@ async function submitBatchRemove() {
   const succeeded = results.filter((result) => result.status === 'fulfilled').length;
   const failed = results.length - succeeded;
   clearSelection();
-  await invalidateDockerNetworkQueries();
   batchRemoveDialogVisible.value = false;
-  if (failed === 0) MessagePlugin.success(t('container.networks.batch.removeSuccess', { count: succeeded }));
-  else if (succeeded > 0) MessagePlugin.warning(t('container.networks.batch.removePartial', { succeeded, failed }));
-  else MessagePlugin.error(t('container.networks.batch.removeFailed'));
+  if (failed > 0 && succeeded === 0) MessagePlugin.error(t('container.networks.batch.removeFailed'));
   batchRemoving.value = false;
 }
 </script>
