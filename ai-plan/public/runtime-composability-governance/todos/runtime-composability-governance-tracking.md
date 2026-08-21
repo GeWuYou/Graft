@@ -47,7 +47,7 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `docker-runtime-agent` Batch 5 (`build-sdk-migration`) accepted; Batch 6 is next.
+- Current batch: `docker-runtime-agent` Batch 8 (`ui-and-cross-boundary-convergence`) is next after Batch 7 acceptance.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
@@ -88,10 +88,10 @@ explicitly unmigrated Update Controller and Container read/stream/interactive bo
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary"],
-  "pending_batches": ["docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
-  "current_batch": "docker-runtime-agent-batch-7-deployment-and-cli-deletion",
-  "next_batch": "docker-runtime-agent-batch-7-deployment-and-cli-deletion",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion"],
+  "pending_batches": ["docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
+  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
+  "next_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
   "closeout_status": "active"
 }
 ```
@@ -178,3 +178,14 @@ Phase 0/1 的盘点与 cleanup 结果仍未证明需要通用共享 Scope API；
   and core listener/dispatcher resources belong to Runtime.
 - Kept cancellation contexts and idempotent disposers local to their existing owners. No shared Scope API, `module.Context`
   expansion, Agent -> Task -> Plugin Context tree, or authority change was introduced.
+
+## Docker Runtime Agent Batch 7 Documentation Evidence
+
+- [x] The active subtopic's deployment slice records `cutover-v1` as retained bootstrap authority and does not add a
+  second startup or Update execution path.
+- [x] Parent recovery materials now point to the frozen server socket consumers only: Update observation/recovery,
+  Runtime Target discovery/summary, and Container snapshot/stream/interactive transport.
+- [x] The ordered Update replacement contract is documented consistently: server/web, verify server, replace Agent,
+  verify mTLS/generation/capability readiness.
+
+Evidence: `git diff --check`; `python3 scripts/validate_ai_plan_structure.py`.

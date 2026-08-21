@@ -21,7 +21,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 还必须挂载 `/var/run/docker.sock`，以发现项目并启动短生命周期升级 runner。
+不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 的 socket 挂载仅保留给 Runtime Target 发现/摘要、Container snapshot/stream/interactive 读取以及受限的 Update 观测/恢复。Update Controller 启动和其他 Docker 副作用由 Docker Runtime Agent 拥有。
 
 ## 2. 保留已有数据
 
@@ -65,7 +65,9 @@ docker compose up -d
 docker compose ps
 ```
 
-确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
+确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。官方 Compose bootstrap 是保留的 cutover authority：它在 `graft migrate up` 前一次性运行 `graft update cutover-v1`；该命令只清理旧的更新状态，不是第二条运行时执行路径。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
+
+确认升级必须保持 controller 的顺序：先更新 `server`/`web`，验证新 server 健康，再最后替换 Docker Runtime Agent，随后验证新 Agent 的 mTLS 身份、活动 generation 和声明的 capability readiness。不要先替换 Agent，也不要把容器处于 healthy 视为就绪。
 
 在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 server 镜像和生产配置运行目标数据预检。官方 Compose 提供了带 profile 的一次性 `migration-preflight` 服务，它与 `bootstrap` 共享同一个 `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` 镜像引用和运行时环境；随后 `bootstrap` 会使用同一个 server binary 内嵌的 migration registry 执行实际迁移。
 

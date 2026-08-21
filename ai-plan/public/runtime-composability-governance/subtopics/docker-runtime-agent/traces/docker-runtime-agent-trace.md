@@ -17,6 +17,15 @@
 - Preserved ADR-006/009 host-path, durable state, fencing and survivor invariants while superseding CLI/launcher details.
 - Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
 
+## 2026-08-22 batch-7-deployment-and-cli-deletion-accepted
+
+- Recovery launch now reuses the existing Task-owned `controller_launch` Stage and single Runtime Agent pull
+  boundary; server-local recovery Docker launch helpers are deleted.
+- Recovery material and Agent state-volume-only isolation are covered by focused tests. The Compose runner uses Moby
+  and official Compose SDKs, and the runner image no longer includes Docker CLI or Compose plugin.
+- The one-time `cutover-v1` bootstrap authority and retained socket consumer inventory remain explicit. Recovery point
+  advances to Batch 8 UI and cross-boundary convergence.
+
 ## 2026-08-21 batch-2-accepted
 
 - Added a provider-neutral `RuntimeAgentExecutionGateway` owned by Task Runtime for claim, renew, cancellation
@@ -103,3 +112,14 @@ structure validation; and `git diff --check`. Build server-local Docker/CLI path
   compatibility alias was introduced.
 - Validation passed: focused Update/Agent/Runtime Target/Task tests, matching race tests, production lint, AI-plan
   structure validation, `git diff --check`, and the complete backend validation entrypoint.
+
+## 2026-08-22 batch-7-deployment-and-cli-deletion-docs
+
+- Kept `graft update cutover-v1` explicit in the official Compose bootstrap and smoke overlay as the one-time legacy
+  update-state cleanup authority before forward-only migrations; it is not a second runtime launch path.
+- Synchronized deployment and conformance guidance on the frozen server socket consumer list: Update
+  observation/recovery, Runtime Target discovery/summary, and Container snapshot/stream/interactive reads. Agent-owned
+  Update Controller launch, Build, and finite mutations do not use the server socket path.
+- Documented the required self-update rollout order: server/web replacement, server health verification, Runtime Agent
+  replacement last, then mTLS identity, generation, and capability-readiness verification.
+- Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.

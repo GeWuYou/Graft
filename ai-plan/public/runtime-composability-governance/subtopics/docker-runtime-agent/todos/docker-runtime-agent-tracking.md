@@ -46,14 +46,14 @@
     "batch-3-docker-runtime-agent-promotion",
     "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
-    "batch-6-update-controller-launch-boundary"
+    "batch-6-update-controller-launch-boundary",
+    "batch-7-deployment-and-cli-deletion"
   ],
-  "current_batch": "batch-7-deployment-and-cli-deletion",
+  "current_batch": "batch-8-ui-and-cross-boundary-convergence",
   "pending_batches": [
-    "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-7-deployment-and-cli-deletion",
+  "next_batch": "batch-8-ui-and-cross-boundary-convergence",
   "closeout_status": "active"
 }
 ```
@@ -165,3 +165,18 @@ a second launch path while removing the remaining server-local recovery/CLI depe
 
 Evidence: focused and race Go tests, `go run ./cmd/graft validate backend` (including lint), SQL migration/version
 checks, generated module registry freshness, AI-plan structure validation and `git diff --check` all passed.
+
+## Batch 7 Deployment and CLI Deletion Evidence
+
+- [x] Official Compose bootstrap and smoke overlay retain `graft update cutover-v1` as the one-time legacy update-state
+  authority before `graft migrate up`; cutover is not a runtime launch or compatibility execution path.
+- [x] Deployment and conformance documentation state the only retained server Docker socket consumers: Update
+  observation/recovery, Runtime Target discovery/summary, and Container snapshot/stream/interactive transport. Build,
+  Update Controller launch, and finite mutation side effects remain Agent-owned.
+- [x] Official migration guidance fixes the ordered Update rollout: replace `server`/`web`, verify server health,
+  replace the Runtime Agent last, then verify mTLS identity, active generation, and capability readiness.
+- [x] Conformance fixture documentation and Compose comments preserve the outbound-only Agent/no inbound port boundary
+  and the retained server socket list.
+
+Validation evidence for this documentation/configuration slice: `git diff --check` and
+`python3 scripts/validate_ai_plan_structure.py`.

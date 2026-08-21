@@ -2,6 +2,7 @@ package update
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,9 @@ const (
 type updateControllerMaterial struct {
 	ControllerReference string `json:"controller_reference"`
 	InputBase64         string `json:"input_b64"`
+	RecoveryStateBase64 string `json:"recovery_state_b64,omitempty"`
+	RecoveryClaimID     string `json:"recovery_claim_id,omitempty"`
+	Recovery            bool   `json:"recovery,omitempty"`
 	ComposeRoot         string `json:"compose_root"`
 	DockerSocket        string `json:"docker_socket"`
 	StateVolume         string `json:"state_volume"`
@@ -42,6 +46,9 @@ type updateControllerLaunchSlot struct {
 	ready    chan struct{}
 	targetID int64
 	input    RunnerInput
+	recovery *RunnerRecoveryInput
+	image    string
+	claimID  string
 	failed   bool
 }
 
@@ -50,7 +57,7 @@ func (*RolloutService) Type() moduleapi.StageExecutorType { return composeUpdate
 
 // ResolveExternalExecutionMaterial 在 Task Runtime 验证 lease fence 后解析一次性 controller 启动材料。
 //
-//nolint:cyclop,gocyclo // material 校验必须显式保留每个信任边界拒绝分支。
+//nolint:cyclop,gocyclo,gocognit // material 校验必须显式保留每个信任边界拒绝分支。
 func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, request moduleapi.ExternalExecutionMaterialRequest) (moduleapi.ExternalExecutionMaterial, error) {
 	if s == nil || request.ExecutorType != composeUpdateLaunchExecutor || request.OperationID != composeUpdateLaunchOperation || request.TaskID == 0 || request.RuntimeTargetID < 1 {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material request is invalid")
@@ -65,8 +72,12 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 	}
 	s.externalInputMu.Lock()
 	slot, ok := s.externalLaunches[intent.OperationID]
+	targetID := int64(0)
+	if ok {
+		targetID = slot.targetID
+	}
 	s.externalInputMu.Unlock()
-	if !ok || slot.targetID != request.RuntimeTargetID {
+	if !ok || targetID != request.RuntimeTargetID {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material is unavailable")
 	}
 	select {
@@ -74,8 +85,28 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 	case <-ctx.Done():
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material is unavailable")
 	}
+	s.externalInputMu.Lock()
+	recovery := slot.recovery
+	image, claimID := slot.image, slot.claimID
 	input := slot.input
-	if slot.failed || input.TaskID != request.TaskID || input.OperationID != intent.OperationID || input.SourceVersion != intent.SourceVersion || input.TargetVersion != intent.TargetVersion {
+	failed := slot.failed
+	s.externalInputMu.Unlock()
+	stateVolume, err := runnerStateVolumeName()
+	if err != nil {
+		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller state volume is invalid")
+	}
+	if recovery != nil {
+		encoded, err := encodeRunnerRecoveryInput(*recovery)
+		if err != nil {
+			return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller recovery material encoding failed")
+		}
+		payload, err := json.Marshal(updateControllerMaterial{ControllerReference: image, RecoveryStateBase64: encoded, RecoveryClaimID: claimID, Recovery: true, StateVolume: stateVolume, OperationID: intent.OperationID})
+		if err != nil {
+			return moduleapi.ExternalExecutionMaterial{}, errors.New("encode update controller recovery material")
+		}
+		return moduleapi.ExternalExecutionMaterial{Protocol: composeUpdateLaunchMaterialProtocol, Payload: payload}, nil
+	}
+	if failed || input.TaskID != request.TaskID || input.OperationID != intent.OperationID || input.SourceVersion != intent.SourceVersion || input.TargetVersion != intent.TargetVersion {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material is unavailable")
 	}
 	if err := ValidateRunnerInput(input); err != nil {
@@ -84,10 +115,6 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 	encoded, err := encodeRunnerInput(input)
 	if err != nil {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material encoding failed")
-	}
-	stateVolume, err := runnerStateVolumeName()
-	if err != nil {
-		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller state volume is invalid")
 	}
 	material := updateControllerMaterial{
 		ControllerReference: input.Preflight.RunnerReference,
@@ -102,6 +129,35 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("encode update controller material")
 	}
 	return moduleapi.ExternalExecutionMaterial{Protocol: composeUpdateLaunchMaterialProtocol, Payload: payload}, nil
+}
+
+func encodeRunnerRecoveryInput(input RunnerRecoveryInput) (string, error) {
+	contents, err := json.Marshal(input)
+	if err != nil {
+		return "", fmt.Errorf("encode compose runner recovery state: %w", err)
+	}
+	return base64.RawStdEncoding.EncodeToString(contents), nil
+}
+
+func (s *RolloutService) prepareRecoveryLaunch(operationID string, targetID int64, recovery RunnerRecoveryInput, image, claimID string) error {
+	s.externalInputMu.Lock()
+	slot := s.externalLaunches[operationID]
+	if slot == nil {
+		slot = &updateControllerLaunchSlot{ready: make(chan struct{}), targetID: targetID}
+		s.externalLaunches[operationID] = slot
+	} else if slot.targetID != targetID || slot.failed {
+		s.externalInputMu.Unlock()
+		return errors.New("update controller recovery launch slot is unavailable")
+	}
+	slot.recovery, slot.image, slot.claimID = &recovery, image, claimID
+	ready := slot.ready
+	select {
+	case <-ready:
+	default:
+		close(ready)
+	}
+	s.externalInputMu.Unlock()
+	return nil
 }
 
 func (s *RolloutService) prepareExternalLaunch(operationID string, targetID int64) error {

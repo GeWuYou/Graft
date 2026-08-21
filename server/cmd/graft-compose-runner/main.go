@@ -13,12 +13,19 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	composecli "github.com/compose-spec/compose-go/v2/cli"
+	composetypes "github.com/compose-spec/compose-go/v2/types"
+	dockercommand "github.com/docker/cli/cli/command"
+	dockerflags "github.com/docker/cli/cli/flags"
+	composeapi "github.com/docker/compose/v2/pkg/api"
+	compose "github.com/docker/compose/v2/pkg/compose"
+	dockerclient "github.com/docker/docker/client"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
@@ -410,12 +417,11 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 	if err != nil {
 		return backupFailure(update.RunnerBackupFailureStageDatabaseDump, err)
 	}
-	args := append([]string{"compose", "--env-file", ".env"}, composeFileArgs(in.Preflight.ComposeFiles)...)
-	args = append(args, "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
-	// #nosec G204 -- this fixed command has no caller-provided executable or arguments.
-	command := exec.CommandContext(ctx, "docker", args...)
-	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, dump, os.Stderr
-	err = command.Run()
+	runtime, err := newComposeRuntime(ctx, in, dump, os.Stderr)
+	if err == nil {
+		defer func() { _ = runtime.Close() }()
+		_, err = runtime.exec(ctx, "postgres", []string{"sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\""}, "")
+	}
 	closeErr := dump.Close()
 	if err != nil {
 		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageDatabaseDump, update.RunnerBackupFailureDetailCommandFailed, err)
@@ -441,21 +447,26 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 // transferBackupArtifacts 将临时快照送入 server 容器的受控工件挂载；目标由服务端配置和 RunnerInput 冻结，
 // runner 只执行固定 Compose 命令，不能接受调用方命令或任意目标路径。
 func transferBackupArtifacts(ctx context.Context, in update.RunnerInput, stagingRoot string) error {
-	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "mkdir", "-p", in.BackupArtifactRoot); err != nil {
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+	}
+	defer func() { _ = runtime.Close() }()
+	if err := runtime.execFixed(ctx, "server", []string{"mkdir", "-p", in.BackupArtifactRoot}, "0:0"); err != nil {
 		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
 	}
 	for _, name := range []string{"config.snapshot", "database.dump"} {
-		if err := compose(ctx, in, "cp", filepath.Join(stagingRoot, name), "server:"+filepath.Join(in.BackupArtifactRoot, name)); err != nil {
+		if err := runtime.copy(ctx, filepath.Join(stagingRoot, name), "server:"+filepath.Join(in.BackupArtifactRoot, name)); err != nil {
 			return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
 		}
 	}
-	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chown", "-R", "10001:10001", in.BackupArtifactRoot); err != nil {
+	if err := runtime.execFixed(ctx, "server", []string{"chown", "-R", "10001:10001", in.BackupArtifactRoot}, "0:0"); err != nil {
 		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
 	}
-	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chmod", "0700", in.BackupArtifactRoot); err != nil {
+	if err := runtime.execFixed(ctx, "server", []string{"chmod", "0700", in.BackupArtifactRoot}, "0:0"); err != nil {
 		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
 	}
-	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chmod", "0600", filepath.Join(in.BackupArtifactRoot, "config.snapshot"), filepath.Join(in.BackupArtifactRoot, "database.dump")); err != nil {
+	if err := runtime.execFixed(ctx, "server", []string{"chmod", "0600", filepath.Join(in.BackupArtifactRoot, "config.snapshot"), filepath.Join(in.BackupArtifactRoot, "database.dump")}, "0:0"); err != nil {
 		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
 	}
 	return nil
@@ -473,33 +484,80 @@ func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
 	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight); err != nil {
 		return err
 	}
-	return compose(ctx, in, "pull")
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	return runtime.pull(ctx)
 }
 func (a *actions) StopServices(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, "stop", "server", "web")
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	return runtime.stop(ctx, []string{"server", "web"})
 }
 func (a *actions) VerifyImages(ctx context.Context, in update.RunnerInput) error {
-	if err := verifyImageDigest(ctx, in.Preflight.ServerReference, in.Preflight.ServerDigest); err != nil {
+	if err := verifyImageDigest(ctx, in.Preflight.DockerSocket, in.Preflight.ServerReference, in.Preflight.ServerDigest); err != nil {
 		return fmt.Errorf("verify server image: %w", err)
 	}
-	if err := verifyImageDigest(ctx, in.Preflight.WebReference, in.Preflight.WebDigest); err != nil {
+	if err := verifyImageDigest(ctx, in.Preflight.DockerSocket, in.Preflight.WebReference, in.Preflight.WebDigest); err != nil {
 		return fmt.Errorf("verify web image: %w", err)
 	}
 	return nil
 }
 func (a *actions) BootstrapMigrate(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, "run", "--rm", "bootstrap")
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	return runtime.run(ctx, "bootstrap")
 }
 func (a *actions) Recreate(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	return runtime.up(ctx, []string{"server", "web"})
 }
 func (a *actions) DockerHealth(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, "ps", "--status", "running", "--services", "server", "web")
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	items, err := runtime.service.Ps(ctx, runtime.project.Name, composeapi.PsOptions{Project: runtime.project, Services: []string{"server", "web"}})
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if item.State != "running" {
+			return fmt.Errorf("compose service %s is not running", item.Service)
+		}
+	}
+	return nil
 }
 func (a *actions) Healthz(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, healthzArgs()...)
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	code, err := runtime.exec(ctx, "server", []string{"curl", "--fail", "--silent", "--max-time", healthzCurlTimeoutSeconds, "http://127.0.0.1:8080/healthz"}, "")
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("server health endpoint exited with status %d", code)
+	}
+	return nil
 }
 
+//nolint:unused // 保留为协议测试使用的固定命令 seam。
 func healthzArgs() []string {
 	return []string{"exec", "-T", "server", "curl", "--fail", "--silent", "--max-time", healthzCurlTimeoutSeconds, "http://127.0.0.1:8080/healthz"}
 }
@@ -508,21 +566,101 @@ func (a *actions) RecoverPreMigration(ctx context.Context, in update.RunnerInput
 	if err := copyFile(filepath.Join(root, "config.snapshot"), filepath.Join(in.Preflight.ComposeRoot, ".env")); err != nil {
 		return err
 	}
-	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
-}
-func compose(ctx context.Context, in update.RunnerInput, args ...string) error {
-	commandArgs := append([]string{"compose", "--env-file", ".env"}, composeFileArgs(in.Preflight.ComposeFiles)...)
-	// #nosec G204 -- callers select only fixed runner lifecycle argument sets.
-	command := exec.CommandContext(ctx, "docker", append(commandArgs, args...)...)
-	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, os.Stdout, os.Stderr
-	tag, err := sharedOfficialTag(in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.OfficialServerImage, in.Preflight.OfficialWebImage)
+	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
 	if err != nil {
 		return err
 	}
-	command.Env = append(os.Environ(), "GRAFT_IMAGE_TAG="+tag)
-	return command.Run()
+	defer func() { _ = runtime.Close() }()
+	return runtime.up(ctx, []string{"server", "web"})
 }
 
+type composeRuntime struct {
+	project *composetypes.Project
+	service composeapi.Compose
+	cli     *dockercommand.DockerCli
+}
+
+func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stderr io.Writer) (*composeRuntime, error) {
+	if err := update.ValidateRunnerInput(in); err != nil {
+		return nil, err
+	}
+	tag, err := sharedOfficialTag(in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.OfficialServerImage, in.Preflight.OfficialWebImage)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := dockercommand.NewDockerCli(dockercommand.WithInputStream(io.NopCloser(bytes.NewReader(nil))), dockercommand.WithOutputStream(stdout), dockercommand.WithErrorStream(stderr))
+	if err != nil {
+		return nil, err
+	}
+	options := dockerflags.NewClientOptions()
+	options.Hosts = []string{"unix://" + strings.TrimPrefix(in.Preflight.DockerSocket, "unix://")}
+	if err := cli.Initialize(options); err != nil {
+		return nil, err
+	}
+	projectOptions, err := composecli.NewProjectOptions(in.Preflight.ComposeFiles, composecli.WithWorkingDirectory(in.Preflight.ComposeRoot), composecli.WithEnv([]string{"GRAFT_IMAGE_TAG=" + tag}), composecli.WithEnvFiles(filepath.Join(in.Preflight.ComposeRoot, ".env")), composecli.WithDotEnv)
+	if err != nil {
+		_ = cli.Client().Close()
+		return nil, err
+	}
+	project, err := projectOptions.LoadProject(ctx)
+	if err != nil {
+		_ = cli.Client().Close()
+		return nil, err
+	}
+	return &composeRuntime{project: project, service: compose.NewComposeService(cli), cli: cli}, nil
+}
+
+func (r *composeRuntime) Close() error {
+	if r == nil || r.cli == nil || r.cli.Client() == nil {
+		return nil
+	}
+	return r.cli.Client().Close()
+}
+func (r *composeRuntime) pull(ctx context.Context) error {
+	return r.service.Pull(ctx, r.project, composeapi.PullOptions{Quiet: true})
+}
+func (r *composeRuntime) stop(ctx context.Context, services []string) error {
+	selected, err := r.project.WithSelectedServices(services, composetypes.IgnoreDependencies)
+	if err != nil {
+		return err
+	}
+	return r.service.Stop(ctx, r.project.Name, composeapi.StopOptions{Project: selected, Services: services})
+}
+func (r *composeRuntime) up(ctx context.Context, services []string) error {
+	selected, err := r.project.WithSelectedServices(services, composetypes.IgnoreDependencies)
+	if err != nil {
+		return err
+	}
+	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services}})
+}
+func (r *composeRuntime) run(ctx context.Context, serviceName string) error {
+	code, err := r.service.RunOneOffContainer(ctx, r.project, composeapi.RunOptions{Project: r.project, Service: serviceName, AutoRemove: true, Tty: false, Interactive: false})
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("compose service %s exited with status %d", serviceName, code)
+	}
+	return nil
+}
+func (r *composeRuntime) exec(ctx context.Context, serviceName string, command []string, user string) (int, error) {
+	return r.service.Exec(ctx, r.project.Name, composeapi.RunOptions{Project: r.project, Service: serviceName, Command: command, User: user, Tty: false, Interactive: false, NoDeps: true})
+}
+func (r *composeRuntime) execFixed(ctx context.Context, serviceName string, command []string, user string) error {
+	code, err := r.exec(ctx, serviceName, command, user)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("compose service %s exited with status %d", serviceName, code)
+	}
+	return nil
+}
+func (r *composeRuntime) copy(ctx context.Context, source, destination string) error {
+	return r.service.Copy(ctx, r.project.Name, composeapi.CopyOptions{Source: source, Destination: destination, CopyUIDGID: true})
+}
+
+//nolint:unused // 保留为协议测试使用的固定 Compose 文件参数 seam。
 func composeFileArgs(files []string) []string {
 	args := make([]string, 0, len(files)*composeFileArgumentCapacityMultiplier)
 	for _, file := range files {
@@ -530,6 +668,7 @@ func composeFileArgs(files []string) []string {
 	}
 	return args
 }
+
 func copyFile(source, target string) error {
 	// #nosec G304 -- source and target are derived from the preflight-validated compose root.
 	input, err := os.Open(source)
@@ -635,32 +774,24 @@ func validImageTag(tag string) bool {
 	return imageTagPattern.MatchString(tag)
 }
 
-func verifyImageDigest(ctx context.Context, reference, wantDigest string) error {
+func verifyImageDigest(ctx context.Context, dockerSocket, reference, wantDigest string) error {
 	if !referenceHasExplicitTag(reference) || !immutableDigest(wantDigest) {
 		return errors.New("image verification input is invalid")
 	}
-	// #nosec G204 -- 引用来自经 manifest 校验的官方明确镜像标签。
-	command := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{json .RepoDigests}}", reference)
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	contents, err := command.Output()
+	client, err := dockerclient.NewClientWithOpts(dockerclient.WithHost("unix://"+strings.TrimPrefix(dockerSocket, "unix://")), dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
-		if summary := strings.TrimSpace(stderr.String()); summary != "" {
-			return fmt.Errorf("inspect pulled image: %w: %.256s", err, summary)
-		}
-		return err
+		return fmt.Errorf("create image inspection client: %w", err)
 	}
-	var repoDigests []string
-	if err := json.Unmarshal(contents, &repoDigests); err != nil {
-		return fmt.Errorf("decode pulled image digests: %w", err)
+	defer func() { _ = client.Close() }()
+	inspect, err := client.ImageInspect(ctx, reference)
+	if err != nil {
+		return fmt.Errorf("inspect pulled image: %w", err)
 	}
+	repoDigests := inspect.RepoDigests
 	if containsVerifiedRepoDigest(repoDigests, reference, wantDigest) {
 		return nil
 	}
 	repository := reference[:strings.LastIndex(reference, ":")]
-	if summary := strings.TrimSpace(stderr.String()); summary != "" {
-		return fmt.Errorf("pulled image does not include verified digest %q: %.256s", repository+"@"+wantDigest, summary)
-	}
 	return fmt.Errorf("pulled image does not include verified digest %q", repository+"@"+wantDigest)
 }
 

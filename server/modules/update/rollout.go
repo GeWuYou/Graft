@@ -433,14 +433,10 @@ func (s *RolloutService) applyFailureDiagnosticAvailability(ctx context.Context,
 // Recover 只在已验证 runner 异常退出且尚未迁移时，启动一次性终态恢复 runner。
 // 它不执行 Compose 操作，也不由 server 伪造或改写 runner 生命周期快照。
 //
-//nolint:cyclop,gocognit,gocyclo,nestif // 状态、operation、lease 失联和一次性 launcher 的绑定必须按序 fail closed。
+//nolint:cyclop,gocognit,gocyclo,nestif,funlen // 状态、operation、lease 失联和一次性 launcher 的绑定必须按序 fail closed。
 func (s *RolloutService) Recover(ctx context.Context, operationID string) (ComposeUpdateOperation, error) {
 	if s == nil || !runnerOperationID.MatchString(operationID) || s.stateStore == nil || s.operations == nil {
 		return ComposeUpdateOperation{}, errRecoveryUnavailable
-	}
-	recoveryLauncher, ok := s.launcher.(ComposeRunnerRecoveryLauncher)
-	if !ok {
-		return ComposeUpdateOperation{}, fmt.Errorf("%w: launcher is unavailable", errRecoveryUnavailable)
 	}
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
@@ -450,6 +446,9 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	}
 	if isTerminalOutcome(operation.Outcome) {
 		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	if s.taskQuery == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: task runtime is unavailable", errRecoveryUnavailable)
 	}
 	state, stateErr := s.stateStore.Read()
 	if stateErr == nil {
@@ -482,21 +481,58 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	if !claimed {
 		return ComposeUpdateOperation{}, errRecoveryConflict
 	}
-	s.startMu.Unlock()
-	defer s.startMu.Lock()
+	recoveryLaunchAttempted := false
+	defer func() {
+		if !recoveryLaunchAttempted {
+			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
+				s.logger.Error("release pre-launch recovery claim failed", zap.String("operation_id", operationID), zap.Error(releaseErr))
+			}
+		}
+	}()
 	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy)}
 	if stateErr == nil {
 		recoveryInput.State = &state
 	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
 		recoveryInput.Corrupt = true
 	}
-	if err := recoveryLauncher.LaunchRecovery(ctx, recoveryInput, recoveryImage, claimID); err != nil {
-		if recoveryLaunchFailedBeforeContainerStart(err) {
-			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
-				s.logger.Error("release pre-start recovery claim failed", zap.String("operation_id", operationID), zap.Error(releaseErr))
-			}
+	stages, err := s.taskQuery.ListTaskStages(ctx, operation.TaskID)
+	if err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: list recovery task stages: %v", errRecoveryUnavailable, err)
+	}
+	var launchStage *moduleapi.TaskStageView
+	for index := range stages {
+		if stages[index].Key == "controller_launch" && stages[index].ExecutorType == composeUpdateLaunchExecutor {
+			launchStage = &stages[index]
+			break
 		}
-		return ComposeUpdateOperation{}, fmt.Errorf("%w: launch terminated compose runner recovery: %v", errRecoveryUnavailable, err)
+	}
+	if launchStage == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery launch stage is unavailable", errRecoveryUnavailable)
+	}
+	if s.runtimeTargets == nil || s.coordinator == nil || s.coordinator.tasks == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery runtime target is unavailable", errRecoveryUnavailable)
+	}
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
+	if err != nil || !target.Available || target.Provider != "docker" || !slices.Contains(target.Capabilities, composeUpdateCapability) {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery runtime target is unavailable", errRecoveryUnavailable)
+	}
+	if err := s.prepareRecoveryLaunch(operation.OperationID, target.ID, recoveryInput, recoveryImage, claimID); err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: prepare recovery material: %v", errRecoveryUnavailable, err)
+	}
+	switch launchStage.Status {
+	case moduleapi.StageStatusUnknown, moduleapi.StageStatusFailed:
+		recoveryLaunchAttempted = true
+		if err := s.coordinator.tasks.RetryStage(ctx, operation.TaskID, launchStage.ID); err != nil {
+			s.failExternalLaunch(operation.OperationID)
+			return ComposeUpdateOperation{}, fmt.Errorf("%w: retry recovery launch stage: %v", errRecoveryUnavailable, err)
+		}
+	case moduleapi.StageStatusPending:
+		// lease 尚未被认领；保留冻结的 pending Stage，由 Runtime Agent 使用恢复材料只认领一次。
+		recoveryLaunchAttempted = true
+	case moduleapi.StageStatusRunning:
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	default:
+		return ComposeUpdateOperation{}, errRecoveryConflict
 	}
 	return operation, nil
 }

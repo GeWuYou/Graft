@@ -23,7 +23,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server also needs `/var/run/docker.sock` to discover the project and launch the short-lived upgrade runner.
+Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server socket mount is retained only for Runtime Target discovery/summary, Container snapshot/stream/interactive reads, and bounded Update observation/recovery. The Docker Runtime Agent owns Update Controller launch and other Docker side effects.
 
 ## 2. Preserve Existing Data
 
@@ -67,7 +67,9 @@ docker compose up -d
 docker compose ps
 ```
 
-Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
+Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Official Compose bootstrap is the retained cutover authority: it runs `graft update cutover-v1` once before `graft migrate up`; the cutover command only handles legacy update-state cleanup and is not a second runtime execution path. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
+
+For a confirmed upgrade, keep the controller's order observable and intact: update `server` and `web`, verify the new server health, replace the Docker Runtime Agent last, then verify the replacement Agent's mTLS identity, active generation, and declared capability readiness. Do not replace the Agent first or treat a healthy container alone as readiness.
 
 Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks with the same official server image and production configuration that will apply the migration. The official Compose file provides a profile-gated `migration-preflight` one-shot service that shares the same `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` image reference and runtime environment as `bootstrap`; `bootstrap` then applies migrations from the embedded migration registry in that same server binary.
 

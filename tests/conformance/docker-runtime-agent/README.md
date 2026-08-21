@@ -72,6 +72,18 @@ The test requires Docker socket access for Backend and Agent. Teardown with the
 same Compose project after inspection; volumes contain fixture state and should
 be removed only when that evidence is no longer required.
 
+## Update rollout contract
+
+The official bootstrap keeps `graft update cutover-v1` as the one-time authority
+for legacy update-state cleanup and runs it before `graft migrate up`. A normal
+Update Controller rollout is ordered and must not be shortened: update
+`server`/`web`, verify the new server health, replace the Runtime Agent last,
+then verify the new Agent's mTLS identity, active generation, and declared
+capability readiness. The Backend socket in this fixture is retained only for
+Runtime Target discovery/summary, Container snapshot/stream/interactive reads,
+and bounded Update observation/recovery; it is not an Update launch or Build
+execution path.
+
 The fixture Dockerfile compiles only `cmd/graft-docker-runtime-conformance` with
 the `conformance` build tag. It is not part of the Backend production image or
 the public `graft` CLI. The runner keeps the driver's JSON evidence in temporary

@@ -42,6 +42,12 @@ TLS certificate and key, and the enrollment pepper below `.data`:
 The Docker Runtime Agent must never receive `server/credential-vault`,
 `server/agent-server-tls`, the Vault root token, or a database connection.
 
+The development Server Docker socket is retained only for Runtime Target
+discovery/summary, Container snapshot/stream/interactive reads, and bounded
+Update observation/recovery. Update Controller launch, Build, and finite
+Container/Application mutations are Agent-owned; the Agent remains the only
+always-on process that performs Docker side effects.
+
 If a local Vault restart occurs after a pending Agent delivery has been
 created, run `graft dev docker-runtime-agent reset` with the matching database
 mode. It stops only this Compose project, archives Agent-local

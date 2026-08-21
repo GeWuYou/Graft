@@ -13,7 +13,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	containertypes "github.com/moby/moby/api/types/container"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 	"graft/server/internal/buildinfo"
@@ -422,25 +421,6 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 	}
 }
 
-func TestComposeRunnerRecoveryContainerConfigOnlyMountsStateVolume(t *testing.T) {
-	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-config", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-config", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
-	config, host := composeRunnerRecoveryContainerConfig(RunnerRecoveryInput{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Strategy: state.Strategy, State: &state}, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "bound-state", "graft-update-state")
-	if config.Image == "" || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=bound-state" || config.Labels["io.graft.update.recovery"] != "true" {
-		t.Fatalf("recovery runner config is not bound: %#v", config)
-	}
-	assertRecoveryRunnerHardening(t, config.User, host)
-}
-
-func assertRecoveryRunnerHardening(t *testing.T, user string, host containertypes.HostConfig) {
-	t.Helper()
-	if user != "0:0" || len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || !host.ReadonlyRootfs || host.AutoRemove {
-		t.Fatalf("recovery runner host config exceeds state-only scope: %#v", host)
-	}
-	if len(host.CapDrop) != 1 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 2 || host.CapAdd[0] != "CHOWN" || host.CapAdd[1] != "DAC_OVERRIDE" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
-		t.Fatalf("recovery runner capability hardening changed: %#v", host)
-	}
-}
-
 func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -624,35 +604,9 @@ type recordingLauncher struct{}
 
 func (*recordingLauncher) Close() error { return nil }
 
-type recoveryLauncher struct {
-	failures                []RunnerFailureEvidence
-	recovered               RunnerState
-	recoveryErr             error
-	recoveryContainerErr    error
-	failureReads            int
-	recoveryContainerExists bool
-}
+type recoveryLauncher struct{}
 
-func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
-func (*recoveryLauncher) Close() error                              { return nil }
-func (l *recoveryLauncher) RecoveryContainerExists(context.Context, string, string) (bool, error) {
-	return l.recoveryContainerExists, l.recoveryContainerErr
-}
-func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
-	l.failureReads++
-	return l.failures, nil
-}
-func (l *recoveryLauncher) LaunchRecovery(_ context.Context, input RunnerRecoveryInput, _, _ string) error {
-	if input.State != nil {
-		l.recovered = *input.State
-	} else {
-		l.recovered = RunnerState{OperationID: input.OperationID, RunnerID: input.RunnerID}
-	}
-	if l.recoveryErr == nil {
-		l.recoveryContainerExists = true
-	}
-	return l.recoveryErr
-}
+func (*recoveryLauncher) Close() error { return nil }
 
 type receiptReaderCleanupLauncher struct {
 	receipts []RunnerReceipt

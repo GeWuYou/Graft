@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -113,6 +114,9 @@ func executeProviderOperation(ctx context.Context, client *http.Client, c config
 type updateControllerMaterial struct {
 	ControllerReference string `json:"controller_reference"`
 	InputBase64         string `json:"input_b64"`
+	RecoveryStateBase64 string `json:"recovery_state_b64,omitempty"`
+	RecoveryClaimID     string `json:"recovery_claim_id,omitempty"`
+	Recovery            bool   `json:"recovery,omitempty"`
 	ComposeRoot         string `json:"compose_root"`
 	DockerSocket        string `json:"docker_socket"`
 	StateVolume         string `json:"state_volume"`
@@ -122,7 +126,7 @@ type updateControllerMaterial struct {
 // executeUpdateControllerOperation 是 Agent 唯一拥有的 Update 启动边界。
 // 材料只在 fence 后读取并在容器启动后丢弃；journal 仅保留 lease 与稳定终态。
 //
-//nolint:cyclop,gocognit // 每个固定资源边界都以稳定代码 fail closed。
+//nolint:cyclop,gocognit,gocyclo // 每个固定资源边界都以稳定代码 fail closed；控制器拉取、创建、启动和不确定启动分支属于同一提供方事务。
 func executeUpdateControllerOperation(ctx context.Context, client *http.Client, c config, lease executionLease) executionResult {
 	if lease.Protocol != updateControllerProtocol || lease.OperationID != updateControllerOperation {
 		return failedExecution(failureInvalidIntent)
@@ -152,14 +156,21 @@ func executeUpdateControllerOperation(ctx context.Context, client *http.Client, 
 		return failedExecution(failureRuntimeUnavailable)
 	}
 	configuration, host := updateControllerContainerConfig(material)
+	name := materialContainerName(material.OperationID)
+	if material.Recovery {
+		name = "graft-update-recovery-" + material.OperationID + "-" + material.RecoveryClaimID
+	}
 	created, err := docker.ContainerCreate(ctx, mobyclient.ContainerCreateOptions{
-		Name: materialContainerName(material.OperationID), Config: &configuration, HostConfig: &host,
+		Name: name, Config: &configuration, HostConfig: &host,
 	})
 	if err != nil {
 		return failedExecution(failureProviderOperation)
 	}
 	if _, err := docker.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
 		if cleanupErr := removeUnstartedController(ctx, docker, created.ID); cleanupErr != nil {
+			if material.Recovery {
+				return executionResult{Outcome: "needs_attention", FailureCode: failureInterrupted}
+			}
 			return failedExecution(failureProviderOperation)
 		}
 		return failedExecution(failureProviderOperation)
@@ -167,6 +178,7 @@ func executeUpdateControllerOperation(ctx context.Context, client *http.Client, 
 	return executionResult{Outcome: "success"}
 }
 
+//nolint:gocyclo,cyclop // 严格材料校验必须显式保留每个信任边界拒绝分支。
 func validUpdateControllerMaterial(material updateControllerMaterial, lease executionLease) bool {
 	var intent struct {
 		OperationID string `json:"operation_id"`
@@ -174,10 +186,42 @@ func validUpdateControllerMaterial(material updateControllerMaterial, lease exec
 	if strictDecode(lease.Input, &intent) != nil {
 		return false
 	}
-	return validDigestPinnedReference(material.ControllerReference) &&
-		strings.TrimSpace(material.InputBase64) != "" && filepath.IsAbs(material.ComposeRoot) && material.ComposeRoot != string(filepath.Separator) &&
-		material.DockerSocket == "/var/run/docker.sock" && validRuntimeStateVolume(material.StateVolume) &&
-		material.OperationID == intent.OperationID && validUpdateOperationID(material.OperationID)
+	if !validDigestPinnedReference(material.ControllerReference) || !validRuntimeStateVolume(material.StateVolume) || material.OperationID != intent.OperationID || !validUpdateOperationID(material.OperationID) {
+		return false
+	}
+	if material.Recovery {
+		if strings.TrimSpace(material.InputBase64) != "" || strings.TrimSpace(material.ComposeRoot) != "" || strings.TrimSpace(material.DockerSocket) != "" || !validRecoveryClaimID(material.RecoveryClaimID) {
+			return false
+		}
+		decoded, err := base64.RawStdEncoding.DecodeString(material.RecoveryStateBase64)
+		if err != nil || len(decoded) == 0 {
+			return false
+		}
+		var recovery struct {
+			OperationID string `json:"operation_id"`
+			RunnerID    string `json:"runner_id"`
+			Source      string `json:"source_version"`
+			Target      string `json:"target_version"`
+			Strategy    string `json:"deployment_strategy"`
+		}
+		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || strings.TrimSpace(recovery.Source) == "" || strings.TrimSpace(recovery.Target) == "" || recovery.Source == recovery.Target || strings.TrimSpace(recovery.Strategy) == "" {
+			return false
+		}
+		return true
+	}
+	return strings.TrimSpace(material.InputBase64) != "" && filepath.IsAbs(material.ComposeRoot) && material.ComposeRoot != string(filepath.Separator) &&
+		material.DockerSocket == "/var/run/docker.sock" &&
+		material.OperationID == intent.OperationID
+}
+
+func validRecoveryClaimID(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "recovery-") && len(value) <= 128 && !strings.ContainsAny(value, "/\\ \t\r\n")
+}
+
+func validRecoveryRunnerID(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "runner-") && len(value) <= 128 && !strings.ContainsAny(value, "/\\ \t\r\n")
 }
 
 func validUpdateOperationID(value string) bool {
@@ -201,20 +245,26 @@ func validRuntimeStateVolume(value string) bool {
 }
 
 func updateControllerContainerConfig(material updateControllerMaterial) (containertypes.Config, containertypes.HostConfig) {
+	env := "GRAFT_UPDATE_RUNNER_INPUT_B64=" + material.InputBase64
+	binds := []string{material.ComposeRoot + ":" + material.ComposeRoot + ":rw", "/var/run/docker.sock:/var/run/docker.sock:rw", material.StateVolume + ":/var/lib/graft/update-state:rw"}
+	if material.Recovery {
+		env = "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=" + material.RecoveryStateBase64
+		binds = []string{material.StateVolume + ":/var/lib/graft/update-state:rw"}
+	}
+	labels := map[string]string{
+		"io.graft.update.protocol":  updateControllerProtocol,
+		"io.graft.update.operation": material.OperationID,
+	}
+	if material.Recovery {
+		labels["io.graft.update.recovery"] = "true"
+	}
 	return containertypes.Config{
-			Image: material.ControllerReference,
-			User:  "0:0",
-			Env:   []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + material.InputBase64},
-			Labels: map[string]string{
-				"io.graft.update.protocol":  updateControllerProtocol,
-				"io.graft.update.operation": material.OperationID,
-			},
+			Image:  material.ControllerReference,
+			User:   "0:0",
+			Env:    []string{env},
+			Labels: labels,
 		}, containertypes.HostConfig{
-			Binds: []string{
-				material.ComposeRoot + ":" + material.ComposeRoot + ":rw",
-				"/var/run/docker.sock:/var/run/docker.sock:rw",
-				material.StateVolume + ":/var/lib/graft/update-state:rw",
-			},
+			Binds:          binds,
 			NetworkMode:    "none",
 			ReadonlyRootfs: true,
 			CapDrop:        []string{"ALL"},

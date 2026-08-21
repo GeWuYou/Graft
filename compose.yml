@@ -73,6 +73,8 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
+        # cutover-v1 is the one-time bootstrap authority for legacy update state;
+        # it must complete before the forward-only migration registry runs.
         /app/graft update cutover-v1
         exec /app/graft migrate up
     depends_on:
@@ -229,6 +231,9 @@ services:
       - "${GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_PORT:-8443}"
       - "${GRAFT_HTTPX_AGENT_TLS_PORT:-8444}"
     volumes:
+      # Retained only for Runtime Target discovery/summary, Container
+      # snapshot/stream/interactive reads, and bounded Update observation/
+      # recovery. Update Controller launch is Agent-owned.
       - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps

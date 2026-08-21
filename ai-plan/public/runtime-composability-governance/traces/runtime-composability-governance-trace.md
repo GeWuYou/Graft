@@ -148,3 +148,23 @@
 - Focused/race/migration/backend validation, generated registry freshness, AI-plan structure and diff hygiene passed;
   Batch 5 is accepted. Conformance documentation is updated; full external Docker deployment remains a human/CI
   acceptance concern.
+
+## 2026-08-22 docker-runtime-agent-batch-7-deployment-docs
+
+- The Docker Runtime Agent subtopic synchronized official Compose, smoke, development, conformance, and migration
+  guidance with the accepted Batch 6 launch boundary.
+- `graft update cutover-v1` remains the one-time bootstrap authority before migrations. The server socket list is frozen
+  to Update observation/recovery, Runtime Target discovery/summary, and Container snapshot/stream/interactive reads;
+  Agent-owned Update Controller launch and Build are not server socket consumers.
+- The documented Update rollout is ordered server/web replacement, server health verification, Agent replacement last,
+  and mTLS/generation/capability readiness verification. No compatibility alias, fallback, or second bootstrap path was
+  introduced.
+- Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-22 docker-runtime-agent-batch-7-accepted
+
+- Batch 7 completed deployment and CLI deletion: recovery uses the existing Task external execution boundary, the
+  Compose runner uses Moby/official Compose SDKs, and old server-local recovery launch helpers are deleted.
+- The server socket remains only for Update observation/recovery, Runtime Target discovery/summary, and Container
+  snapshot/stream/interactive consumers; final no-socket claims remain deferred to later convergence.
+- Recovery point advances to `docker-runtime-agent` Batch 8 UI and cross-boundary convergence.

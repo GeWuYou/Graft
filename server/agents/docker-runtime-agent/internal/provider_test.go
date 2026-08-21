@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -43,6 +44,24 @@ func TestUpdateControllerContainerConfigUsesOnlyFixedMountsAndNoNetwork(t *testi
 	}
 	if len(host.Binds) != 3 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
 		t.Fatalf("unexpected controller host config: %#v", host)
+	}
+}
+
+func TestRecoveryControllerMaterialUsesStateVolumeOnlyAndFixedIsolation(t *testing.T) {
+	encoded := base64.RawStdEncoding.EncodeToString([]byte(`{"operation_id":"update-42","runner_id":"runner-recovery-42","source_version":"1.0.0","target_version":"1.1.0","deployment_strategy":"beta_tracking"}`))
+	material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), RecoveryStateBase64: encoded, RecoveryClaimID: "recovery-42", Recovery: true, StateVolume: "graft-update-state", OperationID: "update-42"}
+	configuration, host := updateControllerContainerConfig(material)
+	if configuration.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64="+encoded || host.NetworkMode != "none" || !host.ReadonlyRootfs {
+		t.Fatalf("unexpected recovery isolation: %#v %#v", configuration, host)
+	}
+	if len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:/var/lib/graft/update-state:rw" {
+		t.Fatalf("recovery must mount only state volume: %#v", host.Binds)
+	}
+	if configuration.Labels["io.graft.update.recovery"] != "true" || configuration.Labels["io.graft.update.operation"] != material.OperationID {
+		t.Fatalf("recovery labels = %#v", configuration.Labels)
+	}
+	if strings.Contains(strings.Join(host.Binds, "\n"), "docker.sock") {
+		t.Fatal("recovery container must not mount Docker socket")
 	}
 }
 

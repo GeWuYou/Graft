@@ -10,6 +10,7 @@ services:
     pull_policy: never
     command:
       - |
+        # Keep the one-time legacy-state cutover ahead of forward-only migrations.
         /app/graft update cutover-v1
         exec /app/graft migrate up --allow-dirty
   application-root-init:
