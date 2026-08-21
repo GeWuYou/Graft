@@ -239,7 +239,7 @@ type StagePlan struct {
 	RetryPolicy       StageRetryPolicy
 	RecoveryPolicy    StageRecoveryPolicy
 	ExternalExecution *ExternalExecutionExpectation
-	// ExternalReceipt 是自更新 Controller 完成迁移前保留的 final-stage bridge；新外部执行必须使用 ExternalExecution。
+	// ExternalReceipt 是 Update Controller 终态状态卷仍需使用的 final-stage handshake；新的启动动作必须使用 ExternalExecution。
 	ExternalReceipt *ExternalReceiptExpectation
 }
 

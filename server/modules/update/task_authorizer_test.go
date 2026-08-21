@@ -103,6 +103,9 @@ func newPlatformUpdateRegisterTestContext(t *testing.T) platformUpdateRegisterTe
 	if err := services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
 		t.Fatalf("register task runtime registrar: %v", err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), func(container.Resolver) (any, error) { return composeRuntimeTargetStub{}, nil }); err != nil {
+		t.Fatalf("register compose runtime target reader: %v", err)
+	}
 	if err := services.RegisterSingleton((*moduleapi.BackupService)(nil), func(container.Resolver) (any, error) { return &stubBackupService{}, nil }); err != nil {
 		t.Fatalf("register backup service: %v", err)
 	}

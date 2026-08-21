@@ -31,7 +31,7 @@ const localDeliverySecretDirPerm = 0o700
 const localDeliverySecretFilePerm = 0o600
 const localDeliveryGrantTTL = 15 * time.Minute
 
-var localDockerRuntimeAgentCapabilities = []string{"oci-build", "compose_execution", "container_execution"}
+var localDockerRuntimeAgentCapabilities = []string{"oci-build", "compose_execution", "container_execution", "update_controller"}
 
 // PrepareLocalDockerRuntimeAgent 使用 Runtime Target 的既有 authority 生成一次本地 Agent 交付。
 // 该函数只适用于本地开发编排；调用方负责限制环境、路径和目录权限。

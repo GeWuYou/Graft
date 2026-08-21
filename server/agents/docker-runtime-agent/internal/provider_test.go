@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +21,29 @@ type recordingComposeService struct {
 	stopOptions    composeapi.StopOptions
 	restartOptions composeapi.RestartOptions
 	pullProject    *composetypes.Project
+}
+
+func TestUpdateControllerMaterialIsStrictlyBoundToLeaseIntent(t *testing.T) {
+	lease := executionLease{Input: json.RawMessage(`{"operation_id":"update-42"}`)}
+	valid := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock", StateVolume: "graft-update-state", OperationID: "update-42"}
+	if !validUpdateControllerMaterial(valid, lease) {
+		t.Fatal("valid update controller material rejected")
+	}
+	valid.OperationID = "update-43"
+	if validUpdateControllerMaterial(valid, lease) {
+		t.Fatal("material accepted for a different operation")
+	}
+}
+
+func TestUpdateControllerContainerConfigUsesOnlyFixedMountsAndNoNetwork(t *testing.T) {
+	material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", StateVolume: "graft-update-state", OperationID: "update-42"}
+	configuration, host := updateControllerContainerConfig(material)
+	if configuration.Image != material.ControllerReference || configuration.User != "0:0" || len(configuration.Env) != 1 || host.NetworkMode != "none" || !host.ReadonlyRootfs {
+		t.Fatalf("unexpected controller config: %#v %#v", configuration, host)
+	}
+	if len(host.Binds) != 3 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("unexpected controller host config: %#v", host)
+	}
 }
 
 func (s *recordingComposeService) Up(_ context.Context, _ *composetypes.Project, options composeapi.UpOptions) error {

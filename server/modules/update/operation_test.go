@@ -28,6 +28,15 @@ type deploymentRuntimeStub struct {
 	err     error
 }
 
+type composeRuntimeTargetStub struct{}
+
+func (composeRuntimeTargetStub) ReadComposeTarget(context.Context, *int64) (moduleapi.ComposeRuntimeTargetSummary, error) {
+	return moduleapi.ComposeRuntimeTargetSummary{ID: 7, Provider: "docker", Available: true, Capabilities: []string{"compose_execution", "update_controller"}}, nil
+}
+func (composeRuntimeTargetStub) ListComposeTargets(context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	return []moduleapi.ComposeRuntimeTargetSummary{{ID: 7, Provider: "docker", Available: true}}, nil
+}
+
 func (s deploymentRuntimeStub) Current(context.Context) moduleapi.DeploymentContext { return s.context }
 
 func (s deploymentRuntimeStub) Freeze(_ context.Context, request moduleapi.DeploymentFreezeRequest) (moduleapi.DeploymentSnapshot, error) {
@@ -51,11 +60,11 @@ func TestComposeExecutionCoordinatorSettlesReceiptAndDoesNotExposeBackupRefs(t *
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 41, Status: moduleapi.TaskStatusPending}}
 	backups := &stubBackupService{}
 	coordinator := NewComposeExecutionCoordinator(tasks, backups)
-	operation, input, err := coordinator.Start(context.Background(), ComposeUpdateOperation{OperationID: "update-41", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, testBackupPlan("update-41"))
+	operation, input, err := coordinator.Start(context.Background(), ComposeUpdateOperation{OperationID: "update-41", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, 7, testBackupPlan("update-41"))
 	if err != nil {
 		t.Fatalf("start compose update: %v", err)
 	}
-	if input.TaskID != 41 || backups.plan.TaskID != 41 || tasks.plan.Plan.Stages[0].ExternalReceipt.OperationID != operation.OperationID {
+	if input.TaskID != 41 || backups.plan.TaskID != 41 || tasks.plan.Plan.Stages[0].ExternalExecution == nil || tasks.plan.Plan.Stages[1].ExternalReceipt.OperationID != operation.OperationID {
 		t.Fatalf("operation linkage was not frozen: %#v %#v", operation, backups.plan)
 	}
 	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, Succeeded: true, BackupCompletion: &moduleapi.CompleteBackupRunnerHandoffInput{OperationID: operation.OperationID, TaskID: operation.TaskID, ConfigSnapshotSHA256: testDigest('a'), ConfigSnapshotBytes: 3, DatabaseDumpSHA256: testDigest('b'), DatabaseDumpBytes: 5}}
@@ -122,7 +131,7 @@ func TestComposeExecutionCoordinatorCancelsPreparedHandoffWhenItsBindingIsInvali
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 66}}
 	backups := &stubBackupService{prepared: &moduleapi.BackupRunnerHandoffPlan{OperationID: "other", TaskID: 66}}
 	coordinator := NewComposeExecutionCoordinator(tasks, backups)
-	_, _, err := coordinator.Start(t.Context(), ComposeUpdateOperation{OperationID: "update-66", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, testBackupPlan("update-66"))
+	_, _, err := coordinator.Start(t.Context(), ComposeUpdateOperation{OperationID: "update-66", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, 7, testBackupPlan("update-66"))
 	if err == nil || !strings.Contains(err.Error(), "prepared backup handoff does not match update operation") {
 		t.Fatalf("expected invalid prepared handoff rejection, got %v", err)
 	}
@@ -160,14 +169,15 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	launcher := &recordingLauncher{}
 	backups := &stubBackupService{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, backups, launcher)
+	rollout.SetRuntimeTargetReader(composeRuntimeTargetStub{})
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "manual_guidance_blocked"}
 	}
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
 		t.Fatalf("start with blocked installation error = %v, want installation unavailable", err)
 	}
-	if len(operations.items) != 0 || launcher.input.OperationID != "" {
-		t.Fatalf("blocked installation created a rollout side effect: operations=%#v launcher=%#v", operations.items, launcher.input)
+	if len(operations.items) != 0 {
+		t.Fatalf("blocked installation created a rollout side effect: operations=%#v", operations.items)
 	}
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
@@ -185,18 +195,19 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}
-	if operation.Outcome != ExecutionOutcomePlanning || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
-		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
+	if operation.Outcome != ExecutionOutcomePlanning || operation.TaskID != 77 {
+		t.Fatalf("unexpected rollout operation: %#v", operation)
 	}
-	if launcher.input.Preflight.ComposeRoot != root || launcher.input.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
+	queued := rollout.externalLaunches[operation.OperationID].input
+	if queued.Preflight.ComposeRoot != root || queued.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
 		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}
-	if launcher.input.BackupArtifactRoot != "/var/lib/graft/backups/update-77" || backups.plan.ArtifactRoot != launcher.input.BackupArtifactRoot {
-		t.Fatalf("backup handoff did not use the server artifact root: input=%q plan=%q", launcher.input.BackupArtifactRoot, backups.plan.ArtifactRoot)
+	if queued.BackupArtifactRoot != "/var/lib/graft/backups/update-77" || backups.plan.ArtifactRoot != queued.BackupArtifactRoot {
+		t.Fatalf("backup handoff did not use the server artifact root: input=%q plan=%q", queued.BackupArtifactRoot, backups.plan.ArtifactRoot)
 	}
 }
 
-func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *testing.T) {
+func TestRolloutQueuesAgentLaunchWithoutCallingServerDocker(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv(imageTagEnv, "beta")
 	discovery := NewService(nil)
@@ -213,18 +224,20 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 78}}
 	backups := &stubBackupService{}
 	operations := &memoryOperationStore{}
-	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
+	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{})
 	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
 	rollout.SetBackupArtifactRoot("/var/lib/graft/backups")
 	rollout.newOperation = func() string { return "update-78" }
-	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); err == nil {
-		t.Fatal("expected launcher failure")
+	rollout.SetRuntimeTargetReader(composeRuntimeTargetStub{})
+	operation, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"})
+	if err != nil {
+		t.Fatalf("external launch stage should be queued: %v", err)
 	}
-	if tasks.canceled != 78 || backups.canceled.OperationID != "update-78" || backups.canceled.TaskID != 78 {
-		t.Fatalf("owner capability cleanup was not requested: task=%d backup=%#v", tasks.canceled, backups.canceled)
+	if tasks.canceled != 0 || backups.canceled.OperationID != "" {
+		t.Fatalf("queued launch unexpectedly cancelled: task=%d backup=%#v", tasks.canceled, backups.canceled)
 	}
-	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomeFailed || item.FailureCode != "runner_launch_failed" {
-		t.Fatalf("operation failure was not persisted: %#v", item)
+	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomePlanning || operation.TaskID != 78 {
+		t.Fatalf("operation was not left planning for Agent claim: %#v", item)
 	}
 }
 
@@ -406,24 +419,6 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 	}
 	if tasks.plan.Type != "" {
 		t.Fatal("ineligible source version must not submit a task")
-	}
-}
-
-func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
-	input := fixtureRunnerInput("/opt/graft")
-	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json", "graft-update-state")
-	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT_B64=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
-		t.Fatalf("runner config is not constrained: %#v", config)
-	}
-	if len(host.Binds) != 3 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.Binds[2] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || host.AutoRemove {
-		t.Fatalf("runner host config is not constrained: %#v", host)
-	}
-}
-
-func TestComposeRunnerContainerConfigAllowsOnlyChownForStateOwnership(t *testing.T) {
-	_, host := composeRunnerContainerConfig(fixtureRunnerInput("/opt/graft"), "runner-input", "graft-update-state")
-	if len(host.CapDrop) != 1 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
-		t.Fatalf("runner capability hardening changed: %#v", host)
 	}
 }
 
@@ -625,18 +620,7 @@ func (s *memoryOperationStore) RecoveryClaim(_ context.Context, operationID stri
 	return s.recoveryClaims[operationID], nil
 }
 
-type recordingLauncher struct {
-	input     RunnerInput
-	launchErr error
-}
-
-func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
-	l.input = input
-	if l.launchErr != nil {
-		return l.launchErr
-	}
-	return nil
-}
+type recordingLauncher struct{}
 
 func (*recordingLauncher) Close() error { return nil }
 

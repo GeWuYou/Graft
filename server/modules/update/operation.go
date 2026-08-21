@@ -2,7 +2,7 @@ package update
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -52,20 +52,24 @@ func NewComposeExecutionCoordinator(tasks moduleapi.TaskService, backups modulea
 // Start 冻结目标版本、提交外部 receipt Task，并在 runner 启动前创建 Backup handoff。
 //
 //nolint:cyclop // 每条失败分支对应一个可审计的跨模块补偿边界，必须保持在同一生命周期顺序中。
-func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation ComposeUpdateOperation, requestedBy uint64, handoff moduleapi.BackupRunnerHandoffPlan) (ComposeUpdateOperation, RunnerInput, error) {
+func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation ComposeUpdateOperation, requestedBy uint64, runtimeTargetID int64, handoff moduleapi.BackupRunnerHandoffPlan) (ComposeUpdateOperation, RunnerInput, error) {
 	if c == nil || c.tasks == nil || c.backups == nil || !validOperation(operation) || strings.TrimSpace(handoff.OperationID) != operation.OperationID {
 		return ComposeUpdateOperation{}, RunnerInput{}, errors.New("compose update operation is invalid")
 	}
-	input, err := json.Marshal(struct {
-		SourceVersion string `json:"source_version"`
-		TargetVersion string `json:"target_version"`
-	}{SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion})
-	if err != nil {
-		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("encode compose update task input: %w", err)
+	if runtimeTargetID < 1 {
+		return ComposeUpdateOperation{}, RunnerInput{}, errors.New("compose update runtime target is invalid")
 	}
+	input, err := updateControllerTaskInput(operation)
+	if err != nil {
+		return ComposeUpdateOperation{}, RunnerInput{}, err
+	}
+	digest := sha256.Sum256(input)
 	task, err := c.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
 		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: platformUpdateTaskOwnerType, ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
-		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "compose_runner", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID}}}},
+		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{
+			{Key: "controller_launch", ExecutorType: composeUpdateLaunchExecutor, Input: input, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: updateControllerExecutionExpectation(runtimeTargetID, fmt.Sprintf("%x", digest))},
+			{Key: "controller_result", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID}},
+		}},
 	})
 	if err != nil {
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("submit compose update task: %w", err)

@@ -88,10 +88,10 @@ explicitly unmigrated Update Controller and Container read/stream/interactive bo
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration"],
-  "pending_batches": ["docker-runtime-agent-batch-6-update-controller-launch-boundary"],
-  "current_batch": "docker-runtime-agent-batch-5-build-sdk-migration",
-  "next_batch": "docker-runtime-agent-batch-6-update-controller-launch-boundary",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary"],
+  "pending_batches": ["docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
+  "current_batch": "docker-runtime-agent-batch-7-deployment-and-cli-deletion",
+  "next_batch": "docker-runtime-agent-batch-7-deployment-and-cli-deletion",
   "closeout_status": "active"
 }
 ```

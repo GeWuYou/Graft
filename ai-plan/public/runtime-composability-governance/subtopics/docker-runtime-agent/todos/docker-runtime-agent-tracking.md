@@ -44,16 +44,16 @@
     "batch-1-architecture-authority-and-recovery",
     "batch-2-task-runtime-external-execution-foundation",
     "batch-3-docker-runtime-agent-promotion",
-    "batch-4-application-and-container-migration"
-  ],
-  "current_batch": "batch-5-build-sdk-migration",
-  "pending_batches": [
+    "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
-    "batch-6-update-controller-launch-boundary",
+    "batch-6-update-controller-launch-boundary"
+  ],
+  "current_batch": "batch-7-deployment-and-cli-deletion",
+  "pending_batches": [
     "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-5-build-sdk-migration",
+  "next_batch": "batch-7-deployment-and-cli-deletion",
   "closeout_status": "active"
 }
 ```
@@ -104,19 +104,51 @@
 - Focused Application, Container, Task, Runtime Target, HTTP transport and Agent behavior tests, related race tests,
   OpenAPI/generated-Web checks, migration gates, full Web validation and the complete backend validation entrypoint pass.
 
+## Batch 6 Acceptance
+
+### Launch-boundary inventory
+
+| Entry | Batch 6 disposition | Task Stage / capability | Intent and result owner |
+| --- | --- | --- | --- |
+| Normal digest-pinned Update Controller start (`ComposeRunnerLauncher.Launch`) | migrated; server method deleted | `controller_launch`; `docker/update_controller@docker/v1`; `platform.update.controller.launch.v1` | Update freezes version/image/operation intent and maps Task failure or controller receipt; Task Runtime owns launch lease/receipt state; Agent owns Docker start |
+| Controller terminal handshake | retained as the only final Stage, not a launch fallback | `controller_result`; `compose-runner/v2` final receipt | Controller state volume is durable evidence; Update interprets it; Task Runtime owns final receipt settlement |
+| Pre-migration recovery controller (`LaunchRecovery`) | explicitly not migrated in this batch | no new Stage or capability added | Update recovery claim/state invariants remain authoritative; Batch 7 owns removal or migration of the retained Docker recovery boundary |
+| Controller-internal Docker/Compose CLI sequence | not a controller startup entry and unchanged | none | Update Controller still owns backup/pull/migrate/recreate/health behavior; later CLI-deletion work must not reopen normal launch |
+| Bootstrap `graft update cutover-v1` command | not a controller startup entry and unchanged | none | Deployment bootstrap/cutover compatibility authority remains outside Batch 6 |
+
+- [x] Update submits a two-stage Task plan: `controller_launch` is a fenced Runtime Agent execution stage bound to the
+  selected Runtime Target generation, while `controller_result` remains the sole final receipt handshake for the
+  durable Update Controller state volume.
+- [x] Update owns update intent, version/image semantics, transient material resolution and receipt interpretation;
+  Task Runtime owns Task/Stage/lease renewal, cancellation, bounded logs, receipt settlement, retry and recovery.
+- [x] `docker-runtime-agent` declares `update_controller` at `docker/v1`, claims only the exact frozen operation and
+  protocol, and starts the digest-pinned controller with fixed mounts, no network, a read-only rootfs and stable
+  failure codes. The Agent has no inbound listener and does not persist material, credentials, endpoints, host paths or
+  commands.
+- [x] Runtime Target local Docker capability declarations include `update_controller`; generation and post-claim
+  re-authorization remain enforced by the shared Agent transport for version mismatch, capability removal, certificate
+  rotation and reconnect recovery.
+- [x] The server-side normal launch method was removed from the old Docker launcher. Container read/stream/interactive
+  paths, Runtime Target discovery/summary and the bounded recovery observer remain on the retained server Docker socket
+  boundary for later batches; no fallback, dual execution or compatibility alias was added.
+- [x] Focused Update/Agent/Runtime Target tests, full Go tests, race coverage and backend validation evidence are
+  recorded by the main agent.
+
+Evidence: focused Update/Agent/Runtime Target/Task tests, the same packages under `go test -race`, production
+`golangci-lint`, `python3 scripts/validate_ai_plan_structure.py`, `git diff --check`, and the complete
+`go run ./cmd/graft validate backend` entrypoint all passed.
+
 ## Next Recovery Point
 
-Batch 5 Build SDK migration is accepted. The next bounded slice is Batch 6, which starts by migrating the Update
-Controller launch boundary only. The frozen Build contract remains: Build submits provider-neutral `oci-build` external stages; Task Runtime owns the fenced lease, renewal, cancellation, logs, transient
-result digest, receipt, retry and recovery; Runtime Target binds `docker/v1`; and `docker-runtime-agent` performs Moby/OCI
-SDK side effects. Build resolves `build-execution-material/v1` after a valid fence and interprets
-`build-execution-result/v1`; neither material nor result JSON is durable Task/Agent state. The accepted operation set is
-`build.image.local.v1`, `build.image.publish.v1`, `build.manifest.publish.v1` and `build.artifact.copy.v1`.
+Batch 6 Update Controller launch-boundary migration is accepted. The next bounded slice is Batch 7, which handles the
+remaining deployment/CLI cleanup after the launch and recovery contracts are proven. Build remains provider-neutral:
+Task Runtime owns its fenced lease, renewal, cancellation, logs, transient result digest, receipt, retry and recovery;
+Runtime Target binds `docker/v1`; and `docker-runtime-agent` performs Moby/OCI SDK side effects. Neither material nor
+result JSON is durable Task/Agent state.
 
-No Build server-local Docker/CLI adapter, fallback or compatibility alias may remain. The named
-`/tmp/graft-build-snapshots` volume is shared by server and Agent. The server Docker socket remains only for Update
-Controller, Runtime Target discovery/summary and explicitly unmigrated Container read/stream/interactive boundaries;
-do not begin Batch 6 Update Controller migration or remove that mount in this batch.
+The server Docker socket remains only for the retained Update recovery/observation boundary, Runtime Target
+discovery/summary and explicitly unmigrated Container read/stream/interactive capabilities. Batch 7 must not introduce
+a second launch path while removing the remaining server-local recovery/CLI dependency.
 
 ## Batch 5 Acceptance
 

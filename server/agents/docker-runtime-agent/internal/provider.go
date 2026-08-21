@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,6 +24,7 @@ import (
 	compose "github.com/docker/compose/v2/pkg/compose"
 	dockerfilters "github.com/docker/docker/api/types/filters"
 	dockerimage "github.com/docker/docker/api/types/image"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
 )
@@ -31,6 +33,10 @@ const (
 	applicationComposeProtocol         = "application-compose/v1"
 	applicationComposeMaterialProtocol = "application-compose-material/v1"
 	containerExecutionProtocol         = "container-execution/v1"
+	updateControllerProtocol           = "platform-update-controller/v1"
+	updateControllerMaterialProtocol   = "platform-update-controller-material/v1"
+	updateControllerCapability         = "update_controller"
+	updateControllerOperation          = "platform.update.controller.launch.v1"
 	maxProviderReferenceLength         = 512
 )
 
@@ -97,9 +103,135 @@ func executeProviderOperation(ctx context.Context, client *http.Client, c config
 		return executeContainerOperation(ctx, c, lease)
 	case "compose_execution":
 		return executeApplicationComposeOperation(ctx, client, c, lease)
+	case updateControllerCapability:
+		return executeUpdateControllerOperation(ctx, client, c, lease)
 	default:
 		return failedExecution(failureUnsupportedAction)
 	}
+}
+
+type updateControllerMaterial struct {
+	ControllerReference string `json:"controller_reference"`
+	InputBase64         string `json:"input_b64"`
+	ComposeRoot         string `json:"compose_root"`
+	DockerSocket        string `json:"docker_socket"`
+	StateVolume         string `json:"state_volume"`
+	OperationID         string `json:"operation_id"`
+}
+
+// executeUpdateControllerOperation 是 Agent 唯一拥有的 Update 启动边界。
+// 材料只在 fence 后读取并在容器启动后丢弃；journal 仅保留 lease 与稳定终态。
+//
+//nolint:cyclop,gocognit // 每个固定资源边界都以稳定代码 fail closed。
+func executeUpdateControllerOperation(ctx context.Context, client *http.Client, c config, lease executionLease) executionResult {
+	if lease.Protocol != updateControllerProtocol || lease.OperationID != updateControllerOperation {
+		return failedExecution(failureInvalidIntent)
+	}
+	materialResponse, err := resolveExecutionMaterial(ctx, client, c.AgentURL, lease)
+	if err != nil || materialResponse.Protocol != updateControllerMaterialProtocol {
+		return failedExecution(failureInvalidIntent)
+	}
+	var material updateControllerMaterial
+	if strictDecode(materialResponse.Payload, &material) != nil || !validUpdateControllerMaterial(material, lease) {
+		return failedExecution(failureInvalidIntent)
+	}
+	docker, err := mobyclient.New(mobyclient.WithHost(c.DockerSocket))
+	if err != nil {
+		return failedExecution(failureRuntimeUnavailable)
+	}
+	defer func() { _ = docker.Close() }()
+	pull, err := docker.ImagePull(ctx, material.ControllerReference, mobyclient.ImagePullOptions{})
+	if err != nil {
+		return failedExecution(failureRuntimeUnavailable)
+	}
+	if _, copyErr := io.Copy(io.Discard, pull); copyErr != nil {
+		_ = pull.Close()
+		return failedExecution(failureRuntimeUnavailable)
+	}
+	if closeErr := pull.Close(); closeErr != nil {
+		return failedExecution(failureRuntimeUnavailable)
+	}
+	configuration, host := updateControllerContainerConfig(material)
+	created, err := docker.ContainerCreate(ctx, mobyclient.ContainerCreateOptions{
+		Name: materialContainerName(material.OperationID), Config: &configuration, HostConfig: &host,
+	})
+	if err != nil {
+		return failedExecution(failureProviderOperation)
+	}
+	if _, err := docker.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
+		if cleanupErr := removeUnstartedController(ctx, docker, created.ID); cleanupErr != nil {
+			return failedExecution(failureProviderOperation)
+		}
+		return failedExecution(failureProviderOperation)
+	}
+	return executionResult{Outcome: "success"}
+}
+
+func validUpdateControllerMaterial(material updateControllerMaterial, lease executionLease) bool {
+	var intent struct {
+		OperationID string `json:"operation_id"`
+	}
+	if strictDecode(lease.Input, &intent) != nil {
+		return false
+	}
+	return validDigestPinnedReference(material.ControllerReference) &&
+		strings.TrimSpace(material.InputBase64) != "" && filepath.IsAbs(material.ComposeRoot) && material.ComposeRoot != string(filepath.Separator) &&
+		material.DockerSocket == "/var/run/docker.sock" && validRuntimeStateVolume(material.StateVolume) &&
+		material.OperationID == intent.OperationID && validUpdateOperationID(material.OperationID)
+}
+
+func validUpdateOperationID(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "update-") && len(value) <= 128 && !strings.ContainsAny(value, "/\\ \t\r\n")
+}
+
+func validDigestPinnedReference(value string) bool {
+	value = strings.TrimSpace(value)
+	marker := strings.LastIndex(value, "@sha256:")
+	if marker <= 0 || len(value)-marker-8 != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value[marker+8:])
+	return err == nil
+}
+
+func validRuntimeStateVolume(value string) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && len(value) <= 128 && !strings.ContainsAny(value, "/\\ ")
+}
+
+func updateControllerContainerConfig(material updateControllerMaterial) (containertypes.Config, containertypes.HostConfig) {
+	return containertypes.Config{
+			Image: material.ControllerReference,
+			User:  "0:0",
+			Env:   []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + material.InputBase64},
+			Labels: map[string]string{
+				"io.graft.update.protocol":  updateControllerProtocol,
+				"io.graft.update.operation": material.OperationID,
+			},
+		}, containertypes.HostConfig{
+			Binds: []string{
+				material.ComposeRoot + ":" + material.ComposeRoot + ":rw",
+				"/var/run/docker.sock:/var/run/docker.sock:rw",
+				material.StateVolume + ":/var/lib/graft/update-state:rw",
+			},
+			NetworkMode:    "none",
+			ReadonlyRootfs: true,
+			CapDrop:        []string{"ALL"},
+			CapAdd:         []string{"CHOWN"},
+			SecurityOpt:    []string{"no-new-privileges:true"},
+		}
+}
+
+func materialContainerName(operationID string) string { return "graft-update-" + operationID }
+
+func removeUnstartedController(ctx context.Context, docker *mobyclient.Client, id string) error {
+	inspected, err := docker.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
+	if err != nil || inspected.Container.State == nil || inspected.Container.State.Running {
+		return err
+	}
+	_, err = docker.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
+	return err
 }
 
 func executeContainerOperation(ctx context.Context, c config, lease executionLease) executionResult {

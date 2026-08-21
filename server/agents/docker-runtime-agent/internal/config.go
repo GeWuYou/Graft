@@ -82,7 +82,7 @@ func (c *config) applyDefaultsAndValidate() error {
 		c.DockerSocket = defaultDockerSocket
 	}
 	if len(c.Capabilities) == 0 {
-		c.Capabilities = []string{"oci-build", "compose_execution", "container_execution"}
+		c.Capabilities = []string{"oci-build", "compose_execution", "container_execution", "update_controller"}
 	}
 	if c.CapabilityVersion == "" {
 		c.CapabilityVersion = defaultCapabilityVersion

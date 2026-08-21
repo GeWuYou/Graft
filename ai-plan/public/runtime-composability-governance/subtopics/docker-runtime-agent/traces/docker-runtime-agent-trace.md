@@ -29,7 +29,8 @@
   fully matching late receipt remains reconcilable and stale fences are rejected.
 - Classified migration `202608210001` as L4 because it replaces existing receipt constraints; preflight metadata records
   historical assumptions, upgrade order, recovery rationale and MIG-002 evidence.
-- Retained the legacy final-stage receipt writer only as an explicitly temporary bridge until Update Controller migration.
+- Retained the final-stage receipt writer only as the explicitly temporary Update Controller terminal-state handshake;
+  normal controller launch no longer uses it and Batch 7 owns its retirement decision.
 - Validation passed: focused Task tests, Task race tests, production/test lint, the complete `graft validate backend`
   entrypoint, SQL migration/version gates, AI-plan structure guard and `git diff --check`.
 
@@ -79,5 +80,26 @@
   limited to unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive
   boundaries.
 - Validation passed: focused and race Go tests for Agent, HTTP transport, Task, Build and Runtime Target; complete
-  backend validation including lint; SQL migration/version checks; generated module registry freshness; AI-plan
-  structure validation; and `git diff --check`. Build server-local Docker/CLI paths and duplicate adapters were deleted.
+backend validation including lint; SQL migration/version checks; generated module registry freshness; AI-plan
+structure validation; and `git diff --check`. Build server-local Docker/CLI paths and duplicate adapters were deleted.
+
+## 2026-08-21 batch-6-update-controller-launch-boundary-accepted
+
+- Inventoried the Update Controller Docker/CLI launch path. The normal server-side `Launch` method was deleted; the
+  retained observer/recovery capability remains only for the explicitly unmigrated recovery/observation boundary.
+- Update now submits `controller_launch` as a Task-owned external stage bound to the selected Runtime Target ID,
+  provider `docker`, capability `update_controller`, capability version `docker/v1`, protocol
+  `platform-update-controller/v1`, and a digest of the provider-neutral launch intent. A final
+  `controller_result` receipt stage remains the single terminal handshake for the controller's durable state volume.
+- Update resolves digest-pinned controller reference, Compose root, socket path, state volume and encoded runner input
+  only after a valid fenced material request. The material is kept in memory for reconnect/re-authorization and is
+  removed when the Update operation settles; it is not written to Task, Agent journal, logs, receipts or durable Update
+  state.
+- Agent capability admission and post-claim transport checks continue to enforce active generation identity, provider,
+  capability and version. The Agent launches with fixed mounts, `none` network, read-only rootfs, `ALL` capabilities
+  dropped plus `CHOWN`, no inbound listener and stable redacted failure codes.
+- Runtime Target local Docker declarations now include `update_controller`; Container read/stream/interactive and
+  Runtime Target discovery/summary remain on the retained server socket boundary. No fallback, dual execution or
+  compatibility alias was introduced.
+- Validation passed: focused Update/Agent/Runtime Target/Task tests, matching race tests, production lint, AI-plan
+  structure validation, `git diff --check`, and the complete backend validation entrypoint.

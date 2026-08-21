@@ -79,14 +79,6 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 	}
 }
 
-func TestComposeRunnerContainerConfigUsesTrustedRootIdentity(t *testing.T) {
-	input := RunnerInput{Preflight: ComposePreflight{ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock"}}
-	config, _ := composeRunnerContainerConfig(input, "runner-input", "graft-update-state")
-	if config.User != "0:0" {
-		t.Fatalf("runner user = %q, want trusted root identity", config.User)
-	}
-}
-
 func TestExecuteComposeRunnerRecordsSafeBackupFailureDiagnostic(t *testing.T) {
 	input := fixtureRunnerInput(t.TempDir())
 	actions := &tracingRunnerActions{backupErr: NewRunnerBackupFailure(RunnerBackupFailureStageConfigSnapshot, RunnerBackupFailureDetailPermissionDenied, errors.New("open /private/.env: permission denied"))}

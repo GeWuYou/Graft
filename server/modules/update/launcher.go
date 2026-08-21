@@ -9,10 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
-	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -20,10 +17,9 @@ import (
 	mobyclient "github.com/moby/moby/client"
 )
 
-// ComposeRunnerLauncher 是 server 启动一次性 runner 的最小 Docker 边界。
-// 它不暴露通用容器创建能力，调用方无法提供命令、环境或挂载。
+// ComposeRunnerLauncher 保留更新终态观察与受控恢复所需的 Docker 边界。
+// 正常 Update Controller 启动不再经过该边界，而由 Runtime Agent 外部执行 lease 负责。
 type ComposeRunnerLauncher interface {
-	Launch(context.Context, RunnerInput) error
 	Close() error
 }
 
@@ -181,56 +177,13 @@ func (l *dockerComposeRunnerLauncher) Close() error {
 	return l.client.Close()
 }
 
-// NewDockerComposeRunnerLauncher 创建只可执行官方 Compose runner 的 Docker socket launcher。
+// NewDockerComposeRunnerLauncher 创建只用于终态观察与恢复的 Docker socket capability。
 func NewDockerComposeRunnerLauncher() (ComposeRunnerLauncher, error) {
 	client, err := mobyclient.New(mobyclient.WithHost("unix:///var/run/docker.sock"))
 	if err != nil {
 		return nil, fmt.Errorf("create compose runner docker client: %w", err)
 	}
 	return &dockerComposeRunnerLauncher{client: client}, nil
-}
-
-//nolint:cyclop // 启动流程中的每条失败分支对应一个独立的资源与错误边界。
-func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerInput) error {
-	if l == nil || l.client == nil {
-		return errors.New("compose runner launcher is unavailable")
-	}
-	if err := ValidateRunnerInput(input); err != nil {
-		return fmt.Errorf("validate compose runner launch: %w", err)
-	}
-	encodedInput, err := encodeRunnerInput(input)
-	if err != nil {
-		return err
-	}
-	pulled, err := l.client.ImagePull(ctx, input.Preflight.RunnerReference, mobyclient.ImagePullOptions{})
-	if err != nil {
-		return fmt.Errorf("pull digest-pinned compose runner: %w", err)
-	}
-	if _, err := io.Copy(io.Discard, pulled); err != nil {
-		_ = pulled.Close()
-		return fmt.Errorf("read compose runner pull result: %w", err)
-	}
-	if err := pulled.Close(); err != nil {
-		return fmt.Errorf("close compose runner pull result: %w", err)
-	}
-	stateVolume, err := runnerStateVolumeName()
-	if err != nil {
-		return fmt.Errorf("validate compose runner state volume: %w", err)
-	}
-	configuration, host := composeRunnerContainerConfig(input, encodedInput, stateVolume)
-	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}}
-	options.Name = composeRunnerContainerName(input.OperationID)
-	created, err := l.client.ContainerCreate(ctx, options)
-	if err != nil {
-		return fmt.Errorf("create compose runner: %w", err)
-	}
-	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
-		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
-			return fmt.Errorf("start compose runner: %w; clean up unstarted runner: %v", err, cleanupErr)
-		}
-		return fmt.Errorf("start compose runner: %w", err)
-	}
-	return nil
 }
 
 // LaunchRecovery 从原 runner 的 digest-pinned image 启动仅挂载状态卷的恢复容器。
@@ -301,8 +254,6 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 	_, err = l.client.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
 	return err
 }
-
-func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
 func composeRunnerRecoveryContainerName(operationID, claimID string) string {
 	return "graft-update-recovery-" + operationID + "-" + claimID
@@ -506,25 +457,6 @@ func encodeRunnerRecoveryInput(input RunnerRecoveryInput) (string, error) {
 		return "", fmt.Errorf("encode compose runner recovery state: %w", err)
 	}
 	return base64.RawStdEncoding.EncodeToString(contents), nil
-}
-
-func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
-	root := input.Preflight.ComposeRoot
-	socket := input.Preflight.DockerSocket
-	groups := []string{}
-	if stat, err := os.Stat(socket); err == nil {
-		if details, ok := stat.Sys().(*syscall.Stat_t); ok {
-			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
-		}
-	}
-	stateGroup := strconv.Itoa(runnerStateServerGID)
-	if !slices.Contains(groups, stateGroup) {
-		groups = append(groups, stateGroup)
-	}
-	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
-		runnerOperationLabel: input.OperationID,
-		runnerProtocolLabel:  runnerProtocol,
-	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", stateVolume + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
 func composeRunnerRecoveryContainerConfig(input RunnerRecoveryInput, image, encodedState, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
