@@ -177,6 +177,9 @@ func (s *backupTaskRuntimeStub) RegisterStageExecutor(executor moduleapi.StageEx
 func (s *backupTaskRuntimeStub) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
 	return nil
 }
+func (s *backupTaskRuntimeStub) RegisterExternalExecutionResultRecorder(moduleapi.ExternalExecutionResultRecorder) error {
+	return nil
+}
 func (s *backupTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	s.authorizers = append(s.authorizers, authorizer)
 	return nil

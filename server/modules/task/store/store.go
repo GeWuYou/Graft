@@ -59,6 +59,7 @@ type Repository interface {
 	CreateExternalExecutionLease(ctx context.Context, input CreateExternalExecutionLeaseInput) (taskmodel.ExternalExecutionLease, error)
 	GetExternalExecutionLease(ctx context.Context, leaseID string) (taskmodel.ExternalExecutionLease, bool, error)
 	RenewExternalExecutionLease(ctx context.Context, input RenewExternalExecutionLeaseInput) (taskmodel.ExternalExecutionLease, bool, error)
+	RecordExternalExecutionResultDigest(ctx context.Context, input RecordExternalExecutionResultDigestInput) error
 	AppendExternalExecutionLogs(ctx context.Context, input AppendExternalExecutionLogsInput) error
 	SettleExternalExecution(ctx context.Context, input SettleExternalExecutionInput) (ExternalReceiptSettlement, error)
 	ExpireExternalExecutionLeases(ctx context.Context, now time.Time, limit int) (int, error)
@@ -190,6 +191,14 @@ type AppendExternalExecutionLogsInput struct {
 	FenceTokenHash string
 	Entries        []moduleapi.TaskLogEntry
 	OccurredAt     time.Time
+}
+
+// RecordExternalExecutionResultDigestInput 只保存 fenced 结果协议与载荷的摘要，不保存领域结果。
+type RecordExternalExecutionResultDigestInput struct {
+	LeaseID        string
+	FenceTokenHash string
+	ResultSHA256   string
+	RecordedAt     time.Time
 }
 
 // SettleExternalExecutionInput 描述 lease-bound receipt 的完整持久化输入。

@@ -1,0 +1,43 @@
+migration:
+  path: server/modules/task/migrations/202608210005_task_external_execution_result_digest.sql
+  version: '202608210005'
+owner: task
+risk_level: L4
+affected_tables:
+  - task_external_execution_leases
+referenced_tables:
+  - tasks
+  - task_stages
+operation_categories:
+  - additive-columns
+  - check-constraint
+historical_data_assumptions:
+  - Existing external execution leases predate transient domain result delivery and therefore have no accepted result digest.
+planned_upgrade_order:
+  - Add the nullable result digest to the Task-owned external execution lease.
+  - Constrain new digest values to lowercase SHA-256 hex while preserving historical null rows.
+safety_strategy:
+  duplicate_scan: The column is nullable and no historical rows are synthesized.
+  live_reference_scan: The change does not modify lease, Task, Stage or receipt identity and introduces no new reference.
+  reconcile_or_abort: Abort if the new check constraint cannot be installed; do not infer a result from historical receipts.
+  post_migration_invariant: One active fence accepts exact result replay and rejects a different protocol or payload digest without persisting the result body.
+  reference_impact: No Task, Stage, lease or receipt row is deleted or rewritten.
+  recovery_or_retirement_rationale: The digest is the durable idempotency guard for transient domain result delivery and remains Task Runtime authority.
+validation_scenarios:
+  - A lease with no result accepts one lowercase SHA-256 digest.
+  - Replaying the same result digest is idempotent.
+  - Replaying a different result digest under the same fence is rejected.
+  - Historical leases with a null digest remain readable.
+preflight_checks:
+  - name: external-execution-lease-count
+    query: SELECT COUNT(*) FROM task_external_execution_leases
+    must_be_greater_than_or_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-002

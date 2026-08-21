@@ -2,12 +2,9 @@ package runtimetarget
 
 import (
 	"context"
-	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -68,17 +65,5 @@ func TestProbeOCIRegistryV2DoesNotFollowRedirects(t *testing.T) {
 	}
 	if redirectTargetCalls != 0 {
 		t.Fatalf("redirect target calls = %d, want 0", redirectTargetCalls)
-	}
-}
-
-func TestIsolatedRegistryAuthorizationReadsOnlyTemporaryDockerConfig(t *testing.T) {
-	directory := t.TempDir()
-	encoded := base64.StdEncoding.EncodeToString([]byte("user:password"))
-	if err := os.WriteFile(filepath.Join(directory, "config.json"), []byte(`{"auths":{"registry.example":{"auth":"`+encoded+`"}}}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	authorization, err := isolatedRegistryAuthorization(context.WithValue(context.Background(), dockerCredentialConfigContextKey{}, directory), "https://registry.example")
-	if err != nil || authorization != "Basic "+encoded {
-		t.Fatalf("isolatedRegistryAuthorization() = %q, %v", authorization, err)
 	}
 }

@@ -20,6 +20,7 @@ const (
 	executionRenewPath      = "/agent/v1/execution-leases/"
 	executionLogsSuffix     = "/logs"
 	executionMaterialSuffix = "/material"
+	executionResultsSuffix  = "/results"
 	executionReceiptsSuffix = "/receipts"
 	executionRenewalDivisor = 2
 )
@@ -77,6 +78,8 @@ type executionMaterial struct {
 type executionResult struct {
 	Outcome     string
 	FailureCode string
+	Protocol    string
+	Payload     json.RawMessage
 }
 
 type executionOperation func(context.Context, executionLease) executionResult
@@ -147,6 +150,27 @@ func resolveExecutionMaterial(ctx context.Context, client *http.Client, agentURL
 		return executionMaterial{}, errors.New("agent execution material rejected")
 	}
 	return material, nil
+}
+
+type executionResultRequest struct {
+	FenceToken string          `json:"fence_token"`
+	Protocol   string          `json:"protocol"`
+	Payload    json.RawMessage `json:"payload"`
+}
+
+func submitExecutionResult(ctx context.Context, client *http.Client, agentURL string, lease executionLease, result executionResult) error {
+	request := executionResultRequest{FenceToken: lease.FenceToken, Protocol: result.Protocol, Payload: result.Payload}
+	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionRenewPath+lease.ID+executionResultsSuffix, request, nil)
+	if err != nil {
+		return err
+	}
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return errAgentIdentityRejected
+	}
+	if status != http.StatusNoContent {
+		return errors.New("agent execution result rejected")
+	}
+	return nil
 }
 
 func settleExecution(ctx context.Context, client *http.Client, agentURL string, lease executionLease, outcome, failureCode string) (executionSettlement, error) {
@@ -258,6 +282,15 @@ func waitForProviderOperation(ctx context.Context, client *http.Client, c config
 }
 
 func completeProviderOperation(ctx context.Context, client *http.Client, c config, lease executionLease, journal executionJournal, result executionResult) error {
+	if result.Outcome == "success" && lease.Capability == buildExecutionCapability {
+		if result.Protocol != buildExecutionResultProtocol || len(result.Payload) == 0 {
+			return errors.New("provider execution result is unavailable")
+		}
+		// Build 结果只在有效 fence 下瞬时交付；未交付成功前不得把 journal 写成可重放的终态。
+		if err := submitExecutionResult(ctx, client, c.AgentURL, lease, result); err != nil {
+			return err
+		}
+	}
 	journal.Lease, journal.Phase, journal.Outcome, journal.FailureCode = lease, executionJournalTerminal, result.Outcome, result.FailureCode
 	if err := saveExecutionJournal(c.StateDir, journal); err != nil {
 		return err

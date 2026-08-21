@@ -287,7 +287,7 @@ type RegistryPublicationResolver interface {
 }
 
 // EphemeralCredentialSession 是一次 Registry 操作的短期凭据会话。
-// Secret 只允许在 CredentialProvider 与 RuntimeExecutionAdapter 的进程内边界流转。
+// Secret 只允许在 CredentialProvider 与 fenced material resolver 的进程内边界流转。
 type EphemeralCredentialSession struct {
 	ID        string
 	ExpiresAt time.Time
@@ -334,6 +334,19 @@ type CredentialProvider interface {
 	Revoke(context.Context, EphemeralCredentialSession) error
 }
 
+// EphemeralCredentialMaterial 是仅允许在有效 execution fence 后读取的短期秘密。
+// 调用方不得持久化、记录或放入 Task/receipt；使用后必须立即撤销对应 session。
+type EphemeralCredentialMaterial struct {
+	Username string
+	Secret   string
+}
+
+// EphemeralCredentialMaterialProvider 为 Runtime Agent material transport 提供
+// 进程内秘密读取能力，不改变 CredentialProvider 对会话签发和撤销的所有权。
+type EphemeralCredentialMaterialProvider interface {
+	ResolveCredentialMaterial(context.Context, EphemeralCredentialSession, CredentialInjectionTarget) (EphemeralCredentialMaterial, error)
+}
+
 // CredentialInjectionTarget 是 Runtime adapter 提供的隔离注入位置，不携带凭据原文。
 type CredentialInjectionTarget struct {
 	ConfigDir     string
@@ -364,15 +377,6 @@ type OCIRegistryVerificationResult struct {
 // RuntimeOCIRegistryVerifier 是 Runtime Target 对 Registry 暴露的最小认证验证 capability。
 type RuntimeOCIRegistryVerifier interface {
 	VerifyOCIRegistry(context.Context, OCIRegistryVerificationRequest) (OCIRegistryVerificationResult, error)
-}
-
-// RuntimeExecutionAdapter 是 Runtime Target 唯一拥有的隔离 Registry 执行边界。
-// 调用方只提交非秘密 binding，adapter 自己申请、注入并清理 ephemeral session。
-type RuntimeExecutionAdapter interface {
-	PublishImage(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
-	PublishManifest(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
-	CopyOCIArtifact(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
-	RuntimeOCIRegistryVerifier
 }
 
 // ArtifactPublicationSource 是从可变 Publication 选择的 Build-owned 摘要源。
@@ -515,27 +519,15 @@ type ApplicationBuildContextResolver interface {
 	ResolveApplicationBuildContext(context.Context, string) (ApplicationBuildContext, error)
 }
 
-// DockerImageBuildInput 是 Container 模块接受的受控 Docker 构建请求。
-// 路径必须相对于已授权 workspace，调用方不能传入 daemon、host 或任意 CLI 参数。
-type DockerImageBuildInput struct {
-	WorkspaceRoot      string
-	MaterializationRef string
-	ContextPath        string
-	DockerfilePath     string
-	ImageRepository    string
-	ImageTag           string
-	Platform           string
-	BuildArgs          []DockerImageBuildArg
-}
-
-// DockerImageBuildArg 表示非敏感 Docker 构建参数。
-type DockerImageBuildArg struct {
+// BuildArgument 表示 provider-neutral 构建参数。
+// 当前 Build 提交边界不接受值；未来只能从受管理的短期 material authority 解析。
+type BuildArgument struct {
 	Name  string
 	Value string
 }
 
-// DockerImageBuildResult 是 Docker executor 生成的规范化镜像事实。
-type DockerImageBuildResult struct {
+// BuildArtifactResult 是 Build 领域解释的 provider-neutral 镜像产物事实。
+type BuildArtifactResult struct {
 	ImageID      string
 	Digest       string
 	Repository   string
@@ -549,22 +541,6 @@ type DockerImageBuildResult struct {
 // BuildDriverLogSink 接收经过 executor 限长和脱敏的逐行 Driver 输出。
 // 它属于 Build/Task 的通用执行边界，不能携带 Docker 专有的命令或连接事实。
 type BuildDriverLogSink func(context.Context, TaskLogEntry) error
-
-// DockerImageBuildLogSink 保留 Docker capability 的兼容别名。
-// 新的 provider-neutral Driver contract 必须使用 BuildDriverLogSink。
-type DockerImageBuildLogSink = BuildDriverLogSink
-
-// DockerImageBuildCapability 由 Container 模块提供 Docker image build 执行能力。
-type DockerImageBuildCapability interface {
-	BuildImage(context.Context, DockerImageBuildInput, DockerImageBuildLogSink) (DockerImageBuildResult, error)
-}
-
-// TargetBoundDockerImageBuildCapability 只在提供方 owner 重新校验所选 Runtime
-// Target 后执行 Docker build；冻结的 Execution Plan 指定 target 时，Build 必须
-// 优先使用此边界。
-type TargetBoundDockerImageBuildCapability interface {
-	BuildImageOnTarget(context.Context, int64, DockerImageBuildInput, DockerImageBuildLogSink) (DockerImageBuildResult, error)
-}
 
 // WorkspaceSnapshotDeliveryRequest 是 Build 将冻结 Snapshot 交给 Runtime provider 的受控请求。
 // MaterializationRef 是 Build-owned opaque reference；provider 不接收宿主机路径。
@@ -691,33 +667,6 @@ type ProviderExecutionEvidence struct {
 // 它把 capability 声明与可执行 provider 注册、连接健康和生命周期证据绑定起来。
 type TargetBoundProviderExecutionConformanceCapability interface {
 	ConformProviderExecution(context.Context, ProviderExecutionConformanceRequest) (ProviderExecutionConformanceResult, error)
-}
-
-// TargetBoundDockerBuildProvider 是 Runtime Target 注册的完整 Docker 适配器边界。
-// 它只约束 Docker reference provider；未来非 Docker provider 必须定义自己的 provider-neutral Driver contract。
-type TargetBoundDockerBuildProvider interface {
-	TargetBoundDockerImageBuildCapability
-	TargetBoundWorkspaceSnapshotDeliveryCapability
-	TargetBoundProviderExecutionConformanceCapability
-	ProviderID() string
-}
-
-// TargetBoundDockerImagePublicationCapability 通过所选 Runtime Target，使用
-// Infrastructure 所有的 provider binding 发布镜像。
-type TargetBoundDockerImagePublicationCapability interface {
-	PublishImageOnTarget(context.Context, int64, DockerImageBuildResult, RegistryPublicationBinding, DockerImageBuildLogSink) (DockerImageBuildResult, error)
-}
-
-// TargetBoundOCIManifestPublicationCapability 由支持多平台的 Builder Driver 实现。Build 只能传入已经验证的
-// 平台 digest 集合与 Infrastructure 解析后的绑定，不能传递 Docker 命令、端点或凭据。
-type TargetBoundOCIManifestPublicationCapability interface {
-	PublishOCIManifestOnTarget(context.Context, int64, OCIManifestPublicationInput, RegistryPublicationBinding, DockerImageBuildLogSink) (OCIManifestPublicationResult, error)
-}
-
-// TargetBoundOCIArtifactCopyCapability 归 Runtime Target provider 所有。Build 只提供
-// 不可变身份和 Registry 提供的私有 binding；provider 拥有协议命令、认证和 digest 校验。
-type TargetBoundOCIArtifactCopyCapability interface {
-	CopyOCIArtifactOnTarget(context.Context, int64, OCIArtifactCopyInput, RegistryArtifactCopyBinding, DockerImageBuildLogSink) (OCIArtifactCopyResult, error)
 }
 
 // TaskBatchQueryService 为列表型消费者提供批量 Task 读取能力，避免其自行逐行查询。

@@ -235,6 +235,7 @@ services:
       - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
+      - graft-build-snapshots:/tmp/graft-build-snapshots
       # 更新 runner 独占写入该卷；server 重启后只能读取并投影状态。
       - graft-update-state:/var/lib/graft/update-state:ro
 
@@ -253,6 +254,7 @@ services:
       - ${GRAFT_DOCKER_RUNTIME_AGENT_STATE_HOST_PATH:-./.data/docker-runtime-agent/state}:/var/lib/graft-runtime-agent/state
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - graft-build-snapshots:/tmp/graft-build-snapshots:ro
     healthcheck:
       test: ["CMD", "/app/graft-docker-runtime-agent", "--healthcheck"]
       interval: 15s
@@ -272,5 +274,7 @@ services:
       - "${GRAFT_WEB_HOST_PORT:-3000}:80"
 
 volumes:
+  graft-build-snapshots:
+    name: graft-build-snapshots
   graft-update-state:
     name: ${GRAFT_UPDATE_STATE_VOLUME:-graft-update-state}

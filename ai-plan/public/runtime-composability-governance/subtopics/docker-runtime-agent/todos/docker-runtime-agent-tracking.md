@@ -106,7 +106,30 @@
 
 ## Next Recovery Point
 
-Batch 4 migrated Application Compose lifecycle and finite Container mutations to the single Docker Runtime Agent through
-Task-owned external execution leases, generation-scoped capability binding and transient material resolution, while
-removing their server-local mutation paths. Begin Batch 5 by migrating Build SDK execution only; do not begin Update
-Controller migration or remove Docker socket access still required by explicitly unmigrated/runtime-stream boundaries.
+Batch 5 Build SDK migration is accepted. The next bounded slice is Batch 6, which starts by migrating the Update
+Controller launch boundary only. The frozen Build contract remains: Build submits provider-neutral `oci-build` external stages; Task Runtime owns the fenced lease, renewal, cancellation, logs, transient
+result digest, receipt, retry and recovery; Runtime Target binds `docker/v1`; and `docker-runtime-agent` performs Moby/OCI
+SDK side effects. Build resolves `build-execution-material/v1` after a valid fence and interprets
+`build-execution-result/v1`; neither material nor result JSON is durable Task/Agent state. The accepted operation set is
+`build.image.local.v1`, `build.image.publish.v1`, `build.manifest.publish.v1` and `build.artifact.copy.v1`.
+
+No Build server-local Docker/CLI adapter, fallback or compatibility alias may remain. The named
+`/tmp/graft-build-snapshots` volume is shared by server and Agent. The server Docker socket remains only for Update
+Controller, Runtime Target discovery/summary and explicitly unmigrated Container read/stream/interactive boundaries;
+do not begin Batch 6 Update Controller migration or remove that mount in this batch.
+
+## Batch 5 Acceptance
+
+- [x] Every Build Docker operation reaches the Agent through a Task-owned external execution lease and the exact
+  provider/capability/version binding.
+- [x] Material and normalized result are transient, fence-bound and redacted; Task retains only `result_sha256`, and
+  Build alone owns Artifact/Publication/result interpretation.
+- [x] Agent SDK tests cover capability admission, Moby/OCI build/push/manifest/copy behavior, cancellation, retry and
+  recovery; duplicate result replay is idempotent and conflicting replay is rejected.
+- [x] No Build server-local Docker/CLI execution, fallback, old adapter or compatibility alias remains.
+- [x] Deployment/conformance docs describe the shared snapshot volume and no Agent inbound port; server socket retention
+  is explicitly limited to unmigrated Update/Container read-stream boundaries.
+- [x] Focused, race, migration, AI-plan and complete backend validation evidence is recorded by the main agent.
+
+Evidence: focused and race Go tests, `go run ./cmd/graft validate backend` (including lint), SQL migration/version
+checks, generated module registry freshness, AI-plan structure validation and `git diff --check` all passed.

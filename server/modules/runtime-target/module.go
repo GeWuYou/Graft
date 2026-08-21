@@ -199,33 +199,19 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
 		return err
 	}
-	provider := func(_ containerdi.Resolver) (any, error) {
-		return dockerTargetProvider{repository: m.repository}, nil
-	}
 	credentialProvider, credentialErr := module.ResolveService[moduleapi.CredentialProvider](ctx.Services, (*moduleapi.CredentialProvider)(nil))
 	if credentialErr != nil && !errors.Is(credentialErr, containerdi.ErrServiceNotRegistered) {
 		return credentialErr
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerBuildProvider)(nil), provider); err != nil {
-		return err
-	}
 	if credentialErr == nil && credentialProvider != nil {
-		verificationAdapter := func(_ containerdi.Resolver) (any, error) {
-			return dockerCredentialExecutionAdapter{provider: credentialProvider, client: dockerTargetProvider{repository: m.repository}}, nil
+		materialProvider, ok := credentialProvider.(moduleapi.EphemeralCredentialMaterialProvider)
+		if !ok {
+			return errors.New("registry credential material provider is unavailable")
 		}
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), verificationAdapter); err != nil {
-			return err
+		verifier := func(_ containerdi.Resolver) (any, error) {
+			return runtimeOCIRegistryVerifier{targets: m.repository, credentials: credentialProvider, materials: materialProvider}, nil
 		}
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verificationAdapter); err != nil {
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verifier); err != nil {
 			return err
 		}
 	}

@@ -45,11 +45,6 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 	if !ok || len(tasks.executors) != 0 || len(tasks.authorizers) != 17 {
 		t.Fatalf("expected external Container owner registrations without local executors, got %#v", resolved)
 	}
-	for _, key := range []any{(*moduleapi.DockerImageBuildCapability)(nil), (*moduleapi.TargetBoundDockerImageBuildCapability)(nil), (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil)} {
-		if _, err := ctx.Services.Resolve(key); err != nil {
-			t.Fatalf("resolve registered build capability %T: %v", key, err)
-		}
-	}
 	for _, action := range containerLifecycleTaskActions() {
 		if !slices.ContainsFunc(tasks.authorizers, func(authorizer moduleapi.TaskOwnerAuthorizer) bool {
 			return authorizer.OwnerType() == containerLifecycleTaskOwnerType(action)
@@ -293,6 +288,10 @@ func (s *containerTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer module
 }
 
 func (*containerTaskRuntimeStub) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
+
+func (*containerTaskRuntimeStub) RegisterExternalExecutionResultRecorder(moduleapi.ExternalExecutionResultRecorder) error {
 	return nil
 }
 

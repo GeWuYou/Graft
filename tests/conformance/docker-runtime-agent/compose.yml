@@ -119,6 +119,7 @@ services:
     volumes:
       - vault-secrets:/run/graft-secrets:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - build-snapshots:/tmp/graft-build-snapshots
     ports:
       - "${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}:8080"
       - "${GRAFT_CONFORMANCE_BOOTSTRAP_PORT:-18443}:8443"
@@ -144,7 +145,6 @@ services:
       - agent-config:/conformance/agent-config
       - agent-bootstrap:/conformance/agent-bootstrap
       - agent-trust:/conformance/agent-trust:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   docker-runtime-agent:
     image: ${GRAFT_AGENT_IMAGE:?GRAFT_AGENT_IMAGE is required}
@@ -161,6 +161,7 @@ services:
       - agent-trust:/run/graft-agent-trust:ro
       - agent-state:/var/lib/graft-runtime-agent/state
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - build-snapshots:/tmp/graft-build-snapshots:ro
 
 volumes:
   postgres-data:
@@ -170,3 +171,4 @@ volumes:
   agent-trust:
   vault-tls:
   agent-state:
+  build-snapshots:

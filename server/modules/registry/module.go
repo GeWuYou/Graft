@@ -34,7 +34,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if executionErr != nil && !errors.Is(executionErr, containerdi.ErrServiceNotRegistered) {
 		return fmt.Errorf("resolve runtime registry verification adapter: %w", executionErr)
 	}
-	m.service.bindRuntimeExecutionAdapter(execution)
+	m.service.bindRuntimeOCIRegistryVerifier(execution)
 	targets, err := module.ResolveService[moduleapi.RuntimeTargetBuildAssignmentReader](ctx.Services, (*moduleapi.RuntimeTargetBuildAssignmentReader)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve runtime target build assignments: %w", err)

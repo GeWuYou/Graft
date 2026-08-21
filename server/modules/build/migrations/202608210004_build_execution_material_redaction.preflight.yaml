@@ -1,0 +1,52 @@
+migration:
+  path: server/modules/build/migrations/202608210004_build_execution_material_redaction.sql
+  version: '202608210004'
+owner: build
+risk_level: L4
+affected_tables:
+  - build_jobs
+  - build_job_args
+referenced_tables:
+  - build_jobs
+operation_categories:
+  - data-redaction
+  - data-deletion
+  - comment-update
+historical_data_assumptions:
+  - Existing workspace_root values are legacy server-local execution material and are not authoritative Build identities.
+  - Existing build_job_args values were accepted as non-sensitive legacy inputs, but Batch 5 forbids persisting any runtime material that may contain secrets.
+  - Build identity, Task linkage, image destination and Artifact or Publication facts do not depend on either redacted value.
+planned_upgrade_order:
+  - Stop new Build submissions from persisting workspace roots and build argument values in the application release.
+  - Redact all historical workspace_root values while preserving Build Job rows and identities.
+  - Delete historical build argument rows so no value can be replayed as Agent material.
+  - Update database comments to mark both fields as retired execution-material storage.
+safety_strategy:
+  duplicate_scan: No uniqueness or identity key is changed.
+  live_reference_scan: build_job_args rows are not referenced by foreign keys outside Build and are only a legacy job projection.
+  reconcile_or_abort: Abort deployment if application code still requires a non-empty workspace_root or writes build_job_args before this migration is applied.
+  post_migration_invariant: Every build_jobs row has an empty workspace_root and build_job_args has zero rows; future Build execution resolves workspace and credentials only after a valid Task fence.
+  reference_impact: Build Job, Task, Artifact and Publication identities remain unchanged; only retired execution material is removed.
+  recovery_or_retirement_rationale: Sensitive or host-local execution material cannot be safely retained for rollback; recovery uses the Application or Snapshot authority and a new fenced attempt.
+  bounded_backfill: Update only the historical Build job workspace column and delete only rows in the Build-owned argument table; no Task, Artifact or Publication row is touched.
+validation_scenarios:
+  - Historical Build Job rows remain readable after workspace_root is redacted.
+  - No build_job_args row remains after migration.
+  - A new legacy Build submission persists only stable Build intent and resolves its live workspace after Agent claim.
+  - Artifact and Publication reads remain unchanged.
+preflight_checks:
+  - name: workspace-material-redaction
+    query: SELECT COUNT(*) FROM build_jobs WHERE workspace_root <> ''
+    must_equal: 0
+  - name: persisted-build-arguments-redaction
+    query: SELECT COUNT(*) FROM build_job_args
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-002

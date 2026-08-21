@@ -39,7 +39,7 @@ type JobSnapshot struct {
 	RuntimeProvider     string
 	ImageRepository     string
 	ImageTag            string
-	BuildArgs           []moduleapi.DockerImageBuildArg
+	BuildArgs           []moduleapi.BuildArgument
 	RequestedBy         uint64
 }
 
@@ -174,7 +174,7 @@ type Repository interface {
 	CreateJob(context.Context, JobSnapshot) error
 	MaterializeSubmissionSnapshot(context.Context, *sql.Tx, moduleapi.TaskSubmission, JobSnapshot) (string, error)
 	GetJobByTaskID(context.Context, uint64) (JobSnapshot, error)
-	SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error
+	SettleBuildArtifact(context.Context, uint64, moduleapi.BuildArtifactResult) error
 	ListJobs(context.Context, ListQuery) (ListResult, error)
 	GetJobByBuildID(context.Context, string) (JobProjection, error)
 }
@@ -209,7 +209,7 @@ type ExecutionPlanReader interface {
 // V2ArtifactSettlementRepository 在 target executor 完成两项动作后记录 immutable
 // artifact evidence 及其 publication reference。
 type V2ArtifactSettlementRepository interface {
-	SettleV2Artifact(context.Context, uint64, moduleapi.BuildExecutionPlan, moduleapi.DockerImageBuildResult, moduleapi.RegistryAuthExecution) error
+	SettleV2Artifact(context.Context, uint64, moduleapi.BuildExecutionPlan, moduleapi.BuildArtifactResult, moduleapi.RegistryAuthExecution) error
 }
 
 // V2ArtifactReader 为 Artifact、Promotion 和 Deployment 提供 Build-owned 的摘要读取边界。
@@ -706,7 +706,7 @@ func validProviderEvidence(result moduleapi.ProviderExecutionConformanceResult) 
 // reference，绝不改变 artifact identity。
 //
 //nolint:cyclop // Settlement 在同一 transaction boundary 内维护 plan ownership、immutable identity 与 publication idempotency。
-func (r *SQLRepository) SettleV2Artifact(ctx context.Context, taskID uint64, plan moduleapi.BuildExecutionPlan, result moduleapi.DockerImageBuildResult, authExecution moduleapi.RegistryAuthExecution) error {
+func (r *SQLRepository) SettleV2Artifact(ctx context.Context, taskID uint64, plan moduleapi.BuildExecutionPlan, result moduleapi.BuildArtifactResult, authExecution moduleapi.RegistryAuthExecution) error {
 	if r == nil || r.db == nil || taskID == 0 || plan.ID == "" || strings.TrimSpace(result.Digest) == "" || authExecution.Mode != moduleapi.RegistryAuthExecutionEphemeral {
 		return errors.New("invalid v2 artifact settlement")
 	}
@@ -1739,7 +1739,7 @@ func (r *SQLRepository) createJobAttempt(ctx context.Context, value JobSnapshot)
 }
 
 func validJobSnapshot(value JobSnapshot) bool {
-	return value.TaskID != 0 && value.BuildID != "" && value.WorkspaceRoot != ""
+	return value.TaskID != 0 && value.BuildID != "" && len(value.BuildArgs) == 0
 }
 
 func insertSubmissionJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
@@ -1782,11 +1782,9 @@ func (r *SQLRepository) verifyExistingJob(ctx context.Context, query jobQueryer,
 	return nil
 }
 
-func insertBuildArgs(ctx context.Context, tx *sql.Tx, jobID uint64, args []moduleapi.DockerImageBuildArg) error {
-	for _, arg := range args {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO build_job_args (build_job_id, name, value) VALUES ($1,$2,$3)`, jobID, arg.Name, arg.Value); err != nil {
-			return fmt.Errorf("insert build argument: %w", err)
-		}
+func insertBuildArgs(_ context.Context, _ *sql.Tx, _ uint64, args []moduleapi.BuildArgument) error {
+	if len(args) != 0 {
+		return errors.New("persisted build arguments are not supported")
 	}
 	return nil
 }
@@ -1822,11 +1820,11 @@ func getJobByTaskID(ctx context.Context, query jobQueryer, taskID uint64) (JobSn
 	return value, nil
 }
 
-func (r *SQLRepository) listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) ([]moduleapi.DockerImageBuildArg, error) {
+func (r *SQLRepository) listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) ([]moduleapi.BuildArgument, error) {
 	return listBuildArgs(ctx, query, taskID)
 }
 
-func listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) (args []moduleapi.DockerImageBuildArg, err error) {
+func listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) (args []moduleapi.BuildArgument, err error) {
 	rows, err := query.QueryContext(ctx, `SELECT name, value FROM build_job_args WHERE build_job_id = (SELECT id FROM build_jobs WHERE task_id = $1) ORDER BY id`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("list build arguments: %w", err)
@@ -1837,7 +1835,7 @@ func listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) (args [
 		}
 	}()
 	for rows.Next() {
-		var arg moduleapi.DockerImageBuildArg
+		var arg moduleapi.BuildArgument
 		if err := rows.Scan(&arg.Name, &arg.Value); err != nil {
 			return nil, err
 		}
@@ -1849,10 +1847,10 @@ func listBuildArgs(ctx context.Context, query jobQueryer, taskID uint64) (args [
 	return args, nil
 }
 
-// SettleDockerArtifact 为 Build 作业写入或更新唯一主 Docker 产物。
-func (r *SQLRepository) SettleDockerArtifact(ctx context.Context, taskID uint64, result moduleapi.DockerImageBuildResult) error {
+// SettleBuildArtifact 为 Build 作业写入或更新唯一主 Docker 产物。
+func (r *SQLRepository) SettleBuildArtifact(ctx context.Context, taskID uint64, result moduleapi.BuildArtifactResult) error {
 	if r == nil || r.db == nil || result.ImageID == "" {
-		return errors.New("docker build result has no image id")
+		return errors.New("build artifact result has no image id")
 	}
 	resultInfo, err := r.db.ExecContext(ctx, `INSERT INTO build_artifacts (artifact_id, build_job_id, role, artifact_type, media_type, runtime_provider, runtime_target_id, image_id, digest, repository, tag, size_bytes, os, architecture, variant, producer_version)
 		SELECT 'artifact-' || task_id::text, id, 'primary', 'container_image', 'application/vnd.oci.image.manifest.v1+json', runtime_provider, runtime_target_id, $2, $3, $4, $5, $6, $7, $8, $9, 'docker'

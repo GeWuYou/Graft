@@ -31,6 +31,23 @@ state machine.
 Retry creates a new Task execution from the same frozen Execution Plan and Workspace Snapshot. A rebuild of current
 source creates a new Snapshot and a new Execution Plan; it is never an implicit retry.
 
+### Batch 5 execution boundary (current)
+
+Build Docker side effects are now external Task stages. Build submission freezes only provider-neutral intent, placement,
+capability expectation and opaque Snapshot/materialization identity; it never stores a Docker endpoint, credential,
+host path, command or SDK value. Task Runtime owns the external execution lease, fencing, renewal, cancellation, bounded
+logs, result digest, receipt, retry and recovery state. After a valid fence, the Build owner resolves one-shot
+`build-execution-material/v1` in memory and the Docker Runtime Agent executes the exact `docker/v1` capability through
+its Moby/OCI SDK adapters. The Agent returns `build-execution-result/v1` before terminal receipt settlement; Build alone
+interprets and persists Artifact/Publication semantics, while Task retains only the result digest for exact replay.
+
+The Batch 5 operation set is `build.image.local.v1`, `build.image.publish.v1`, `build.manifest.publish.v1` and
+`build.artifact.copy.v1`. No server-local Build Docker/CLI adapter, fallback or compatibility alias remains. The shared
+snapshot root is a named deployment volume mounted at `/tmp/graft-build-snapshots` in server and Agent; the path is
+deployment topology, not persisted Task or Build domain data. The server Docker socket remains only for explicitly
+unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive boundaries until
+their batches complete.
+
 ## 2. Domain Boundaries
 
 | Owner | Resources and responsibility | Explicit non-responsibility |
@@ -140,9 +157,10 @@ alone are never treated as execution proof.
 
 The Phase 9 foundation uses `TargetBoundWorkspaceSnapshotDeliveryCapability` as the provider boundary. Build passes only
 the frozen Snapshot identity, content digest, selected target and declared delivery mode inside the execution-private
-call. The Docker adapter accepts `target-local` for Unix-socket targets and `provider-transfer` for validated TCP/SSH
-targets, verifies the managed Build snapshot root and returns a matching delivery proof before Docker execution.
-Unsupported targets and connection kinds remain fail-closed; they must never fall back to the local Docker process.
+call. The Docker Runtime Agent SDK adapter accepts the declared snapshot delivery mode, verifies the managed Build
+snapshot root and returns a matching delivery proof before SDK execution.
+Unsupported targets and connection kinds remain fail-closed; they must never fall back to an unbound local Docker
+process or server-side adapter.
 
 Build-owned Snapshot retention 使用显式清理 lease：到期物化从 `available` 或 `expired` 进入 `purging`，删除私有
 物化字节后才进入 `purged`。中断的 `purging` lease 可被重新领取；任何不在 Build 私有快照根目录下的引用都会被拒绝。
@@ -191,10 +209,10 @@ Multi-platform execution fans one Execution Plan out into platform-specific buil
 requires explicit distributed-build support in Task Runtime before implementation; Build must not emulate a second
 orchestrator.
 
-This distributed-leg contract is an explicit follow-up Phase 6 authority gap. Task Runtime must own coordinated leg
-identity, cancellation, retry/recovery and aggregate terminal state; Build owns the resulting platform Artifacts and
-manifest Publication. Until that contract is released, a Build executor must not loop over platforms or create an
-implicit fan-out scheduler.
+Task Runtime owns coordinated leg identity, cancellation, retry/recovery and aggregate terminal state; Build owns the
+resulting platform Artifacts and manifest Publication. Each platform leg is an external lease with a frozen Runtime
+Target capability binding; the aggregate manifest stage is also external and consumes only Build-owned platform result
+facts. Build does not create a second fan-out scheduler.
 
 ### Telemetry And Reservation
 
@@ -272,19 +290,19 @@ Scope:
   reuse the existing Artifact and Publication authorities.
 
 **Release gate:** the contract, capability-registration rule and conformance suite reject every unsupported or
-unverifiable provider path, while existing Docker adapters continue to pass and no endpoint, credential or host path
-crosses the Build/Task boundary.
+unverifiable provider path, while the Docker SDK adapters execute only in `docker-runtime-agent`; no endpoint,
+credential or host path crosses the Build/Task boundary.
 
 Foundation delivered: `TargetBoundProviderExecutionConformanceCapability` receives only a frozen target, Driver,
-platform, Snapshot identity and delivery mode. The Runtime Target Docker provider is registered as the reference
-implementation; v2 execution requires complete delivery, Driver, publication, cancellation and cleanup evidence before
-it calls Snapshot delivery. Build persists the non-secret conformance result per Execution Plan and Task stage as an
-append-only evidence fact. `TargetBoundDockerBuildProvider` aggregates the Docker reference adapter only; future
-non-Docker providers must use a provider-neutral Driver contract and cannot inherit Docker-specific types.
+platform, Snapshot identity and delivery mode. The Runtime Target Docker capability is admitted only when the bound
+Agent generation advertises `oci-build`/`docker/v1`; the Agent SDK path provides delivery, Driver, publication,
+cancellation and cleanup evidence. Build retains only non-secret conformance and result evidence per Execution Plan and
+Task stage. Future non-Docker providers must use the provider-neutral Driver contract and cannot inherit Docker-specific
+types.
 
 ### Phase 9D: Concrete Non-Docker Provider Adapters
 
-After Phase 9C, implement one provider at a time, such as Kubernetes BuildKit or Kaniko, behind the foundation
-contract. Each adapter must own target connection/credential resolution, receive the exact immutable Snapshot, execute
-the selected Driver, support cancellation/recovery, and return digest-preserving Artifact/Publication evidence. A
-provider becomes selectable only after its integration proof passes; all other providers remain fail-closed.
+Future work may implement one provider at a time, such as Kubernetes BuildKit or Kaniko, behind the foundation contract.
+Each adapter must own target connection/credential resolution, receive the exact immutable Snapshot, execute the selected
+Driver, support cancellation/recovery, and return digest-preserving Artifact/Publication evidence. A provider becomes
+selectable only after its integration proof passes; all other providers remain fail-closed.

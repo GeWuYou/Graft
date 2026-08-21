@@ -2,6 +2,8 @@ package task
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
@@ -271,8 +273,56 @@ func TestExternalExecutionBindsCapabilityVersionAndResolvesTransientMaterial(t *
 	}
 }
 
+func TestExternalExecutionForwardsFencedResultWithoutPersistingPayload(t *testing.T) {
+	runtime, repository, lease := claimedExternalExecutionTask(t, 1)
+	recorder := &recordingExternalResultRecorder{}
+	if err := runtime.RegisterExternalExecutionResultRecorder(recorder); err != nil {
+		t.Fatalf("register result recorder: %v", err)
+	}
+	result := moduleapi.ExternalExecutionResult{Handle: externalExecutionHandle(lease), Protocol: "build-execution-result/v1", Payload: []byte(`{"digest":"sha256:result"}`)}
+	if err := runtime.RecordExternalExecutionResult(context.Background(), result); err != nil {
+		t.Fatalf("record external result: %v", err)
+	}
+	if err := runtime.RecordExternalExecutionResult(context.Background(), result); err != nil {
+		t.Fatalf("replay identical external result: %v", err)
+	}
+	conflict := result
+	conflict.Payload = []byte(`{"digest":"sha256:different"}`)
+	if err := runtime.RecordExternalExecutionResult(context.Background(), conflict); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("conflicting result replay error = %v", err)
+	}
+	if recorder.request.TaskID != lease.TaskID || recorder.request.StageID != lease.StageID || recorder.request.Attempt != lease.Attempt || recorder.request.RuntimeTargetID != lease.RuntimeTargetID || recorder.request.OperationID != lease.OperationID || string(recorder.request.Result) != string(result.Payload) {
+		t.Fatalf("result request = %#v", recorder.request)
+	}
+	if recorder.count != 2 {
+		t.Fatalf("result recorder count = %d, want exact replay only", recorder.count)
+	}
+	task := mustTask(t, repository, lease.TaskID)
+	if strings.Contains(string(task.State), "sha256:result") || strings.Contains(string(task.Plan), "sha256:result") {
+		t.Fatalf("Task persisted transient result: state=%s plan=%s", task.State, task.Plan)
+	}
+	stale := result
+	stale.Handle.FenceToken = "stale"
+	if err := runtime.RecordExternalExecutionResult(context.Background(), stale); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("stale result error = %v", err)
+	}
+}
+
 type recordingExternalMaterialResolver struct {
 	request moduleapi.ExternalExecutionMaterialRequest
+}
+
+type recordingExternalResultRecorder struct {
+	request moduleapi.ExternalExecutionResultRequest
+	count   int
+}
+
+func (*recordingExternalResultRecorder) Type() moduleapi.StageExecutorType { return "test.executor" }
+
+func (r *recordingExternalResultRecorder) RecordExternalExecutionResult(_ context.Context, request moduleapi.ExternalExecutionResultRequest) error {
+	r.request = request
+	r.count++
+	return nil
 }
 
 func (*recordingExternalMaterialResolver) Type() moduleapi.StageExecutorType { return "test.executor" }
@@ -328,9 +378,10 @@ func claimTestExternalExecution(t *testing.T, runtime *Runtime) moduleapi.Extern
 }
 
 func testExternalExecutionExpectation(operationID string) *moduleapi.ExternalExecutionExpectation {
+	digest := sha256.Sum256([]byte(`null`))
 	return &moduleapi.ExternalExecutionExpectation{
 		RuntimeTargetID: 42, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "docker/v1", Protocol: "runtime-agent/v1",
-		OperationID: operationID, LeaseTTL: time.Minute, AbsoluteDeadline: 10 * time.Minute,
+		OperationID: operationID, PayloadSHA256: hex.EncodeToString(digest[:]), LeaseTTL: time.Minute, AbsoluteDeadline: 10 * time.Minute,
 	}
 }
 

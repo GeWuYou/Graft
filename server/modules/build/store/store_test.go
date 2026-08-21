@@ -464,7 +464,7 @@ func TestSQLRepositoryRejectsUnavailableReadOperations(t *testing.T) {
 	}
 }
 
-func TestSettleDockerArtifactReturnsNotFoundWhenJobDoesNotExist(t *testing.T) {
+func TestSettleBuildArtifactReturnsNotFoundWhenJobDoesNotExist(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -475,8 +475,8 @@ func TestSettleDockerArtifactReturnsNotFoundWhenJobDoesNotExist(t *testing.T) {
 		t.Fatal(err)
 	}
 	mock.ExpectExec("INSERT INTO build_artifacts").WithArgs(uint64(42), "sha256:image", "", "example/app", "v1", int64(0), "", "", "").WillReturnResult(sqlmock.NewResult(0, 0))
-	if err := repository.SettleDockerArtifact(context.Background(), 42, moduleapi.DockerImageBuildResult{ImageID: "sha256:image", Repository: "example/app", Tag: "v1"}); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("SettleDockerArtifact error = %v, want ErrNotFound", err)
+	if err := repository.SettleBuildArtifact(context.Background(), 42, moduleapi.BuildArtifactResult{ImageID: "sha256:image", Repository: "example/app", Tag: "v1"}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SettleBuildArtifact error = %v, want ErrNotFound", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
@@ -584,7 +584,7 @@ func TestClaimExpiredSnapshotMaterializationsUsesRecoverableLease(t *testing.T) 
 	}
 }
 
-func TestGetJobByBuildIDLoadsPersistedBuildArgs(t *testing.T) {
+func TestGetJobByBuildIDReturnsNoPersistedBuildArgs(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -596,13 +596,13 @@ func TestGetJobByBuildIDLoadsPersistedBuildArgs(t *testing.T) {
 	}
 	columns := []string{"build_id", "task_id", "application_id", "application_record_id", "application_name_snapshot", "workspace_context_path", "workspace_root", "dockerfile_path", "runtime_target_id", "runtime_target_name", "runtime_provider", "image_repository", "image_tag", "created_by", "created_at", "artifact_id", "image_id", "digest", "repository", "tag", "size_bytes", "platform"}
 	mock.ExpectQuery("SELECT j.build_id").WithArgs("build_test").WillReturnRows(sqlmock.NewRows(columns).AddRow("build_test", uint64(42), "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", uint64(9), "app", "src", "/workspace/app", "Dockerfile", uint64(4), "Local Docker", "docker", "example/app", "v1", uint64(7), time.Now(), nil, nil, "", nil, nil, nil, ""))
-	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}).AddRow("MODE", "release"))
+	mock.ExpectQuery("SELECT name, value FROM build_job_args").WithArgs(uint64(42)).WillReturnRows(sqlmock.NewRows([]string{"name", "value"}))
 
 	job, err := repository.GetJobByBuildID(context.Background(), "build_test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(job.BuildArgs, []moduleapi.DockerImageBuildArg{{Name: "MODE", Value: "release"}}) {
+	if len(job.BuildArgs) != 0 {
 		t.Fatalf("build args = %#v", job.BuildArgs)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

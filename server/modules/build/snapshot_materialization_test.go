@@ -51,6 +51,13 @@ func TestAdoptSnapshotMaterializationCopiesIntoBuildOwnedRoot(t *testing.T) {
 	if filepath.Dir(snapshot.MaterializedRoot) == filepath.Dir(source) {
 		t.Fatalf("materialization remained under source root: %q", snapshot.MaterializedRoot)
 	}
+	info, err := os.Stat(snapshot.MaterializedRoot)
+	if err != nil {
+		t.Fatalf("stat materialization: %v", err)
+	}
+	if info.Mode().Perm() != managedSnapshotDirectoryMode {
+		t.Fatalf("materialization mode = %v", info.Mode().Perm())
+	}
 	content, err := os.ReadFile(filepath.Join(snapshot.MaterializedRoot, "Dockerfile"))
 	if err != nil || string(content) != "FROM scratch\n" {
 		t.Fatalf("copied source = %q, error = %v", content, err)
@@ -94,7 +101,7 @@ func TestCleanupExpiredSnapshotMaterializationsPurgesOnlyManagedMaterialization(
 		t.Fatal(err)
 	}
 	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_expired", MaterializationRef: reference}}}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +120,7 @@ func TestCleanupExpiredSnapshotMaterializationsPurgesOnlyManagedMaterialization(
 func TestCleanupExpiredSnapshotMaterializationsRefusesOutsideBuildStorage(t *testing.T) {
 	outside := t.TempDir()
 	repository := &retentionBuildRepository{recordingBuildRepository: &recordingBuildRepository{}, claimed: []buildstore.ExpiredSnapshotMaterialization{{SnapshotID: "snapshot_invalid", MaterializationRef: outside}}}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}

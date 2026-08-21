@@ -14,4 +14,10 @@ Docker Runtime Agent 是独立部署单元。Runtime Target 负责 enrollment、
 
 ## Official Compose
 
-官方根 Compose 默认启动 `docker-runtime-agent`，使用与 server/web 相同的 `GRAFT_IMAGE_TAG`。服务只挂载配置、token、trust bundle、state 和 Docker socket；启动前必须完成 Backend 的 Vault PKI、bootstrap TLS、mTLS 与 delivery 准备，挂载契约以 [Agent Protocol](../../../ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md) 为准。Agent 不开放入站端口，Compose healthcheck 只读取本地 readiness 状态。
+官方根 Compose 默认启动 `docker-runtime-agent`，使用与 server/web 相同的 `GRAFT_IMAGE_TAG`。服务挂载配置、token、trust bundle、state、Docker socket、应用 workspace 与只读 Build snapshot 卷；启动前必须完成 Backend 的 Vault PKI、bootstrap TLS、mTLS 与 delivery 准备，挂载契约以 [Agent Protocol](../../../ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md) 为准。Agent 不开放入站端口，Compose healthcheck 只读取本地 readiness 状态。
+
+## Execution SDK boundary
+
+Agent 只认领 Runtime Target generation 已绑定的 `docker/v1` capability。Application 与 Container 副作用继续使用 Compose/Moby SDK；Build 的 `oci-build` capability 使用 Moby SDK 完成镜像构建与推送，使用 ORAS Go v2 完成 OCI Image Index 发布和 digest-preserving artifact copy，不存在 Docker、Compose 或 buildx CLI 执行路径。
+
+Build 的 workspace、Registry endpoint 与短期凭据只能在有效 lease fence 后通过 `build-execution-material/v1` 瞬时解析。成功结果通过 `build-execution-result/v1` 在 receipt 之前回传；material、result、endpoint、凭据、宿主机路径和 provider 输出都不能进入 Agent journal。result 回传失败时 journal 保持 `running`，重连恢复只能收敛为 `needs_attention`，不得再次执行不确定的 Build 副作用。

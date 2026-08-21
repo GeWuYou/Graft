@@ -51,6 +51,7 @@ type Runtime struct {
 	eventMu           sync.Mutex
 	executors         map[moduleapi.StageExecutorType]moduleapi.StageExecutor
 	materialResolvers map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver
+	resultRecorders   map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionResultRecorder
 	authorizers       map[string]moduleapi.TaskOwnerAuthorizer
 	running           map[uint64]runningStage
 	cancel            context.CancelFunc
@@ -78,6 +79,7 @@ func NewRuntime(repository taskstore.Repository) *Runtime {
 		pollEvery:         defaultPollInterval,
 		executors:         make(map[moduleapi.StageExecutorType]moduleapi.StageExecutor),
 		materialResolvers: make(map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver),
+		resultRecorders:   make(map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionResultRecorder),
 		authorizers:       make(map[string]moduleapi.TaskOwnerAuthorizer),
 		running:           make(map[uint64]runningStage),
 		wake:              make(chan struct{}, 1),
@@ -120,6 +122,20 @@ func (r *Runtime) RegisterExternalExecutionMaterialResolver(resolver moduleapi.E
 		return fmt.Errorf("external execution material resolver %q is already registered", resolver.Type())
 	}
 	r.materialResolvers[resolver.Type()] = resolver
+	return nil
+}
+
+// RegisterExternalExecutionResultRecorder 注册领域拥有的瞬时结果解释器。
+func (r *Runtime) RegisterExternalExecutionResultRecorder(recorder moduleapi.ExternalExecutionResultRecorder) error {
+	if r == nil || recorder == nil || recorder.Type() == "" {
+		return errors.New("external execution result recorder is required")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.resultRecorders[recorder.Type()]; exists {
+		return fmt.Errorf("external execution result recorder %q is already registered", recorder.Type())
+	}
+	r.resultRecorders[recorder.Type()] = recorder
 	return nil
 }
 
@@ -1258,21 +1274,21 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 func validateExternalOperationIdentities(stages []moduleapi.StagePlan) error {
 	seen := make(map[string]struct{}, len(stages))
 	for _, stage := range stages {
-		operationID, external := stageExternalOperationIdentity(stage)
+		identity, external := stageExternalOperationIdentity(stage)
 		if !external {
 			continue
 		}
-		if _, exists := seen[operationID]; exists {
-			return fmt.Errorf("task plan contains duplicate external operation %q", operationID)
+		if _, exists := seen[identity]; exists {
+			return fmt.Errorf("task plan contains duplicate external operation %q", identity)
 		}
-		seen[operationID] = struct{}{}
+		seen[identity] = struct{}{}
 	}
 	return nil
 }
 
 func stageExternalOperationIdentity(stage moduleapi.StagePlan) (string, bool) {
 	if stage.ExternalExecution != nil {
-		return stage.ExternalExecution.OperationID, true
+		return stage.ExternalExecution.OperationID + ":" + stage.ExternalExecution.PayloadSHA256, true
 	}
 	if stage.ExternalReceipt != nil {
 		return stage.ExternalReceipt.OperationID, true

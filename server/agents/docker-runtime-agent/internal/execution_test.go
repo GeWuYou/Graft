@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -93,6 +95,118 @@ func TestExecutionRenewsUntilCancellationAndSubmitsBoundedReceipt(t *testing.T) 
 	}
 	if len(logLines) != 3 || logLines[0] != "execution lease accepted" || logLines[1] != "provider operation started" || logLines[2] != "cancellation observed" {
 		t.Fatalf("logs=%v", logLines)
+	}
+}
+
+//nolint:gocognit,gocyclo,cyclop // This test records the complete result-before-terminal ordering and recovery assertions.
+func TestBuildExecutionSubmitsTransientResultBeforeTerminalJournalAndReceipt(t *testing.T) {
+	stateDir := t.TempDir()
+	lease := executionLease{ID: "lease-build", FenceToken: "fence-build", OperationID: buildImagePublishOperation, Protocol: buildExecutionProtocol, Capability: buildExecutionCapability, PayloadSHA256: "payload", LeaseTTLMS: 1000}
+	resultPayload := json.RawMessage(`{"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","repository":"team/app","reference":"stable","media_type":"application/vnd.oci.image.manifest.v1+json","size_bytes":42}`)
+	var mu sync.Mutex
+	paths := make([]string, 0, 6)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/agent/v1/execution-leases/lease-build/renew":
+			_ = json.NewEncoder(w).Encode(lease)
+		case "/agent/v1/execution-leases/lease-build/logs":
+			w.WriteHeader(http.StatusNoContent)
+		case "/agent/v1/execution-leases/lease-build/results":
+			var request executionResultRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatal(err)
+			}
+			if request.FenceToken != lease.FenceToken || request.Protocol != buildExecutionResultProtocol || string(request.Payload) != string(resultPayload) {
+				t.Fatalf("result request=%#v", request)
+			}
+			journal, found, err := executionJournalForLease(stateDir, lease.ID)
+			if err != nil || !found || journal.Phase != executionJournalRunning {
+				t.Fatalf("journal before result settlement=%#v found=%v err=%v", journal, found, err)
+			}
+			journalJSON, _ := json.Marshal(journal)
+			if strings.Contains(string(journalJSON), "team/app") || strings.Contains(string(journalJSON), "stable") {
+				t.Fatalf("result leaked into running journal: %s", journalJSON)
+			}
+			w.WriteHeader(http.StatusNoContent)
+		case "/agent/v1/execution-leases/lease-build/receipts":
+			journal, found, err := executionJournalForLease(stateDir, lease.ID)
+			if err != nil || !found || journal.Phase != executionJournalTerminal || journal.Outcome != "success" {
+				t.Fatalf("terminal journal before receipt=%#v found=%v err=%v", journal, found, err)
+			}
+			_ = json.NewEncoder(w).Encode(executionSettlement{})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	err := executeLeaseWithOperation(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}, lease, func(context.Context, executionLease) executionResult {
+		return executionResult{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: resultPayload}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{
+		"/agent/v1/execution-leases/lease-build/renew",
+		"/agent/v1/execution-leases/lease-build/logs",
+		"/agent/v1/execution-leases/lease-build/logs",
+		"/agent/v1/execution-leases/lease-build/results",
+		"/agent/v1/execution-leases/lease-build/logs",
+		"/agent/v1/execution-leases/lease-build/receipts",
+	}
+	if !slices.Equal(paths, want) {
+		t.Fatalf("paths=%v want=%v", paths, want)
+	}
+}
+
+func TestBuildResultTransportFailureRecoversAsNeedsAttentionWithoutProviderReplay(t *testing.T) {
+	stateDir := t.TempDir()
+	lease := executionLease{ID: "lease-build-recover", FenceToken: "fence-build-recover", OperationID: buildImageLocalOperation, Protocol: buildExecutionProtocol, Capability: buildExecutionCapability, PayloadSHA256: "payload", LeaseTTLMS: 1000} //nolint:gosec // Test-only opaque lease identifiers are not credentials.
+	providerCalls := 0
+	var receipt executionReceipt
+	resultFailures := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/agent/v1/execution-leases/lease-build-recover/renew":
+			_ = json.NewEncoder(w).Encode(lease)
+		case "/agent/v1/execution-leases/lease-build-recover/logs":
+			w.WriteHeader(http.StatusNoContent)
+		case "/agent/v1/execution-leases/lease-build-recover/results":
+			resultFailures++
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case "/agent/v1/execution-leases/lease-build-recover/receipts":
+			_ = json.NewDecoder(r.Body).Decode(&receipt)
+			_ = json.NewEncoder(w).Encode(executionSettlement{})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	operation := func(context.Context, executionLease) executionResult {
+		providerCalls++
+		return executionResult{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: json.RawMessage(`{"repository":"local/app","reference":"latest","size_bytes":1}`)}
+	}
+	if err := executeLeaseWithOperation(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}, lease, operation); err == nil {
+		t.Fatal("result transport failure unexpectedly terminalized execution")
+	}
+	journal, found, err := executionJournalForLease(stateDir, lease.ID)
+	if err != nil || !found || journal.Phase != executionJournalRunning {
+		t.Fatalf("journal after result failure=%#v found=%v err=%v", journal, found, err)
+	}
+	if err := executeLeaseWithOperation(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}, lease, operation); err != nil {
+		t.Fatal(err)
+	}
+	if providerCalls != 1 || resultFailures != 1 || receipt.Outcome != "needs_attention" || receipt.FailureCode != failureInterrupted {
+		t.Fatalf("providerCalls=%d resultFailures=%d receipt=%#v", providerCalls, resultFailures, receipt)
+	}
+	if _, err := os.Stat(executionJournalPath(stateDir, lease.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("recovered journal was not removed: %v", err)
 	}
 }
 

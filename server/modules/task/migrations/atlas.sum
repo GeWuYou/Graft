@@ -1,4 +1,4 @@
-h1:S0lNsYp1ePWR6cFITTAfBoJWcHP8xaHK5fMI5dK0//U=
+h1:hp6UV+iBhXUKoyG6XUP2qP6JgeaYBV5zUhNCPg6VCEc=
 202607100002_task_runtime_baseline.sql h1:KTsnAE1ajyJNuPMrXFrrIgGowKtW+7tgBuuySaJ/eWQ=
 202607150003_project_task_owner_application_id.sql h1:hnjz4hbSLKzRbQLG7vWAMZedBLnpIXKzb9NfwFIRm4A=
 202607160004_application_task_contract.sql h1:XwQkqC5STkQuES0/w6PtRNoe93SplLk7vMTAVBxwzTo=
@@ -9,3 +9,4 @@ h1:S0lNsYp1ePWR6cFITTAfBoJWcHP8xaHK5fMI5dK0//U=
 202608060002_task_legacy_reservation_cutover.sql h1:FIbF2O7V/IT27nVsMeLKuLzrDTRcPqw432vT3w0mbN8=
 202608060011_task_coordinated_stage_group.sql h1:gD3lh16iN2IK2XrUYGo9PBjIVKIJ45CqxbLFj6ohMi8=
 202608210001_task_external_execution_leases.sql h1:/ye/4wy9UVZq+1WXWCuU19EzhDFyAzpeddqWg3zHNcI=
+202608210005_task_external_execution_result_digest.sql h1:6V4jJedaqLR/vYAzdAHwM/7bAWOfDcOSYSXKbsz+l24=

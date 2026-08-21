@@ -69,3 +69,14 @@ through the production-owned lifecycle rather than a fixture database shortcut.
 
 Run `tests/conformance/docker-runtime-agent/run.sh` with the required images and
 digest to repeat the full lifecycle gate.
+
+## Batch 5 follow-up scope
+
+The Batch 5 Build SDK migration keeps the lifecycle gates above as prior Agent enrollment evidence and adds a pending
+Build execution gate. That gate must run the Build operation allowlist through the Task-owned lease and the
+`docker-runtime-agent` Moby/OCI SDK path, verify transient material/result handling and result-digest replay, and prove
+that no server-local Build Docker/CLI path or fallback remains. The Backend/Agent fixture must mount the named
+`build-snapshots` volume at `/tmp/graft-build-snapshots`; the Agent still publishes no inbound port. Runtime Target
+discovery/summary, Container read/stream/interactive and Update Controller remain explicit server-socket consumers.
+Validation evidence
+for this follow-up is intentionally left for the Batch 5 main-agent closeout.

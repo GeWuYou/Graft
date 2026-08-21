@@ -365,11 +365,13 @@ type ExternalExecutionLogBatch struct {
 // ExternalExecutionMaterialRequest 描述一次已围栏 lease 对瞬时执行材料的读取。
 // Input 只包含已持久化的 provider-neutral 领域意图；解析器返回的材料不得由 Task Runtime 持久化或记录。
 type ExternalExecutionMaterialRequest struct {
-	TaskID       uint64
-	StageID      uint64
-	Attempt      int
-	ExecutorType StageExecutorType
-	Input        json.RawMessage
+	TaskID          uint64
+	StageID         uint64
+	Attempt         int
+	ExecutorType    StageExecutorType
+	RuntimeTargetID int64
+	OperationID     string
+	Input           json.RawMessage
 }
 
 // ExternalExecutionMaterial 是只在 mTLS Agent transport 中传递的瞬时执行材料。
@@ -382,6 +384,34 @@ type ExternalExecutionMaterial struct {
 type ExternalExecutionMaterialResolver interface {
 	Type() StageExecutorType
 	ResolveExternalExecutionMaterial(context.Context, ExternalExecutionMaterialRequest) (ExternalExecutionMaterial, error)
+}
+
+// ExternalExecutionResult 是 Agent 在 receipt 前提交的瞬时领域结果。Task Runtime
+// 只验证 lease fence 并转交领域 recorder，不持久化 Payload。
+type ExternalExecutionResult struct {
+	Handle   ExternalExecutionLeaseHandle
+	Protocol string
+	Payload  json.RawMessage
+}
+
+// ExternalExecutionResultRequest 为领域 recorder 补充已验证的 Stage 身份。
+// Input 仍是冻结的 provider-neutral 意图，Result 只在当前调用期间可见。
+type ExternalExecutionResultRequest struct {
+	TaskID          uint64
+	StageID         uint64
+	Attempt         int
+	ExecutorType    StageExecutorType
+	RuntimeTargetID int64
+	OperationID     string
+	Input           json.RawMessage
+	Protocol        string
+	Result          json.RawMessage
+}
+
+// ExternalExecutionResultRecorder 由领域模块实现，幂等解释 Agent 结果并写入领域事实。
+type ExternalExecutionResultRecorder interface {
+	Type() StageExecutorType
+	RecordExternalExecutionResult(context.Context, ExternalExecutionResultRequest) error
 }
 
 // ExternalExecutionReceipt 是绑定 lease/fence 的受限外部执行结论。
@@ -429,6 +459,7 @@ type RuntimeAgentExecutionGateway interface {
 	InspectExternalExecution(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionLease, error)
 	RenewExternalExecution(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionLease, error)
 	ResolveExternalExecutionMaterial(context.Context, ExternalExecutionLeaseHandle) (ExternalExecutionMaterial, error)
+	RecordExternalExecutionResult(context.Context, ExternalExecutionResult) error
 	AppendExternalExecutionLogs(context.Context, ExternalExecutionLogBatch) error
 	SettleExternalExecution(context.Context, ExternalExecutionReceipt) (ExternalReceiptSettlement, error)
 	ExpireExternalExecutions(context.Context, int) (int, error)
@@ -593,6 +624,7 @@ type TaskRuntimeRegistrar interface {
 	RegisterStageExecutor(executor StageExecutor) error
 	RegisterTaskOwnerAuthorizer(authorizer TaskOwnerAuthorizer) error
 	RegisterExternalExecutionMaterialResolver(resolver ExternalExecutionMaterialResolver) error
+	RegisterExternalExecutionResultRecorder(recorder ExternalExecutionResultRecorder) error
 }
 
 // TaskCapabilities 向 API 消费者暴露当前允许的 Task 详情操作。

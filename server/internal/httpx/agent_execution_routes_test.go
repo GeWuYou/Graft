@@ -14,13 +14,16 @@ import (
 )
 
 type recordingRuntimeAgentGateway struct {
-	claimed moduleapi.ExternalExecutionClaimRequest
-	renewed moduleapi.ExternalExecutionLeaseHandle
-	logs    moduleapi.ExternalExecutionLogBatch
-	receipt moduleapi.ExternalExecutionReceipt
-	lease   moduleapi.ExternalExecutionLease
-	claims  int
-	misses  int
+	claimed   moduleapi.ExternalExecutionClaimRequest
+	renewed   moduleapi.ExternalExecutionLeaseHandle
+	logs      moduleapi.ExternalExecutionLogBatch
+	receipt   moduleapi.ExternalExecutionReceipt
+	result    moduleapi.ExternalExecutionResult
+	lease     moduleapi.ExternalExecutionLease
+	claims    int
+	misses    int
+	inspects  int
+	materials int
 }
 
 func (g *recordingRuntimeAgentGateway) ClaimExternalExecution(_ context.Context, request moduleapi.ExternalExecutionClaimRequest) (moduleapi.ExternalExecutionLease, error) {
@@ -32,6 +35,7 @@ func (g *recordingRuntimeAgentGateway) ClaimExternalExecution(_ context.Context,
 	return g.lease, nil
 }
 func (g *recordingRuntimeAgentGateway) InspectExternalExecution(context.Context, moduleapi.ExternalExecutionLeaseHandle) (moduleapi.ExternalExecutionLease, error) {
+	g.inspects++
 	return g.lease, nil
 }
 func (g *recordingRuntimeAgentGateway) RenewExternalExecution(_ context.Context, handle moduleapi.ExternalExecutionLeaseHandle) (moduleapi.ExternalExecutionLease, error) {
@@ -39,7 +43,12 @@ func (g *recordingRuntimeAgentGateway) RenewExternalExecution(_ context.Context,
 	return g.lease, nil
 }
 func (g *recordingRuntimeAgentGateway) ResolveExternalExecutionMaterial(context.Context, moduleapi.ExternalExecutionLeaseHandle) (moduleapi.ExternalExecutionMaterial, error) {
+	g.materials++
 	return moduleapi.ExternalExecutionMaterial{Protocol: "test/v1", Payload: []byte(`{}`)}, nil
+}
+func (g *recordingRuntimeAgentGateway) RecordExternalExecutionResult(_ context.Context, result moduleapi.ExternalExecutionResult) error {
+	g.result = result
+	return nil
 }
 func (g *recordingRuntimeAgentGateway) AppendExternalExecutionLogs(_ context.Context, batch moduleapi.ExternalExecutionLogBatch) error {
 	g.logs = batch
@@ -122,21 +131,33 @@ func TestConfigureExecutionRoutesRejectsRetiredCertificateGeneration(t *testing.
 func TestExecutionRoutesRejectLeaseCapabilityRemovedFromCurrentGeneration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	now := time.Now().UTC()
-	gateway := &recordingRuntimeAgentGateway{lease: moduleapi.ExternalExecutionLease{
-		ID: "lease-compose", RuntimeTargetID: 7, ProviderID: "docker", Capability: "compose_execution",
-		CapabilityVersion: "docker/v1", LeaseExpiresAt: now.Add(time.Minute), AbsoluteDeadlineAt: now.Add(time.Hour),
-	}}
-	server := newExecutionAgentTestServer()
-	binding := moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"container_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
-	if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: binding}); err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodPost, "/agent/v1/execution-leases/lease-compose/renew", strings.NewReader(`{"fence_token":"fence-compose"}`))
-	request.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
-	server.engine.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusUnauthorized || gateway.renewed.LeaseID != "" {
-		t.Fatalf("renew status=%d handle=%#v", recorder.Code, gateway.renewed)
+	for _, test := range []struct {
+		name, suffix, body string
+	}{
+		{name: "renew", suffix: "/renew", body: `{"fence_token":"fence-build"}`},
+		{name: "material", suffix: "/material", body: `{"fence_token":"fence-build"}`},
+		{name: "result", suffix: "/results", body: `{"fence_token":"fence-build","protocol":"build-execution-result/v1","payload":{}}`},
+		{name: "logs", suffix: "/logs", body: `{"fence_token":"fence-build","entries":[{"stream":"system","level":"info","line":"provider operation started"}]}`},
+		{name: "receipt", suffix: "/receipts", body: `{"fence_token":"fence-build","outcome":"success","integrity_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gateway := &recordingRuntimeAgentGateway{lease: moduleapi.ExternalExecutionLease{
+				ID: "lease-build", RuntimeTargetID: 7, ProviderID: "docker", Capability: "oci-build",
+				CapabilityVersion: "docker/v1", LeaseExpiresAt: now.Add(time.Minute), AbsoluteDeadlineAt: now.Add(time.Hour),
+			}}
+			server := newExecutionAgentTestServer()
+			binding := moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"container_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
+			if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: binding}); err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(http.MethodPost, "/agent/v1/execution-leases/lease-build"+test.suffix, strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			server.engine.ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusUnauthorized || gateway.renewed.LeaseID != "" || gateway.materials != 0 || gateway.result.Handle.LeaseID != "" || gateway.logs.Handle.LeaseID != "" || gateway.receipt.Handle.LeaseID != "" {
+				t.Fatalf("status=%d gateway=%#v", recorder.Code, gateway)
+			}
+		})
 	}
 }
 
@@ -163,6 +184,13 @@ func TestExecutionRoutesForwardFencedLifecycle(t *testing.T) {
 	server.engine.ServeHTTP(materialRecorder, materialRequest)
 	if materialRecorder.Code != http.StatusOK || !strings.Contains(materialRecorder.Body.String(), `"protocol":"test/v1"`) {
 		t.Fatalf("material status=%d body=%s", materialRecorder.Code, materialRecorder.Body.String())
+	}
+	resultRequest := httptest.NewRequest(http.MethodPost, "/agent/v1/execution-leases/lease-1/results", strings.NewReader(`{"fence_token":"fence-1","protocol":"build-execution-result/v1","payload":{"digest":"sha256:result"}}`))
+	resultRequest.Header.Set("Content-Type", "application/json")
+	resultRecorder := httptest.NewRecorder()
+	server.engine.ServeHTTP(resultRecorder, resultRequest)
+	if resultRecorder.Code != http.StatusNoContent || gateway.result.Protocol != "build-execution-result/v1" || string(gateway.result.Payload) != `{"digest":"sha256:result"}` {
+		t.Fatalf("result status=%d forwarded=%#v", resultRecorder.Code, gateway.result)
 	}
 }
 

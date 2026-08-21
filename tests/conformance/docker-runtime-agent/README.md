@@ -14,6 +14,20 @@ and receives the Vault AppRole material required to drive that Backend-owned
 scenario. Vault owns PKI issuance. The Agent has no database connection and
 receives neither Vault address nor AppRole material.
 
+## Batch 5 Build SDK boundary
+
+Build operations use the same Task-owned external execution lease as the other finite side effects. The authenticated
+Agent must claim the `docker/oci-build` binding at capability version `docker/v1`, resolve fence-bound
+`build-execution-material/v1` only after claim, and submit `build-execution-result/v1` before the terminal receipt. The
+fixture must assert that Build receives only normalized artifact facts, Task persistence retains only the result digest,
+and exact result replay is idempotent while a changed replay is rejected.
+
+The fixture Agent has no inbound port. Backend and Agent share the named `build-snapshots` volume at
+`/tmp/graft-build-snapshots`; material, Registry credentials, endpoints, host paths and commands remain transient and
+must not appear in Task rows, logs, receipts or Agent journal. The Backend Docker socket remains only for explicitly
+unmigrated Runtime Target discovery/summary, Container read/stream/interactive and Update Controller boundaries; it is
+not a Build execution path.
+
 ## Required images and inputs
 
 ```sh

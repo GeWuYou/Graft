@@ -8,8 +8,9 @@ Execution Plan, Artifact and Publication model.
 
 ## Purpose
 
-Registry publication is still coupled to the historical `docker-runtime-store` implementation and Builder Telemetry
-currently has only a read contract, not a source Provider. This RFC defines the missing execution authorities without
+Registry publication is no longer coupled to the historical `docker-runtime-store` implementation: Docker-backed Build,
+publication and promotion now execute through the Task-owned Runtime Agent lease boundary. Builder Telemetry still has
+only a read contract, not a source Provider. This RFC defines the execution authorities without
 creating another Task Runtime, scheduler, event bus, global health registry, Registry resource model or evidence store.
 
 It also preserves the platform availability decision: `PlatformAvailabilityStore` and `CapabilityCoordinator` own
@@ -91,28 +92,30 @@ The required execution chain is:
 
 ```text
 Registry Connection -> Credential Reference -> Credential Provider
--> Ephemeral Execution Credential -> Runtime Execution Adapter -> Builder Driver -> Push
+-> Ephemeral Execution Credential -> fenced Build material resolver
+-> Docker Runtime Agent SDK adapter -> Builder Driver -> Push
 ```
 
 - Registry Connection chooses `credential_ref` and owns Registry/repository access policy. It stores a reference only.
 - `CredentialProvider` is a required runtime contract, not a resource. It resolves a reference into a short-lived,
   endpoint-, repository-, push-operation- and time-window-scoped credential.
-- `RuntimeExecutionAdapter` is a required provider boundary. It injects that credential into an isolated Docker,
-  BuildKit, Kaniko or Kubernetes execution context and destroys it afterwards.
+- The fenced Build material resolver is the private server-side boundary that obtains the short-lived session and
+  resolves its material only after Task Runtime validates the active lease. The Runtime Agent SDK adapter consumes the
+  transient material, performs the provider call and destroys all in-memory authentication state afterwards.
 - The Driver receives only an ephemeral session, restricted mount or handle. Its public input, logs and evidence never
   contain a username, password, token, Docker config, credential path or secret-derived content.
 
-Secret plaintext may exist only in Secret Backend/Credential Provider and the Adapter's constrained transient injection
-boundary. It must never enter Build, Execution Plan, Task metadata, HTTP, audit, logs, Artifact, Publication, Pool or
-Agent control-plane state. Docker must create a per-operation isolated `DOCKER_CONFIG` equivalent and may not read or
-write its default credential store. Other providers use an equivalent short-lived token, restricted secret mount or
-workload identity.
+Secret plaintext may exist only in Secret Backend/Credential Provider, the Build-owned fenced material resolver and the
+Agent adapter's constrained process memory. It must never enter Build domain contracts, Execution Plan, Task metadata,
+database, audit, logs, Artifact, Publication, Pool or Agent journal/control-plane state. Docker authentication is passed
+directly to the SDK request and may not read or write an ambient/default credential store. Other providers use an
+equivalent short-lived token, restricted secret mount or workload identity.
 
 ### Registry authentication verification projection
 
 Registry is the first consumer of the private Generic OCI authentication-verification seam. An operator selects only
 an existing Artifact Repository reference and a Runtime Target already authorized for the actor; Registry resolves the
-saved endpoint and opaque `credential_ref`, then asks `RuntimeExecutionAdapter` to perform the isolated verification.
+saved endpoint and opaque `credential_ref`, then asks the Runtime Agent SDK adapter to perform the isolated verification.
 The selected repository constrains Credential Provider scope but does not request or prove repository pull or push
 authorization.
 
@@ -127,7 +130,7 @@ credential preparation or Runtime Target execution.
 Phase 1 supplies a core-owned, file-backed `CredentialProvider` for deployments that do not yet have a managed secret
 backend. `GRAFT_REGISTRY_CREDENTIALS_FILE` is an optional absolute path to a deployment-mounted, read-only JSON secret
 file; it is not a Registry resource, System Config value, Build input or HTTP contract. When unset, the provider and
-the Runtime Target execution adapter are both absent, so new publication fails closed. When set, an unreadable,
+its ephemeral material capability are absent, so new publication fails closed. When set, an unreadable,
 non-regular, group/other-writable, malformed or invalid source prevents provider admission rather than enabling any
 ambient Docker or environment authentication.
 
@@ -137,8 +140,8 @@ operations and either an exact repository or a segment-safe `prefix/*` repositor
 for each secret-free scoped eligibility assessment and each `Prepare`. Assessment accepts only a known opaque reference
 plus endpoint/repository/operation scope and returns `eligible` or `ineligible`; it never lists entries or exposes
 expiry, source, username, password or other secret-derived data. `Prepare` repeats scope validation, returns only an
-opaque session ID and expiry, keeps plaintext only until `Revoke`, and writes Docker
-`config.json` only to the adapter-created `0700` directory. The file path and contents are excluded from snapshots,
+opaque session ID and expiry, keeps plaintext only until `Revoke`, and exposes it only through the fenced Build material
+resolver to the Agent SDK call. The file path and contents are excluded from snapshots,
 Task state, audit, logs, artifacts, publications and HTTP. A managed secret backend may replace this provider only by
 implementing the same scoped `CredentialProvider` contract; it must not add an ambient-auth compatibility path.
 
@@ -275,7 +278,7 @@ do not prove Builder scope, Graft/external work coverage, time window, provenanc
 The Phase 4 Docker admission proof is a provisioned Builder Agent bound to one Runtime Target, Provider, Builder scope
 and capability profile/version. Its reports require a monotonic sequence, bounded clock skew, replay rejection and an
 explicit lifecycle; running, queued and slots come from the Agent's controlled execution ledger or Driver controller.
-The Docker provider's sole CLI execution boundary updates that durable Driver-controller ledger around each real build;
+The Docker Runtime Agent's sole SDK execution boundary updates that durable Driver-controller ledger around each real build;
 one enabled Agent scope is allowed per Runtime Target until frozen Placement carries a scope identity. This proves the
 source of the execution counts, but does not itself define an out-of-process Agent transport, private-key bootstrap or
 operator lifecycle. Those deployment facts require their own authority-owned protocol before this phase can be released.
@@ -313,7 +316,7 @@ audit facts.
 No Build HTTP route, Docker daemon API, ambient configuration, global agent registry or ad-hoc CLI is an enrollment or
 telemetry authority. The ADR's concrete wire schema, operator API and service packaging must be introduced together under
 this Runtime Target control-plane contract, with end-to-end conformance proving bootstrap, rotation/revocation,
-restart/reconnect and real Docker CLI ledger reporting before Phase 4 can be released.
+restart/reconnect and real Docker SDK ledger reporting before Phase 4 can be released.
 
 Provider conformance extends the existing `TargetBoundProviderExecutionConformanceCapability`; it does not create a
 competing specification. Providers MUST prove capability version, credential injection, Snapshot delivery,
@@ -401,8 +404,8 @@ gates. Retries keep their frozen Plan and never implicitly select another Target
 2. Make logical Builder Instances explicit while preserving Target connection identity and existing Plan selection facts.
 3. Existing Pools remain readable; Phase 1 writes allow only manual single-Builder selection.
 4. Open dynamic policies only after real Telemetry Provider and Reservation recovery; no retry changes a frozen Target.
-5. Retire `docker-runtime-store` to read-only historical evidence. New publications always use Credential Provider and
-   Runtime Execution Adapter.
+5. Retire `docker-runtime-store` to read-only historical evidence. New Docker publications use Credential Provider,
+   fenced transient material and the Runtime Agent SDK adapter through a Task-owned external execution lease.
 
 Acceptance requires that every new execution avoids the default Docker credential store; every dynamic Placement can be
 replayed from its frozen telemetry observation, capability profile, policy/version inputs, negotiation result and

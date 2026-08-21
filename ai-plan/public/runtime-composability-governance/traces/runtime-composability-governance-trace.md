@@ -132,3 +132,19 @@
   create an unleased running window or claim the same Stage.
 - The bounded subtopic recovery point advances to Batch 3: direct promotion of the experimental Builder Agent into the
   sole Docker Runtime Agent.
+
+## 2026-08-21 docker-runtime-agent-batch-5-accepted
+
+- Batch 5 authority is frozen: Build Docker operations use Task-owned external execution leases with provider `docker`,
+  capability `oci-build`, capability version `docker/v1` and the four-operation allowlist `build.image.local.v1`,
+  `build.image.publish.v1`, `build.manifest.publish.v1` and `build.artifact.copy.v1`.
+- Build resolves workspace/Registry material only after a valid lease fence and returns normalized artifact facts through
+  a transient result seam before terminal receipt. Task Runtime persists only a result digest for exact replay;
+  Build owns Artifact/Publication interpretation and persistence.
+- The server-local Build Docker/CLI path is being deleted. The named `/tmp/graft-build-snapshots` volume is the shared
+  server/Agent materialization boundary; the Agent exposes no inbound port. The server Docker socket remains only for
+  explicitly unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive
+  boundaries.
+- Focused/race/migration/backend validation, generated registry freshness, AI-plan structure and diff hygiene passed;
+  Batch 5 is accepted. Conformance documentation is updated; full external Docker deployment remains a human/CI
+  acceptance concern.

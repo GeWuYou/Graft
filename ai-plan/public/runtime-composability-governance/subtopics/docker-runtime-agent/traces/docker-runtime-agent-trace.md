@@ -65,3 +65,19 @@
 - Validation passed: focused and race tests across Agent, HTTP transport, Task, Application, Container and Runtime
   Target; OpenAPI and generated-Web freshness checks; SQL/version/AI-plan/shared-asset gates; full Web validation;
   `git diff --check`; and the complete backend validation entrypoint.
+
+## 2026-08-21 batch-5-build-sdk-accepted
+
+- Build SDK execution is converging on the existing Task Runtime lease seam: provider `docker`, capability `oci-build`,
+  capability version `docker/v1`, protocol `build-execution/v1` and operations `build.image.local.v1`,
+  `build.image.publish.v1`, `build.manifest.publish.v1` and `build.artifact.copy.v1`.
+- Build material and normalized result are transient and fence-bound. Material is resolved after claim; result is sent
+  before terminal receipt. Task persists only the result digest and remains sole lease/receipt/retry/recovery owner;
+  Build remains sole Artifact/Publication/result interpretation owner.
+- Server-local Build Docker/CLI execution is being removed. Server and Agent share the named
+  `/tmp/graft-build-snapshots` volume. Agent remains outbound-only with no published port. Server socket retention is
+  limited to unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive
+  boundaries.
+- Validation passed: focused and race Go tests for Agent, HTTP transport, Task, Build and Runtime Target; complete
+  backend validation including lint; SQL migration/version checks; generated module registry freshness; AI-plan
+  structure validation; and `git diff --check`. Build server-local Docker/CLI paths and duplicate adapters were deleted.

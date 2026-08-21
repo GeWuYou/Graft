@@ -72,6 +72,32 @@ func TestFileProviderScopesAndRevokesCredentialSessions(t *testing.T) {
 	}
 }
 
+func TestFileProviderResolvesMaterialOnlyForActiveScopedSession(t *testing.T) {
+	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	provider := newTestFileProvider(t, now)
+	session, err := provider.Prepare(context.Background(), moduleapi.CredentialRequest{CredentialRef: "registry:release", Endpoint: "https://registry.example", RepositoryRef: "team/api", Operation: "push", ExpiresAt: now.Add(time.Minute)})
+	if err != nil {
+		t.Fatalf("prepare credential: %v", err)
+	}
+	target := moduleapi.CredentialInjectionTarget{Endpoint: "https://registry.example", RepositoryRef: "team/api"}
+	material, err := provider.ResolveCredentialMaterial(context.Background(), session, target)
+	if err != nil {
+		t.Fatalf("resolve credential material: %v", err)
+	}
+	if material.Username != "build" || material.Secret != testRegistrySecret {
+		t.Fatalf("unexpected credential material: %#v", material)
+	}
+	if _, err := provider.ResolveCredentialMaterial(context.Background(), session, moduleapi.CredentialInjectionTarget{Endpoint: target.Endpoint, RepositoryRef: "outside/api"}); err == nil || strings.Contains(err.Error(), testRegistrySecret) {
+		t.Fatalf("scope mismatch error = %v", err)
+	}
+	if err := provider.Revoke(context.Background(), session); err != nil {
+		t.Fatalf("revoke credential: %v", err)
+	}
+	if _, err := provider.ResolveCredentialMaterial(context.Background(), session, target); err == nil || strings.Contains(err.Error(), testRegistrySecret) {
+		t.Fatalf("revoked material error = %v", err)
+	}
+}
+
 func TestFileProviderMergesExistingDockerConfigAuths(t *testing.T) {
 	now := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
 	provider := newTestFileProvider(t, now)

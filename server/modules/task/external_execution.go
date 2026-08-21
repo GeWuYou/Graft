@@ -2,8 +2,10 @@ package task
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -170,7 +172,8 @@ func (r *Runtime) ResolveExternalExecutionMaterial(ctx context.Context, handle m
 		return moduleapi.ExternalExecutionMaterial{}, taskstore.ErrNotFound
 	}
 	material, err := resolver.ResolveExternalExecutionMaterial(ctx, moduleapi.ExternalExecutionMaterialRequest{
-		TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: stage.executorType, Input: stage.input,
+		TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: stage.executorType,
+		RuntimeTargetID: lease.RuntimeTargetID, OperationID: lease.OperationID, Input: stage.input,
 	})
 	if err != nil {
 		return moduleapi.ExternalExecutionMaterial{}, err
@@ -191,6 +194,48 @@ func externalExecutionLeaseFenceValid(lease taskmodel.ExternalExecutionLease, ha
 func validExternalExecutionMaterial(material moduleapi.ExternalExecutionMaterial) bool {
 	return strings.TrimSpace(material.Protocol) != "" && len(material.Payload) > 0 &&
 		len(material.Payload) <= 1<<20 && json.Valid(material.Payload)
+}
+
+// RecordExternalExecutionResult 在当前 lease fence 内把瞬时结果转交领域 owner。
+// Task Runtime 不把协议或结果载荷写入 Task、Stage、日志、receipt 或数据库。
+func (r *Runtime) RecordExternalExecutionResult(ctx context.Context, result moduleapi.ExternalExecutionResult) error {
+	if r == nil || r.repository == nil || !validExternalExecutionHandle(result.Handle) || !validExternalExecutionResult(result) {
+		return taskstore.ErrInvalidInput
+	}
+	lease, _, err := r.repository.GetExternalExecutionLease(ctx, result.Handle.LeaseID)
+	if err != nil {
+		return err
+	}
+	if !externalExecutionLeaseFenceValid(lease, result.Handle, time.Now().UTC()) {
+		return taskstore.ErrStateConflict
+	}
+	resultDigest := sha256.Sum256(append(append([]byte(strings.TrimSpace(result.Protocol)), 0), result.Payload...))
+	if err := r.repository.RecordExternalExecutionResultDigest(ctx, taskstore.RecordExternalExecutionResultDigestInput{
+		LeaseID: result.Handle.LeaseID, FenceTokenHash: hashSubmissionSecret(result.Handle.FenceToken),
+		ResultSHA256: fmt.Sprintf("%x", resultDigest), RecordedAt: time.Now().UTC(),
+	}); err != nil {
+		return err
+	}
+	stage, err := r.externalExecutionStage(ctx, lease.TaskID, lease.StageID)
+	if err != nil {
+		return err
+	}
+	r.mu.RLock()
+	recorder := r.resultRecorders[stage.executorType]
+	r.mu.RUnlock()
+	if recorder == nil {
+		return taskstore.ErrNotFound
+	}
+	return recorder.RecordExternalExecutionResult(ctx, moduleapi.ExternalExecutionResultRequest{
+		TaskID: lease.TaskID, StageID: lease.StageID, Attempt: lease.Attempt, ExecutorType: stage.executorType,
+		RuntimeTargetID: lease.RuntimeTargetID, OperationID: lease.OperationID,
+		Input: append(json.RawMessage(nil), stage.input...), Protocol: strings.TrimSpace(result.Protocol),
+		Result: append(json.RawMessage(nil), result.Payload...),
+	})
+}
+
+func validExternalExecutionResult(result moduleapi.ExternalExecutionResult) bool {
+	return strings.TrimSpace(result.Protocol) != "" && len(result.Payload) > 0 && len(result.Payload) <= 1<<20 && json.Valid(result.Payload)
 }
 
 // AppendExternalExecutionLogs 将一批受限日志写入 lease 绑定的 Stage；批次和单行均有固定上限。

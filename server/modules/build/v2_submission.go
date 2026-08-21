@@ -575,10 +575,14 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		_ = releaseMaterialization(snapshot.MaterializationRef)
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal execution plan task input: %w", err)
 	}
-	stageTemplate := moduleapi.StagePlan{Key: "execution-plan", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}
-	taskPlan := moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{stageTemplate}}
+	placement, found := plan.PlacementForPlatform(plan.Platforms[0])
+	if !found {
+		return moduleapi.TaskReceipt{}, errors.New("execution plan placement is incomplete")
+	}
+	taskPlan := moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "execution-plan", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildImagePublishOperation, input)}}}
 	if len(plan.Platforms) > 1 {
 		legs := make([]moduleapi.CoordinatedLegPlan, 0, len(plan.Platforms))
+		stages := make([]moduleapi.StagePlan, 0, len(plan.Platforms)+1)
 		for index, platform := range plan.Platforms {
 			legID := fmt.Sprintf("platform-%d", index+1)
 			legInput, marshalErr := json.Marshal(moduleapi.BuildPlanTaskInput{BuildID: plan.ID, ExecutionPlanID: plan.ID, Platform: platform, LegID: legID})
@@ -590,8 +594,11 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 				return moduleapi.TaskReceipt{}, errors.New("coordinated build placement is incomplete")
 			}
 			legs = append(legs, moduleapi.CoordinatedLegPlan{ID: legID, Platform: platform, BuilderInstanceID: placement.BuilderInstanceID, RuntimeTargetID: placement.RuntimeTargetID, Input: legInput})
+			stages = append(stages, moduleapi.StagePlan{Key: fmt.Sprintf("execution-plan-%d", index+1), ExecutorType: v2BuildStageExecutor, CoordinationGroup: "build-platforms", LegID: legID, Input: legInput, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildImagePublishOperation, legInput)})
 		}
 		taskPlan.Coordination = &moduleapi.CoordinatedTaskPlan{Version: "build-legs/v1", AggregateStageKey: "build-platforms", Legs: legs}
+		stages = append(stages, moduleapi.StagePlan{Key: "build-platforms", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildManifestOperation, input)})
+		taskPlan.Stages = stages
 	}
 	task := moduleapi.SubmitTaskInput{
 		Type:           v2BuildTaskType,

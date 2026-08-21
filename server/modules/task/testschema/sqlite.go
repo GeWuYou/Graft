@@ -66,7 +66,7 @@ func CreateSQLite(db *sql.DB) error {
 			executor_type TEXT NOT NULL, runtime_target_id INTEGER NOT NULL, provider_id TEXT NOT NULL, capability TEXT NOT NULL,
 			receipt_protocol TEXT NOT NULL, operation_id TEXT NOT NULL, payload_sha256 TEXT NOT NULL, fence_token_hash TEXT NOT NULL,
 			state TEXT NOT NULL, lease_ttl_ms INTEGER NOT NULL, lease_expires_at TIMESTAMP NOT NULL, absolute_deadline_at TIMESTAMP NOT NULL,
-			cancel_observed_at TIMESTAMP NULL, settled_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
+			cancel_observed_at TIMESTAMP NULL, settled_at TIMESTAMP NULL, result_sha256 TEXT NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(task_id, stage_id) REFERENCES task_stages(task_id, id),
 			UNIQUE(task_id, stage_id, attempt), UNIQUE(task_id, operation_id, attempt),
 			CHECK (attempt > 0), CHECK (runtime_target_id > 0), CHECK (state IN ('claimed', 'settled', 'expired')),

@@ -47,7 +47,7 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `docker-runtime-agent-subtopic`.
+- Current batch: `docker-runtime-agent` Batch 5 (`build-sdk-migration`) accepted; Batch 6 is next.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
@@ -56,6 +56,13 @@ closeout:
   realtime subscription, Agent, Provider or Runner owners cannot express. No Resource Scope API is introduced.
 - Phase 5 lifecycle evidence is complete. The Docker Runtime Agent subtopic now owns the active migration batches and
   this parent retains cross-runtime authority and archive status.
+
+Batch 5 cross-boundary direction is frozen: Build Docker side effects use Task Runtime external leases and the
+`docker-runtime-agent` `docker/v1` SDK capability. Build retains intent, placement/reservation and Artifact/Publication
+semantics; Task retains lease, fence, renew/cancel, logs, transient-result digest, receipt, retry and recovery; Runtime
+Target retains generation-scoped capability binding. Build material and normalized result are resolved/submitted only in
+valid fenced windows and are never persisted as Task/Agent payloads. The server Docker socket remains only for the
+explicitly unmigrated Update Controller and Container read/stream/interactive boundaries.
 
 ## Task Checklist
 
@@ -81,10 +88,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation"],
-  "pending_batches": ["docker-runtime-agent-subtopic"],
-  "current_batch": "docker-runtime-agent-subtopic",
-  "next_batch": "docker-runtime-agent-subtopic",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration"],
+  "pending_batches": ["docker-runtime-agent-batch-6-update-controller-launch-boundary"],
+  "current_batch": "docker-runtime-agent-batch-5-build-sdk-migration",
+  "next_batch": "docker-runtime-agent-batch-6-update-controller-launch-boundary",
   "closeout_status": "active"
 }
 ```

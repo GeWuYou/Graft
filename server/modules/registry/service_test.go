@@ -50,7 +50,7 @@ func TestVerifyConnectionRejectsUnauthorizedRuntimeTargetBeforeAdapter(t *testin
 	}
 	adapter := &registryVerificationExecutionStub{}
 	service := NewService(repository)
-	service.bindRuntimeExecutionAdapter(adapter)
+	service.bindRuntimeOCIRegistryVerifier(adapter)
 	service.bindRuntimeTargetBuildAssignments(registryVerificationTargetAssignments{allowed: false})
 
 	if _, err := service.VerifyConnection(context.Background(), "registry:primary", 9, VerificationInput{RuntimeTargetID: 1, RepositoryRef: "team/api"}); err == nil {

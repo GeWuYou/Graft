@@ -162,6 +162,30 @@ func (r *SQLRepository) RenewExternalExecutionLease(ctx context.Context, input R
 	return lease, cancelRequested, err
 }
 
+// RecordExternalExecutionResultDigest 在领域 recorder 前冻结同一 fence 的结果摘要。
+// 相同摘要可重放，不同摘要必须冲突；原始结果不进入 Task 持久化。
+func (r *SQLRepository) RecordExternalExecutionResultDigest(ctx context.Context, input RecordExternalExecutionResultDigestInput) error {
+	if r == nil || r.db == nil || strings.TrimSpace(input.LeaseID) == "" || len(input.FenceTokenHash) != 64 || len(input.ResultSHA256) != 64 || input.RecordedAt.IsZero() {
+		return ErrInvalidInput
+	}
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_external_execution_leases
+		SET result_sha256 = COALESCE(result_sha256, ?), updated_at = ?
+		WHERE id = ? AND fence_token_hash = ? AND state = ? AND lease_expires_at > ? AND absolute_deadline_at > ?
+		AND (result_sha256 IS NULL OR result_sha256 = ?)`), input.ResultSHA256, input.RecordedAt, input.LeaseID,
+		input.FenceTokenHash, moduleapi.ExternalExecutionLeaseStateClaimed, input.RecordedAt, input.RecordedAt, input.ResultSHA256)
+	if err != nil {
+		return fmt.Errorf("record external execution result digest: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count recorded external execution result digest: %w", err)
+	}
+	if affected != 1 {
+		return ErrStateConflict
+	}
+	return nil
+}
+
 // AppendExternalExecutionLogs 在验证 lease fence 后为同一 Stage 原子分配 Task 日志序列。
 func (r *SQLRepository) AppendExternalExecutionLogs(ctx context.Context, input AppendExternalExecutionLogsInput) error {
 	if !validExternalExecutionLogInput(input) {

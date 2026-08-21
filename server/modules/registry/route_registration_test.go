@@ -342,15 +342,6 @@ type registryVerificationAdapter struct{}
 func (registryVerificationAdapter) VerifyOCIRegistry(context.Context, moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
 	return moduleapi.OCIRegistryVerificationResult{Reachable: true, ProtocolCompatible: true, AuthenticationChallenged: true, AuthenticationSucceeded: true, ProviderScopeConforms: true}, nil
 }
-func (registryVerificationAdapter) PublishImage(context.Context, int64, moduleapi.DockerImageBuildResult, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
-	return moduleapi.DockerImageBuildResult{}, nil
-}
-func (registryVerificationAdapter) PublishManifest(context.Context, int64, moduleapi.OCIManifestPublicationInput, moduleapi.RegistryPublicationBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIManifestPublicationResult, error) {
-	return moduleapi.OCIManifestPublicationResult{}, nil
-}
-func (registryVerificationAdapter) CopyOCIArtifact(context.Context, int64, moduleapi.OCIArtifactCopyInput, moduleapi.RegistryArtifactCopyBinding, moduleapi.DockerImageBuildLogSink) (moduleapi.OCIArtifactCopyResult, error) {
-	return moduleapi.OCIArtifactCopyResult{}, nil
-}
 
 type registryVerificationTargets struct{ allowed bool }
 
@@ -389,7 +380,7 @@ func newRegistryRouteTestEngine(t *testing.T, repository *registryRouteRepositor
 	}
 	service := NewService(repository)
 	service.bindUserCandidateReader(users)
-	service.bindRuntimeExecutionAdapter(registryVerificationAdapter{})
+	service.bindRuntimeOCIRegistryVerifier(registryVerificationAdapter{})
 	service.bindRuntimeTargetBuildAssignments(registryVerificationTargets{allowed: true})
 	if err := registerRegistryRoutes(ctx, service); err != nil {
 		t.Fatal(err)

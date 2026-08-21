@@ -33,21 +33,25 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
    changing an Agent generation cannot let a differently versioned capability claim older work. The frozen Stage plan
    contains no argv, Docker endpoint, certificate path, host credential, host path or SDK type. When Application execution
    needs an existing workspace, the Agent may fetch lease/fence-bound transient execution material after claim. The
-   Application owner resolves that material in memory, Task Runtime never persists or logs it, and the Agent journal
-   excludes it. Secrets continue to use a separate operation-scoped credential boundary.
+   owning Application or Build module resolves that material in memory only after Task Runtime validates the current
+   fence. Build material may include an execution-scoped workspace root and Registry credential plaintext, but Task
+   Runtime never persists or logs the response and the Agent journal excludes it. The Agent returns Build's normalized
+   artifact result through a separate fenced transient result endpoint before receipt settlement; Task persists only the
+   result protocol/payload digest for idempotency, while Build owns artifact/publication interpretation and persistence.
 5. A successful receipt for a non-final Stage atomically settles that Stage and makes the next Stage eligible. A failed
    receipt settles the Task as failed. An uncertain receipt or an expired running lease settles the Stage as `unknown`
    and the Task as `needs_attention`. Task Runtime never automatically replays an external Docker side effect whose
    idempotence is not proven.
 6. Docker adapters inside the Agent use the Moby SDK for Engine resources, the official Compose SDK for Application
-   lifecycle, and an approved Engine/OCI SDK path for Build and Manifest operations. CLI-backed adapters may exist only
-   as an explicitly owned migration bridge with a deletion trigger and conformance coverage.
+   lifecycle, and the Moby/OCI SDK path for Build, Push, Manifest and Artifact Copy operations. Batch 5 removes the
+   corresponding server-local Docker and CLI adapters; no Build fallback, compatibility alias or dual execution path
+   remains.
 7. Platform self-update remains a separate, digest-pinned short-lived Update Controller. The Agent launches it from a
    Task-owned lease. During that operation only, the Controller may also mount `docker.sock`; it updates server/web,
    verifies the new server, replaces the Agent last, verifies the new Agent mTLS/capability readiness and writes the
    terminal durable update fact.
-8. Agent pull remains the sole work feed. External execution leases are limited to finite Application and Container
-   side effects. Container list/detail snapshots, stats, runtime events, logs and exec are not disguised as long-running
+8. Agent pull remains the sole work feed. External execution leases are limited to finite Application, Container and
+   Build side effects. Container list/detail snapshots, stats, runtime events, logs and exec are not disguised as long-running
    Tasks or encoded into Task logs/receipts. Their later transport-only, Agent-initiated snapshot/interactive channel is
    designed separately; it cannot claim leases, settle Tasks or become a streaming work queue.
 9. Agent recovery preserves the same fenced attempt. Before a side effect starts, the Agent journals the lease locally;
@@ -65,6 +69,7 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
 | Container resource semantics and authorization | Container module |
 | Application and Container stable failure-code interpretation | owning Application or Container module |
 | Build plan, placement, reservation, artifact and publication | Build module |
+| Build transient result replay digest | Task Runtime |
 | Provider SDK translation and Docker side effects | Docker Runtime Agent provider adapters |
 | Update durable state, fencing and survival across server/Agent replacement | short-lived Update Controller |
 
@@ -77,8 +82,9 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
   CLI, Compose and buildx packages and keeps privileged dependencies out of server.
 - Existing CLI-backed non-terminal work must be drained or explicitly cancelled before the final cutover. There is no
   silent fallback to server-local Docker execution.
-- The Application/Container migration removes only their finite server-local side-effect paths. Server-local Build,
-  Update and the still-unmigrated Container snapshot/interactive paths keep the socket temporarily; later batches must
+- The Application/Container/Build migrations remove their finite server-local side-effect paths. Update Controller,
+  Runtime Target discovery/summary and the still-unmigrated Container snapshot/interactive paths keep the server socket
+  temporarily; later batches must
   remove those remaining consumers before the deployment may claim the server no longer mounts `docker.sock`.
 - ADR-006 and ADR-009 continue to govern Compose-root trust, durable update state, fencing and the need for an executor
   that survives server recreation. ADR-026 changes the launcher and SDK boundary, not those recovery invariants.

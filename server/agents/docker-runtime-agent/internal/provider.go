@@ -91,6 +91,8 @@ type containerNetworkIPAMIntent struct {
 
 func executeProviderOperation(ctx context.Context, client *http.Client, c config, lease executionLease) executionResult {
 	switch lease.Capability {
+	case buildExecutionCapability:
+		return executeBuildOperation(ctx, client, c, lease)
 	case "container_execution":
 		return executeContainerOperation(ctx, c, lease)
 	case "compose_execution":

@@ -94,7 +94,8 @@ certificate URI SAN and active generation, never a request body field.
 | Claim execution lease | `POST /agent/v1/execution-leases/claim` | claims one Task-owned, capability-bound Stage attempt |
 | Renew execution lease | `POST /agent/v1/execution-leases/{leaseId}/renew` | renews the same fenced attempt within its absolute deadline |
 | Append bounded logs | `POST /agent/v1/execution-leases/{leaseId}/logs` | appends redacted Stage logs with sequence and size limits |
-| Resolve transient execution material | `POST /agent/v1/execution-leases/{leaseId}/material` | resolves lease/fence-bound Application material in memory without persistence |
+| Resolve transient execution material | `POST /agent/v1/execution-leases/{leaseId}/material` | resolves lease/fence-bound Application or Build material in memory without persistence |
+| Submit transient domain result | `POST /agent/v1/execution-leases/{leaseId}/results` | hands a normalized Build result to its domain owner and persists only an idempotency digest |
 | Settle execution receipt | `POST /agent/v1/execution-leases/{leaseId}/receipts` | idempotently settles one bound Stage attempt |
 
 Claim 是有界长轮询。Agent 必须声明 `provider_id`、单个 `capability` 与 `capability_version`；Runtime Target 只用
@@ -122,16 +123,18 @@ unacknowledged snapshots are not placement input; expired running execution leas
 `unknown`/`needs_attention` recovery and are never silently reassigned.
 
 Execution endpoints extend the existing mTLS listener; they do not publish an operator API or create an Agent-owned
-queue. Identity comes only from the active certificate generation. claim、renew、logs、material 与 receipt 都必须让
+queue. Identity comes only from the active certificate generation. claim、renew、logs、material、result 与 receipt 都必须让
 证书中的 identity/generation/serial/fingerprint 精确匹配当前 active binding；旧世代即使仍持有 fence 也不能继续访问。
-renew、logs、material 与 receipt 的每次请求还必须把冻结 lease 的 `provider_id`、`capability`、
+renew、logs、material、result 与 receipt 的每次请求还必须把冻结 lease 的 `provider_id`、`capability`、
 `capability_version` 重新对照当前 active generation 的 capability binding 授权；新世代缩减能力后不得仅凭尚未过期的
 lease 或 fence 继续访问。
 Claim filters are derived from the authenticated
 target and capability binding, never request-body Agent identity. Lease payloads exclude secrets and host endpoints;
-operation-scoped credentials use a separate one-time mTLS delivery boundary. Application material is a transient
-lease/fence response and cannot enter Task or Agent persistence. Log lines use a fixed allowlist, receipt failure codes use
-a stable lowercase vocabulary, and both submissions remain bound to task, stage, attempt, lease, fence and payload digest.
+operation-scoped credentials are resolved only inside transient Build material after the fence is validated. Application
+and Build material cannot enter Task or Agent persistence. A Build result is also transient: Task retains only its
+protocol/payload digest for exact-replay idempotency, while the Build module owns Artifact and Publication settlement.
+Log lines use a fixed allowlist, receipt failure codes use a stable lowercase vocabulary, and every submission remains
+bound to task, stage, attempt, lease, fence and payload digest.
 
 Agent 在 provider 调用前以 `0600` 本地 journal 保存可恢复 lease identity，在 provider 返回后先保存规范化 terminal
 receipt 再发送。断线后只允许续租尚未开始的同一 attempt 或重放完全相同的 terminal receipt；执行中断且副作用不可

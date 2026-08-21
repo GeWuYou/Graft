@@ -45,12 +45,6 @@ func (testBuildTasks) GetSubmission(context.Context, string) (moduleapi.TaskSubm
 	return moduleapi.TaskSubmission{}, nil
 }
 
-type testBuildDocker struct{}
-
-func (testBuildDocker) BuildImage(context.Context, moduleapi.DockerImageBuildInput, moduleapi.DockerImageBuildLogSink) (moduleapi.DockerImageBuildResult, error) {
-	return moduleapi.DockerImageBuildResult{}, nil
-}
-
 type testBuildRepository struct{}
 
 func (testBuildRepository) CreateJob(context.Context, buildstore.JobSnapshot) error { return nil }
@@ -60,7 +54,7 @@ func (testBuildRepository) MaterializeSubmissionSnapshot(context.Context, *sql.T
 func (testBuildRepository) GetJobByTaskID(context.Context, uint64) (buildstore.JobSnapshot, error) {
 	return buildstore.JobSnapshot{}, nil
 }
-func (testBuildRepository) SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error {
+func (testBuildRepository) SettleBuildArtifact(context.Context, uint64, moduleapi.BuildArtifactResult) error {
 	return nil
 }
 func (testBuildRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
@@ -74,6 +68,9 @@ type testBuildRegistrar struct{}
 
 func (testBuildRegistrar) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
 func (testBuildRegistrar) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
+func (testBuildRegistrar) RegisterExternalExecutionResultRecorder(moduleapi.ExternalExecutionResultRecorder) error {
 	return nil
 }
 func (testBuildRegistrar) RegisterTaskOwnerAuthorizer(moduleapi.TaskOwnerAuthorizer) error {
@@ -91,7 +88,6 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 		(*moduleapi.TaskSubmissionService)(nil):           testBuildTasks{},
 		(*moduleapi.TaskBatchQueryService)(nil):           testBuildTasks{},
 		(*moduleapi.TaskRuntimeRegistrar)(nil):            testBuildRegistrar{},
-		(*moduleapi.DockerImageBuildCapability)(nil):      testBuildDocker{},
 	} {
 		if err := services.RegisterSingleton(key, func(containerdi.Resolver) (any, error) { return value, nil }); err != nil {
 			t.Fatalf("register test service: %v", err)
