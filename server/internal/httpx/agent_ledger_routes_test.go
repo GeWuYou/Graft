@@ -84,7 +84,7 @@ func TestAgentLedgerRoutesRejectRepeatedConfigurationBeforeRouteRegistration(t *
 func agentLedgerMTLSRequest(t *testing.T, method, path, body string) *http.Request {
 	t.Helper()
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
-	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7")
+	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/runtime-agent/builder-7")
 	request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{certificate}}}
 	return request
 }

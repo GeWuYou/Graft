@@ -42,18 +42,18 @@
 {
   "completed_batches": [
     "batch-1-architecture-authority-and-recovery",
-    "batch-2-task-runtime-external-execution-foundation"
+    "batch-2-task-runtime-external-execution-foundation",
+    "batch-3-docker-runtime-agent-promotion"
   ],
-  "current_batch": "batch-3-docker-runtime-agent-promotion",
+  "current_batch": "batch-4-application-and-container-migration",
   "pending_batches": [
-    "batch-3-docker-runtime-agent-promotion",
     "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
     "batch-6-update-controller-launch-boundary",
     "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-3-docker-runtime-agent-promotion",
+  "next_batch": "batch-4-application-and-container-migration",
   "closeout_status": "active"
 }
 ```
@@ -74,9 +74,20 @@
 - Expired running leases and interrupted external work enter `unknown`/`needs_attention`; no unsafe automatic replay.
 - Migration has complete comments, preflight metadata and upgrade validation; focused Task tests and backend validation pass.
 
+## Batch 3 Acceptance
+
+- The experimental package, binary, image, configuration, development topology and conformance fixture are promoted
+  directly to the single `docker-runtime-agent`; no old runtime entry, alias, process or optional Compose profile remains.
+- Runtime Target persists an explicit capability binding and execution claim admits only the authenticated Agent's
+  provider, capability and protocol version. The old single profile is copied once and is not an execution fallback.
+- The Agent performs mTLS enrollment/reconnect, bounded long-poll claim, lease renewal, cancellation observation,
+  fixed redacted logs, fenced receipt settlement, certificate rotation and local readiness without opening an inbound port.
+- Application, Container, Build and Update Docker operations remain at their pre-Batch-3 owners for later migration.
+- Focused Agent/transport/Runtime Target/Task behavior tests, Agent race tests, migration gates and full backend validation pass.
+
 ## Next Recovery Point
 
-Batch 2 added the provider-neutral Runtime Agent gateway, Task-owned Stage-attempt lease/receipt persistence, atomic
-Agent claim, bounded logs, cancellation observation, restart survival, expiry recovery and retry fencing. Begin Batch 3
-by directly promoting the experimental Docker Builder Agent into the single Docker Runtime Agent; do not retain two
-Agent binaries or add aliases, and do not migrate Application/Container operations ahead of that promotion batch.
+Batch 3 promoted the single Docker Runtime Agent and connected its mTLS transport to the Task-owned external execution
+gateway with explicit capability binding, long polling, renewal, cancellation observation, bounded logs, receipt,
+rotation and readiness behavior. Begin Batch 4 by migrating Application and Container Docker capabilities through
+provider-neutral leases; do not begin Build SDK or Update Controller migration.

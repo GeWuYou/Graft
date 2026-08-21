@@ -37,7 +37,7 @@ func (r *Runtime) ClaimExternalExecution(ctx context.Context, request moduleapi.
 			return lease, err
 		}
 		if len(candidates) < externalExecutionCandidateLimit {
-			return moduleapi.ExternalExecutionLease{}, taskstore.ErrNotFound
+			return moduleapi.ExternalExecutionLease{}, moduleapi.ErrExternalExecutionNotFound
 		}
 	}
 }

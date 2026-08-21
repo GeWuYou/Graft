@@ -38,7 +38,7 @@ func TestBuilderTelemetrySnapshotFreshAtRequiresAuthoritativeFreshFacts(t *testi
 
 func TestBuilderTelemetrySnapshotConformantRequiresProviderEvidence(t *testing.T) {
 	snapshot := moduleapi.BuilderTelemetrySnapshot{
-		BuilderScope: "builder-agent:1", ProviderID: "provider-test", CapabilityProfile: "oci-build", CapabilityVersion: "cap-v1",
+		BuilderScope: "runtime-agent:1", ProviderID: "provider-test", CapabilityProfile: "oci-build", CapabilityVersion: "cap-v1",
 		Provenance: "control-plane:1", Integrity: "sha256:evidence",
 	}
 	if !snapshot.Conformant() {
@@ -53,12 +53,12 @@ func TestBuilderTelemetrySnapshotConformantRequiresProviderEvidence(t *testing.T
 func TestBuilderTelemetrySnapshotDynamicPlacementConformanceRejectsUnsupportedRequiredDimension(t *testing.T) {
 	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
 	snapshot := moduleapi.BuilderTelemetrySnapshot{
-		TargetID: 7, BuilderScope: "builder-agent:1", ProviderID: "provider-test", CapabilityProfile: "oci-build", CapabilityVersion: "cap-v1",
+		TargetID: 7, BuilderScope: "runtime-agent:1", ProviderID: "provider-test", CapabilityProfile: "oci-build", CapabilityVersion: "cap-v1",
 		Available: true, Running: 1, Queued: 0, AllocatableSlots: 3, ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute),
-		SourceRef: "control-plane:1", Provenance: "builder-agent", Integrity: "sha256:evidence", UnsupportedDimensions: []string{"cache_state"},
+		SourceRef: "control-plane:1", Provenance: "runtime-agent", Integrity: "sha256:evidence", UnsupportedDimensions: []string{"cache_state"},
 	}
 	if !snapshot.DynamicPlacementConformantAt(now) {
-		t.Fatal("expected complete builder-agent telemetry to be dynamically conformant")
+		t.Fatal("expected complete runtime-agent telemetry to be dynamically conformant")
 	}
 	snapshot.UnsupportedDimensions = append(snapshot.UnsupportedDimensions, "queue")
 	if snapshot.DynamicPlacementConformantAt(now) {

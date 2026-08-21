@@ -96,6 +96,11 @@ certificate URI SAN and active generation, never a request body field.
 | Append bounded logs | `POST /agent/v1/execution-leases/{leaseId}/logs` | appends redacted Stage logs with sequence and size limits |
 | Settle execution receipt | `POST /agent/v1/execution-leases/{leaseId}/receipts` | idempotently settles one bound Stage attempt |
 
+Claim 是有界长轮询。Agent 必须声明 `provider_id`、单个 `capability` 与 `capability_version`；Runtime Target 只用
+证书身份对应的显式 capability binding 做准入，不再从实验期单 profile 推导执行权限。没有工作时 listener 在
+窗口结束后返回 `204`，Agent 继续从同一 mTLS 出站连接循环；传输重连、证书轮换和本地 readiness 不得产生第二套
+Task 状态。
+
 Snapshots carry generation, sequence, snapshot ID/digest, observation and expiry timestamps, and canonical ledger
 values. Reports echo generation, snapshot ID and digest and may contain only bounded liveness/implementation
 diagnostics. Runtime Target validates identity, generation, issuance, expiry, digest and single use before storage.
@@ -119,7 +124,7 @@ target and capability binding, never request-body Agent identity. Lease payloads
 operation-scoped credentials use a separate one-time mTLS delivery boundary. Log and receipt submissions are bounded,
 redacted and bound to task, stage, attempt, lease, fence and payload digest.
 
-Migration creates generation-aware, provider-neutral Agent Identity, pending enrollment, delivery-grant,
+Migration creates generation-aware, provider-neutral Agent Identity, explicit capability binding, pending enrollment, delivery-grant,
 delivery-receipt and certificate-evidence facts without reinterpreting Ed25519 public-key rows. Delivery grants bind
 exactly one Runtime Target, Agent Identity and generation and transition only through `pending`, `delivered`, `consumed`
 or `revoked`. Docker secret and container facts are receipt evidence for the current delivery implementation, not
@@ -127,6 +132,10 @@ enrollment identity fields. Legacy rows and observations remain readable with le
 old ingress receives no new reports. Dynamic policy stays disabled until selected Targets complete verified delivery,
 Vault-issued mTLS enrollment and conformance. There is no dual acceptance. Rollback disables new binding and dynamic
 admission; it never reactivates legacy trust.
+
+实验期单 profile 只在一个迁移窗口内复制为单元素 capability binding；迁移生效后 execution admission 只读取
+binding 表。删除旧 profile 列的触发器是：全部活动身份都有 `runtime/v1` binding，且 Builder telemetry 已不再读取
+这些列。窗口期间不会双读、fallback 或重新写回旧字段。
 
 ## Delivery Order
 

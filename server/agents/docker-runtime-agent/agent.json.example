@@ -1,0 +1,14 @@
+{
+  "bootstrap_url": "https://127.0.0.1:8443",
+  "agent_url": "https://127.0.0.1:8444",
+  "target_id": 0,
+  "agent_id": "replace-with-backend-issued-agent-id",
+  "provider_id": "docker",
+  "capabilities": ["oci-build"],
+  "capability_version": "runtime/v1",
+  "secret_file": ".data/docker-runtime-agent-dev/agent/bootstrap/bootstrap-token",
+  "bootstrap_ca_file": ".data/docker-runtime-agent-dev/agent/trust/ca.pem",
+  "trust_bundle_file": ".data/docker-runtime-agent-dev/agent/trust/ca.pem",
+  "state_dir": ".data/docker-runtime-agent-dev/agent/state",
+  "docker_socket": "/var/run/docker.sock"
+}

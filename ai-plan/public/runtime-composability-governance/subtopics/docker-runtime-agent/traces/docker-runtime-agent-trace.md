@@ -32,3 +32,17 @@
 - Retained the legacy final-stage receipt writer only as an explicitly temporary bridge until Update Controller migration.
 - Validation passed: focused Task tests, Task race tests, production/test lint, the complete `graft validate backend`
   entrypoint, SQL migration/version gates, AI-plan structure guard and `git diff --check`.
+
+## 2026-08-21 batch-3-accepted
+
+- Promoted the experimental build-only Agent package, binary, image, configuration, development deployment and
+  conformance fixture directly to `docker-runtime-agent`; removed the optional root Compose profile and all old entries.
+- Added Runtime Target's explicit identity-scoped capability binding. Enrollment writes it transactionally, migration
+  copies the former single profile once, and execution admission reads only the new binding plus mTLS identity.
+- Connected the Agent to `RuntimeAgentExecutionGateway` through bounded long polling, renewal, cancellation observation,
+  fixed redacted logs and fenced receipts while preserving Task Runtime as the sole lifecycle authority.
+- Added reconnect, certificate-rotation-window and local readiness behavior without an Agent inbound listener. Error
+  output and Task logs use fixed diagnostics and never include endpoints, credential paths, host paths or commands.
+- Kept Application, Container, Build and Update Docker operations unchanged for their explicitly later batches.
+- Validation passed: focused behavior and conformance-tag tests, Agent race tests, SQL/version/ai-plan gates,
+  `git diff --check` and the complete `graft validate backend` entrypoint.

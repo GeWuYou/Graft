@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,8 +26,19 @@ type AgentTrustIdentity struct {
 	BuilderScope      string
 	CapabilityProfile string
 	CapabilityVersion string
+	Capabilities      []string
+	RuntimeProtocol   string
 	ImageDigest       string
 	AgentVersion      string
+}
+
+// AgentCapabilityBinding 是 Runtime Target 持有的 provider-neutral Agent 能力集合。
+// 执行准入只读取该事实，不再从实验期单 profile 字段推导能力。
+type AgentCapabilityBinding struct {
+	IdentityID        int64
+	ProviderID        string
+	Capabilities      []string
+	CapabilityVersion string
 }
 
 // AgentTrustGeneration 是与稳定 Agent 绑定关联的一次不可复用信任世代。
@@ -64,6 +76,9 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 		if err != nil {
 			return err
 		}
+		if err := r.UpsertAgentCapabilityBinding(txCtx, AgentCapabilityBinding{IdentityID: identityID, ProviderID: identity.ProviderID, Capabilities: identity.Capabilities, CapabilityVersion: identity.RuntimeProtocol}); err != nil {
+			return err
+		}
 		var nextGeneration int64
 		if err := r.executor(txCtx).QueryRowContext(txCtx, `SELECT COALESCE(MAX(generation), 0) + 1 FROM runtime_target_agent_generations WHERE identity_id = $1`, identityID).Scan(&nextGeneration); err != nil {
 			return fmt.Errorf("allocate runtime target agent trust generation: %w", err)
@@ -86,6 +101,78 @@ func (r *SQLRepository) CreatePendingAgentTrustGeneration(ctx context.Context, i
 		return nil
 	})
 	return result, err
+}
+
+// UpsertAgentCapabilityBinding 在身份登记事务中建立唯一的 capability binding。
+// 同一身份的后续世代只能重申完全相同的 provider、能力集合和协议版本。
+//
+//nolint:cyclop // 写入前校验、JSON 编码和冲突行数共同保证 binding 不被静默改写。
+func (r *SQLRepository) UpsertAgentCapabilityBinding(ctx context.Context, binding AgentCapabilityBinding) error {
+	capabilities, err := normalizeAgentCapabilities(binding.Capabilities)
+	if r == nil || r.db == nil || binding.IdentityID < 1 || strings.TrimSpace(binding.ProviderID) == "" || strings.TrimSpace(binding.CapabilityVersion) == "" || err != nil {
+		return ErrAgentTrustNotActive
+	}
+	payload, err := json.Marshal(capabilities)
+	if err != nil {
+		return fmt.Errorf("encode runtime target agent capability binding: %w", err)
+	}
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_agent_capability_bindings (identity_id, provider_id, capabilities, capability_version) VALUES ($1,$2,$3,$4) ON CONFLICT (identity_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP WHERE runtime_target_agent_capability_bindings.provider_id = excluded.provider_id AND runtime_target_agent_capability_bindings.capabilities = excluded.capabilities AND runtime_target_agent_capability_bindings.capability_version = excluded.capability_version AND runtime_target_agent_capability_bindings.deleted_at = 0`, binding.IdentityID, strings.TrimSpace(binding.ProviderID), string(payload), strings.TrimSpace(binding.CapabilityVersion))
+	if err != nil {
+		return fmt.Errorf("write runtime target agent capability binding: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read runtime target agent capability binding result: %w", err)
+	}
+	if affected != 1 {
+		return ErrAgentTrustNotActive
+	}
+	return nil
+}
+
+// ReadAgentCapabilityBinding 读取 execution admission 使用的显式能力集合。
+func (r *SQLRepository) ReadAgentCapabilityBinding(ctx context.Context, identityID int64) (AgentCapabilityBinding, error) {
+	if r == nil || r.db == nil || identityID < 1 {
+		return AgentCapabilityBinding{}, ErrAgentTrustNotFound
+	}
+	var binding AgentCapabilityBinding
+	var payload []byte
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT identity_id, provider_id, capabilities, capability_version FROM runtime_target_agent_capability_bindings WHERE identity_id = $1 AND deleted_at = 0`, identityID).Scan(&binding.IdentityID, &binding.ProviderID, &payload, &binding.CapabilityVersion)
+	if errors.Is(err, sql.ErrNoRows) {
+		return AgentCapabilityBinding{}, ErrAgentTrustNotFound
+	}
+	if err != nil {
+		return AgentCapabilityBinding{}, fmt.Errorf("read runtime target agent capability binding: %w", err)
+	}
+	if err := json.Unmarshal(payload, &binding.Capabilities); err != nil {
+		return AgentCapabilityBinding{}, fmt.Errorf("decode runtime target agent capability binding: %w", err)
+	}
+	capabilities, err := normalizeAgentCapabilities(binding.Capabilities)
+	if err != nil {
+		return AgentCapabilityBinding{}, ErrAgentTrustNotActive
+	}
+	binding.Capabilities = capabilities
+	return binding, nil
+}
+
+func normalizeAgentCapabilities(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, ErrAgentTrustNotActive
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		capability := strings.TrimSpace(value)
+		if capability == "" {
+			return nil, ErrAgentTrustNotActive
+		}
+		if _, exists := seen[capability]; exists {
+			continue
+		}
+		seen[capability] = struct{}{}
+		result = append(result, capability)
+	}
+	return result, nil
 }
 
 // ActivateAgentTrustGeneration 原子停用先前活动世代并激活已由 Runtime Target 核验过证书元数据的新世代。

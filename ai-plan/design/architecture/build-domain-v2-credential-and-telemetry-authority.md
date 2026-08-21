@@ -286,7 +286,7 @@ readable but non-executable.
 
 ### Docker Agent deployment control plane
 
-Runtime Target owns the operator-facing Docker Builder Agent deployment control plane. It is a narrow telemetry
+Runtime Target owns the operator-facing Docker Runtime Agent deployment control plane. It is a narrow telemetry
 identity and lifecycle authority, not a Build scheduler, Task Runtime, Registry model or platform health registry.
 The control plane owns enrollment, installation metadata, target/provider/scope/profile binding, one-active-scope
 uniqueness, report transport authentication, agent retirement and the redacted audit trail. Build continues to own

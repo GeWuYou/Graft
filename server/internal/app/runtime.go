@@ -605,35 +605,54 @@ func (r *Runtime) runServerAndShutdown(
 }
 
 func (r *Runtime) startAgentListeners() (<-chan error, <-chan error, error) {
-	var bootstrapErrCh <-chan error
-	var agentErrCh <-chan error
-	if r.agentBootstrapServer != nil {
-		authority, err := module.ResolveService[moduleapi.AgentBootstrapAuthority](r.services, (*moduleapi.AgentBootstrapAuthority)(nil))
-		if err != nil {
-			return nil, nil, fmt.Errorf("resolve agent bootstrap authority: %w", err)
-		}
-		if err := r.agentBootstrapServer.Configure(authority); err != nil {
-			return nil, nil, fmt.Errorf("configure agent bootstrap listener: %w", err)
-		}
-		bootstrapErrCh, err = r.agentBootstrapServer.Start(r.config.HTTPX.AgentBootstrapTLS.Addr)
-		if err != nil {
-			return nil, nil, err
-		}
+	bootstrapErrCh, err := r.startAgentBootstrapListener()
+	if err != nil {
+		return nil, nil, err
 	}
-	if r.agentServer != nil {
-		reader, err := module.ResolveService[moduleapi.RuntimeTargetAgentLedgerReader](r.services, (*moduleapi.RuntimeTargetAgentLedgerReader)(nil))
-		if err != nil {
-			return nil, nil, fmt.Errorf("resolve agent ledger reader: %w", err)
-		}
-		if err := r.agentServer.ConfigureLedgerRoutes(reader); err != nil {
-			return nil, nil, fmt.Errorf("configure agent ledger listener: %w", err)
-		}
-		agentErrCh, err = r.agentServer.Start(r.config.HTTPX.AgentTLS.Addr)
-		if err != nil {
-			return nil, nil, err
-		}
+	agentErrCh, err := r.startAgentMTLSListener()
+	if err != nil {
+		return nil, nil, err
 	}
 	return bootstrapErrCh, agentErrCh, nil
+}
+
+func (r *Runtime) startAgentBootstrapListener() (<-chan error, error) {
+	if r.agentBootstrapServer == nil {
+		return nil, nil
+	}
+	authority, err := module.ResolveService[moduleapi.AgentBootstrapAuthority](r.services, (*moduleapi.AgentBootstrapAuthority)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent bootstrap authority: %w", err)
+	}
+	if err := r.agentBootstrapServer.Configure(authority); err != nil {
+		return nil, fmt.Errorf("configure agent bootstrap listener: %w", err)
+	}
+	return r.agentBootstrapServer.Start(r.config.HTTPX.AgentBootstrapTLS.Addr)
+}
+
+func (r *Runtime) startAgentMTLSListener() (<-chan error, error) {
+	if r.agentServer == nil {
+		return nil, nil
+	}
+	reader, err := module.ResolveService[moduleapi.RuntimeTargetAgentLedgerReader](r.services, (*moduleapi.RuntimeTargetAgentLedgerReader)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent ledger reader: %w", err)
+	}
+	if err := r.agentServer.ConfigureLedgerRoutes(reader); err != nil {
+		return nil, fmt.Errorf("configure agent ledger listener: %w", err)
+	}
+	gateway, err := module.ResolveService[moduleapi.RuntimeAgentExecutionGateway](r.services, (*moduleapi.RuntimeAgentExecutionGateway)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent execution gateway: %w", err)
+	}
+	bindings, err := module.ResolveService[moduleapi.RuntimeTargetAgentBindingReader](r.services, (*moduleapi.RuntimeTargetAgentBindingReader)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent capability bindings: %w", err)
+	}
+	if err := r.agentServer.ConfigureExecutionRoutes(gateway, bindings); err != nil {
+		return nil, fmt.Errorf("configure agent execution listener: %w", err)
+	}
+	return r.agentServer.Start(r.config.HTTPX.AgentTLS.Addr)
 }
 
 func joinShutdownServeError(shutdownErr error, errCh <-chan error) error {

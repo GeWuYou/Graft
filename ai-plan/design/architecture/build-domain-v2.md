@@ -199,7 +199,7 @@ implicit fan-out scheduler.
 ### Telemetry And Reservation
 
 `RuntimeTargetBuilderTelemetryReader` is the sole Build-visible telemetry facade. A historical generic signed ingress
-does not prove the required Docker Builder Agent source, so it is not Provider admission evidence. Runtime UI summaries,
+does not prove the required Docker Runtime Agent source, so it is not Provider admission evidence. Runtime UI summaries,
 Monitor data, Docker container counts, Task JSON, CPU charts, host load, endpoint names and static labels cannot supply
 Builder-scoped queue, slot, freshness and provenance facts. The authority RFC defines `BuilderTelemetryProvider`,
 `BuildExecutionCapability`, `CapabilityMatcher` and Build-owned fenced `BuilderReservation`; dynamic policy remains

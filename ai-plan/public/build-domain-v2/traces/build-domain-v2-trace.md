@@ -575,7 +575,7 @@
   per-Instance exclusive Reservation as sufficient dynamic evidence. They are not.
 - Phase 4 is active and incomplete until Task Runtime maps `credential_cleanup_unverified` to `Internal` / `Needs
   Attention`; every Placement freezes a real `CapabilityMatcher` negotiation; Reservation claims explicit capacity units;
-  and a provisioned Docker Builder Agent proves target-bound telemetry from its controlled execution ledger or Driver
+  and a provisioned Docker Runtime Agent proves target-bound telemetry from its controlled execution ledger or Driver
   controller.
 - Dynamic policy is disabled pending Provider admission. Historical dynamic Pool rows remain readable but cannot execute;
   BuildKit, Kaniko and Kubernetes are future extensions until each passes equivalent conformance. Dynamic retries keep
@@ -653,12 +653,12 @@
 ## 2026-08-08 startup authority alignment
 
 - Added ADR-023 and the Credential Vault And Runtime Target Agent Protocol RFC to the reusable startup prompt and the
-  topic tracking repository-truth list. Recovery sessions implementing the Docker Builder Agent protocol must read
+  topic tracking repository-truth list. Recovery sessions implementing the Docker Runtime Agent protocol must read
   both documents before changing trust, enrollment, credential delivery, telemetry, or revocation behavior.
 
 ## 2026-08-16 phase-4-docker-builder-agent-admission
 
-- Docker Builder Agent conformance evidence now freezes the active Runtime Target Agent binding's Docker Provider ID,
+- Docker Runtime Agent conformance evidence now freezes the active Runtime Target Agent binding's Docker Provider ID,
   Builder scope, capability profile/version, and explicit `runtime-target-controlled-execution-ledger` provenance.
   The fixture rejects stale or incomplete evidence before it can serve as a restart baseline.
 - The receipt count remains Runtime Target ledger evidence, not Docker/host metrics, Task JSON, Monitor data, or a UI

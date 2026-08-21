@@ -117,7 +117,7 @@ func newDevCommand() *cobra.Command {
 	command.AddCommand(newDevNotifyCommand())
 	command.AddCommand(newDevStopAirCommand())
 	command.AddCommand(newDevResetAdminCommand())
-	command.AddCommand(newDevDockerBuilderAgentCommand())
+	command.AddCommand(newDevDockerRuntimeAgentCommand())
 	return command
 }
 

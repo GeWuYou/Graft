@@ -194,7 +194,7 @@ func (p dockerTargetProvider) trackDockerBuilderExecution(ctx context.Context, t
 		return "", nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("resolve Docker builder agent: %w", err)
+		return "", fmt.Errorf("resolve Docker runtime agent: %w", err)
 	}
 	if err := p.repository.QueueBuilderAgentBuild(ctx, targetID, agent.AgentID); err != nil {
 		return "", fmt.Errorf("queue Docker builder execution: %w", err)

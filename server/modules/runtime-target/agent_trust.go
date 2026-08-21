@@ -150,6 +150,8 @@ func (a runtimeTargetAgentEnrollmentAuthority) RotateGeneration(ctx context.Cont
 	if current.Identity.IdentityID != strings.TrimSpace(request.IdentityID) || current.Status != string(moduleapi.RuntimeTargetAgentStatusActive) || !sameEnrollmentScope(current.Identity, request) {
 		return moduleapi.AgentEnrollment{}, errors.New("runtime target agent enrollment rotation does not match the active identity")
 	}
+	current.Identity.Capabilities = append([]string(nil), request.Capabilities...)
+	current.Identity.RuntimeProtocol = strings.TrimSpace(request.RuntimeProtocol)
 	created, err := a.createPendingGeneration(ctx, current.Identity, current.Generation+1, request.EnrollmentRef, request.TrustBundle, request.ExpiresAt)
 	if err != nil {
 		return moduleapi.AgentEnrollment{}, err
@@ -213,6 +215,8 @@ func agentTrustIdentityFromEnrollmentRequest(request moduleapi.AgentEnrollmentRe
 		BuilderScope:      strings.TrimSpace(request.BuilderScope),
 		CapabilityProfile: strings.TrimSpace(request.CapabilityProfile),
 		CapabilityVersion: strings.TrimSpace(request.CapabilityVersion),
+		Capabilities:      append([]string(nil), request.Capabilities...),
+		RuntimeProtocol:   strings.TrimSpace(request.RuntimeProtocol),
 		ImageDigest:       strings.TrimSpace(request.ImageDigest),
 		AgentVersion:      strings.TrimSpace(request.AgentVersion),
 	}
@@ -231,6 +235,8 @@ func agentEnrollmentFromGeneration(generation store.AgentTrustGeneration) module
 		BuilderScope:         generation.Identity.BuilderScope,
 		CapabilityProfile:    generation.Identity.CapabilityProfile,
 		CapabilityVersion:    generation.Identity.CapabilityVersion,
+		Capabilities:         append([]string(nil), generation.Identity.Capabilities...),
+		RuntimeProtocol:      generation.Identity.RuntimeProtocol,
 		Generation:           generation.Generation,
 		EnrollmentRef:        generation.EnrollmentRef,
 		ExpiresAt:            generation.ExpiresAt,
@@ -242,7 +248,7 @@ func agentEnrollmentFromGeneration(generation store.AgentTrustGeneration) module
 }
 
 func validAgentEnrollmentRequest(request moduleapi.AgentEnrollmentRequest, now time.Time) bool {
-	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && validAgentPackageAttestation(request.ImageDigest, request.AgentVersion)
+	return validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentRuntimeCapabilities(request.Capabilities, request.RuntimeProtocol) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && validAgentPackageAttestation(request.ImageDigest, request.AgentVersion)
 }
 
 func validAgentEnrollmentActivation(activation moduleapi.AgentEnrollmentActivation) bool {
@@ -250,7 +256,25 @@ func validAgentEnrollmentActivation(activation moduleapi.AgentEnrollmentActivati
 }
 
 func validAgentEnrollmentRotationRequest(request moduleapi.AgentEnrollmentRotationRequest, now time.Time) bool {
-	return strings.TrimSpace(request.IdentityID) != "" && validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && strings.TrimSpace(request.Reason) != ""
+	return strings.TrimSpace(request.IdentityID) != "" && validAgentEnrollmentScope(request.TargetID, request.AgentID, request.ProviderID, request.BuilderScope, request.CapabilityProfile, request.CapabilityVersion) && validAgentRuntimeCapabilities(request.Capabilities, request.RuntimeProtocol) && validAgentEnrollmentAttestation(request.EnrollmentRef, request.TrustBundle, request.ExpiresAt, now) && strings.TrimSpace(request.Reason) != ""
+}
+
+func validAgentRuntimeCapabilities(capabilities []string, protocol string) bool {
+	if len(capabilities) == 0 || strings.TrimSpace(protocol) == "" {
+		return false
+	}
+	seen := make(map[string]struct{}, len(capabilities))
+	for _, value := range capabilities {
+		capability := strings.TrimSpace(value)
+		if capability == "" {
+			return false
+		}
+		if _, exists := seen[capability]; exists {
+			return false
+		}
+		seen[capability] = struct{}{}
+	}
+	return true
 }
 
 func validAgentEnrollmentScope(targetID int64, agentID, providerID, builderScope, capabilityProfile, capabilityVersion string) bool {
@@ -303,6 +327,13 @@ func (r runtimeTargetAgentBindingReader) ReadAgentBinding(ctx context.Context, t
 	if err != nil {
 		return moduleapi.RuntimeTargetAgentBinding{}, fmt.Errorf("read runtime target agent binding for target %d agent %q: %w", targetID, agentID, err)
 	}
+	capabilityBinding, err := r.repository.ReadAgentCapabilityBinding(ctx, generation.Identity.ID)
+	if err != nil {
+		return moduleapi.RuntimeTargetAgentBinding{}, fmt.Errorf("read runtime target agent capability binding for target %d agent %q: %w", targetID, agentID, err)
+	}
+	if capabilityBinding.ProviderID != generation.Identity.ProviderID {
+		return moduleapi.RuntimeTargetAgentBinding{}, errors.New("runtime target agent capability binding does not match identity")
+	}
 	return moduleapi.RuntimeTargetAgentBinding{
 		IdentityID:           generation.Identity.IdentityID,
 		TargetID:             generation.Identity.TargetID,
@@ -310,7 +341,8 @@ func (r runtimeTargetAgentBindingReader) ReadAgentBinding(ctx context.Context, t
 		ProviderID:           generation.Identity.ProviderID,
 		BuilderScope:         generation.Identity.BuilderScope,
 		CapabilityProfile:    generation.Identity.CapabilityProfile,
-		CapabilityVersion:    generation.Identity.CapabilityVersion,
+		CapabilityVersion:    capabilityBinding.CapabilityVersion,
+		Capabilities:         append([]string(nil), capabilityBinding.Capabilities...),
 		Generation:           generation.Generation,
 		CertificateSerial:    generation.CertificateSerial,
 		PublicKeyFingerprint: generation.PublicKeyFingerprint,

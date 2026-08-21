@@ -1,0 +1,48 @@
+"migration":
+  path: server/modules/runtime-target/migrations/202608210002_runtime_target_agent_capability_bindings.sql
+  version: '202608210002'
+owner: runtime-target
+risk_level: L4
+affected_tables:
+  - runtime_target_agent_capability_bindings
+  - runtime_target_agent_identities
+referenced_tables:
+  - runtime_target_agent_identities
+operation_categories:
+  - additive-table
+  - data-copy
+historical_data_assumptions:
+  - Existing identities contain one non-empty capability_profile and capability_version.
+  - Legacy profile columns remain readable for one release window but are not a new admission path.
+planned_upgrade_order:
+  - Apply the additive binding table and one-time copy before deploying the Runtime Agent that requires capability bindings.
+  - Verify every active identity has one binding row before enabling dynamic admission.
+safety_strategy:
+  additive_only: The migration creates one identity-scoped binding row and does not delete or rewrite legacy identity facts.
+  initialization: Existing profiles become a single-element capability array under runtime/v1; new delivery writes the explicit binding.
+  post_migration_invariant: Every active Runtime Target Agent identity has one non-empty provider and capability set.
+  recovery_or_retirement_rationale: Failed deployment retries the idempotent copy; legacy columns are removable only after the deletion trigger is verified.
+  duplicate_scan: The source identity table already enforces one live row per stable identity; the destination additionally enforces one row per identity.
+  live_reference_scan: Inspect every live Agent identity because all active and pending generations resolve capability admission through the same stable identity.
+  reconcile_or_abort: Abort when any live identity has an empty profile or version; never invent a capability during migration.
+validation_scenarios:
+  - Existing identities are copied exactly once, preserve provider values and bind the runtime/v1 protocol.
+  - Re-running the migration does not duplicate capability bindings.
+  - An active Agent claim is admitted only when its requested capability is present in the binding.
+preflight_checks:
+  - name: runtime-target-agent-identities-present
+    query: >-
+      SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'runtime_target_agent_identities'
+    must_equal: 1
+  - name: active-identities-have-profile
+    query: >-
+      SELECT COUNT(*) FROM runtime_target_agent_identities WHERE deleted_at = 0 AND trim(capability_profile) = ''
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids: []

@@ -70,9 +70,9 @@
                 "dev",
                 "air"
             ],
-            "preLaunchTask": "agent: prepare Docker Builder development",
+            "preLaunchTask": "agent: prepare Docker Runtime development",
             "env": {
-                "GRAFT_ENV_FILE": "${workspaceFolder}/server/.env.docker-builder-agent"
+                "GRAFT_ENV_FILE": "${workspaceFolder}/server/.env.docker-runtime-agent"
             }
         },
         {
@@ -85,9 +85,9 @@
             "args": [
                 "serve"
             ],
-            "preLaunchTask": "agent: prepare Docker Builder development",
+            "preLaunchTask": "agent: prepare Docker Runtime development",
             "env": {
-                "GRAFT_ENV_FILE": "${workspaceFolder}/server/.env.docker-builder-agent"
+                "GRAFT_ENV_FILE": "${workspaceFolder}/server/.env.docker-runtime-agent"
             }
         },
         {
@@ -135,12 +135,12 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "program": "${workspaceFolder}/server/agents/docker-runtime-agent/cmd",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "agent: deliver prepared Docker Builder development",
+            "preLaunchTask": "agent: deliver prepared Docker Runtime development",
             "args": [
                 "--config",
-                "${workspaceFolder}/server/agents/docker-builder-agent/agent.json",
+                "${workspaceFolder}/server/agents/docker-runtime-agent/agent.json",
                 "--wait-for-delivery"
             ]
         },
@@ -149,12 +149,12 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/server/agents/docker-builder-agent/cmd",
+            "program": "${workspaceFolder}/server/agents/docker-runtime-agent/cmd",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "agent: deliver Docker Builder development",
+            "preLaunchTask": "agent: deliver Docker Runtime development",
             "args": [
                 "--config",
-                "${workspaceFolder}/server/agents/docker-builder-agent/agent.json",
+                "${workspaceFolder}/server/agents/docker-runtime-agent/agent.json",
                 "--wait-for-delivery",
                 "--once"
             ]

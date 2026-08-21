@@ -259,7 +259,7 @@ func TestDockerProviderExecutionChangesDurableAgentLedger(t *testing.T) {
 	db := openBuildTargetTestDB(t)
 	seedBuildTarget(t, db, 1, "Local Docker", `["image_build"]`, true)
 	repository := store.NewSQLRepository(db)
-	agent := store.BuilderTelemetryAgent{TargetID: 1, AgentID: "agent:docker-1", ProviderID: "docker", BuilderScope: "builder-agent:docker-1", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: make([]byte, 32), Enabled: true}
+	agent := store.BuilderTelemetryAgent{TargetID: 1, AgentID: "agent:docker-1", ProviderID: "docker", BuilderScope: "runtime-agent:docker-1", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: make([]byte, 32), Enabled: true}
 	if err := repository.UpsertBuilderTelemetryAgent(context.Background(), agent); err != nil {
 		t.Fatalf("provision Docker agent: %v", err)
 	}

@@ -31,7 +31,7 @@ Deployable Agent trust and wire semantics follow
 - Builder/Registry-local failure is a local Build capability failure. It cannot alter `PlatformAvailabilityStore` or
   `CapabilityCoordinator` global availability decisions.
 - `RuntimeTargetBuilderTelemetryReader` remains the Build-visible read facade. A historical generic signed ingress is
-  not a real Docker Builder Agent source and cannot admit a Provider. UI summaries, Monitor charts, Docker/host metrics
+  not a real Docker Runtime Agent source and cannot admit a Provider. UI summaries, Monitor charts, Docker/host metrics
   and Task JSON cannot enable dynamic placement.
 - ADR-026 promotes the provisioned Docker Agent into the single out-of-process `docker-runtime-agent`. Runtime Target
   retains mTLS identity and capability binding, Task Runtime owns external execution leases, and Build retains Plan,

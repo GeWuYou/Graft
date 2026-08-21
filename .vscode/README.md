@@ -10,4 +10,4 @@ cp .vscode/tasks.shared-postgres.example.json .vscode/tasks.json
 cp .vscode/tasks.isolated-postgres.example.json .vscode/tasks.json
 ```
 
-两份模板使用相同的任务标签，均兼容 `.vscode/launch.json` 中的 `fullstack: dev`；区别仅在 Docker Builder Agent 开发命令显式选择 `shared` 或 `isolated` 数据库模式。
+两份模板使用相同的任务标签，均兼容 `.vscode/launch.json` 中的 `fullstack: dev`；区别仅在 Docker Runtime Agent 开发命令显式选择 `shared` 或 `isolated` 数据库模式。

@@ -20,7 +20,7 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
 
 ## Decision
 
-1. `docker-builder-agent` is migrated directly into one always-on `docker-runtime-agent`. There is no dual-Agent or
+1. The experimental build-only Agent is promoted directly into one always-on `docker-runtime-agent`. There is no dual-Agent or
    compatibility alias period. The Agent is the only always-on process that mounts `docker.sock`.
 2. The server depends on provider-neutral Application, Container, Build and Update contracts. It neither installs Docker
    CLI nor mounts `docker.sock` in the target topology.

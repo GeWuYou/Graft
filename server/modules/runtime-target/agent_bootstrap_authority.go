@@ -26,7 +26,7 @@ type runtimeTargetAgentBootstrapAuthority struct {
 	random     io.Reader
 }
 
-const initialDockerBuilderAgentLedgerSlots = 1
+const initialDockerRuntimeAgentLedgerSlots = 1
 
 func newRuntimeTargetAgentBootstrapAuthority(repository *store.SQLRepository, pepper *config.EnrollmentPepperProvider, issuer moduleapi.AgentCertificateIssuer) moduleapi.AgentBootstrapAuthority {
 	return runtimeTargetAgentBootstrapAuthority{repository: repository, pepper: pepper, issuer: issuer, now: time.Now, random: rand.Reader}
@@ -63,7 +63,7 @@ func (a runtimeTargetAgentBootstrapAuthority) BootstrapAgent(ctx context.Context
 		return moduleapi.AgentBootstrapResult{}, normalizeAgentBootstrapError(err)
 	}
 	// 首次 mTLS 接入前由 Runtime Target 建立受控执行账本，避免已激活身份没有可签发的 ledger 快照。
-	if err := a.repository.EnsureBuilderAgentLedger(ctx, authorization.Generation.Identity.TargetID, authorization.Generation.Identity.AgentID, initialDockerBuilderAgentLedgerSlots); err != nil {
+	if err := a.repository.EnsureBuilderAgentLedger(ctx, authorization.Generation.Identity.TargetID, authorization.Generation.Identity.AgentID, initialDockerRuntimeAgentLedgerSlots); err != nil {
 		return moduleapi.AgentBootstrapResult{}, normalizeAgentBootstrapError(err)
 	}
 	if _, _, err := a.repository.CompleteAgentCertificateIssuance(ctx, authorization.Issuance.IssuanceKey, a.currentTime()); err != nil {
@@ -119,7 +119,7 @@ func parseBootstrapCSR(encoded []byte) (*x509.CertificateRequest, string, error)
 }
 
 func agentSPIFFEURI(generation store.AgentTrustGeneration) string {
-	return fmt.Sprintf("spiffe://graft/runtime-target/%d/builder-agent/%s", generation.Identity.TargetID, generation.Identity.AgentID)
+	return fmt.Sprintf("spiffe://graft/runtime-target/%d/runtime-agent/%s", generation.Identity.TargetID, generation.Identity.AgentID)
 }
 
 //nolint:cyclop // 证书 DTO、DER 叶证书、CSR 公钥和精确 URI 必须在同一激活门禁内联立校验。

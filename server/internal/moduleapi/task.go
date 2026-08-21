@@ -16,6 +16,8 @@ var (
 	ErrTaskOwnerBusy = errors.New("task owner already has an active task")
 	// ErrCoordinatedTaskUnsupported 表示当前 Task Runtime 尚未启用分布式 leg 执行器。
 	ErrCoordinatedTaskUnsupported = errors.New("coordinated task execution is not enabled")
+	// ErrExternalExecutionNotFound 表示当前认证后的目标与能力没有可领取的外部 Stage。
+	ErrExternalExecutionNotFound = errors.New("external execution lease not found")
 )
 
 const (

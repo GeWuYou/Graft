@@ -77,7 +77,7 @@ closeout:
 - Repair eligibility: the user authorized all approved phases and normal in-scope `execute_repair` actions in the
   current workspace. Continue repairs and their validation without requesting repeated authorization; widened scope
   must still be required authority repair, not a compatibility path.
-- Phase 4 recovery (2026-08-08): the historical signed telemetry ingress is not a proven Docker Builder Agent protocol
+- Phase 4 recovery (2026-08-08): the historical signed telemetry ingress is not a proven Docker Runtime Agent protocol
   and must not admit dynamic policy. The remaining gates are: Task Runtime mapping of credential cleanup uncertainty to
   `Internal` / `Needs Attention`; mandatory matcher invocation and frozen negotiation evidence for every Placement;
   slot-aware Reservation rather than one live lease per Instance; and provisioned Docker Agent reports from a controlled
@@ -89,7 +89,7 @@ closeout:
   secrets nor owns Runtime Target membership. No independent automation PKI, unsupported provider implementation,
   menu, API or placeholder is authorized. Operator and Agent operations remain unpublished until the end-to-end
   conformance gate passes.
-- Docker Builder Agent admission (2026-08-16): the Docker-only fixture now persists and verifies non-secret evidence
+- Docker Runtime Agent admission (2026-08-16): the Docker-only fixture now persists and verifies non-secret evidence
   that every accepted ledger receipt belongs to the Runtime Target-bound Docker provider, Builder scope, capability
   profile/version, and `runtime-target-controlled-execution-ledger` provenance. Existing focused ledger tests prove
   replay, certificate mismatch and revocation fail closed. This is an admission-evidence closure only: it does not make
@@ -164,7 +164,7 @@ state below. A historical item may support an RFC phase but cannot independently
 - [x] Phase 8 foundation: immutable per-platform Builder Placement is included in the Execution Plan digest and used
   by coordinated Task legs and the Build executor; targets must declare `build-snapshot` locality.
 - [x] Phase 8 foundation: deterministic `labels` Pool selection freezes validated selector evidence in each Placement.
-- [x] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority now projects fresh Docker Builder Agent controlled-ledger
+- [x] Phase 8A: Runtime/Infrastructure Builder Telemetry Authority now projects fresh Docker Runtime Agent controlled-ledger
   capacity and queue evidence; unsupported dimensions continue to fail closed.
 - [x] Historical telemetry read contract: `BuilderTelemetrySnapshot` and `RuntimeTargetBuilderTelemetryReader` define a
   narrow facade only. The RFC retains the facade but requires a real `BuilderTelemetryProvider` before dynamic policy.
@@ -265,7 +265,7 @@ state below. A historical item may support an RFC phase but cannot independently
 ```
 ## ADR-026 Convergence Note
 
-- `docker-builder-agent` is scheduled for direct promotion to one `docker-runtime-agent`; no parallel Agent identity or
+- The experimental build-only Agent is scheduled for direct promotion to one `docker-runtime-agent`; no parallel Agent identity or
   Build-owned work queue is permitted.
 - Build execution migrates beneath the existing Provider SPI and public Driver IDs. Task Runtime, not Build or Agent,
   owns claim, renewal, cancellation observation, receipt and expiry recovery.

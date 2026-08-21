@@ -19,7 +19,7 @@ func TestLegacyBuilderTelemetryIngressIsDisabled(t *testing.T) {
 		t.Fatalf("generate legacy key: %v", err)
 	}
 	ingress := controlPlaneBuilderTelemetryIngress{}
-	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "builder-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}
+	registration := moduleapi.BuilderTelemetryAgentRegistration{TargetID: 7, AgentID: "agent:7", ProviderID: "docker", BuilderScope: "runtime-agent:7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", PublicKey: publicKey, Enabled: true}
 	if err := ingress.ProvisionBuilderTelemetryAgent(context.Background(), registration); !errors.Is(err, store.ErrLegacyAgentTrustDisabled) {
 		t.Fatalf("legacy registration error = %v, want %v", err, store.ErrLegacyAgentTrustDisabled)
 	}
@@ -31,7 +31,7 @@ func TestLegacyBuilderTelemetryIngressIsDisabled(t *testing.T) {
 func TestLegacyBuilderTelemetryBindingsRemainReadableButCannotAdmit(t *testing.T) {
 	db := openBuilderTelemetryTestDB(t)
 	repository := store.NewSQLRepository(db)
-	if _, err := db.Exec(`INSERT INTO runtime_target_builder_telemetry_agents (runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, enabled) VALUES (7, 'agent:7', 'docker', 'builder-agent:7', 'oci-build', 'v1', X'0000000000000000000000000000000000000000000000000000000000000000', true)`); err != nil {
+	if _, err := db.Exec(`INSERT INTO runtime_target_builder_telemetry_agents (runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version, public_key, enabled) VALUES (7, 'agent:7', 'docker', 'runtime-agent:7', 'oci-build', 'v1', X'0000000000000000000000000000000000000000000000000000000000000000', true)`); err != nil {
 		t.Fatalf("insert legacy binding: %v", err)
 	}
 	legacy, err := repository.ReadLegacyBuilderTelemetryAgent(context.Background(), 7, "agent:7")
@@ -55,7 +55,7 @@ func TestLegacyBuilderTelemetryBindingsRemainReadableButCannotAdmit(t *testing.T
 func TestBuilderTelemetryProviderAdmitsOnlyFreshActiveDockerLedgerReceipt(t *testing.T) {
 	db := openBuilderTelemetryTestDB(t)
 	now := time.Now().UTC()
-	if _, err := db.Exec(`INSERT INTO runtime_target_agent_identities (id, identity_id, runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version) VALUES (1, 'identity-1', 7, 'agent-7', 'docker', 'builder-agent:7', 'oci-build', 'docker/v1')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO runtime_target_agent_identities (id, identity_id, runtime_target_id, agent_id, provider_id, builder_scope, capability_profile, capability_version) VALUES (1, 'identity-1', 7, 'agent-7', 'docker', 'runtime-agent:7', 'oci-build', 'docker/v1')`); err != nil {
 		t.Fatalf("insert agent identity: %v", err)
 	}
 	if _, err := db.Exec(`INSERT INTO runtime_target_agent_generations (id, identity_id, generation, expires_at, status) VALUES (1, 1, 1, ?, 'active')`, now.Add(time.Hour)); err != nil {
@@ -63,7 +63,7 @@ func TestBuilderTelemetryProviderAdmitsOnlyFreshActiveDockerLedgerReceipt(t *tes
 	}
 	snapshotID := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	digest := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	if _, err := db.Exec(`INSERT INTO runtime_target_agent_ledger_snapshots (generation_id, snapshot_id, snapshot_digest, sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running, queued, allocatable_slots, observed_at, expires_at, issued_at, consumed_at, receipt_available, receipt_observed_at, receipt_expires_at) VALUES (1, ?, ?, 1, 'builder-agent:7', 'docker', 'oci-build', 'docker/v1', 'docker-agent:agent-7', true, 1, 0, 2, ?, ?, ?, ?, true, ?, ?)`, snapshotID, digest, now.Add(-time.Second), now.Add(time.Minute), now.Add(-time.Second), now, now.Add(-time.Second), now.Add(time.Minute)); err != nil {
+	if _, err := db.Exec(`INSERT INTO runtime_target_agent_ledger_snapshots (generation_id, snapshot_id, snapshot_digest, sequence, builder_scope, provider_id, capability_profile, capability_version, affinity_key, available, running, queued, allocatable_slots, observed_at, expires_at, issued_at, consumed_at, receipt_available, receipt_observed_at, receipt_expires_at) VALUES (1, ?, ?, 1, 'runtime-agent:7', 'docker', 'oci-build', 'docker/v1', 'docker-agent:agent-7', true, 1, 0, 2, ?, ?, ?, ?, true, ?, ?)`, snapshotID, digest, now.Add(-time.Second), now.Add(time.Minute), now.Add(-time.Second), now, now.Add(-time.Second), now.Add(time.Minute)); err != nil {
 		t.Fatalf("insert consumed ledger receipt: %v", err)
 	}
 	provider := controlPlaneBuilderTelemetryProvider{repository: store.NewSQLRepository(db)}
