@@ -15010,18 +15010,10 @@
         ],
         "summary": "Execute container actions in batch",
         "operationId": "postContainerBatchActions",
-        "description": "Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.",
+        "description": "Submits one Task with ordered per-container external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.",
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/idempotency-key"
           },
           {
             "$ref": "#/components/parameters/locale-header"
@@ -15047,7 +15039,7 @@
         },
         "responses": {
           "202": {
-            "description": "Container lifecycle actions accepted independently as Tasks; item failures remain explicit.",
+            "description": "Ordered fail-fast container lifecycle Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -15787,15 +15779,7 @@
         "description": "Submits one stopped container start action for asynchronous execution when dangerous actions are enabled.",
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/idempotency-key"
           },
           {
             "$ref": "#/components/parameters/locale-header"
@@ -15895,15 +15879,7 @@
         "description": "Submits one running container stop action for asynchronous execution when dangerous actions are enabled.",
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/idempotency-key"
           },
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16034,15 +16010,7 @@
         },
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/idempotency-key"
           },
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16149,6 +16117,9 @@
           },
           {
             "$ref": "#/components/parameters/container-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "security": [
@@ -16167,8 +16138,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Container action result.",
+          "202": {
+            "description": "Container removal Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -16177,7 +16148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -16219,7 +16190,7 @@
             }
           },
           "409": {
-            "description": "Container state does not allow this action.",
+            "description": "Idempotency-Key conflicts with a different submission.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -17100,15 +17071,7 @@
         "summary": "Submit a Docker image pull Task",
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "requestBody": {
@@ -17203,6 +17166,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/docker-image-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "requestBody": {
@@ -17216,12 +17182,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker image tag result.",
+          "202": {
+            "description": "Docker image tag Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -17237,6 +17203,9 @@
           },
           "404": {
             "description": "Image not found"
+          },
+          "409": {
+            "description": "Idempotency-Key conflicts with a different submission."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -17255,6 +17224,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/docker-image-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "requestBody": {
@@ -17268,12 +17240,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker image tag removal result.",
+          "202": {
+            "description": "Docker image tag removal Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -17291,7 +17263,7 @@
             "description": "Image not found"
           },
           "409": {
-            "description": "Repository:Tag does not currently reference this image"
+            "description": "Repository:Tag mismatch or Idempotency-Key conflict."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -17309,6 +17281,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/docker-image-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "requestBody": {
@@ -17322,12 +17297,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker image removal result.",
+          "202": {
+            "description": "Docker image removal Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -17345,7 +17320,7 @@
             "description": "Image not found"
           },
           "409": {
-            "description": "Image is in use by a container"
+            "description": "Idempotency-Key conflicts with a different submission."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -17360,13 +17335,16 @@
         ],
         "summary": "Remove Docker images in batch",
         "operationId": "postDockerImageBatchRemove",
-        "description": "Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.",
+        "description": "Submits one Task with ordered per-image external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "security": [
@@ -17385,8 +17363,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker image batch removal result.",
+          "202": {
+            "description": "Ordered Docker image removal Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -17395,7 +17373,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-image-batch-remove-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -17420,6 +17398,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key conflicts with a different submission."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -17509,6 +17490,11 @@
         ],
         "summary": "Create Docker network",
         "operationId": "postDockerNetwork",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/idempotency-key"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -17525,12 +17511,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker network created.",
+          "202": {
+            "description": "Docker network creation Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-network-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -17756,6 +17742,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/docker-network-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "security": [
@@ -17815,12 +17804,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker network removed.",
+          "202": {
+            "description": "Docker network removal Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-network-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -18157,12 +18146,16 @@
         ],
         "summary": "Remove Docker volumes in batch",
         "operationId": "postDockerVolumeBatchRemove",
+        "description": "Submits one Task with ordered per-volume external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "security": [
@@ -18181,12 +18174,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker volume batch removal result.",
+          "202": {
+            "description": "Ordered Docker volume removal Task accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-volume-batch-remove-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -18206,6 +18199,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key conflicts with a different submission."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -18311,6 +18307,9 @@
           },
           {
             "$ref": "#/components/parameters/docker-volume-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/idempotency-key"
           }
         ],
         "security": [
@@ -18329,8 +18328,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Docker volume removal completed.",
+          "202": {
+            "description": "Docker volume removal Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -18339,7 +18338,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-volume-remove-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -18381,7 +18380,7 @@
             }
           },
           "409": {
-            "description": "Docker volume is in use and force was not requested.",
+            "description": "Idempotency-Key conflicts with a different submission.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -23071,7 +23070,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Saved lifecycle configuration and regenerated command previews.",
+            "description": "Saved provider-neutral application lifecycle policy.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -23984,9 +23983,9 @@
         "tags": [
           "application"
         ],
-        "summary": "Run docker compose up for a registered application",
+        "summary": "Start a registered application",
         "operationId": "postApplicationUp",
-        "description": "Runs the saved lifecycle configuration `up` command preview for the selected application.",
+        "description": "Submits the saved application bring-up policy for external execution.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -24081,9 +24080,9 @@
         "tags": [
           "application"
         ],
-        "summary": "Run docker compose stop for a registered application",
+        "summary": "Stop a registered application",
         "operationId": "postApplicationStop",
-        "description": "Runs the saved lifecycle configuration `stop` command preview for the selected application.",
+        "description": "Submits the saved application stop policy for external execution.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -24178,9 +24177,9 @@
         "tags": [
           "application"
         ],
-        "summary": "Run docker compose restart for a registered application",
+        "summary": "Restart a registered application",
         "operationId": "postApplicationRestart",
-        "description": "Runs the saved lifecycle configuration `restart` command preview for the selected application.",
+        "description": "Submits the saved application restart policy for external execution.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -24277,7 +24276,7 @@
         ],
         "summary": "Redeploy a registered application",
         "operationId": "postApplicationRedeploy",
-        "description": "Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
+        "description": "Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard strategy redeploy may include teardown, image refresh, bring-up, and optional unused-image cleanup based on the stored lifecycle policy.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -25753,12 +25752,6 @@
       },
       "ApplicationLifecycleReviewStatus": {
         "$ref": "#/components/schemas/application-lifecycle-review-status"
-      },
-      "ApplicationLifecycleCommandStep": {
-        "$ref": "#/components/schemas/application-lifecycle-command-step"
-      },
-      "ApplicationLifecycleGeneratedCommand": {
-        "$ref": "#/components/schemas/application-lifecycle-generated-command"
       },
       "ApplicationLifecycleConfiguration": {
         "$ref": "#/components/schemas/application-lifecycle-configuration"
@@ -38453,86 +38446,6 @@
         },
         "additionalProperties": false
       },
-      "container-action-response": {
-        "type": "object",
-        "required": [
-          "id",
-          "action",
-          "runtime",
-          "result",
-          "status_after"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "start",
-              "stop",
-              "restart",
-              "remove"
-            ],
-            "x-enum-varnames": [
-              "ContainerActionResponseActionValueStart",
-              "ContainerActionResponseActionValueStop",
-              "ContainerActionResponseActionValueRestart",
-              "ContainerActionResponseActionValueRemove"
-            ]
-          },
-          "runtime": {
-            "type": "string",
-            "description": "Container runtime adapter key."
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "accepted",
-              "completed",
-              "unchanged"
-            ],
-            "x-enum-varnames": [
-              "ContainerActionResponseResultValueAccepted",
-              "ContainerActionResponseResultValueCompleted",
-              "ContainerActionResponseResultValueUnchanged"
-            ]
-          },
-          "status_before": {
-            "type": "string"
-          },
-          "status_after": {
-            "type": "string"
-          },
-          "message_key": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      },
-      "enveloped-container-action-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/container-action-response"
-              }
-            }
-          }
-        ]
-      },
       "docker-image-container-reference": {
         "type": "object",
         "required": [
@@ -39497,53 +39410,6 @@
         },
         "additionalProperties": false
       },
-      "docker-image-action-response": {
-        "type": "object",
-        "required": [
-          "id",
-          "action",
-          "message_key"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "tag",
-              "untag",
-              "remove"
-            ],
-            "x-enum-varnames": [
-              "DockerImageActionResponseActionTag",
-              "DockerImageActionResponseActionUntag",
-              "DockerImageActionResponseActionRemove"
-            ]
-          },
-          "message_key": {
-            "type": "string"
-          }
-        }
-      },
-      "enveloped-docker-image-action-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/docker-image-action-response"
-              }
-            }
-          }
-        ]
-      },
       "docker-image-untag-request": {
         "type": "object",
         "required": [
@@ -39593,94 +39459,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "docker-image-batch-remove-item": {
-        "type": "object",
-        "required": [
-          "id",
-          "success"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "error_code": {
-            "type": "string",
-            "description": "Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.",
-            "enum": [
-              "IMAGE_REFERENCED_BY_MULTIPLE_TAGS",
-              "IMAGE_IN_USE",
-              "IMAGE_NOT_FOUND",
-              "DOCKER_RUNTIME_UNAVAILABLE",
-              "DOCKER_TIMEOUT",
-              "DOCKER_COMMUNICATION_ERROR",
-              "UNKNOWN"
-            ]
-          },
-          "message_key": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
-      "docker-image-batch-remove-response": {
-        "type": "object",
-        "description": "Batch image removal summary with one result item for every requested image ID in request order.",
-        "required": [
-          "total",
-          "success_count",
-          "failed_count",
-          "items"
-        ],
-        "properties": {
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "success_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "failed_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "minItems": 0,
-            "items": {
-              "$ref": "#/components/schemas/docker-image-batch-remove-item"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "enveloped-docker-image-batch-remove-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/docker-image-batch-remove-response"
-              }
-            }
-          }
-        ]
       },
       "docker-resource-source": {
         "type": "string",
@@ -39957,68 +39735,10 @@
             "type": "boolean",
             "default": false
           },
-          "labels": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
           "ipam": {
             "$ref": "#/components/schemas/docker-network-ipam-config"
           }
         }
-      },
-      "docker-network-action-response": {
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "action",
-          "result",
-          "message_key"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "create",
-              "remove"
-            ]
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "completed"
-            ]
-          },
-          "message_key": {
-            "type": "string"
-          }
-        }
-      },
-      "enveloped-docker-network-action-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/docker-network-action-response"
-              }
-            }
-          }
-        ]
       },
       "docker-network-ipam": {
         "type": "object",
@@ -40270,85 +39990,6 @@
         },
         "additionalProperties": false
       },
-      "docker-volume-batch-remove-item": {
-        "type": "object",
-        "required": [
-          "name",
-          "success"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "error_code": {
-            "type": "string",
-            "nullable": true
-          },
-          "message_key": {
-            "type": "string",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "docker-volume-batch-remove-response": {
-        "type": "object",
-        "required": [
-          "total",
-          "success_count",
-          "failed_count",
-          "items"
-        ],
-        "properties": {
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "success_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "failed_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/docker-volume-batch-remove-item"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "enveloped-docker-volume-batch-remove-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/docker-volume-batch-remove-response"
-              }
-            }
-          }
-        ]
-      },
       "enveloped-docker-volume": {
         "allOf": [
           {
@@ -40379,55 +40020,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "docker-volume-remove-response": {
-        "type": "object",
-        "required": [
-          "name",
-          "action",
-          "result"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "remove"
-            ],
-            "x-enum-varnames": [
-              "DockerVolumeRemoveResponseActionRemove"
-            ]
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "completed"
-            ],
-            "x-enum-varnames": [
-              "DockerVolumeRemoveResponseResultCompleted"
-            ]
-          }
-        }
-      },
-      "enveloped-docker-volume-remove-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/docker-volume-remove-response"
-              }
-            }
-          }
-        ]
       },
       "enveloped-container-runtime-info": {
         "allOf": [
@@ -41320,6 +40912,117 @@
           }
         ]
       },
+      "runtime-target-agent-capability": {
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "status",
+          "diagnostic_code"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Stable Runtime Agent capability identifier."
+          },
+          "version": {
+            "type": "string",
+            "description": "Frozen capability protocol version exposed by Runtime Target."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentCapabilityStatusReady",
+              "RuntimeTargetAgentCapabilityStatusDegraded",
+              "RuntimeTargetAgentCapabilityStatusUnavailable"
+            ]
+          },
+          "diagnostic_code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "agent_not_enrolled",
+              "agent_unavailable",
+              "agent_degraded"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentDiagnosticCodeNone",
+              "RuntimeTargetAgentDiagnosticCodeNotEnrolled",
+              "RuntimeTargetAgentDiagnosticCodeUnavailable",
+              "RuntimeTargetAgentDiagnosticCodeDegraded"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "runtime-target-agent": {
+        "type": "object",
+        "required": [
+          "status",
+          "agent_id",
+          "generation",
+          "version",
+          "diagnostic_code",
+          "capabilities"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable",
+              "not_enrolled"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentStatusReady",
+              "RuntimeTargetAgentStatusDegraded",
+              "RuntimeTargetAgentStatusUnavailable",
+              "RuntimeTargetAgentStatusNotEnrolled"
+            ]
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Non-secret Runtime Agent identity label."
+          },
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string",
+            "description": "Non-secret implementation version registered for the active Agent generation."
+          },
+          "diagnostic_code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "agent_not_enrolled",
+              "agent_unavailable",
+              "agent_degraded"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentDiagnosticCodeNone",
+              "RuntimeTargetAgentDiagnosticCodeNotEnrolled",
+              "RuntimeTargetAgentDiagnosticCodeUnavailable",
+              "RuntimeTargetAgentDiagnosticCodeDegraded"
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target-agent-capability"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "runtime-target": {
         "allOf": [
           {
@@ -41329,9 +41032,13 @@
             "type": "object",
             "required": [
               "health",
-              "providerDetails"
+              "providerDetails",
+              "agent"
             ],
             "properties": {
+              "agent": {
+                "$ref": "#/components/schemas/runtime-target-agent"
+              },
               "health": {
                 "type": "object",
                 "required": [
@@ -43351,59 +43058,15 @@
             "type": "boolean",
             "default": false
           },
-          "additional_args": {
-            "type": "array",
-            "description": "Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.",
-            "maxItems": 32,
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 256,
-              "pattern": "^[^\\r\\n]+$"
-            }
-          },
           "managed_service_names": {
             "type": "array",
-            "description": "Services included in Graft lifecycle actions; empty means all declared services for legacy records.",
+            "description": "Services included in Graft lifecycle actions; empty means all declared services.",
             "uniqueItems": true,
             "maxItems": 256,
             "items": {
               "type": "string",
               "minLength": 1,
               "maxLength": 128,
-              "pattern": "^[^\\r\\n]+$"
-            }
-          },
-          "stop_args": {
-            "type": "array",
-            "description": "Bounded argv tokens appended to docker compose stop.",
-            "maxItems": 16,
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 256,
-              "pattern": "^[^\\r\\n]+$"
-            }
-          },
-          "restart_args": {
-            "type": "array",
-            "description": "Bounded argv tokens appended to docker compose restart.",
-            "maxItems": 16,
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 256,
-              "pattern": "^[^\\r\\n]+$"
-            }
-          },
-          "pull_args": {
-            "type": "array",
-            "description": "Bounded argv tokens appended to docker compose pull.",
-            "maxItems": 16,
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 256,
               "pattern": "^[^\\r\\n]+$"
             }
           }
@@ -43724,86 +43387,6 @@
           }
         }
       },
-      "application-lifecycle-command-step": {
-        "type": "object",
-        "required": [
-          "kind",
-          "argv",
-          "display_command"
-        ],
-        "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "down",
-              "pull",
-              "up",
-              "stop",
-              "restart",
-              "prune"
-            ],
-            "x-enum-varnames": [
-              "ApplicationLifecycleCommandStepKindDown",
-              "ApplicationLifecycleCommandStepKindPull",
-              "ApplicationLifecycleCommandStepKindUp",
-              "ApplicationLifecycleCommandStepKindStop",
-              "ApplicationLifecycleCommandStepKindRestart",
-              "ApplicationLifecycleCommandStepKindPrune"
-            ]
-          },
-          "argv": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string"
-            }
-          },
-          "display_command": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Human-readable command preview derived from the canonical lifecycle configuration."
-          }
-        },
-        "additionalProperties": false
-      },
-      "application-lifecycle-generated-command": {
-        "type": "object",
-        "required": [
-          "action",
-          "steps",
-          "display_command"
-        ],
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "up",
-              "stop",
-              "restart",
-              "redeploy"
-            ],
-            "x-enum-varnames": [
-              "ApplicationLifecycleGeneratedCommandActionUp",
-              "ApplicationLifecycleGeneratedCommandActionStop",
-              "ApplicationLifecycleGeneratedCommandActionRestart",
-              "ApplicationLifecycleGeneratedCommandActionRedeploy"
-            ]
-          },
-          "steps": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "$ref": "#/components/schemas/application-lifecycle-command-step"
-            }
-          },
-          "display_command": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Combined preview for the selected lifecycle action."
-          }
-        },
-        "additionalProperties": false
-      },
       "application-lifecycle-configuration": {
         "type": "object",
         "required": [
@@ -43818,8 +43401,6 @@
           "wait_timeout_seconds",
           "renew_anon_volumes",
           "prune_images_after_redeploy",
-          "generated_commands",
-          "additional_args",
           "managed_service_names"
         ],
         "properties": {
@@ -43866,60 +43447,12 @@
             "type": "boolean",
             "default": false
           },
-          "additional_args": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "managed_service_names": {
             "type": "array",
             "uniqueItems": true,
             "items": {
               "type": "string"
             }
-          },
-          "stop_args": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "restart_args": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "pull_args": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "generated_commands": {
-            "type": "object",
-            "required": [
-              "up",
-              "stop",
-              "restart",
-              "redeploy"
-            ],
-            "properties": {
-              "up": {
-                "$ref": "#/components/schemas/application-lifecycle-generated-command"
-              },
-              "stop": {
-                "$ref": "#/components/schemas/application-lifecycle-generated-command"
-              },
-              "restart": {
-                "$ref": "#/components/schemas/application-lifecycle-generated-command"
-              },
-              "redeploy": {
-                "$ref": "#/components/schemas/application-lifecycle-generated-command"
-              }
-            },
-            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -45784,18 +45317,18 @@
           },
           "workspace_path": {
             "type": "string",
-            "description": "Read-only working directory authority reused by lifecycle command generation."
+            "description": "Read-only working directory authority resolved as transient external execution material."
           },
           "compose_project_name": {
             "type": "string",
-            "description": "Read-only application runtime identity used for explicit `docker compose -p`."
+            "description": "Read-only application runtime identity resolved as transient external execution material."
           },
           "compose_files": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/application-file-item"
             },
-            "description": "Ordered tracked Compose files reused by lifecycle command generation."
+            "description": "Ordered tracked Compose files resolved as transient external execution material."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/application-lifecycle-configuration"
@@ -46624,6 +46157,7 @@
         "required": [
           "total_count",
           "completed_count",
+          "accepted_count",
           "blocked_count",
           "skipped_count",
           "items"
@@ -46634,6 +46168,10 @@
             "minimum": 0
           },
           "completed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accepted_count": {
             "type": "integer",
             "minimum": 0
           },
@@ -47191,6 +46729,331 @@
           }
         ]
       },
+      "container-action-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "runtime",
+          "result",
+          "status_after"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "ContainerActionResponseActionValueStart",
+              "ContainerActionResponseActionValueStop",
+              "ContainerActionResponseActionValueRestart",
+              "ContainerActionResponseActionValueRemove"
+            ]
+          },
+          "runtime": {
+            "type": "string",
+            "description": "Container runtime adapter key."
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "completed",
+              "unchanged"
+            ],
+            "x-enum-varnames": [
+              "ContainerActionResponseResultValueAccepted",
+              "ContainerActionResponseResultValueCompleted",
+              "ContainerActionResponseResultValueUnchanged"
+            ]
+          },
+          "status_before": {
+            "type": "string"
+          },
+          "status_after": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-container-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "docker-image-action-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "message_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "tag",
+              "untag",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "DockerImageActionResponseActionTag",
+              "DockerImageActionResponseActionUntag",
+              "DockerImageActionResponseActionRemove"
+            ]
+          },
+          "message_key": {
+            "type": "string"
+          }
+        }
+      },
+      "docker-image-batch-remove-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "success"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.",
+            "enum": [
+              "IMAGE_REFERENCED_BY_MULTIPLE_TAGS",
+              "IMAGE_IN_USE",
+              "IMAGE_NOT_FOUND",
+              "DOCKER_RUNTIME_UNAVAILABLE",
+              "DOCKER_TIMEOUT",
+              "DOCKER_COMMUNICATION_ERROR",
+              "UNKNOWN"
+            ]
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-image-batch-remove-response": {
+        "type": "object",
+        "description": "Batch image removal summary with one result item for every requested image ID in request order.",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "$ref": "#/components/schemas/docker-image-batch-remove-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-volume-remove-response": {
+        "type": "object",
+        "required": [
+          "name",
+          "action",
+          "result"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "DockerVolumeRemoveResponseActionRemove"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ],
+            "x-enum-varnames": [
+              "DockerVolumeRemoveResponseResultCompleted"
+            ]
+          }
+        }
+      },
+      "docker-volume-batch-remove-item": {
+        "type": "object",
+        "required": [
+          "name",
+          "success"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-volume-batch-remove-response": {
+        "type": "object",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-volume-batch-remove-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-docker-volume-batch-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-batch-remove-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-image-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-image-batch-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-batch-remove-response"
+              }
+            }
+          }
+        ]
+      },
       "enveloped-docker-network": {
         "allOf": [
           {
@@ -47204,6 +47067,24 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/docker-network"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-volume-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-remove-response"
               }
             }
           }
@@ -47958,6 +47839,17 @@
         "schema": {
           "type": "string",
           "pattern": "^\"[0-9]+\"$"
+        }
+      },
+      "idempotency-key": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         }
       },
       "docker-image-list-limit": {

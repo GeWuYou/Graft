@@ -172,6 +172,36 @@ func (p *FileProvider) Inject(ctx context.Context, session moduleapi.EphemeralCr
 	return writeDockerConfig(target.ConfigDir, dockerAuthKey(endpoint), record.username, record.password)
 }
 
+// ResolveCredentialMaterial 只为已围栏的 Agent material resolver 返回活跃会话秘密。
+// 返回值不得离开瞬时 mTLS transport，也不得写入日志、Task、receipt 或数据库。
+//
+//nolint:cyclop // Session, expiry and target checks are one atomic fence for transient credential disclosure.
+func (p *FileProvider) ResolveCredentialMaterial(ctx context.Context, session moduleapi.EphemeralCredentialSession, target moduleapi.CredentialInjectionTarget) (moduleapi.EphemeralCredentialMaterial, error) {
+	if p == nil || p.now == nil {
+		return moduleapi.EphemeralCredentialMaterial{}, errors.New("registry credential provider is unavailable")
+	}
+	if err := ctx.Err(); err != nil {
+		return moduleapi.EphemeralCredentialMaterial{}, err
+	}
+	endpoint, err := normalizeEndpoint(target.Endpoint)
+	if err != nil {
+		return moduleapi.EphemeralCredentialMaterial{}, err
+	}
+	repository := normalizeRepository(target.RepositoryRef)
+	if repository == "" {
+		return moduleapi.EphemeralCredentialMaterial{}, errors.New("registry credential material target is invalid")
+	}
+	p.mu.Lock()
+	record, ok := p.sessions[session.ID]
+	if !ok || !record.expiresAt.After(p.now().UTC()) || !session.ExpiresAt.Equal(record.expiresAt) || record.endpoint != endpoint || record.repository != repository {
+		p.mu.Unlock()
+		return moduleapi.EphemeralCredentialMaterial{}, errors.New("registry credential session is invalid")
+	}
+	material := moduleapi.EphemeralCredentialMaterial{Username: record.username, Secret: record.password}
+	p.mu.Unlock()
+	return material, nil
+}
+
 // Revoke 删除活跃会话；重复清理保持无害。
 func (p *FileProvider) Revoke(_ context.Context, session moduleapi.EphemeralCredentialSession) error {
 	if p == nil {

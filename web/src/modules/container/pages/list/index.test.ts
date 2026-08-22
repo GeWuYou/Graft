@@ -1644,8 +1644,8 @@ describe('container list page', () => {
     dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
     await flushPromises();
 
-    expect(apiMocks.removeContainer).toHaveBeenCalledWith('container-1', { force: false });
-    expect(messageMocks.success).toHaveBeenCalledWith('容器删除操作已完成');
+    expect(apiMocks.removeContainer).toHaveBeenCalledWith('container-1', { force: false }, expect.any(String));
+    expect(messageMocks.success).toHaveBeenCalledWith('容器操作已提交。');
   });
 
   it('submits only actionable mixed selections and reports partial failures', async () => {

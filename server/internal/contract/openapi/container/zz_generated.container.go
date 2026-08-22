@@ -1835,45 +1835,36 @@ func (e PostContainerMountUsageRefresh500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostContainerRemove200JSONResponseBodyDataAction.
+// Defines values for PostContainerRemove202JSONResponseBodyDataStatus.
 const (
-	ContainerActionResponseActionValueRemove  PostContainerRemove200JSONResponseBodyDataAction = "remove"
-	ContainerActionResponseActionValueRestart PostContainerRemove200JSONResponseBodyDataAction = "restart"
-	ContainerActionResponseActionValueStart   PostContainerRemove200JSONResponseBodyDataAction = "start"
-	ContainerActionResponseActionValueStop    PostContainerRemove200JSONResponseBodyDataAction = "stop"
+	PostContainerRemove202JSONResponseBodyDataStatusCancelled      PostContainerRemove202JSONResponseBodyDataStatus = "cancelled"
+	PostContainerRemove202JSONResponseBodyDataStatusFailed         PostContainerRemove202JSONResponseBodyDataStatus = "failed"
+	PostContainerRemove202JSONResponseBodyDataStatusNeedsAttention PostContainerRemove202JSONResponseBodyDataStatus = "needs_attention"
+	PostContainerRemove202JSONResponseBodyDataStatusPending        PostContainerRemove202JSONResponseBodyDataStatus = "pending"
+	PostContainerRemove202JSONResponseBodyDataStatusReady          PostContainerRemove202JSONResponseBodyDataStatus = "ready"
+	PostContainerRemove202JSONResponseBodyDataStatusRunning        PostContainerRemove202JSONResponseBodyDataStatus = "running"
+	PostContainerRemove202JSONResponseBodyDataStatusScheduled      PostContainerRemove202JSONResponseBodyDataStatus = "scheduled"
+	PostContainerRemove202JSONResponseBodyDataStatusSuccess        PostContainerRemove202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostContainerRemove200JSONResponseBodyDataAction enum.
-func (e PostContainerRemove200JSONResponseBodyDataAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostContainerRemove202JSONResponseBodyDataStatus enum.
+func (e PostContainerRemove202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case ContainerActionResponseActionValueRemove:
+	case PostContainerRemove202JSONResponseBodyDataStatusCancelled:
 		return true
-	case ContainerActionResponseActionValueRestart:
+	case PostContainerRemove202JSONResponseBodyDataStatusFailed:
 		return true
-	case ContainerActionResponseActionValueStart:
+	case PostContainerRemove202JSONResponseBodyDataStatusNeedsAttention:
 		return true
-	case ContainerActionResponseActionValueStop:
+	case PostContainerRemove202JSONResponseBodyDataStatusPending:
 		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostContainerRemove200JSONResponseBodyDataResult.
-const (
-	ContainerActionResponseResultValueAccepted  PostContainerRemove200JSONResponseBodyDataResult = "accepted"
-	ContainerActionResponseResultValueCompleted PostContainerRemove200JSONResponseBodyDataResult = "completed"
-	ContainerActionResponseResultValueUnchanged PostContainerRemove200JSONResponseBodyDataResult = "unchanged"
-)
-
-// Valid indicates whether the value is a known member of the PostContainerRemove200JSONResponseBodyDataResult enum.
-func (e PostContainerRemove200JSONResponseBodyDataResult) Valid() bool {
-	switch e {
-	case ContainerActionResponseResultValueAccepted:
+	case PostContainerRemove202JSONResponseBodyDataStatusReady:
 		return true
-	case ContainerActionResponseResultValueCompleted:
+	case PostContainerRemove202JSONResponseBodyDataStatusRunning:
 		return true
-	case ContainerActionResponseResultValueUnchanged:
+	case PostContainerRemove202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostContainerRemove202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -2615,33 +2606,36 @@ func (e GetDockerImages500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode.
+// Defines values for PostDockerImageBatchRemove202JSONResponseBodyDataStatus.
 const (
-	DOCKERCOMMUNICATIONERROR      PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_COMMUNICATION_ERROR"
-	DOCKERRUNTIMEUNAVAILABLE      PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_RUNTIME_UNAVAILABLE"
-	DOCKERTIMEOUT                 PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_TIMEOUT"
-	IMAGEINUSE                    PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_IN_USE"
-	IMAGENOTFOUND                 PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_NOT_FOUND"
-	IMAGEREFERENCEDBYMULTIPLETAGS PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
-	UNKNOWN                       PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "UNKNOWN"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusCancelled      PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusFailed         PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "failed"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusNeedsAttention PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusPending        PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "pending"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusReady          PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "ready"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusRunning        PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "running"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusScheduled      PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImageBatchRemove202JSONResponseBodyDataStatusSuccess        PostDockerImageBatchRemove202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode enum.
-func (e PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode) Valid() bool {
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove202JSONResponseBodyDataStatus enum.
+func (e PostDockerImageBatchRemove202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case DOCKERCOMMUNICATIONERROR:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusCancelled:
 		return true
-	case DOCKERRUNTIMEUNAVAILABLE:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusFailed:
 		return true
-	case DOCKERTIMEOUT:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusNeedsAttention:
 		return true
-	case IMAGEINUSE:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusPending:
 		return true
-	case IMAGENOTFOUND:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusReady:
 		return true
-	case IMAGEREFERENCEDBYMULTIPLETAGS:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusRunning:
 		return true
-	case UNKNOWN:
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerImageBatchRemove202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -2834,21 +2828,36 @@ func (e GetDockerImage500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostDockerImageRemove200JSONResponseBodyDataAction.
+// Defines values for PostDockerImageRemove202JSONResponseBodyDataStatus.
 const (
-	PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionRemove PostDockerImageRemove200JSONResponseBodyDataAction = "remove"
-	PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionTag    PostDockerImageRemove200JSONResponseBodyDataAction = "tag"
-	PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionUntag  PostDockerImageRemove200JSONResponseBodyDataAction = "untag"
+	PostDockerImageRemove202JSONResponseBodyDataStatusCancelled      PostDockerImageRemove202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImageRemove202JSONResponseBodyDataStatusFailed         PostDockerImageRemove202JSONResponseBodyDataStatus = "failed"
+	PostDockerImageRemove202JSONResponseBodyDataStatusNeedsAttention PostDockerImageRemove202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImageRemove202JSONResponseBodyDataStatusPending        PostDockerImageRemove202JSONResponseBodyDataStatus = "pending"
+	PostDockerImageRemove202JSONResponseBodyDataStatusReady          PostDockerImageRemove202JSONResponseBodyDataStatus = "ready"
+	PostDockerImageRemove202JSONResponseBodyDataStatusRunning        PostDockerImageRemove202JSONResponseBodyDataStatus = "running"
+	PostDockerImageRemove202JSONResponseBodyDataStatusScheduled      PostDockerImageRemove202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImageRemove202JSONResponseBodyDataStatusSuccess        PostDockerImageRemove202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostDockerImageRemove200JSONResponseBodyDataAction enum.
-func (e PostDockerImageRemove200JSONResponseBodyDataAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostDockerImageRemove202JSONResponseBodyDataStatus enum.
+func (e PostDockerImageRemove202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionRemove:
+	case PostDockerImageRemove202JSONResponseBodyDataStatusCancelled:
 		return true
-	case PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionTag:
+	case PostDockerImageRemove202JSONResponseBodyDataStatusFailed:
 		return true
-	case PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionUntag:
+	case PostDockerImageRemove202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerImageRemove202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerImageRemove202JSONResponseBodyDataStatusReady:
+		return true
+	case PostDockerImageRemove202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerImageRemove202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerImageRemove202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -2900,21 +2909,36 @@ func (e PostDockerImageRemove500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostDockerImageTag200JSONResponseBodyDataAction.
+// Defines values for PostDockerImageTag202JSONResponseBodyDataStatus.
 const (
-	PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionRemove PostDockerImageTag200JSONResponseBodyDataAction = "remove"
-	PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionTag    PostDockerImageTag200JSONResponseBodyDataAction = "tag"
-	PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionUntag  PostDockerImageTag200JSONResponseBodyDataAction = "untag"
+	PostDockerImageTag202JSONResponseBodyDataStatusCancelled      PostDockerImageTag202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImageTag202JSONResponseBodyDataStatusFailed         PostDockerImageTag202JSONResponseBodyDataStatus = "failed"
+	PostDockerImageTag202JSONResponseBodyDataStatusNeedsAttention PostDockerImageTag202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImageTag202JSONResponseBodyDataStatusPending        PostDockerImageTag202JSONResponseBodyDataStatus = "pending"
+	PostDockerImageTag202JSONResponseBodyDataStatusReady          PostDockerImageTag202JSONResponseBodyDataStatus = "ready"
+	PostDockerImageTag202JSONResponseBodyDataStatusRunning        PostDockerImageTag202JSONResponseBodyDataStatus = "running"
+	PostDockerImageTag202JSONResponseBodyDataStatusScheduled      PostDockerImageTag202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImageTag202JSONResponseBodyDataStatusSuccess        PostDockerImageTag202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostDockerImageTag200JSONResponseBodyDataAction enum.
-func (e PostDockerImageTag200JSONResponseBodyDataAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostDockerImageTag202JSONResponseBodyDataStatus enum.
+func (e PostDockerImageTag202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionRemove:
+	case PostDockerImageTag202JSONResponseBodyDataStatusCancelled:
 		return true
-	case PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionTag:
+	case PostDockerImageTag202JSONResponseBodyDataStatusFailed:
 		return true
-	case PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionUntag:
+	case PostDockerImageTag202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerImageTag202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerImageTag202JSONResponseBodyDataStatusReady:
+		return true
+	case PostDockerImageTag202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerImageTag202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerImageTag202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -2966,21 +2990,36 @@ func (e PostDockerImageTag500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostDockerImageUntag200JSONResponseBodyDataAction.
+// Defines values for PostDockerImageUntag202JSONResponseBodyDataStatus.
 const (
-	DockerImageActionResponseActionRemove PostDockerImageUntag200JSONResponseBodyDataAction = "remove"
-	DockerImageActionResponseActionTag    PostDockerImageUntag200JSONResponseBodyDataAction = "tag"
-	DockerImageActionResponseActionUntag  PostDockerImageUntag200JSONResponseBodyDataAction = "untag"
+	PostDockerImageUntag202JSONResponseBodyDataStatusCancelled      PostDockerImageUntag202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImageUntag202JSONResponseBodyDataStatusFailed         PostDockerImageUntag202JSONResponseBodyDataStatus = "failed"
+	PostDockerImageUntag202JSONResponseBodyDataStatusNeedsAttention PostDockerImageUntag202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImageUntag202JSONResponseBodyDataStatusPending        PostDockerImageUntag202JSONResponseBodyDataStatus = "pending"
+	PostDockerImageUntag202JSONResponseBodyDataStatusReady          PostDockerImageUntag202JSONResponseBodyDataStatus = "ready"
+	PostDockerImageUntag202JSONResponseBodyDataStatusRunning        PostDockerImageUntag202JSONResponseBodyDataStatus = "running"
+	PostDockerImageUntag202JSONResponseBodyDataStatusScheduled      PostDockerImageUntag202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImageUntag202JSONResponseBodyDataStatusSuccess        PostDockerImageUntag202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostDockerImageUntag200JSONResponseBodyDataAction enum.
-func (e PostDockerImageUntag200JSONResponseBodyDataAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostDockerImageUntag202JSONResponseBodyDataStatus enum.
+func (e PostDockerImageUntag202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case DockerImageActionResponseActionRemove:
+	case PostDockerImageUntag202JSONResponseBodyDataStatusCancelled:
 		return true
-	case DockerImageActionResponseActionTag:
+	case PostDockerImageUntag202JSONResponseBodyDataStatusFailed:
 		return true
-	case DockerImageActionResponseActionUntag:
+	case PostDockerImageUntag202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerImageUntag202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerImageUntag202JSONResponseBodyDataStatusReady:
+		return true
+	case PostDockerImageUntag202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerImageUntag202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerImageUntag202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -3677,6 +3716,42 @@ func (e GetDockerVolumes500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus.
+const (
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusCancelled      PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusFailed         PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "failed"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusNeedsAttention PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusPending        PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "pending"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusReady          PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "ready"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusRunning        PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "running"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusScheduled      PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusSuccess        PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus enum.
+func (e PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusCancelled:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusFailed:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusReady:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerVolumeBatchRemove202JSONResponseBodyDataStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostDockerVolumeBatchRemove400JSONResponseBodySuccess.
 const (
 	PostDockerVolumeBatchRemove400JSONResponseBodySuccessFalse PostDockerVolumeBatchRemove400JSONResponseBodySuccess = false
@@ -3986,30 +4061,36 @@ func (e GetDockerVolume500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostDockerVolumeRemove200JSONResponseBodyDataAction.
+// Defines values for PostDockerVolumeRemove202JSONResponseBodyDataStatus.
 const (
-	DockerVolumeRemoveResponseActionRemove PostDockerVolumeRemove200JSONResponseBodyDataAction = "remove"
+	Cancelled      PostDockerVolumeRemove202JSONResponseBodyDataStatus = "cancelled"
+	Failed         PostDockerVolumeRemove202JSONResponseBodyDataStatus = "failed"
+	NeedsAttention PostDockerVolumeRemove202JSONResponseBodyDataStatus = "needs_attention"
+	Pending        PostDockerVolumeRemove202JSONResponseBodyDataStatus = "pending"
+	Ready          PostDockerVolumeRemove202JSONResponseBodyDataStatus = "ready"
+	Running        PostDockerVolumeRemove202JSONResponseBodyDataStatus = "running"
+	Scheduled      PostDockerVolumeRemove202JSONResponseBodyDataStatus = "scheduled"
+	Success        PostDockerVolumeRemove202JSONResponseBodyDataStatus = "success"
 )
 
-// Valid indicates whether the value is a known member of the PostDockerVolumeRemove200JSONResponseBodyDataAction enum.
-func (e PostDockerVolumeRemove200JSONResponseBodyDataAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove202JSONResponseBodyDataStatus enum.
+func (e PostDockerVolumeRemove202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case DockerVolumeRemoveResponseActionRemove:
+	case Cancelled:
 		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostDockerVolumeRemove200JSONResponseBodyDataResult.
-const (
-	DockerVolumeRemoveResponseResultCompleted PostDockerVolumeRemove200JSONResponseBodyDataResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the PostDockerVolumeRemove200JSONResponseBodyDataResult enum.
-func (e PostDockerVolumeRemove200JSONResponseBodyDataResult) Valid() bool {
-	switch e {
-	case DockerVolumeRemoveResponseResultCompleted:
+	case Failed:
+		return true
+	case NeedsAttention:
+		return true
+	case Pending:
+		return true
+	case Ready:
+		return true
+	case Running:
+		return true
+	case Scheduled:
+		return true
+	case Success:
 		return true
 	default:
 		return false
@@ -4295,7 +4376,7 @@ type PostContainerBatchActionsJSONBody struct {
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
 	IdempotencyKey string `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4659,13 +4740,13 @@ type PostContainerRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
-// PostContainerRemove200JSONResponseBodyDataAction defines parameters for PostContainerRemove.
-type PostContainerRemove200JSONResponseBodyDataAction string
-
-// PostContainerRemove200JSONResponseBodyDataResult defines parameters for PostContainerRemove.
-type PostContainerRemove200JSONResponseBodyDataResult string
+// PostContainerRemove202JSONResponseBodyDataStatus defines parameters for PostContainerRemove.
+type PostContainerRemove202JSONResponseBodyDataStatus string
 
 // PostContainerRemove400JSONResponseBodySuccess defines parameters for PostContainerRemove.
 type PostContainerRemove400JSONResponseBodySuccess bool
@@ -4687,7 +4768,7 @@ type PostContainerRemove500JSONResponseBodySuccess bool
 
 // PostContainerRestartParams defines parameters for PostContainerRestart.
 type PostContainerRestartParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
 	IdempotencyKey string `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4795,7 +4876,7 @@ type GetContainerShellWebSocket500JSONResponseBodySuccess bool
 
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
 	IdempotencyKey string `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4829,7 +4910,7 @@ type PostContainerStart500JSONResponseBodySuccess bool
 
 // PostContainerStopParams defines parameters for PostContainerStop.
 type PostContainerStopParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
 	IdempotencyKey string `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4907,10 +4988,13 @@ type PostDockerImageBatchRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
-// PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode defines parameters for PostDockerImageBatchRemove.
-type PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode string
+// PostDockerImageBatchRemove202JSONResponseBodyDataStatus defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove202JSONResponseBodyDataStatus string
 
 // PostDockerImageBatchRemove400JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
 type PostDockerImageBatchRemove400JSONResponseBodySuccess bool
@@ -4932,7 +5016,7 @@ type PostDockerImagePullJSONBody struct {
 
 // PostDockerImagePullParams defines parameters for PostDockerImagePull.
 type PostDockerImagePullParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
 	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
@@ -4963,8 +5047,14 @@ type PostDockerImageRemoveJSONBody struct {
 	Force *bool `json:"force,omitempty"`
 }
 
-// PostDockerImageRemove200JSONResponseBodyDataAction defines parameters for PostDockerImageRemove.
-type PostDockerImageRemove200JSONResponseBodyDataAction string
+// PostDockerImageRemoveParams defines parameters for PostDockerImageRemove.
+type PostDockerImageRemoveParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostDockerImageRemove202JSONResponseBodyDataStatus defines parameters for PostDockerImageRemove.
+type PostDockerImageRemove202JSONResponseBodyDataStatus string
 
 // PostDockerImageRemove401JSONResponseBodySuccess defines parameters for PostDockerImageRemove.
 type PostDockerImageRemove401JSONResponseBodySuccess bool
@@ -4981,8 +5071,14 @@ type PostDockerImageTagJSONBody struct {
 	Target string `json:"target"`
 }
 
-// PostDockerImageTag200JSONResponseBodyDataAction defines parameters for PostDockerImageTag.
-type PostDockerImageTag200JSONResponseBodyDataAction string
+// PostDockerImageTagParams defines parameters for PostDockerImageTag.
+type PostDockerImageTagParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostDockerImageTag202JSONResponseBodyDataStatus defines parameters for PostDockerImageTag.
+type PostDockerImageTag202JSONResponseBodyDataStatus string
 
 // PostDockerImageTag401JSONResponseBodySuccess defines parameters for PostDockerImageTag.
 type PostDockerImageTag401JSONResponseBodySuccess bool
@@ -4999,8 +5095,14 @@ type PostDockerImageUntagJSONBody struct {
 	Reference string `json:"reference"`
 }
 
-// PostDockerImageUntag200JSONResponseBodyDataAction defines parameters for PostDockerImageUntag.
-type PostDockerImageUntag200JSONResponseBodyDataAction string
+// PostDockerImageUntagParams defines parameters for PostDockerImageUntag.
+type PostDockerImageUntagParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostDockerImageUntag202JSONResponseBodyDataStatus defines parameters for PostDockerImageUntag.
+type PostDockerImageUntag202JSONResponseBodyDataStatus string
 
 // PostDockerImageUntag401JSONResponseBodySuccess defines parameters for PostDockerImageUntag.
 type PostDockerImageUntag401JSONResponseBodySuccess bool
@@ -5153,6 +5255,12 @@ type PutDockerNetworkSavedView401JSONResponseBodySuccess bool
 // PutDockerNetworkSavedView403JSONResponseBodySuccess defines parameters for PutDockerNetworkSavedView.
 type PutDockerNetworkSavedView403JSONResponseBodySuccess bool
 
+// GetDockerNetworkParams defines parameters for GetDockerNetwork.
+type GetDockerNetworkParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // GetDockerNetwork200JSONResponseBodyDataContextSource defines parameters for GetDockerNetwork.
 type GetDockerNetwork200JSONResponseBodyDataContextSource string
 
@@ -5282,7 +5390,13 @@ type PostDockerVolumeBatchRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
+
+// PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus defines parameters for PostDockerVolumeBatchRemove.
+type PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus string
 
 // PostDockerVolumeBatchRemove400JSONResponseBodySuccess defines parameters for PostDockerVolumeBatchRemove.
 type PostDockerVolumeBatchRemove400JSONResponseBodySuccess bool
@@ -5425,13 +5539,13 @@ type PostDockerVolumeRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
-// PostDockerVolumeRemove200JSONResponseBodyDataAction defines parameters for PostDockerVolumeRemove.
-type PostDockerVolumeRemove200JSONResponseBodyDataAction string
-
-// PostDockerVolumeRemove200JSONResponseBodyDataResult defines parameters for PostDockerVolumeRemove.
-type PostDockerVolumeRemove200JSONResponseBodyDataResult string
+// PostDockerVolumeRemove202JSONResponseBodyDataStatus defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove202JSONResponseBodyDataStatus string
 
 // PostDockerVolumeRemove400JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
 type PostDockerVolumeRemove400JSONResponseBodySuccess bool

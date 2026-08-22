@@ -27,7 +27,7 @@ Graft Agent container is running.
 | --- | --- | --- |
 | Docker daemon | pass | `docker version` returned client/server `29.2.1` |
 | Docker Compose | pass | `docker compose version` returned `v5.1.0` |
-| Agent OCI image build | pass | `server/agents/docker-builder-agent/Dockerfile` builds `graft/docker-builder-agent:conformance` |
+| Agent OCI image build | pass | `server/agents/docker-runtime-agent/Dockerfile` builds `graft/docker-runtime-agent:conformance` |
 | Agent container startup | pass | two `--once` lifecycles ran against the fixture with the Agent state volume persisted between them |
 | Vault AppRole login | pass | real Vault dev-TLS fixture initializes AppRole and verifies login |
 | Vault PKI issuance | pass | first bootstrap submitted its CSR through Backend-owned Credential Vault AppRole integration and activated generation 1 |
@@ -48,7 +48,7 @@ Agent image digest observed during the recheck:
 
 ## Fixture
 
-The real Vault fixture is defined under `tests/conformance/docker-builder-agent/`.
+The real Vault fixture is defined under `tests/conformance/docker-runtime-agent/`.
 It runs PostgreSQL, the normal migration command, Backend, Vault, the
 build-tagged fixture driver, and the Agent in separate services. The driver uses
 Runtime Target and moduleapi authorities and never writes lifecycle rows
@@ -56,7 +56,7 @@ directly or provides fake certificate responses.
 
 ## Runtime Evidence
 
-`tests/conformance/docker-builder-agent/run.sh` completed all eight stages on
+`tests/conformance/docker-runtime-agent/run.sh` completed all eight stages on
 2026-08-10 under Compose project `graft-agent-recheck-20260810`. The runner log
 is retained at `/tmp/docker-agent-conformance-rerun-isolated.log`; the
 unredacted service log at `/tmp/docker-agent-conformance-services.log` is mode
@@ -67,5 +67,16 @@ through the production-owned lifecycle rather than a fixture database shortcut.
 
 ## Re-run
 
-Run `tests/conformance/docker-builder-agent/run.sh` with the required images and
+Run `tests/conformance/docker-runtime-agent/run.sh` with the required images and
 digest to repeat the full lifecycle gate.
+
+## Batch 5 follow-up scope
+
+The Batch 5 Build SDK migration keeps the lifecycle gates above as prior Agent enrollment evidence and adds a pending
+Build execution gate. That gate must run the Build operation allowlist through the Task-owned lease and the
+`docker-runtime-agent` Moby/OCI SDK path, verify transient material/result handling and result-digest replay, and prove
+that no server-local Build Docker/CLI path or fallback remains. The Backend/Agent fixture must mount the named
+`build-snapshots` volume at `/tmp/graft-build-snapshots`; the Agent still publishes no inbound port. Runtime Target
+discovery/summary, Container read/stream/interactive and Update Controller remain explicit server-socket consumers.
+Validation evidence
+for this follow-up is intentionally left for the Batch 5 main-agent closeout.

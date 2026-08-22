@@ -56,10 +56,6 @@ type dockerClient interface {
 	ContainerExecCreate(context.Context, string, mobyclient.ExecCreateOptions) (mobyclient.ExecCreateResult, error)
 	ContainerExecAttach(context.Context, string, mobyclient.ExecAttachOptions) (mobyclient.HijackedResponse, error)
 	ContainerExecResize(context.Context, string, mobyclient.ExecResizeOptions) error
-	ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) error
-	ContainerStop(context.Context, string, mobyclient.ContainerStopOptions) error
-	ContainerRestart(context.Context, string, mobyclient.ContainerRestartOptions) error
-	ContainerRemove(context.Context, string, mobyclient.ContainerRemoveOptions) error
 	Close() error
 }
 
@@ -257,73 +253,6 @@ func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (ter
 		return nil, errContainerNotFound
 	}
 	return newDockerExecSession(r.client, inspect.ID, command), nil
-}
-
-// Start starts one Docker container by id or name.
-func (r *DockerRuntime) Start(ctx context.Context, ref Ref) (ActionResult, error) {
-	before, _ := r.Detail(ctx, ref)
-	if before.State != "" && !canStartState(before.State) {
-		return actionResultFromDetail(before, ref, containerActionStart, before.State), errInvalidContainerState
-	}
-	if err := r.client.ContainerStart(ctx, ref.Value, mobyclient.ContainerStartOptions{}); err != nil {
-		return actionResultFromDetail(before, ref, containerActionStart, ""), mapDockerError(err)
-	}
-	r.invalidateResourceSummary(ref.Value, before.ID)
-	after, _ := r.Detail(ctx, ref)
-	return actionResultFromDetail(after, ref, containerActionStart, before.State), nil
-}
-
-// Stop stops one Docker container by id or name.
-func (r *DockerRuntime) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	return r.runTimedStateAction(ctx, ref, containerActionStop, canStopState, func(ctx context.Context, id string, timeout *int) error {
-		return r.client.ContainerStop(ctx, id, mobyclient.ContainerStopOptions{Timeout: timeout})
-	})
-}
-
-// Restart restarts one Docker container by id or name.
-func (r *DockerRuntime) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	return r.runTimedStateAction(ctx, ref, containerActionRestart, canRestartState, func(ctx context.Context, id string, timeout *int) error {
-		return r.client.ContainerRestart(ctx, id, mobyclient.ContainerRestartOptions{Timeout: timeout})
-	})
-}
-
-func (r *DockerRuntime) runTimedStateAction(
-	ctx context.Context,
-	ref Ref,
-	action string,
-	allowed func(string) bool,
-	run func(context.Context, string, *int) error,
-) (ActionResult, error) {
-	before, _ := r.Detail(ctx, ref)
-	if before.State != "" && !allowed(before.State) {
-		return actionResultFromDetail(before, ref, action, before.State), errInvalidContainerState
-	}
-	timeout := 10
-	if err := run(ctx, ref.Value, &timeout); err != nil {
-		return actionResultFromDetail(before, ref, action, ""), mapDockerError(err)
-	}
-	r.invalidateResourceSummary(ref.Value, before.ID)
-	after, _ := r.Detail(ctx, ref)
-	return actionResultFromDetail(after, ref, action, before.State), nil
-}
-
-// Remove removes one Docker container by id or name.
-func (r *DockerRuntime) Remove(ctx context.Context, ref Ref, options RemoveOptions) (ActionResult, error) {
-	before, err := r.Detail(ctx, ref)
-	if err != nil {
-		return actionResultFromDetail(before, ref, containerActionRemove, ""), err
-	}
-	if !canRemoveState(before.State) || (!options.Force && !canRemoveWithoutForce(before.State)) {
-		return actionResultFromDetail(before, ref, containerActionRemove, before.State), errInvalidContainerState
-	}
-	if err := r.client.ContainerRemove(ctx, ref.Value, mobyclient.ContainerRemoveOptions{Force: options.Force}); err != nil {
-		return actionResultFromDetail(before, ref, containerActionRemove, before.State), mapDockerError(err)
-	}
-	r.invalidateResourceSummary(ref.Value, before.ID)
-	result := actionResultFromDetail(before, ref, containerActionRemove, before.State)
-	result.StatusAfter = actionStatusRemoved
-	result.Result = actionResultCompleted
-	return result, nil
 }
 
 // Close releases the Docker SDK client resources.

@@ -258,7 +258,7 @@ jobs:
           server_image="ghcr.io/${owner_lc}/graft-server"
           web_image="ghcr.io/${owner_lc}/graft-web"
           runner_image="ghcr.io/${owner_lc}/graft-compose-runner"
-          agent_image="ghcr.io/${owner_lc}/graft-docker-builder-agent"
+          agent_image="ghcr.io/${owner_lc}/graft-docker-runtime-agent"
           echo "owner_lc=${owner_lc}" >> "${GITHUB_OUTPUT}"
           echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
           echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
@@ -387,7 +387,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
           echo "Runner reuse: ${reuse} (${reason})"
 
-      - name: Resolve reusable Docker Builder Agent image
+      - name: Resolve reusable Docker Runtime Agent image
         id: agent_reuse
         env:
           GH_TOKEN: ${{ github.token }}
@@ -421,15 +421,15 @@ jobs:
 
           (
             cd server
-            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./agents/docker-builder-agent/cmd
+            go list -deps -f '{{if and (not .Standard) (eq .Module.Path "graft/server")}}{{.Dir}}{{end}}' ./agents/docker-runtime-agent/cmd
           ) | sed "s#^${GITHUB_WORKSPACE}/##" | sort -u > "${agent_inputs_file}"
           [[ -s "${agent_inputs_file}" ]] || {
-            echo "::error::Failed to resolve Docker Builder Agent build inputs."
+            echo "::error::Failed to resolve Docker Runtime Agent build inputs."
             exit 1
           }
           mapfile -t agent_inputs < "${agent_inputs_file}"
           agent_inputs+=(
-            server/agents/docker-builder-agent/Dockerfile
+            server/agents/docker-runtime-agent/Dockerfile
             server/.dockerignore
             server/go.mod
             server/go.sum
@@ -438,7 +438,7 @@ jobs:
           reuse="false"
           source_tag=""
           source_digest=""
-          reason="no verified historical Docker Builder Agent manifest"
+          reason="no verified historical Docker Runtime Agent manifest"
           while IFS= read -r candidate; do
             candidate_tag="$(jq -er '.tag' <<< "${candidate}")"
             candidate_digest="$(jq -er '.digest' <<< "${candidate}")"
@@ -456,7 +456,7 @@ jobs:
               reuse="true"
               source_tag="${candidate_tag}"
               source_digest="${candidate_digest}"
-              reason="Docker Builder Agent inputs unchanged since ${candidate_tag}"
+              reason="Docker Runtime Agent inputs unchanged since ${candidate_tag}"
               break
             fi
           done < <(jq -c '.candidates[]?' "${candidates_json}")
@@ -465,7 +465,7 @@ jobs:
           echo "source_tag=${source_tag}" >> "${GITHUB_OUTPUT}"
           echo "source_digest=${source_digest}" >> "${GITHUB_OUTPUT}"
           echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
-          echo "Docker Builder Agent reuse: ${reuse} (${reason})"
+          echo "Docker Runtime Agent reuse: ${reuse} (${reason})"
 
       - name: Prepare Docker metadata tags
         id: image_tags
@@ -532,15 +532,15 @@ jobs:
             org.opencontainers.image.title=Graft Compose Update Runner
             org.opencontainers.image.description=One-shot Graft Compose update runner
 
-      - name: Docker metadata for Docker Builder Agent image
+      - name: Docker metadata for Docker Runtime Agent image
         id: agent_meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ${{ steps.image_vars.outputs.agent_image }}
           tags: ${{ steps.image_tags.outputs.tags }}
           labels: |
-            org.opencontainers.image.title=Graft Docker Builder Agent
-            org.opencontainers.image.description=Independent Graft Docker Builder Agent
+            org.opencontainers.image.title=Graft Docker Runtime Agent
+            org.opencontainers.image.description=Independent Graft Docker Runtime Agent
 
       - name: Build and push server image
         id: server_build
@@ -587,20 +587,20 @@ jobs:
           cache-from: type=gha,scope=graft-compose-runner-image
           cache-to: type=gha,mode=max,scope=graft-compose-runner-image
 
-      - name: Build Docker Builder Agent image
+      - name: Build Docker Runtime Agent image
         if: steps.agent_reuse.outputs.reuse != 'true'
         id: agent_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./server
-          file: ./server/agents/docker-builder-agent/Dockerfile
+          file: ./server/agents/docker-runtime-agent/Dockerfile
           platforms: linux/amd64
           load: true
           push: false
-          tags: graft-release-docker-builder-agent:${{ github.run_id }}
+          tags: graft-release-docker-runtime-agent:${{ github.run_id }}
           labels: ${{ steps.agent_meta.outputs.labels }}
-          cache-from: type=gha,scope=graft-docker-builder-agent-image
-          cache-to: type=gha,mode=max,scope=graft-docker-builder-agent-image
+          cache-from: type=gha,scope=graft-docker-runtime-agent-image
+          cache-to: type=gha,mode=max,scope=graft-docker-runtime-agent-image
 
       - name: Run Compose smoke against local images
         env:
@@ -675,7 +675,7 @@ jobs:
             agent_digest="$(inspect_digest "${AGENT_IMAGE}@${AGENT_REUSE_DIGEST}")"
             [[ "${agent_digest}" == "${AGENT_REUSE_DIGEST}" ]]
           else
-            publish_local_image "graft-release-docker-builder-agent:${{ github.run_id }}" "${AGENT_TAGS}"
+            publish_local_image "graft-release-docker-runtime-agent:${{ github.run_id }}" "${AGENT_TAGS}"
             agent_digest="$(inspect_digest "${AGENT_IMAGE}:${RELEASE_REF_NAME}")"
           fi
 
@@ -715,8 +715,8 @@ jobs:
           web_digest=${WEB_DIGEST}
           runner_image=${RUNNER_IMAGE}
           runner_digest=${RUNNER_DIGEST}
-          docker_builder_agent_image=${AGENT_IMAGE}
-          docker_builder_agent_digest=${AGENT_DIGEST}
+          docker_runtime_agent_image=${AGENT_IMAGE}
+          docker_runtime_agent_digest=${AGENT_DIGEST}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
@@ -773,7 +773,7 @@ jobs:
                 }
               },
               agents: {
-                docker_builder_agent: {
+                docker_runtime_agent: {
                   image: $agentImage,
                   digest: $agentDigest,
                   reference: ($agentImage + "@" + $agentDigest)
@@ -806,9 +806,9 @@ jobs:
             and (.runners.compose.image | startswith("ghcr.io/"))
             and (.runners.compose.digest | startswith("sha256:"))
             and (.runners.compose.reference == (.runners.compose.image + "@" + .runners.compose.digest))
-            and (.agents.docker_builder_agent.image | startswith("ghcr.io/"))
-            and (.agents.docker_builder_agent.digest | test("^sha256:[0-9a-f]{64}$"))
-            and (.agents.docker_builder_agent.reference == (.agents.docker_builder_agent.image + "@" + .agents.docker_builder_agent.digest))
+            and (.agents.docker_runtime_agent.image | startswith("ghcr.io/"))
+            and (.agents.docker_runtime_agent.digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.agents.docker_runtime_agent.reference == (.agents.docker_runtime_agent.image + "@" + .agents.docker_runtime_agent.digest))
             and (.migration.required_before_runtime == true)
           ' "image-assets/release-manifest.json" >/dev/null
           sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"
@@ -1061,7 +1061,7 @@ jobs:
             echo "- Channel: \`${{ needs.build-artifacts.outputs.channel }}\`"
             echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${RELEASE_REF_NAME}\`"
             echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${RELEASE_REF_NAME}\`"
-            echo "- Docker Builder Agent Image: \`${{ needs.publish-images.outputs.agent_image }}:${RELEASE_REF_NAME}\`"
+            echo "- Docker Runtime Agent Image: \`${{ needs.publish-images.outputs.agent_image }}:${RELEASE_REF_NAME}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -1253,7 +1253,7 @@ jobs:
           cleanup_package graft-server
           cleanup_package graft-web
           cleanup_package graft-compose-runner
-          cleanup_package graft-docker-builder-agent
+          cleanup_package graft-docker-runtime-agent
 
           verify_release_tag
           tag_response="$(mktemp)"

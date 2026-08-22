@@ -3,7 +3,9 @@ package build
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +26,16 @@ const (
 	buildSubmissionLeaseTTL    = 2 * time.Minute
 	buildSubmissionDeadline    = 10 * time.Minute
 	buildSubmissionRenewBefore = 30 * time.Second
+	buildExternalLeaseTTL      = time.Minute
+	buildExternalDeadline      = 2 * time.Hour
+	buildExecutionProvider     = "docker"
+	buildExecutionCapability   = "oci-build"
+	buildExecutionVersion      = "docker/v1"
+	buildExecutionProtocol     = "build-execution/v1"
+	buildImageLocalOperation   = "build.image.local.v1"
+	buildImagePublishOperation = "build.image.publish.v1"
+	buildManifestOperation     = "build.manifest.publish.v1"
+	buildArtifactCopyOperation = "build.artifact.copy.v1"
 )
 
 var (
@@ -38,7 +50,7 @@ type SubmitRequest struct {
 	DockerfilePath  string
 	ImageRepository string
 	ImageTag        string
-	BuildArgs       []moduleapi.DockerImageBuildArg
+	BuildArgs       []moduleapi.BuildArgument
 	RequestedBy     uint64
 	IdempotencyKey  string
 }
@@ -55,7 +67,6 @@ type Service struct {
 	contexts          moduleapi.ApplicationBuildContextResolver
 	submissions       moduleapi.TaskSubmissionService
 	taskBatch         moduleapi.TaskBatchQueryService
-	docker            moduleapi.DockerImageBuildCapability
 	repository        buildstore.Repository
 	snapshots         moduleapi.ApplicationWorkspaceSnapshotResolver
 	buildTargets      moduleapi.BuildRuntimeTargetReader
@@ -195,7 +206,7 @@ func (s *Service) SubmitArtifactPromotion(ctx context.Context, request ArtifactP
 		RequestedBy:    actorID,
 		IdempotencyKey: request.IdempotencyKey,
 		Input:          input,
-		Plan:           moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "copy-artifact", ExecutorType: artifactPromotionStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}},
+		Plan:           moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "copy-artifact", ExecutorType: artifactPromotionStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(request.RuntimeTargetID, buildArtifactCopyOperation, input)}}},
 	}
 	return s.promotionTasks.Submit(ctx, task)
 }
@@ -346,11 +357,11 @@ func filterSupportedBuilderPools(pools []moduleapi.BuilderPool) []moduleapi.Buil
 }
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
-func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, taskBatch moduleapi.TaskBatchQueryService, docker moduleapi.DockerImageBuildCapability, repository buildstore.Repository) (*Service, error) {
-	if contexts == nil || submissions == nil || taskBatch == nil || docker == nil || repository == nil {
+func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, taskBatch moduleapi.TaskBatchQueryService, repository buildstore.Repository) (*Service, error) {
+	if contexts == nil || submissions == nil || taskBatch == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
-	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, docker: docker, repository: repository, intents: newBuiltinBuildIntentRegistry()}, nil
+	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, repository: repository, intents: newBuiltinBuildIntentRegistry()}, nil
 }
 
 // Submit 解析服务端授权工作区，并为 Build 请求创建单阶段的 Task 计划。
@@ -362,7 +373,7 @@ func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	taskInput := s.taskInput(prepared.request, prepared.input)
+	taskInput := s.taskInput(prepared.request, prepared.input, int64(prepared.buildContext.RuntimeTargetID)) //nolint:gosec // resolveBuildContext bounds the positive target identity.
 	handle, err := s.submissions.BeginSubmission(ctx, moduleapi.BeginTaskSubmissionInput{Task: taskInput, Policy: moduleapi.TaskSubmissionPolicy{LeaseTTL: buildSubmissionLeaseTTL, AbsoluteDeadline: buildSubmissionDeadline, RenewBefore: buildSubmissionRenewBefore, AllowRenew: true, PrerequisiteKind: "build.snapshot.v1"}})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
@@ -370,7 +381,7 @@ func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.
 	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
 		return s.activatedSubmissionReceipt(ctx, *handle.Submission.TaskID)
 	}
-	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, WorkspaceRoot: prepared.buildContext.WorkspaceRoot, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeTargetName: prepared.buildContext.RuntimeTargetName, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, BuildArgs: prepared.request.BuildArgs, RequestedBy: prepared.request.RequestedBy}
+	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeTargetName: prepared.buildContext.RuntimeTargetName, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, RequestedBy: prepared.request.RequestedBy}
 	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, taskInput, buildSubmissionWriter{repository: s.repository, snapshot: snapshot})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize build submission: %w", err)
@@ -431,7 +442,7 @@ func (s *Service) resolveBuildContext(ctx context.Context, applicationID string)
 	if err != nil {
 		return moduleapi.ApplicationBuildContext{}, fmt.Errorf("resolve application build context: %w", err)
 	}
-	if !buildContext.CanBuild || buildContext.RuntimeProvider != "docker" {
+	if !buildContext.CanBuild || buildContext.RuntimeProvider != "docker" || buildContext.RuntimeTargetID == 0 || buildContext.RuntimeTargetID > uint64(^uint64(0)>>1) {
 		return moduleapi.ApplicationBuildContext{}, errors.New("application does not support Docker builds")
 	}
 	return buildContext, nil
@@ -445,8 +456,13 @@ func buildTaskInput(buildID string) (json.RawMessage, error) {
 	return input, nil
 }
 
-func (s *Service) taskInput(request SubmitRequest, input json.RawMessage) moduleapi.SubmitTaskInput {
-	return moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}}}}
+func (s *Service) taskInput(request SubmitRequest, input json.RawMessage, targetID int64) moduleapi.SubmitTaskInput {
+	return moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(targetID, buildImageLocalOperation, input)}}}}
+}
+
+func buildExternalExecution(targetID int64, operation string, input json.RawMessage) *moduleapi.ExternalExecutionExpectation {
+	digest := sha256.Sum256(input)
+	return &moduleapi.ExternalExecutionExpectation{RuntimeTargetID: targetID, ProviderID: buildExecutionProvider, Capability: buildExecutionCapability, CapabilityVersion: buildExecutionVersion, Protocol: buildExecutionProtocol, OperationID: operation, PayloadSHA256: hex.EncodeToString(digest[:]), LeaseTTL: buildExternalLeaseTTL, AbsoluteDeadline: buildExternalDeadline}
 }
 
 type buildSubmissionWriter struct {
@@ -470,7 +486,7 @@ func normalizeSubmitRequest(request SubmitRequest) (SubmitRequest, error) {
 	request.ImageRepository = strings.TrimSpace(request.ImageRepository)
 	request.ImageTag = strings.TrimSpace(request.ImageTag)
 	request.ApplicationID = strings.TrimSpace(request.ApplicationID)
-	if request.ApplicationID == "" || !validDockerImageReference(request.ImageRepository, request.ImageTag) {
+	if request.ApplicationID == "" || len(request.BuildArgs) != 0 || !validDockerImageReference(request.ImageRepository, request.ImageTag) {
 		return SubmitRequest{}, errInvalidBuildRequest
 	}
 	var err error

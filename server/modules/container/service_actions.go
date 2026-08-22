@@ -6,7 +6,6 @@ import (
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
-	containercontract "graft/server/modules/container/contract"
 )
 
 func (s *service) lifecycleActionPolicyFailure(
@@ -52,10 +51,9 @@ func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailE
 	return effectiveOrchestratorType(Summary{Orchestrator: orchestrator})
 }
 
-// blockedActionAuditResult 生成用于记录被阻止动作的结果信息。
-// 返回包含容器标识、镜像、动作、运行时和编排器信息的 ActionResult。
-func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrator OrchestratorInfo) ActionResult {
-	return ActionResult{
+// blockedActionAuditResult 生成用于记录被阻止动作的容器快照。
+func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrator OrchestratorInfo) actionAuditSnapshot {
+	return actionAuditSnapshot{
 		ID:           firstNonEmpty(ref.Value, detail.ID),
 		Name:         detail.Name,
 		Image:        detail.Image,
@@ -65,62 +63,11 @@ func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrato
 	}
 }
 
-// shouldBackfillActionAuditOrchestrator 判断是否需要回填动作审计中的编排器信息。
-// 当详情读取成功但当前编排器字段仍全部为空时，返回 true。
-func shouldBackfillActionAuditOrchestrator(orchestrator OrchestratorInfo, detailErr error) bool {
-	if detailErr != nil {
-		return false
-	}
-	return orchestrator.Type == "" &&
-		orchestrator.GroupScopeKind == "" &&
-		orchestrator.MemberScopeKind == "" &&
-		orchestrator.GroupValue == "" &&
-		orchestrator.MemberValue == ""
-}
-
 func (s *service) requireRuntimeAccess(ctx context.Context) error {
 	if s == nil || !s.runtimeAccessEnabled(ctx) {
 		return errRuntimeDisabled
 	}
 	return nil
-}
-
-func runWithRuntime(ctx context.Context, ref Ref, action string, options ActionOptions, runtime Runtime) (ActionResult, error) {
-	switch action {
-	case containerActionStart:
-		return runtime.Start(ctx, ref)
-	case containerActionStop:
-		return runtime.Stop(ctx, ref)
-	case containerActionRemove:
-		return runtime.Remove(ctx, ref, RemoveOptions(options))
-	case containerActionRestart:
-		return runtime.Restart(ctx, ref)
-	default:
-		return ActionResult{ID: ref.Value, Action: action, Runtime: runtimeNameDocker}, errInvalidBatchAction
-	}
-}
-
-func withActionMessage(result ActionResult) ActionResult {
-	if result.MessageKey != "" {
-		return result
-	}
-	key := actionSuccessMessageKey(result.Action)
-	result.MessageKey = key.String()
-	result.Message = key.String()
-	return result
-}
-
-func actionSuccessMessageKey(action string) containercontract.MessageKey {
-	switch action {
-	case containerActionStart:
-		return containercontract.ContainerActionStartCompleted
-	case containerActionStop:
-		return containercontract.ContainerActionStopCompleted
-	case containerActionRemove:
-		return containercontract.ContainerActionRemoveCompleted
-	default:
-		return containercontract.ContainerActionRestartCompleted
-	}
 }
 
 func normalizeBatchActionCommand(command BatchActionCommand) (BatchActionCommand, error) {

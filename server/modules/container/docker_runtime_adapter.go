@@ -90,15 +90,6 @@ func (d dockerClientAdapter) NetworkInspect(ctx context.Context, networkID strin
 	return result.Network, nil
 }
 
-func (d dockerClientAdapter) NetworkCreate(ctx context.Context, name string, options mobyclient.NetworkCreateOptions) (mobyclient.NetworkCreateResult, error) {
-	return d.Client.NetworkCreate(ctx, name, options)
-}
-
-func (d dockerClientAdapter) NetworkRemove(ctx context.Context, networkID string) error {
-	_, err := d.Client.NetworkRemove(ctx, networkID, mobyclient.NetworkRemoveOptions{})
-	return err
-}
-
 func (d dockerClientAdapter) VolumeList(ctx context.Context, options mobyclient.VolumeListOptions) ([]volume.Volume, error) {
 	result, err := d.Client.VolumeList(ctx, options)
 	if err != nil {
@@ -121,11 +112,6 @@ func (d dockerClientAdapter) VolumeInspect(ctx context.Context, volumeID string)
 		return volume.Volume{}, err
 	}
 	return result.Volume, nil
-}
-
-func (d dockerClientAdapter) VolumeRemove(ctx context.Context, volumeID string, force bool) error {
-	_, err := d.Client.VolumeRemove(ctx, volumeID, mobyclient.VolumeRemoveOptions{Force: force})
-	return err
 }
 
 func (d dockerClientAdapter) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
@@ -161,26 +147,6 @@ func (d dockerClientAdapter) ContainerExecAttach(ctx context.Context, execID str
 
 func (d dockerClientAdapter) ContainerExecResize(ctx context.Context, execID string, options mobyclient.ExecResizeOptions) error {
 	_, err := d.ExecResize(ctx, execID, options)
-	return err
-}
-
-func (d dockerClientAdapter) ContainerStart(ctx context.Context, containerID string, options mobyclient.ContainerStartOptions) error {
-	_, err := d.Client.ContainerStart(ctx, containerID, options)
-	return err
-}
-
-func (d dockerClientAdapter) ContainerStop(ctx context.Context, containerID string, options mobyclient.ContainerStopOptions) error {
-	_, err := d.Client.ContainerStop(ctx, containerID, options)
-	return err
-}
-
-func (d dockerClientAdapter) ContainerRestart(ctx context.Context, containerID string, options mobyclient.ContainerRestartOptions) error {
-	_, err := d.Client.ContainerRestart(ctx, containerID, options)
-	return err
-}
-
-func (d dockerClientAdapter) ContainerRemove(ctx context.Context, containerID string, options mobyclient.ContainerRemoveOptions) error {
-	_, err := d.Client.ContainerRemove(ctx, containerID, options)
 	return err
 }
 

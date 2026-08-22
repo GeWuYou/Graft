@@ -199,33 +199,19 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetProviderConnectionReader)(nil), connectionReader); err != nil {
 		return err
 	}
-	provider := func(_ containerdi.Resolver) (any, error) {
-		return dockerTargetProvider{repository: m.repository}, nil
-	}
 	credentialProvider, credentialErr := module.ResolveService[moduleapi.CredentialProvider](ctx.Services, (*moduleapi.CredentialProvider)(nil))
 	if credentialErr != nil && !errors.Is(credentialErr, containerdi.ErrServiceNotRegistered) {
 		return credentialErr
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil), provider); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerBuildProvider)(nil), provider); err != nil {
-		return err
-	}
 	if credentialErr == nil && credentialProvider != nil {
-		verificationAdapter := func(_ containerdi.Resolver) (any, error) {
-			return dockerCredentialExecutionAdapter{provider: credentialProvider, client: dockerTargetProvider{repository: m.repository}}, nil
+		materialProvider, ok := credentialProvider.(moduleapi.EphemeralCredentialMaterialProvider)
+		if !ok {
+			return errors.New("registry credential material provider is unavailable")
 		}
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeExecutionAdapter)(nil), verificationAdapter); err != nil {
-			return err
+		verifier := func(_ containerdi.Resolver) (any, error) {
+			return runtimeOCIRegistryVerifier{targets: m.repository, credentials: credentialProvider, materials: materialProvider}, nil
 		}
-		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verificationAdapter); err != nil {
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeOCIRegistryVerifier)(nil), verifier); err != nil {
 			return err
 		}
 	}
@@ -368,8 +354,7 @@ func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Aut
 }
 
 type runtimeTargetReader struct {
-	repository              *store.SQLRepository
-	composeProjectNameProbe dockerComposeProjectNameProbe
+	repository *store.SQLRepository
 }
 
 func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (moduleapi.RuntimeTargetSummary, error) {
@@ -916,7 +901,60 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	response.ProviderDetails.Docker.Images = toHTTPProviderCountMetric(snapshot.Images)
 	response.ProviderDetails.Docker.Volumes = toHTTPProviderCountMetric(snapshot.Volumes)
 	response.ProviderDetails.Docker.Networks = toHTTPProviderCountMetric(snapshot.Networks)
+	response.Agent = m.toHTTPAgent(ctx, target)
 	return response
+}
+
+// toHTTPAgent 将 Runtime Target 持有的 Agent 信任事实投影为稳定的产品状态。
+// 该投影只包含身份、版本和 capability readiness，不泄露连接、凭据或 provider SDK 错误。
+func (m *Module) toHTTPAgent(ctx context.Context, target store.Target) generated.RuntimeTargetAgent {
+	agent := generated.RuntimeTargetAgent{
+		Status:         generated.RuntimeTargetAgentStatusNotEnrolled,
+		DiagnosticCode: generated.RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled,
+		Capabilities:   []generated.RuntimeTargetAgentCapability{},
+	}
+	if m == nil || m.repository == nil || target.ID == 0 {
+		return agent
+	}
+	//nolint:gosec // target.ID is bounded by maxRuntimeTargetID before this conversion.
+	generation, err := m.repository.ReadActiveDockerAgentTrustGeneration(ctx, int64(target.ID), time.Now().UTC())
+	if err != nil {
+		return agent
+	}
+	agent.AgentId = generation.Identity.AgentID
+	agent.Generation = generation.Generation
+	agent.Version = generation.Identity.AgentVersion
+	agent.Status = generated.RuntimeTargetAgentStatusReady
+	agent.DiagnosticCode = generated.RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone
+	if !target.Availability {
+		agent.Status = generated.RuntimeTargetAgentStatusUnavailable
+		agent.DiagnosticCode = generated.RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable
+	}
+	binding, err := m.repository.ReadAgentCapabilityBinding(ctx, generation.ID)
+	if err != nil {
+		agent.Status = generated.RuntimeTargetAgentStatusDegraded
+		agent.DiagnosticCode = generated.RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded
+		return agent
+	}
+	capabilityStatus := generated.RuntimeTargetAgentCapabilityStatusReady
+	capabilityCode := generated.RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone
+	if agent.Status == generated.RuntimeTargetAgentStatusUnavailable {
+		capabilityStatus = generated.RuntimeTargetAgentCapabilityStatusUnavailable
+		capabilityCode = generated.RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable
+	}
+	if agent.Status == generated.RuntimeTargetAgentStatusDegraded {
+		capabilityStatus = generated.RuntimeTargetAgentCapabilityStatusDegraded
+		capabilityCode = generated.RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded
+	}
+	for _, name := range binding.Capabilities {
+		agent.Capabilities = append(agent.Capabilities, generated.RuntimeTargetAgentCapability{
+			Name:           name,
+			Version:        binding.CapabilityVersion,
+			Status:         capabilityStatus,
+			DiagnosticCode: capabilityCode,
+		})
+	}
+	return agent
 }
 
 // toHTTPCountMetric 将目标计数指标转换为 HTTP 响应中的运行时目标计数指标。

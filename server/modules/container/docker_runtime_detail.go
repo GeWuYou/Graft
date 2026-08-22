@@ -436,10 +436,6 @@ func canRemoveState(state string) bool {
 	return state != "" && state != "unknown" && state != "removing"
 }
 
-func canRemoveWithoutForce(state string) bool {
-	return canRemoveState(state) && state != "running" && state != "paused" && state != "restarting"
-}
-
 func dockerInfoToRuntimeInfo(info systemInfo, endpoint string) RuntimeInfo {
 	value, ok := info.(dockerClientSystemInfo)
 	if !ok {
@@ -455,25 +451,6 @@ func dockerInfoToRuntimeInfo(info systemInfo, endpoint string) RuntimeInfo {
 		Architecture:      value.Architecture,
 		ContainersTotal:   value.Containers,
 		ContainersRunning: value.ContainersRunning,
-	}
-}
-
-// actionResultFromDetail 根据容器详情构造操作结果，并标记状态是否发生变化。
-func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore string) ActionResult {
-	statusAfter := detail.State
-	result := actionResultCompleted
-	if statusBefore != "" && statusBefore == statusAfter {
-		result = actionResultUnchanged
-	}
-	return ActionResult{
-		ID:           firstNonEmpty(detail.ID, ref.Value),
-		Name:         firstContainerName(detail.Names),
-		Image:        detail.Image,
-		Action:       action,
-		Result:       result,
-		Runtime:      runtimeNameDocker,
-		StatusBefore: statusBefore,
-		StatusAfter:  statusAfter,
 	}
 }
 

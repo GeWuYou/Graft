@@ -74,8 +74,8 @@
       </dl>
     </section>
 
-    <responsive-content v-if="props.ready" class="workbench-preview__grid" layout="wide-split">
-      <div class="workbench-preview__column workbench-preview__column--primary">
+    <responsive-content v-if="props.ready" class="workbench-layout" layout="wide-split">
+      <div class="workbench-layout__column workbench-layout__column--primary">
         <t-card
           class="workbench-surface workbench-surface--attention"
           data-first-screen-region="attention"
@@ -101,75 +101,7 @@
             @retry-item="emit('retry-item', $event)"
           />
         </t-card>
-      </div>
 
-      <div class="workbench-preview__column workbench-preview__column--secondary">
-        <t-card
-          class="workbench-surface workbench-surface--health"
-          data-first-screen-region="health"
-          :bordered="false"
-          header-bordered
-        >
-          <template #header>
-            <div class="workbench-surface__heading">
-              <div>
-                <h2>{{ t('dashboard.workbench.health.title') }}</h2>
-                <p>{{ t('dashboard.workbench.health.description') }}</p>
-              </div>
-            </div>
-          </template>
-          <workbench-presentation-list
-            variant="health"
-            empty-key="dashboard.workbench.health.empty"
-            expand-key="dashboard.workbench.expand.health"
-            :items="presentation.health"
-            :visible-limit="3"
-            @navigate="navigate($event, 'contextual-action')"
-          />
-        </t-card>
-
-        <t-card
-          class="workbench-surface workbench-surface--module-coverage"
-          data-first-screen-region="module-coverage"
-          :bordered="false"
-          header-bordered
-        >
-          <template #header>
-            <div class="workbench-surface__heading">
-              <div>
-                <h2>{{ t('dashboard.workbench.moduleCoverage.title') }}</h2>
-                <p>{{ t('dashboard.workbench.moduleCoverage.description') }}</p>
-              </div>
-            </div>
-          </template>
-          <dl class="module-coverage__metrics">
-            <div data-coverage-metric="registered">
-              <dt>{{ t('dashboard.workbench.moduleCoverage.registered') }}</dt>
-              <dd>{{ presentation.moduleCoverage.registeredModules }}</dd>
-            </div>
-            <div data-coverage-metric="enabled">
-              <dt>{{ t('dashboard.workbench.moduleCoverage.enabled') }}</dt>
-              <dd>{{ presentation.moduleCoverage.enabledModules }}</dd>
-            </div>
-            <div data-coverage-metric="degraded">
-              <dt>{{ t('dashboard.workbench.moduleCoverage.degraded') }}</dt>
-              <dd>{{ presentation.moduleCoverage.degradedModules }}</dd>
-            </div>
-            <div data-coverage-metric="normal-sources">
-              <dt>{{ t('dashboard.workbench.moduleCoverage.normalSources') }}</dt>
-              <dd>{{ presentation.moduleCoverage.normalContributionSources }}</dd>
-            </div>
-            <div data-coverage-metric="failed-sources">
-              <dt>{{ t('dashboard.workbench.moduleCoverage.failedSources') }}</dt>
-              <dd>{{ presentation.moduleCoverage.failedContributionSources }}</dd>
-            </div>
-          </dl>
-        </t-card>
-      </div>
-    </responsive-content>
-
-    <responsive-content v-if="props.ready" class="workbench-details" layout="wide-split">
-      <div class="workbench-details__column workbench-details__column--primary">
         <t-card
           v-for="group in presentation.metricGroups"
           :key="group.id"
@@ -353,7 +285,69 @@
         </t-card>
       </div>
 
-      <div class="workbench-details__column workbench-details__column--secondary">
+      <div class="workbench-layout__column workbench-layout__column--secondary">
+        <t-card
+          class="workbench-surface workbench-surface--health"
+          data-first-screen-region="health"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ t('dashboard.workbench.health.title') }}</h2>
+                <p>{{ t('dashboard.workbench.health.description') }}</p>
+              </div>
+            </div>
+          </template>
+          <workbench-presentation-list
+            variant="health"
+            empty-key="dashboard.workbench.health.empty"
+            expand-key="dashboard.workbench.expand.health"
+            :items="presentation.health"
+            :visible-limit="3"
+            @navigate="navigate($event, 'contextual-action')"
+          />
+        </t-card>
+
+        <t-card
+          class="workbench-surface workbench-surface--module-coverage"
+          data-first-screen-region="module-coverage"
+          :bordered="false"
+          header-bordered
+        >
+          <template #header>
+            <div class="workbench-surface__heading">
+              <div>
+                <h2>{{ t('dashboard.workbench.moduleCoverage.title') }}</h2>
+                <p>{{ t('dashboard.workbench.moduleCoverage.description') }}</p>
+              </div>
+            </div>
+          </template>
+          <dl class="module-coverage__metrics">
+            <div data-coverage-metric="registered">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.registered') }}</dt>
+              <dd>{{ presentation.moduleCoverage.registeredModules }}</dd>
+            </div>
+            <div data-coverage-metric="enabled">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.enabled') }}</dt>
+              <dd>{{ presentation.moduleCoverage.enabledModules }}</dd>
+            </div>
+            <div data-coverage-metric="degraded">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.degraded') }}</dt>
+              <dd>{{ presentation.moduleCoverage.degradedModules }}</dd>
+            </div>
+            <div data-coverage-metric="normal-sources">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.normalSources') }}</dt>
+              <dd>{{ presentation.moduleCoverage.normalContributionSources }}</dd>
+            </div>
+            <div data-coverage-metric="failed-sources">
+              <dt>{{ t('dashboard.workbench.moduleCoverage.failedSources') }}</dt>
+              <dd>{{ presentation.moduleCoverage.failedContributionSources }}</dd>
+            </div>
+          </dl>
+        </t-card>
+
         <t-card
           v-for="group in presentation.contextLinkGroups"
           :key="group.id"
@@ -780,35 +774,28 @@ function itemDescription(item: PresentationItem) {
   margin: var(--graft-density-gap-4) 0 0;
 }
 
-.workbench-preview__grid {
+.workbench-layout {
   --graft-responsive-wide-split-template: minmax(0, 2fr) minmax(18rem, 1fr);
 }
 
-.workbench-preview__column {
+.workbench-layout__column {
   display: contents;
 }
 
-.workbench-surface--attention {
+.workbench-layout .workbench-surface {
+  order: 4;
+}
+
+.workbench-layout .workbench-surface--attention {
   order: 1;
 }
 
-.workbench-surface--health {
+.workbench-layout .workbench-surface--health {
   order: 2;
 }
 
-.workbench-surface--module-coverage {
+.workbench-layout .workbench-surface--module-coverage {
   order: 3;
-}
-
-.workbench-details {
-  --graft-responsive-wide-split-template: minmax(0, 2fr) minmax(18rem, 1fr);
-}
-
-.workbench-details__column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
 }
 
 .workbench-surface {
@@ -1163,7 +1150,7 @@ function itemDescription(item: PresentationItem) {
 }
 
 @container (width >= 75rem) {
-  .workbench-preview__column {
+  .workbench-layout__column {
     display: flex;
     flex-direction: column;
     gap: var(--graft-density-gap-16);

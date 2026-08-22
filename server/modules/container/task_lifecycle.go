@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"graft/server/internal/moduleapi"
 )
@@ -20,72 +19,8 @@ const (
 )
 
 type containerLifecycleTaskInput struct {
-	Ref   string `json:"ref"`
-	Force bool   `json:"force"`
-}
-
-type containerLifecycleTaskExecutor struct {
-	service *service
-	action  string
-	mu      sync.Mutex
-	cancels map[uint64]context.CancelFunc
-}
-
-func (e *containerLifecycleTaskExecutor) Type() moduleapi.StageExecutorType {
-	return containerLifecycleTaskExecutorType(e.action)
-}
-
-func (e *containerLifecycleTaskExecutor) Execute(ctx context.Context, run moduleapi.StageRun) error {
-	if e == nil || e.service == nil {
-		return errors.New("container lifecycle task executor is unavailable")
-	}
-	var input containerLifecycleTaskInput
-	if err := json.Unmarshal(run.Input(), &input); err != nil {
-		return fmt.Errorf("decode container lifecycle task input: %w", err)
-	}
-	ref, err := parseRef(input.Ref)
-	if err != nil {
-		return err
-	}
-	actionCtx, cancel := context.WithCancel(ctx)
-	e.mu.Lock()
-	e.cancels[run.StageID()] = cancel
-	e.mu.Unlock()
-	defer func() {
-		e.mu.Lock()
-		delete(e.cancels, run.StageID())
-		e.mu.Unlock()
-		cancel()
-	}()
-	_, actionErr := e.service.runAction(actionCtx, ref, e.action, ActionOptions{Force: input.Force})
-	logLevel := "info"
-	logLine := fmt.Sprintf("container lifecycle action %s completed", e.action)
-	if actionErr != nil {
-		logLevel = "error"
-		logLine = fmt.Sprintf("container lifecycle action %s failed", e.action)
-	}
-	logErr := run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: "system", Level: logLevel, Line: logLine})
-	if actionErr != nil {
-		if logErr != nil {
-			return errors.Join(actionErr, fmt.Errorf("append container lifecycle task result log: %w", logErr))
-		}
-		return actionErr
-	}
-	// 结果日志只提供可观测性，不能把已经完成的容器副作用改写为失败。
-	return nil
-}
-
-func (e *containerLifecycleTaskExecutor) Cancel(_ context.Context, run moduleapi.StageRun) error {
-	if e == nil {
-		return nil
-	}
-	e.mu.Lock()
-	cancel := e.cancels[run.StageID()]
-	e.mu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
-	return nil
+	ContainerRef string `json:"container_ref"`
+	Force        bool   `json:"force"`
 }
 
 type containerLifecycleTaskOwnerAuthorizer struct {
@@ -151,13 +86,6 @@ func registerContainerLifecycleTasks(registrar moduleapi.TaskRuntimeRegistrar, s
 		return errors.New("container lifecycle task dependencies are unavailable")
 	}
 	for _, action := range containerLifecycleTaskActions() {
-		if err := registrar.RegisterStageExecutor(&containerLifecycleTaskExecutor{
-			service: service,
-			action:  action,
-			cancels: make(map[uint64]context.CancelFunc),
-		}); err != nil {
-			return err
-		}
 		if err := registrar.RegisterTaskOwnerAuthorizer(containerLifecycleTaskOwnerAuthorizer{service: service, action: action}); err != nil {
 			return err
 		}
@@ -168,7 +96,7 @@ func registerContainerLifecycleTasks(registrar moduleapi.TaskRuntimeRegistrar, s
 	return nil
 }
 
-// SubmitContainerLifecycleAction 提交单阶段、人工对账恢复的容器生命周期 Task，实际副作用仍由 runAction 持有。
+// SubmitContainerLifecycleAction 提交单阶段容器生命周期 Task，副作用只能由受约束的 Runtime Agent 执行。
 func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, action string, options ActionOptions, requestedBy uint64, idempotencyKey string) (moduleapi.TaskReceipt, error) {
 	if s == nil || s.tasks == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task service is unavailable")
@@ -179,9 +107,19 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 	if _, err := parseRef(ref.Value); err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: ref.Value, Force: options.Force})
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		return moduleapi.TaskReceipt{}, errDangerousActionsDisabled
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{ContainerRef: ref.Value, Force: options.Force})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal container lifecycle task input: %w", err)
+	}
+	execution, err := s.containerExternalExecution(ctx, containerLifecycleOperation(action), input)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, err
 	}
 	receipt, submitErr := s.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
 		Type:           containerLifecycleTaskType(action),
@@ -190,11 +128,12 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 		IdempotencyKey: idempotencyKey,
 		Input:          input,
 		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{
-			Key:            action,
-			ExecutorType:   containerLifecycleTaskExecutorType(action),
-			Input:          input,
-			RetryPolicy:    moduleapi.StageRetryPolicy{MaxAttempts: 1},
-			RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
+			Key:               action,
+			ExecutorType:      containerLifecycleTaskExecutorType(action),
+			Input:             input,
+			RetryPolicy:       moduleapi.StageRetryPolicy{MaxAttempts: 1},
+			RecoveryPolicy:    moduleapi.StageRecoveryManualReconcile,
+			ExternalExecution: execution,
 		}}},
 	})
 	s.publishLifecycleTaskSubmissionAudit(ctx, ref, action, options, receipt, submitErr)
@@ -209,25 +148,15 @@ func (s *service) SubmitContainerLifecycleBatchAction(ctx context.Context, refs 
 	if !isContainerLifecycleTaskAction(action) || len(refs) == 0 {
 		return moduleapi.TaskReceipt{}, errInvalidBatchAction
 	}
-	ownerRefs := make([]string, 0, len(refs))
-	stages := make([]moduleapi.StagePlan, 0, len(refs))
-	for index, ref := range refs {
-		parsed, err := parseRef(ref.Value)
-		if err != nil {
-			return moduleapi.TaskReceipt{}, err
-		}
-		input, err := json.Marshal(containerLifecycleTaskInput{Ref: parsed.Value, Force: options.Force})
-		if err != nil {
-			return moduleapi.TaskReceipt{}, fmt.Errorf("marshal container lifecycle batch input: %w", err)
-		}
-		ownerRefs = append(ownerRefs, parsed.Value)
-		stages = append(stages, moduleapi.StagePlan{
-			Key:            fmt.Sprintf("%s-%d", action, index+1),
-			ExecutorType:   containerLifecycleTaskExecutorType(action),
-			Input:          input,
-			RetryPolicy:    moduleapi.StageRetryPolicy{MaxAttempts: 1},
-			RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
-		})
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		return moduleapi.TaskReceipt{}, errDangerousActionsDisabled
+	}
+	ownerRefs, stages, err := s.containerLifecycleBatchStages(ctx, refs, action, options)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, err
 	}
 	ownerID, err := containerLifecycleBatchOwnerID(ownerRefs)
 	if err != nil {
@@ -240,6 +169,35 @@ func (s *service) SubmitContainerLifecycleBatchAction(ctx context.Context, refs 
 		IdempotencyKey: idempotencyKey,
 		Plan:           moduleapi.TaskPlan{Stages: stages},
 	})
+}
+
+func (s *service) containerLifecycleBatchStages(ctx context.Context, refs []Ref, action string, options ActionOptions) ([]string, []moduleapi.StagePlan, error) {
+	ownerRefs := make([]string, 0, len(refs))
+	stages := make([]moduleapi.StagePlan, 0, len(refs))
+	for index, ref := range refs {
+		parsed, err := parseRef(ref.Value)
+		if err != nil {
+			return nil, nil, err
+		}
+		input, err := json.Marshal(containerLifecycleTaskInput{ContainerRef: parsed.Value, Force: options.Force})
+		if err != nil {
+			return nil, nil, fmt.Errorf("marshal container lifecycle batch input: %w", err)
+		}
+		execution, err := s.containerExternalExecution(ctx, containerLifecycleOperation(action), input)
+		if err != nil {
+			return nil, nil, err
+		}
+		ownerRefs = append(ownerRefs, parsed.Value)
+		stages = append(stages, moduleapi.StagePlan{
+			Key:               fmt.Sprintf("%s-%d", action, index+1),
+			ExecutorType:      containerLifecycleTaskExecutorType(action),
+			Input:             input,
+			RetryPolicy:       moduleapi.StageRetryPolicy{MaxAttempts: 1},
+			RecoveryPolicy:    moduleapi.StageRecoveryManualReconcile,
+			ExternalExecution: execution,
+		})
+	}
+	return ownerRefs, stages, nil
 }
 
 func containerLifecycleBatchOwnerID(refs []string) (string, error) {

@@ -131,11 +131,6 @@ func dockerRuntimeEventFromAction(
 		return containercontract.RuntimeEventTypeContainerHealthStatusChanged, attrs, true
 	case "exec_create", "exec_start":
 		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
-		addRuntimeEventAttribute(
-			attrs,
-			"exec_command",
-			firstNonEmpty(message.Actor.Attributes["execCommand"], actionDetail),
-		)
 		return containercontract.RuntimeEventTypeContainerExecStarted, attrs, true
 	case "exec_die":
 		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])

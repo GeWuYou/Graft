@@ -56,18 +56,6 @@ func (s stubProjectReaderRuntime) StreamLogs(context.Context, Ref, LogQuery, fun
 func (s stubProjectReaderRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
 }
-func (s stubProjectReaderRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s stubProjectReaderRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s stubProjectReaderRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s stubProjectReaderRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (s stubProjectReaderRuntime) Close() error { return nil }
 
 func TestContainerProjectRuntimeReaderMapsComposeMembers(t *testing.T) {
@@ -132,18 +120,6 @@ func (s *pagingProjectReaderRuntime) StreamLogs(context.Context, Ref, LogQuery, 
 }
 func (s *pagingProjectReaderRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
-}
-func (s *pagingProjectReaderRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s *pagingProjectReaderRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s *pagingProjectReaderRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (s *pagingProjectReaderRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
 }
 func (s *pagingProjectReaderRuntime) Close() error { return nil }
 

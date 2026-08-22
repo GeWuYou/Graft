@@ -24,6 +24,8 @@ post:
   tags: [container]
   summary: Create Docker network
   operationId: postDockerNetwork
+  parameters:
+    - $ref: ../components/parameters/idempotency-key.yaml
   security: [{ bearerAuth: [] }]
   requestBody:
     required: true
@@ -31,7 +33,7 @@ post:
       application/json:
         schema: { $ref: ../components/schemas/docker-network-create-request.yaml }
   responses:
-    '200': { description: Docker network created., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-action-response.yaml } } } }
+    '202': { description: Docker network creation Task accepted., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-task-receipt.yaml } } } }
     '400': { description: Invalid Docker network configuration. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

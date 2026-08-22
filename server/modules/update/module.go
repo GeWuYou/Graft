@@ -143,6 +143,7 @@ func (m *Module) configureDeploymentRuntime(ctx *module.Context) error {
 	return nil
 }
 
+//nolint:cyclop // 注册流程必须显式保留每个 authority 与失败边界。
 func (m *Module) configureRollout(ctx *module.Context) error {
 	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
 	if err != nil {
@@ -156,12 +157,24 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve task query service: %w", err)
 	}
+	runtimeTargets, err := module.ResolveService[moduleapi.ComposeRuntimeTargetReader](ctx.Services, (*moduleapi.ComposeRuntimeTargetReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve compose runtime target reader: %w", err)
+	}
+	registrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task runtime registrar: %w", err)
+	}
 	launcher, err := NewDockerComposeRunnerLauncher()
 	if err != nil {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
 	m.rollout.SetTaskQueryService(taskQuery)
+	m.rollout.SetRuntimeTargetReader(runtimeTargets)
+	if err := registrar.RegisterExternalExecutionMaterialResolver(m.rollout); err != nil {
+		return fmt.Errorf("register update controller material resolver: %w", err)
+	}
 	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve deployment runtime: %w", err)

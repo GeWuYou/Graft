@@ -1,8 +1,10 @@
 allOf:
   - $ref: ./runtime-target-summary.yaml
   - type: object
-    required: [health, providerDetails]
+    required: [health, providerDetails, agent]
     properties:
+      agent:
+        $ref: ./runtime-target-agent.yaml
       health:
         type: object
         required: [status, lastCheckedAt, diagnostic]

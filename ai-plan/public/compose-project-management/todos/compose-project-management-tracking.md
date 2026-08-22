@@ -388,3 +388,9 @@ Compose Project Management
 - [x] Scope `up`, `stop`, `restart`, `pull`, and redeploy stages to managed services; use service-scoped `stop` instead of project-wide `down` when only a subset is managed.
 - [x] Add controlled per-action argv fields for up, stop, restart, and pull while keeping executable, identity flags, workspace, verb, and service suffix server-owned.
 - [x] Complete focused server/web tests, generated-contract freshness, backend/web validation, comment governance, and final change review.
+## ADR-026 Convergence Note
+
+- Compose lifecycle product intent and Application authority remain unchanged.
+- Future lifecycle execution must use the Task-owned external execution lease and Docker Runtime Agent Compose SDK
+  boundary. The historical server-local `docker compose` implementation is migration scope, not current design truth.
+- Command previews remain explanatory UI output and are not executable argv or TaskPlan authority.

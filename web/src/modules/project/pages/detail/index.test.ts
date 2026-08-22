@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
-import { copyText, LogRingBuffer } from '@/shared/observability';
+import { LogRingBuffer } from '@/shared/observability';
 
 import type { ApplicationLifecycleConfigurationSavedResponse } from '../../types/project';
 import ApplicationDetailPage from './index.vue';
@@ -114,12 +114,6 @@ const detailMessages = {
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
-  'project.detail.lifecycle.copyCommand': 'Copy Command',
-  'project.detail.lifecycle.copyCommandError': 'Command preview could not be copied.',
-  'project.detail.lifecycle.copyCommandHint':
-    'Copy multi-step commands as a single-line shell command chained with &&.',
-  'project.detail.lifecycle.copyAbsolutePaths': 'Copy With Absolute Paths',
-  'project.detail.lifecycle.copyCommandSuccess': 'Command preview copied.',
   'project.detail.description': 'Application detail description',
   'project.detail.eyebrow': 'Compose Application',
   'project.detail.logs.authorityApplicationOwned': 'Application-owned logs',
@@ -161,6 +155,7 @@ const detailMessages = {
   'project.detail.overview.runtimeTargetUnavailable': 'No bound runtime target found',
   'project.detail.overview.runtimeTargetValueUnavailable': 'Unavailable',
   'project.detail.overview.runtimeTargetVersion': 'Version',
+  'project.detail.runtimeTargetCapabilityUnavailable': 'Runtime Agent capability unavailable',
   'project.detail.overview.serviceHealthAttention': 'Attention',
   'project.detail.overview.serviceHealthHealthy': 'Healthy',
   'project.detail.overview.serviceHealthUnknown': 'Unknown',
@@ -207,28 +202,20 @@ const detailMessages = {
   'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
-  'project.detail.lifecycle.statusDescription': 'Review authority and command generation inputs.',
+  'project.detail.lifecycle.statusDescription': 'Review policy authority and lifecycle guards.',
   'project.detail.lifecycle.remoteStaleTitle': 'Remote Configuration Refreshed',
   'project.detail.lifecycle.remoteStaleDescription':
     'Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.',
-  'project.detail.lifecycle.generatedCommandsDescription': 'Review each lifecycle command preview.',
-  'project.detail.lifecycle.generatedCommandsDescriptions.up':
-    'Launch the current compose project with the saved strategy.',
-  'project.detail.lifecycle.generatedCommandsDescriptions.stop':
-    'Stop running services without removing project resources.',
-  'project.detail.lifecycle.generatedCommandsDescriptions.restart': 'Restart the current compose services in place.',
-  'project.detail.lifecycle.generatedCommandsDescriptions.redeploy':
-    'Apply the saved redeploy flow, including any optional preparation steps.',
   'project.detail.lifecycle.groups.base.title': 'Base Parameters',
   'project.detail.lifecycle.groups.base.description': 'Base settings',
   'project.detail.lifecycle.groups.redeploy.title': 'Redeploy Strategy',
   'project.detail.lifecycle.groups.redeploy.description': 'Redeploy settings',
-  'project.detail.lifecycle.optionDescriptions.downBeforeRedeploy': 'Run docker compose down before redeploy.',
+  'project.detail.lifecycle.optionDescriptions.downBeforeRedeploy': 'Tear down resources before redeploy.',
   'project.detail.lifecycle.optionDescriptions.pullBeforeRedeploy': 'Pull images before redeploy.',
-  'project.detail.lifecycle.optionDescriptions.buildBeforeUp': 'Add --build before bring-up.',
-  'project.detail.lifecycle.optionDescriptions.forceRecreate': 'Add --force-recreate during bring-up.',
+  'project.detail.lifecycle.optionDescriptions.buildBeforeUp': 'Build images before bring-up.',
+  'project.detail.lifecycle.optionDescriptions.forceRecreate': 'Recreate containers during bring-up.',
   'project.detail.lifecycle.optionDescriptions.removeOrphans': 'Remove orphan containers.',
-  'project.detail.lifecycle.optionDescriptions.waitAfterUp': 'Add --wait when bringing services up.',
+  'project.detail.lifecycle.optionDescriptions.waitAfterUp': 'Wait for services during bring-up.',
   'project.detail.lifecycle.optionDescriptions.waitTimeoutSeconds': 'Limit wait time to 1-3600 seconds.',
   'project.detail.lifecycle.optionDescriptions.renewAnonVolumes': 'Do not reuse anonymous volumes.',
   'project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy': 'Prune images after redeploy.',
@@ -490,6 +477,7 @@ function buildApplicationDetail(runtimeStatus: string = 'running') {
     last_observed_config_hash: null,
     ownership_mode: 'external',
     runtime_status: runtimeStatus,
+    runtime_target: { display_name: 'Local Docker', id: 7, provider: 'docker' },
     service_count: 2,
     workspace_path: '/srv/compose-demo',
     lifecycle_configuration: {
@@ -504,80 +492,6 @@ function buildApplicationDetail(runtimeStatus: string = 'running') {
       wait_timeout_seconds: 120,
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
-      generated_commands: {
-        up: {
-          action: 'up',
-          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
-          steps: [
-            {
-              argv: [
-                'docker',
-                'compose',
-                '-f',
-                '/srv/compose-demo/compose.yaml',
-                '-p',
-                'compose-demo',
-                'up',
-                '-d',
-                '--remove-orphans',
-              ],
-              display_command:
-                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
-              kind: 'up',
-            },
-          ],
-        },
-        stop: {
-          action: 'stop',
-          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
-          steps: [
-            {
-              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'stop'],
-              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
-              kind: 'stop',
-            },
-          ],
-        },
-        restart: {
-          action: 'restart',
-          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
-          steps: [
-            {
-              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'restart'],
-              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
-              kind: 'restart',
-            },
-          ],
-        },
-        redeploy: {
-          action: 'redeploy',
-          display_command:
-            'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down\ndocker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
-          steps: [
-            {
-              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'down'],
-              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down',
-              kind: 'down',
-            },
-            {
-              argv: [
-                'docker',
-                'compose',
-                '-f',
-                '/srv/compose-demo/compose.yaml',
-                '-p',
-                'compose-demo',
-                'up',
-                '-d',
-                '--remove-orphans',
-              ],
-              display_command:
-                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
-              kind: 'up',
-            },
-          ],
-        },
-      },
     },
   };
 }
@@ -1041,7 +955,6 @@ vi.mock('tdesign-vue-next/es/dialog', () => ({
 }));
 
 vi.mock('../../shared/display', () => ({
-  formatApplicationTime: (_locale: string, value?: string | null) => value || '-',
   projectDriftStatusLabel: () => 'in-sync',
   projectDriftStatusTheme: () => 'success',
   projectLifecycleActionVisibility: (status?: string | null) => ({
@@ -1124,6 +1037,17 @@ describe('Application detail service tab', () => {
       provider: 'docker',
       runtimeType: 'container_runtime',
       version: '26.1.4',
+      agent: {
+        agent_id: 'agent-local',
+        generation: 1,
+        version: '1.0.0',
+        status: 'ready',
+        diagnostic_code: 'none',
+        capabilities: [
+          { name: 'compose_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+          { name: 'container_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+        ],
+      },
     });
     projectApiMocks.getApplicationConfiguration.mockResolvedValue({
       compose_files: [],
@@ -1173,7 +1097,7 @@ describe('Application detail service tab', () => {
     expect(card.text()).toContain('Linux 5.15.0-88-generic');
     expect(card.text()).toContain('docker-host');
     expect(card.text()).toContain('Online');
-    expect(card.find('img').attributes('src')).toContain('docker.svg');
+    expect(card.find('img').attributes('src')).toContain('data:image/svg+xml');
   });
 
   it('keeps the application target summary and neutral values when target detail loading fails', async () => {
@@ -1369,82 +1293,17 @@ describe('Application detail service tab', () => {
     expect(tabLabels).not.toContain('Configuration');
   });
 
-  it('renders lifecycle sections with grouped configuration and command previews', async () => {
+  it('renders lifecycle sections with grouped structured policy', async () => {
     routeState.value.query = { tab: 'lifecycle' };
     const wrapper = mountPage();
     await flushPromises();
 
     expect(wrapper.find('[data-testid="project-lifecycle-summary-card"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-lifecycle-command-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-command-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="project-lifecycle-configuration-card"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-config-group-base"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-config-group-redeploy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-actions"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-up"]').text()).toContain(
-      'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
-    );
-    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-redeploy"]').text()).toContain(
-      'docker compose -f compose.yaml -p compose-demo down',
-    );
-  });
-
-  it('recomputes lifecycle command previews immediately when the draft changes', async () => {
-    routeState.value.query = { tab: 'lifecycle' };
-    const wrapper = mountPage();
-    await flushPromises();
-
-    const redeployPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"]');
-    const upPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-up"]');
-
-    expect(redeployPreview.text()).not.toContain('docker compose -f compose.yaml -p compose-demo pull');
-    expect(redeployPreview.text()).not.toContain('docker image prune -f');
-    expect(upPreview.text()).not.toContain('--wait --wait-timeout 120');
-
-    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
-    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
-    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
-    await flushPromises();
-
-    expect(redeployPreview.text()).toContain('docker compose -f compose.yaml -p compose-demo pull');
-    expect(redeployPreview.text()).toContain('docker image prune -f');
-    expect(upPreview.text()).toContain('--wait --wait-timeout 120');
-  });
-
-  it('copies multi-step lifecycle commands as a shell-safe && chain', async () => {
-    routeState.value.query = { tab: 'lifecycle' };
-    const wrapper = mountPage();
-    await flushPromises();
-
-    vi.mocked(copyText).mockResolvedValue(true);
-
-    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
-    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
-    await flushPromises();
-
-    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
-
-    expect(copyText).toHaveBeenCalledWith(
-      'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo pull && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans && docker image prune -f',
-    );
-    expect(messageMocks.success).toHaveBeenCalledWith('Command preview copied.');
-  });
-
-  it('allows switching copied lifecycle commands between absolute and relative paths', async () => {
-    routeState.value.query = { tab: 'lifecycle' };
-    const wrapper = mountPage();
-    await flushPromises();
-
-    vi.mocked(copyText).mockResolvedValue(true);
-
-    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
-    await flushPromises();
-    await wrapper.get('[data-testid="project-lifecycle-copy-path-mode"]').trigger('click');
-    await flushPromises();
-    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
-
-    expect(copyText).toHaveBeenLastCalledWith(
-      'docker compose -f compose.yaml -p compose-demo down && docker compose -f compose.yaml -p compose-demo pull && docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
-    );
   });
 
   it('shows wait-timeout and destructive-volume warning only when enabled', async () => {
@@ -1546,13 +1405,12 @@ describe('Application detail service tab', () => {
         ...buildApplicationDetail().lifecycle_configuration,
         strategy_kind: 'standard',
         wait_after_up: true,
-        additional_args: [],
         managed_service_names: [],
       },
       lifecycle_review_status: 'confirmed',
       application_id: 'app_7',
       workspace_path: '/srv/compose-demo',
-    } as ApplicationLifecycleConfigurationSavedResponse);
+    } as unknown as ApplicationLifecycleConfigurationSavedResponse);
     await flushPromises();
   });
 
@@ -1669,7 +1527,7 @@ describe('Application detail service tab', () => {
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
+    await wrapper.get('.project-service-selection-toolbar [data-dropdown-action="restart"]').trigger('click');
     await flushPromises();
 
     expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
@@ -1705,7 +1563,7 @@ describe('Application detail service tab', () => {
     await flushPromises();
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
-    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
+    await wrapper.get('.project-service-selection-toolbar [data-dropdown-action="restart"]').trigger('click');
     const [dialogOptions] = dialogMocks.confirm.mock.calls[0] as [
       {
         onConfirm?: () => Promise<void> | void;
@@ -1733,12 +1591,11 @@ describe('Application detail service tab', () => {
 
     expect(wrapper.find('.project-service-selection-toolbar').exists()).toBe(true);
     expect(wrapper.get('[data-testid="project-service-batch-actions"]').text()).toBe('Batch Actions');
-    expect(wrapper.findAll('[data-dropdown-action]').map((item) => item.attributes('data-dropdown-action'))).toEqual([
-      'start',
-      'stop',
-      'restart',
-      'clear',
-    ]);
+    expect(
+      wrapper
+        .findAll('.project-service-selection-toolbar [data-dropdown-action]')
+        .map((item) => item.attributes('data-dropdown-action')),
+    ).toEqual(['start', 'stop', 'restart', 'clear']);
   });
 
   it('prefers the first running member when opening service detail', async () => {

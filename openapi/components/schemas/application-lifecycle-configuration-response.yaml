@@ -13,15 +13,15 @@ properties:
     $ref: ./application-lifecycle-review-status.yaml
   workspace_path:
     type: string
-    description: Read-only working directory authority reused by lifecycle command generation.
+    description: Read-only working directory authority resolved as transient external execution material.
   compose_project_name:
     type: string
-    description: Read-only application runtime identity used for explicit `docker compose -p`.
+    description: Read-only application runtime identity resolved as transient external execution material.
   compose_files:
     type: array
     items:
       $ref: ./application-file-item.yaml
-    description: Ordered tracked Compose files reused by lifecycle command generation.
+    description: Ordered tracked Compose files resolved as transient external execution material.
   lifecycle_configuration:
     $ref: ./application-lifecycle-configuration.yaml
 additionalProperties: false

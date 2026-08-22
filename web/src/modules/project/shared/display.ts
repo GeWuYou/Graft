@@ -1,7 +1,5 @@
 import type { ComposerTranslation } from 'vue-i18n';
 
-import { formatCompactDateTime } from '@/shared/components/management';
-
 import type { ApplicationDriftStatus, ApplicationRuntimeStatus, ApplicationSourceType } from '../types/project';
 
 type Translate = ComposerTranslation;
@@ -12,10 +10,6 @@ const projectTaskTypeLabelKeys: Readonly<Record<string, string>> = {
   'project.compose.stop': 'project.taskTypes.stop',
   'project.compose.up': 'project.taskTypes.up',
 };
-
-export function formatApplicationTime(locale: string, value?: string | null) {
-  return formatCompactDateTime(value, locale);
-}
 
 export function projectSourceTypeLabel(t: Translate, value: ApplicationSourceType) {
   return t(`project.list.sourceTypes.${value}`);

@@ -70,7 +70,7 @@ Current batch plan:
    Reservation reuse.
 3. Make `CapabilityMatcher` mandatory before every Placement and freeze requirement, profile/version, negotiation,
    policy/version, candidate, telemetry and Reservation-fence evidence.
-4. Implement slot-aware Reservation and a provisioned Docker Builder Agent protocol, then admit dynamic policies only
+4. Implement slot-aware Reservation and a provisioned Docker Runtime Agent protocol, then admit dynamic policies only
    after telemetry, provider, retry and capacity conformance is proven. A dynamic retry validates only its frozen target
    and never reselects a Builder.
 

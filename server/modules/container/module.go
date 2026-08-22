@@ -49,7 +49,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve task runtime registrar: %w", err)
 	}
-	if err := registerDockerImagePullTask(taskRegistrar, service); err != nil {
+	if err := registerContainerExternalTaskOwners(taskRegistrar, service); err != nil {
 		return err
 	}
 	if err := registerContainerLifecycleTasks(taskRegistrar, service); err != nil {
@@ -122,25 +122,6 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.DockerFactsProvider)(nil), func(_ containerdi.Resolver) (any, error) {
 		return containerProjectRuntimeReader{service: service}, nil
-	}); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.DockerImageBuildCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return containerImageBuilder{service: service}, nil
-	}); err != nil {
-		return err
-	}
-	// Runtime Target 拥有生产 provider 边界；仅在独立测试未装配 Runtime Target 时保留本地 fallback。
-	if _, err := module.ResolveService[moduleapi.TargetBoundDockerImageBuildCapability](ctx.Services, (*moduleapi.TargetBoundDockerImageBuildCapability)(nil)); err == nil {
-		return nil
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundDockerImageBuildCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return containerImageBuilder{service: service}, nil
-	}); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil), func(_ containerdi.Resolver) (any, error) {
-		return containerImageBuilder{service: service}, nil
 	}); err != nil {
 		return err
 	}

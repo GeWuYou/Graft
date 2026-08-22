@@ -155,7 +155,7 @@ func TestSubmitArtifactPromotionFreezesAuthorizedDigestSourceForTaskRuntime(t *t
 	source := moduleapi.ArtifactPublicationSource{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}
 	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{source}}
 	tasks := &recordingBuildTasks{}
-	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	}
 	tasks := &recordingBuildTasks{}
 	repository := &recordingBuildRepository{}
-	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestListBuilderPoolsFiltersByRuntimeTargetAssignmentAndPhaseFourPolicyGate(
 		{ID: "pool:capacity", DisplayName: "Capacity", SchedulingPolicy: "capacity"},
 		{ID: "pool:affinity", DisplayName: "Affinity", SchedulingPolicy: "affinity"},
 	}}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, repository)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestListBuilderPoolsFiltersByRuntimeTargetAssignmentAndPhaseFourPolicyGate(
 }
 
 func TestSubmitExecutionPlanRejectsUnassignedOrIncompatibleTarget(t *testing.T) {
-	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	service.ConfigureV2Submission(v2SnapshotResolver{snapshot: moduleapi.WorkspaceSnapshot{ID: "snapshot", ContentDigest: "sha256:source", MaterializedRoot: "/workspace/app"}}, v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}}, v2TargetAssignments{allowed: false}, v2RegistryResolver{})
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
 	_, err := service.SubmitExecutionPlan(ctx, ExecutionPlanRequest{WorkspaceID: "workspace_app", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}, IdempotencyKey: "key"})
@@ -276,7 +276,7 @@ func TestSubmitExecutionPlanRejectsUnassignedOrIncompatibleTarget(t *testing.T) 
 }
 
 func TestSubmitExecutionPlanRejectsMultiPlatformRequestWithoutBuildxDriver(t *testing.T) {
-	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, _ := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	service.ConfigureV2Submission(
 		v2SnapshotResolver{snapshot: moduleapi.WorkspaceSnapshot{ID: "snapshot", ContentDigest: "sha256:source", MaterializedRoot: "/workspace/app"}},
 		v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, SupportedDrivers: []string{"docker-engine", "docker-buildx"}, SupportedPlatforms: []string{"linux/amd64", "linux/arm64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}}},
@@ -338,7 +338,7 @@ func TestSelectBuilderPlacementsFromPoolFreezesDifferentTargetsPerPlatform(t *te
 			{ID: "builder-arm64", RuntimeTargetID: 5, DriverRef: "docker-buildx", DriverVersion: "v1"},
 		},
 	}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamic
 		{ID: "builder-large", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
 		{ID: "builder-rejected", RuntimeTargetID: 6, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
 	}}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +401,7 @@ func TestSelectBuilderPlacementsFromPoolUsesConformantTelemetryAndFreezesDynamic
 
 func TestSelectBuilderPlacementsFromPoolRejectsDynamicPolicyWithoutConformantTelemetry(t *testing.T) {
 	resources := &placementBuilderResources{pool: moduleapi.BuilderPool{ID: "pool-load", SchedulingPolicy: "least_load"}, members: []moduleapi.BuilderInstance{{ID: "builder-a", RuntimeTargetID: 4, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"}}}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -423,7 +423,7 @@ func TestSelectBuilderFromPoolUsesDeterministicLabelSelector(t *testing.T) {
 			{ID: "builder-east", RuntimeTargetID: 5, Status: "ready", Labels: map[string]string{"region": "us-east"}, DriverRef: "docker-engine", DriverVersion: "v1"},
 		},
 	}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -452,7 +452,7 @@ func TestSelectBuilderFromPoolRandomIsDeterministicAndFreezesSeed(t *testing.T) 
 			{ID: "builder-b", RuntimeTargetID: 5, Status: "ready", DriverRef: "docker-engine", DriverVersion: "v1"},
 		},
 	}
-	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildDocker{}, &recordingBuildRepository{})
+	service, err := NewService(&recordingBuildContexts{}, &recordingBuildTasks{}, &recordingBuildTasks{}, &recordingBuildRepository{})
 	if err != nil {
 		t.Fatal(err)
 	}

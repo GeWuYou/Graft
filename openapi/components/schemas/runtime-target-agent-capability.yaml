@@ -1,0 +1,18 @@
+type: object
+required: [name, version, status, diagnostic_code]
+properties:
+  name:
+    type: string
+    description: Stable Runtime Agent capability identifier.
+  version:
+    type: string
+    description: Frozen capability protocol version exposed by Runtime Target.
+  status:
+    type: string
+    enum: [ready, degraded, unavailable]
+    x-enum-varnames: [RuntimeTargetAgentCapabilityStatusReady, RuntimeTargetAgentCapabilityStatusDegraded, RuntimeTargetAgentCapabilityStatusUnavailable]
+  diagnostic_code:
+    type: string
+    enum: [none, agent_not_enrolled, agent_unavailable, agent_degraded]
+    x-enum-varnames: [RuntimeTargetAgentDiagnosticCodeNone, RuntimeTargetAgentDiagnosticCodeNotEnrolled, RuntimeTargetAgentDiagnosticCodeUnavailable, RuntimeTargetAgentDiagnosticCodeDegraded]
+additionalProperties: false

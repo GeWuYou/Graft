@@ -47,15 +47,24 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `phase-5-remaining-p0-lifecycle-evidence`.
+- The Docker Runtime Agent subtopic Batch 9 (`runtime-boundary-closeout`) is accepted and archive-ready; no further
+  batch is created by this closeout.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
 - Phase 1 result: Task Runtime nil-context shutdown is safe; durable Dispatcher has terminal post-shutdown state and forced-timeout evidence.
 - Phase 2 result: no repeated cross-owner cancellation/cleanup pattern was found that existing Module, Task Runtime,
   realtime subscription, Agent, Provider or Runner owners cannot express. No Resource Scope API is introduced.
-- Archive readiness found three P0 evidence gaps. Next step: complete `phase-5-remaining-p0-lifecycle-evidence`
-  before another archive-readiness check.
+- Phase 5 lifecycle evidence is complete. The Docker Runtime Agent subtopic now owns the active migration batches and
+  this parent retains cross-runtime authority and archive status.
+
+Batch 5 cross-boundary direction is frozen: Build Docker side effects use Task Runtime external leases and the
+`docker-runtime-agent` `docker/v1` SDK capability. Build retains intent, placement/reservation and Artifact/Publication
+semantics; Task retains lease, fence, renew/cancel, logs, transient-result digest, receipt, retry and recovery; Runtime
+Target retains generation-scoped capability binding. Build material and normalized result are resolved/submitted only in
+valid fenced windows and are never persisted as Task/Agent payloads. The Batch 9 inventory limits the retained server
+Docker socket to Update observation/recovery, Runtime Target discovery/summary, Container observation/interactive
+transport and Deployment Runtime Docker facts; no finite Build or mutation path uses it.
 
 ## Task Checklist
 
@@ -81,13 +90,27 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation"],
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "active"
+  "closeout_status": "archive-ready"
 }
 ```
+
+## Docker Runtime Agent Batch 9 Closeout
+
+- The retained server Docker socket inventory is now authoritative in the Docker Runtime Agent subtopic tracking and
+  ADR-026 clarification. It covers Update runner observation/recovery and settled cleanup; Runtime Target local
+  discovery/summary; Container snapshot/resource/log/stream/event/stats and interactive exec; and Deployment Runtime's
+  current-server Docker facts projection.
+- Each retained consumer has one canonical owner, a bounded lifecycle, a risk and a concrete Agent/transport deletion
+  trigger. These consumers are intentional observation/projection/read boundaries, not unresolved finite mutation paths.
+- `server/internal/cli/dev_docker_runtime_agent.go` is recorded as an explicit development fixture CLI; production
+  Application, Container, Build and Update mutations remain Task-owned external execution stages handled by the Runtime
+  Agent. `cutover-v1` remains one-time migration/bootstrap authority only.
+- Batch 9 acceptance and verification passed; parent topic status is `archive-ready` pending the normal archive
+  operation and scoped commit review.
 
 ## Phase 5 Remaining P0 Lifecycle Evidence Result
 
@@ -96,6 +119,8 @@ closeout:
 - Conformance tests prove registration does not invoke module lifecycle methods, MemoryBus remains synchronous, and cronx Registry is declaration-only.
 - Focused validation passed for internal/module, internal/eventbus, internal/cronx, internal/httpx, modules/project, modules/container, and modules/runtime-target; conformance race tests, git diff --check, and the AI-plan structure guard also passed.
 - Phase 5 evidence is complete; topic remains active until normal task-closeout/archive review.
+- Docker Runtime Agent is an active bounded subtopic. Its tracking file owns the eight migration batches; the parent
+  retains only cross-runtime authority and archive status.
 
 ## Phase 1 Lifecycle Cleanup Result
 
@@ -147,7 +172,7 @@ scheduler or Task state machine.
 | runtime-target summary collector | runtime-target Module 创建；Module owner | Boot `Start` 注册 topic observer、ticker；Shutdown `Stop` unregister/cancel/wait | `ctx.LifecycleContext` parent；Runtime deadline | 无订阅时停采集；当前 repository collect error 静默返回 | P0：至少记录/计数 collect failure，定义 capability-local Degraded/Unavailable，不改变 RuntimeTarget authority |
 | cron/scheduler | Runtime `cronx.Registry` 只登记声明；scheduler Module 创建 `CronRuntime` 并拥有 robfig engine | Module Boot `Start` 加载 persisted definitions/cron.Start；Shutdown `Stop` cron.Stop、cancel lifecycle、wait | lifecycleCtx 派生自 Module ctx；Stop 等待 robfig stopCtx 或 shutdown deadline | job run history/persisted status、skip/failure 日志；无独立 scheduler | deadline 后 in-flight job 可能异步收敛；P0：暴露 forced-stop/started health，保持 cron registry metadata-only |
 | Agent listeners / RuntimeTarget Agent listener | Runtime 创建 AgentBootstrap/AgentServer；Runtime owner | Start bind TLS listener + Serve goroutine；Runtime shutdown 调 `http.Server.Shutdown`；bind failure close listener | Shutdown 使用独立有界 context；Serve error channel 必须被 Runtime 消费 | Serve error 返回 runtime；健康由 listener/agent routes 反映 | graceful shutdown deadline 后缺少显式 force-close/health；P0：记录 listener forced timeout 与 Serve failure，保持 Agent 身份/ledger authority |
-| Provider、Runner、独立 Agent | 当前 `dockerTargetProvider` 是 stateless provider；DockerBuilderAgent 持有 target/ledger/telemetry；Runner 通过既有 task/backup handoff | Provider operation/request context 负责外部 client cleanup；Agent telemetry 无后台 ticker；独立 Agent 以进程 start/stop 为边界 | 不创建 `Agent -> Task -> Plugin` Context 树；Task/Submission、Agent ledger、Provider connection fact 各自保持 authority | conformance 覆盖 cancellation/cleanup；Agent ledger/telemetry TTL 提供事实与退化依据 | P0：为未来 Provider/Runner/Agent contract 明确 operation cancel/Close 与 capability-local health；不新增第二套 queue、scheduler、DI 或 state machine |
+| Provider、Runner、独立 Agent | 当前 `dockerTargetProvider` 是 stateless provider；DockerRuntimeAgent 持有 target/ledger/telemetry；Runner 通过既有 task/backup handoff | Provider operation/request context 负责外部 client cleanup；Agent telemetry 无后台 ticker；独立 Agent 以进程 start/stop 为边界 | 不创建 `Agent -> Task -> Plugin` Context 树；Task/Submission、Agent ledger、Provider connection fact 各自保持 authority | conformance 覆盖 cancellation/cleanup；Agent ledger/telemetry TTL 提供事实与退化依据 | P0：为未来 Provider/Runner/Agent contract 明确 operation cancel/Close 与 capability-local health；不新增第二套 queue、scheduler、DI 或 state machine |
 
 ### P0 候选排序
 
@@ -169,3 +194,14 @@ Phase 0/1 的盘点与 cleanup 结果仍未证明需要通用共享 Scope API；
   and core listener/dispatcher resources belong to Runtime.
 - Kept cancellation contexts and idempotent disposers local to their existing owners. No shared Scope API, `module.Context`
   expansion, Agent -> Task -> Plugin Context tree, or authority change was introduced.
+
+## Docker Runtime Agent Batch 7 Documentation Evidence
+
+- [x] The active subtopic's deployment slice records `cutover-v1` as retained bootstrap authority and does not add a
+  second startup or Update execution path.
+- [x] Parent recovery materials now point to the frozen server socket consumers only: Update observation/recovery,
+  Runtime Target discovery/summary, and Container snapshot/stream/interactive transport.
+- [x] The ordered Update replacement contract is documented consistently: server/web, verify server, replace Agent,
+  verify mTLS/generation/capability readiness.
+
+Evidence: `git diff --check`; `python3 scripts/validate_ai_plan_structure.py`.

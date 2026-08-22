@@ -51,7 +51,6 @@
             :description="t('project.templates.lifecycleDescription')"
             :authority-message="t('project.templates.lifecycleAuthority')"
             :configuration-title="t('project.create.lifecycle.configurationTitle')"
-            :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
           />
           <div class="application-template-create__actions">
             <t-button variant="outline" :disabled="creating" @click="step--">{{

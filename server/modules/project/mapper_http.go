@@ -203,13 +203,8 @@ func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated
 	return response
 }
 
-// toGeneratedLifecycleConfigurationRequest 将内部标准生命周期配置转换为 OpenAPI 生命周期配置请求。
-// 返回的请求使用标准策略，并包含配置的配置文件、策略选项和附加参数。
+// toGeneratedLifecycleConfigurationRequest 将内部标准生命周期策略转换为 OpenAPI 请求。
 func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ApplicationLifecycleConfigurationRequest {
-	additionalArgs := append([]string{}, config.AdditionalArgs...)
-	stopArgs := append([]string{}, config.StopArgs...)
-	restartArgs := append([]string{}, config.RestartArgs...)
-	pullArgs := append([]string{}, config.PullArgs...)
 	return generated.ApplicationLifecycleConfigurationRequest{
 		StrategyKind:             generated.ApplicationLifecycleStrategyKindStandard,
 		Profiles:                 append([]string{}, config.Profiles...),
@@ -223,10 +218,6 @@ func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) ge
 		WaitTimeoutSeconds:       config.WaitTimeoutSeconds,
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
-		AdditionalArgs:           &additionalArgs,
-		StopArgs:                 &stopArgs,
-		RestartArgs:              &restartArgs,
-		PullArgs:                 &pullArgs,
 	}
 }
 
@@ -374,24 +365,8 @@ func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generate
 	}
 }
 
-// toLifecycleConfigurationRequest 将生成的生命周期配置请求转换为标准生命周期配置，并复制切片字段以避免共享底层存储。
+// toLifecycleConfigurationRequest 将生成的生命周期策略请求转换为领域配置。
 func toLifecycleConfigurationRequest(request generated.ApplicationLifecycleConfigurationRequest) LifecycleStandardConfig {
-	additionalArgs := []string{}
-	if request.AdditionalArgs != nil {
-		additionalArgs = append(additionalArgs, (*request.AdditionalArgs)...)
-	}
-	stopArgs := []string{}
-	if request.StopArgs != nil {
-		stopArgs = append(stopArgs, (*request.StopArgs)...)
-	}
-	restartArgs := []string{}
-	if request.RestartArgs != nil {
-		restartArgs = append(restartArgs, (*request.RestartArgs)...)
-	}
-	pullArgs := []string{}
-	if request.PullArgs != nil {
-		pullArgs = append(pullArgs, (*request.PullArgs)...)
-	}
 	return LifecycleStandardConfig{
 		Profiles:                 append([]string(nil), request.Profiles...),
 		ManagedServiceNames:      append([]string(nil), request.ManagedServiceNames...),
@@ -404,10 +379,6 @@ func toLifecycleConfigurationRequest(request generated.ApplicationLifecycleConfi
 		WaitTimeoutSeconds:       request.WaitTimeoutSeconds,
 		RenewAnonVolumes:         request.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: request.PruneImagesAfterRedeploy,
-		AdditionalArgs:           additionalArgs,
-		StopArgs:                 stopArgs,
-		RestartArgs:              restartArgs,
-		PullArgs:                 pullArgs,
 	}
 }
 
@@ -470,6 +441,7 @@ func toBatchActionResponse(result BatchActionResult) generated.ApplicationBatchA
 	}
 	return generated.ApplicationBatchActionResponse{
 		TotalCount:     result.TotalCount,
+		AcceptedCount:  result.AcceptedCount,
 		CompletedCount: result.CompletedCount,
 		BlockedCount:   result.BlockedCount,
 		SkippedCount:   result.SkippedCount,

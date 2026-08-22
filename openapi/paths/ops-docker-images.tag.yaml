@@ -4,6 +4,7 @@ post:
   summary: Tag a Docker image
   parameters:
     - $ref: ../components/parameters/docker-image-id-path.yaml
+    - $ref: ../components/parameters/idempotency-key.yaml
   requestBody:
     required: true
     content:
@@ -11,17 +12,18 @@ post:
         schema:
           $ref: ../components/schemas/docker-image-tag-request.yaml
   responses:
-    '200':
-      description: Docker image tag result.
+    '202':
+      description: Docker image tag Task accepted.
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-docker-image-action-response.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400': { description: Invalid image reference }
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
     '404': { description: Image not found }
+    '409': { description: Idempotency-Key conflicts with a different submission. }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

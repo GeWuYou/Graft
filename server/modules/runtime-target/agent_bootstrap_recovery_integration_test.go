@@ -109,7 +109,7 @@ func TestAgentBootstrapRecoversVaultIssuanceAndConsumesDeliveryGrant(t *testing.
 		t.Fatalf("post-bootstrap statuses: generation=%q grant=%q issuance=%q", generationStatus, grantStatus, issuanceStatus)
 	}
 	ledger, err := repository.SnapshotBuilderAgentLedger(context.Background(), enrollment.TargetID, enrollment.AgentID)
-	if err != nil || ledger.SlotBudget != initialDockerBuilderAgentLedgerSlots || ledger.TelemetrySequence != 0 {
+	if err != nil || ledger.SlotBudget != initialDockerRuntimeAgentLedgerSlots || ledger.TelemetrySequence != 0 {
 		t.Fatalf("post-bootstrap ledger = %#v, err=%v", ledger, err)
 	}
 	if _, err := authority.BootstrapAgent(context.Background(), moduleapi.AgentBootstrapRequest{BootstrapToken: handoff.BootstrapToken, CSRDER: csrDER}); !errors.Is(err, moduleapi.ErrAgentBootstrapRejected) {

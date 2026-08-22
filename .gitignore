@@ -28,8 +28,8 @@ go.work.sum
 .env
 .data/
 .local/
-server/agents/docker-builder-agent/agent.json
-server/.env.docker-builder-agent
+server/agents/docker-runtime-agent/agent.json
+server/.env.docker-runtime-agent
 
 # Editor/IDE
 .idea/
@@ -72,4 +72,4 @@ node_modules/
 .tmp/
 /.worktrees/
 .VSCodeCounter/
-server/agents/docker-builder-agent/cmd/__debug_bin*
+server/agents/docker-runtime-agent/cmd/__debug_bin*

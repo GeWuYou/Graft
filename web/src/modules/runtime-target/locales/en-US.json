@@ -58,6 +58,14 @@
       "runtimeInformation": "Runtime Information",
       "resourceOverview": "Resource Overview",
       "providerDetails": "Provider Details",
+      "agentStatus": "Runtime Agent",
+      "agentState": "Agent Status",
+      "agentId": "Agent ID",
+      "agentVersion": "Agent Version",
+      "agentGeneration": "Trust Generation",
+      "capabilities": "Capabilities",
+      "capabilitiesEmpty": "No capabilities are currently registered.",
+      "notEnrolled": "Not enrolled",
       "authorizedUsers": "Runtime Target Access",
       "changeAuthorizedUsers": "Change Access",
       "selectAuthorizedUsersTitle": "Select Authorized Users",
@@ -118,6 +126,18 @@
       "healthDesc": "Health: Descending"
     },
     "status": { "healthy": "Healthy", "unavailable": "Unavailable" },
+    "agentStatus": {
+      "ready": "Ready",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable",
+      "not_enrolled": "Not enrolled"
+    },
+    "agentDiagnostics": {
+      "none": "Runtime Agent is ready.",
+      "agent_not_enrolled": "No trusted Runtime Agent is enrolled for this target.",
+      "agent_unavailable": "The Runtime Agent is currently unavailable.",
+      "agent_degraded": "The Runtime Agent capability binding needs attention."
+    },
     "metrics": {
       "workloads": "Workloads",
       "active": "Active",

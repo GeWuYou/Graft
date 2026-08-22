@@ -4,8 +4,8 @@ post:
   operationId: postApplicationRedeploy
   description: >
     Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard
-    strategy redeploy may include
-    `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
+    strategy redeploy may include teardown, image refresh, bring-up, and optional unused-image cleanup based on the
+    stored lifecycle policy.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

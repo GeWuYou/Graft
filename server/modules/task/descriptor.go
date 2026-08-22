@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	taskstore "graft/server/modules/task/store"
 )
 
@@ -20,6 +21,9 @@ func NewModuleSpec() module.Spec {
 		ID:            moduleID,
 		Dependencies:  []string{"user", "rbac"},
 		MigrationPath: []string{"modules/task/migrations"},
+		ExposedCapabilities: []module.CapabilityDeclaration{
+			{Key: module.TypedCapability[moduleapi.RuntimeAgentExecutionGateway]()},
+		},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
 			if err != nil {

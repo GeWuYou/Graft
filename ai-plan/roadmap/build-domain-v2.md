@@ -39,12 +39,12 @@ the exposed feature set ahead of these gates. `least_load`, `capacity`, `affinit
   Use `CapabilityMatcher` to return the eligible Instance or auditable deny reason.
 - Freeze manual Placement Evidence and atomically acquire a short fenced `BuilderReservation` before Task acceptance.
   Use `Reserved`, `Accepted`, `Running`, `Released`, `Expired` and `Abandoned` semantics; each retry uses a new fence.
-- Introduce `CredentialProvider` and `RuntimeExecutionAdapter` for every Registry Push. Registry Connection selects only
-  `credential_ref`; adapters create isolated per-operation credentials and remove them on every terminal or recovery
-  path.
+- Introduce `CredentialProvider` and the fenced Build material/Agent SDK boundary for every Registry Push. Registry
+  Connection selects only `credential_ref`; the resolver and Agent create isolated per-operation credentials and remove
+  them on every terminal or recovery path.
 - Phase 1 deployment uses the optional absolute `GRAFT_REGISTRY_CREDENTIALS_FILE` only as a mounted secret-file
-  location. The core provider reloads scoped, expiring entries and returns opaque sessions; Build, Registry records,
-  Task Runtime and all external projections remain credential-plaintext-free. An unset or invalid source omits or
+location. The core provider reloads scoped, expiring entries and returns opaque sessions; Build domain records, Registry
+  records, Task Runtime and all external projections remain credential-plaintext-free. An unset or invalid source omits or
   blocks adapter admission and fails closed.
 - Prohibit default Docker credential-store reads/writes and all environment-default authentication fallback. Preserve
   historical `docker-runtime-store` records as read-only evidence.
@@ -88,7 +88,7 @@ host value, Task JSON or unproven provider observation changes selection.
   bounded clock skew, replay rejection, report lifecycle, source/provenance/integrity checks and explicit unsupported
   dimensions. Running, queued and slots must come from the Agent's controlled execution ledger or Driver controller,
   never Docker Engine metrics, host metrics, Task JSON, UI data or whole-cluster capacity.
-- The Docker provider's real CLI build boundary updates the durable Driver-controller ledger before and after execution;
+- The Docker Runtime Agent's real SDK build boundary updates the durable Driver-controller ledger before and after execution;
   the current target-only Placement contract permits one enabled Agent scope per target. ADR-023 and ADR-024 govern
   the out-of-process Agent protocol: Runtime Target creates a provider-neutral pending Agent enrollment and peppered
   token verifier, and the active Docker deployment automation creates the bound Docker secret and returns a verified
@@ -119,6 +119,17 @@ negotiation result and Reservation fence; fresh telemetry is only an input to a 
 recovery cover cancellation, timeout, restart and cleanup; and distributed execution does not create a second Build
 queue, Task state machine or event store. BuildKit, Kaniko and Kubernetes remain future extensions until each passes
 equivalent conformance.
+
+### Batch 5 implementation overlay
+
+The current Docker Build cutover uses Task Runtime external leases and the bound `docker/oci-build` capability at
+`docker/v1`. The exact operation allowlist is `build.image.local.v1`, `build.image.publish.v1`,
+`build.manifest.publish.v1` and `build.artifact.copy.v1`. Build material and normalized artifact results are transient
+fence-bound payloads; Task persists only the result digest and Build owns artifact/publication interpretation. The
+server-local Build Docker/CLI path, fallback and compatibility aliases are removed. The shared snapshot volume is
+`/tmp/graft-build-snapshots`; Update Controller observation/recovery, Runtime Target discovery/summary, Container
+snapshot/resource/read/stream/interactive boundaries and Deployment Runtime Docker facts remain explicit retained reasons
+for the server socket until their Agent/transport deletion triggers complete.
 
 ## Cross-Phase Constraints
 

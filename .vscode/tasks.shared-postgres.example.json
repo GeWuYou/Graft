@@ -2,28 +2,28 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "agent: prepare Docker Builder development",
+            "label": "agent: prepare Docker Runtime development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent prepare --database-mode shared",
+            "command": "go run ./cmd/graft dev docker-runtime-agent prepare --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },
             "problemMatcher": []
         },
         {
-            "label": "agent: deliver Docker Builder development",
+            "label": "agent: deliver Docker Runtime development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent deliver --database-mode shared",
+            "command": "go run ./cmd/graft dev docker-runtime-agent deliver --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },
-            "dependsOn": "agent: prepare Docker Builder development",
+            "dependsOn": "agent: prepare Docker Runtime development",
             "problemMatcher": []
         },
         {
-            "label": "agent: deliver prepared Docker Builder development",
+            "label": "agent: deliver prepared Docker Runtime development",
             "type": "shell",
-            "command": "go run ./cmd/graft dev docker-builder-agent deliver --prepared --database-mode shared",
+            "command": "go run ./cmd/graft dev docker-runtime-agent deliver --prepared --database-mode shared",
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },

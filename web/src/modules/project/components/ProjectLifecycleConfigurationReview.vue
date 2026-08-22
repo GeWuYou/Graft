@@ -17,45 +17,13 @@
                 :placeholder="t('project.detail.lifecycle.profilesPlaceholder')"
               />
             </label>
-            <label class="project-lifecycle-configuration-review__field">
-              <span>{{ t('project.detail.lifecycle.additionalArgs') }}</span>
-              <t-input
-                v-model="draft.additional_args"
-                :disabled="disabled"
-                :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
-              />
-            </label>
-            <label class="project-lifecycle-configuration-review__field">
-              <span>{{ t('project.detail.lifecycle.stopArgs') }}</span>
-              <t-input
-                v-model="draft.stop_args"
-                :disabled="disabled"
-                :placeholder="t('project.detail.lifecycle.stopArgsPlaceholder')"
-              />
-            </label>
-            <label class="project-lifecycle-configuration-review__field">
-              <span>{{ t('project.detail.lifecycle.restartArgs') }}</span>
-              <t-input
-                v-model="draft.restart_args"
-                :disabled="disabled"
-                :placeholder="t('project.detail.lifecycle.restartArgsPlaceholder')"
-              />
-            </label>
-            <label class="project-lifecycle-configuration-review__field">
-              <span>{{ t('project.detail.lifecycle.pullArgs') }}</span>
-              <t-input
-                v-model="draft.pull_args"
-                :disabled="disabled"
-                :placeholder="t('project.detail.lifecycle.pullArgsPlaceholder')"
-              />
-            </label>
           </div>
           <template v-for="definition in lifecycleSwitchHelpDefinitions" :key="definition.key">
             <div class="project-lifecycle-configuration-review__option">
               <div class="project-lifecycle-configuration-review__option-content">
                 <div class="project-lifecycle-configuration-review__option-title">
                   <span>{{ t(definition.titleKey) }}</span>
-                  <lifecycle-help-trigger :definition="definition" :draft="draft" />
+                  <lifecycle-help-trigger :definition="definition" />
                 </div>
                 <p>{{ t(definition.summaryKey) }}</p>
               </div>
@@ -85,41 +53,26 @@
           />
         </div>
       </t-card>
-      <t-card :title="commandPreviewTitle" bordered>
-        <div class="project-lifecycle-configuration-review__commands">
-          <section v-for="command in commandPreviews" :key="command.key" class="project-code-panel">
-            <strong>{{ command.title }}</strong>
-            <code-block :code="command.preview" lang="shell" wrap />
-          </section>
-        </div>
-      </t-card>
     </div>
   </section>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import CodeBlock from '@/shared/components/code/CodeBlock.vue';
-
-import {
-  lifecycleDraftProfilesText,
-  resolveLifecycleCommandSteps,
-  updateLifecycleDraftProfiles,
-} from '../shared/lifecycle';
+import { lifecycleDraftProfilesText, updateLifecycleDraftProfiles } from '../shared/lifecycle';
 import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../shared/lifecycle-help';
 import { useApplicationPageContext } from '../shared/page-context';
 import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 import LifecycleHelpTrigger from './LifecycleHelpTrigger.vue';
 
 defineOptions({ name: 'ApplicationLifecycleConfigurationReview' });
-// 配置审核区直接编辑调用方持有的草稿，并将生成命令作为当前草稿的可视化结果展示。
+// 配置审核区只编辑领域策略，不展示或接收执行器命令。
 const draft = defineModel<ApplicationLifecycleConfigurationDraft>('draft', { required: true });
 defineProps<{
   title: string;
   description: string;
   authorityMessage: string;
   configurationTitle: string;
-  commandPreviewTitle: string;
   disabled?: boolean;
 }>();
 const { t } = useApplicationPageContext();
@@ -128,20 +81,10 @@ const profilesInput = computed({
   get: () => lifecycleDraftProfilesText(draft.value),
   set: (value: string) => updateLifecycleDraftProfiles(draft.value, value),
 });
-const commandPreviews = computed(() =>
-  (['up', 'stop', 'restart', 'redeploy'] as const).map((key) => ({
-    key,
-    title: t(`project.detail.lifecycle.generatedCommands.${key}`),
-    preview: resolveLifecycleCommandSteps(draft.value, key, { preferClientGenerated: true })
-      .map((step) => step.command)
-      .join('\n'),
-  })),
-);
 </script>
 <style scoped>
 .project-lifecycle-configuration-review,
 .project-lifecycle-configuration-review__content,
-.project-lifecycle-configuration-review__commands,
 .project-lifecycle-configuration-review__field,
 .project-lifecycle-configuration-review__option-content {
   display: flex;
@@ -169,7 +112,7 @@ const commandPreviews = computed(() =>
 .project-lifecycle-configuration-review__field-grid {
   display: grid;
   gap: var(--graft-density-gap-16);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .project-lifecycle-configuration-review__field-grid {
@@ -202,11 +145,6 @@ const commandPreviews = computed(() =>
 .project-lifecycle-configuration-review__option-title {
   align-items: center;
   display: inline-flex;
-  gap: var(--graft-density-gap-6);
-}
-
-.project-lifecycle-configuration-review__commands section {
-  display: grid;
   gap: var(--graft-density-gap-6);
 }
 

@@ -35,6 +35,8 @@ type AgentEnrollmentRequest struct {
 	BuilderScope      string
 	CapabilityProfile string
 	CapabilityVersion string
+	Capabilities      []string
+	RuntimeProtocol   string
 	ImageDigest       string
 	AgentVersion      string
 	EnrollmentRef     string
@@ -51,6 +53,8 @@ type AgentEnrollment struct {
 	BuilderScope         string
 	CapabilityProfile    string
 	CapabilityVersion    string
+	Capabilities         []string
+	RuntimeProtocol      string
 	Generation           int64
 	EnrollmentRef        string
 	ExpiresAt            time.Time
@@ -94,6 +98,8 @@ type AgentEnrollmentRotationRequest struct {
 	BuilderScope      string
 	CapabilityProfile string
 	CapabilityVersion string
+	Capabilities      []string
+	RuntimeProtocol   string
 	EnrollmentRef     string
 	TrustBundle       TrustBundleReference
 	ExpiresAt         time.Time
@@ -206,6 +212,7 @@ type RuntimeTargetAgentBinding struct {
 	BuilderScope         string
 	CapabilityProfile    string
 	CapabilityVersion    string
+	Capabilities         []string
 	Generation           int64
 	CertificateSerial    string
 	PublicKeyFingerprint string

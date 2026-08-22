@@ -65,6 +65,10 @@ func adoptSnapshotMaterialization(snapshot moduleapi.WorkspaceSnapshot) (modulea
 	if err != nil {
 		return moduleapi.WorkspaceSnapshot{}, err
 	}
+	if err := os.Chmod(destination, managedSnapshotDirectoryMode); err != nil {
+		_ = os.RemoveAll(destination)
+		return moduleapi.WorkspaceSnapshot{}, err
+	}
 	failed := true
 	defer func() {
 		if failed {

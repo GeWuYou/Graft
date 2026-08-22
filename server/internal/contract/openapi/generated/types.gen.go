@@ -659,60 +659,6 @@ func (e ApplicationImportRuntimeWorkspacePathSource) Valid() bool {
 	}
 }
 
-// Defines values for ApplicationLifecycleCommandStepKind.
-const (
-	ApplicationLifecycleCommandStepKindDown    ApplicationLifecycleCommandStepKind = "down"
-	ApplicationLifecycleCommandStepKindPrune   ApplicationLifecycleCommandStepKind = "prune"
-	ApplicationLifecycleCommandStepKindPull    ApplicationLifecycleCommandStepKind = "pull"
-	ApplicationLifecycleCommandStepKindRestart ApplicationLifecycleCommandStepKind = "restart"
-	ApplicationLifecycleCommandStepKindStop    ApplicationLifecycleCommandStepKind = "stop"
-	ApplicationLifecycleCommandStepKindUp      ApplicationLifecycleCommandStepKind = "up"
-)
-
-// Valid indicates whether the value is a known member of the ApplicationLifecycleCommandStepKind enum.
-func (e ApplicationLifecycleCommandStepKind) Valid() bool {
-	switch e {
-	case ApplicationLifecycleCommandStepKindDown:
-		return true
-	case ApplicationLifecycleCommandStepKindPrune:
-		return true
-	case ApplicationLifecycleCommandStepKindPull:
-		return true
-	case ApplicationLifecycleCommandStepKindRestart:
-		return true
-	case ApplicationLifecycleCommandStepKindStop:
-		return true
-	case ApplicationLifecycleCommandStepKindUp:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ApplicationLifecycleGeneratedCommandAction.
-const (
-	ApplicationLifecycleGeneratedCommandActionRedeploy ApplicationLifecycleGeneratedCommandAction = "redeploy"
-	ApplicationLifecycleGeneratedCommandActionRestart  ApplicationLifecycleGeneratedCommandAction = "restart"
-	ApplicationLifecycleGeneratedCommandActionStop     ApplicationLifecycleGeneratedCommandAction = "stop"
-	ApplicationLifecycleGeneratedCommandActionUp       ApplicationLifecycleGeneratedCommandAction = "up"
-)
-
-// Valid indicates whether the value is a known member of the ApplicationLifecycleGeneratedCommandAction enum.
-func (e ApplicationLifecycleGeneratedCommandAction) Valid() bool {
-	switch e {
-	case ApplicationLifecycleGeneratedCommandActionRedeploy:
-		return true
-	case ApplicationLifecycleGeneratedCommandActionRestart:
-		return true
-	case ApplicationLifecycleGeneratedCommandActionStop:
-		return true
-	case ApplicationLifecycleGeneratedCommandActionUp:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ApplicationLifecycleReviewStatus.
 const (
 	ApplicationLifecycleReviewStatusConfirmed      ApplicationLifecycleReviewStatus = "confirmed"
@@ -2105,51 +2051,6 @@ func (e CapabilityStatus) Valid() bool {
 	}
 }
 
-// Defines values for ContainerActionResponseAction.
-const (
-	ContainerActionResponseActionValueRemove  ContainerActionResponseAction = "remove"
-	ContainerActionResponseActionValueRestart ContainerActionResponseAction = "restart"
-	ContainerActionResponseActionValueStart   ContainerActionResponseAction = "start"
-	ContainerActionResponseActionValueStop    ContainerActionResponseAction = "stop"
-)
-
-// Valid indicates whether the value is a known member of the ContainerActionResponseAction enum.
-func (e ContainerActionResponseAction) Valid() bool {
-	switch e {
-	case ContainerActionResponseActionValueRemove:
-		return true
-	case ContainerActionResponseActionValueRestart:
-		return true
-	case ContainerActionResponseActionValueStart:
-		return true
-	case ContainerActionResponseActionValueStop:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerActionResponseResult.
-const (
-	ContainerActionResponseResultValueAccepted  ContainerActionResponseResult = "accepted"
-	ContainerActionResponseResultValueCompleted ContainerActionResponseResult = "completed"
-	ContainerActionResponseResultValueUnchanged ContainerActionResponseResult = "unchanged"
-)
-
-// Valid indicates whether the value is a known member of the ContainerActionResponseResult enum.
-func (e ContainerActionResponseResult) Valid() bool {
-	switch e {
-	case ContainerActionResponseResultValueAccepted:
-		return true
-	case ContainerActionResponseResultValueCompleted:
-		return true
-	case ContainerActionResponseResultValueUnchanged:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ContainerBatchActionItemAction.
 const (
 	ContainerBatchActionItemActionRemove  ContainerBatchActionItemAction = "remove"
@@ -3011,93 +2912,6 @@ func (e DashboardWidgetType) Valid() bool {
 	}
 }
 
-// Defines values for DockerImageActionResponseAction.
-const (
-	DockerImageActionResponseActionRemove DockerImageActionResponseAction = "remove"
-	DockerImageActionResponseActionTag    DockerImageActionResponseAction = "tag"
-	DockerImageActionResponseActionUntag  DockerImageActionResponseAction = "untag"
-)
-
-// Valid indicates whether the value is a known member of the DockerImageActionResponseAction enum.
-func (e DockerImageActionResponseAction) Valid() bool {
-	switch e {
-	case DockerImageActionResponseActionRemove:
-		return true
-	case DockerImageActionResponseActionTag:
-		return true
-	case DockerImageActionResponseActionUntag:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DockerImageBatchRemoveItemErrorCode.
-const (
-	DOCKERCOMMUNICATIONERROR      DockerImageBatchRemoveItemErrorCode = "DOCKER_COMMUNICATION_ERROR"
-	DOCKERRUNTIMEUNAVAILABLE      DockerImageBatchRemoveItemErrorCode = "DOCKER_RUNTIME_UNAVAILABLE"
-	DOCKERTIMEOUT                 DockerImageBatchRemoveItemErrorCode = "DOCKER_TIMEOUT"
-	IMAGEINUSE                    DockerImageBatchRemoveItemErrorCode = "IMAGE_IN_USE"
-	IMAGENOTFOUND                 DockerImageBatchRemoveItemErrorCode = "IMAGE_NOT_FOUND"
-	IMAGEREFERENCEDBYMULTIPLETAGS DockerImageBatchRemoveItemErrorCode = "IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
-	UNKNOWN                       DockerImageBatchRemoveItemErrorCode = "UNKNOWN"
-)
-
-// Valid indicates whether the value is a known member of the DockerImageBatchRemoveItemErrorCode enum.
-func (e DockerImageBatchRemoveItemErrorCode) Valid() bool {
-	switch e {
-	case DOCKERCOMMUNICATIONERROR:
-		return true
-	case DOCKERRUNTIMEUNAVAILABLE:
-		return true
-	case DOCKERTIMEOUT:
-		return true
-	case IMAGEINUSE:
-		return true
-	case IMAGENOTFOUND:
-		return true
-	case IMAGEREFERENCEDBYMULTIPLETAGS:
-		return true
-	case UNKNOWN:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DockerNetworkActionResponseAction.
-const (
-	Create DockerNetworkActionResponseAction = "create"
-	Remove DockerNetworkActionResponseAction = "remove"
-)
-
-// Valid indicates whether the value is a known member of the DockerNetworkActionResponseAction enum.
-func (e DockerNetworkActionResponseAction) Valid() bool {
-	switch e {
-	case Create:
-		return true
-	case Remove:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DockerNetworkActionResponseResult.
-const (
-	Completed DockerNetworkActionResponseResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the DockerNetworkActionResponseResult enum.
-func (e DockerNetworkActionResponseResult) Valid() bool {
-	switch e {
-	case Completed:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for DockerNetworkCreateRequestDriver.
 const (
 	DockerNetworkCreateRequestDriverBridge  DockerNetworkCreateRequestDriver = "bridge"
@@ -3173,36 +2987,6 @@ func (e DockerResourceSource) Valid() bool {
 	case DockerResourceSourceManaged:
 		return true
 	case DockerResourceSourceUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DockerVolumeRemoveResponseAction.
-const (
-	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
-)
-
-// Valid indicates whether the value is a known member of the DockerVolumeRemoveResponseAction enum.
-func (e DockerVolumeRemoveResponseAction) Valid() bool {
-	switch e {
-	case DockerVolumeRemoveResponseActionRemove:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for DockerVolumeRemoveResponseResult.
-const (
-	DockerVolumeRemoveResponseResultCompleted DockerVolumeRemoveResponseResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the DockerVolumeRemoveResponseResult enum.
-func (e DockerVolumeRemoveResponseResult) Valid() bool {
-	switch e {
-	case DockerVolumeRemoveResponseResultCompleted:
 		return true
 	default:
 		return false
@@ -4715,6 +4499,99 @@ const (
 func (e RuntimeTargetRuntimeType) Valid() bool {
 	switch e {
 	case RuntimeTargetRuntimeTypeContainerRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentDiagnosticCode.
+const (
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    RuntimeTargetAgentDiagnosticCode = "agent_degraded"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        RuntimeTargetAgentDiagnosticCode = "none"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled RuntimeTargetAgentDiagnosticCode = "agent_not_enrolled"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable RuntimeTargetAgentDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentDiagnosticCode enum.
+func (e RuntimeTargetAgentDiagnosticCode) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentStatus.
+const (
+	RuntimeTargetAgentStatusDegraded    RuntimeTargetAgentStatus = "degraded"
+	RuntimeTargetAgentStatusNotEnrolled RuntimeTargetAgentStatus = "not_enrolled"
+	RuntimeTargetAgentStatusReady       RuntimeTargetAgentStatus = "ready"
+	RuntimeTargetAgentStatusUnavailable RuntimeTargetAgentStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentStatus enum.
+func (e RuntimeTargetAgentStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentStatusDegraded:
+		return true
+	case RuntimeTargetAgentStatusNotEnrolled:
+		return true
+	case RuntimeTargetAgentStatusReady:
+		return true
+	case RuntimeTargetAgentStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentCapabilityDiagnosticCode.
+const (
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    RuntimeTargetAgentCapabilityDiagnosticCode = "agent_degraded"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        RuntimeTargetAgentCapabilityDiagnosticCode = "none"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled RuntimeTargetAgentCapabilityDiagnosticCode = "agent_not_enrolled"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable RuntimeTargetAgentCapabilityDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentCapabilityDiagnosticCode enum.
+func (e RuntimeTargetAgentCapabilityDiagnosticCode) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentCapabilityStatus.
+const (
+	RuntimeTargetAgentCapabilityStatusDegraded    RuntimeTargetAgentCapabilityStatus = "degraded"
+	RuntimeTargetAgentCapabilityStatusReady       RuntimeTargetAgentCapabilityStatus = "ready"
+	RuntimeTargetAgentCapabilityStatusUnavailable RuntimeTargetAgentCapabilityStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentCapabilityStatus enum.
+func (e RuntimeTargetAgentCapabilityStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentCapabilityStatusDegraded:
+		return true
+	case RuntimeTargetAgentCapabilityStatusReady:
+		return true
+	case RuntimeTargetAgentCapabilityStatusUnavailable:
 		return true
 	default:
 		return false
@@ -7005,6 +6882,7 @@ type ApplicationBatchActionRequestAction string
 
 // ApplicationBatchActionResponse defines model for application-batch-action-response.
 type ApplicationBatchActionResponse struct {
+	AcceptedCount  int                          `json:"accepted_count"`
 	BlockedCount   int                          `json:"blocked_count"`
 	CompletedCount int                          `json:"completed_count"`
 	Items          []ApplicationBatchActionItem `json:"items"`
@@ -7655,39 +7533,17 @@ type ApplicationImportValidateResponse struct {
 	WorkspacePath string   `json:"workspace_path"`
 }
 
-// ApplicationLifecycleCommandStep defines model for application-lifecycle-command-step.
-type ApplicationLifecycleCommandStep struct {
-	Argv []string `json:"argv"`
-
-	// DisplayCommand Human-readable command preview derived from the canonical lifecycle configuration.
-	DisplayCommand string                              `json:"display_command"`
-	Kind           ApplicationLifecycleCommandStepKind `json:"kind"`
-}
-
-// ApplicationLifecycleCommandStepKind defines model for ApplicationLifecycleCommandStep.Kind.
-type ApplicationLifecycleCommandStepKind string
-
 // ApplicationLifecycleConfiguration defines model for application-lifecycle-configuration.
 type ApplicationLifecycleConfiguration struct {
-	AdditionalArgs     []string `json:"additional_args"`
-	BuildBeforeUp      bool     `json:"build_before_up"`
-	DownBeforeRedeploy bool     `json:"down_before_redeploy"`
-	ForceRecreate      bool     `json:"force_recreate"`
-	GeneratedCommands  struct {
-		Redeploy ApplicationLifecycleGeneratedCommand `json:"redeploy"`
-		Restart  ApplicationLifecycleGeneratedCommand `json:"restart"`
-		Stop     ApplicationLifecycleGeneratedCommand `json:"stop"`
-		Up       ApplicationLifecycleGeneratedCommand `json:"up"`
-	} `json:"generated_commands"`
-	ManagedServiceNames      []string  `json:"managed_service_names"`
-	Profiles                 []string  `json:"profiles"`
-	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
-	PullArgs                 *[]string `json:"pull_args,omitempty"`
-	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
-	RemoveOrphans            bool      `json:"remove_orphans"`
-	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
-	RestartArgs              *[]string `json:"restart_args,omitempty"`
-	StopArgs                 *[]string `json:"stop_args,omitempty"`
+	BuildBeforeUp            bool     `json:"build_before_up"`
+	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
+	ForceRecreate            bool     `json:"force_recreate"`
+	ManagedServiceNames      []string `json:"managed_service_names"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7697,28 +7553,17 @@ type ApplicationLifecycleConfiguration struct {
 
 // ApplicationLifecycleConfigurationRequest defines model for application-lifecycle-configuration-request.
 type ApplicationLifecycleConfigurationRequest struct {
-	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.
-	AdditionalArgs     *[]string `json:"additional_args,omitempty"`
-	BuildBeforeUp      bool      `json:"build_before_up"`
-	DownBeforeRedeploy bool      `json:"down_before_redeploy"`
-	ForceRecreate      bool      `json:"force_recreate"`
+	BuildBeforeUp      bool `json:"build_before_up"`
+	DownBeforeRedeploy bool `json:"down_before_redeploy"`
+	ForceRecreate      bool `json:"force_recreate"`
 
-	// ManagedServiceNames Services included in Graft lifecycle actions; empty means all declared services for legacy records.
+	// ManagedServiceNames Services included in Graft lifecycle actions; empty means all declared services.
 	ManagedServiceNames      []string `json:"managed_service_names"`
 	Profiles                 []string `json:"profiles"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
-
-	// PullArgs Bounded argv tokens appended to docker compose pull.
-	PullArgs           *[]string `json:"pull_args,omitempty"`
-	PullBeforeRedeploy bool      `json:"pull_before_redeploy"`
-	RemoveOrphans      bool      `json:"remove_orphans"`
-	RenewAnonVolumes   bool      `json:"renew_anon_volumes"`
-
-	// RestartArgs Bounded argv tokens appended to docker compose restart.
-	RestartArgs *[]string `json:"restart_args,omitempty"`
-
-	// StopArgs Bounded argv tokens appended to docker compose stop.
-	StopArgs *[]string `json:"stop_args,omitempty"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
 	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
@@ -7731,31 +7576,19 @@ type ApplicationLifecycleConfigurationResponse struct {
 	// ApplicationId Stable public Graft Application identifier.
 	ApplicationId ApplicationId `json:"application_id"`
 
-	// ComposeFiles Ordered tracked Compose files reused by lifecycle command generation.
+	// ComposeFiles Ordered tracked Compose files resolved as transient external execution material.
 	ComposeFiles []ApplicationFileItem `json:"compose_files"`
 
-	// ComposeProjectName Read-only application runtime identity used for explicit `docker compose -p`.
+	// ComposeProjectName Read-only application runtime identity resolved as transient external execution material.
 	ComposeProjectName     string                            `json:"compose_project_name"`
 	LifecycleConfiguration ApplicationLifecycleConfiguration `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
 
-	// WorkspacePath Read-only working directory authority reused by lifecycle command generation.
+	// WorkspacePath Read-only working directory authority resolved as transient external execution material.
 	WorkspacePath string `json:"workspace_path"`
 }
-
-// ApplicationLifecycleGeneratedCommand defines model for application-lifecycle-generated-command.
-type ApplicationLifecycleGeneratedCommand struct {
-	Action ApplicationLifecycleGeneratedCommandAction `json:"action"`
-
-	// DisplayCommand Combined preview for the selected lifecycle action.
-	DisplayCommand string                            `json:"display_command"`
-	Steps          []ApplicationLifecycleCommandStep `json:"steps"`
-}
-
-// ApplicationLifecycleGeneratedCommandAction defines model for ApplicationLifecycleGeneratedCommand.Action.
-type ApplicationLifecycleGeneratedCommandAction string
 
 // ApplicationLifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 type ApplicationLifecycleReviewStatus string
@@ -8869,27 +8702,6 @@ type CompleteRequiredPasswordChangeRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
-// ContainerActionResponse defines model for container-action-response.
-type ContainerActionResponse struct {
-	Action     ContainerActionResponseAction `json:"action"`
-	Id         string                        `json:"id"`
-	Message    *string                       `json:"message,omitempty"`
-	MessageKey *string                       `json:"message_key,omitempty"`
-	Name       *string                       `json:"name,omitempty"`
-	Result     ContainerActionResponseResult `json:"result"`
-
-	// Runtime Container runtime adapter key.
-	Runtime      string  `json:"runtime"`
-	StatusAfter  string  `json:"status_after"`
-	StatusBefore *string `json:"status_before,omitempty"`
-}
-
-// ContainerActionResponseAction defines model for ContainerActionResponse.Action.
-type ContainerActionResponseAction string
-
-// ContainerActionResponseResult defines model for ContainerActionResponse.Result.
-type ContainerActionResponseResult string
-
 // ContainerBatchActionItem defines model for container-batch-action-item.
 type ContainerBatchActionItem struct {
 	// Accepted Whether this item was accepted as an independent Container lifecycle Task.
@@ -9780,43 +9592,11 @@ type DockerImage struct {
 	SizeBytes         int64              `json:"size_bytes"`
 }
 
-// DockerImageActionResponse defines model for docker-image-action-response.
-type DockerImageActionResponse struct {
-	Action     DockerImageActionResponseAction `json:"action"`
-	Id         string                          `json:"id"`
-	MessageKey string                          `json:"message_key"`
-}
-
-// DockerImageActionResponseAction defines model for DockerImageActionResponse.Action.
-type DockerImageActionResponseAction string
-
-// DockerImageBatchRemoveItem defines model for docker-image-batch-remove-item.
-type DockerImageBatchRemoveItem struct {
-	// ErrorCode Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
-	ErrorCode  *DockerImageBatchRemoveItemErrorCode `json:"error_code,omitempty"`
-	Id         string                               `json:"id"`
-	Message    *string                              `json:"message,omitempty"`
-	MessageKey *string                              `json:"message_key,omitempty"`
-	Success    bool                                 `json:"success"`
-}
-
-// DockerImageBatchRemoveItemErrorCode Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
-type DockerImageBatchRemoveItemErrorCode string
-
 // DockerImageBatchRemoveRequest defines model for docker-image-batch-remove-request.
 type DockerImageBatchRemoveRequest struct {
 	// Force Force removal even when a container references an image.
 	Force *bool    `json:"force,omitempty"`
 	Ids   []string `json:"ids"`
-}
-
-// DockerImageBatchRemoveResponse Batch image removal summary with one result item for every requested image ID in request order.
-type DockerImageBatchRemoveResponse struct {
-	FailedCount  int                          `json:"failed_count"`
-	Items        []DockerImageBatchRemoveItem `json:"items"`
-	RequestId    *string                      `json:"request_id,omitempty"`
-	SuccessCount int                          `json:"success_count"`
-	Total        int                          `json:"total"`
 }
 
 // DockerImageContainerReference defines model for docker-image-container-reference.
@@ -9890,21 +9670,6 @@ type DockerNetwork struct {
 	Scope              string                           `json:"scope"`
 }
 
-// DockerNetworkActionResponse defines model for docker-network-action-response.
-type DockerNetworkActionResponse struct {
-	Action     DockerNetworkActionResponseAction `json:"action"`
-	Id         string                            `json:"id"`
-	MessageKey string                            `json:"message_key"`
-	Name       string                            `json:"name"`
-	Result     DockerNetworkActionResponseResult `json:"result"`
-}
-
-// DockerNetworkActionResponseAction defines model for DockerNetworkActionResponse.Action.
-type DockerNetworkActionResponseAction string
-
-// DockerNetworkActionResponseResult defines model for DockerNetworkActionResponse.Result.
-type DockerNetworkActionResponseResult string
-
 // DockerNetworkContainerReference Sanitized container reference connected to a Docker network. It intentionally excludes network endpoint and inspect metadata.
 type DockerNetworkContainerReference struct {
 	Id   string `json:"id"`
@@ -9917,7 +9682,6 @@ type DockerNetworkCreateRequest struct {
 	Driver     DockerNetworkCreateRequestDriver `json:"driver"`
 	Internal   *bool                            `json:"internal,omitempty"`
 	Ipam       *DockerNetworkIpamConfig         `json:"ipam,omitempty"`
-	Labels     *map[string]string               `json:"labels,omitempty"`
 	Name       string                           `json:"name"`
 }
 
@@ -10031,28 +9795,10 @@ type DockerVolume struct {
 	SizeBytes          *int64                           `json:"size_bytes,omitempty"`
 }
 
-// DockerVolumeBatchRemoveItem defines model for docker-volume-batch-remove-item.
-type DockerVolumeBatchRemoveItem struct {
-	ErrorCode  *string `json:"error_code,omitempty"`
-	Message    *string `json:"message,omitempty"`
-	MessageKey *string `json:"message_key,omitempty"`
-	Name       string  `json:"name"`
-	Success    bool    `json:"success"`
-}
-
 // DockerVolumeBatchRemoveRequest defines model for docker-volume-batch-remove-request.
 type DockerVolumeBatchRemoveRequest struct {
 	Force *bool    `json:"force,omitempty"`
 	Names []string `json:"names"`
-}
-
-// DockerVolumeBatchRemoveResponse defines model for docker-volume-batch-remove-response.
-type DockerVolumeBatchRemoveResponse struct {
-	FailedCount  int                           `json:"failed_count"`
-	Items        []DockerVolumeBatchRemoveItem `json:"items"`
-	RequestId    *string                       `json:"request_id,omitempty"`
-	SuccessCount int                           `json:"success_count"`
-	Total        int                           `json:"total"`
 }
 
 // DockerVolumeContainerReference defines model for docker-volume-container-reference.
@@ -10087,19 +9833,6 @@ type DockerVolumeRemoveRequest struct {
 	// Force Explicitly force removal when Docker reports the volume is in use.
 	Force bool `json:"force"`
 }
-
-// DockerVolumeRemoveResponse defines model for docker-volume-remove-response.
-type DockerVolumeRemoveResponse struct {
-	Action DockerVolumeRemoveResponseAction `json:"action"`
-	Name   string                           `json:"name"`
-	Result DockerVolumeRemoveResponseResult `json:"result"`
-}
-
-// DockerVolumeRemoveResponseAction defines model for DockerVolumeRemoveResponse.Action.
-type DockerVolumeRemoveResponseAction string
-
-// DockerVolumeRemoveResponseResult defines model for DockerVolumeRemoveResponse.Result.
-type DockerVolumeRemoveResponseResult string
 
 // DrilldownScopeProjection defines model for drilldown-scope-projection.
 type DrilldownScopeProjection struct {
@@ -11124,26 +10857,6 @@ type EnvelopedBuildWorkspace struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedContainerActionResponse defines model for enveloped-container-action-response.
-type EnvelopedContainerActionResponse struct {
-	// Code Existing canonical response code.
-	Code string                  `json:"code"`
-	Data ContainerActionResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedContainerBatchActionResponse defines model for enveloped-container-batch-action-response.
 type EnvelopedContainerBatchActionResponse struct {
 	// Code Existing canonical response code.
@@ -11430,73 +11143,11 @@ type EnvelopedDockerImage struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedDockerImageActionResponse defines model for enveloped-docker-image-action-response.
-type EnvelopedDockerImageActionResponse struct {
-	// Code Existing canonical response code.
-	Code string                    `json:"code"`
-	Data DockerImageActionResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedDockerImageBatchRemoveResponse defines model for enveloped-docker-image-batch-remove-response.
-type EnvelopedDockerImageBatchRemoveResponse struct {
-	// Code Existing canonical response code.
-	Code string `json:"code"`
-
-	// Data Batch image removal summary with one result item for every requested image ID in request order.
-	Data DockerImageBatchRemoveResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedDockerImageListResponse defines model for enveloped-docker-image-list-response.
 type EnvelopedDockerImageListResponse struct {
 	// Code Existing canonical response code.
 	Code string                  `json:"code"`
 	Data DockerImageListResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedDockerNetworkActionResponse defines model for enveloped-docker-network-action-response.
-type EnvelopedDockerNetworkActionResponse struct {
-	// Code Existing canonical response code.
-	Code string                      `json:"code"`
-	Data DockerNetworkActionResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11572,51 +11223,11 @@ type EnvelopedDockerVolume struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedDockerVolumeBatchRemoveResponse defines model for enveloped-docker-volume-batch-remove-response.
-type EnvelopedDockerVolumeBatchRemoveResponse struct {
-	// Code Existing canonical response code.
-	Code string                          `json:"code"`
-	Data DockerVolumeBatchRemoveResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedDockerVolumeListResponse defines model for enveloped-docker-volume-list-response.
 type EnvelopedDockerVolumeListResponse struct {
 	// Code Existing canonical response code.
 	Code string                   `json:"code"`
 	Data DockerVolumeListResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedDockerVolumeRemoveResponse defines model for enveloped-docker-volume-remove-response.
-type EnvelopedDockerVolumeRemoveResponse struct {
-	// Code Existing canonical response code.
-	Code string                     `json:"code"`
-	Data DockerVolumeRemoveResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -14510,6 +14121,7 @@ type RolePermissionBindingResponse struct {
 
 // RuntimeTarget defines model for runtime-target.
 type RuntimeTarget struct {
+	Agent      RuntimeTargetAgent `json:"agent"`
 	Connection struct {
 		// Endpoint Masked connection endpoint. It never contains credentials.
 		Endpoint string                      `json:"endpoint"`
@@ -14563,6 +14175,43 @@ type RuntimeTargetRuntimeProvider string
 
 // RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
 type RuntimeTargetRuntimeType string
+
+// RuntimeTargetAgent defines model for runtime-target-agent.
+type RuntimeTargetAgent struct {
+	// AgentId Non-secret Runtime Agent identity label.
+	AgentId        string                           `json:"agent_id"`
+	Capabilities   []RuntimeTargetAgentCapability   `json:"capabilities"`
+	DiagnosticCode RuntimeTargetAgentDiagnosticCode `json:"diagnostic_code"`
+	Generation     int64                            `json:"generation"`
+	Status         RuntimeTargetAgentStatus         `json:"status"`
+
+	// Version Non-secret implementation version registered for the active Agent generation.
+	Version string `json:"version"`
+}
+
+// RuntimeTargetAgentDiagnosticCode defines model for RuntimeTargetAgent.DiagnosticCode.
+type RuntimeTargetAgentDiagnosticCode string
+
+// RuntimeTargetAgentStatus defines model for RuntimeTargetAgent.Status.
+type RuntimeTargetAgentStatus string
+
+// RuntimeTargetAgentCapability defines model for runtime-target-agent-capability.
+type RuntimeTargetAgentCapability struct {
+	DiagnosticCode RuntimeTargetAgentCapabilityDiagnosticCode `json:"diagnostic_code"`
+
+	// Name Stable Runtime Agent capability identifier.
+	Name   string                             `json:"name"`
+	Status RuntimeTargetAgentCapabilityStatus `json:"status"`
+
+	// Version Frozen capability protocol version exposed by Runtime Target.
+	Version string `json:"version"`
+}
+
+// RuntimeTargetAgentCapabilityDiagnosticCode defines model for RuntimeTargetAgentCapability.DiagnosticCode.
+type RuntimeTargetAgentCapabilityDiagnosticCode string
+
+// RuntimeTargetAgentCapabilityStatus defines model for RuntimeTargetAgentCapability.Status.
+type RuntimeTargetAgentCapabilityStatus string
 
 // RuntimeTargetAssignmentBatchRequest defines model for runtime-target-assignment-batch-request.
 type RuntimeTargetAssignmentBatchRequest struct {
@@ -16097,6 +15746,9 @@ type DockerVolumeListSource = DockerResourceSource
 
 // DockerVolumeListUsage defines model for docker-volume-list-usage.
 type DockerVolumeListUsage string
+
+// IdempotencyKey defines model for idempotency-key.
+type IdempotencyKey = string
 
 // IfMatchHeader defines model for if-match-header.
 type IfMatchHeader = string
@@ -17736,8 +17388,8 @@ type GetContainersParamsSourceScopeKind string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -17870,12 +17522,15 @@ type PostContainerRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // PostContainerRestartParams defines parameters for PostContainerRestart.
 type PostContainerRestartParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -17907,8 +17562,8 @@ type GetContainerShellWebSocketParams struct {
 
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -17920,8 +17575,8 @@ type PostContainerStartParams struct {
 
 // PostContainerStopParams defines parameters for PostContainerStop.
 type PostContainerStopParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -17961,12 +17616,33 @@ type PostDockerImageBatchRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // PostDockerImagePullParams defines parameters for PostDockerImagePull.
 type PostDockerImagePullParams struct {
-	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
-	IdempotencyKey string `json:"Idempotency-Key"`
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// PostDockerImageRemoveParams defines parameters for PostDockerImageRemove.
+type PostDockerImageRemoveParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// PostDockerImageTagParams defines parameters for PostDockerImageTag.
+type PostDockerImageTagParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// PostDockerImageUntagParams defines parameters for PostDockerImageUntag.
+type PostDockerImageUntagParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // GetDockerNetworksParams defines parameters for GetDockerNetworks.
@@ -18006,6 +17682,12 @@ type GetDockerNetworksParams struct {
 // GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
 type GetDockerNetworksParamsUsage string
 
+// PostDockerNetworkParams defines parameters for PostDockerNetwork.
+type PostDockerNetworkParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
 // GetDockerNetworkSavedViewsParams defines parameters for GetDockerNetworkSavedViews.
 type GetDockerNetworkSavedViewsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -18044,6 +17726,12 @@ type PutDockerNetworkSavedViewParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerNetworkParams defines parameters for GetDockerNetwork.
+type GetDockerNetworkParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // GetDockerVolumesParams defines parameters for GetDockerVolumes.
@@ -18121,6 +17809,9 @@ type PostDockerVolumeBatchRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // GetDockerVolumeSavedViewsParams defines parameters for GetDockerVolumeSavedViews.
@@ -18181,6 +17872,9 @@ type PostDockerVolumeRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // GetPermissionsParams defines parameters for GetPermissions.

@@ -2,11 +2,11 @@
 
 - Status: accepted
 - Date: 2026-08-08
-- Scope: `credential-vault`, Build Domain v2 Docker Builder Agent enrollment, identity, telemetry report admission, packaging, and revocation
+- Scope: `credential-vault`, Build Domain v2 Docker Runtime Agent enrollment, identity, telemetry report admission, packaging, and revocation
 
 ## Context
 
-The Build Domain v2 credential and telemetry authority RFC makes Runtime Target the Docker Builder Agent control-plane
+The Build Domain v2 credential and telemetry authority RFC makes Runtime Target the Docker Runtime Agent control-plane
 owner, but deliberately leaves the deployable trust protocol open. Phase 4 cannot admit dynamic placement until an Agent
 is bound to exactly one Runtime Target, Docker Provider, Builder scope, and capability profile, and its reports are
 authenticated, integrity-protected, replay-resistant, and revocable. This decision must not create a second Agent
@@ -32,7 +32,7 @@ identity.
 Every enrollment generation has one stable `agent_id` and a monotonically increasing `generation`. The certificate URI
 SAN is the stable workload identity:
 
-`spiffe://graft/runtime-target/<target_id>/builder-agent/<agent_id>`
+`spiffe://graft/runtime-target/<target_id>/runtime-agent/<agent_id>`
 
 `target_id` and `agent_id` use their canonical textual encodings. DNS, IP and email SANs are omitted; endpoint names are
 connection data, not identity. `generation` is server-side enrollment metadata associated through certificate evidence

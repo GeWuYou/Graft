@@ -31,8 +31,8 @@ func (s *Service) bindUserCandidateReader(users moduleapi.UserCandidateReader) {
 	}
 }
 
-// bindRuntimeExecutionAdapter 注入 Runtime Target 拥有的私有 Registry 认证验证执行边界。
-func (s *Service) bindRuntimeExecutionAdapter(adapter moduleapi.RuntimeOCIRegistryVerifier) {
+// bindRuntimeOCIRegistryVerifier 注入 Runtime Target 拥有的私有 Registry 认证验证边界。
+func (s *Service) bindRuntimeOCIRegistryVerifier(adapter moduleapi.RuntimeOCIRegistryVerifier) {
 	if s != nil {
 		s.execution = adapter
 	}

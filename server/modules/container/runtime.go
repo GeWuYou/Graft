@@ -24,10 +24,6 @@ const (
 	containerActionRestart = "restart"
 	containerActionRemove  = "remove"
 
-	actionResultCompleted = "completed"
-	actionResultUnchanged = "unchanged"
-	actionStatusRemoved   = "removed"
-
 	defaultContainerListLimit     = 20
 	maxContainerListLimit         = 100
 	maxContainerBatchActionIDs    = 100
@@ -115,8 +111,6 @@ var (
 	errDockerNetworkConfirmMismatch  = errors.New("docker network confirmation mismatch")
 	errDockerNetworkDefaultProtected = errors.New("docker default network is protected")
 	errDockerNetworkInUse            = errors.New("docker network has attached containers")
-	errDockerVolumeNotFound          = errors.New("docker volume not found")
-	errDockerVolumeConflict          = errors.New("docker volume conflict")
 	errInvalidRef                    = errors.New("invalid container reference")
 	errInvalidListQuery              = errors.New("invalid container list query")
 	errInvalidBatchAction            = errors.New("invalid container batch action")
@@ -149,10 +143,6 @@ type Runtime interface {
 	Logs(ctx context.Context, id Ref, query LogQuery) (Logs, error)
 	StreamLogs(ctx context.Context, id Ref, query LogQuery, emit func(LogChunk) error) error
 	Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error)
-	Start(ctx context.Context, id Ref) (ActionResult, error)
-	Stop(ctx context.Context, id Ref) (ActionResult, error)
-	Restart(ctx context.Context, id Ref) (ActionResult, error)
-	Remove(ctx context.Context, id Ref, options RemoveOptions) (ActionResult, error)
 	Close() error
 }
 
@@ -471,24 +461,15 @@ type Logs struct {
 	Truncated  bool
 }
 
-// ActionResult describes a start, stop, or restart result for audit and API responses.
-type ActionResult struct {
+type actionAuditSnapshot struct {
 	ID           string
 	Name         string
 	Image        string
 	Action       string
-	Result       string
 	Runtime      string
 	StatusBefore string
 	StatusAfter  string
-	MessageKey   string
-	Message      string
 	Orchestrator OrchestratorInfo
-}
-
-// RemoveOptions describes guarded remove behavior passed to runtime adapters.
-type RemoveOptions struct {
-	Force bool
 }
 
 // ActionOptions describes service-layer action behavior shared by single and batch actions.

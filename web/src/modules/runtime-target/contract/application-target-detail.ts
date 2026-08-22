@@ -1,4 +1,4 @@
-import { getRuntimeTarget } from '../api/runtime-target';
+import { getRuntimeTarget, type RuntimeTargetDetail } from '../api/runtime-target';
 
 export type ApplicationRuntimeTargetDetail = {
   displayName: string;
@@ -9,6 +9,7 @@ export type ApplicationRuntimeTargetDetail = {
   provider: string;
   runtimeType: string;
   version: string;
+  agent: RuntimeTargetDetail['agent'];
 };
 
 /**
@@ -27,6 +28,7 @@ export async function getApplicationRuntimeTargetDetail(id: number): Promise<App
     provider: readText(runtime.provider),
     runtimeType: readText(runtime.type),
     version: readText(runtime.version),
+    agent: target.agent,
   };
 }
 

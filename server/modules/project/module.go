@@ -33,7 +33,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := registerProjectTaskExecutors(taskRegistrar, m.service); err != nil {
+	if err := registerProjectTaskExecution(taskRegistrar, m.service); err != nil {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.ApplicationBuildContextResolver)(nil), func(containerdi.Resolver) (any, error) {

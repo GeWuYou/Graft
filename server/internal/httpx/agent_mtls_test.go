@@ -66,7 +66,7 @@ func TestAgentServerAcceptsCASignedClientCertificateOverTLS(t *testing.T) {
 	now := time.Now().UTC()
 	ca, caKey := createAgentMTLSTestCA(t, now)
 	serverCertificate := createAgentMTLSTestCertificate(t, ca, caKey, now, agentMTLSTestLeaf{commonName: "graft-agent-server"})
-	identityURI, err := url.Parse("spiffe://graft/runtime-target/7/builder-agent/builder-7")
+	identityURI, err := url.Parse("spiffe://graft/runtime-target/7/runtime-agent/builder-7")
 	if err != nil {
 		t.Fatalf("parse client identity URI: %v", err)
 	}
@@ -204,8 +204,8 @@ func TestRequireAgentMTLSIdentityExtractsVerifiedURISAN(t *testing.T) {
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/agent", nil)
-	request.Header.Set("X-Agent-Identity", "spiffe://graft/runtime-target/999/builder-agent/forged")
-	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7")
+	request.Header.Set("X-Agent-Identity", "spiffe://graft/runtime-target/999/runtime-agent/forged")
+	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/runtime-agent/builder-7")
 	request.TLS = &tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{certificate}, {certificate}}}
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, request)
@@ -222,9 +222,9 @@ func TestRequireAgentMTLSIdentityRejectsUnverifiedOrNoncanonicalIdentity(t *test
 		certificate *x509.Certificate
 		verified    bool
 	}{
-		{name: "unverified", certificate: testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7")},
-		{name: "unexpected-generation-path", certificate: testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7/generation/03"), verified: true},
-		{name: "wrong-authority", certificate: testAgentCertificate(t, "spiffe://other/runtime-target/7/builder-agent/builder-7"), verified: true},
+		{name: "unverified", certificate: testAgentCertificate(t, "spiffe://graft/runtime-target/7/runtime-agent/builder-7")},
+		{name: "unexpected-generation-path", certificate: testAgentCertificate(t, "spiffe://graft/runtime-target/7/runtime-agent/builder-7/generation/03"), verified: true},
+		{name: "wrong-authority", certificate: testAgentCertificate(t, "spiffe://other/runtime-target/7/runtime-agent/builder-7"), verified: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			assertAgentMTLSIdentityRejected(t, zap.New(core), testCase.certificate, testCase.verified)
@@ -280,7 +280,7 @@ func assertAgentMTLSRejectionResponse(t *testing.T, response *httptest.ResponseR
 }
 
 func TestParseAgentCertificateIdentityRejectsAdditionalSANs(t *testing.T) {
-	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/builder-agent/builder-7")
+	certificate := testAgentCertificate(t, "spiffe://graft/runtime-target/7/runtime-agent/builder-7")
 	certificate.DNSNames = []string{"agent.example.test"}
 	if _, err := parseAgentCertificateIdentity(certificate); err == nil {
 		t.Fatal("expected extra DNS SAN to be rejected")

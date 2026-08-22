@@ -45,6 +45,7 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 	core, observed := observer.New(zapcore.ErrorLevel)
 	baseLogger := zap.New(core)
 
+	targetID := uint64(7)
 	repository := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
 		Application: projectstore.Application{
 			ApplicationRecordID:   41,
@@ -53,6 +54,7 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 			WorkspacePath:         t.TempDir(),
 			LifecycleReviewStatus: "confirmed",
 			LifecycleStrategyKind: "standard",
+			RuntimeTargetID:       &targetID,
 		},
 		Snapshot: &projectstore.Snapshot{ApplicationRecordID: 41, ConfigHash: "cfg-1", RefreshedAt: time.Now().UTC()},
 	}}
@@ -61,6 +63,7 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 		t.Fatalf("new service: %v", err)
 	}
 	service.SetTaskService(failingLifecycleTaskService{err: cause})
+	service.SetRuntimeTargetReader(availableLifecycleTargetReader())
 	service.SetAppLogger(logger.NewAppLogger(baseLogger).Named("modules.project.lifecycle"))
 
 	recorder := httptest.NewRecorder()
@@ -88,6 +91,7 @@ func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	core, observed := observer.New(zapcore.ErrorLevel)
 	baseLogger := zap.New(core)
+	targetID := uint64(7)
 	repository := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
 		Application: projectstore.Application{
 			ApplicationRecordID:   41,
@@ -96,6 +100,7 @@ func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
 			WorkspacePath:         t.TempDir(),
 			LifecycleReviewStatus: "confirmed",
 			LifecycleStrategyKind: "standard",
+			RuntimeTargetID:       &targetID,
 		},
 		Snapshot: &projectstore.Snapshot{ApplicationRecordID: 41, ConfigHash: "cfg-1", RefreshedAt: time.Now().UTC()},
 		Files: []projectstore.ApplicationFile{{
@@ -108,6 +113,7 @@ func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	service.SetTaskService(failingLifecycleTaskService{err: moduleapi.ErrTaskOwnerBusy})
+	service.SetRuntimeTargetReader(availableLifecycleTargetReader())
 	service.SetAppLogger(logger.NewAppLogger(baseLogger).Named("modules.project.lifecycle"))
 
 	recorder := httptest.NewRecorder()
@@ -139,6 +145,12 @@ func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
 	if len(observed.All()) != 0 {
 		t.Fatalf("task owner conflict must not be logged as internal failure: %#v", observed.All())
 	}
+}
+
+func availableLifecycleTargetReader() *stubComposeRuntimeTargetReader {
+	return &stubComposeRuntimeTargetReader{target: moduleapi.ComposeRuntimeTargetSummary{
+		ID: 7, Provider: "docker", Capabilities: []string{composeExecutionCapability}, Available: true,
+	}}
 }
 
 func assertSafeRedeployResponse(t *testing.T, recorder *httptest.ResponseRecorder, cause error) {

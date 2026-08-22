@@ -93,7 +93,6 @@ describe('useApplicationImportFlow', () => {
         wait_timeout_seconds: 120,
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
-        additional_args: [],
       },
     });
 
@@ -135,11 +134,7 @@ describe('useApplicationImportFlow', () => {
         wait_timeout_seconds: 120,
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
-        additional_args: ['--label', 'release channel'],
         managed_service_names: [],
-        stop_args: [],
-        restart_args: [],
-        pull_args: [],
       },
     });
     mocks.postApplicationImportExecute.mockResolvedValue({
@@ -163,7 +158,6 @@ describe('useApplicationImportFlow', () => {
     flow.displayName.value = 'Srv Override';
     flow.composeProjectNameOverride.value = 'srv-override';
     expect(flow.prepareLifecycleConfiguration()).toBe(true);
-    expect(flow.lifecycleDraft.value?.additional_args).toBe("--label 'release channel'");
 
     await flow.submitImport();
 
@@ -183,11 +177,7 @@ describe('useApplicationImportFlow', () => {
         wait_timeout_seconds: 120,
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
-        additional_args: ['--label', 'release channel'],
         managed_service_names: [],
-        stop_args: [],
-        restart_args: [],
-        pull_args: [],
       },
     });
   });
@@ -243,7 +233,6 @@ describe('useApplicationImportFlow', () => {
     expect(flow.prepareLifecycleConfiguration()).toBe(true);
     flow.lifecycleDraft.value!.profiles = ['production'];
     flow.lifecycleDraft.value!.wait_after_up = true;
-    flow.lifecycleDraft.value!.additional_args = "--label 'release channel'";
     await expect(flow.refreshInspect()).resolves.toBe('applied');
 
     expect(flow.canImport.value).toBe(true);
@@ -252,7 +241,6 @@ describe('useApplicationImportFlow', () => {
     expect(flow.lifecycleDraft.value).toMatchObject({
       profiles: ['production'],
       wait_after_up: true,
-      additional_args: "--label 'release channel'",
     });
   });
 

@@ -49,7 +49,6 @@
             :description="t('project.create.lifecycle.description')"
             :authority-message="t('project.create.lifecycle.authorityHint')"
             :configuration-title="t('project.create.lifecycle.configurationTitle')"
-            :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
             :back-label="t('project.create.actions.back')"
             :continue-label="t('project.create.actions.next')"
             @back="step--"
@@ -192,9 +191,7 @@ const stepOptions = computed(() =>
 );
 const lifecycleSummary = computed(() => {
   if (!lifecycleDraft.value) return '-';
-  return lifecycleDraft.value.additional_args.trim()
-    ? t('project.create.lifecycle.configuredWithAdditionalArgs')
-    : t('project.create.lifecycle.configured');
+  return t('project.create.lifecycle.configured');
 });
 const composePath = computed(
   () =>

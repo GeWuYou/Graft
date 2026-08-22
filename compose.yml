@@ -73,6 +73,8 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
+        # cutover-v1 is the one-time bootstrap authority for legacy update state;
+        # it must complete before the forward-only migration registry runs.
         /app/graft update cutover-v1
         exec /app/graft migrate up
     depends_on:
@@ -229,30 +231,42 @@ services:
       - "${GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_PORT:-8443}"
       - "${GRAFT_HTTPX_AGENT_TLS_PORT:-8444}"
     volumes:
+      # Retained only for Runtime Target discovery/summary, Container
+      # snapshot/resource/log/stream/event/stats/interactive reads,
+      # Deployment Runtime's current-server Docker facts, and bounded
+      # Update observation/recovery. Update Controller launch is Agent-owned.
       - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
       - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
+      - graft-build-snapshots:/tmp/graft-build-snapshots
       # 更新 runner 独占写入该卷；server 重启后只能读取并投影状态。
       - graft-update-state:/var/lib/graft/update-state:ro
 
-  docker-builder-agent:
-    image: ghcr.io/gewuyou/graft-docker-builder-agent:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+  docker-runtime-agent:
+    image: ghcr.io/gewuyou/graft-docker-runtime-agent:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
     restart: unless-stopped
-    profiles: ["docker-builder-agent"]
     depends_on:
       server:
         condition: service_healthy
     group_add:
-      - "${GRAFT_DOCKER_BUILDER_AGENT_DOCKER_SOCKET_GID:-65534}"
+      - "${GRAFT_DOCKER_RUNTIME_AGENT_DOCKER_SOCKET_GID:-65534}"
     volumes:
-      - ${GRAFT_DOCKER_BUILDER_AGENT_CONFIG_HOST_PATH:-./.data/docker-builder-agent/config}:/etc/graft/config:ro
-      - ${GRAFT_DOCKER_BUILDER_AGENT_BOOTSTRAP_HOST_PATH:-./.data/docker-builder-agent/bootstrap}:/run/graft-agent-bootstrap:ro
-      - ${GRAFT_DOCKER_BUILDER_AGENT_TRUST_HOST_PATH:-./.data/docker-builder-agent/trust}:/run/graft-agent-trust:ro
-      - ${GRAFT_DOCKER_BUILDER_AGENT_STATE_HOST_PATH:-./.data/docker-builder-agent/state}:/var/lib/graft-builder-agent/state
+      - ${GRAFT_DOCKER_RUNTIME_AGENT_CONFIG_HOST_PATH:-./.data/docker-runtime-agent/config}:/etc/graft/config:ro
+      - ${GRAFT_DOCKER_RUNTIME_AGENT_BOOTSTRAP_HOST_PATH:-./.data/docker-runtime-agent/bootstrap}:/run/graft-agent-bootstrap:ro
+      - ${GRAFT_DOCKER_RUNTIME_AGENT_TRUST_HOST_PATH:-./.data/docker-runtime-agent/trust}:/run/graft-agent-trust:ro
+      - ${GRAFT_DOCKER_RUNTIME_AGENT_STATE_HOST_PATH:-./.data/docker-runtime-agent/state}:/var/lib/graft-runtime-agent/state
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - graft-build-snapshots:/tmp/graft-build-snapshots:ro
+    healthcheck:
+      test: ["CMD", "/app/graft-docker-runtime-agent", "--healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   web:
     image: ghcr.io/gewuyou/graft-web:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
@@ -266,5 +280,7 @@ services:
       - "${GRAFT_WEB_HOST_PORT:-3000}:80"
 
 volumes:
+  graft-build-snapshots:
+    name: graft-build-snapshots
   graft-update-state:
     name: ${GRAFT_UPDATE_STATE_VOLUME:-graft-update-state}

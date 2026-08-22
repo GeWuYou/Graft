@@ -170,3 +170,33 @@
   - `server/internal/httpx/authz_test.go`
 - Updated at:
   2026-06-04
+
+## LESSON-BACKEND-AGENT-EXECUTION-AUTHORITY-001：特权 Agent 执行必须同时冻结意图、世代能力与瞬时材料边界
+
+- Status: active
+- Level: L2
+- Applies to:
+  - Task-owned external execution lease
+  - Runtime Target Agent capability binding 与证书轮换
+  - 需要宿主机路径、凭据引用或其它敏感执行材料的独立 Agent
+- Source:
+  - 2026-08-21 Docker Runtime Agent Batch 4 Application/Container 迁移
+- Problem:
+  只把业务操作名放进 lease 不能安全完成特权执行：若能力只绑定稳定 Agent 身份，旧证书可能在新世代扩权后继承能力；若把宿主机路径或凭据直接写进 Stage input，Task、日志和数据库又会持久化不该拥有的 provider material。
+- Correct pattern:
+  领域模块只提交 provider-neutral intent；Task Runtime 冻结 Stage、lease、fence、provider、capability 与版本；Runtime Target 对每次 claim 和 post-claim 请求按活动证书世代重新授权；Agent 在持有有效 fence 后通过瞬时 resolver 取得执行材料，且 material 不进入 Task、日志或 receipt。
+- Anti-pattern:
+  只在 claim 时检查稳定 identity；让未过期 lease 绕过新世代能力缩减；把 endpoint、凭据、宿主机路径或命令复制进 Task input/result；或保留 server-local fallback 以掩盖协议缺口。
+- Enforcement:
+  行为测试必须覆盖版本不匹配、能力缺失、旧证书扩权拒绝、重连恢复、post-claim 再授权、material fence/expiry 校验、持久化负面检查和旧执行路径负面扫描；迁移完成后删除对应本地 adapter 与兼容别名。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `ai-plan/design/decisions/ADR-026-docker-runtime-agent-execution-boundary.md`
+  - `ai-plan/design/architecture/credential-vault-and-runtime-target-agent-protocol.md`
+  - `ai-plan/design/architecture/任务执行运行时设计.md`
+  - `server/internal/moduleapi/task.go`
+  - `server/modules/runtime-target/**`
+- Updated at:
+  2026-08-21

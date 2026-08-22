@@ -66,6 +66,8 @@ type Stage struct {
 	Key          string
 	Sequence     int
 	ExecutorType moduleapi.StageExecutorType
+	// ExternalExecution 标识该 Stage 只能由 Runtime Agent 通过 fenced lease 领取。
+	ExternalExecution bool
 	// CoordinationGroup 是数据库领取器判断并行资格的持久化事实，空值继续使用串行语义。
 	CoordinationGroup string
 	// LegID 保留协调计划中的稳定 leg 身份，普通 Stage 为空。
@@ -114,17 +116,44 @@ const (
 
 // ExternalReceipt 保存由 Task Runtime 拥有的不可变、无秘密外部执行结算事实。
 type ExternalReceipt struct {
-	ID              uint64
-	TaskID          uint64
-	StageID         uint64
-	ExecutorType    moduleapi.StageExecutorType
-	Protocol        string
-	OperationID     string
-	Outcome         moduleapi.ExternalReceiptOutcome
-	FailureCode     *string
-	IntegritySHA256 string
-	SettledStatus   moduleapi.TaskStatus
-	CreatedAt       time.Time
+	ID                 uint64
+	LeaseID            *string
+	TaskID             uint64
+	StageID            uint64
+	Attempt            int
+	ExecutorType       moduleapi.StageExecutorType
+	Protocol           string
+	OperationID        string
+	Outcome            moduleapi.ExternalReceiptOutcome
+	FailureCode        *string
+	IntegritySHA256    string
+	SettledStatus      moduleapi.TaskStatus
+	SettledStageStatus moduleapi.StageStatus
+	CreatedAt          time.Time
+}
+
+// ExternalExecutionLease 保存 Task Runtime 对一个外部 Stage attempt 的 fencing 与过期事实。
+type ExternalExecutionLease struct {
+	ID                 string
+	TaskID             uint64
+	StageID            uint64
+	Attempt            int
+	ExecutorType       moduleapi.StageExecutorType
+	RuntimeTargetID    int64
+	ProviderID         string
+	Capability         string
+	Protocol           string
+	OperationID        string
+	PayloadSHA256      string
+	FenceTokenHash     string
+	State              moduleapi.ExternalExecutionLeaseState
+	LeaseTTL           time.Duration
+	LeaseExpiresAt     time.Time
+	AbsoluteDeadlineAt time.Time
+	CancelObservedAt   *time.Time
+	SettledAt          *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // Log 表示一条按序排列的 Stage 输出或系统诊断记录。

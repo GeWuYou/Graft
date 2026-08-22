@@ -11,8 +11,6 @@ required:
   - wait_timeout_seconds
   - renew_anon_volumes
   - prune_images_after_redeploy
-  - generated_commands
-  - additional_args
   - managed_service_names
 properties:
   strategy_kind:
@@ -46,42 +44,9 @@ properties:
   renew_anon_volumes:
     type: boolean
     default: false
-  additional_args:
-    type: array
-    items:
-      type: string
   managed_service_names:
     type: array
     uniqueItems: true
     items:
       type: string
-  stop_args:
-    type: array
-    items:
-      type: string
-  restart_args:
-    type: array
-    items:
-      type: string
-  pull_args:
-    type: array
-    items:
-      type: string
-  generated_commands:
-    type: object
-    required:
-      - up
-      - stop
-      - restart
-      - redeploy
-    properties:
-      up:
-        $ref: ./application-lifecycle-generated-command.yaml
-      stop:
-        $ref: ./application-lifecycle-generated-command.yaml
-      restart:
-        $ref: ./application-lifecycle-generated-command.yaml
-      redeploy:
-        $ref: ./application-lifecycle-generated-command.yaml
-    additionalProperties: false
 additionalProperties: false

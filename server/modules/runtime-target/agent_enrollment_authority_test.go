@@ -140,7 +140,7 @@ func activateAgentEnrollment(t *testing.T, authority moduleapi.AgentEnrollmentAu
 
 func assertUnsupportedAgentEnrollmentRotation(t *testing.T, authority moduleapi.AgentEnrollmentAuthority, enrollment moduleapi.AgentEnrollment, now time.Time) {
 	t.Helper()
-	_, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: "podman", BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, EnrollmentRef: "unsupported-enrollment", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:unsupported", Version: "bundle-unsupported", ExpiresAt: now.Add(2 * time.Hour)}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
+	_, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: "podman", BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, Capabilities: enrollment.Capabilities, RuntimeProtocol: enrollment.RuntimeProtocol, EnrollmentRef: "unsupported-enrollment", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:unsupported", Version: "bundle-unsupported", ExpiresAt: now.Add(2 * time.Hour)}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
 	if err == nil {
 		t.Fatal("rotate enrollment for unsupported provider succeeded")
 	}
@@ -148,7 +148,7 @@ func assertUnsupportedAgentEnrollmentRotation(t *testing.T, authority moduleapi.
 
 func rotateAgentEnrollment(t *testing.T, authority moduleapi.AgentEnrollmentAuthority, enrollment moduleapi.AgentEnrollment, now time.Time) moduleapi.AgentEnrollment {
 	t.Helper()
-	rotated, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: enrollment.ProviderID, BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, EnrollmentRef: "enrollment-2", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-2", Version: "bundle-2", ExpiresAt: now.Add(2 * time.Hour)}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
+	rotated, err := authority.RotateGeneration(context.Background(), moduleapi.AgentEnrollmentRotationRequest{IdentityID: enrollment.IdentityID, TargetID: enrollment.TargetID, AgentID: enrollment.AgentID, ProviderID: enrollment.ProviderID, BuilderScope: enrollment.BuilderScope, CapabilityProfile: enrollment.CapabilityProfile, CapabilityVersion: enrollment.CapabilityVersion, Capabilities: enrollment.Capabilities, RuntimeProtocol: enrollment.RuntimeProtocol, EnrollmentRef: "enrollment-2", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-2", Version: "bundle-2", ExpiresAt: now.Add(2 * time.Hour)}, ExpiresAt: now.Add(2 * time.Hour), Reason: "certificate_rotation"})
 	if err != nil {
 		t.Fatalf("rotate generation: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 		t.Fatal("create enrollment for unsupported provider succeeded")
 	}
 	invalidDigest := testAgentEnrollmentRequest(now.Add(time.Hour))
-	invalidDigest.ImageDigest = "graft-builder-agent:latest"
+	invalidDigest.ImageDigest = "graft-runtime-agent:latest"
 	if _, err := authority.CreateEnrollment(context.Background(), invalidDigest); err == nil {
 		t.Fatal("create enrollment with mutable image reference succeeded")
 	}
@@ -223,7 +223,7 @@ func TestAgentEnrollmentAuthorityRejectsMissingPKIAttestationMetadata(t *testing
 }
 
 func testAgentEnrollmentRequest(expiresAt time.Time) moduleapi.AgentEnrollmentRequest {
-	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "builder-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", ImageDigest: "sha256:" + strings.Repeat("a", 64), AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
+	return moduleapi.AgentEnrollmentRequest{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", BuilderScope: "runtime-agent-7", CapabilityProfile: "oci-build", CapabilityVersion: "v1", Capabilities: []string{"oci-build"}, RuntimeProtocol: "runtime/v1", ImageDigest: "sha256:" + strings.Repeat("a", 64), AgentVersion: "v1.0.0", EnrollmentRef: "enrollment-1", TrustBundle: moduleapi.TrustBundleReference{Reference: "vault:bundle-1", Version: "bundle-1", ExpiresAt: expiresAt}, ExpiresAt: expiresAt}
 }
 
 func openAgentEnrollmentAuthorityTestDB(t *testing.T) *sql.DB {
@@ -235,6 +235,7 @@ func openAgentEnrollmentAuthorityTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { _ = db.Close() })
 	for _, statement := range []string{
 		`CREATE TABLE runtime_target_agent_identities (id INTEGER PRIMARY KEY AUTOINCREMENT, runtime_target_id INTEGER NOT NULL, identity_id TEXT NOT NULL, agent_id TEXT NOT NULL, provider_id TEXT NOT NULL, builder_scope TEXT NOT NULL, capability_profile TEXT NOT NULL, capability_version TEXT NOT NULL, image_digest TEXT NOT NULL DEFAULT '', agent_version TEXT NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, CHECK (trim(identity_id) <> ''), CHECK (trim(agent_id) <> ''), CHECK (trim(provider_id) <> ''), CHECK (trim(builder_scope) <> ''), CHECK (trim(capability_profile) <> ''), CHECK (trim(capability_version) <> ''))`,
+		`CREATE TABLE runtime_target_agent_capability_bindings (id INTEGER PRIMARY KEY AUTOINCREMENT, identity_id INTEGER NOT NULL, generation_id INTEGER NOT NULL UNIQUE, provider_id TEXT NOT NULL, capabilities TEXT NOT NULL, capability_version TEXT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE UNIQUE INDEX uq_runtime_target_agent_identities_identity_live ON runtime_target_agent_identities (identity_id) WHERE deleted_at = 0`,
 		`CREATE UNIQUE INDEX uq_runtime_target_agent_identities_target_agent_live ON runtime_target_agent_identities (runtime_target_id, agent_id) WHERE deleted_at = 0`,
 		`CREATE TABLE runtime_target_agent_generations (id INTEGER PRIMARY KEY AUTOINCREMENT, identity_id INTEGER NOT NULL, generation INTEGER NOT NULL, enrollment_ref TEXT NOT NULL, trust_bundle_ref TEXT NOT NULL, trust_bundle_version TEXT NOT NULL, certificate_issuer TEXT NOT NULL DEFAULT '', certificate_serial TEXT NOT NULL DEFAULT '', public_key_fingerprint TEXT NOT NULL DEFAULT '', expires_at DATETIME NOT NULL, status TEXT NOT NULL, activated_at DATETIME, retired_at DATETIME, revoked_at DATETIME, revoked_reason TEXT NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL DEFAULT 0, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(identity_id, generation), CHECK (generation > 0), CHECK (status IN ('pending', 'active', 'revoked', 'retired')), CHECK (status <> 'pending' OR (certificate_serial = '' AND public_key_fingerprint = '' AND activated_at IS NULL)), CHECK (status <> 'active' OR (certificate_issuer <> '' AND certificate_serial <> '' AND public_key_fingerprint <> '' AND activated_at IS NOT NULL AND revoked_at IS NULL AND retired_at IS NULL)), CHECK (status <> 'revoked' OR revoked_at IS NOT NULL), CHECK (status <> 'retired' OR retired_at IS NOT NULL))`,

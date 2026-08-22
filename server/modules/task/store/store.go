@@ -55,6 +55,14 @@ type Repository interface {
 	NextLogSequence(ctx context.Context, taskID uint64) (int64, error)
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
 	SettleExternalReceipt(ctx context.Context, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error)
+	ListExternalExecutionCandidates(ctx context.Context, limit int, offset int) ([]StageClaim, error)
+	CreateExternalExecutionLease(ctx context.Context, input CreateExternalExecutionLeaseInput) (taskmodel.ExternalExecutionLease, error)
+	GetExternalExecutionLease(ctx context.Context, leaseID string) (taskmodel.ExternalExecutionLease, bool, error)
+	RenewExternalExecutionLease(ctx context.Context, input RenewExternalExecutionLeaseInput) (taskmodel.ExternalExecutionLease, bool, error)
+	RecordExternalExecutionResultDigest(ctx context.Context, input RecordExternalExecutionResultDigestInput) error
+	AppendExternalExecutionLogs(ctx context.Context, input AppendExternalExecutionLogsInput) error
+	SettleExternalExecution(ctx context.Context, input SettleExternalExecutionInput) (ExternalReceiptSettlement, error)
+	ExpireExternalExecutionLeases(ctx context.Context, now time.Time, limit int) (int, error)
 }
 
 // CreateSubmissionInput 描述待物化 Task 的冻结身份与租约。
@@ -85,8 +93,8 @@ type TerminalizeSubmissionInput struct {
 	Reason         string
 }
 
-// StageClaim 是由持久化 running 状态表示的 worker 领取结果。
-// Task Runtime 不另建租约记录；数据库行锁与状态迁移共同防止并发 worker 重复领取同一阶段。
+// StageClaim 是 Task Runtime 从冻结计划与持久化 Stage 事实构造的候选或领取结果。
+// 本地 worker 直接原子迁移状态；Runtime Agent 则在同一事务中迁移状态并创建 fenced lease。
 type StageClaim struct {
 	Task  taskmodel.Task
 	Stage taskmodel.Stage
@@ -163,4 +171,41 @@ type ExternalReceiptSettlement struct {
 	StageID    uint64
 	Status     moduleapi.TaskStatus
 	Idempotent bool
+}
+
+// CreateExternalExecutionLeaseInput 描述对已运行 Stage attempt 的首次 fenced claim。
+type CreateExternalExecutionLeaseInput struct {
+	Lease taskmodel.ExternalExecutionLease
+}
+
+// RenewExternalExecutionLeaseInput 描述按 token hash 和当前状态续租的 CAS 输入。
+type RenewExternalExecutionLeaseInput struct {
+	ID             string
+	FenceTokenHash string
+	LeaseExpiresAt time.Time
+}
+
+// AppendExternalExecutionLogsInput 描述 lease-bound 的一批受限 Stage 日志。
+type AppendExternalExecutionLogsInput struct {
+	LeaseID        string
+	FenceTokenHash string
+	Entries        []moduleapi.TaskLogEntry
+	OccurredAt     time.Time
+}
+
+// RecordExternalExecutionResultDigestInput 只保存 fenced 结果协议与载荷的摘要，不保存领域结果。
+type RecordExternalExecutionResultDigestInput struct {
+	LeaseID        string
+	FenceTokenHash string
+	ResultSHA256   string
+	RecordedAt     time.Time
+}
+
+// SettleExternalExecutionInput 描述 lease-bound receipt 的完整持久化输入。
+type SettleExternalExecutionInput struct {
+	LeaseID         string
+	FenceTokenHash  string
+	Outcome         moduleapi.ExternalReceiptOutcome
+	FailureCode     string
+	IntegritySHA256 string
 }

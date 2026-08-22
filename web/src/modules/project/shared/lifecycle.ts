@@ -1,13 +1,8 @@
 import type { ApplicationImportInspectResponse } from '../types/import';
 import type {
   ApplicationDetailResponseWithLifecycle,
-  ApplicationLifecycleActionKey,
-  ApplicationLifecycleCommandPreview,
-  ApplicationLifecycleCommandStep,
   ApplicationLifecycleConfigurationDraft,
-  ApplicationLifecycleConfigurationModel,
   ApplicationLifecycleConfigurationUpdateRequest,
-  ApplicationLifecycleGeneratedCommand,
   ApplicationLifecycleReviewStatus,
   ApplicationLifecycleStrategyKind,
   ApplicationListItemWithLifecycle,
@@ -16,246 +11,11 @@ import type {
 
 const defaultLifecycleWaitTimeoutSeconds = 120;
 
-function normalizeLifecycleFilePath(path: string, workspacePath?: string | null) {
-  const value = path.trim();
-  const normalizedWorkspacePath = (workspacePath ?? '').trim().replace(/\/+$/g, '');
-
-  if (!value || !normalizedWorkspacePath) {
-    return value;
-  }
-
-  const prefix = `${normalizedWorkspacePath}/`;
-  if (value.startsWith(prefix)) {
-    return value.slice(prefix.length);
-  }
-
-  return value;
-}
-
 function splitProfiles(value: string) {
   return value
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function normalizeAdditionalArgs(value: string) {
-  const args: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | null = null;
-  let escaping = false;
-  let tokenStarted = false;
-
-  for (const character of value.trim()) {
-    if (escaping) {
-      current += character;
-      escaping = false;
-      tokenStarted = true;
-      continue;
-    }
-    if (character === '\\') {
-      escaping = true;
-      tokenStarted = true;
-      continue;
-    }
-    if (quote) {
-      if (character === quote) {
-        quote = null;
-      } else {
-        current += character;
-      }
-      tokenStarted = true;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-      tokenStarted = true;
-      continue;
-    }
-    if (/\s/.test(character)) {
-      if (tokenStarted) {
-        args.push(current);
-        current = '';
-        tokenStarted = false;
-      }
-      continue;
-    }
-    current += character;
-    tokenStarted = true;
-  }
-
-  if (escaping) {
-    current += '\\';
-  }
-  if (tokenStarted) {
-    args.push(current);
-  }
-
-  return args;
-}
-
-function formatAdditionalArg(value: string) {
-  if (!value || /[\s'"\\]/.test(value)) {
-    return `'${value.replace(/'/g, "'\\\\''")}'`;
-  }
-  return value;
-}
-
-function formatAdditionalArgs(values: readonly string[] | null | undefined) {
-  return values?.map(formatAdditionalArg).join(' ') ?? '';
-}
-
-function resolveAbsoluteLifecycleFilePath(path: string, workspacePath?: string | null) {
-  const value = path.trim();
-  const normalizedWorkspacePath = (workspacePath ?? '').trim().replace(/\/+$/g, '');
-
-  if (!value || !normalizedWorkspacePath || value.startsWith('/')) {
-    return value;
-  }
-
-  return `${normalizedWorkspacePath}/${value}`;
-}
-
-function buildComposeBaseCommand(config: ApplicationLifecycleConfigurationDraft, absolutePaths = false) {
-  const command = ['docker', 'compose'];
-  const normalizePath = absolutePaths ? resolveAbsoluteLifecycleFilePath : normalizeLifecycleFilePath;
-
-  for (const file of config.compose_files) {
-    command.push('-f', normalizePath(file, config.workspace_path));
-  }
-
-  for (const profile of config.profiles) {
-    command.push('--profile', profile);
-  }
-
-  if (config.compose_project_name.trim()) {
-    command.push('-p', config.compose_project_name.trim());
-  }
-
-  return command;
-}
-
-function buildUpCommand(config: ApplicationLifecycleConfigurationDraft, absolutePaths = false) {
-  const command = [...buildComposeBaseCommand(config, absolutePaths), 'up', '-d'];
-
-  if (config.build_before_up) {
-    command.push('--build');
-  }
-  if (config.force_recreate) {
-    command.push('--force-recreate');
-  }
-  if (config.remove_orphans) {
-    command.push('--remove-orphans');
-  }
-  if (config.renew_anon_volumes) {
-    command.push('--renew-anon-volumes');
-  }
-  if (config.wait_after_up) {
-    command.push('--wait');
-    command.push('--wait-timeout', String(config.wait_timeout_seconds));
-  }
-
-  command.push(...normalizeAdditionalArgs(config.additional_args));
-  command.push(...config.managed_service_names);
-  return command.map(formatAdditionalArg).join(' ');
-}
-
-function buildScopedCommand(
-  config: ApplicationLifecycleConfigurationDraft,
-  action: 'stop' | 'restart' | 'pull',
-  args: string,
-  absolutePaths = false,
-) {
-  return [
-    ...buildComposeBaseCommand(config, absolutePaths),
-    action,
-    ...normalizeAdditionalArgs(args),
-    ...config.managed_service_names,
-  ]
-    .map(formatAdditionalArg)
-    .join(' ');
-}
-
-function buildSimpleCommandWithPathMode(
-  config: ApplicationLifecycleConfigurationDraft,
-  action: 'stop' | 'restart' | 'down',
-  absolutePaths = false,
-) {
-  const managesSubset =
-    config.declared_service_names.length > 0 &&
-    config.managed_service_names.length < config.declared_service_names.length;
-  const effectiveAction = action === 'down' && managesSubset ? 'stop' : action;
-  const actionArgs =
-    effectiveAction === 'stop' ? config.stop_args : effectiveAction === 'restart' ? config.restart_args : '';
-  return [
-    ...buildComposeBaseCommand(config, absolutePaths),
-    effectiveAction,
-    ...normalizeAdditionalArgs(actionArgs),
-    ...(effectiveAction === 'down' ? [] : config.managed_service_names),
-  ]
-    .map(formatAdditionalArg)
-    .join(' ');
-}
-
-function buildClientGeneratedCommands(
-  config: ApplicationLifecycleConfigurationDraft,
-): ApplicationLifecycleCommandPreview {
-  const commands: ApplicationLifecycleCommandPreview = {
-    up: [
-      {
-        title_key: 'project.detail.lifecycle.step.up',
-        command: buildUpCommand(config),
-        absolute_command: buildUpCommand(config, true),
-      },
-    ],
-    stop: [
-      {
-        title_key: 'project.detail.lifecycle.step.stop',
-        command: buildScopedCommand(config, 'stop', config.stop_args),
-        absolute_command: buildSimpleCommandWithPathMode(config, 'stop', true),
-      },
-    ],
-    restart: [
-      {
-        title_key: 'project.detail.lifecycle.step.restart',
-        command: buildScopedCommand(config, 'restart', config.restart_args),
-        absolute_command: buildSimpleCommandWithPathMode(config, 'restart', true),
-      },
-    ],
-    redeploy: [],
-  };
-
-  if (config.down_before_redeploy) {
-    commands.redeploy?.push({
-      title_key: 'project.detail.lifecycle.step.bringDown',
-      command: buildSimpleCommandWithPathMode(config, 'down'),
-      absolute_command: buildSimpleCommandWithPathMode(config, 'down', true),
-    });
-  }
-
-  if (config.pull_before_redeploy) {
-    commands.redeploy?.push({
-      title_key: 'project.detail.lifecycle.step.pullImages',
-      command: buildScopedCommand(config, 'pull', config.pull_args),
-      absolute_command: buildScopedCommand(config, 'pull', config.pull_args, true),
-    });
-  }
-
-  commands.redeploy?.push({
-    title_key: 'project.detail.lifecycle.step.bringUp',
-    command: buildUpCommand(config),
-    absolute_command: buildUpCommand(config, true),
-  });
-
-  if (config.prune_images_after_redeploy) {
-    commands.redeploy?.push({
-      title_key: 'project.detail.lifecycle.step.pruneImages',
-      command: 'docker image prune -f',
-      absolute_command: 'docker image prune -f',
-    });
-  }
-
-  return commands;
 }
 
 function normalizeLifecycleReviewStatus(
@@ -270,69 +30,7 @@ function normalizeLifecycleReviewStatus(
 
 function normalizeComposeFiles(detail: Pick<ApplicationDetailResponseWithLifecycle, 'compose_files'>) {
   const files = detail.compose_files.map((file) => file.display_path || file.absolute_path || '').filter(Boolean);
-
   return files.length > 0 ? files : ['compose.yaml'];
-}
-
-function lifecycleStepTitleKey(kind: string) {
-  switch (kind) {
-    case 'down':
-      return 'project.detail.lifecycle.step.bringDown';
-    case 'pull':
-      return 'project.detail.lifecycle.step.pullImages';
-    case 'restart':
-      return 'project.detail.lifecycle.step.restart';
-    case 'stop':
-      return 'project.detail.lifecycle.step.stop';
-    case 'prune':
-      return 'project.detail.lifecycle.step.pruneImages';
-    case 'up':
-    default:
-      return 'project.detail.lifecycle.step.up';
-  }
-}
-
-function normalizeGeneratedArgvCommand(argv: string[], workspacePath: string, absolutePaths: boolean) {
-  return argv
-    .map((arg, index) => {
-      if (!absolutePaths && index > 0 && argv[index - 1] === '-f') {
-        return normalizeLifecycleFilePath(arg, workspacePath);
-      }
-
-      return arg;
-    })
-    .join(' ');
-}
-
-function mapGeneratedCommand(
-  command: ApplicationLifecycleGeneratedCommand | undefined,
-  workspacePath: string,
-): ApplicationLifecycleCommandStep[] {
-  if (!command) {
-    return [];
-  }
-  return command.steps.map((step) => ({
-    title_key: lifecycleStepTitleKey(step.kind),
-    command: step.argv.length ? normalizeGeneratedArgvCommand(step.argv, workspacePath, false) : step.display_command,
-    absolute_command: step.argv.length
-      ? normalizeGeneratedArgvCommand(step.argv, workspacePath, true)
-      : step.display_command,
-  }));
-}
-
-function mapGeneratedCommands(
-  config: Pick<ApplicationLifecycleConfigurationModel, 'generated_commands'> | null | undefined,
-  workspacePath: string,
-): ApplicationLifecycleCommandPreview | null {
-  if (!config?.generated_commands) {
-    return null;
-  }
-  return {
-    up: mapGeneratedCommand(config.generated_commands.up, workspacePath),
-    stop: mapGeneratedCommand(config.generated_commands.stop, workspacePath),
-    restart: mapGeneratedCommand(config.generated_commands.restart, workspacePath),
-    redeploy: mapGeneratedCommand(config.generated_commands.redeploy, workspacePath),
-  };
 }
 
 function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
@@ -354,11 +52,7 @@ export type LifecycleDraftSource = {
   wait_timeout_seconds?: number | null;
   renew_anon_volumes?: boolean;
   prune_images_after_redeploy?: boolean;
-  additional_args?: string[] | null;
   managed_service_names?: string[] | null;
-  stop_args?: string[] | null;
-  restart_args?: string[] | null;
-  pull_args?: string[] | null;
 };
 
 function buildLifecycleDraftFromSource(
@@ -370,7 +64,7 @@ function buildLifecycleDraftFromSource(
     reviewStatus: ApplicationLifecycleReviewStatus;
   },
 ): ApplicationLifecycleConfigurationDraft {
-  const config: ApplicationLifecycleConfigurationDraft = {
+  return {
     strategy_kind: source.strategy_kind ?? 'standard',
     workspace_path: options.workspacePath,
     compose_files: options.composeFiles,
@@ -385,40 +79,13 @@ function buildLifecycleDraftFromSource(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(source.wait_timeout_seconds),
     renew_anon_volumes: source.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source.prune_images_after_redeploy ?? false,
-    additional_args: formatAdditionalArgs(source.additional_args ?? []),
     managed_service_names: [...(source.managed_service_names ?? [])],
     declared_service_names: [],
-    stop_args: formatAdditionalArgs(source.stop_args),
-    restart_args: formatAdditionalArgs(source.restart_args),
-    pull_args: formatAdditionalArgs(source.pull_args),
     review_status: options.reviewStatus,
-    generated_commands: null,
   };
-
-  return { ...config, generated_commands: buildClientGeneratedCommands(config) };
 }
 
-function comparableLifecycleDraftState(
-  draft: Pick<
-    ApplicationLifecycleConfigurationDraft,
-    | 'strategy_kind'
-    | 'profiles'
-    | 'down_before_redeploy'
-    | 'pull_before_redeploy'
-    | 'build_before_up'
-    | 'force_recreate'
-    | 'remove_orphans'
-    | 'wait_after_up'
-    | 'wait_timeout_seconds'
-    | 'renew_anon_volumes'
-    | 'prune_images_after_redeploy'
-    | 'additional_args'
-    | 'managed_service_names'
-    | 'stop_args'
-    | 'restart_args'
-    | 'pull_args'
-  >,
-) {
+function comparableLifecycleDraftState(draft: ApplicationLifecycleConfigurationDraft) {
   return {
     strategy_kind: draft.strategy_kind,
     profiles: draft.profiles.map((item) => item.trim()).filter(Boolean),
@@ -431,11 +98,7 @@ function comparableLifecycleDraftState(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(draft.wait_timeout_seconds),
     renew_anon_volumes: draft.renew_anon_volumes,
     prune_images_after_redeploy: draft.prune_images_after_redeploy,
-    additional_args: draft.additional_args.trim(),
     managed_service_names: [...draft.managed_service_names].sort(),
-    stop_args: draft.stop_args.trim(),
-    restart_args: draft.restart_args.trim(),
-    pull_args: draft.pull_args.trim(),
   };
 }
 
@@ -443,7 +106,7 @@ export function buildLifecycleConfigurationDraft(
   detail: ApplicationDetailResponseWithLifecycle,
 ): ApplicationLifecycleConfigurationDraft {
   const source = detail.lifecycle_configuration;
-  const config: ApplicationLifecycleConfigurationDraft = {
+  return {
     strategy_kind: source?.strategy_kind ?? 'standard',
     workspace_path: detail.workspace_path,
     compose_files: normalizeComposeFiles(detail),
@@ -458,19 +121,9 @@ export function buildLifecycleConfigurationDraft(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(source?.wait_timeout_seconds),
     renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
-    additional_args: formatAdditionalArgs(source?.additional_args),
     managed_service_names: [...(source?.managed_service_names ?? [])],
     declared_service_names: [],
-    stop_args: formatAdditionalArgs(source?.stop_args),
-    restart_args: formatAdditionalArgs(source?.restart_args),
-    pull_args: formatAdditionalArgs(source?.pull_args),
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_type),
-    generated_commands: mapGeneratedCommands(source, detail.workspace_path),
-  };
-
-  return {
-    ...config,
-    generated_commands: config.generated_commands ?? buildClientGeneratedCommands(config),
   };
 }
 
@@ -490,11 +143,11 @@ export function buildImportLifecycleConfigurationDraft(
     draft.managed_service_names = Array.isArray(result.services) ? [...result.services] : [];
   }
   draft.declared_service_names = Array.isArray(result.services) ? [...result.services] : [];
-  return { ...draft, generated_commands: buildClientGeneratedCommands(draft) };
+  return draft;
 }
 
 /**
- * 将创建预设的生命周期配置转换为向导草稿，确保模板与空白创建共用命令预览规则。
+ * 将创建预设的生命周期配置转换为向导草稿，保持模板与空白创建的领域策略一致。
  */
 export function buildBlankLifecycleConfigurationDraft(
   defaults: { lifecycle_configuration: LifecycleDraftSource },
@@ -511,14 +164,7 @@ export function buildBlankLifecycleConfigurationDraft(
 export function buildLifecycleConfigurationRequest(
   draft: ApplicationLifecycleConfigurationDraft,
 ): ApplicationLifecycleConfigurationUpdateRequest {
-  const { additional_args, stop_args, restart_args, pull_args, ...request } = comparableLifecycleDraftState(draft);
-  return {
-    ...request,
-    additional_args: normalizeAdditionalArgs(additional_args),
-    stop_args: normalizeAdditionalArgs(stop_args),
-    restart_args: normalizeAdditionalArgs(restart_args),
-    pull_args: normalizeAdditionalArgs(pull_args),
-  };
+  return comparableLifecycleDraftState(draft);
 }
 
 export function isLifecycleDraftDirty(
@@ -555,32 +201,4 @@ export function lifecycleDraftProfilesText(config: Pick<ApplicationLifecycleConf
 
 export function updateLifecycleDraftProfiles(draft: ApplicationLifecycleConfigurationDraft, value: string) {
   draft.profiles = splitProfiles(value);
-}
-
-export function formatLifecycleCommandCopyText(
-  steps: ApplicationLifecycleCommandStep[],
-  options?: { absolutePaths?: boolean },
-) {
-  return steps
-    .map((step) => (options?.absolutePaths ? step.absolute_command || step.command : step.command).trim())
-    .filter(Boolean)
-    .join(' && ');
-}
-
-export function resolveLifecycleCommandSteps(
-  config: ApplicationLifecycleConfigurationDraft,
-  action: ApplicationLifecycleActionKey,
-  options?: { preferClientGenerated?: boolean },
-): ApplicationLifecycleCommandStep[] {
-  if (
-    options?.preferClientGenerated ||
-    config.additional_args.trim() ||
-    config.stop_args.trim() ||
-    config.restart_args.trim() ||
-    config.pull_args.trim()
-  ) {
-    return buildClientGeneratedCommands(config)[action] ?? [];
-  }
-
-  return config.generated_commands?.[action] ?? buildClientGeneratedCommands(config)[action] ?? [];
 }

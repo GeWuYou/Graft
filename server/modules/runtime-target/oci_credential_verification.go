@@ -3,12 +3,9 @@ package runtimetarget
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,31 +13,52 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-const ociRegistryVerificationTimeout = 10 * time.Second
+const (
+	ociRegistryVerificationTimeout = 10 * time.Second
+	credentialSessionTTL           = 5 * time.Minute
+)
 
 var ociRegistryVerificationHTTPClient = &http.Client{
 	Timeout:       ociRegistryVerificationTimeout,
 	CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 }
 
-// VerifyOCIRegistryOnTarget probes only the OCI V2 root after Runtime Target resolves the explicit target.
-// The credential is read solely from the adapter-created temporary config and never enters the returned evidence.
-func (p dockerTargetProvider) VerifyOCIRegistryOnTarget(ctx context.Context, request moduleapi.OCIRegistryVerificationRequest) (moduleapi.OCIRegistryVerificationResult, error) {
-	if !hasIsolatedCredentialConfig(ctx) || !validOCIRegistryVerificationRequest(request) {
+type runtimeOCIRegistryVerifier struct {
+	targets     moduleapi.RuntimeTargetProviderConnectionReader
+	credentials moduleapi.CredentialProvider
+	materials   moduleapi.EphemeralCredentialMaterialProvider
+}
+
+// VerifyOCIRegistry probes only the OCI V2 root after Runtime Target resolves the explicit target.
+// Credential material exists only in this call and is revoked before the method returns.
+func (v runtimeOCIRegistryVerifier) VerifyOCIRegistry(ctx context.Context, request moduleapi.OCIRegistryVerificationRequest) (result moduleapi.OCIRegistryVerificationResult, err error) {
+	if v.targets == nil || v.credentials == nil || v.materials == nil || !validOCIRegistryVerificationRequest(request) {
 		return moduleapi.OCIRegistryVerificationResult{}, errors.New("OCI registry verification input is invalid")
 	}
-	if _, err := p.connection(ctx, request.RuntimeTargetID); err != nil {
+	if _, err := v.targets.GetProviderConnection(ctx, request.RuntimeTargetID); err != nil {
 		return moduleapi.OCIRegistryVerificationResult{}, err
 	}
 	endpoint, err := ociRegistryV2Endpoint(request.Endpoint)
 	if err != nil {
 		return moduleapi.OCIRegistryVerificationResult{}, err
 	}
-	authorization, err := isolatedRegistryAuthorization(ctx, request.Endpoint)
+	session, err := v.credentials.Prepare(ctx, moduleapi.CredentialRequest{CredentialRef: request.CredentialRef, Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef, Operation: request.Operation, ExpiresAt: time.Now().UTC().Add(credentialSessionTTL)})
 	if err != nil {
 		return moduleapi.OCIRegistryVerificationResult{}, err
 	}
-	return probeOCIRegistryV2(ctx, endpoint, authorization), nil
+	defer func() {
+		if revokeErr := v.credentials.Revoke(context.WithoutCancel(ctx), session); revokeErr != nil {
+			err = errors.New("registry credential cleanup could not be verified")
+		}
+	}()
+	material, err := v.materials.ResolveCredentialMaterial(ctx, session, moduleapi.CredentialInjectionTarget{Endpoint: request.Endpoint, RepositoryRef: request.RepositoryRef})
+	if err != nil {
+		return moduleapi.OCIRegistryVerificationResult{}, err
+	}
+	authorization := "Basic " + base64.StdEncoding.EncodeToString([]byte(material.Username+":"+material.Secret))
+	result = probeOCIRegistryV2(ctx, endpoint, authorization)
+	result.ProviderScopeConforms = true
+	return result, nil
 }
 
 func probeOCIRegistryV2(ctx context.Context, endpoint *url.URL, authorization string) moduleapi.OCIRegistryVerificationResult {
@@ -91,33 +109,7 @@ func ociRegistryVerificationRequest(ctx context.Context, endpoint *url.URL, auth
 	return response, nil
 }
 
-func isolatedRegistryAuthorization(ctx context.Context, endpoint string) (string, error) {
-	configDir, ok := ctx.Value(dockerCredentialConfigContextKey{}).(string)
-	if !ok || strings.TrimSpace(configDir) == "" {
-		return "", errors.New("isolated Docker credential context is required")
-	}
-	contents, err := os.ReadFile(filepath.Join(configDir, "config.json")) // #nosec G304 -- configDir is created by the credential adapter for this call.
-	if err != nil {
-		return "", errors.New("read isolated registry credential config")
-	}
-	var config struct {
-		Auths map[string]struct {
-			Auth string `json:"auth"`
-		} `json:"auths"`
-	}
-	if json.Unmarshal(contents, &config) != nil {
-		return "", errors.New("read isolated registry credential config")
-	}
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return "", errors.New("read isolated registry credential config")
-	}
-	for _, key := range []string{parsed.Host, strings.TrimRight(endpoint, "/")} {
-		if encoded := strings.TrimSpace(config.Auths[key].Auth); encoded != "" {
-			if _, err := base64.StdEncoding.DecodeString(encoded); err == nil {
-				return "Basic " + encoded, nil
-			}
-		}
-	}
-	return "", errors.New("isolated registry credential is unavailable")
+func validOCIRegistryVerificationRequest(request moduleapi.OCIRegistryVerificationRequest) bool {
+	return request.RuntimeTargetID > 0 && strings.TrimSpace(request.CredentialRef) != "" && strings.TrimSpace(request.Endpoint) != "" && strings.TrimSpace(request.RepositoryRef) != "" && strings.TrimSpace(request.Operation) != "" &&
+		!strings.ContainsAny(request.CredentialRef+request.Endpoint+request.RepositoryRef+request.Operation, "\x00\r\n")
 }

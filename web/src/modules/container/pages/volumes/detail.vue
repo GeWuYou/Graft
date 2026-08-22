@@ -111,7 +111,8 @@ function confirmRemove() {
     t,
     onConfirm: async (force) => {
       try {
-        await removeDockerVolume(candidate.name, { force });
+        const receipt = await removeDockerVolume(candidate.name, { force });
+        void receipt.task_id;
         returnToList();
         return true;
       } catch (cause) {

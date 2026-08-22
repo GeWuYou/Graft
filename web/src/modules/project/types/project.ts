@@ -86,23 +86,11 @@ export type ApplicationDestroyRequest = components['schemas']['application-destr
 export type ApplicationRuntimeStatus = ApplicationDetailResponse['runtime_status'];
 export type ApplicationLifecycleReviewStatus = components['schemas']['application-lifecycle-review-status'];
 export type ApplicationLifecycleStrategyKind = components['schemas']['application-lifecycle-strategy-kind'];
-export type ApplicationLifecycleActionKey = 'up' | 'stop' | 'restart' | 'redeploy';
-export type ApplicationLifecycleGeneratedCommand = components['schemas']['application-lifecycle-generated-command'];
 export type ApplicationLifecycleConfigurationModel = components['schemas']['application-lifecycle-configuration'];
 export type ApplicationLifecycleConfigurationUpdateRequest =
   components['schemas']['application-lifecycle-configuration-request'];
 export type ApplicationLifecycleConfigurationSavedResponse =
   components['schemas']['application-lifecycle-configuration-response'];
-
-export type ApplicationLifecycleCommandStep = {
-  title_key: string;
-  command: string;
-  absolute_command?: string;
-};
-
-export type ApplicationLifecycleCommandPreview = Partial<
-  Record<ApplicationLifecycleActionKey, ApplicationLifecycleCommandStep[]>
->;
 
 export type ApplicationLifecycleConfigurationDraft = {
   strategy_kind: ApplicationLifecycleStrategyKind;
@@ -121,12 +109,7 @@ export type ApplicationLifecycleConfigurationDraft = {
   prune_images_after_redeploy: boolean;
   managed_service_names: string[];
   declared_service_names: string[];
-  additional_args: string;
-  stop_args: string;
-  restart_args: string;
-  pull_args: string;
   review_status?: ApplicationLifecycleReviewStatus | null;
-  generated_commands?: ApplicationLifecycleCommandPreview | null;
 };
 
 export type ApplicationListItemWithLifecycle = ApplicationListItem;

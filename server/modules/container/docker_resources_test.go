@@ -266,14 +266,6 @@ func TestListDockerVolumesSummaryUsesFullSnapshotBeforeFilters(t *testing.T) {
 	}
 }
 
-func TestMapDockerVolumeErrorPreservesConflict(t *testing.T) {
-	t.Parallel()
-
-	if got := mapDockerVolumeError(assertError("volume is in use")); got != errDockerVolumeConflict {
-		t.Fatalf("expected volume conflict, got %v", got)
-	}
-}
-
 type volumeTestError string
 
 func (e volumeTestError) Error() string { return string(e) }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ type RolloutService struct {
 	coordinator        *ComposeExecutionCoordinator
 	taskQuery          moduleapi.TaskQueryService
 	launcher           ComposeRunnerLauncher
+	runtimeTargets     moduleapi.ComposeRuntimeTargetReader
 	deployment         moduleapi.DeploymentRuntime
 	newOperation       func() string
 	auditPublisher     event.Publisher
@@ -51,6 +53,8 @@ type RolloutService struct {
 	receiptPollDone    chan struct{}
 	receiptPollClosed  bool
 	receiptPollEvery   time.Duration
+	externalInputMu    sync.Mutex
+	externalLaunches   map[string]*updateControllerLaunchSlot
 }
 
 const receiptPollInterval = 15 * time.Second
@@ -111,10 +115,17 @@ func (s *RolloutService) SetBackupArtifactRoot(root string) {
 
 func newOperationID() string { return fmt.Sprintf("update-%d", time.Now().UTC().UnixNano()) }
 
-// NewRolloutService 组合已注册的窄 capability 与受限 Docker launcher。
+// NewRolloutService 组合 Update 领域 capability、Task/Backup 能力与终态观察边界。
 func NewRolloutService(discovery *Service, operations OperationStore, tasks moduleapi.TaskService, backups moduleapi.BackupService, launcher ComposeRunnerLauncher) *RolloutService {
 	stateStore, _ := NewFileRunnerStateStore(RunnerStateRoot)
-	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore}
+	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore, externalLaunches: make(map[string]*updateControllerLaunchSlot)}
+}
+
+// SetRuntimeTargetReader 注入 Runtime Target authority，在提交外部启动 Stage 前冻结 generation-scoped target identity。
+func (s *RolloutService) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) {
+	if s != nil {
+		s.runtimeTargets = reader
+	}
 }
 
 // SetRunnerStateStore 注入只读 runner 状态源；server 永不通过该边界写入生命周期阶段。
@@ -154,7 +165,7 @@ type StartRolloutInput struct {
 
 // Start 只接受当前 catalog 中已验证的候选版本，随后仅启动一次 digest-pinned runner。
 //
-//nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
+//nolint:cyclop,gocyclo // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
 func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (ComposeUpdateOperation, error) {
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || input.RequestedBy == 0 {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
@@ -176,7 +187,26 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("backup artifact root is unavailable"))
 	}
 	handoff := backupHandoff(operation.OperationID, input.RequestedBy, s.backupArtifactRoot)
-	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, handoff)
+	if s.runtimeTargets == nil {
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "runtime_target", operation.OperationID, errors.New("compose update runtime target is unavailable"))
+	}
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
+	if err != nil || !target.Available || target.Provider != "docker" || !slices.Contains(target.Capabilities, composeUpdateCapability) {
+		if err == nil {
+			err = errors.New("compose update runtime target is unavailable")
+		}
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "runtime_target", operation.OperationID, err)
+	}
+	if err := s.prepareExternalLaunch(operation.OperationID, target.ID); err != nil {
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "runtime_target", operation.OperationID, err)
+	}
+	launchReady := false
+	defer func() {
+		if !launchReady {
+			s.failExternalLaunch(operation.OperationID)
+		}
+	}()
+	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, target.ID, handoff)
 	if err != nil {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "handoff", operation.OperationID, err)
 	}
@@ -185,9 +215,10 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	if !filepath.IsAbs(runnerInput.BackupArtifactRoot) {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("prepared backup artifact root is unavailable"))
 	}
-	if err := s.persistAndLaunch(ctx, prepared, runnerInput); err != nil {
+	if err := s.persistAndLaunch(ctx, prepared, runnerInput, target.ID); err != nil {
 		return ComposeUpdateOperation{}, err
 	}
+	launchReady = true
 	return prepared, nil
 }
 
@@ -377,9 +408,11 @@ func (s *RolloutService) taskTerminalOperationView(ctx context.Context, operatio
 	case moduleapi.TaskStatusNeedsAttention:
 		return updateOperationViewFromTaskRecovery(operation), true, nil
 	case moduleapi.TaskStatusSuccess:
+		s.clearExternalLaunch(operation.OperationID)
 		operation.Outcome = ExecutionOutcomeSuccess
 		return updateOperationViewFromHistory(operation), true, nil
 	case moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
+		s.clearExternalLaunch(operation.OperationID)
 		operation.Outcome = ExecutionOutcomeFailed
 		return updateOperationViewFromHistory(operation), true, nil
 	default:
@@ -400,14 +433,10 @@ func (s *RolloutService) applyFailureDiagnosticAvailability(ctx context.Context,
 // Recover 只在已验证 runner 异常退出且尚未迁移时，启动一次性终态恢复 runner。
 // 它不执行 Compose 操作，也不由 server 伪造或改写 runner 生命周期快照。
 //
-//nolint:cyclop,gocognit,gocyclo,nestif // 状态、operation、lease 失联和一次性 launcher 的绑定必须按序 fail closed。
+//nolint:cyclop,gocognit,gocyclo,nestif,funlen // 状态、operation、lease 失联和一次性 launcher 的绑定必须按序 fail closed。
 func (s *RolloutService) Recover(ctx context.Context, operationID string) (ComposeUpdateOperation, error) {
 	if s == nil || !runnerOperationID.MatchString(operationID) || s.stateStore == nil || s.operations == nil {
 		return ComposeUpdateOperation{}, errRecoveryUnavailable
-	}
-	recoveryLauncher, ok := s.launcher.(ComposeRunnerRecoveryLauncher)
-	if !ok {
-		return ComposeUpdateOperation{}, fmt.Errorf("%w: launcher is unavailable", errRecoveryUnavailable)
 	}
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
@@ -417,6 +446,9 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	}
 	if isTerminalOutcome(operation.Outcome) {
 		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	if s.taskQuery == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: task runtime is unavailable", errRecoveryUnavailable)
 	}
 	state, stateErr := s.stateStore.Read()
 	if stateErr == nil {
@@ -449,21 +481,58 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	if !claimed {
 		return ComposeUpdateOperation{}, errRecoveryConflict
 	}
-	s.startMu.Unlock()
-	defer s.startMu.Lock()
+	recoveryLaunchAttempted := false
+	defer func() {
+		if !recoveryLaunchAttempted {
+			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
+				s.logger.Error("release pre-launch recovery claim failed", zap.String("operation_id", operation.OperationID), zap.Error(releaseErr))
+			}
+		}
+	}()
 	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy)}
 	if stateErr == nil {
 		recoveryInput.State = &state
 	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
 		recoveryInput.Corrupt = true
 	}
-	if err := recoveryLauncher.LaunchRecovery(ctx, recoveryInput, recoveryImage, claimID); err != nil {
-		if recoveryLaunchFailedBeforeContainerStart(err) {
-			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
-				s.logger.Error("release pre-start recovery claim failed", zap.String("operation_id", operationID), zap.Error(releaseErr))
-			}
+	stages, err := s.taskQuery.ListTaskStages(ctx, operation.TaskID)
+	if err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: list recovery task stages: %v", errRecoveryUnavailable, err)
+	}
+	var launchStage *moduleapi.TaskStageView
+	for index := range stages {
+		if stages[index].Key == "controller_launch" && stages[index].ExecutorType == composeUpdateLaunchExecutor {
+			launchStage = &stages[index]
+			break
 		}
-		return ComposeUpdateOperation{}, fmt.Errorf("%w: launch terminated compose runner recovery: %v", errRecoveryUnavailable, err)
+	}
+	if launchStage == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery launch stage is unavailable", errRecoveryUnavailable)
+	}
+	if s.runtimeTargets == nil || s.coordinator == nil || s.coordinator.tasks == nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery runtime target is unavailable", errRecoveryUnavailable)
+	}
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
+	if err != nil || !target.Available || target.Provider != "docker" || !slices.Contains(target.Capabilities, composeUpdateCapability) {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: recovery runtime target is unavailable", errRecoveryUnavailable)
+	}
+	if err := s.prepareRecoveryLaunch(operation.OperationID, target.ID, recoveryInput, recoveryImage, claimID); err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: prepare recovery material: %v", errRecoveryUnavailable, err)
+	}
+	switch launchStage.Status {
+	case moduleapi.StageStatusUnknown, moduleapi.StageStatusFailed:
+		recoveryLaunchAttempted = true
+		if err := s.coordinator.tasks.RetryStage(ctx, operation.TaskID, launchStage.ID); err != nil {
+			s.failExternalLaunch(operation.OperationID)
+			return ComposeUpdateOperation{}, fmt.Errorf("%w: retry recovery launch stage: %v", errRecoveryUnavailable, err)
+		}
+	case moduleapi.StageStatusPending:
+		// lease 尚未被认领；保留冻结的 pending Stage，由 Runtime Agent 使用恢复材料只认领一次。
+		recoveryLaunchAttempted = true
+	case moduleapi.StageStatusRunning:
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	default:
+		return ComposeUpdateOperation{}, errRecoveryConflict
 	}
 	return operation, nil
 }
@@ -808,19 +877,14 @@ func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptP
 	}
 }
 
-func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
+func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput, targetID int64) error {
 	if err := s.operations.Create(ctx, operation); err != nil {
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "operation_persist", operation.OperationID, fmt.Errorf("persist update operation: %w", err))
 	}
-	if err := s.launcher.Launch(ctx, input); err != nil {
-		operation.Outcome, operation.FailureCode = ExecutionOutcomeFailed, "runner_launch_failed"
-		if cleanupErr := s.coordinator.CancelBeforeLaunch(ctx, operation); cleanupErr != nil {
-			operation.FailureCode = "runner_launch_cleanup_failed"
-			_ = s.operations.Settle(ctx, operation)
-			return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w; reconcile launch handoff: %w", err, cleanupErr))
-		}
-		_ = s.operations.Settle(ctx, operation)
-		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w", err))
+	// Runtime Agent 负责领取启动 Stage；宿主机路径、socket、镜像与编码输入只在
+	// 有效 fenced material 请求到达前保留于当前进程，不进入 Task 或 Agent journal。
+	if err := s.completeExternalLaunch(operation.OperationID, targetID, input); err != nil {
+		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, err)
 	}
 	s.publishAudit(ctx, operation, true, "")
 	return nil
@@ -847,6 +911,9 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 		s.publishAudit(ctx, settled, false, "operation_settlement_failed")
 		return ComposeUpdateOperation{}, err
 	}
+	s.externalInputMu.Lock()
+	delete(s.externalLaunches, settled.OperationID)
+	s.externalInputMu.Unlock()
 	if persisted, getErr := s.operations.Get(ctx, settled.OperationID); getErr == nil {
 		settled = persisted
 	}

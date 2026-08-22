@@ -136,6 +136,10 @@ and MUST redact all receipts. Missing scope, unsupported injection, expiry or un
 `Revoke` is idempotent and required on success, failure, cancellation, timeout and recovery; cleanup failure is a
 security failure and blocks reuse.
 
+For the Batch 5 Docker binding, the Agent SDK adapter passes the resolved short-lived credential directly to the Moby/OCI
+request and does not create a Docker CLI config file. The examples above remain provider-neutral options for future
+providers; they do not authorize a server-local adapter or ambient credential fallback.
+
 ### Workspace Adapter
 
 `WorkspaceAdapter` consumes only the immutable Snapshot identity/digest and a declared delivery mode:
@@ -165,6 +169,29 @@ Execution Context is a provider-neutral, immutable input envelope for approved e
 mirror, registry alias and cache namespace values. It excludes endpoint details, secret values and arbitrary paths.
 The adapter MUST honor fencing, cancellation and timeout, return digest-preserving receipts, and surface uncertain
 external state as `Unknown` for Task Runtime recovery. It MUST not retry or reschedule independently.
+
+For Docker, the execution adapter is hosted by the single `docker-runtime-agent` defined by ADR-026. Build retains
+Plan, Placement, Reservation, Artifact and Publication authority; Task Runtime issues and settles the external execution
+lease; Runtime Target authenticates the Agent and projects its capability binding. The Agent may translate the frozen
+request to Moby Engine or approved OCI SDK calls, but it cannot select a target, alter a reservation, create a Task or
+persist a second execution ledger. The Build Driver identity remains Build-owned and provider-neutral; it is not the
+Runtime Agent capability or an SDK selector.
+
+The accepted Docker execution binding is `provider=docker`, `capability=oci-build`,
+`capability_version=docker/v1`, `protocol=build-execution/v1`. Its operation allowlist is exactly:
+
+- `build.image.local.v1`
+- `build.image.publish.v1`
+- `build.manifest.publish.v1`
+- `build.artifact.copy.v1`
+
+The Agent uses the Moby SDK for image build/push/inspection and the OCI SDK for manifest publication and digest-preserving
+artifact copy. Build execution context, Registry endpoint and operation-scoped credential material are resolved only
+after the current lease fence and active generation binding have been re-authorized. That material is a private
+`build-execution-material/v1` response, never a Build plan or Task contract. The normalized
+`build-execution-result/v1` payload returns through the fenced transient result seam before the terminal receipt; Task
+stores only its replay digest and Build interprets the Artifact/Publication facts. There is no server-local Docker/CLI
+adapter, fallback, compatibility alias or dual execution path for these operations.
 
 ### Evidence Writer
 

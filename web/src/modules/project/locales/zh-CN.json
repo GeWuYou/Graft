@@ -444,7 +444,7 @@
         "lifecycle": {
           "shortTitle": "配置生命周期",
           "title": "第 3 步 · 配置生命周期",
-          "description": "确认 Graft 将用于后续 Compose 操作的配置和命令预览。"
+          "description": "确认 Graft 将用于后续应用操作的结构化生命周期策略。"
         },
         "confirm": {
           "shortTitle": "确认导入",
@@ -561,7 +561,6 @@
         "unavailableTitle": "无法加载生命周期配置",
         "authorityHint": "此配置将随导入一起保存；导入成功后应用生命周期即可执行。",
         "configurationTitle": "生命周期配置",
-        "commandPreviewTitle": "命令预览",
         "managedServicesTitle": "选择纳入管理的服务",
         "managedServicesDescription": "只限制 Graft 发起的生命周期动作，不修改原始 Compose 文件。默认全部纳入管理。",
         "selectAllServices": "全选服务",
@@ -876,10 +875,8 @@
         "description": "确认创建后由应用持有的 Compose 生命周期配置。",
         "authorityHint": "创建只保存生命周期配置，不会执行部署或启动容器。",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "命令预览",
         "defaultsLoadFailed": "无法加载生命周期默认配置。",
-        "configured": "已确认默认生命周期配置",
-        "configuredWithAdditionalArgs": "已确认生命周期配置，并包含额外启动参数"
+        "configured": "已确认默认生命周期配置"
       },
       "review": {
         "title": "审核创建",
@@ -912,9 +909,9 @@
       }
     },
     "creation": {
-      "eyebrow": "Docker Compose",
+      "eyebrow": "Compose 应用",
       "title": "选择应用来源",
-      "description": "选择 Docker Compose 应用的初始化方式。",
+      "description": "选择 Compose 应用的初始化方式。",
       "availability": {
         "ready": "可用",
         "blocked": "暂不可用",
@@ -1023,8 +1020,8 @@
       "unsupportedTooltip": "暂未支持",
       "items": {
         "dockerCompose": {
-          "title": "Docker Compose",
-          "description": "使用 Docker Compose 管理单机应用。"
+          "title": "Compose",
+          "description": "使用 Compose 管理单机应用。"
         },
         "dockerSwarm": {
           "title": "Docker Swarm",
@@ -1304,6 +1301,7 @@
       },
       "eyebrow": "Compose 应用",
       "description": "应用摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
+      "runtimeTargetCapabilityUnavailable": "运行时 Agent 能力不可用，应用与容器操作已禁用。",
       "openWorkingDirectory": "工作区路径",
       "titleFallback": "应用详情",
       "sections": {
@@ -1313,7 +1311,7 @@
         },
         "overview": {
           "title": "运行概览",
-          "description": "聚焦应用当前运行状态、资源变化、网络 I/O 和容器快照。"
+          "description": "解释应用身份、运行目标、生命周期状态、服务快照、配置与任务历史。"
         },
         "resources": {
           "title": "Resources",
@@ -1524,33 +1522,16 @@
       },
       "lifecycle": {
         "title": "生命周期",
-        "description": "确认 Graft 将用于本地应用生命周期动作的 Compose 配置，并预览生成命令。",
+        "description": "确认 Graft 将用于应用生命周期动作的结构化策略。",
         "statusTitle": "生命周期状态",
-        "statusDescription": "查看当前已确认的生命周期 authority，以及命令生成依赖的关键配置。",
+        "statusDescription": "查看当前已确认的生命周期策略权威与保护条件。",
         "configurationTitle": "部署配置",
         "remoteStaleTitle": "远端配置已刷新",
         "remoteStaleDescription": "后台已收到新的生命周期配置快照，当前保留你未保存的本地修改。需要载入最新配置时，请点击“重置”。",
-        "generatedCommandsTitle": "生成命令",
-        "generatedCommandsDescription": "在保存或执行动作前，先核对每个生命周期动作的最终命令预览。",
-        "copyCommandHint": "复制时，多步骤命令会转换为使用 && 串联的单行 shell 命令。",
-        "copyAbsolutePaths": "复制使用绝对路径",
-        "generatedCommandsEmpty": "当前还没有可用的命令预览。",
-        "generatedCommands": {
-          "up": "启动",
-          "stop": "停止",
-          "restart": "重启",
-          "redeploy": "重新部署"
-        },
-        "generatedCommandsDescriptions": {
-          "up": "按当前保存策略启动 compose 应用。",
-          "stop": "停止当前运行中的服务，但不移除应用资源。",
-          "restart": "在当前 compose 应用内原位重启服务。",
-          "redeploy": "按保存的重新部署策略执行预处理、启动和清理步骤。"
-        },
         "groups": {
           "base": {
             "title": "基础参数",
-            "description": "调整 Profiles 和临时 compose 参数，并即时查看命令预览变化。"
+            "description": "调整 Profiles 与结构化生命周期策略字段。"
           },
           "redeploy": {
             "title": "重新部署策略",
@@ -1569,14 +1550,6 @@
         "composeFiles": "Compose 文件",
         "profiles": "Profiles",
         "profilesPlaceholder": "app, monitoring",
-        "additionalArgs": "Up 附加参数",
-        "additionalArgsPlaceholder": "例如 --scale worker=2",
-        "stopArgs": "Stop 附加参数",
-        "stopArgsPlaceholder": "例如 --timeout 30",
-        "restartArgs": "Restart 附加参数",
-        "restartArgsPlaceholder": "例如 --no-deps",
-        "pullArgs": "Pull 附加参数",
-        "pullArgsPlaceholder": "例如 --policy always",
         "downBeforeRedeploy": "重新部署前先执行 down",
         "pullBeforeRedeploy": "重新部署前先拉取镜像",
         "buildBeforeUp": "up 前执行 build",
@@ -1585,25 +1558,24 @@
         "waitAfterUp": "up 后等待就绪",
         "waitTimeoutSeconds": "等待就绪超时",
         "renewAnonVolumes": "重新创建匿名卷",
-        "renewAnonVolumesWarning": "该选项会让 docker compose up 不复用旧容器的匿名卷，可能导致数据丢失，请确认后再开启。",
+        "renewAnonVolumesWarning": "该策略会为重建容器请求新的匿名卷，旧数据可能无法继续使用，请确认后再开启。",
         "pruneImagesAfterRedeploy": "重新部署后清理镜像",
         "optionDescriptions": {
-          "downBeforeRedeploy": "在重新部署的启动步骤前，先执行 docker compose down。",
+          "downBeforeRedeploy": "在重新部署的启动步骤前，先清理应用资源。",
           "pullBeforeRedeploy": "在复用当前 compose 应用定义前，先拉取最新镜像。",
-          "buildBeforeUp": "在重新部署进入 bring-up 阶段时，为 docker compose up 增加 --build。",
-          "forceRecreate": "为 bring-up 增加 --force-recreate，强制重建全部容器。",
-          "removeOrphans": "为 docker compose up 增加 --remove-orphans，移除当前应用中已不再由 Compose 定义声明的孤儿容器。",
-          "waitAfterUp": "为 compose up 增加 --wait，等待声明服务进入就绪状态。",
+          "buildBeforeUp": "在重新部署进入启动阶段前构建应用镜像。",
+          "forceRecreate": "在启动阶段强制重建全部容器。",
+          "removeOrphans": "移除当前应用中已不再由定义声明的孤儿容器。",
+          "waitAfterUp": "启动后等待已声明服务进入就绪状态。",
           "waitTimeoutSeconds": "仅在开启“up 后等待就绪”时生效，范围为 1 到 3600 秒。",
-          "renewAnonVolumes": "为 docker compose up 增加 --renew-anon-volumes，不复用旧容器的匿名卷。",
-          "pruneImagesAfterRedeploy": "重新部署完成后执行 docker image prune -f。"
+          "renewAnonVolumes": "请求新的匿名卷，不复用旧容器的匿名卷。",
+          "pruneImagesAfterRedeploy": "重新部署完成后回收未使用的运行时镜像。"
         },
         "help": {
           "common": {
             "ariaLabel": "查看“{item}”的帮助说明",
             "sections": {
               "effect": "作用",
-              "command": "实际命令",
               "scenarios": "适用场景",
               "risks": "代价与风险",
               "recommendation": "默认建议"
@@ -1619,72 +1591,69 @@
           "items": {
             "downBeforeRedeploy": {
               "tooltip": "先停止并移除当前 Compose 资源，再执行新的 up。会产生明确停机窗口，但能清理旧容器和网络状态。",
-              "effect": "把重新部署流程改为先执行 docker compose down，再执行新的 docker compose up。",
+              "effect": "把重新部署流程改为先清理应用资源，再执行新的启动。",
               "scenarios": "适合需要从干净状态重起、怀疑旧容器、网络或挂载状态污染当前部署时开启。",
               "risks": "会造成明确停机窗口，服务在 down 与 up 之间不可用；同时会移除当前应用关联的容器、网络等资源。",
               "recommendation": "默认按需开启。只有在你明确接受停机窗口，并且需要一次彻底重建时再启用。"
             },
             "pullBeforeRedeploy": {
               "tooltip": "在复用当前 Compose 定义前先拉取镜像。适合镜像标签会持续更新的部署方式。",
-              "effect": "在进入 bring-up 之前先执行 docker compose pull，刷新当前应用使用的镜像。",
+              "effect": "在进入启动阶段前刷新当前应用引用的镜像。",
               "scenarios": "适合 CI 持续推送镜像、使用 latest 或其他可变标签，以及希望每次重新部署都优先获取远端最新镜像的场景。",
               "risks": "会增加网络耗时，也可能把应用更新到未预期的新镜像版本，导致行为变化或回滚成本上升。",
               "recommendation": "默认按需开启。如果镜像版本是显式固定 tag，可保持关闭；如果依赖远端持续更新镜像，可考虑开启。"
             },
             "buildBeforeUp": {
-              "tooltip": "在 up 阶段附带 --build，优先重建本地镜像。适合依赖本地 Dockerfile 或源码已变更的应用。",
-              "effect": "为 docker compose up 增加 --build，让重新部署前先尝试重建本地镜像。",
+              "tooltip": "在启动前优先重建本地镜像。适合依赖本地构建定义或源码已变更的应用。",
+              "effect": "让重新部署在启动容器前先尝试重建本地镜像。",
               "scenarios": "适合本地构建上下文、Dockerfile、依赖文件或源码已经变更，且部署依赖本机构建镜像的应用。",
               "risks": "会增加构建耗时；构建缓存失效时耗时更明显；如果构建失败，本次重新部署会被直接阻断。",
               "recommendation": "默认关闭。只有在本地镜像构建是当前应用的标准发布路径时再开启。"
             },
             "forceRecreate": {
-              "tooltip": "为 up 增加 --force-recreate，即使配置未变也会重建容器。可用于清理异常状态，但会带来更多重启扰动。",
-              "effect": "为 docker compose up 增加 --force-recreate，强制当前服务容器全部重建。",
+              "tooltip": "即使配置未变也重建容器。可用于清理异常状态，但会带来更多重启扰动。",
+              "effect": "在启动阶段强制当前服务容器全部重建。",
               "scenarios": "适合怀疑容器状态漂移、环境变量或挂载需要强制刷新、简单 restart 不能恢复的问题排查场景。",
               "risks": "会带来更多容器重启和瞬时中断；如果服务依赖热缓存或本地状态，重建影响会比普通 up 更明显。",
               "recommendation": "默认关闭。只有在你明确需要强制刷新容器状态，而不是普通原位启动时再开启。"
             },
             "removeOrphans": {
-              "tooltip": "为 up 增加 --remove-orphans，清理已不在当前 Compose 定义中的旧容器。适合服务被删除、改名或拆分后的收尾。",
-              "effect": "为 docker compose up 增加 --remove-orphans，自动移除当前应用名下已不再由现有 Compose 文件声明的孤儿容器。",
+              "tooltip": "清理已不在当前应用定义中的旧容器。适合服务被删除、改名或拆分后的收尾。",
+              "effect": "自动移除当前应用名下已不再由现有定义声明的孤儿容器。",
               "scenarios": "适合 Compose 服务名调整、服务拆分、模块删除，或历史残留容器需要被自动清理的场景。",
               "risks": "会删除同一 Compose 应用作用域下不再被声明的旧容器；如果你仍在依赖那些残留容器，会被一起清走。",
               "recommendation": "推荐开启。对长期演进中的 Compose 应用，它能减少旧容器残留带来的混淆。"
             },
             "waitAfterUp": {
-              "tooltip": "为 up 增加 --wait。有 healthcheck 时等待 healthy；没有 healthcheck 时通常只能判断容器是否 running。",
+              "tooltip": "启动后等待就绪。有健康检查时等待健康状态；没有健康检查时通常只能判断容器是否运行。",
               "effect": "把启动动作变成带就绪等待的同步流程，Graft 会在 up 后等待 Compose 报告服务已就绪。",
               "scenarios": "适合需要在操作完成前确认服务已进入可用状态，或后续动作依赖服务 readiness 的部署流程。",
               "risks": "会拉长操作反馈时间；如果服务没有 healthcheck，等待结果通常只能退化到容器是否 running，而不代表应用已经真正可用。",
               "recommendation": "默认按需开启。对需要明确 readiness 信号的服务建议开启，但最好先补齐 healthcheck。"
             },
             "waitTimeoutSeconds": {
-              "tooltip": "限制 --wait 的最长等待时间。过短会误判失败，过长会拖慢发布反馈。",
-              "effect": "控制 docker compose up -d --wait 的最大等待时长，超时后本次等待会按失败处理。",
+              "tooltip": "限制服务就绪的最长等待时间。过短会误判失败，过长会拖慢发布反馈。",
+              "effect": "控制服务就绪等待的最大时长，超时后本次等待会按失败处理。",
               "scenarios": "适合慢启动服务、首次初始化需要跑迁移、冷缓存恢复较慢，或不同环境启动时间差异明显的应用。",
               "risks": "阈值过小会让正常但较慢的启动被误判失败；阈值过大会拖慢发布、排障和失败反馈速度。",
               "recommendation": "按环境调整。建议先基于真实启动时间留出缓冲，而不是统一给所有环境使用同一个极端值。"
             },
             "renewAnonVolumes": {
-              "tooltip": "为 up 增加 --renew-anon-volumes，不复用旧匿名卷。可能导致匿名卷中的旧数据不再被新容器复用。",
-              "effect": "为 docker compose up 增加 --renew-anon-volumes，在容器重建时重新创建匿名卷而不是复用旧匿名卷。",
+              "tooltip": "请求新的匿名卷，不复用旧匿名卷。可能导致匿名卷中的旧数据不再被新容器复用。",
+              "effect": "在容器重建时重新创建匿名卷，而不是复用旧匿名卷。",
               "scenarios": "适合需要清空匿名缓存、验证冷启动路径，或怀疑匿名卷中的旧数据已经损坏的场景。",
               "risks": "匿名卷中的旧数据可能不再被新容器复用，进而导致缓存、临时状态或未持久化数据丢失；如果应用错误地把关键数据写在匿名卷里，影响会更大。",
               "recommendation": "危险操作。只有在你明确知道匿名卷里保存了什么，并接受旧数据不再复用时再开启。"
             },
             "pruneImagesAfterRedeploy": {
-              "tooltip": "重新部署完成后执行 docker image prune -f。这是 Docker 主机级清理，不只作用于当前 Compose 应用。",
-              "effect": "在重新部署完成后执行 docker image prune -f，回收当前 Docker 主机上未被容器使用的镜像。",
+              "tooltip": "重新部署完成后回收未使用的运行时镜像。这是主机级清理，不只作用于当前应用。",
+              "effect": "在重新部署完成后回收当前运行时中未被容器使用的镜像。",
               "scenarios": "适合单用途主机磁盘压力较高、镜像更新频繁，且希望在每次重新部署后自动做一次镜像回收的场景。",
               "risks": "这是 Docker 主机级操作，而非仅作用于当前 Compose 应用；它可能影响同主机上其他应用的镜像缓存、回滚速度或后续构建耗时。",
               "recommendation": "默认关闭。除非你明确把这台主机当作受控单用途环境，并且确实需要自动回收镜像空间，否则不要开启。"
             }
           }
         },
-        "copyCommand": "复制命令",
-        "copyCommandSuccess": "命令预览已复制。",
-        "copyCommandError": "命令预览复制失败。",
         "reset": "重置",
         "save": "保存配置",
         "saveSuccess": "生命周期配置已保存。",
@@ -1745,7 +1714,7 @@
         "deploySuccess": "应用草稿部署完成。",
         "deployFailed": "应用草稿部署失败。",
         "deployConfirmTitle": "部署托管应用草稿",
-        "deployConfirmDescription": "部署会覆盖当前受管文件、刷新应用快照，并执行 docker compose up -d。",
+        "deployConfirmDescription": "部署会覆盖当前受管文件、刷新应用快照，并提交外部启动执行。",
         "managedAuthorityHint": "当前是受管应用，草稿编辑、差异比较、校验和部署都由应用配置边界统一负责。",
         "externalAuthorityHint": "这组能力只适用于受管应用，外部应用继续保持只读配置视图。",
         "currentHash": "当前哈希",
@@ -1829,6 +1798,7 @@
         "openConfigurationWorkspace": "配置工作台",
         "unregister": "取消注册",
         "destroy": "销毁",
+        "more": "更多",
         "copyPath": "复制路径",
         "copyPathSuccess": "路径已复制。",
         "copyPathError": "路径复制失败。",

@@ -91,6 +91,19 @@ certificate URI SAN and active generation, never a request body field.
 | --- | --- | --- |
 | Pull controller snapshot | `GET /agent/v1/ledger-snapshot` | returns one certificate-bound Driver-controller snapshot |
 | Submit telemetry acknowledgement | `POST /agent/v1/telemetry-reports` | admits one issued snapshot as an observation |
+| Claim execution lease | `POST /agent/v1/execution-leases/claim` | claims one Task-owned, capability-bound Stage attempt |
+| Renew execution lease | `POST /agent/v1/execution-leases/{leaseId}/renew` | renews the same fenced attempt within its absolute deadline |
+| Append bounded logs | `POST /agent/v1/execution-leases/{leaseId}/logs` | appends redacted Stage logs with sequence and size limits |
+| Resolve transient execution material | `POST /agent/v1/execution-leases/{leaseId}/material` | resolves lease/fence-bound Application or Build material in memory without persistence |
+| Submit transient domain result | `POST /agent/v1/execution-leases/{leaseId}/results` | hands a normalized Build result to its domain owner and persists only an idempotency digest |
+| Settle execution receipt | `POST /agent/v1/execution-leases/{leaseId}/receipts` | idempotently settles one bound Stage attempt |
+
+Claim 是有界长轮询。Agent 必须声明 `provider_id`、单个 `capability` 与 `capability_version`；Runtime Target 只用
+活动证书世代对应的显式 capability binding 做准入，并把同一 version 传给 Task Runtime 对冻结 Stage 做第二次匹配，
+不再从实验期单 profile 推导执行权限。能力集合只能随新 generation/revision 激活；不得原地扩大活动旧证书可领取的
+capability。没有工作时 listener 在
+窗口结束后返回 `204`，Agent 继续从同一 mTLS 出站连接循环；传输重连、证书轮换和本地 readiness 不得产生第二套
+Task 状态。
 
 Snapshots carry generation, sequence, snapshot ID/digest, observation and expiry timestamps, and canonical ledger
 values. Reports echo generation, snapshot ID and digest and may contain only bounded liveness/implementation
@@ -102,11 +115,32 @@ diagnostics. Runtime Target validates identity, generation, issuance, expiry, di
 
 ## Ledger And Migration
 
-Agent pull is the sole Phase 4 feed: snapshot issuance atomically allocates its monotonic sequence and one-time ID.
-The Agent cannot change ledger values or synthesize its source. Server push and streaming are rejected because they
-would add connection-lifecycle authority. Expired or unacknowledged snapshots are not placement input.
+Agent pull is the sole Phase 4 telemetry and work feed: snapshot issuance atomically allocates its monotonic sequence
+and one-time ID, while execution claim atomically leases one Task-owned Stage attempt. The Agent cannot change ledger
+values, synthesize its source, choose work outside its target/capability binding or settle a mismatched fence. Server push
+and server-initiated streaming remain rejected because they would add connection-lifecycle authority. Expired or
+unacknowledged snapshots are not placement input; expired running execution leases enter Task Runtime
+`unknown`/`needs_attention` recovery and are never silently reassigned.
 
-Migration creates generation-aware, provider-neutral Agent Identity, pending enrollment, delivery-grant,
+Execution endpoints extend the existing mTLS listener; they do not publish an operator API or create an Agent-owned
+queue. Identity comes only from the active certificate generation. claim、renew、logs、material、result 与 receipt 都必须让
+证书中的 identity/generation/serial/fingerprint 精确匹配当前 active binding；旧世代即使仍持有 fence 也不能继续访问。
+renew、logs、material、result 与 receipt 的每次请求还必须把冻结 lease 的 `provider_id`、`capability`、
+`capability_version` 重新对照当前 active generation 的 capability binding 授权；新世代缩减能力后不得仅凭尚未过期的
+lease 或 fence 继续访问。
+Claim filters are derived from the authenticated
+target and capability binding, never request-body Agent identity. Lease payloads exclude secrets and host endpoints;
+operation-scoped credentials are resolved only inside transient Build material after the fence is validated. Application
+and Build material cannot enter Task or Agent persistence. A Build result is also transient: Task retains only its
+protocol/payload digest for exact-replay idempotency, while the Build module owns Artifact and Publication settlement.
+Log lines use a fixed allowlist, receipt failure codes use a stable lowercase vocabulary, and every submission remains
+bound to task, stage, attempt, lease, fence and payload digest.
+
+Agent 在 provider 调用前以 `0600` 本地 journal 保存可恢复 lease identity，在 provider 返回后先保存规范化 terminal
+receipt 再发送。断线后只允许续租尚未开始的同一 attempt 或重放完全相同的 terminal receipt；执行中断且副作用不可
+证明时不得重新执行，最终由 Task Runtime 收敛为 `unknown`/`needs_attention`。
+
+Migration creates generation-aware, provider-neutral Agent Identity, explicit capability binding, pending enrollment, delivery-grant,
 delivery-receipt and certificate-evidence facts without reinterpreting Ed25519 public-key rows. Delivery grants bind
 exactly one Runtime Target, Agent Identity and generation and transition only through `pending`, `delivered`, `consumed`
 or `revoked`. Docker secret and container facts are receipt evidence for the current delivery implementation, not
@@ -114,6 +148,10 @@ enrollment identity fields. Legacy rows and observations remain readable with le
 old ingress receives no new reports. Dynamic policy stays disabled until selected Targets complete verified delivery,
 Vault-issued mTLS enrollment and conformance. There is no dual acceptance. Rollback disables new binding and dynamic
 admission; it never reactivates legacy trust.
+
+实验期单 profile 只在一个迁移窗口内复制为单元素 capability binding；迁移生效后 execution admission 只读取
+binding 表。删除旧 profile 列的触发器是：全部活动身份都有 `runtime/v1` binding，且 Builder telemetry 已不再读取
+这些列。窗口期间不会双读、fallback 或重新写回旧字段。
 
 ## Delivery Order
 

@@ -18,17 +18,11 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup"],
-  "pending_batches": [
-    "phase-0-resource-inventory",
-    "phase-1-lifecycle-cleanup",
-    "phase-2-narrow-resource-scope",
-    "phase-3-capability-composition-declarations",
-    "phase-4-controlled-change-evaluation"
-  ],
-  "current_batch": "phase-2-narrow-resource-scope",
-  "next_batch": "phase-3-capability-composition-declarations",
-  "closeout_status": "active"
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "phase-5-remaining-p0-lifecycle-evidence", "docker-runtime-agent-batch-1-architecture-authority-and-recovery", "docker-runtime-agent-batch-2-task-runtime-external-execution-foundation", "docker-runtime-agent-batch-3-docker-runtime-agent-promotion", "docker-runtime-agent-batch-4-application-and-container-migration", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
 
@@ -116,3 +110,101 @@
 - Phase 5 implementation evidence is complete for project/container stream lifecycle ownership, RuntimeTarget and Agent/collector observability, and Register/MemoryBus/cron Registry conformance.
 - Focused backend tests and conformance race tests passed; `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` passed.
 - No Resource Scope API, second scheduler, hidden worker, dynamic loader, or compatibility bridge was introduced. Topic remains active pending normal closeout/archive review.
+
+## 2026-08-21 docker-runtime-agent-subtopic
+
+- Reused this topic for the long-running Docker execution convergence and added a bounded subtopic recovery entry.
+- ADR-026 fixes one pull-based Runtime Agent, Task-owned external execution leases, a server without Docker socket/CLI,
+  and a separate short-lived Update Controller.
+- The subtopic owns its own batch state and trace; this parent remains the runtime composition and archive authority.
+
+## 2026-08-21 docker-runtime-agent-batch-2
+
+- Task Runtime now owns provider-neutral external Stage claim, fencing, renewal, cancellation observation, bounded logs,
+  receipt settlement and expiry recovery.
+- Agent claim is one transaction across Stage activation and lease creation, so local workers and Runtime Agents cannot
+  create an unleased running window or claim the same Stage.
+- The bounded subtopic recovery point advances to Batch 3: direct promotion of the experimental Builder Agent into the
+  sole Docker Runtime Agent.
+
+## 2026-08-21 docker-runtime-agent-batch-5-accepted
+
+- Batch 5 authority is frozen: Build Docker operations use Task-owned external execution leases with provider `docker`,
+  capability `oci-build`, capability version `docker/v1` and the four-operation allowlist `build.image.local.v1`,
+  `build.image.publish.v1`, `build.manifest.publish.v1` and `build.artifact.copy.v1`.
+- Build resolves workspace/Registry material only after a valid lease fence and returns normalized artifact facts through
+  a transient result seam before terminal receipt. Task Runtime persists only a result digest for exact replay;
+  Build owns Artifact/Publication interpretation and persistence.
+- The server-local Build Docker/CLI path is being deleted. The named `/tmp/graft-build-snapshots` volume is the shared
+  server/Agent materialization boundary; the Agent exposes no inbound port. The server Docker socket remains only for
+  explicitly unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive
+  boundaries.
+- Focused/race/migration/backend validation, generated registry freshness, AI-plan structure and diff hygiene passed;
+  Batch 5 is accepted. Conformance documentation is updated; full external Docker deployment remains a human/CI
+  acceptance concern.
+
+## 2026-08-22 docker-runtime-agent-batch-7-deployment-docs
+
+- The Docker Runtime Agent subtopic synchronized official Compose, smoke, development, conformance, and migration
+  guidance with the accepted Batch 6 launch boundary.
+- `graft update cutover-v1` remains the one-time bootstrap authority before migrations. The server socket list is frozen
+  to Update observation/recovery, Runtime Target discovery/summary, and Container snapshot/stream/interactive reads;
+  Agent-owned Update Controller launch and Build are not server socket consumers.
+- The documented Update rollout is ordered server/web replacement, server health verification, Agent replacement last,
+  and mTLS/generation/capability readiness verification. No compatibility alias, fallback, or second bootstrap path was
+  introduced.
+- Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-22 docker-runtime-agent-batch-7-accepted
+
+- Batch 7 completed deployment and CLI deletion: recovery uses the existing Task external execution boundary, the
+  Compose runner uses Moby/official Compose SDKs, and old server-local recovery launch helpers are deleted.
+- The server socket remains only for Update observation/recovery, Runtime Target discovery/summary, and Container
+  snapshot/stream/interactive consumers; final no-socket claims remain deferred to later convergence.
+- Recovery point advances to `docker-runtime-agent` Batch 8 UI and cross-boundary convergence.
+
+## 2026-08-22 docker-runtime-agent-batch-8-started
+
+- Recovery documents were reconciled before implementation: parent and subtopic `current_batch`/`next_batch` now both
+  point to `docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence`.
+- Batch 8 scope and acceptance now cover the Application `list-form-detail` explain surface, removal of
+  Application-local runtime metric placeholders, Runtime Target Agent/capability readiness projection, capability-aware
+  action gating, stable Task failure-code copy, Docker `?url` asset import and responsive overflow actions.
+- Startup authority remains OpenAPI for wire shape, Runtime Target for Agent/capability facts, Task Runtime for failure
+  and receipt facts, and page-local code only for localized presentation.
+
+## 2026-08-22 docker-runtime-agent-batch-8-accepted
+
+- Batch 8 converged the Application, Runtime Target and Task UI over the canonical Runtime Target Agent projection and
+  Task failure codes. No endpoint, credential, host path, command or raw SDK error entered Task/API/UI state.
+- Full Web check, focused tests, OpenAPI/generated freshness, backend validation, AI-plan structure and diff checks
+  passed. The active recovery point is Batch 8 with Batch 9 as the next bounded slice; Batch 9 was not started.
+
+## 2026-08-22 docker-runtime-agent-batch-9-runtime-boundary-closeout
+
+- Reran the root startup preflight and confirmed Batch 8 acceptance at HEAD
+  `b72dcb1108d8dfe0fd5de899b72c28fe09fa1e84`; the pre-existing file-mode-only checkout changes were preserved and
+  excluded from Batch 9.
+- Completed the cross-checked server socket inventory. Retained consumers are bounded Update runner
+  observation/recovery and settled cleanup; Runtime Target local discovery/summary; Container snapshots/resources,
+  logs/streams/events/stats and interactive exec; and Deployment Runtime's current-server Docker facts projection.
+  The explicit development Agent CLI is retained as a repository fixture entrypoint, not production runtime execution.
+- Confirmed finite Application, Container, Build and normal Update Controller mutations all cross the Task-owned external
+  execution lease and Runtime Agent. No second scheduler, Task state machine, Agent queue, server push path or hidden
+  launch fallback was found; `cutover-v1` remains one-time migration/bootstrap authority.
+- ADR-026, deployment/conformance guidance and active recovery materials now carry the same retained-consumer authority,
+  risk and deletion-trigger vocabulary. Batch 9 is archive-ready; normal topic archive can proceed after scoped commit
+  review.
+
+## Loop Batch State (Batch 9 closeout)
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```

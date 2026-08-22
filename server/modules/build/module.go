@@ -63,30 +63,22 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve task runtime registrar: %w", err)
 	}
-	docker, err := module.ResolveService[moduleapi.DockerImageBuildCapability](ctx.Services, (*moduleapi.DockerImageBuildCapability)(nil))
-	if err != nil {
-		return fmt.Errorf("resolve Docker image build capability: %w", err)
-	}
 	if authorizer, authorizerErr := module.ResolveService[moduleapi.Authorizer](ctx.Services, (*moduleapi.Authorizer)(nil)); authorizerErr == nil {
 		if err := registerBuildTaskOwnerAuthorizers(registrar, authorizer); err != nil {
 			return err
 		}
 	}
-	targetDocker, _ := module.ResolveService[moduleapi.TargetBoundDockerImageBuildCapability](ctx.Services, (*moduleapi.TargetBoundDockerImageBuildCapability)(nil))
-	targetReader, _ := module.ResolveService[moduleapi.BuildRuntimeTargetReader](ctx.Services, (*moduleapi.BuildRuntimeTargetReader)(nil))
-	service, err := NewService(contexts, submissions, taskBatch, docker, m.repository)
+	service, err := NewService(contexts, submissions, taskBatch, m.repository)
 	if err != nil {
 		return err
 	}
 	configureBuildV2Submission(ctx, service)
 	configureArtifactPromotion(ctx, service)
-	snapshotDelivery, _ := module.ResolveService[moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability](ctx.Services, (*moduleapi.TargetBoundWorkspaceSnapshotDeliveryCapability)(nil))
-	conformance, _ := module.ResolveService[moduleapi.TargetBoundProviderExecutionConformanceCapability](ctx.Services, (*moduleapi.TargetBoundProviderExecutionConformanceCapability)(nil))
-	provider, _ := module.ResolveService[moduleapi.TargetBoundDockerBuildProvider](ctx.Services, (*moduleapi.TargetBoundDockerBuildProvider)(nil))
 	registryPublication, _ := module.ResolveService[moduleapi.RegistryPublicationResolver](ctx.Services, (*moduleapi.RegistryPublicationResolver)(nil))
-	executionAdapter, _ := module.ResolveService[moduleapi.RuntimeExecutionAdapter](ctx.Services, (*moduleapi.RuntimeExecutionAdapter)(nil))
 	artifactCopyRegistry, _ := module.ResolveService[moduleapi.RegistryArtifactCopyResolver](ctx.Services, (*moduleapi.RegistryArtifactCopyResolver)(nil))
-	if err := registerBuildTaskExecutor(registrar, m.repository, docker, service, targetDocker, snapshotDelivery, conformance, provider, registryPublication, executionAdapter, artifactCopyRegistry, service.intents, targetReader); err != nil {
+	credentials, _ := module.ResolveService[moduleapi.CredentialProvider](ctx.Services, (*moduleapi.CredentialProvider)(nil))
+	credentialMaterials, _ := credentials.(moduleapi.EphemeralCredentialMaterialProvider)
+	if err := registerBuildExternalExecution(registrar, buildExternalExecutionDependencies{repository: m.repository, service: service, registry: registryPublication, artifactCopyRegistry: artifactCopyRegistry, credentials: credentials, credentialMaterials: credentialMaterials}); err != nil {
 		return err
 	}
 	if err := registerSnapshotMaterializationCleanupJob(ctx.CronRegistry, service); err != nil {

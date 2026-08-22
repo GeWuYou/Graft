@@ -83,7 +83,7 @@ func newBuildRouteTestEngine(t *testing.T, tasks *recordingBuildTasks, repositor
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return buildRouteAuthorizer{}, nil }); err != nil {
 		t.Fatal(err)
 	}
-	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, &recordingBuildDocker{}, repository)
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, repository)
 	if err != nil {
 		t.Fatal(err)
 	}

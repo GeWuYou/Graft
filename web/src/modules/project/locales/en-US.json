@@ -444,7 +444,7 @@
         "lifecycle": {
           "shortTitle": "Configure Lifecycle",
           "title": "Step 3 · Configure Lifecycle",
-          "description": "Confirm the configuration and command previews Graft will use for Compose operations."
+          "description": "Confirm the structured lifecycle policy Graft will use for application operations."
         },
         "confirm": {
           "shortTitle": "Confirm Import",
@@ -561,7 +561,6 @@
         "unavailableTitle": "Lifecycle Configuration Unavailable",
         "authorityHint": "This configuration is saved with the import, so lifecycle actions are available when the application opens.",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "Command Preview",
         "managedServicesTitle": "Choose Managed Services",
         "managedServicesDescription": "This only limits lifecycle actions started by Graft and does not modify the original Compose files. All services are selected by default.",
         "selectAllServices": "Select All",
@@ -876,10 +875,8 @@
         "description": "Confirm the Compose lifecycle configuration owned by the application after creation.",
         "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "Command Preview",
         "defaultsLoadFailed": "Failed to load lifecycle defaults.",
-        "configured": "Default lifecycle configuration confirmed",
-        "configuredWithAdditionalArgs": "Lifecycle configuration confirmed with additional startup arguments"
+        "configured": "Default lifecycle configuration confirmed"
       },
       "review": {
         "title": "Review Creation",
@@ -912,9 +909,9 @@
       }
     },
     "creation": {
-      "eyebrow": "Docker Compose",
+      "eyebrow": "Compose Application",
       "title": "Choose Application Source",
-      "description": "Choose how to initialize this Docker Compose application.",
+      "description": "Choose how to initialize this Compose application.",
       "availability": {
         "ready": "Available",
         "blocked": "Unavailable",
@@ -1023,8 +1020,8 @@
       "unsupportedTooltip": "Not Supported Yet",
       "items": {
         "dockerCompose": {
-          "title": "Docker Compose",
-          "description": "Manage a single-host application with Docker Compose."
+          "title": "Compose",
+          "description": "Manage a single-host Compose application."
         },
         "dockerSwarm": {
           "title": "Docker Swarm",
@@ -1304,6 +1301,7 @@
       },
       "eyebrow": "Compose Application",
       "description": "Application Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
+      "runtimeTargetCapabilityUnavailable": "Runtime Agent capability is unavailable; application and container actions are disabled.",
       "openWorkingDirectory": "Workspace Path",
       "titleFallback": "Application Detail",
       "sections": {
@@ -1313,7 +1311,7 @@
         },
         "overview": {
           "title": "Overview",
-          "description": "Focus on current runtime state, resource changes, network I/O, and container snapshots."
+          "description": "Explain application identity, runtime target, lifecycle state, service snapshot, configuration, and task history."
         },
         "resources": {
           "title": "Resources",
@@ -1524,33 +1522,16 @@
       },
       "lifecycle": {
         "title": "Lifecycle",
-        "description": "Review and confirm the compose lifecycle configuration that Graft will reuse for local application actions.",
+        "description": "Review and confirm the structured lifecycle policy used for application actions.",
         "statusTitle": "Lifecycle Status",
-        "statusDescription": "Review the confirmed authority that drives command generation and lifecycle guards.",
+        "statusDescription": "Review the confirmed policy authority and lifecycle guards.",
         "configurationTitle": "Deployment Configuration",
         "remoteStaleTitle": "Remote Configuration Refreshed",
         "remoteStaleDescription": "Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.",
-        "generatedCommandsTitle": "Generated Commands",
-        "generatedCommandsDescription": "Review the resolved command preview for each lifecycle action before saving or running it.",
-        "copyCommandHint": "When copied, multi-step commands are converted into a single-line shell command chained with &&.",
-        "copyAbsolutePaths": "Copy With Absolute Paths",
-        "generatedCommandsEmpty": "No command preview is available yet.",
-        "generatedCommands": {
-          "up": "Up",
-          "stop": "Stop",
-          "restart": "Restart",
-          "redeploy": "Redeploy"
-        },
-        "generatedCommandsDescriptions": {
-          "up": "Launch the current compose application with the saved strategy.",
-          "stop": "Stop running services without removing application resources.",
-          "restart": "Restart the current compose services in place.",
-          "redeploy": "Apply the saved redeploy flow, including any optional preparation steps."
-        },
         "groups": {
           "base": {
             "title": "Base Parameters",
-            "description": "Adjust profiles and transient compose arguments that shape the generated command preview."
+            "description": "Adjust profiles and typed lifecycle policy fields."
           },
           "redeploy": {
             "title": "Redeploy Strategy",
@@ -1569,14 +1550,6 @@
         "composeFiles": "Compose Files",
         "profiles": "Profiles",
         "profilesPlaceholder": "App, Monitoring",
-        "additionalArgs": "Up Args",
-        "additionalArgsPlaceholder": "For example, --scale worker=2",
-        "stopArgs": "Stop Args",
-        "stopArgsPlaceholder": "For example, --timeout 30",
-        "restartArgs": "Restart Args",
-        "restartArgsPlaceholder": "For example, --no-deps",
-        "pullArgs": "Pull Args",
-        "pullArgsPlaceholder": "For example, --policy always",
         "downBeforeRedeploy": "Down Before Redeploy",
         "pullBeforeRedeploy": "Pull Images Before Redeploy",
         "buildBeforeUp": "Build Before Up",
@@ -1585,25 +1558,24 @@
         "waitAfterUp": "Wait After Up",
         "waitTimeoutSeconds": "Wait Timeout",
         "renewAnonVolumes": "Renew Anonymous Volumes",
-        "renewAnonVolumesWarning": "This option makes docker compose up discard existing anonymous volumes for recreated containers and may destroy data.",
+        "renewAnonVolumesWarning": "This policy requests fresh anonymous volumes for recreated containers and may make existing data unavailable.",
         "pruneImagesAfterRedeploy": "Prune Images After Redeploy",
         "optionDescriptions": {
-          "downBeforeRedeploy": "Run docker compose down before the redeploy bring-up step.",
+          "downBeforeRedeploy": "Tear down application resources before the redeploy bring-up step.",
           "pullBeforeRedeploy": "Pull the latest images before reusing the saved compose application definition.",
-          "buildBeforeUp": "Add --build to docker compose up when the redeploy flow reaches bring-up.",
-          "forceRecreate": "Add --force-recreate so all containers are recreated during bring-up.",
-          "removeOrphans": "Add --remove-orphans so docker compose up removes orphaned containers no longer declared by this application.",
-          "waitAfterUp": "Add --wait so compose up blocks until declared services report ready.",
+          "buildBeforeUp": "Build application images before the redeploy flow reaches bring-up.",
+          "forceRecreate": "Recreate all application containers during bring-up.",
+          "removeOrphans": "Remove containers no longer declared by this application.",
+          "waitAfterUp": "Wait until declared services report ready before completing bring-up.",
           "waitTimeoutSeconds": "Only applies when Wait After Up is enabled. Accepted range: 1 to 3600 seconds.",
-          "renewAnonVolumes": "Add --renew-anon-volumes so docker compose up does not reuse anonymous volumes from older containers.",
-          "pruneImagesAfterRedeploy": "Run docker image prune -f after redeploy completes."
+          "renewAnonVolumes": "Request fresh anonymous volumes instead of reusing volumes from older containers.",
+          "pruneImagesAfterRedeploy": "Reclaim unused runtime images after redeploy completes."
         },
         "help": {
           "common": {
             "ariaLabel": "View help for {item}",
             "sections": {
               "effect": "Effect",
-              "command": "Actual Command",
               "scenarios": "Recommended When",
               "risks": "Costs and Risks",
               "recommendation": "Default Guidance"
@@ -1619,72 +1591,69 @@
           "items": {
             "downBeforeRedeploy": {
               "tooltip": "Stop and remove the current Compose resources before the new up runs. This creates a clear downtime window but resets stale container and network state.",
-              "effect": "Changes redeploy into a two-step flow: run docker compose down first, then run a fresh docker compose up.",
+              "effect": "Changes redeploy into a two-step flow: tear resources down first, then perform a fresh bring-up.",
               "scenarios": "Use it when you need a clean restart or suspect stale containers, networks, or mounts are contaminating the current deployment.",
               "risks": "This creates an explicit downtime window. Services are unavailable between down and up, and application-scoped resources are removed before startup resumes.",
               "recommendation": "Enable it only when you accept the downtime window and need a full reset instead of an in-place bring-up."
             },
             "pullBeforeRedeploy": {
               "tooltip": "Pull images before reusing the current Compose definition. Best when image tags are updated continuously.",
-              "effect": "Runs docker compose pull before the bring-up phase so the application refreshes its referenced images first.",
+              "effect": "Refreshes referenced images before the bring-up phase.",
               "scenarios": "Use it when CI regularly pushes images, when tags like latest are reused, or when redeploy should always prefer the newest remote image.",
               "risks": "It adds network time and can pull in an unexpected new image version, which may change behavior or make rollback slower.",
               "recommendation": "Keep it off for pinned immutable tags. Consider enabling it when the deployment flow depends on remote image updates."
             },
             "buildBeforeUp": {
-              "tooltip": "Add --build to up so local images are rebuilt first. Best for applications driven by local Dockerfiles or changed source code.",
-              "effect": "Adds --build to docker compose up so redeploy rebuilds the local image before starting containers.",
+              "tooltip": "Build local images before bring-up. Best for applications driven by local build definitions or changed source code.",
+              "effect": "Rebuilds local images before starting containers during redeploy.",
               "scenarios": "Use it when Dockerfiles, build contexts, dependencies, or application source changed and the application relies on local image builds.",
               "risks": "It increases deployment time, especially when caches are cold. Build failures also block the redeploy entirely.",
               "recommendation": "Leave it off unless rebuilding locally is part of the normal deployment path for this application."
             },
             "forceRecreate": {
-              "tooltip": "Add --force-recreate so containers are rebuilt even if Compose sees no config diff. Useful for flushing bad state, but noisier than a normal up.",
-              "effect": "Adds --force-recreate to docker compose up so all service containers are recreated during bring-up.",
+              "tooltip": "Recreate containers even when configuration is unchanged. Useful for flushing bad state, but more disruptive than normal bring-up.",
+              "effect": "Recreates all service containers during bring-up.",
               "scenarios": "Use it when you suspect container state drift, need mounts or environment changes to be reapplied aggressively, or a plain restart is not enough.",
               "risks": "It causes more restarts and more churn than a normal up. Services with warm caches or local state will feel the reset more strongly.",
               "recommendation": "Leave it off by default and enable it only when you intentionally want a forced container refresh."
             },
             "removeOrphans": {
-              "tooltip": "Add --remove-orphans so old containers not defined in the current Compose files are cleaned up automatically. Useful after renames, splits, or removals.",
-              "effect": "Adds --remove-orphans to docker compose up so containers that no longer exist in the current Compose definition are removed automatically.",
+              "tooltip": "Clean up old containers not defined by the current application. Useful after renames, splits, or removals.",
+              "effect": "Removes containers that no longer exist in the current application definition.",
               "scenarios": "Use it after service renames, module splits, service removals, or whenever historical containers should be cleaned up as part of redeploy.",
               "risks": "It removes leftover containers in the same Compose application scope. If you still rely on one of those undeclared containers, it will be removed as well.",
               "recommendation": "Recommended. It keeps long-lived Compose applications from accumulating confusing leftovers."
             },
             "waitAfterUp": {
-              "tooltip": "Add --wait after up. With healthchecks, Compose waits for healthy; without healthchecks, it usually only knows whether containers are running.",
+              "tooltip": "Wait after bring-up. Health checks provide a stronger readiness signal than container running state alone.",
               "effect": "Turns startup into a synchronous readiness wait so Graft does not finish the action until Compose reports services as ready.",
               "scenarios": "Use it when operators need a stronger readiness signal before considering the redeploy complete or before running follow-up actions.",
               "risks": "It increases feedback time. Without service healthchecks, the readiness signal is weaker and may only mean the container reached running state.",
               "recommendation": "Use it when readiness matters, and prefer adding healthchecks first so the wait result is meaningful."
             },
             "waitTimeoutSeconds": {
-              "tooltip": "Limit how long --wait can block. Too short causes false failures; too long slows deployment feedback.",
-              "effect": "Controls the maximum duration for docker compose up -d --wait before the wait is treated as timed out.",
+              "tooltip": "Limit how long readiness waiting can block. Too short causes false failures; too long slows deployment feedback.",
+              "effect": "Controls the maximum readiness wait before the operation is treated as timed out.",
               "scenarios": "Use it for slow-start services, first-run migrations, cold caches, or environments whose startup time varies noticeably.",
               "risks": "A timeout that is too small can mark healthy-but-slow startups as failures. A timeout that is too large slows release and debugging feedback loops.",
               "recommendation": "Tune it per environment based on observed startup time, with enough buffer for normal variance."
             },
             "renewAnonVolumes": {
-              "tooltip": "Add --renew-anon-volumes so old anonymous volumes are not reused. Old data in anonymous volumes may no longer be reused by new containers.",
-              "effect": "Adds --renew-anon-volumes to docker compose up so recreated containers get fresh anonymous volumes instead of reusing the previous ones.",
+              "tooltip": "Request fresh anonymous volumes. Old anonymous-volume data may no longer be reused by new containers.",
+              "effect": "Gives recreated containers fresh anonymous volumes instead of reusing previous ones.",
               "scenarios": "Use it when you intentionally want to clear anonymous cache/state or suspect the old anonymous volume data is corrupted.",
               "risks": "Old data in anonymous volumes may no longer be reused by the new containers, which can wipe caches, transient state, or misplaced application data.",
               "recommendation": "Treat this as dangerous. Enable it only when you know what lives in the anonymous volumes and accept losing reuse of the old data."
             },
             "pruneImagesAfterRedeploy": {
-              "tooltip": "Run docker image prune -f after redeploy. This is a Docker host-level cleanup, not something scoped only to the current Compose application.",
-              "effect": "Runs docker image prune -f after redeploy so unused images on the Docker host are cleaned up automatically.",
+              "tooltip": "Reclaim unused runtime images after redeploy. This host-level cleanup is not scoped only to the current application.",
+              "effect": "Automatically reclaims unused runtime images after redeploy.",
               "scenarios": "Use it on tightly managed hosts with disk pressure and frequent image churn, especially when automatic image cleanup is already an accepted policy.",
               "risks": "This is a Docker host-level action, not one limited to the current Compose application. It can affect image cache, rollback speed, or later build performance for other workloads on the same host.",
               "recommendation": "Leave it off unless the host is intentionally managed that way and reclaiming image space is worth the wider side effects."
             }
           }
         },
-        "copyCommand": "Copy Command",
-        "copyCommandSuccess": "Command preview copied.",
-        "copyCommandError": "Command preview could not be copied.",
         "reset": "Reset",
         "save": "Save Configuration",
         "saveSuccess": "Lifecycle configuration saved.",
@@ -1745,7 +1714,7 @@
         "deploySuccess": "Application Draft Deployed.",
         "deployFailed": "Application Draft Deployment Failed.",
         "deployConfirmTitle": "Deploy Managed Application Draft",
-        "deployConfirmDescription": "Deploying this draft will overwrite the tracked managed files, refresh the application snapshot, and run docker compose up -d.",
+        "deployConfirmDescription": "Deploying this draft will overwrite tracked managed files, refresh the application snapshot, and submit bring-up for external execution.",
         "managedAuthorityHint": "This is a managed application. Draft editing, diff, validation, and deploy actions stay under application-owned configuration authority.",
         "externalAuthorityHint": "These actions only apply to managed applications. External applications remain on a read-only configuration surface.",
         "currentHash": "Current Hash",
@@ -1829,6 +1798,7 @@
         "openConfigurationWorkspace": "Configuration Workspace",
         "unregister": "Unregister",
         "destroy": "Destroy",
+        "more": "More",
         "copyPath": "Copy Path",
         "copyPathSuccess": "Path Copied.",
         "copyPathError": "Path Could Not Be Copied.",

@@ -111,7 +111,7 @@ describe('docker volume detail page', () => {
     expect(wrapper.get('[data-testid="volume-name"]').text()).toBe('volume-b');
   });
 
-  it('retains the page after a failed removal and returns to the list only after success', async () => {
+  it('retains the page after a failed submission and returns to the list after Task acceptance', async () => {
     apiMocks.getDockerVolume.mockResolvedValue(volume('volume-a'));
     const wrapper = mountPage();
     await flushPromises();
@@ -124,7 +124,7 @@ describe('docker volume detail page', () => {
     expect(routerMocks.push).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('remove failed');
 
-    apiMocks.removeDockerVolume.mockResolvedValueOnce(undefined);
+    apiMocks.removeDockerVolume.mockResolvedValueOnce({ task_id: 42, status: 'ready' });
     await expect(options.onConfirm(false)).resolves.toBe(true);
     expect(routerMocks.push).toHaveBeenCalledWith({ name: 'DockerVolumeListIndex' });
   });

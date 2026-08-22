@@ -5,6 +5,8 @@ import { request } from '@/utils/request';
 
 import {
   batchContainerActions,
+  batchRemoveDockerVolumes,
+  createDockerNetwork,
   getContainer,
   getContainerLogs,
   getContainerMountUsage,
@@ -13,6 +15,8 @@ import {
   postContainerMountUsageRefresh,
   postContainerShellSession,
   removeContainer,
+  removeDockerNetwork,
+  removeDockerVolume,
   restartContainer,
   startContainer,
   stopContainer,
@@ -98,7 +102,7 @@ describe('container api', () => {
     await startContainer('web/api', 'start-key');
     await stopContainer('web/api', 'stop-key');
     await restartContainer('web/api', 'restart-key');
-    await removeContainer('web/api', { force: true });
+    await removeContainer('web/api', { force: true }, 'remove-key');
 
     expect(requestPost).toHaveBeenNthCalledWith(1, {
       headers: { 'Idempotency-Key': 'start-key' },
@@ -113,6 +117,7 @@ describe('container api', () => {
       url: buildOpenApiRuntimePath('postContainerRestart', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(4, {
+      headers: { 'Idempotency-Key': 'remove-key' },
       url: buildOpenApiRuntimePath('postContainerRemove', { id: 'web/api' }),
       data: { force: true },
     });
@@ -139,12 +144,7 @@ describe('container api', () => {
 
   it('posts batch actions through the canonical collection action path', async () => {
     const requestPost = vi.mocked(request.post);
-    requestPost.mockResolvedValue({
-      total: 2,
-      accepted_count: 2,
-      failed_count: 0,
-      items: [],
-    } as never);
+    requestPost.mockResolvedValue({ task_id: 43, status: 'pending' } as never);
 
     await batchContainerActions({ action: 'remove', ids: ['web/api', 'worker'], force: false }, 'batch-remove-key');
 
@@ -152,6 +152,42 @@ describe('container api', () => {
       headers: { 'Idempotency-Key': 'batch-remove-key' },
       url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
       data: { action: 'remove', ids: ['web/api', 'worker'], force: false },
+    });
+  });
+
+  it('submits network and volume mutations with idempotency keys and returns Task receipts', async () => {
+    const receipt = { task_id: 44, status: 'pending' };
+    const requestPost = vi.mocked(request.post);
+    const requestDelete = vi.mocked(request.delete);
+    requestPost.mockResolvedValue(receipt as never);
+    requestDelete.mockResolvedValue(receipt as never);
+
+    await expect(
+      createDockerNetwork({ name: 'frontend', driver: 'bridge', internal: false, attachable: true }),
+    ).resolves.toEqual(receipt);
+    await expect(removeDockerNetwork('network/id', { confirm_network_name: 'frontend' })).resolves.toEqual(receipt);
+    await expect(removeDockerVolume('volume/name', { force: true })).resolves.toEqual(receipt);
+    await expect(batchRemoveDockerVolumes({ names: ['one', 'two'], force: false })).resolves.toEqual(receipt);
+
+    expect(requestPost).toHaveBeenNthCalledWith(1, {
+      data: { name: 'frontend', driver: 'bridge', internal: false, attachable: true },
+      headers: { 'Idempotency-Key': expect.stringMatching(/^container-network-create-/) },
+      url: OPENAPI_RUNTIME_PATH.postDockerNetwork,
+    });
+    expect(requestDelete).toHaveBeenCalledWith({
+      data: { confirm_network_name: 'frontend' },
+      headers: { 'Idempotency-Key': expect.stringMatching(/^container-network-remove-/) },
+      url: buildOpenApiRuntimePath('deleteDockerNetwork', { id: 'network/id' }),
+    });
+    expect(requestPost).toHaveBeenNthCalledWith(2, {
+      data: { force: true },
+      headers: { 'Idempotency-Key': expect.stringMatching(/^container-volume-remove-/) },
+      url: buildOpenApiRuntimePath('postDockerVolumeRemove', { id: 'volume/name' }),
+    });
+    expect(requestPost).toHaveBeenNthCalledWith(3, {
+      data: { names: ['one', 'two'], force: false },
+      headers: { 'Idempotency-Key': expect.stringMatching(/^container-volume-batch-remove-/) },
+      url: OPENAPI_RUNTIME_PATH.postDockerVolumeBatchRemove,
     });
   });
 });

@@ -103,6 +103,9 @@ func newPlatformUpdateRegisterTestContext(t *testing.T) platformUpdateRegisterTe
 	if err := services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
 		t.Fatalf("register task runtime registrar: %v", err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), func(container.Resolver) (any, error) { return composeRuntimeTargetStub{}, nil }); err != nil {
+		t.Fatalf("register compose runtime target reader: %v", err)
+	}
 	if err := services.RegisterSingleton((*moduleapi.BackupService)(nil), func(container.Resolver) (any, error) { return &stubBackupService{}, nil }); err != nil {
 		t.Fatalf("register backup service: %v", err)
 	}
@@ -163,6 +166,12 @@ func (*updateTaskRuntimeStub) SettleExternalReceipt(context.Context, moduleapi.E
 func (*updateTaskRuntimeStub) Cancel(context.Context, uint64) error                { return nil }
 func (*updateTaskRuntimeStub) RetryStage(context.Context, uint64, uint64) error    { return nil }
 func (*updateTaskRuntimeStub) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
+func (*updateTaskRuntimeStub) RegisterExternalExecutionMaterialResolver(moduleapi.ExternalExecutionMaterialResolver) error {
+	return nil
+}
+func (*updateTaskRuntimeStub) RegisterExternalExecutionResultRecorder(moduleapi.ExternalExecutionResultRecorder) error {
+	return nil
+}
 
 func (s *updateTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	s.authorizers = append(s.authorizers, authorizer)

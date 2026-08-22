@@ -1224,8 +1224,6 @@ func (r routeRuntime) writeProjectConflictError(ginCtx *gin.Context, err error) 
 	switch {
 	case errors.Is(err, errProjectNotFound):
 		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ApplicationNotFound.String())
-	case errors.Is(err, errProjectComposeNameOccupied):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ApplicationComposeProjectNameOccupied.String())
 	case errors.Is(err, errProjectConflict):
 		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ApplicationConflict.String())
 	case errors.Is(err, errProjectDirectoryForbidden):
@@ -1527,8 +1525,14 @@ func (r routeRuntime) bindApplicationRecordID(ginCtx *gin.Context) (uint64, stri
 		return 0, "", false
 	}
 	aggregate, err := r.service.getAggregate(ginCtx.Request.Context(), projectID)
-	if err != nil { r.writeRouteError(ginCtx, err); return 0, "", false }
-	if err := r.service.ensureApplicationScope(ginCtx.Request.Context(), aggregate, projectcontract.ApplicationViewPermission.String()); err != nil { r.writeRouteError(ginCtx, err); return 0, "", false }
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return 0, "", false
+	}
+	if err := r.service.ensureApplicationScope(ginCtx.Request.Context(), aggregate, projectcontract.ApplicationViewPermission.String()); err != nil {
+		r.writeRouteError(ginCtx, err)
+		return 0, "", false
+	}
 	return projectID, raw, true
 }
 

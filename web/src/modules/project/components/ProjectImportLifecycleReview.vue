@@ -40,7 +40,6 @@
       :description="t('project.import.lifecycle.description')"
       :authority-message="t('project.import.lifecycle.authorityHint')"
       :configuration-title="t('project.import.lifecycle.configurationTitle')"
-      :command-preview-title="t('project.import.lifecycle.commandPreviewTitle')"
       :back-label="t('project.import.actions.backToInspect')"
       :refresh-label="t('project.import.actions.refreshInspect')"
       :refresh-loading="inspectionRefreshLoading"

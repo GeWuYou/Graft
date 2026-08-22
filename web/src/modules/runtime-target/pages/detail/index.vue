@@ -1,5 +1,5 @@
 <template>
-  <div class="runtime-target-detail" data-page-type="overview-dashboard">
+  <div class="runtime-target-detail" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header
         :title="target?.displayName || t('runtimeTarget.detail.title')"
@@ -53,6 +53,49 @@
             :message="target.health.diagnostic"
             class="runtime-target-diagnostic"
           />
+        </t-card>
+        <t-card :title="t('runtimeTarget.detail.agentStatus')" class="runtime-target-section">
+          <t-alert
+            v-if="agentProjection.diagnostic_code !== 'none'"
+            theme="warning"
+            :message="agentDiagnosticLabel(agentProjection.diagnostic_code)"
+            class="runtime-target-diagnostic"
+          />
+          <t-descriptions :column="2" bordered>
+            <t-descriptions-item :label="t('runtimeTarget.detail.agentState')">
+              <t-tag :theme="agentStatusTheme(agentProjection.status)" variant="light">
+                {{ agentStatusLabel(agentProjection.status) }}
+              </t-tag>
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('runtimeTarget.detail.agentId')">
+              {{ agentProjection.agent_id || t('runtimeTarget.detail.notEnrolled') }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('runtimeTarget.detail.agentVersion')">
+              {{ agentProjection.version || t('runtimeTarget.metrics.unavailable') }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('runtimeTarget.detail.agentGeneration')">
+              {{ agentProjection.generation || t('runtimeTarget.detail.notEnrolled') }}
+            </t-descriptions-item>
+          </t-descriptions>
+          <div class="runtime-target-capabilities">
+            <span class="runtime-target-capabilities-title">{{ t('runtimeTarget.detail.capabilities') }}</span>
+            <div v-if="agentProjection.capabilities.length" class="runtime-target-capability-list">
+              <div
+                v-for="capability in agentProjection.capabilities"
+                :key="capability.name"
+                class="runtime-target-capability"
+              >
+                <span>{{ capability.name }}</span>
+                <span class="runtime-target-capability-meta">
+                  {{ capability.version }}
+                  <t-tag :theme="agentStatusTheme(capability.status)" variant="light">
+                    {{ agentStatusLabel(capability.status) }}
+                  </t-tag>
+                </span>
+              </div>
+            </div>
+            <t-empty v-else :title="t('runtimeTarget.detail.capabilitiesEmpty')" />
+          </div>
         </t-card>
         <t-card :title="t('runtimeTarget.detail.resourceOverview')" class="runtime-target-section">
           <div class="runtime-target-stat-grid">
@@ -200,6 +243,17 @@ const { t } = useI18n();
 const { locale } = useLocale();
 const route = useRoute();
 const target = ref<RuntimeTargetDetail | null>(null);
+const agentProjection = computed<RuntimeTargetDetail['agent']>(
+  () =>
+    target.value?.agent ?? {
+      agent_id: '',
+      generation: 0,
+      version: '',
+      status: 'not_enrolled',
+      diagnostic_code: 'agent_not_enrolled',
+      capabilities: [],
+    },
+);
 const loading = ref(false);
 const refreshing = ref(false);
 const errorMessage = ref('');
@@ -274,6 +328,17 @@ function usageExtra(metric: RuntimeTargetUsageMetric) {
       ? `${formatBytes(metric.usedBytes)} / ${formatBytes(metric.totalBytes)}`
       : ''
     : unavailableReason(metric.unavailableReason);
+}
+function agentStatusLabel(status: string) {
+  return t(`runtimeTarget.agentStatus.${status}`);
+}
+function agentStatusTheme(status: string) {
+  if (status === 'ready') return 'success';
+  if (status === 'degraded') return 'warning';
+  return 'danger';
+}
+function agentDiagnosticLabel(code: string) {
+  return t(`runtimeTarget.agentDiagnostics.${code}`);
 }
 async function load() {
   if (!Number.isInteger(targetID.value) || targetID.value <= 0) {

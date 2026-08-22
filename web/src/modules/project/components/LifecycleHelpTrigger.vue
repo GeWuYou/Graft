@@ -21,12 +21,6 @@
           <p>{{ t(`${definition.detailKeyPrefix}.effect`) }}</p>
         </section>
         <section class="project-lifecycle-help__section">
-          <label>{{ t('project.detail.lifecycle.help.common.sections.command') }}</label>
-          <div class="project-lifecycle-help__command-list">
-            <code v-for="command in commandExamples" :key="command">{{ command }}</code>
-          </div>
-        </section>
-        <section class="project-lifecycle-help__section">
           <label>{{ t('project.detail.lifecycle.help.common.sections.scenarios') }}</label>
           <p>{{ t(`${definition.detailKeyPrefix}.scenarios`) }}</p>
         </section>
@@ -71,11 +65,9 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { LifecycleHelpDefinition } from '../shared/lifecycle-help';
-import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 
 const props = defineProps<{
   definition: LifecycleHelpDefinition;
-  draft: ApplicationLifecycleConfigurationDraft;
 }>();
 
 const { t } = useI18n();
@@ -92,11 +84,6 @@ const ariaLabel = computed(() =>
 );
 const recommendationLabel = computed(() =>
   t(`project.detail.lifecycle.help.common.tags.${props.definition.recommendation}`),
-);
-const commandExamples = computed(() =>
-  typeof props.definition.commandExample === 'function'
-    ? props.definition.commandExample(props.draft)
-    : props.definition.commandExample,
 );
 
 watch(detailVisible, (visible) => {
@@ -175,22 +162,5 @@ function setTooltipVisible(visible: boolean) {
   font: var(--td-font-body-small);
   line-height: 1.6;
   margin: 0;
-}
-
-.project-lifecycle-help__command-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-6);
-}
-
-.project-lifecycle-help__command-list code {
-  background: var(--td-bg-color-container-hover);
-  border: 1px solid var(--td-border-level-1-color);
-  border-radius: var(--td-radius-small);
-  color: var(--td-text-color-primary);
-  display: block;
-  font: var(--td-font-body-small);
-  overflow-wrap: anywhere;
-  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
 }
 </style>

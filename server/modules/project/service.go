@@ -50,7 +50,6 @@ var (
 	errProjectInspectionStale         = errors.New("project inspection stale")
 	errProjectFileHashMismatch        = errors.New("project file hash mismatch")
 	errProjectRuntimeUnavailable      = errors.New("project runtime is unavailable")
-	errProjectComposeNameOccupied     = errors.New("compose project name is already occupied on runtime target")
 	errProjectActorAttribution        = errors.New("project actor attribution required")
 )
 
@@ -60,13 +59,10 @@ const (
 	projectConflictScanSize      = 100
 	projectDiscoveryScanSize     = 8
 	maxWorkspaceAnnotationLength = projectcontract.ApplicationWorkspaceAnnotationMaxLength
-	minLifecycleArgCount         = 2
-	maxCommandOutputSummary      = 120
 	managedCreateWarningsCap     = 2
 	draftWarningsCap             = 2
 	managedCreateDirMode         = 0o750
 	managedCreateFileMode        = 0o600
-	projectComposeTimeout        = 5 * time.Minute
 	lifecycleRedeployStepCap     = 4
 	// localContainerRuntimeScope 只适配 container 模块当前的本地运行时查询边界，不属于 Application 持久化或公开契约。
 	localContainerRuntimeScope = "local"
@@ -308,11 +304,6 @@ type LifecycleStandardConfig struct {
 	WaitTimeoutSeconds       int
 	RenewAnonVolumes         bool
 	PruneImagesAfterRedeploy bool
-	AdditionalArgs           []string
-	// StopArgs、RestartArgs 和 PullArgs 只接受服务端白名单内的 Compose argv，不包含可执行文件或动作名。
-	StopArgs    []string
-	RestartArgs []string
-	PullArgs    []string
 }
 
 // LifecycleConfiguration 保存项目拥有的生命周期执行配置。
@@ -359,6 +350,7 @@ type BatchActionItemResult struct {
 type BatchActionResult struct {
 	TotalCount     int
 	CompletedCount int
+	AcceptedCount  int
 	BlockedCount   int
 	SkippedCount   int
 	Items          []BatchActionItemResult
@@ -1146,9 +1138,6 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedAppl
 	if err != nil {
 		return ManagedApplicationCreateValidationResult{}, err
 	}
-	if err := s.ensureManagedCreateRuntimeNameAvailable(ctx, normalized.RuntimeTargetID, composeName); err != nil {
-		return ManagedApplicationCreateValidationResult{}, err
-	}
 	normalized.ComposeFileContent = composeContent
 	composeFileAbsolutePath := filepath.Join(workspace.workingDirectory, normalized.ComposeFileName)
 	envFileAbsolutePath := managedCreateEnvAbsolutePath(workspace.workingDirectory, normalized.EnvFileName)
@@ -1226,17 +1215,6 @@ func (s *Service) resolveManagedCreateWorkspace(ctx context.Context, root string
 		return managedCreateWorkspace{}, errProjectApplicationNameOccupied
 	}
 	return managedCreateWorkspace{workingDirectory: workingDirectory, applicationName: applicationName, exists: reusable.exists}, nil
-}
-
-func (s *Service) ensureManagedCreateRuntimeNameAvailable(ctx context.Context, runtimeTargetID uint64, composeName string) error {
-	if s.runtimeTargets == nil {
-		return nil
-	}
-	targetID, err := s.resolveComposeRuntimeTarget(ctx, runtimeTargetID)
-	if err != nil {
-		return err
-	}
-	return s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, composeName)
 }
 
 func (s *Service) runtimeSummary(

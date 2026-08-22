@@ -1,0 +1,55 @@
+migration:
+  path: server/modules/task/migrations/202608210001_task_external_execution_leases.sql
+  version: '202608210001'
+owner: task
+risk_level: L4
+affected_tables:
+  - task_external_execution_leases
+  - task_external_receipts
+  - task_stages
+referenced_tables:
+  - tasks
+  - task_stages
+operation_categories:
+  - additive-table
+  - additive-columns
+  - foreign-key
+  - unique-index
+  - check-constraint
+historical_data_assumptions:
+  - Existing task_external_receipts rows were created by the final-stage controller contract and have valid task, stage, operation and terminal Task status constraints.
+  - Existing receipt rows have no execution lease; the nullable lease_id preserves those immutable facts until the Update Controller migration removes the legacy writer.
+  - Existing Stage rows were created before Runtime Agent dispatch existed and therefore receive external_execution=false.
+planned_upgrade_order:
+  - Create the Task-owned external execution lease table and its Stage-attempt fencing constraints.
+  - Add nullable lease binding plus attempt and Stage settlement facts to the existing receipt authority.
+  - Persist the external execution dispatch fact on Stage rows so local workers and Runtime Agents have disjoint claim predicates.
+  - Replace operation uniqueness with Task-operation-attempt uniqueness so an explicit retry can receive a new fenced lease and receipt.
+  - Replace the receipt Task-status check so non-final success and cancellation can be represented without rewriting history.
+safety_strategy:
+  duplicate_scan: The new lease table is empty; Stage-attempt and operation-attempt uniqueness are enforced before any writer exists.
+  live_reference_scan: Existing receipts retain their current task and stage foreign keys; attempt receives a deterministic historical default and Stage status is generated from the constrained outcome.
+  reconcile_or_abort: Abort if historical receipt status values violate the currently published terminal status constraint.
+  post_migration_invariant: Every new external execution receipt references exactly one unique lease, while historical controller receipts remain immutable with a null lease reference.
+  reference_impact: No Task, Stage, event, log or receipt row is deleted or rewritten; only additive metadata and a widened status constraint are applied.
+  recovery_or_retirement_rationale: The legacy null-lease writer remains only until the self-update controller is migrated to Runtime Agent leases; that batch deletes the bridge after conformance.
+validation_scenarios:
+  - A Stage attempt cannot receive two execution leases.
+  - A retried Stage can receive a new lease and receipt for the same frozen operation identity under a new attempt.
+  - A mismatched lease, attempt or operation cannot create a receipt.
+  - Historical final-stage receipts remain readable with deterministic attempt and Stage status defaults.
+  - Non-final success may persist running as the settled Task status.
+preflight_checks:
+  - name: historical-external-receipt-statuses
+    query: >-
+      SELECT COUNT(*) FROM task_external_receipts WHERE settled_task_status NOT IN ('success', 'failed', 'needs_attention')
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-002

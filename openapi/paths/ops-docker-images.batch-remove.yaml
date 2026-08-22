@@ -2,10 +2,11 @@ post:
   tags: [container]
   summary: Remove Docker images in batch
   operationId: postDockerImageBatchRemove
-  description: Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.
+  description: Submits one Task with ordered per-image external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/idempotency-key.yaml
   security:
     - bearerAuth: []
   requestBody:
@@ -15,15 +16,15 @@ post:
         schema:
           $ref: ../components/schemas/docker-image-batch-remove-request.yaml
   responses:
-    '200':
-      description: Docker image batch removal result.
+    '202':
+      description: Ordered Docker image removal Task accepted.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-docker-image-batch-remove-response.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400':
       description: Invalid batch image removal request.
       headers:
@@ -37,5 +38,6 @@ post:
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
+    '409': { description: Idempotency-Key conflicts with a different submission. }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

@@ -3,14 +3,7 @@ post:
   operationId: postDockerImagePull
   summary: Submit a Docker image pull Task
   parameters:
-    - name: Idempotency-Key
-      in: header
-      required: true
-      description: Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 128
+    - $ref: ../components/parameters/idempotency-key.yaml
   requestBody:
     required: true
     content:

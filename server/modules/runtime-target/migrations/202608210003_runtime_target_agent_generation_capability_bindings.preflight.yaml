@@ -1,0 +1,46 @@
+"migration":
+  path: server/modules/runtime-target/migrations/202608210003_runtime_target_agent_generation_capability_bindings.sql
+  version: '202608210003'
+owner: runtime-target
+risk_level: L4
+affected_tables:
+  - runtime_target_agent_capability_bindings
+referenced_tables:
+  - runtime_target_agent_identities
+  - runtime_target_agent_generations
+operation_categories:
+  - additive-column
+  - data-copy
+  - constraint-change
+historical_data_assumptions:
+  - Every physical capability binding belongs to an identity with at least one physical trust generation, including soft-deleted history.
+  - The active generation is authoritative; when none is active, the latest pending generation owns the binding.
+planned_upgrade_order:
+  - Apply after the identity-scoped capability binding migration and before deploying generation-aware admission.
+safety_strategy:
+  additive_only: The nullable generation column is populated before it becomes required and before the old uniqueness constraint is removed.
+  initialization: Existing rows bind to the active generation, or to the latest pending generation when enrollment has not activated.
+  bounded_backfill: The update touches only the existing capability-binding table and selects one physical generation row through the identity foreign key for each binding.
+  post_migration_invariant: Every physical capability row belongs to exactly one physical trust generation and capability versions use the provider contract version.
+  recovery_or_retirement_rationale: Abort if any binding cannot resolve a generation; no identity-scoped admission fallback remains after deployment.
+  duplicate_scan: One source row exists per identity and each selected generation receives at most one row.
+  live_reference_scan: Inspect all physical bindings and all physical trust generations, including soft-deleted history required by the final NOT NULL constraint.
+  reference_impact: The new foreign key points from capability bindings to trust generations with RESTRICT deletion; generation retirement and soft deletion remain valid while physical deletion is rejected when admission history depends on it.
+  reconcile_or_abort: Abort on a missing generation instead of assigning capability authority to an arbitrary identity row.
+validation_scenarios:
+  - Existing active certificates retain only their migrated capability set.
+  - A rotated pending generation may declare a larger set without changing the active generation binding.
+  - Admission reads the binding belonging to the exact active certificate generation.
+preflight_checks:
+  - name: capability-bindings-have-generation
+    query: >-
+      SELECT COUNT(*) FROM runtime_target_agent_capability_bindings b WHERE NOT EXISTS (SELECT 1 FROM runtime_target_agent_generations g WHERE g.identity_id = b.identity_id)
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids: []

@@ -45,6 +45,9 @@ func newTestService(options containerServiceOptions) (*service, error) {
 	if options.authorizer == nil {
 		options.authorizer = fakeAuthorizer{}
 	}
+	if options.runtimeTargets == nil {
+		options.runtimeTargets = &runtimeTargetReaderStub{target: moduleapi.RuntimeTargetSummary{ID: 1, DisplayName: "Local Docker", Provider: containerExecutionProvider}}
+	}
 	return newService(options)
 }
 
@@ -185,158 +188,6 @@ func TestShellAllowedWarnsWhenEnabledWithoutWebSocketOrigins(t *testing.T) {
 	fields := entries[0].ContextMap()
 	if fields["module"] != moduleID || fields["config_key"] != containercontract.ContainerShellEnabledConfig.String() || fields["reason"] != "websocket_allowed_origins_empty" {
 		t.Fatalf("unexpected structured warning fields: %#v", fields)
-	}
-}
-
-func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
-	t.Parallel()
-
-	bus := eventbus.New(zap.NewNop())
-	events := make([]moduleapi.AuditEvent, 0, 1)
-	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			t.Fatalf("unexpected payload %T", event.Payload)
-		}
-		events = append(events, payload)
-		return nil
-	}); err != nil {
-		t.Fatalf("subscribe audit: %v", err)
-	}
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		auditBus:                bus,
-		moduleName:              moduleID,
-		enabled:                 true,
-		dangerousActionsEnabled: false,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	requestCtx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{
-		RequestID: "req-1",
-		TraceID:   "trace-1",
-		Route:     "/ops/containers/:id/start",
-		Method:    "POST",
-	})
-	_, err = service.Start(requestCtx, Ref{Value: "web"})
-	if !errors.Is(err, errDangerousActionsDisabled) {
-		t.Fatalf("expected dangerous action guard, got %v", err)
-	}
-	if len(events) != 1 {
-		t.Fatalf("expected one audit event, got %#v", events)
-	}
-	event := events[0]
-	if event.Action != containercontract.ContainerAuditActionStart.String() || event.Success {
-		t.Fatalf("unexpected audit event %#v", event)
-	}
-	if event.MessageKey != "ops.container.error.dangerousActionsDisabled" {
-		t.Fatalf("unexpected message key %q", event.MessageKey)
-	}
-	if event.Metadata["requestId"] != "req-1" {
-		t.Fatalf("expected request id metadata, got %#v", event.Metadata)
-	}
-}
-
-func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
-	t.Parallel()
-
-	bus := eventbus.New(zap.NewNop())
-	events := make([]moduleapi.AuditEvent, 0, 1)
-	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			t.Fatalf("unexpected payload %T", event.Payload)
-		}
-		events = append(events, payload)
-		return nil
-	}); err != nil {
-		t.Fatalf("subscribe audit: %v", err)
-	}
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		auditBus:                bus,
-		moduleName:              moduleID,
-		enabled:                 true,
-		dangerousActionsEnabled: false,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	_, err = service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
-	if !errors.Is(err, errDangerousActionsDisabled) {
-		t.Fatalf("expected dangerous action guard, got %v", err)
-	}
-	if len(events) != 1 {
-		t.Fatalf("expected one audit event, got %#v", events)
-	}
-	event := events[0]
-	if event.Action != containercontract.ContainerAuditActionRemove.String() || event.Success {
-		t.Fatalf("unexpected audit event %#v", event)
-	}
-	if event.Metadata["force"] != true {
-		t.Fatalf("expected force metadata, got %#v", event.Metadata)
-	}
-	if event.Metadata["endpoint"] != "unix:///var/run/docker.sock" {
-		t.Fatalf("expected endpoint metadata, got %#v", event.Metadata)
-	}
-}
-
-func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
-	t.Parallel()
-
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	result, err := service.Restart(context.Background(), Ref{Value: "web"})
-	if err != nil {
-		t.Fatalf("restart: %v", err)
-	}
-	if result.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
-		t.Fatalf("unexpected action message key %q", result.MessageKey)
-	}
-	mapped := toContainerAction(result)
-	if mapped.MessageKey == nil || *mapped.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
-		t.Fatalf("expected mapped message key, got %#v", mapped.MessageKey)
-	}
-	if mapped.Message == nil || *mapped.Message != containercontract.ContainerActionRestartCompleted.String() {
-		t.Fatalf("expected mapped fallback message, got %#v", mapped.Message)
-	}
-}
-
-func TestServiceRemoveResponseCarriesMessageKey(t *testing.T) {
-	t.Parallel()
-
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	result, err := service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
-	if err != nil {
-		t.Fatalf("remove: %v", err)
-	}
-	if result.MessageKey != containercontract.ContainerActionRemoveCompleted.String() {
-		t.Fatalf("unexpected action message key %q", result.MessageKey)
 	}
 }
 
@@ -536,53 +387,6 @@ func assertEnvironmentPolicyResult(
 	}
 }
 
-func TestServiceActionFailurePublishesAuditWithRuntimeContext(t *testing.T) {
-	t.Parallel()
-
-	bus := eventbus.New(zap.NewNop())
-	events := make([]moduleapi.AuditEvent, 0, 1)
-	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			t.Fatalf("unexpected payload %T", event.Payload)
-		}
-		events = append(events, payload)
-		return nil
-	}); err != nil {
-		t.Fatalf("subscribe audit: %v", err)
-	}
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 failingRuntime{err: errInvalidContainerState},
-		auditBus:                bus,
-		moduleName:              moduleID,
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	_, err = service.Stop(context.Background(), Ref{Value: "web"})
-	if !errors.Is(err, errInvalidContainerState) {
-		t.Fatalf("expected invalid state, got %v", err)
-	}
-	if len(events) != 1 {
-		t.Fatalf("expected one audit event, got %#v", events)
-	}
-	event := events[0]
-	if event.Action != containercontract.ContainerAuditActionStop.String() || event.Success {
-		t.Fatalf("unexpected audit event %#v", event)
-	}
-	if event.MessageKey != containercontract.ContainerInvalidState.String() {
-		t.Fatalf("unexpected message key %q", event.MessageKey)
-	}
-	if event.Metadata["runtime"] != runtimeNameDocker {
-		t.Fatalf("expected runtime metadata, got %#v", event.Metadata)
-	}
-}
-
 func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 	t.Parallel()
 
@@ -630,33 +434,6 @@ func TestRuntimeAccessEnabledButRuntimeUnavailableUsesConnectionErrorKey(t *test
 	}
 	if got := messageKeyForError(err); got != containercontract.ContainerRuntimeUnavailable {
 		t.Fatalf("expected runtime unavailable message key, got %s", got)
-	}
-}
-
-func TestDangerousActionsResolverControlsWriteActionsOnly(t *testing.T) {
-	t.Parallel()
-
-	service, err := newTestService(containerServiceOptions{
-		runtime: fakeRuntime{},
-		systemConfig: serviceTestSystemConfig{values: map[string]bool{
-			containercontract.ContainerRuntimeEnabledConfig.String():          true,
-			containercontract.ContainerDangerousActionsEnabledConfig.String(): false,
-		}},
-		enabled:                 false,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	if _, err := service.List(context.Background(), ListQuery{}); err != nil {
-		t.Fatalf("expected read path to stay available, got %v", err)
-	}
-	_, err = service.Start(context.Background(), Ref{Value: "web"})
-	if !errors.Is(err, errDangerousActionsDisabled) {
-		t.Fatalf("expected dangerous actions guard, got %v", err)
 	}
 }
 
@@ -734,43 +511,6 @@ func TestServiceListFiltersHealth(t *testing.T) {
 	}
 	if healthResult.Total != 1 || healthResult.Items[0].Name != "cache" {
 		t.Fatalf("unexpected health-filtered result %#v", healthResult)
-	}
-}
-
-func TestServiceRunActionBlocksUnknownManagedPolicyWhenDetailFails(t *testing.T) {
-	t.Parallel()
-
-	runtime := &managedActionRuntime{
-		detailErr: errors.New("inspect unavailable"),
-		removeResult: ActionResult{
-			ID:           "web",
-			Action:       containerActionRemove,
-			Runtime:      runtimeNameDocker,
-			Result:       actionResultCompleted,
-			StatusBefore: "running",
-			StatusAfter:  actionStatusRemoved,
-		},
-	}
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 runtime,
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		orchestratorPolicies: orchestratorActionPolicies{
-			Unknown: defaultContainerUnknownActionLevel,
-		},
-		defaultTail: defaultContainerLogsDefaultTail,
-		maxTail:     defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	_, err = service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
-	if !errors.Is(err, errDangerousActionsDisabled) {
-		t.Fatalf("expected unknown-policy guard to block action when detail fails, got %v", err)
-	}
-	if runtime.removeCalls.Load() != 0 {
-		t.Fatalf("expected runtime action to stay blocked, got %d remove calls", runtime.removeCalls.Load())
 	}
 }
 
@@ -1200,60 +940,6 @@ func TestPublishShellSessionFailedDetachesCanceledRequestContext(t *testing.T) {
 	}
 	if bus.canceled[0] {
 		t.Fatalf("expected detached audit publish context")
-	}
-}
-
-func TestStartAuditDetachesCanceledRequestContext(t *testing.T) {
-	t.Parallel()
-
-	bus := &contextStateAuditBus{}
-	service, err := newTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		auditBus:                bus,
-		moduleName:              moduleID,
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	baseCtx, cancel := context.WithCancel(context.Background())
-	ctx := httpx.WithRequestAuditContext(baseCtx, httpx.RequestAuditContext{
-		RequestID: "req-start",
-		TraceID:   "trace-start",
-		Route:     "/api/ops/containers/:id/start",
-		Method:    "POST",
-	})
-	ctx = moduleapi.WithRequestAuthContext(ctx, moduleapi.RequestAuthContext{
-		User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
-	})
-	cancel()
-
-	result, err := service.Start(ctx, Ref{Value: "web"})
-	if err != nil {
-		t.Fatalf("start: %v", err)
-	}
-	if result.Action != containerActionStart {
-		t.Fatalf("unexpected action result %#v", result)
-	}
-	if len(bus.events) != 1 {
-		t.Fatalf("expected one audit event, got %#v", bus.events)
-	}
-	if bus.canceled[0] {
-		t.Fatalf("expected detached audit publish context")
-	}
-	payload, ok := bus.events[0].Payload.(moduleapi.AuditEvent)
-	if !ok {
-		t.Fatalf("unexpected payload %T", bus.events[0].Payload)
-	}
-	if payload.Action != containercontract.ContainerAuditActionStart.String() || !payload.Success {
-		t.Fatalf("unexpected audit payload %#v", payload)
-	}
-	if payload.Metadata["requestId"] != "req-start" || payload.Metadata["traceId"] != "trace-start" {
-		t.Fatalf("expected request metadata, got %#v", payload.Metadata)
 	}
 }
 
@@ -2082,26 +1768,6 @@ func (r *countingRuntime) Shell(context.Context, Ref, string) (terminal.Session,
 	return newStubTerminalSession(), nil
 }
 
-func (r *countingRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	r.calls.Add(1)
-	return ActionResult{}, nil
-}
-
-func (r *countingRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	r.calls.Add(1)
-	return ActionResult{}, nil
-}
-
-func (r *countingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	r.calls.Add(1)
-	return ActionResult{}, nil
-}
-
-func (r *countingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	r.calls.Add(1)
-	return ActionResult{}, nil
-}
-
 func (r *countingRuntime) Close() error {
 	r.closeCalls.Add(1)
 	return nil
@@ -2243,12 +1909,6 @@ func (listRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) err
 func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil
 }
-func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
-func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
-func (listRuntime) Restart(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
-func (listRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (listRuntime) Close() error { return nil }
 
 func (r failingRuntime) Info(context.Context) (RuntimeInfo, error) {
@@ -2282,86 +1942,7 @@ func (r failingRuntime) Shell(context.Context, Ref, string) (terminal.Session, e
 	return nil, r.err
 }
 
-func (r failingRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, r.err
-}
-
-func (r failingRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, r.err
-}
-
-func (r failingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, r.err
-}
-
-func (r failingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, r.err
-}
-
 func (r failingRuntime) Close() error { return nil }
-
-type managedActionRuntime struct {
-	detail       Detail
-	detailErr    error
-	removeResult ActionResult
-	removeCalls  atomic.Int64
-}
-
-func (r *managedActionRuntime) Info(context.Context) (RuntimeInfo, error) {
-	return fakeRuntime{}.Info(context.Background())
-}
-
-func (r *managedActionRuntime) List(context.Context, ListQuery) ([]Summary, error) {
-	return fakeRuntime{}.List(context.Background(), ListQuery{})
-}
-
-func (r *managedActionRuntime) Detail(context.Context, Ref) (Detail, error) {
-	if r.detailErr != nil {
-		return Detail{}, r.detailErr
-	}
-	return r.detail, nil
-}
-
-func (r *managedActionRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
-	return fakeRuntime{}.Mounts(context.Background(), Ref{Value: "web"})
-}
-
-func (r *managedActionRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
-	return fakeRuntime{}.MountUsage(context.Background(), Ref{Value: "web"}, "")
-}
-
-func (r *managedActionRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
-	return Logs{}, nil
-}
-func (r *managedActionRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
-	return nil
-}
-
-func (r *managedActionRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
-	return newStubTerminalSession(), nil
-}
-
-func (r *managedActionRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r *managedActionRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r *managedActionRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r *managedActionRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	r.removeCalls.Add(1)
-	if r.removeResult.Action == "" {
-		return fakeAction(containerActionRemove), nil
-	}
-	return r.removeResult, nil
-}
-
-func (r *managedActionRuntime) Close() error { return nil }
 
 type fakeRuntime struct{}
 
@@ -2419,24 +2000,6 @@ func (fakeRuntime) Shell(context.Context, Ref, string) (terminal.Session, error)
 	return newStubTerminalSession(), nil
 }
 
-func (fakeRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return fakeAction(containerActionStart), nil
-}
-
-func (fakeRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return fakeAction(containerActionStop), nil
-}
-
-func (fakeRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return fakeAction(containerActionRestart), nil
-}
-
-func (fakeRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	result := fakeAction(containerActionRemove)
-	result.StatusAfter = actionStatusRemoved
-	return result, nil
-}
-
 func (fakeRuntime) Close() error { return nil }
 
 type blockingDetailRuntime struct {
@@ -2482,22 +2045,6 @@ func (r blockingDetailRuntime) Shell(context.Context, Ref, string) (terminal.Ses
 	return nil, nil
 }
 
-func (r blockingDetailRuntime) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r blockingDetailRuntime) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r blockingDetailRuntime) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
-func (r blockingDetailRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-
 func (r blockingDetailRuntime) Close() error { return nil }
 
 type runtimeEventServiceSourceStub struct{}
@@ -2527,18 +2074,6 @@ func (runtimeEventServiceSourceStub) StreamRuntimeEvents(context.Context, func(R
 func (runtimeEventServiceSourceStub) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
 }
-func (runtimeEventServiceSourceStub) Start(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventServiceSourceStub) Stop(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventServiceSourceStub) Restart(context.Context, Ref) (ActionResult, error) {
-	return ActionResult{}, nil
-}
-func (runtimeEventServiceSourceStub) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
-	return ActionResult{}, nil
-}
 func (runtimeEventServiceSourceStub) Close() error { return nil }
 
 func fakeSummary() Summary {
@@ -2559,19 +2094,6 @@ func fakeSummary() Summary {
 func fakeMountID() string {
 	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
 	return stableMountID(mount)
-}
-
-func fakeAction(action string) ActionResult {
-	return ActionResult{
-		ID:           "abc123",
-		Name:         "web",
-		Image:        "nginx:latest",
-		Action:       action,
-		Result:       actionResultCompleted,
-		Runtime:      runtimeNameDocker,
-		StatusBefore: "exited",
-		StatusAfter:  "running",
-	}
 }
 
 type stubTerminalSession struct {

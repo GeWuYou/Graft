@@ -70,12 +70,13 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - 复用现有容器运行时能力，而不是新增第二套运行时真相。
 - Phase 1 只做本机 `local host`，但模型要为未来远程主机预留边界。
 
-### 服务管理范围与生命周期命令
+### 服务管理范围与生命周期意图
 
 - 导入检查必须区分 Compose 声明服务、运行时成员和 Graft 受管服务范围。默认所有声明服务纳入管理，但导入确认页允许用户取消任意服务；原始 Compose 文件保持不变。
 - 服务依赖来自 `depends_on` 的列表或映射形式。未选中的依赖不得被静默纳入管理；UI 必须显示依赖告警，服务端在导入边界校验名称并持久化显式选择。
 - `managed_service_names` 持久化在生命周期配置中。空值仅表示历史记录兼容语义“全部声明服务”；新导入写入显式选择。生命周期 `up`、`stop`、`restart`、`pull` 仅追加受管服务名；重部署在服务子集下使用 `stop` 代替无法按服务作用的 `down`。
-- 生命周期支持按动作配置有界 argv 模板（`additional_args`、`stop_args`、`restart_args`、`pull_args`）。服务端始终拥有可执行文件、Compose 文件、项目名、工作目录、动作和受管服务后缀；禁止 shell 解释及覆盖 `-f`、`-p`、`--project-directory`、`--env-file`、`--profile` 等权威参数。
+- 生命周期配置只保存 provider-neutral 的结构化策略，例如 build、pull、wait、force recreate、orphan 与 volume
+  处理选择。Application、OpenAPI、web 和 Task 不接受或展示 argv、命令预览、Docker endpoint、证书路径或宿主机路径。
 
 ## 2.2 非目标
 
@@ -277,11 +278,14 @@ Docker container labels
 推荐拆分为两个边界：
 
 - 静态解析与导入校验：`compose-go`
-- 生命周期执行：`docker compose` CLI
+- 生命周期执行：由 Task Runtime 冻结 external execution lease，`docker-runtime-agent` 内的 Docker Provider
+  使用官方 Compose SDK；server 不执行 CLI、不挂载 Docker socket
 
 理由：
 
 - Compose 文件导入、合并、插值、标准化更适合静态解析库。
+- 生命周期 Provider 消费不可变 operation snapshot，不消费 argv、Docker endpoint、证书路径或凭据；页面只展示
+  结构化生命周期意图，不生成或展示命令预览。
 - 真实 `up/stop/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
 - 这样可以把“读配置”和“改运行态”分开治理。
 
@@ -320,7 +324,7 @@ server/modules/project/
 - `compose/loader.go`
   - 使用 `compose-go` 读取、标准化、验证、生成快照。
 - `compose/executor.go`
-  - 使用参数化命令执行 `docker compose up/stop/restart`，并把 `docker compose down` 保留给 destroy。
+  - 通过 `ComposeLifecycleExecutionProvider` 提交受控的 up/stop/restart operation，并把 down 保留给 destroy。
 - `fs/`
   - 负责 working directory 解析、文件存在性检查、hash 计算、symlink 安全校验。
 
@@ -361,7 +365,9 @@ web/src/modules/project
     -> server/modules/project/service.go
       -> ProjectRepository(database/sql)
       -> ComposeLoader(compose-go)
-      -> ComposeExecutor(docker compose CLI)
+      -> ComposeLifecycleExecutionProvider
+      -> Task Runtime external execution lease
+      -> Docker Runtime Agent(official Compose SDK)
       -> FilesystemResolver / Hashing
       -> moduleapi.ContainerRuntimeReadService(future narrow boundary)
       -> moduleapi.SystemConfigResolver
@@ -632,33 +638,34 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 - `Project` 保存结构化配置，而不是保存一整段原始 shell 命令
 - working directory、ordered compose files、canonical project name 继续由 project registry authority 拥有
 - lifecycle configuration 只保存可编辑的 compose 执行选项
-- `additional_args` 以受限的 argv token 列表持久化，并只追加到 `up` / `redeploy` 的 `compose up`；不得承载 shell 表达式或覆盖项目 authority 的 `-f`、`-p`、profile 等参数
-- UI 可展示 generated command preview，但 preview 是 derived artifact，不是第二套 authority
+- lifecycle configuration 不接受任意附加参数；可编辑字段必须能映射为 provider-neutral 的有界策略
+- UI 只展示结构化策略，不生成 generated command preview
 - 若项目仍是 `review_required`，`up/stop/restart/redeploy` 必须先被 guard 拦住，直到用户确认或更新配置
 
 语义约束：
 
 - `Up`
-  - 基于已保存 lifecycle configuration 生成 `docker compose up -d` 预览并执行
+  - 基于已保存 lifecycle configuration 生成 `application-compose/v1` operation snapshot 并执行
 - `Stop`
-  - 基于已保存 lifecycle configuration 生成 `docker compose stop` 预览并执行
+  - 基于已保存 lifecycle configuration 生成结构化 stop intent 并执行
   - 仅停止当前项目运行中的服务和容器，不删除容器、网络或卷
 - `Restart`
-  - 基于已保存 lifecycle configuration 生成 `docker compose restart` 预览并执行
+  - 基于已保存 lifecycle configuration 生成结构化 restart intent 并执行
 - `Redeploy`
   - canonical deploy-style lifecycle action
   - 标准策略下根据保存配置决定是否先 `down`、是否 `pull`、然后 `up -d`，并可选 image prune
 - `Destroy`
-  - 执行 `docker compose down`
+  - 先通过 external execution lease 执行结构化 down intent，再由 Application 自有本地 Stage 完成 registry/workspace 收尾
   - Phase 1 默认不删除 volumes，只有显式 destroy 选项才允许继续破坏性清理
 
-执行时必须显式传入：
+Agent 通过 lease/fence 绑定的一次性 material endpoint 在内存中解析以下材料：
 
-- `-p/--project-name`
-- `--project-directory`
-- 有序 `-f` 文件列表
-- 重复 `--profile`
-- 明确 env file 参数
+- canonical project name
+- workspace path
+- ordered compose files
+- profiles
+
+这些材料不得写入 Task、Stage、lease、日志、receipt、Agent journal 或数据库。
 
 `update-deploy` 不再作为一等动作存在：
 
@@ -666,17 +673,18 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 - `redeploy` 成为统一的 runtime deploy-style lifecycle action
 - Configuration Workspace 只负责将已确认的编辑写回工作目录；文件保存后统一由 `redeploy` 提交 lifecycle Task，不保留独立 `deploy` 动作或接口
 
-### 8.4A Future Task Runtime Integration
+### 8.4A Task Runtime External Execution
 
-当前 `up/stop/restart/redeploy` 的 Compose 业务 authority 仍归 `Project`：它验证 lifecycle configuration 和
-guard，生成参数化 compose command plan，并通过 `Container` 的稳定 runtime reader 查询 health/status。
+当前 `up/stop/restart/redeploy/destroy` 的 Compose 业务 authority 仍归 `Project`：它验证 lifecycle configuration 和
+guard，生成 provider-neutral operation snapshot，并通过 `Container` 的稳定 runtime reader 查询 health/status。
 
 Project 已通过 `task` module 提交由 `project.compose.*` StageExecutor 构成的 `TaskPlan`，并返回 Task receipt，
 不再同步等待长时间 Compose 子进程。`task` 负责阶段状态、日志、realtime、retry/cancel 和 crash recovery，且不依赖
 Project。`down/pull/build/up/image-prune` 仍是 Project 定义的业务 Stage，而不是 Task Runtime 的内置知识。
 
-Task Runtime 的 `unknown` Stage + `needs_attention` Task 语义适用于崩溃时无法判断结果的 Docker command；Project
-不得自动重放这类 command，必须先由操作者完成实际 runtime reconciliation。
+Task Runtime 独占 Task、Stage、lease、renew、cancel、receipt、retry 与 recovery 状态；Docker Runtime Agent 只按
+`compose_execution@docker/v1` claim，并以本地 fence journal 恢复同一 lease。无法证明结果时进入
+`unknown` / `needs_attention`，Project 不得自动重放，必须先完成实际 runtime reconciliation。
 
 ## 8.5 Remove Project
 
@@ -1550,7 +1558,7 @@ Phase 1 处理：
 
 - 无法读取配置文件
 - Docker socket 无权限
-- `docker compose` 不可用
+- Runtime Agent 未连接或 `compose_execution` capability 不可用
 - 命令拼接注入
 
 要求：

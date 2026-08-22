@@ -122,7 +122,7 @@ func parseAgentIdentityURI(identityURI *url.URL) (AgentMTLSIdentity, error) {
 		return AgentMTLSIdentity{}, errors.New("agent URI SAN is invalid")
 	}
 	parts := strings.Split(strings.TrimPrefix(identityURI.EscapedPath(), "/"), "/")
-	if len(parts) != 4 || parts[0] != "runtime-target" || parts[2] != "builder-agent" {
+	if len(parts) != 4 || parts[0] != "runtime-target" || parts[2] != "runtime-agent" {
 		return AgentMTLSIdentity{}, errors.New("agent URI SAN path is invalid")
 	}
 	targetID, err := parseCanonicalPositiveInt64(parts[1])
@@ -165,12 +165,13 @@ func isCanonicalAgentID(value string) bool {
 
 // AgentServer 是专用于 Agent mTLS 路由的独立监听器，不复用用户 HTTP listener。
 type AgentServer struct {
-	engine                 *gin.Engine
-	tlsConfig              *tls.Config
-	logger                 *zap.Logger
-	mu                     sync.Mutex
-	server                 *http.Server
-	ledgerRoutesConfigured bool
+	engine                    *gin.Engine
+	tlsConfig                 *tls.Config
+	logger                    *zap.Logger
+	mu                        sync.Mutex
+	server                    *http.Server
+	ledgerRoutesConfigured    bool
+	executionRoutesConfigured bool
 }
 
 // NewAgentServer 从部署挂载的证书文件构造 Agent 专用 TLS 监听器。

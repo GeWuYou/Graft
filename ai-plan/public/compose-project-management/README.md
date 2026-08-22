@@ -75,7 +75,8 @@
 - active topic 已创建：`ai-plan/public/compose-project-management/`
 - 当前共识：
   - 推荐新增独立 `project` module，而不是扩展 `container` module 承担项目注册。
-  - 推荐静态解析使用 `compose-go`，生命周期执行使用 `docker compose` CLI。
+  - 静态解析继续使用 `compose-go`；生命周期执行 authority 已由 ADR-026 改为 Task-owned external execution
+    lease 与 `docker-runtime-agent` 内的官方 Compose SDK，server 不再是 CLI/socket owner。
   - 推荐 persistence 使用模块自有 `database/sql + migrations` 模式。
   - 推荐为 `project` 与 `container` 之间新增 narrow stable shared boundary，而不是直接 import container private service。
   - Phase 1 的 Activity 仍由前端复用现有 container APIs 聚合。

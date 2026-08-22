@@ -202,7 +202,6 @@ describe('ApplicationCreateIndex', () => {
         strategy_kind: 'standard',
         down_before_redeploy: true,
         remove_orphans: true,
-        additional_args: [],
       }),
     );
     expect(request.workspace_entries).toEqual(
@@ -250,7 +249,6 @@ describe('ApplicationCreateIndex', () => {
     expect(draft).not.toBeNull();
     if (!draft) return;
     draft.profiles = ['production'];
-    draft.additional_args = "--label 'release channel'";
     draft.wait_after_up = true;
 
     await wrapper
@@ -267,7 +265,6 @@ describe('ApplicationCreateIndex', () => {
       compose_files: ['compose.yaml'],
       compose_project_name: 'demo-project',
       profiles: ['production'],
-      additional_args: "--label 'release channel'",
       wait_after_up: true,
     });
   });

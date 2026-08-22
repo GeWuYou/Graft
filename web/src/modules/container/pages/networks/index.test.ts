@@ -24,14 +24,14 @@ describe('Docker network management page', () => {
     expect(sourceText).not.toContain('window.alert');
   });
 
-  it('supports permission-gated batch removal with pagination and partial results', () => {
+  it('submits permission-gated per-network Tasks without interpreting daemon partial results', () => {
     expect(sourceText).toContain(':selected-row-keys="isCompactDensity ? [] : selectedNetworkIds"');
     expect(sourceText).toContain('<management-batch-bar');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_REMOVE');
     expect(sourceText).toContain('Promise.allSettled');
     expect(sourceText).toContain('selectedNetworkNamesByID');
     expect(sourceText).toContain('confirm_network_name: selectedNetworkNamesByID.value[id]');
-    expect(sourceText).toContain('container.networks.batch.removePartial');
+    expect(sourceText).not.toContain('container.networks.batch.removePartial');
     expect(sourceText).toContain('invalidateDockerNetworkQueries()');
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('limit: pagination.pageSize');

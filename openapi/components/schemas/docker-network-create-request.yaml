@@ -14,8 +14,5 @@ properties:
   attachable:
     type: boolean
     default: false
-  labels:
-    type: object
-    additionalProperties: { type: string }
   ipam:
     $ref: ./docker-network-ipam-config.yaml

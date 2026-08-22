@@ -6,18 +6,7 @@ import (
 
 	containergen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
-	containercontract "graft/server/modules/container/contract"
 )
-
-func toDockerNetworkAction(result DockerNetworkActionResult) containergen.DockerNetworkActionResponse {
-	action := containergen.DockerNetworkActionResponseAction("create")
-	messageKey := containercontract.DockerNetworkCreateCompleted
-	if result.Action == "remove" {
-		action = containergen.DockerNetworkActionResponseAction("remove")
-		messageKey = containercontract.DockerNetworkRemoveCompleted
-	}
-	return containergen.DockerNetworkActionResponse{Id: result.ID, Name: result.Name, Action: action, Result: containergen.DockerNetworkActionResponseResult("completed"), MessageKey: messageKey.String()}
-}
 
 // toContainerListResponse 将容器列表结果转换为 OpenAPI 容器列表响应。
 //
@@ -63,27 +52,6 @@ func toDockerImageList(result DockerImageListResult, query DockerImageListQuery)
 			InUse:     result.Summary.InUse,
 			Dangling:  result.Summary.Dangling,
 		},
-	}
-}
-
-func toDockerImageBatchRemove(result DockerImageBatchRemoveResult) containergen.DockerImageBatchRemoveResponse {
-	items := make([]containergen.DockerImageBatchRemoveItem, 0, len(result.Items))
-	for _, item := range result.Items {
-		var errorCode *containergen.DockerImageBatchRemoveItemErrorCode
-		if item.ErrorCode != "" {
-			value := containergen.DockerImageBatchRemoveItemErrorCode(item.ErrorCode)
-			errorCode = &value
-		}
-		items = append(items, containergen.DockerImageBatchRemoveItem{Id: item.ID, Success: item.Success, ErrorCode: errorCode, MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
-	}
-	return containergen.DockerImageBatchRemoveResponse{Total: result.Total, SuccessCount: result.SuccessCount, FailedCount: result.FailedCount, RequestId: optionalString(result.RequestID), Items: items}
-}
-
-func toDockerImageAction(result DockerImageActionResult) containergen.DockerImageActionResponse {
-	return containergen.DockerImageActionResponse{
-		Action:     containergen.DockerImageActionResponseAction(result.Action),
-		Id:         result.ID,
-		MessageKey: result.MessageKey,
 	}
 }
 
@@ -174,19 +142,6 @@ func toDockerVolumeList(result DockerVolumeListResult) containergen.DockerVolume
 		mapped = append(mapped, toDockerVolume(item))
 	}
 	return containergen.DockerVolumeListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset, Summary: containergen.DockerVolumeListSummary{Total: result.Summary.Total, InUse: result.Summary.InUse, Unused: result.Summary.Unused, Orphaned: result.Summary.Orphaned, ReferenceUnknown: result.Summary.ReferenceUnknown, SizeBytes: result.Summary.SizeBytes}}
-}
-
-// toDockerVolumeRemoveResponse 将完成的数据卷删除映射为 API 响应。
-func toDockerVolumeRemoveResponse(name string) containergen.DockerVolumeRemoveResponse {
-	return containergen.DockerVolumeRemoveResponse{Name: name, Action: containergen.DockerVolumeRemoveResponseActionRemove, Result: containergen.DockerVolumeRemoveResponseResultCompleted}
-}
-
-func toDockerVolumeBatchRemove(result DockerVolumeBatchRemoveResult) containergen.DockerVolumeBatchRemoveResponse {
-	items := make([]containergen.DockerVolumeBatchRemoveItem, 0, len(result.Items))
-	for _, item := range result.Items {
-		items = append(items, containergen.DockerVolumeBatchRemoveItem{Name: item.Name, Success: item.Success, ErrorCode: optionalString(item.ErrorCode), MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
-	}
-	return containergen.DockerVolumeBatchRemoveResponse{Total: result.Total, SuccessCount: result.SuccessCount, FailedCount: result.FailedCount, RequestId: optionalString(result.RequestID), Items: items}
 }
 
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应。
@@ -575,21 +530,6 @@ func toMountUsage(usage MountUsage) mountUsageResponse {
 		MeasuredAt:  optionalString(usage.MeasuredAt),
 		Message:     optionalString(usage.Message),
 		SharedHint:  optionalString(usage.SharedHint),
-	}
-}
-
-// toContainerAction converts an action result to its OpenAPI response representation.
-func toContainerAction(result ActionResult) containergen.ContainerActionResponse {
-	return containergen.ContainerActionResponse{
-		Action:       containergen.ContainerActionResponseAction(result.Action),
-		Id:           result.ID,
-		Message:      optionalString(result.Message),
-		MessageKey:   optionalString(result.MessageKey),
-		Name:         optionalString(result.Name),
-		Result:       containergen.ContainerActionResponseResult(result.Result),
-		Runtime:      result.Runtime,
-		StatusAfter:  result.StatusAfter,
-		StatusBefore: optionalString(result.StatusBefore),
 	}
 }
 

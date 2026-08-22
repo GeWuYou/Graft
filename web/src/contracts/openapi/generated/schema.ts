@@ -2810,7 +2810,7 @@ export interface paths {
     put?: never;
     /**
      * Execute container actions in batch
-     * @description Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
+     * @description Submits one Task with ordered per-container external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
      */
     post: operations['postContainerBatchActions'];
     delete?: never;
@@ -3315,7 +3315,7 @@ export interface paths {
     put?: never;
     /**
      * Remove Docker images in batch
-     * @description Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.
+     * @description Submits one Task with ordered per-image external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
      */
     post: operations['postDockerImageBatchRemove'];
     delete?: never;
@@ -3458,7 +3458,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Remove Docker volumes in batch */
+    /**
+     * Remove Docker volumes in batch
+     * @description Submits one Task with ordered per-volume external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
+     */
     post: operations['postDockerVolumeBatchRemove'];
     delete?: never;
     options?: never;
@@ -4683,8 +4686,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose up for a registered application
-     * @description Runs the saved lifecycle configuration `up` command preview for the selected application.
+     * Start a registered application
+     * @description Submits the saved application bring-up policy for external execution.
      */
     post: operations['postApplicationUp'];
     delete?: never;
@@ -4703,8 +4706,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose stop for a registered application
-     * @description Runs the saved lifecycle configuration `stop` command preview for the selected application.
+     * Stop a registered application
+     * @description Submits the saved application stop policy for external execution.
      */
     post: operations['postApplicationStop'];
     delete?: never;
@@ -4723,8 +4726,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose restart for a registered application
-     * @description Runs the saved lifecycle configuration `restart` command preview for the selected application.
+     * Restart a registered application
+     * @description Submits the saved application restart policy for external execution.
      */
     post: operations['postApplicationRestart'];
     delete?: never;
@@ -4744,7 +4747,7 @@ export interface paths {
     put?: never;
     /**
      * Redeploy a registered application
-     * @description Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
+     * @description Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard strategy redeploy may include teardown, image refresh, bring-up, and optional unused-image cleanup based on the stored lifecycle policy.
      */
     post: operations['postApplicationRedeploy'];
     delete?: never;
@@ -5183,8 +5186,6 @@ export interface components {
     ApplicationRuntimeStatus: components['schemas']['application-runtime-status'];
     ApplicationLifecycleStrategyKind: components['schemas']['application-lifecycle-strategy-kind'];
     ApplicationLifecycleReviewStatus: components['schemas']['application-lifecycle-review-status'];
-    ApplicationLifecycleCommandStep: components['schemas']['application-lifecycle-command-step'];
-    ApplicationLifecycleGeneratedCommand: components['schemas']['application-lifecycle-generated-command'];
     ApplicationLifecycleConfiguration: components['schemas']['application-lifecycle-configuration'];
     ApplicationLifecycleConfigurationRequest: components['schemas']['application-lifecycle-configuration-request'];
     ApplicationLifecycleConfigurationResponse: components['schemas']['application-lifecycle-configuration-response'];
@@ -9331,23 +9332,6 @@ export interface components {
        */
       force: boolean;
     };
-    'container-action-response': {
-      id: string;
-      name?: string;
-      /** @enum {string} */
-      action: 'start' | 'stop' | 'restart' | 'remove';
-      /** @description Container runtime adapter key. */
-      runtime: string;
-      /** @enum {string} */
-      result: 'accepted' | 'completed' | 'unchanged';
-      status_before?: string;
-      status_after: string;
-      message_key?: string;
-      message?: string;
-    };
-    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['container-action-response'];
-    };
     'docker-image-container-reference': {
       id: string;
       name: string;
@@ -9588,15 +9572,6 @@ export interface components {
       /** @description Complete repository and tag target, for example registry.example.com/team/app:stable. */
       target: string;
     };
-    'docker-image-action-response': {
-      id: string;
-      /** @enum {string} */
-      action: 'tag' | 'untag' | 'remove';
-      message_key: string;
-    };
-    'enveloped-docker-image-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-image-action-response'];
-    };
     'docker-image-untag-request': {
       /** @description Complete local Repository:Tag reference to remove from the specified image. */
       reference: string;
@@ -9615,35 +9590,6 @@ export interface components {
        * @default false
        */
       force: boolean;
-    };
-    'docker-image-batch-remove-item': {
-      id: string;
-      success: boolean;
-      /**
-       * @description Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
-       * @enum {string}
-       */
-      error_code?:
-        | 'IMAGE_REFERENCED_BY_MULTIPLE_TAGS'
-        | 'IMAGE_IN_USE'
-        | 'IMAGE_NOT_FOUND'
-        | 'DOCKER_RUNTIME_UNAVAILABLE'
-        | 'DOCKER_TIMEOUT'
-        | 'DOCKER_COMMUNICATION_ERROR'
-        | 'UNKNOWN';
-      message_key?: string;
-      message?: string;
-    };
-    /** @description Batch image removal summary with one result item for every requested image ID in request order. */
-    'docker-image-batch-remove-response': {
-      total: number;
-      success_count: number;
-      failed_count: number;
-      request_id?: string;
-      items: components['schemas']['docker-image-batch-remove-item'][];
-    };
-    'enveloped-docker-image-batch-remove-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-image-batch-remove-response'];
     };
     /**
      * @description Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
@@ -9720,22 +9666,7 @@ export interface components {
       internal: boolean;
       /** @default false */
       attachable: boolean;
-      labels?: {
-        [key: string]: string;
-      };
       ipam?: components['schemas']['docker-network-ipam-config'];
-    };
-    'docker-network-action-response': {
-      id: string;
-      name: string;
-      /** @enum {string} */
-      action: 'create' | 'remove';
-      /** @enum {string} */
-      result: 'completed';
-      message_key: string;
-    };
-    'enveloped-docker-network-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-network-action-response'];
     };
     'docker-network-ipam': {
       driver?: string;
@@ -9798,39 +9729,12 @@ export interface components {
       /** @default false */
       force: boolean;
     };
-    'docker-volume-batch-remove-item': {
-      name: string;
-      success: boolean;
-      error_code?: string | null;
-      message_key?: string | null;
-      message?: string | null;
-    };
-    'docker-volume-batch-remove-response': {
-      total: number;
-      success_count: number;
-      failed_count: number;
-      request_id?: string;
-      items: components['schemas']['docker-volume-batch-remove-item'][];
-    };
-    'enveloped-docker-volume-batch-remove-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-volume-batch-remove-response'];
-    };
     'enveloped-docker-volume': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume'];
     };
     'docker-volume-remove-request': {
       /** @description Explicitly force removal when Docker reports the volume is in use. */
       force: boolean;
-    };
-    'docker-volume-remove-response': {
-      name: string;
-      /** @enum {string} */
-      action: 'remove';
-      /** @enum {string} */
-      result: 'completed';
-    };
-    'enveloped-docker-volume-remove-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-volume-remove-response'];
     };
     'enveloped-container-runtime-info': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-runtime-info'];
@@ -10079,7 +9983,31 @@ export interface components {
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];
     };
+    'runtime-target-agent-capability': {
+      /** @description Stable Runtime Agent capability identifier. */
+      name: string;
+      /** @description Frozen capability protocol version exposed by Runtime Target. */
+      version: string;
+      /** @enum {string} */
+      status: 'ready' | 'degraded' | 'unavailable';
+      /** @enum {string} */
+      diagnostic_code: 'none' | 'agent_not_enrolled' | 'agent_unavailable' | 'agent_degraded';
+    };
+    'runtime-target-agent': {
+      /** @enum {string} */
+      status: 'ready' | 'degraded' | 'unavailable' | 'not_enrolled';
+      /** @description Non-secret Runtime Agent identity label. */
+      agent_id: string;
+      /** Format: int64 */
+      generation: number;
+      /** @description Non-secret implementation version registered for the active Agent generation. */
+      version: string;
+      /** @enum {string} */
+      diagnostic_code: 'none' | 'agent_not_enrolled' | 'agent_unavailable' | 'agent_degraded';
+      capabilities: components['schemas']['runtime-target-agent-capability'][];
+    };
     'runtime-target': components['schemas']['runtime-target-summary'] & {
+      agent: components['schemas']['runtime-target-agent'];
       health: {
         /** @enum {string} */
         status: 'healthy' | 'unavailable';
@@ -10599,16 +10527,8 @@ export interface components {
       prune_images_after_redeploy: boolean;
       /** @default false */
       renew_anon_volumes: boolean;
-      /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server. */
-      additional_args?: string[];
-      /** @description Services included in Graft lifecycle actions; empty means all declared services for legacy records. */
+      /** @description Services included in Graft lifecycle actions; empty means all declared services. */
       managed_service_names: string[];
-      /** @description Bounded argv tokens appended to docker compose stop. */
-      stop_args?: string[];
-      /** @description Bounded argv tokens appended to docker compose restart. */
-      restart_args?: string[];
-      /** @description Bounded argv tokens appended to docker compose pull. */
-      pull_args?: string[];
     };
     'application-import-runtime-inspect-response': {
       inspection_id: string;
@@ -10676,20 +10596,6 @@ export interface components {
       compose_project_name_override?: string | null;
       lifecycle_configuration: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'application-lifecycle-command-step': {
-      /** @enum {string} */
-      kind: 'down' | 'pull' | 'up' | 'stop' | 'restart' | 'prune';
-      argv: string[];
-      /** @description Human-readable command preview derived from the canonical lifecycle configuration. */
-      display_command: string;
-    };
-    'application-lifecycle-generated-command': {
-      /** @enum {string} */
-      action: 'up' | 'stop' | 'restart' | 'redeploy';
-      steps: components['schemas']['application-lifecycle-command-step'][];
-      /** @description Combined preview for the selected lifecycle action. */
-      display_command: string;
-    };
     'application-lifecycle-configuration': {
       strategy_kind: components['schemas']['application-lifecycle-strategy-kind'];
       profiles: string[];
@@ -10705,17 +10611,7 @@ export interface components {
       prune_images_after_redeploy: boolean;
       /** @default false */
       renew_anon_volumes: boolean;
-      additional_args: string[];
       managed_service_names: string[];
-      stop_args?: string[];
-      restart_args?: string[];
-      pull_args?: string[];
-      generated_commands: {
-        up: components['schemas']['application-lifecycle-generated-command'];
-        stop: components['schemas']['application-lifecycle-generated-command'];
-        restart: components['schemas']['application-lifecycle-generated-command'];
-        redeploy: components['schemas']['application-lifecycle-generated-command'];
-      };
     };
     'application-detail-response': components['schemas']['application-list-item'] & {
       source_metadata?: components['schemas']['application-source-metadata'];
@@ -11178,11 +11074,11 @@ export interface components {
     'application-lifecycle-configuration-response': {
       application_id: components['schemas']['application-id'];
       lifecycle_review_status: components['schemas']['application-lifecycle-review-status'];
-      /** @description Read-only working directory authority reused by lifecycle command generation. */
+      /** @description Read-only working directory authority resolved as transient external execution material. */
       workspace_path: string;
-      /** @description Read-only application runtime identity used for explicit `docker compose -p`. */
+      /** @description Read-only application runtime identity resolved as transient external execution material. */
       compose_project_name: string;
-      /** @description Ordered tracked Compose files reused by lifecycle command generation. */
+      /** @description Ordered tracked Compose files resolved as transient external execution material. */
       compose_files: components['schemas']['application-file-item'][];
       lifecycle_configuration: components['schemas']['application-lifecycle-configuration'];
     };
@@ -11370,6 +11266,7 @@ export interface components {
     'application-batch-action-response': {
       total_count: number;
       completed_count: number;
+      accepted_count: number;
       blocked_count: number;
       skipped_count: number;
       items: components['schemas']['application-batch-action-item'][];
@@ -11527,8 +11424,90 @@ export interface components {
     'enveloped-platform-backup-summary': components['schemas']['api-envelope'] & {
       data: components['schemas']['platform-backup-summary'];
     };
+    'container-action-response': {
+      id: string;
+      name?: string;
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      /** @description Container runtime adapter key. */
+      runtime: string;
+      /** @enum {string} */
+      result: 'accepted' | 'completed' | 'unchanged';
+      status_before?: string;
+      status_after: string;
+      message_key?: string;
+      message?: string;
+    };
+    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-action-response'];
+    };
+    'docker-image-action-response': {
+      id: string;
+      /** @enum {string} */
+      action: 'tag' | 'untag' | 'remove';
+      message_key: string;
+    };
+    'docker-image-batch-remove-item': {
+      id: string;
+      success: boolean;
+      /**
+       * @description Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
+       * @enum {string}
+       */
+      error_code?:
+        | 'IMAGE_REFERENCED_BY_MULTIPLE_TAGS'
+        | 'IMAGE_IN_USE'
+        | 'IMAGE_NOT_FOUND'
+        | 'DOCKER_RUNTIME_UNAVAILABLE'
+        | 'DOCKER_TIMEOUT'
+        | 'DOCKER_COMMUNICATION_ERROR'
+        | 'UNKNOWN';
+      message_key?: string;
+      message?: string;
+    };
+    /** @description Batch image removal summary with one result item for every requested image ID in request order. */
+    'docker-image-batch-remove-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      items: components['schemas']['docker-image-batch-remove-item'][];
+    };
+    'docker-volume-remove-response': {
+      name: string;
+      /** @enum {string} */
+      action: 'remove';
+      /** @enum {string} */
+      result: 'completed';
+    };
+    'docker-volume-batch-remove-item': {
+      name: string;
+      success: boolean;
+      error_code?: string | null;
+      message_key?: string | null;
+      message?: string | null;
+    };
+    'docker-volume-batch-remove-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      items: components['schemas']['docker-volume-batch-remove-item'][];
+    };
+    'enveloped-docker-volume-batch-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-batch-remove-response'];
+    };
+    'enveloped-docker-image-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-action-response'];
+    };
+    'enveloped-docker-image-batch-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-batch-remove-response'];
+    };
     'enveloped-docker-network': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network'];
+    };
+    'enveloped-docker-volume-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-remove-response'];
     };
     'application-workspace-manifest-file': {
       /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
@@ -11718,6 +11697,8 @@ export interface components {
     'rbac-list-offset': number;
     /** @description Strong entity tag for the complete Module Config representation being replaced. */
     'if-match-header': string;
+    /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+    'idempotency-key': string;
     /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
     'docker-image-list-limit': number;
     /** @description Optional zero-based offset for Docker images. */
@@ -19976,8 +19957,8 @@ export interface operations {
     parameters: {
       query?: never;
       header: {
-        /** @description Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409. */
-        'Idempotency-Key': string;
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -19995,7 +19976,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Container lifecycle actions accepted independently as Tasks; item failures remain explicit. */
+      /** @description Ordered fail-fast container lifecycle Task accepted. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -20463,8 +20444,8 @@ export interface operations {
     parameters: {
       query?: never;
       header: {
-        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
-        'Idempotency-Key': string;
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -20530,8 +20511,8 @@ export interface operations {
     parameters: {
       query?: never;
       header: {
-        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
-        'Idempotency-Key': string;
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -20606,8 +20587,8 @@ export interface operations {
     parameters: {
       query?: never;
       header: {
-        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
-        'Idempotency-Key': string;
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -20672,7 +20653,7 @@ export interface operations {
   postContainerRemove: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -20680,6 +20661,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
       };
       path: {
         /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
@@ -20693,14 +20676,14 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container removal Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference or remove request. */
@@ -20725,7 +20708,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Idempotency-Key conflicts with a different submission. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -21304,8 +21287,8 @@ export interface operations {
     parameters: {
       query?: never;
       header: {
-        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
-        'Idempotency-Key': string;
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
       };
       path?: never;
       cookie?: never;
@@ -21380,7 +21363,10 @@ export interface operations {
   postDockerImageTag: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
+      };
       path: {
         /** @description Docker image ID or repository reference. */
         id: components['parameters']['docker-image-id-path'];
@@ -21393,13 +21379,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker image tag result. */
-      200: {
+      /** @description Docker image tag Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid image reference */
@@ -21418,13 +21404,23 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Idempotency-Key conflicts with a different submission. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };
   postDockerImageUntag: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
+      };
       path: {
         /** @description Docker image ID or repository reference. */
         id: components['parameters']['docker-image-id-path'];
@@ -21437,13 +21433,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker image tag removal result. */
-      200: {
+      /** @description Docker image tag removal Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid image ID or Repository:Tag reference */
@@ -21462,7 +21458,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Repository:Tag does not currently reference this image */
+      /** @description Repository:Tag mismatch or Idempotency-Key conflict. */
       409: {
         headers: {
           [name: string]: unknown;
@@ -21475,7 +21471,10 @@ export interface operations {
   postDockerImageRemove: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
+      };
       path: {
         /** @description Docker image ID or repository reference. */
         id: components['parameters']['docker-image-id-path'];
@@ -21488,13 +21487,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker image removal result. */
-      200: {
+      /** @description Docker image removal Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid image reference */
@@ -21513,7 +21512,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Image is in use by a container */
+      /** @description Idempotency-Key conflicts with a different submission. */
       409: {
         headers: {
           [name: string]: unknown;
@@ -21526,7 +21525,7 @@ export interface operations {
   postDockerImageBatchRemove: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -21534,6 +21533,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
       };
       path?: never;
       cookie?: never;
@@ -21544,14 +21545,14 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker image batch removal result. */
-      200: {
+      /** @description Ordered Docker image removal Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-image-batch-remove-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid batch image removal request. */
@@ -21566,6 +21567,13 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Idempotency-Key conflicts with a different submission. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -21629,7 +21637,10 @@ export interface operations {
   postDockerNetwork: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
+      };
       path?: never;
       cookie?: never;
     };
@@ -21639,13 +21650,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker network created. */
-      200: {
+      /** @description Docker network creation Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-network-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid Docker network configuration. */
@@ -21844,7 +21855,10 @@ export interface operations {
   getDockerNetwork: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
+      };
       path: {
         /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
         id: components['parameters']['docker-network-id-path'];
@@ -21890,13 +21904,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker network removed. */
-      200: {
+      /** @description Docker network removal Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-network-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description The network confirmation does not match. */
@@ -22177,7 +22191,7 @@ export interface operations {
   postDockerVolumeBatchRemove: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -22185,6 +22199,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
       };
       path?: never;
       cookie?: never;
@@ -22195,13 +22211,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker volume batch removal result. */
-      200: {
+      /** @description Ordered Docker volume removal Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-volume-batch-remove-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid batch volume removal request. */
@@ -22215,6 +22231,13 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Idempotency-Key conflicts with a different submission. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -22276,7 +22299,7 @@ export interface operations {
   postDockerVolumeRemove: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -22284,6 +22307,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409. */
+        'Idempotency-Key': components['parameters']['idempotency-key'];
       };
       path: {
         /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
@@ -22297,14 +22322,14 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Docker volume removal completed. */
-      200: {
+      /** @description Docker volume removal Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-volume-remove-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid Docker volume reference or removal request. */
@@ -22329,7 +22354,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Docker volume is in use and force was not requested. */
+      /** @description Idempotency-Key conflicts with a different submission. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -25292,7 +25317,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Saved lifecycle configuration and regenerated command previews. */
+      /** @description Saved provider-neutral application lifecycle policy. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

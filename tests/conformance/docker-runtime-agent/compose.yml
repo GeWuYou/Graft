@@ -1,0 +1,182 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: graft
+      POSTGRES_USER: graft
+      POSTGRES_PASSWORD: ${GRAFT_CONFORMANCE_POSTGRES_PASSWORD:?GRAFT_CONFORMANCE_POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graft -d graft"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  vault:
+    image: hashicorp/vault:1.20
+    hostname: vault
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        touch /conformance/vault-tls/vault-ca.pem \
+          /conformance/vault-tls/vault-cert.pem \
+          /conformance/vault-tls/vault-key.pem
+        exec vault server -dev-tls \
+          -dev-root-token-id=${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required} \
+          -dev-listen-address=0.0.0.0:8200 \
+          -dev-tls-cert-dir=/conformance/vault-tls
+    cap_add: [IPC_LOCK]
+    environment:
+      VAULT_ADDR: https://0.0.0.0:8200
+      VAULT_SKIP_VERIFY: "true"
+    volumes:
+      - vault-secrets:/conformance/secrets
+      - agent-trust:/conformance/agent-trust
+      - vault-tls:/conformance/vault-tls
+    healthcheck:
+      test: ["CMD", "vault", "status", "-tls-skip-verify"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  vault-init:
+    image: hashicorp/vault:1.20
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: https://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+      VAULT_SKIP_VERIFY: "true"
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:-graft-docker-runtime-agent}
+    entrypoint: ["/bin/sh", "/conformance/vault-init.sh"]
+    volumes:
+      - vault-secrets:/conformance/secrets
+      - agent-trust:/conformance/agent-trust
+      - vault-tls:/conformance/vault-tls:ro
+      - ./vault-init.sh:/conformance/vault-init.sh:ro
+    restart: "no"
+
+  migrate:
+    image: ${GRAFT_BACKEND_IMAGE:?GRAFT_BACKEND_IMAGE is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["migrate", "up"]
+    environment:
+      GRAFT_APP_ENV: conformance
+      GRAFT_DATABASE_URL: postgres://graft:${GRAFT_CONFORMANCE_POSTGRES_PASSWORD:?GRAFT_CONFORMANCE_POSTGRES_PASSWORD is required}@postgres:5432/graft?sslmode=disable
+      GRAFT_AUTH_JWT_SECRET: conformance-fixture-signing-secret
+      GRAFT_CONFIG_SCHEMA_VERSION: "1"
+    restart: "no"
+
+  backend:
+    image: ${GRAFT_BACKEND_IMAGE:?GRAFT_BACKEND_IMAGE is required}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      vault-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment: &backend-runtime-environment
+      GRAFT_APP_ENV: conformance
+      GRAFT_DATABASE_URL: postgres://graft:${GRAFT_CONFORMANCE_POSTGRES_PASSWORD:?GRAFT_CONFORMANCE_POSTGRES_PASSWORD is required}@postgres:5432/graft?sslmode=disable
+      GRAFT_REDIS_ADDR: redis:6379
+      GRAFT_AUTH_JWT_SECRET: conformance-fixture-signing-secret
+      GRAFT_CONFIG_SCHEMA_VERSION: "1"
+      GRAFT_CREDENTIAL_VAULT_ENABLED: "true"
+      GRAFT_CREDENTIAL_VAULT_BACKEND: vault-pki
+      GRAFT_CREDENTIAL_VAULT_ADDRESS: https://vault:8200
+      GRAFT_CREDENTIAL_VAULT_CA_FILE: /run/graft-secrets/vault-ca.pem
+      GRAFT_CREDENTIAL_VAULT_AUTH_MOUNT: approle
+      GRAFT_CREDENTIAL_VAULT_AUTH_ROLE: graft-docker-runtime-agent
+      GRAFT_CREDENTIAL_VAULT_AUTH_ROLE_ID_FILE: /run/graft-secrets/role_id
+      GRAFT_CREDENTIAL_VAULT_AUTH_SECRET_ID_FILE: /run/graft-secrets/secret_id
+      GRAFT_CREDENTIAL_VAULT_PKI_MOUNT: pki
+      GRAFT_CREDENTIAL_VAULT_PKI_ROLE: graft-docker-runtime-agent
+      GRAFT_CREDENTIAL_VAULT_TRUST_BUNDLE_REF: vault://pki/cert/ca
+      GRAFT_ENROLLMENT_PEPPER_FILE: /run/graft-secrets/enrollment-pepper
+      GRAFT_HTTP_ADDR: 0.0.0.0:8080
+      GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED: "true"
+      GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ADDR: 0.0.0.0:8443
+      GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_CERTIFICATE_FILE: /run/graft-secrets/backend-cert.pem
+      GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_KEY_FILE: /run/graft-secrets/backend-key.pem
+      GRAFT_HTTPX_AGENT_TLS_ENABLED: "true"
+      GRAFT_HTTPX_AGENT_TLS_ADDR: 0.0.0.0:8444
+      GRAFT_HTTPX_AGENT_TLS_CERTIFICATE_FILE: /run/graft-secrets/backend-cert.pem
+      GRAFT_HTTPX_AGENT_TLS_KEY_FILE: /run/graft-secrets/backend-key.pem
+      GRAFT_HTTPX_AGENT_TLS_CLIENT_CA_FILE: /run/graft-secrets/ca.pem
+    volumes:
+      - vault-secrets:/run/graft-secrets:ro
+      # Backend socket is retained only for Runtime Target discovery/summary,
+      # Container snapshot/resource/log/stream/event/stats/interactive reads,
+      # Deployment Runtime Docker facts, and bounded Update observation/
+      # recovery. Agent owns Update Controller launch and Build.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - build-snapshots:/tmp/graft-build-snapshots
+    ports:
+      - "${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}:8080"
+      - "${GRAFT_CONFORMANCE_BOOTSTRAP_PORT:-18443}:8443"
+      - "${GRAFT_CONFORMANCE_AGENT_PORT:-18444}:8444"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  conformance-driver:
+    image: ${GRAFT_CONFORMANCE_DRIVER_IMAGE:?GRAFT_CONFORMANCE_DRIVER_IMAGE is required}
+    profiles: ["conformance"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      <<: *backend-runtime-environment
+      GRAFT_CONFORMANCE_BOOTSTRAP_URL: https://backend:8443
+      GRAFT_CONFORMANCE_AGENT_URL: https://backend:8444
+    volumes:
+      - vault-secrets:/run/graft-secrets:ro
+      - agent-config:/conformance/agent-config
+      - agent-bootstrap:/conformance/agent-bootstrap
+      - agent-trust:/conformance/agent-trust:ro
+
+  docker-runtime-agent:
+    image: ${GRAFT_AGENT_IMAGE:?GRAFT_AGENT_IMAGE is required}
+    profiles: ["conformance"]
+    # The driver writes its one-time bootstrap token as fixture-secret mode 0600.
+    user: "0:0"
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["--once"]
+    volumes:
+      - agent-config:/etc/graft/config:ro
+      - agent-bootstrap:/run/graft-bootstrap:ro
+      - agent-trust:/run/graft-agent-trust:ro
+      - agent-state:/var/lib/graft-runtime-agent/state
+      # The Agent is the sole side-effect process with an always-on Docker
+      # socket. It has no inbound port; the server socket above is read-only
+      # compatibility for the explicitly retained observation/projection/read
+      # paths.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - build-snapshots:/tmp/graft-build-snapshots:ro
+
+volumes:
+  postgres-data:
+  vault-secrets:
+  agent-config:
+  agent-bootstrap:
+  agent-trust:
+  vault-tls:
+  agent-state:
+  build-snapshots:

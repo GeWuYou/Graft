@@ -7,23 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"slices"
-	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
 )
 
-// ComposeRunnerLauncher 是 server 启动一次性 runner 的最小 Docker 边界。
-// 它不暴露通用容器创建能力，调用方无法提供命令、环境或挂载。
+// ComposeRunnerLauncher 保留更新终态观察与受控恢复所需的 Docker 边界。
+// 正常 Update Controller 启动不再经过该边界，而由 Runtime Agent 外部执行 lease 负责。
 type ComposeRunnerLauncher interface {
-	Launch(context.Context, RunnerInput) error
 	Close() error
 }
 
@@ -35,33 +29,6 @@ type ComposeRunnerReceiptReader interface {
 // ComposeRunnerProgressReader 读取保留 runner 日志中无秘密的固定阶段标记。
 type ComposeRunnerProgressReader interface {
 	ReadRunnerProgress(context.Context) ([]RunnerOperationProgress, error)
-}
-
-// ComposeRunnerRecoveryLauncher 启动仅能写入已验证终态的恢复 runner。
-type ComposeRunnerRecoveryLauncher interface {
-	LaunchRecovery(context.Context, RunnerRecoveryInput, string, string) error
-}
-
-// recoveryLaunchError 标记 Docker 已证明恢复容器没有启动的失败。
-// ContainerCreate 后只有成功清理未运行容器时才可重试；其余错误保持不确定性并保留持久恢复认领。
-type recoveryLaunchError struct {
-	err      error
-	preStart bool
-}
-
-func (e *recoveryLaunchError) Error() string { return e.err.Error() }
-func (e *recoveryLaunchError) Unwrap() error { return e.err }
-
-func preStartRecoveryLaunchError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return &recoveryLaunchError{err: err, preStart: true}
-}
-
-func recoveryLaunchFailedBeforeContainerStart(err error) bool {
-	var launchErr *recoveryLaunchError
-	return errors.As(err, &launchErr) && launchErr.preStart
 }
 
 // ComposeRunnerReceiptCleanup 按稳定 operation ID 清理已成功结算的 runner 容器。
@@ -181,131 +148,13 @@ func (l *dockerComposeRunnerLauncher) Close() error {
 	return l.client.Close()
 }
 
-// NewDockerComposeRunnerLauncher 创建只可执行官方 Compose runner 的 Docker socket launcher。
+// NewDockerComposeRunnerLauncher 创建只用于终态观察与恢复的 Docker socket capability。
 func NewDockerComposeRunnerLauncher() (ComposeRunnerLauncher, error) {
 	client, err := mobyclient.New(mobyclient.WithHost("unix:///var/run/docker.sock"))
 	if err != nil {
 		return nil, fmt.Errorf("create compose runner docker client: %w", err)
 	}
 	return &dockerComposeRunnerLauncher{client: client}, nil
-}
-
-//nolint:cyclop // 启动流程中的每条失败分支对应一个独立的资源与错误边界。
-func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerInput) error {
-	if l == nil || l.client == nil {
-		return errors.New("compose runner launcher is unavailable")
-	}
-	if err := ValidateRunnerInput(input); err != nil {
-		return fmt.Errorf("validate compose runner launch: %w", err)
-	}
-	encodedInput, err := encodeRunnerInput(input)
-	if err != nil {
-		return err
-	}
-	pulled, err := l.client.ImagePull(ctx, input.Preflight.RunnerReference, mobyclient.ImagePullOptions{})
-	if err != nil {
-		return fmt.Errorf("pull digest-pinned compose runner: %w", err)
-	}
-	if _, err := io.Copy(io.Discard, pulled); err != nil {
-		_ = pulled.Close()
-		return fmt.Errorf("read compose runner pull result: %w", err)
-	}
-	if err := pulled.Close(); err != nil {
-		return fmt.Errorf("close compose runner pull result: %w", err)
-	}
-	stateVolume, err := runnerStateVolumeName()
-	if err != nil {
-		return fmt.Errorf("validate compose runner state volume: %w", err)
-	}
-	configuration, host := composeRunnerContainerConfig(input, encodedInput, stateVolume)
-	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}}
-	options.Name = composeRunnerContainerName(input.OperationID)
-	created, err := l.client.ContainerCreate(ctx, options)
-	if err != nil {
-		return fmt.Errorf("create compose runner: %w", err)
-	}
-	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
-		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
-			return fmt.Errorf("start compose runner: %w; clean up unstarted runner: %v", err, cleanupErr)
-		}
-		return fmt.Errorf("start compose runner: %w", err)
-	}
-	return nil
-}
-
-// LaunchRecovery 从原 runner 的 digest-pinned image 启动仅挂载状态卷的恢复容器。
-//
-//nolint:cyclop,gocyclo // 镜像、状态卷和 Docker 创建的每个失败边界都必须显式保留。
-func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, input RunnerRecoveryInput, recoveryImage, claimID string) error {
-	if l == nil || l.client == nil || !runnerOperationID.MatchString(input.OperationID) || !runnerOperationID.MatchString(input.RunnerID) || strings.TrimSpace(input.SourceVersion) == "" || strings.TrimSpace(input.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(input.Strategy)) || (input.State != nil && (validateRunnerState(*input.State) != nil || isTerminalRunnerPhase(input.State.Phase))) || !strings.Contains(recoveryImage, "@sha256:") || strings.TrimSpace(claimID) == "" {
-		return preStartRecoveryLaunchError(errors.New("compose runner recovery launcher is unavailable"))
-	}
-	pulled, err := l.client.ImagePull(ctx, recoveryImage, mobyclient.ImagePullOptions{})
-	if err != nil {
-		return preStartRecoveryLaunchError(fmt.Errorf("pull digest-pinned compose runner recovery: %w", err))
-	}
-	if _, err := io.Copy(io.Discard, pulled); err != nil {
-		_ = pulled.Close()
-		return preStartRecoveryLaunchError(fmt.Errorf("read compose runner recovery pull result: %w", err))
-	}
-	if err := pulled.Close(); err != nil {
-		return preStartRecoveryLaunchError(fmt.Errorf("close compose runner recovery pull result: %w", err))
-	}
-	encoded, err := encodeRunnerRecoveryInput(input)
-	if err != nil {
-		return preStartRecoveryLaunchError(err)
-	}
-	stateVolume, err := runnerStateVolumeName()
-	if err != nil {
-		return preStartRecoveryLaunchError(fmt.Errorf("validate compose runner state volume: %w", err))
-	}
-	configuration, host := composeRunnerRecoveryContainerConfig(input, recoveryImage, encoded, stateVolume)
-	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}, Name: composeRunnerRecoveryContainerName(input.OperationID, claimID)}
-	created, err := l.client.ContainerCreate(ctx, options)
-	if err != nil {
-		return preStartRecoveryLaunchError(fmt.Errorf("create compose runner recovery: %w", err))
-	}
-	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
-		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
-			return fmt.Errorf("start compose runner recovery: %w; clean up recovery runner: %v", err, cleanupErr)
-		}
-		return preStartRecoveryLaunchError(fmt.Errorf("start compose runner recovery: %w", err))
-	}
-	return nil
-}
-
-// RecoveryContainerExists 只按 claim 绑定的确定容器名核验，Docker 不可用时由调用方保持认领并 fail closed。
-func (l *dockerComposeRunnerLauncher) RecoveryContainerExists(ctx context.Context, operationID, claimID string) (bool, error) {
-	if l == nil || l.client == nil || !runnerOperationID.MatchString(operationID) || strings.TrimSpace(claimID) == "" {
-		return false, errors.New("compose runner recovery inspector is unavailable")
-	}
-	filters := make(mobyclient.Filters).Add("name", composeRunnerRecoveryContainerName(operationID, claimID))
-	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
-	if err != nil {
-		return false, fmt.Errorf("list compose runner recovery container: %w", err)
-	}
-	return len(result.Items) != 0, nil
-}
-
-func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context, id string) error {
-	inspected, err := l.client.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
-	if err != nil {
-		return err
-	}
-	if inspected.Container.State == nil {
-		return errors.New("inspect compose runner returned no state")
-	}
-	if inspected.Container.State.Running {
-		return nil
-	}
-	_, err = l.client.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
-	return err
-}
-
-func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
-
-func composeRunnerRecoveryContainerName(operationID, claimID string) string {
-	return "graft-update-recovery-" + operationID + "-" + claimID
 }
 
 //nolint:cyclop // 读取与解码分别对应 Docker 日志和回执协议的失败边界。
@@ -498,41 +347,6 @@ func encodeRunnerInput(input RunnerInput) (string, error) {
 		return "", fmt.Errorf("encode compose runner input: %w", err)
 	}
 	return base64.RawStdEncoding.EncodeToString(contents), nil
-}
-
-func encodeRunnerRecoveryInput(input RunnerRecoveryInput) (string, error) {
-	contents, err := json.Marshal(input)
-	if err != nil {
-		return "", fmt.Errorf("encode compose runner recovery state: %w", err)
-	}
-	return base64.RawStdEncoding.EncodeToString(contents), nil
-}
-
-func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
-	root := input.Preflight.ComposeRoot
-	socket := input.Preflight.DockerSocket
-	groups := []string{}
-	if stat, err := os.Stat(socket); err == nil {
-		if details, ok := stat.Sys().(*syscall.Stat_t); ok {
-			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
-		}
-	}
-	stateGroup := strconv.Itoa(runnerStateServerGID)
-	if !slices.Contains(groups, stateGroup) {
-		groups = append(groups, stateGroup)
-	}
-	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
-		runnerOperationLabel: input.OperationID,
-		runnerProtocolLabel:  runnerProtocol,
-	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", stateVolume + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN"}, SecurityOpt: []string{"no-new-privileges:true"}}
-}
-
-func composeRunnerRecoveryContainerConfig(input RunnerRecoveryInput, image, encodedState, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
-	return containertypes.Config{Image: image, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=" + encodedState}, Labels: map[string]string{
-		runnerOperationLabel:       input.OperationID,
-		runnerProtocolLabel:        runnerProtocol,
-		"io.graft.update.recovery": "true",
-	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{stateVolume + ":" + RunnerStateRoot + ":rw"}, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN", "DAC_OVERRIDE"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
 func runnerStateVolumeName() (string, error) {

@@ -183,7 +183,7 @@ def main() -> int:
     try:
         payload = json.load(sys.stdin)
         image = args.runner_image or args.agent_image
-        image_path = ("runners", "compose") if args.runner_image else ("agents", "docker_builder_agent")
+        image_path = ("runners", "compose") if args.runner_image else ("agents", "docker_runtime_agent")
         candidates = resolve_candidates(
             flatten_releases(payload),
             channel=args.channel,

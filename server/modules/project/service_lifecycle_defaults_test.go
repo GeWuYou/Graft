@@ -11,7 +11,7 @@ func TestDefaultLifecycleStandardConfig(t *testing.T) {
 	if config.WaitTimeoutSeconds != defaultLifecycleWaitTimeoutSeconds {
 		t.Fatalf("expected default wait timeout %d, got %d", defaultLifecycleWaitTimeoutSeconds, config.WaitTimeoutSeconds)
 	}
-	if len(config.Profiles) != 0 || len(config.ManagedServiceNames) != 0 || len(config.AdditionalArgs) != 0 || len(config.StopArgs) != 0 || len(config.RestartArgs) != 0 || len(config.PullArgs) != 0 {
-		t.Fatalf("expected empty profile and additional argument defaults: %#v", config)
+	if len(config.Profiles) != 0 || len(config.ManagedServiceNames) != 0 {
+		t.Fatalf("expected empty profile and service defaults: %#v", config)
 	}
 }

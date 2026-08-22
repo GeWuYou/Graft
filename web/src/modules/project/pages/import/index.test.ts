@@ -1020,7 +1020,6 @@ describe('ApplicationImportIndex', () => {
       wait_timeout_seconds: 120,
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
-      additional_args: '',
     } as never;
     flowState.inspectResult.value = {
       inspection_id: 'inspect-lifecycle',
