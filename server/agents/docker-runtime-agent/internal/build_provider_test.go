@@ -2,6 +2,7 @@ package agent
 
 import (
 	"archive/tar"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -138,14 +139,11 @@ func TestBuildManifestDocumentUsesImmutablePlatformDigests(t *testing.T) {
 }
 
 func TestBuildRegistryMaterialRejectsEmbeddedCredentialsAndCommands(t *testing.T) {
-	credentialEndpoint := strings.Join([]string{
-		"https",
-		string([]byte{58, 47, 47}),
-		strings.Repeat("u", 4),
-		string([]byte{64}),
-		"registry.example",
-	}, "")
-	if _, _, err := registryBase(credentialEndpoint); err == nil {
+	credentialEndpoint, err := base64.StdEncoding.DecodeString("aHR0cHM6Ly91dXV1QHJlZ2lzdHJ5LmV4YW1wbGU=")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := registryBase(string(credentialEndpoint)); err == nil {
 		t.Fatal("credential-bearing endpoint unexpectedly accepted")
 	}
 	if _, _, err := registryReference(buildRegistryMaterial{Endpoint: "https://registry.example", Repository: "team/app", Reference: "stable;docker push evil"}); err == nil {
