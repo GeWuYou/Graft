@@ -47,7 +47,8 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `docker-runtime-agent` Batch 8 (`ui-and-cross-boundary-convergence`) is next after Batch 7 acceptance.
+- Current batch: `docker-runtime-agent` Batch 8 (`ui-and-cross-boundary-convergence`) is accepted; Batch 9 is the next
+  bounded recovery point.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
@@ -88,10 +89,10 @@ explicitly unmigrated Update Controller and Container read/stream/interactive bo
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion"],
-  "pending_batches": ["docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
+  "pending_batches": ["docker-runtime-agent-batch-9-runtime-boundary-closeout"],
   "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
-  "next_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
+  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
   "closeout_status": "active"
 }
 ```

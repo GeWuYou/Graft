@@ -1,0 +1,26 @@
+type: object
+required: [status, agent_id, generation, version, diagnostic_code, capabilities]
+properties:
+  status:
+    type: string
+    enum: [ready, degraded, unavailable, not_enrolled]
+    x-enum-varnames: [RuntimeTargetAgentStatusReady, RuntimeTargetAgentStatusDegraded, RuntimeTargetAgentStatusUnavailable, RuntimeTargetAgentStatusNotEnrolled]
+  agent_id:
+    type: string
+    description: Non-secret Runtime Agent identity label.
+  generation:
+    type: integer
+    format: int64
+    minimum: 0
+  version:
+    type: string
+    description: Non-secret implementation version registered for the active Agent generation.
+  diagnostic_code:
+    type: string
+    enum: [none, agent_not_enrolled, agent_unavailable, agent_degraded]
+    x-enum-varnames: [RuntimeTargetAgentDiagnosticCodeNone, RuntimeTargetAgentDiagnosticCodeNotEnrolled, RuntimeTargetAgentDiagnosticCodeUnavailable, RuntimeTargetAgentDiagnosticCodeDegraded]
+  capabilities:
+    type: array
+    items:
+      $ref: ./runtime-target-agent-capability.yaml
+additionalProperties: false

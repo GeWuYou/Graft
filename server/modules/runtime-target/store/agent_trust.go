@@ -325,6 +325,16 @@ func (r *SQLRepository) ReadCurrentAgentTrustGeneration(ctx context.Context, tar
 	return scanAgentTrustGeneration(row)
 }
 
+// ReadActiveDockerAgentTrustGeneration 返回目标当前活动的 Docker Agent 信任世代。
+// 该读取只提供非秘密身份与能力投影，过期或非活动世代不会进入 UI/API 事实。
+func (r *SQLRepository) ReadActiveDockerAgentTrustGeneration(ctx context.Context, targetID int64, now time.Time) (AgentTrustGeneration, error) {
+	if r == nil || r.db == nil || targetID < 1 || now.IsZero() {
+		return AgentTrustGeneration{}, ErrAgentTrustNotFound
+	}
+	row := r.executor(ctx).QueryRowContext(ctx, `SELECT `+agentTrustGenerationSelectColumns+` FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g ON g.identity_id = i.id WHERE i.runtime_target_id = $1 AND i.provider_id = 'docker' AND i.deleted_at = 0 AND g.deleted_at = 0 AND g.status = 'active' AND g.expires_at > $2 ORDER BY g.generation DESC LIMIT 1`, targetID, now.UTC())
+	return scanAgentTrustGeneration(row)
+}
+
 type agentTrustGenerationScanner interface {
 	Scan(...any) error
 }

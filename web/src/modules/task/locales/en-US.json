@@ -24,6 +24,17 @@
       "duration": "Duration",
       "durationValue": "{seconds}s",
       "failure": "Failure Details",
+      "failureCodes": {
+        "invalidExecutionIntent": "The task request is not valid for this execution boundary.",
+        "unsupportedExecutionOperation": "This execution operation is not supported by the selected runtime.",
+        "runtimeUnavailable": "The runtime is currently unavailable.",
+        "resourceNotFound": "The requested runtime resource could not be found.",
+        "resourceConflict": "The runtime resource is in a conflicting state.",
+        "providerOperationFailed": "The runtime provider could not complete this operation.",
+        "agentExecutionInterrupted": "The Runtime Agent interrupted the external execution.",
+        "externalExecutionUncertain": "External execution status is uncertain; verify the runtime before retrying.",
+        "unknown": "The task failed. Review task logs for sanitized diagnostic details."
+      },
       "identifier": "Task #{id}",
       "loadFailed": "Task details could not be loaded.",
       "logs": "Execution Logs",

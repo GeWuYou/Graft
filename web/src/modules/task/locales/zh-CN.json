@@ -24,6 +24,17 @@
       "duration": "执行时长",
       "durationValue": "{seconds} 秒",
       "failure": "失败详情",
+      "failureCodes": {
+        "invalidExecutionIntent": "任务请求不符合当前执行边界。",
+        "unsupportedExecutionOperation": "所选运行时不支持此执行操作。",
+        "runtimeUnavailable": "运行时当前不可用。",
+        "resourceNotFound": "未找到请求的运行时资源。",
+        "resourceConflict": "运行时资源当前处于冲突状态。",
+        "providerOperationFailed": "运行时提供方未能完成此操作。",
+        "agentExecutionInterrupted": "运行时 Agent 中断了外部执行。",
+        "externalExecutionUncertain": "外部执行状态不确定，请确认运行时状态后再重试。",
+        "unknown": "任务执行失败，请查看任务日志中的脱敏诊断信息。"
+      },
       "identifier": "任务 #{id}",
       "loadFailed": "无法加载任务详情。",
       "logs": "执行日志",

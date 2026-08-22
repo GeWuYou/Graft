@@ -155,6 +155,7 @@ const detailMessages = {
   'project.detail.overview.runtimeTargetUnavailable': 'No bound runtime target found',
   'project.detail.overview.runtimeTargetValueUnavailable': 'Unavailable',
   'project.detail.overview.runtimeTargetVersion': 'Version',
+  'project.detail.runtimeTargetCapabilityUnavailable': 'Runtime Agent capability unavailable',
   'project.detail.overview.serviceHealthAttention': 'Attention',
   'project.detail.overview.serviceHealthHealthy': 'Healthy',
   'project.detail.overview.serviceHealthUnknown': 'Unknown',
@@ -476,6 +477,7 @@ function buildApplicationDetail(runtimeStatus: string = 'running') {
     last_observed_config_hash: null,
     ownership_mode: 'external',
     runtime_status: runtimeStatus,
+    runtime_target: { display_name: 'Local Docker', id: 7, provider: 'docker' },
     service_count: 2,
     workspace_path: '/srv/compose-demo',
     lifecycle_configuration: {
@@ -953,7 +955,6 @@ vi.mock('tdesign-vue-next/es/dialog', () => ({
 }));
 
 vi.mock('../../shared/display', () => ({
-  formatApplicationTime: (_locale: string, value?: string | null) => value || '-',
   projectDriftStatusLabel: () => 'in-sync',
   projectDriftStatusTheme: () => 'success',
   projectLifecycleActionVisibility: (status?: string | null) => ({
@@ -1036,6 +1037,17 @@ describe('Application detail service tab', () => {
       provider: 'docker',
       runtimeType: 'container_runtime',
       version: '26.1.4',
+      agent: {
+        agent_id: 'agent-local',
+        generation: 1,
+        version: '1.0.0',
+        status: 'ready',
+        diagnostic_code: 'none',
+        capabilities: [
+          { name: 'compose_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+          { name: 'container_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+        ],
+      },
     });
     projectApiMocks.getApplicationConfiguration.mockResolvedValue({
       compose_files: [],
@@ -1085,7 +1097,7 @@ describe('Application detail service tab', () => {
     expect(card.text()).toContain('Linux 5.15.0-88-generic');
     expect(card.text()).toContain('docker-host');
     expect(card.text()).toContain('Online');
-    expect(card.find('img').attributes('src')).toContain('docker.svg');
+    expect(card.find('img').attributes('src')).toContain('data:image/svg+xml');
   });
 
   it('keeps the application target summary and neutral values when target detail loading fails', async () => {
@@ -1515,7 +1527,7 @@ describe('Application detail service tab', () => {
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
+    await wrapper.get('.project-service-selection-toolbar [data-dropdown-action="restart"]').trigger('click');
     await flushPromises();
 
     expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
@@ -1551,7 +1563,7 @@ describe('Application detail service tab', () => {
     await flushPromises();
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
-    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
+    await wrapper.get('.project-service-selection-toolbar [data-dropdown-action="restart"]').trigger('click');
     const [dialogOptions] = dialogMocks.confirm.mock.calls[0] as [
       {
         onConfirm?: () => Promise<void> | void;
@@ -1579,12 +1591,11 @@ describe('Application detail service tab', () => {
 
     expect(wrapper.find('.project-service-selection-toolbar').exists()).toBe(true);
     expect(wrapper.get('[data-testid="project-service-batch-actions"]').text()).toBe('Batch Actions');
-    expect(wrapper.findAll('[data-dropdown-action]').map((item) => item.attributes('data-dropdown-action'))).toEqual([
-      'start',
-      'stop',
-      'restart',
-      'clear',
-    ]);
+    expect(
+      wrapper
+        .findAll('.project-service-selection-toolbar [data-dropdown-action]')
+        .map((item) => item.attributes('data-dropdown-action')),
+    ).toEqual(['start', 'stop', 'restart', 'clear']);
   });
 
   it('prefers the first running member when opening service detail', async () => {

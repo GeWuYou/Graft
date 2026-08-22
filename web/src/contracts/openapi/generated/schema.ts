@@ -9983,7 +9983,31 @@ export interface components {
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];
     };
+    'runtime-target-agent-capability': {
+      /** @description Stable Runtime Agent capability identifier. */
+      name: string;
+      /** @description Frozen capability protocol version exposed by Runtime Target. */
+      version: string;
+      /** @enum {string} */
+      status: 'ready' | 'degraded' | 'unavailable';
+      /** @enum {string} */
+      diagnostic_code: 'none' | 'agent_not_enrolled' | 'agent_unavailable' | 'agent_degraded';
+    };
+    'runtime-target-agent': {
+      /** @enum {string} */
+      status: 'ready' | 'degraded' | 'unavailable' | 'not_enrolled';
+      /** @description Non-secret Runtime Agent identity label. */
+      agent_id: string;
+      /** Format: int64 */
+      generation: number;
+      /** @description Non-secret implementation version registered for the active Agent generation. */
+      version: string;
+      /** @enum {string} */
+      diagnostic_code: 'none' | 'agent_not_enrolled' | 'agent_unavailable' | 'agent_degraded';
+      capabilities: components['schemas']['runtime-target-agent-capability'][];
+    };
     'runtime-target': components['schemas']['runtime-target-summary'] & {
+      agent: components['schemas']['runtime-target-agent'];
       health: {
         /** @enum {string} */
         status: 'healthy' | 'unavailable';

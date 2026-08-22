@@ -310,6 +310,99 @@ func (e GetRuntimeTargets500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_degraded"
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "none"
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_not_enrolled"
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusDegraded    GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus = "degraded"
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusReady       GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus = "ready"
+	GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusUnavailable GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusDegraded:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusReady:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode = "agent_degraded"
+	GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode = "none"
+	GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode = "agent_not_enrolled"
+	GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataAgentStatus.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusDegraded    GetRuntimeTarget200JSONResponseBodyDataAgentStatus = "degraded"
+	GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusNotEnrolled GetRuntimeTarget200JSONResponseBodyDataAgentStatus = "not_enrolled"
+	GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusReady       GetRuntimeTarget200JSONResponseBodyDataAgentStatus = "ready"
+	GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusUnavailable GetRuntimeTarget200JSONResponseBodyDataAgentStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataAgentStatus enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataAgentStatus) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusDegraded:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusNotEnrolled:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusReady:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTarget200JSONResponseBodyDataConnectionKind.
 const (
 	GetRuntimeTarget200JSONResponseBodyDataConnectionKindUnixSocket GetRuntimeTarget200JSONResponseBodyDataConnectionKind = "unix_socket"
@@ -427,6 +520,99 @@ const (
 func (e GetRuntimeTarget500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetRuntimeTarget500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_degraded"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "none"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_not_enrolled"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusDegraded    PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus = "degraded"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusReady       PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus = "ready"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusUnavailable PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusDegraded:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusReady:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode = "agent_degraded"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode = "none"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode = "agent_not_enrolled"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusDegraded    PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus = "degraded"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusNotEnrolled PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus = "not_enrolled"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusReady       PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus = "ready"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusUnavailable PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusDegraded:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusNotEnrolled:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusReady:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatusRuntimeTargetAgentStatusUnavailable:
 		return true
 	default:
 		return false
@@ -654,6 +840,18 @@ type GetRuntimeTargetParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode string
+
+// GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus string
+
+// GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode string
+
+// GetRuntimeTarget200JSONResponseBodyDataAgentStatus defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataAgentStatus string
+
 // GetRuntimeTarget200JSONResponseBodyDataConnectionKind defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget200JSONResponseBodyDataConnectionKind string
 
@@ -687,6 +885,18 @@ type PostRuntimeTargetRefreshParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus string
 
 // PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind string

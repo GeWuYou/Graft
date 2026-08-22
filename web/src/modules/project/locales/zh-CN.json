@@ -1301,6 +1301,7 @@
       },
       "eyebrow": "Compose 应用",
       "description": "应用摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
+      "runtimeTargetCapabilityUnavailable": "运行时 Agent 能力不可用，应用与容器操作已禁用。",
       "openWorkingDirectory": "工作区路径",
       "titleFallback": "应用详情",
       "sections": {
@@ -1310,7 +1311,7 @@
         },
         "overview": {
           "title": "运行概览",
-          "description": "聚焦应用当前运行状态、资源变化、网络 I/O 和容器快照。"
+          "description": "解释应用身份、运行目标、生命周期状态、服务快照、配置与任务历史。"
         },
         "resources": {
           "title": "Resources",
@@ -1797,6 +1798,7 @@
         "openConfigurationWorkspace": "配置工作台",
         "unregister": "取消注册",
         "destroy": "销毁",
+        "more": "更多",
         "copyPath": "复制路径",
         "copyPathSuccess": "路径已复制。",
         "copyPathError": "路径复制失败。",

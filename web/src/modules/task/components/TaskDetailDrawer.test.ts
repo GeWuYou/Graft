@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 
+import { resolveTaskFailureMessage } from '../shared/failure-copy';
 import TaskDetailDrawer from './TaskDetailDrawer.vue';
 
 const ResourceDetailLayoutStub = defineComponent({
@@ -36,6 +37,16 @@ const i18n = createI18n({
 });
 
 describe('TaskDetailDrawer', () => {
+  it('maps Runtime Agent failure codes to stable product copy without exposing provider text', () => {
+    const translate = (key: string) => key;
+    expect(resolveTaskFailureMessage('docker_runtime_unavailable', 'raw sdk error', translate)).toBe(
+      'task.failureCodes.runtimeUnavailable',
+    );
+    expect(resolveTaskFailureMessage('unrecognized_provider_code', 'raw sdk error', translate)).toBe(
+      'task.failureCodes.unknown',
+    );
+  });
+
   it('uses the shared responsive detail surface and forwards close requests', async () => {
     const wrapper = mount(TaskDetailDrawer, {
       props: { taskId: null, visible: true },

@@ -20,10 +20,10 @@
         </div>
 
         <t-alert
-          v-if="task.failure_message"
+          v-if="task.failure_code || task.failure_message"
           theme="error"
           :title="t('task.detail.failure')"
-          :message="task.failure_message"
+          :message="taskFailureMessage(task.failure_code, task.failure_message)"
         />
 
         <t-descriptions bordered :column="detailDescriptionColumns" size="small" :title="t('task.detail.summary')">
@@ -113,6 +113,7 @@ import {
   isTaskLogAppendedNotification,
   parseTaskRealtimeNotification,
 } from '../contract/realtime';
+import { resolveTaskFailureMessage } from '../shared/failure-copy';
 import { taskStatusTheme } from '../shared/presentation';
 import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
 import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
@@ -393,10 +394,14 @@ function stageStepStatus(status: TaskStageStatus): StepItemProps['status'] {
 }
 
 function stageDescription(stage: TaskStage) {
-  if (stage.failure_message) return stage.failure_message;
+  if (stage.failure_code || stage.failure_message) return taskFailureMessage(stage.failure_code, stage.failure_message);
   if (stage.duration_ms)
     return t('task.detail.durationValue', { seconds: Math.max(1, Math.round(stage.duration_ms / 1000)) });
   return t(`task.stageStatus.${stage.status}`);
+}
+
+function taskFailureMessage(code: string | null | undefined, fallback: string | null | undefined) {
+  return resolveTaskFailureMessage(code, fallback, t);
 }
 
 function canRetryStage(stage: TaskStage) {

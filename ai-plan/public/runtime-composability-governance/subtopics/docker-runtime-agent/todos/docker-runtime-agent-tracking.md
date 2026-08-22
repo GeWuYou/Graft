@@ -47,13 +47,14 @@
     "batch-4-application-and-container-migration",
     "batch-5-build-sdk-migration",
     "batch-6-update-controller-launch-boundary",
-    "batch-7-deployment-and-cli-deletion"
-  ],
-  "current_batch": "batch-8-ui-and-cross-boundary-convergence",
-  "pending_batches": [
+    "batch-7-deployment-and-cli-deletion",
     "batch-8-ui-and-cross-boundary-convergence"
   ],
-  "next_batch": "batch-8-ui-and-cross-boundary-convergence",
+  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
+  "pending_batches": [
+    "docker-runtime-agent-batch-9-runtime-boundary-closeout"
+  ],
+  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
   "closeout_status": "active"
 }
 ```
@@ -140,15 +141,75 @@ Evidence: focused Update/Agent/Runtime Target/Task tests, the same packages unde
 
 ## Next Recovery Point
 
-Batch 6 Update Controller launch-boundary migration is accepted. The next bounded slice is Batch 7, which handles the
-remaining deployment/CLI cleanup after the launch and recovery contracts are proven. Build remains provider-neutral:
+Batch 8 UI and cross-boundary convergence is accepted. The next bounded slice is Batch 9, which closes the remaining
+runtime-boundary evidence without reopening the already-migrated UI or execution authority. Build remains provider-neutral:
 Task Runtime owns its fenced lease, renewal, cancellation, logs, transient result digest, receipt, retry and recovery;
 Runtime Target binds `docker/v1`; and `docker-runtime-agent` performs Moby/OCI SDK side effects. Neither material nor
 result JSON is durable Task/Agent state.
 
 The server Docker socket remains only for the retained Update recovery/observation boundary, Runtime Target
-discovery/summary and explicitly unmigrated Container read/stream/interactive capabilities. Batch 7 must not introduce
+discovery/summary and explicitly unmigrated Container read/stream/interactive capabilities. Batch 9 must not introduce
 a second launch path while removing the remaining server-local recovery/CLI dependency.
+
+## Batch 8 UI And Cross-Boundary Convergence
+
+### Scope
+
+- Reframe the Application detail route as the `list-form-detail` explain surface, retaining identity, Runtime Target,
+  lifecycle state, service snapshot, configuration and Task history while removing Application-local CPU, memory and
+  network dashboard placeholders.
+- Present Runtime Target Agent status, per-capability readiness, implementation version and stable diagnostic codes from
+  the canonical Runtime Target projection; keep resource metrics on Runtime Target or Container surfaces.
+- Gate Application and Container actions on the capability projection and render stable localized disabled reasons.
+- Map Task Agent/Provider failure codes to product copy; raw SDK errors remain only in redacted server diagnostics.
+- Use `?url` for the Docker SVG asset and collapse header actions into an overflow menu in narrow containers.
+
+### Acceptance
+
+- [x] Application detail uses `list-form-detail` with primary `explain` intent and secondary `workflow`/`feedback`
+  checks; loading, empty, error, disabled and destructive states retain stable layout and localized copy.
+- [x] Application detail has no authoritative-less CPU, memory or network dashboard; service snapshot remains a
+  bounded Container-owned observation and Runtime Target/Container own runtime metrics.
+- [x] Runtime Target detail shows Agent status, each bound capability readiness, version and stable diagnostic code;
+  endpoint/credentials/host paths and raw provider diagnostics never reach Task/API/UI.
+- [x] Application and Container actions are disabled when the required capability is unavailable, with a stable local
+  reason; no page-local authority or compatibility bridge is introduced.
+- [x] Task detail renders stable failure-code product messages and keeps raw SDK/provider text out of API/UI payloads.
+- [x] TDesign Vue Next Button, Dropdown, Tabs, Card, Alert and Tag usage is verified against official docs because MCP
+  is unavailable; responsive overflow behavior is covered by tests.
+- [x] Web typecheck, unit tests, `bun run check`, OpenAPI bundle/generated-Web freshness, relevant backend validation,
+  `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` pass.
+
+### Verification plan
+
+- `cd web && bun run check` plus focused Application, Runtime Target, Container and Task tests.
+- OpenAPI bundle and generated projection freshness checks when the Runtime Target response contract changes.
+- `cd server && go run ./cmd/graft validate backend` when server/OpenAPI authority or generated Go bindings change.
+- `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` for recovery/documentation integrity.
+
+Verification evidence: `cd web && bun run check` (311 files / 2161 tests), focused Application, Runtime Target and Task
+tests, `bun run typecheck`, `bun run openapi:types:check`, `python3 scripts/openapi_generated_freshness_check.py`,
+`cd server && go test ./modules/runtime-target/...`, `cd server && go run ./cmd/graft validate backend`,
+`python3 scripts/validate_ai_plan_structure.py`, and `git diff --check` all passed. The OpenAPI 3.1 warning from
+`oapi-codegen` remains the repository's known non-blocking warning; generated artifacts are fresh.
+
+### Recovery record
+
+- Startup receipt: governance source `AGENTS.md`; task class `cross-boundary`; recovery source this Docker Runtime Agent
+  subtopic; owned scope `batch-8-ui-and-cross-boundary-convergence`.
+- Authority decision: Runtime Target owns Agent/capability readiness projection, Task Runtime owns failure/receipt facts,
+  and pages only map stable wire values to localized product copy.
+- TDesign MCP preflight: unavailable in this environment; official Vue Next documentation fallback is required and will
+  be recorded again at closeout with the queried components and adoption decision.
+- TDesign fallback evidence: official Vue Next Button, Dropdown, Tabs, Card, Alert and Tag documentation was queried;
+  the installed Vue Next type/runtime sources were checked for the adopted APIs and DOM class conventions (including
+  `DropdownItemTheme`). No callable Vue Next MCP tool was present, so this fallback is explicit rather than an
+  unverified component assumption.
+
+### Closeout
+
+- Batch 8 is accepted and committed as the UI/cross-boundary convergence slice. The next recovery point is Batch 9;
+  no Batch 9 implementation was started in this turn.
 
 ## Batch 5 Acceptance
 

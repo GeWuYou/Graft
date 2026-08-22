@@ -18,16 +18,12 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup"],
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "phase-5-remaining-p0-lifecycle-evidence", "docker-runtime-agent-batch-1-architecture-authority-and-recovery", "docker-runtime-agent-batch-2-task-runtime-external-execution-foundation", "docker-runtime-agent-batch-3-docker-runtime-agent-promotion", "docker-runtime-agent-batch-4-application-and-container-migration", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
   "pending_batches": [
-    "phase-0-resource-inventory",
-    "phase-1-lifecycle-cleanup",
-    "phase-2-narrow-resource-scope",
-    "phase-3-capability-composition-declarations",
-    "phase-4-controlled-change-evaluation"
+    "docker-runtime-agent-batch-9-runtime-boundary-closeout"
   ],
-  "current_batch": "phase-2-narrow-resource-scope",
-  "next_batch": "phase-3-capability-composition-declarations",
+  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
+  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
   "closeout_status": "active"
 }
 ```
@@ -168,3 +164,20 @@
 - The server socket remains only for Update observation/recovery, Runtime Target discovery/summary, and Container
   snapshot/stream/interactive consumers; final no-socket claims remain deferred to later convergence.
 - Recovery point advances to `docker-runtime-agent` Batch 8 UI and cross-boundary convergence.
+
+## 2026-08-22 docker-runtime-agent-batch-8-started
+
+- Recovery documents were reconciled before implementation: parent and subtopic `current_batch`/`next_batch` now both
+  point to `docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence`.
+- Batch 8 scope and acceptance now cover the Application `list-form-detail` explain surface, removal of
+  Application-local runtime metric placeholders, Runtime Target Agent/capability readiness projection, capability-aware
+  action gating, stable Task failure-code copy, Docker `?url` asset import and responsive overflow actions.
+- Startup authority remains OpenAPI for wire shape, Runtime Target for Agent/capability facts, Task Runtime for failure
+  and receipt facts, and page-local code only for localized presentation.
+
+## 2026-08-22 docker-runtime-agent-batch-8-accepted
+
+- Batch 8 converged the Application, Runtime Target and Task UI over the canonical Runtime Target Agent projection and
+  Task failure codes. No endpoint, credential, host path, command or raw SDK error entered Task/API/UI state.
+- Full Web check, focused tests, OpenAPI/generated freshness, backend validation, AI-plan structure and diff checks
+  passed. The active recovery point is Batch 8 with Batch 9 as the next bounded slice; Batch 9 was not started.

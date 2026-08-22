@@ -1301,6 +1301,7 @@
       },
       "eyebrow": "Compose Application",
       "description": "Application Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
+      "runtimeTargetCapabilityUnavailable": "Runtime Agent capability is unavailable; application and container actions are disabled.",
       "openWorkingDirectory": "Workspace Path",
       "titleFallback": "Application Detail",
       "sections": {
@@ -1310,7 +1311,7 @@
         },
         "overview": {
           "title": "Overview",
-          "description": "Focus on current runtime state, resource changes, network I/O, and container snapshots."
+          "description": "Explain application identity, runtime target, lifecycle state, service snapshot, configuration, and task history."
         },
         "resources": {
           "title": "Resources",
@@ -1797,6 +1798,7 @@
         "openConfigurationWorkspace": "Configuration Workspace",
         "unregister": "Unregister",
         "destroy": "Destroy",
+        "more": "More",
         "copyPath": "Copy Path",
         "copyPathSuccess": "Path Copied.",
         "copyPathError": "Path Could Not Be Copied.",

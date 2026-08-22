@@ -1,5 +1,15 @@
 # Docker Runtime Agent Trace
 
+## Loop Batch State
+
+```json
+{
+  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
+  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
+  "closeout_status": "active"
+}
+```
+
 ## 2026-08-21 intake-and-batch-1-start
 
 - Reproduced the architectural split: Runtime Target health uses the Moby SDK, while Application/Build lifecycle paths
@@ -25,6 +35,26 @@
   and official Compose SDKs, and the runner image no longer includes Docker CLI or Compose plugin.
 - The one-time `cutover-v1` bootstrap authority and retained socket consumer inventory remain explicit. Recovery point
   advances to Batch 8 UI and cross-boundary convergence.
+
+## 2026-08-22 batch-8-ui-and-cross-boundary-convergence-started
+
+- Reconciled the subtopic Next Recovery Point from Batch 6 -> Batch 7 to Batch 8 before touching UI code.
+- Locked the page brief: Application detail is `list-form-detail` with `explain` primary intent and
+  `workflow`/`feedback` secondary checks; Runtime Target/Container own runtime metrics; Task Runtime, Runtime Target,
+  Provider, Agent and Update Controller retain their existing fact boundaries.
+- TDesign MCP is not callable in this environment; official Vue Next documentation is the approved fallback for the
+  Button, Dropdown, Tabs, Card, Alert and Tag components used in this batch.
+
+## 2026-08-22 batch-8-ui-and-cross-boundary-convergence-accepted
+
+- Application detail now uses the `list-form-detail` explain surface, removes non-authoritative resource dashboards,
+  preserves identity/runtime/lifecycle/service/configuration/task facts, and collapses narrow actions into overflow.
+- Runtime Target projects Agent identity, version, generation, per-capability readiness and stable diagnostics; UI action
+  gating and Task failure-code copy remain localized presentation over those canonical facts.
+- OpenAPI and generated Web/Go artifacts are fresh. Full Web check (311 files, 2161 tests), focused Web tests,
+  Runtime Target Go tests, backend validation, AI-plan structure and diff checks passed.
+- Current batch remains Batch 8 for receipt continuity; next recovery point is
+  `docker-runtime-agent-batch-9-runtime-boundary-closeout`. Batch 9 was not started.
 
 ## 2026-08-21 batch-2-accepted
 

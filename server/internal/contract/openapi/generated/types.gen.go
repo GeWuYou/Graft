@@ -4505,6 +4505,99 @@ func (e RuntimeTargetRuntimeType) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeTargetAgentDiagnosticCode.
+const (
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    RuntimeTargetAgentDiagnosticCode = "agent_degraded"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        RuntimeTargetAgentDiagnosticCode = "none"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled RuntimeTargetAgentDiagnosticCode = "agent_not_enrolled"
+	RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable RuntimeTargetAgentDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentDiagnosticCode enum.
+func (e RuntimeTargetAgentDiagnosticCode) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case RuntimeTargetAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentStatus.
+const (
+	RuntimeTargetAgentStatusDegraded    RuntimeTargetAgentStatus = "degraded"
+	RuntimeTargetAgentStatusNotEnrolled RuntimeTargetAgentStatus = "not_enrolled"
+	RuntimeTargetAgentStatusReady       RuntimeTargetAgentStatus = "ready"
+	RuntimeTargetAgentStatusUnavailable RuntimeTargetAgentStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentStatus enum.
+func (e RuntimeTargetAgentStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentStatusDegraded:
+		return true
+	case RuntimeTargetAgentStatusNotEnrolled:
+		return true
+	case RuntimeTargetAgentStatusReady:
+		return true
+	case RuntimeTargetAgentStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentCapabilityDiagnosticCode.
+const (
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    RuntimeTargetAgentCapabilityDiagnosticCode = "agent_degraded"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone        RuntimeTargetAgentCapabilityDiagnosticCode = "none"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled RuntimeTargetAgentCapabilityDiagnosticCode = "agent_not_enrolled"
+	RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable RuntimeTargetAgentCapabilityDiagnosticCode = "agent_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentCapabilityDiagnosticCode enum.
+func (e RuntimeTargetAgentCapabilityDiagnosticCode) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNone:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeNotEnrolled:
+		return true
+	case RuntimeTargetAgentCapabilityDiagnosticCodeRuntimeTargetAgentDiagnosticCodeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetAgentCapabilityStatus.
+const (
+	RuntimeTargetAgentCapabilityStatusDegraded    RuntimeTargetAgentCapabilityStatus = "degraded"
+	RuntimeTargetAgentCapabilityStatusReady       RuntimeTargetAgentCapabilityStatus = "ready"
+	RuntimeTargetAgentCapabilityStatusUnavailable RuntimeTargetAgentCapabilityStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentCapabilityStatus enum.
+func (e RuntimeTargetAgentCapabilityStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentCapabilityStatusDegraded:
+		return true
+	case RuntimeTargetAgentCapabilityStatusReady:
+		return true
+	case RuntimeTargetAgentCapabilityStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeTargetAssignmentBatchRequestAction.
 const (
 	Grant  RuntimeTargetAssignmentBatchRequestAction = "grant"
@@ -14028,6 +14121,7 @@ type RolePermissionBindingResponse struct {
 
 // RuntimeTarget defines model for runtime-target.
 type RuntimeTarget struct {
+	Agent      RuntimeTargetAgent `json:"agent"`
 	Connection struct {
 		// Endpoint Masked connection endpoint. It never contains credentials.
 		Endpoint string                      `json:"endpoint"`
@@ -14081,6 +14175,43 @@ type RuntimeTargetRuntimeProvider string
 
 // RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
 type RuntimeTargetRuntimeType string
+
+// RuntimeTargetAgent defines model for runtime-target-agent.
+type RuntimeTargetAgent struct {
+	// AgentId Non-secret Runtime Agent identity label.
+	AgentId        string                           `json:"agent_id"`
+	Capabilities   []RuntimeTargetAgentCapability   `json:"capabilities"`
+	DiagnosticCode RuntimeTargetAgentDiagnosticCode `json:"diagnostic_code"`
+	Generation     int64                            `json:"generation"`
+	Status         RuntimeTargetAgentStatus         `json:"status"`
+
+	// Version Non-secret implementation version registered for the active Agent generation.
+	Version string `json:"version"`
+}
+
+// RuntimeTargetAgentDiagnosticCode defines model for RuntimeTargetAgent.DiagnosticCode.
+type RuntimeTargetAgentDiagnosticCode string
+
+// RuntimeTargetAgentStatus defines model for RuntimeTargetAgent.Status.
+type RuntimeTargetAgentStatus string
+
+// RuntimeTargetAgentCapability defines model for runtime-target-agent-capability.
+type RuntimeTargetAgentCapability struct {
+	DiagnosticCode RuntimeTargetAgentCapabilityDiagnosticCode `json:"diagnostic_code"`
+
+	// Name Stable Runtime Agent capability identifier.
+	Name   string                             `json:"name"`
+	Status RuntimeTargetAgentCapabilityStatus `json:"status"`
+
+	// Version Frozen capability protocol version exposed by Runtime Target.
+	Version string `json:"version"`
+}
+
+// RuntimeTargetAgentCapabilityDiagnosticCode defines model for RuntimeTargetAgentCapability.DiagnosticCode.
+type RuntimeTargetAgentCapabilityDiagnosticCode string
+
+// RuntimeTargetAgentCapabilityStatus defines model for RuntimeTargetAgentCapability.Status.
+type RuntimeTargetAgentCapabilityStatus string
 
 // RuntimeTargetAssignmentBatchRequest defines model for runtime-target-assignment-batch-request.
 type RuntimeTargetAssignmentBatchRequest struct {

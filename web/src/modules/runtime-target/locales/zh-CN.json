@@ -58,6 +58,14 @@
       "runtimeInformation": "运行时信息",
       "resourceOverview": "资源概览",
       "providerDetails": "提供方详情",
+      "agentStatus": "运行时 Agent",
+      "agentState": "Agent 状态",
+      "agentId": "Agent 标识",
+      "agentVersion": "Agent 版本",
+      "agentGeneration": "信任世代",
+      "capabilities": "能力",
+      "capabilitiesEmpty": "当前未登记任何能力。",
+      "notEnrolled": "尚未登记",
       "authorizedUsers": "运行目标授权",
       "changeAuthorizedUsers": "变更授权",
       "selectAuthorizedUsersTitle": "选择授权用户",
@@ -118,6 +126,13 @@
       "healthDesc": "健康：降序"
     },
     "status": { "healthy": "健康", "unavailable": "不可用" },
+    "agentStatus": { "ready": "就绪", "degraded": "降级", "unavailable": "不可用", "not_enrolled": "未登记" },
+    "agentDiagnostics": {
+      "none": "运行时 Agent 已就绪。",
+      "agent_not_enrolled": "该运行目标尚未登记受信任的运行时 Agent。",
+      "agent_unavailable": "运行时 Agent 当前不可用。",
+      "agent_degraded": "运行时 Agent 能力绑定需要关注。"
+    },
     "metrics": {
       "workloads": "工作负载",
       "active": "活跃",

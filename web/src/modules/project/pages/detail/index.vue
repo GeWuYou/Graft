@@ -1,5 +1,5 @@
 <template>
-  <div class="project-detail-page" data-page-type="overview-dashboard">
+  <div class="project-detail-page" data-page-type="list-form-detail">
     <management-page-header
       :title="pageTitle"
       description-key="project.detail.description"
@@ -7,14 +7,14 @@
       :source="{ labelKey: 'project.detail.eyebrow', fallback: t('project.detail.eyebrow') }"
     >
       <template #actions>
-        <t-space break-line size="small">
+        <t-space class="project-detail-actions--wide" break-line size="small">
           <t-button
             v-if="lifecycleActionVisibility.up"
             data-testid="project-detail-action-up"
             theme="primary"
             variant="outline"
             :loading="actionLoading === 'up'"
-            :disabled="lifecycleReviewRequired"
+            :disabled="lifecycleReviewRequired || !runtimeTargetCapabilityAvailable('compose_execution')"
             @click="runLifecycleAction('up')"
           >
             {{ t('project.detail.actions.up') }}
@@ -25,7 +25,7 @@
             theme="warning"
             variant="outline"
             :loading="actionLoading === 'stop'"
-            :disabled="lifecycleReviewRequired"
+            :disabled="lifecycleReviewRequired || !runtimeTargetCapabilityAvailable('compose_execution')"
             @click="runLifecycleAction('stop')"
           >
             {{ t('project.detail.actions.stop') }}
@@ -36,7 +36,7 @@
             theme="warning"
             variant="outline"
             :loading="actionLoading === 'restart'"
-            :disabled="lifecycleReviewRequired"
+            :disabled="lifecycleReviewRequired || !runtimeTargetCapabilityAvailable('compose_execution')"
             @click="runLifecycleAction('restart')"
           >
             {{ t('project.detail.actions.restart') }}
@@ -47,7 +47,7 @@
             theme="default"
             variant="outline"
             :loading="actionLoading === 'redeploy'"
-            :disabled="lifecycleReviewRequired"
+            :disabled="lifecycleReviewRequired || !runtimeTargetCapabilityAvailable('compose_execution')"
             @click="runLifecycleAction('redeploy')"
           >
             {{ t('project.detail.actions.redeploy') }}
@@ -74,11 +74,23 @@
             data-testid="project-detail-action-destroy"
             theme="danger"
             :loading="actionLoading === 'destroy'"
+            :disabled="!runtimeTargetCapabilityAvailable('compose_execution')"
             @click="runDestroyAction"
           >
             {{ t('project.detail.actions.destroy') }}
           </t-button>
         </t-space>
+        <t-dropdown
+          class="project-detail-actions--compact"
+          :options="headerActionOptions"
+          placement="bottom-right"
+          trigger="click"
+          @click="handleHeaderAction"
+        >
+          <t-button variant="outline" data-testid="project-detail-action-overflow">
+            {{ t('project.detail.actions.more') }}
+          </t-button>
+        </t-dropdown>
       </template>
       <template #meta>
         <t-space break-line size="small">
@@ -123,7 +135,7 @@
                         v-if="runtimeTargetUsesDocker"
                         alt=""
                         class="project-runtime-target-card__icon"
-                        src="../../assets/runtime/docker.svg"
+                        :src="dockerRuntimeIcon"
                       />
                       <div class="project-runtime-target-card__identity">
                         <div>
@@ -169,75 +181,6 @@
                     </div>
                   </div>
                 </t-card>
-                <t-card size="small" :title="t('project.detail.overview.resourceTitle')">
-                  <div class="project-overview-resource-card">
-                    <article
-                      class="project-live-metric-card"
-                      :class="projectMetricClasses.cpu"
-                      data-testid="project-detail-resource-cpu"
-                    >
-                      <div class="project-live-metric-card__content">
-                        <span>{{ t('project.detail.overview.cpuUsage') }}</span>
-                        <strong>{{ resourceUsageCard.cpuValue }}</strong>
-                        <em>{{ resourceUsageCard.cpuCaption }}</em>
-                      </div>
-                      <t-progress
-                        theme="circle"
-                        size="small"
-                        :label="resourceUsageCard.cpuValue"
-                        :percentage="resourceUsageCard.cpuProgress"
-                        :status="resourceUsageCard.cpuStatus"
-                      />
-                    </article>
-                    <article
-                      class="project-live-metric-card project-live-metric-card--memory"
-                      :class="projectMetricClasses.memory"
-                      data-testid="project-detail-resource-memory"
-                    >
-                      <div class="project-live-metric-card__content">
-                        <span>{{ t('project.detail.overview.memoryUsage') }}</span>
-                        <strong>{{ resourceUsageCard.memoryValue }}</strong>
-                        <em>{{ resourceUsageCard.memoryCaption }}</em>
-                      </div>
-                      <t-progress
-                        theme="line"
-                        size="small"
-                        :label="false"
-                        :percentage="resourceUsageCard.memoryProgress"
-                        :status="resourceUsageCard.memoryStatus"
-                      />
-                    </article>
-                    <div class="project-overview-card-footer">
-                      <span>{{ resourceUsageCard.coverage }}</span>
-                      <span>
-                        {{ t('project.detail.overview.lastCollectedAt') }}: {{ resourceUsageCard.collectedAt }}
-                      </span>
-                    </div>
-                  </div>
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.overview.networkTitle')">
-                  <div class="project-network-io-card">
-                    <div class="project-network-io-card__summary">
-                      <article>
-                        <span>{{ t('project.detail.overview.networkRx') }}</span>
-                        <strong>{{ networkUsageCard.rxRate }}</strong>
-                        <em>{{ networkUsageCard.rxTotal }}</em>
-                      </article>
-                      <article>
-                        <span>{{ t('project.detail.overview.networkTx') }}</span>
-                        <strong>{{ networkUsageCard.txRate }}</strong>
-                        <em>{{ networkUsageCard.txTotal }}</em>
-                      </article>
-                    </div>
-                    <div class="project-overview-card-footer">
-                      <span>{{ networkUsageCard.snapshotLabel }}</span>
-                      <span>
-                        {{ t('project.detail.overview.lastCollectedAt') }}: {{ networkUsageCard.collectedAt }}
-                      </span>
-                    </div>
-                  </div>
-                </t-card>
               </div>
 
               <div class="project-overview-grid">
@@ -258,14 +201,6 @@
                         </div>
                       </header>
                       <dl class="project-service-card__metrics">
-                        <div>
-                          <dt>{{ t('project.detail.overview.cpuUsage') }}</dt>
-                          <dd>{{ service.cpuValue }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ t('project.detail.overview.memoryUsage') }}</dt>
-                          <dd>{{ service.memoryValue }}</dd>
-                        </div>
                         <div>
                           <dt>{{ t('project.detail.overview.runtimeStatus') }}</dt>
                           <dd>{{ service.statusLabel }}</dd>
@@ -318,6 +253,12 @@
                   <p>{{ t('project.detail.services.description') }}</p>
                 </div>
               </div>
+              <t-alert
+                v-if="!runtimeTargetCapabilityAvailable('container_execution')"
+                theme="warning"
+                :message="runtimeTargetCapabilityUnavailableReason"
+                data-testid="project-detail-container-capability-warning"
+              />
 
               <management-paged-table
                 v-model:current="serviceTableCurrent"
@@ -776,7 +717,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { DropdownProps, TableProps } from 'tdesign-vue-next';
+import type { DropdownItemTheme, DropdownProps, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
@@ -809,14 +750,7 @@ import {
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import {
-  copyText,
-  formatBytes,
-  formatPercent,
-  LogViewer,
-  normalizeStructuredLogEntry,
-  toProgressPercent,
-} from '@/shared/observability';
+import { copyText, LogViewer, normalizeStructuredLogEntry } from '@/shared/observability';
 import {
   createRealtimeSnapshotGate,
   openRealtimeTopicSocket,
@@ -839,6 +773,7 @@ import {
   postApplicationUp,
   putApplicationLifecycleConfiguration,
 } from '../../api/project';
+import dockerRuntimeIcon from '../../assets/runtime/docker.svg?url';
 import LifecycleHelpTrigger from '../../components/LifecycleHelpTrigger.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
@@ -851,7 +786,6 @@ import {
 } from '../../contract/realtime';
 import { paginateApplicationResourceRows } from '../../shared/detail-resources';
 import {
-  formatApplicationTime,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectLifecycleActionVisibility,
@@ -922,16 +856,10 @@ type ServiceSnapshotCard = {
   statusTheme: 'success' | 'warning' | 'danger' | 'default';
   healthLabel: string;
   healthTheme: 'success' | 'warning' | 'danger' | 'default';
-  cpuValue: string;
-  memoryValue: string;
   memberValue: string;
   canOpen: boolean;
   raw: ApplicationServiceItem;
 };
-type ApplicationMetricDirection = 'none' | 'up' | 'down';
-type ApplicationMetricPulseState = Record<'cpu' | 'memory', number>;
-type ApplicationMetricTrendState = Record<'cpu' | 'memory', ApplicationMetricDirection>;
-
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -987,21 +915,6 @@ const lifecycleDraft = reactive<ApplicationLifecycleConfigurationDraft>({
   prune_images_after_redeploy: false,
   managed_service_names: [],
   declared_service_names: [],
-});
-const metricTrendState = ref<ApplicationMetricTrendState>({
-  cpu: 'none',
-  memory: 'none',
-});
-const metricPulseState = ref<ApplicationMetricPulseState>({
-  cpu: 0,
-  memory: 0,
-});
-const networkRateState = ref<{
-  rxBytesPerSecond: number | null;
-  txBytesPerSecond: number | null;
-}>({
-  rxBytesPerSecond: null,
-  txBytesPerSecond: null,
 });
 const projectRuntimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 const projectLifecycleConfigSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
@@ -1114,6 +1027,7 @@ const runtimeTargetHealthLabel = computed(() =>
     : t('project.detail.overview.runtimeTargetStatusUnavailable'),
 );
 const runtimeTargetUnavailable = computed(() => t('project.detail.overview.runtimeTargetValueUnavailable'));
+const runtimeTargetCapabilityUnavailableReason = computed(() => t('project.detail.runtimeTargetCapabilityUnavailable'));
 const lifecycleActionVisibility = computed(() => projectLifecycleActionVisibility(detailRecord.value?.runtime_status));
 const lifecycleReviewStatus = computed<ApplicationLifecycleReviewStatus>(() => {
   if (!detailRecord.value) {
@@ -1122,6 +1036,33 @@ const lifecycleReviewStatus = computed<ApplicationLifecycleReviewStatus>(() => {
   return buildLifecycleConfigurationDraft(detailRecord.value).review_status ?? 'confirmed';
 });
 const lifecycleReviewRequired = computed(() => lifecycleReviewStatus.value === 'review_required');
+const headerActionOptions = computed<DropdownProps['options']>(() => {
+  const options: DropdownProps['options'] = [];
+  const add = (content: string, value: string, disabled = false, theme?: DropdownItemTheme) => {
+    options.push({ content, disabled, theme, value });
+  };
+  const composeUnavailable = !runtimeTargetCapabilityAvailable('compose_execution');
+  if (lifecycleActionVisibility.value.up)
+    add(t('project.detail.actions.up'), 'up', lifecycleReviewRequired.value || composeUnavailable, 'success');
+  if (lifecycleActionVisibility.value.stop)
+    add(t('project.detail.actions.stop'), 'stop', lifecycleReviewRequired.value || composeUnavailable, 'warning');
+  if (lifecycleActionVisibility.value.restart)
+    add(t('project.detail.actions.restart'), 'restart', lifecycleReviewRequired.value || composeUnavailable, 'warning');
+  if (lifecycleActionVisibility.value.redeploy)
+    add(t('project.detail.actions.redeploy'), 'redeploy', lifecycleReviewRequired.value || composeUnavailable);
+  add(t('project.detail.actions.openConfigurationWorkspace'), 'configuration');
+  if (lifecycleActionVisibility.value.unregister)
+    add(t('project.detail.actions.unregister'), 'unregister', false, 'error');
+  add(t('project.detail.actions.destroy'), 'destroy', composeUnavailable, 'error');
+  return options;
+});
+const handleHeaderAction: NonNullable<DropdownProps['onClick']> = (item) => {
+  const value = typeof item === 'object' && item ? item.value : item;
+  if (value === 'configuration') openConfigurationWorkspace();
+  else if (value === 'destroy') void runDestroyAction();
+  else if (value === 'up' || value === 'stop' || value === 'restart' || value === 'redeploy' || value === 'unregister')
+    void runLifecycleAction(value);
+};
 const lifecycleDraftDirty = computed(() => {
   if (!lifecycleBaseline.value) {
     return false;
@@ -1151,52 +1092,7 @@ const overviewServiceMap = computed<Map<string, ApplicationOverviewServiceItem>>
 );
 const totalRestartCount = computed(() => projectOverview.value?.health.restart_count ?? 0);
 const unhealthyContainerCount = computed(() => projectOverview.value?.health.unhealthy_container_count ?? 0);
-const availableResourceContainers = computed(
-  () => projectOverview.value?.resources.stats_available_container_count ?? 0,
-);
-const cpuTotalPercent = computed(() => projectOverview.value?.resources.cpu_percent ?? 0);
-const memoryUsageBytes = computed(() => projectOverview.value?.resources.memory_usage_bytes ?? 0);
-const memoryLimitBytes = computed(() => projectOverview.value?.resources.memory_limit_bytes ?? 0);
-const memoryPercent = computed(() => {
-  if ((projectOverview.value?.resources.stats_available ?? false) === false || memoryLimitBytes.value <= 0) {
-    return null;
-  }
-  return (memoryUsageBytes.value / memoryLimitBytes.value) * 100;
-});
-const networkRxBytes = computed(() => projectOverview.value?.resources.rx_bytes ?? 0);
-const networkTxBytes = computed(() => projectOverview.value?.resources.tx_bytes ?? 0);
-const resourceStatsAvailable = computed(() => projectOverview.value?.resources.stats_available ?? false);
 const projectLogAuthorityNotice = computed(() => t('project.detail.logs.authorityApplicationOwned'));
-const resourceUsageCard = computed(() => ({
-  collectedAt: formatTime(projectOverview.value?.collected_at),
-  coverage: t('project.detail.overview.metricsCoverage', { count: availableResourceContainers.value }),
-  cpuCaption: t('project.detail.overview.realtimeLabel'),
-  cpuProgress: toProgressPercent(resourceStatsAvailable.value ? cpuTotalPercent.value : 0),
-  cpuStatus: metricProgressStatus(metricTrendState.value.cpu),
-  cpuValue: resourceStatsAvailable.value ? formatPercent(cpuTotalPercent.value) : '-',
-  memoryCaption: resourceStatsAvailable.value
-    ? formatPercent(memoryPercent.value)
-    : t('project.detail.overview.notCollected'),
-  memoryProgress: toProgressPercent(resourceStatsAvailable.value ? (memoryPercent.value ?? 0) : 0),
-  memoryStatus: metricProgressStatus(metricTrendState.value.memory),
-  memoryValue: !resourceStatsAvailable.value
-    ? '-'
-    : memoryLimitBytes.value > 0
-      ? `${formatBytes(memoryUsageBytes.value)} / ${formatBytes(memoryLimitBytes.value)}`
-      : formatBytes(memoryUsageBytes.value),
-}));
-const networkUsageCard = computed(() => ({
-  collectedAt: formatTime(projectOverview.value?.collected_at),
-  rxRate: formatDataRate(networkRateState.value.rxBytesPerSecond),
-  rxTotal: t('project.detail.overview.networkTotalRx', { value: formatBytes(networkRxBytes.value) }),
-  snapshotLabel: t('project.detail.overview.networkRealtime'),
-  txRate: formatDataRate(networkRateState.value.txBytesPerSecond),
-  txTotal: t('project.detail.overview.networkTotalTx', { value: formatBytes(networkTxBytes.value) }),
-}));
-const projectMetricClasses = computed(() => ({
-  cpu: buildApplicationMetricClass('cpu'),
-  memory: buildApplicationMetricClass('memory'),
-}));
 const projectLogSourceCount = computed(() => {
   const entries = projectLogResponse.value?.entries ?? [];
   return new Set(entries.map((entry) => `${entry.container_id}:${entry.service_name}`)).size;
@@ -1233,8 +1129,6 @@ const selectedServiceRows = computed<ServiceTableRow[]>(() =>
 const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
   serviceRows.value.map((service) => {
     const overviewItem = overviewServiceMap.value.get(service.service_name);
-    const cpuValue = overviewItem?.stats_available ? formatPercent(overviewItem.cpu_percent) : '-';
-    const memoryValue = overviewItem?.stats_available ? formatBytes(overviewItem.memory_usage_bytes) : '-';
     return {
       key: service.service_name,
       name: service.service_name,
@@ -1244,8 +1138,6 @@ const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
       statusTheme: overviewServiceStatusTheme(overviewItem?.status),
       healthLabel: overviewServiceHealthLabel(overviewItem?.health),
       healthTheme: overviewServiceHealthTheme(overviewItem?.health),
-      cpuValue,
-      memoryValue,
       memberValue: `${overviewItem?.running_count ?? service.running_count}/${overviewItem?.container_count ?? service.container_members.length}`,
       canOpen: service.container_members.length > 0,
       raw: service,
@@ -1402,38 +1294,6 @@ watch(applicationId, () => {
   syncApplicationLifecycleConfigRealtimeSubscription();
   syncApplicationLogsRealtimeSubscription();
 });
-
-function formatTime(value?: string | null) {
-  return formatApplicationTime(locale.value, value);
-}
-
-function formatDataRate(value: number | null) {
-  if (value === null || !Number.isFinite(value) || value < 0) {
-    return '-';
-  }
-  return `${formatBytes(value)}/s`;
-}
-
-function metricProgressStatus(direction: ApplicationMetricDirection): 'success' | 'warning' | undefined {
-  if (direction === 'up') {
-    return 'warning';
-  }
-  if (direction === 'down') {
-    return 'success';
-  }
-  return undefined;
-}
-
-function buildApplicationMetricClass(metric: 'cpu' | 'memory') {
-  const direction = metricTrendState.value[metric];
-  const pulse = metricPulseState.value[metric] % 2;
-  return {
-    'project-live-metric--down': direction === 'down',
-    'project-live-metric--pulse-a': direction !== 'none' && pulse === 0,
-    'project-live-metric--pulse-b': direction !== 'none' && pulse === 1,
-    'project-live-metric--up': direction === 'up',
-  };
-}
 
 function driftStatusLabel(value: ApplicationDetailResponseWithLifecycle['drift_status']) {
   return projectDriftStatusLabel(t, value);
@@ -1671,7 +1531,6 @@ async function loadApplicationOverview(forceRefresh = false) {
   }
   try {
     const response = await getApplicationOverview(applicationId.value);
-    updateApplicationOverviewTrends(projectOverview.value, response);
     projectOverview.value = response;
     projectOverviewLoaded.value = true;
     return response;
@@ -1723,7 +1582,6 @@ function applyApplicationRuntimeRealtimeSnapshot(payload: {
   serviceRows.value = payload.services.items;
   void syncServiceRuntimePortSummaries(payload.services.items);
   servicesLoaded.value = true;
-  updateApplicationOverviewTrends(projectOverview.value, payload.overview);
   projectOverview.value = payload.overview;
   projectOverviewLoaded.value = true;
 }
@@ -1948,13 +1806,20 @@ function canRunServiceContainerAction(
   row: Pick<ServiceTableRow, 'hasMembers' | 'runningCount' | 'raw'>,
   action: ProjectContainerAction,
 ) {
-  if (row.raw.managed === false || !row.hasMembers) {
+  if (row.raw.managed === false || !row.hasMembers || !runtimeTargetCapabilityAvailable('container_execution')) {
     return false;
   }
   if (action === 'start') {
     return row.runningCount === 0;
   }
   return row.runningCount > 0;
+}
+
+function runtimeTargetCapabilityAvailable(capability: string) {
+  return (
+    runtimeTargetDetail.value?.agent.capabilities.some((item) => item.name === capability && item.status === 'ready') ??
+    false
+  );
 }
 
 function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {
@@ -2008,6 +1873,7 @@ const handleServiceBatchMenuAction: NonNullable<DropdownProps['onClick']> = (ite
 
 function serviceActionOptions(row: ServiceTableRow) {
   const rowLoading = serviceActionBusy.value || serviceActionKey.value.startsWith(`${row.service_name}:`);
+  const capabilityReady = runtimeTargetCapabilityAvailable('container_execution');
   const actions: Array<{ disabled?: boolean; label: string; value: ServiceRowAction }> = [
     {
       disabled: rowLoading || !row.hasMembers,
@@ -2016,23 +1882,23 @@ function serviceActionOptions(row: ServiceTableRow) {
     },
   ];
 
-  if (canRunServiceContainerAction(row, 'start')) {
+  if (row.hasMembers && row.runningCount === 0) {
     actions.push({
-      disabled: rowLoading,
+      disabled: rowLoading || row.raw.managed === false || !capabilityReady,
       label: 'project.detail.services.actions.start',
       value: 'start',
     });
   }
 
-  if (canRunServiceContainerAction(row, 'stop')) {
+  if (row.hasMembers && row.runningCount > 0) {
     actions.push(
       {
-        disabled: rowLoading,
+        disabled: rowLoading || row.raw.managed === false || !capabilityReady,
         label: 'project.detail.services.actions.stop',
         value: 'stop',
       },
       {
-        disabled: rowLoading,
+        disabled: rowLoading || row.raw.managed === false || !capabilityReady,
         label: 'project.detail.services.actions.restart',
         value: 'restart',
       },
@@ -2245,67 +2111,6 @@ function updateApplicationLogTail(value: number) {
   }
   projectLogTail.value = value;
   void loadApplicationLogs();
-}
-
-function updateApplicationOverviewTrends(
-  previous: ApplicationOverviewResponse | null,
-  next: ApplicationOverviewResponse,
-) {
-  const previousCollectedAt = parseActivityTime(previous?.collected_at);
-  const nextCollectedAt = parseActivityTime(next.collected_at);
-  const durationSeconds =
-    previousCollectedAt > 0 && nextCollectedAt > previousCollectedAt
-      ? (nextCollectedAt - previousCollectedAt) / 1000
-      : 0;
-
-  const nextCpuDirection = resolveMetricDirection(previous?.resources.cpu_percent, next.resources.cpu_percent);
-  const nextMemoryDirection = resolveMetricDirection(
-    previous?.resources.memory_usage_bytes,
-    next.resources.memory_usage_bytes,
-  );
-
-  metricTrendState.value = {
-    cpu: nextCpuDirection,
-    memory: nextMemoryDirection,
-  };
-
-  if (nextCpuDirection !== 'none') {
-    metricPulseState.value.cpu += 1;
-  }
-  if (nextMemoryDirection !== 'none') {
-    metricPulseState.value.memory += 1;
-  }
-
-  if (durationSeconds > 0) {
-    networkRateState.value = {
-      rxBytesPerSecond: Math.max(0, next.resources.rx_bytes - (previous?.resources.rx_bytes ?? 0)) / durationSeconds,
-      txBytesPerSecond: Math.max(0, next.resources.tx_bytes - (previous?.resources.tx_bytes ?? 0)) / durationSeconds,
-    };
-    return;
-  }
-
-  networkRateState.value = {
-    rxBytesPerSecond: null,
-    txBytesPerSecond: null,
-  };
-}
-
-function resolveMetricDirection(previous?: number | null, next?: number | null): ApplicationMetricDirection {
-  if (
-    typeof previous !== 'number' ||
-    typeof next !== 'number' ||
-    !Number.isFinite(previous) ||
-    !Number.isFinite(next)
-  ) {
-    return 'none';
-  }
-  if (next > previous) {
-    return 'up';
-  }
-  if (next < previous) {
-    return 'down';
-  }
-  return 'none';
 }
 
 async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister') {
@@ -2590,14 +2395,6 @@ async function syncServiceRuntimePortSummaries(services: ApplicationServiceItem[
   }
 }
 
-function parseActivityTime(value?: string | null) {
-  if (!value) {
-    return 0;
-  }
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
 function buildDetailTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.detail.title', name);
 }
@@ -2684,6 +2481,10 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
   display: flex;
 }
 
+.project-detail-page {
+  container-type: inline-size;
+}
+
 .project-detail-page,
 .project-detail-body,
 .project-tab-panel,
@@ -2726,6 +2527,10 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 
 .project-detail-tabs :deep(.t-tabs__content) {
   padding: var(--graft-density-gap-16);
+}
+
+.project-detail-actions--compact {
+  display: none;
 }
 
 .project-section,
@@ -3406,6 +3211,14 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 }
 
 @media (width <= 720px) {
+  .project-detail-actions--wide {
+    display: none;
+  }
+
+  .project-detail-actions--compact {
+    display: inline-flex;
+  }
+
   .project-lifecycle-command-card__header,
   .project-lifecycle-option {
     align-items: flex-start;
@@ -3414,6 +3227,16 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 
   .project-lifecycle-option__control {
     align-self: flex-end;
+  }
+}
+
+@container (max-width: 640px) {
+  .project-detail-actions--wide {
+    display: none;
+  }
+
+  .project-detail-actions--compact {
+    display: inline-flex;
   }
 }
 

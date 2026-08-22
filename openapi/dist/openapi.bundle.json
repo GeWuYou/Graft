@@ -40912,6 +40912,117 @@
           }
         ]
       },
+      "runtime-target-agent-capability": {
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "status",
+          "diagnostic_code"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Stable Runtime Agent capability identifier."
+          },
+          "version": {
+            "type": "string",
+            "description": "Frozen capability protocol version exposed by Runtime Target."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentCapabilityStatusReady",
+              "RuntimeTargetAgentCapabilityStatusDegraded",
+              "RuntimeTargetAgentCapabilityStatusUnavailable"
+            ]
+          },
+          "diagnostic_code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "agent_not_enrolled",
+              "agent_unavailable",
+              "agent_degraded"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentDiagnosticCodeNone",
+              "RuntimeTargetAgentDiagnosticCodeNotEnrolled",
+              "RuntimeTargetAgentDiagnosticCodeUnavailable",
+              "RuntimeTargetAgentDiagnosticCodeDegraded"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "runtime-target-agent": {
+        "type": "object",
+        "required": [
+          "status",
+          "agent_id",
+          "generation",
+          "version",
+          "diagnostic_code",
+          "capabilities"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable",
+              "not_enrolled"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentStatusReady",
+              "RuntimeTargetAgentStatusDegraded",
+              "RuntimeTargetAgentStatusUnavailable",
+              "RuntimeTargetAgentStatusNotEnrolled"
+            ]
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Non-secret Runtime Agent identity label."
+          },
+          "generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string",
+            "description": "Non-secret implementation version registered for the active Agent generation."
+          },
+          "diagnostic_code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "agent_not_enrolled",
+              "agent_unavailable",
+              "agent_degraded"
+            ],
+            "x-enum-varnames": [
+              "RuntimeTargetAgentDiagnosticCodeNone",
+              "RuntimeTargetAgentDiagnosticCodeNotEnrolled",
+              "RuntimeTargetAgentDiagnosticCodeUnavailable",
+              "RuntimeTargetAgentDiagnosticCodeDegraded"
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target-agent-capability"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "runtime-target": {
         "allOf": [
           {
@@ -40921,9 +41032,13 @@
             "type": "object",
             "required": [
               "health",
-              "providerDetails"
+              "providerDetails",
+              "agent"
             ],
             "properties": {
+              "agent": {
+                "$ref": "#/components/schemas/runtime-target-agent"
+              },
               "health": {
                 "type": "object",
                 "required": [

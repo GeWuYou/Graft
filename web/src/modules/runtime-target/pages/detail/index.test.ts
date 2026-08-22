@@ -72,6 +72,17 @@ const tableStub = defineComponent({
 function targetDetail() {
   return {
     id: 7,
+    agent: {
+      agent_id: 'agent-local',
+      generation: 1,
+      version: '1.0.0',
+      status: 'ready',
+      diagnostic_code: 'none',
+      capabilities: [
+        { name: 'compose_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+        { name: 'container_execution', status: 'ready', version: 'v1', diagnostic_code: 'none' },
+      ],
+    },
     displayName: 'Local Docker',
     runtime: { provider: 'docker', type: 'container_runtime', version: '27.0', apiVersion: '1.46' },
     connection: { endpoint: 'unix:///var/run/docker.sock', kind: 'unix_socket' },
@@ -127,6 +138,7 @@ describe('RuntimeTargetDetailPage', () => {
   it('renders Docker provider details separately from neutral runtime resources', async () => {
     apiMocks.getRuntimeTarget.mockResolvedValue({
       id: 7,
+      agent: targetDetail().agent,
       displayName: 'Local Docker',
       runtime: { provider: 'docker', type: 'container_runtime', version: '27.0', apiVersion: '1.46' },
       connection: { endpoint: 'unix:///var/run/docker.sock', kind: 'unix_socket' },
@@ -164,6 +176,7 @@ describe('RuntimeTargetDetailPage', () => {
   it('shows unavailable reasons instead of zero for unavailable metrics', async () => {
     apiMocks.getRuntimeTarget.mockResolvedValue({
       id: 7,
+      agent: targetDetail().agent,
       displayName: 'Local Docker',
       runtime: { provider: 'docker', type: 'container_runtime', version: '27.0', apiVersion: '1.46' },
       connection: { endpoint: 'unix:///var/run/docker.sock', kind: 'unix_socket' },
