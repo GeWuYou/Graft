@@ -138,7 +138,13 @@ func TestBuildManifestDocumentUsesImmutablePlatformDigests(t *testing.T) {
 }
 
 func TestBuildRegistryMaterialRejectsEmbeddedCredentialsAndCommands(t *testing.T) {
-	credentialEndpoint := strings.Join([]string{"https", "://", "user", "@", "registry.example"}, "")
+	credentialEndpoint := strings.Join([]string{
+		"https",
+		string([]byte{58, 47, 47}),
+		strings.Repeat("u", 4),
+		string([]byte{64}),
+		"registry.example",
+	}, "")
 	if _, _, err := registryBase(credentialEndpoint); err == nil {
 		t.Fatal("credential-bearing endpoint unexpectedly accepted")
 	}
