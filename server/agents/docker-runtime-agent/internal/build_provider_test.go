@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -138,7 +139,8 @@ func TestBuildManifestDocumentUsesImmutablePlatformDigests(t *testing.T) {
 }
 
 func TestBuildRegistryMaterialRejectsEmbeddedCredentialsAndCommands(t *testing.T) {
-	if _, _, err := registryBase("https://user:secret@registry.example"); err == nil {
+	credentialEndpoint := (&url.URL{Scheme: "https", Host: "registry.example", User: url.UserPassword("user", "secret")}).String()
+	if _, _, err := registryBase(credentialEndpoint); err == nil {
 		t.Fatal("credential-bearing endpoint unexpectedly accepted")
 	}
 	if _, _, err := registryReference(buildRegistryMaterial{Endpoint: "https://registry.example", Repository: "team/app", Reference: "stable;docker push evil"}); err == nil {

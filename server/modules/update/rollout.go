@@ -485,7 +485,7 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	defer func() {
 		if !recoveryLaunchAttempted {
 			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
-				s.logger.Error("release pre-launch recovery claim failed", zap.String("operation_id", operationID), zap.Error(releaseErr))
+				s.logger.Error("release pre-launch recovery claim failed", zap.String("operation_id", operation.OperationID), zap.Error(releaseErr))
 			}
 		}
 	}()
