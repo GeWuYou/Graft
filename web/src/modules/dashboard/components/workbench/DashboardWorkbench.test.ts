@@ -233,6 +233,27 @@ describe('DashboardWorkbench', () => {
     expect(contextLink.element.parentElement?.getAttribute('role')).toBe('listitem');
   });
 
+  it('keeps first-screen and detail surfaces in one continuous two-column flow', () => {
+    const wrapper = mountWorkbench();
+    const layout = wrapper.get('.workbench-layout');
+    const primaryColumn = layout.get('.workbench-layout__column--primary');
+    const secondaryColumn = layout.get('.workbench-layout__column--secondary');
+    const primarySurfaceOrder = primaryColumn
+      .findAll('.workbench-surface')
+      .map((node) => node.classes().find((className) => className.startsWith('workbench-surface--')));
+    const secondarySurfaceOrder = secondaryColumn
+      .findAll('.workbench-surface')
+      .map((node) => node.classes().find((className) => className.startsWith('workbench-surface--')));
+
+    expect(layout.findAll('.workbench-layout__column')).toHaveLength(2);
+    expect(wrapper.findAll('.workbench-details')).toHaveLength(0);
+    expect(primarySurfaceOrder.slice(0, 2)).toEqual(['workbench-surface--attention', 'workbench-surface--metrics']);
+    expect(secondarySurfaceOrder.slice(0, 2)).toEqual([
+      'workbench-surface--health',
+      'workbench-surface--module-coverage',
+    ]);
+  });
+
   it('reveals attention, health, and contextual overflow through keyboard-accessible collapse triggers', async () => {
     const wrapper = mountWorkbench();
 
