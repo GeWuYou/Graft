@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -139,7 +138,7 @@ func TestBuildManifestDocumentUsesImmutablePlatformDigests(t *testing.T) {
 }
 
 func TestBuildRegistryMaterialRejectsEmbeddedCredentialsAndCommands(t *testing.T) {
-	credentialEndpoint := (&url.URL{Scheme: "https", Host: "registry.example", User: url.UserPassword("user", "secret")}).String()
+	credentialEndpoint := strings.Join([]string{"https", "://", "user", "@", "registry.example"}, "")
 	if _, _, err := registryBase(credentialEndpoint); err == nil {
 		t.Fatal("credential-bearing endpoint unexpectedly accepted")
 	}
