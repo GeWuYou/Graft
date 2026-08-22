@@ -89,6 +89,23 @@ provisioned Agent perform a frozen Stage without becoming a second scheduler or 
 - ADR-006 and ADR-009 continue to govern Compose-root trust, durable update state, fencing and the need for an executor
   that survives server recreation. ADR-026 changes the launcher and SDK boundary, not those recovery invariants.
 
+## Batch 9 Retained-Consumer Clarification
+
+The retained server socket boundary is intentionally limited to observation, projection, and transport reads; it is not
+a finite mutation or launch path. The complete closeout inventory is:
+
+| Consumer | Canonical authority | Retained boundary | Removal trigger |
+| --- | --- | --- | --- |
+| Update runner receipt/progress/failure observation and settled-runner cleanup | Update Controller state projection and recovery | Update module Moby observer reads runner labels/logs and removes a settled runner after receipt settlement | Update state/receipt observation is delivered through an Agent-initiated transport or durable state channel that no longer requires server Docker access |
+| Runtime Target local discovery and target summary | Runtime Target identity, generation, capability and summary projection | Local Docker probe and bounded Moby summary collection for the system-managed target | Agent enrollment/readiness and bounded target summary telemetry become the authoritative discovery and summary inputs |
+| Container list/detail/stats/events/logs/stream/exec and Images/Networks/Volumes/System reads | Container resource semantics and authorization | Container module's read and interactive transport adapter | Agent-initiated transport-only snapshot/interactive channel covers the same bounded API semantics |
+| Current server container facts used by Deployment Runtime | Deployment Runtime deployment-context projection; Container owns raw Docker facts | Container `DockerFactsProvider` reads the current server inspect projection | Deployment facts are supplied by an explicit provider/Agent projection without a server-local inspect |
+
+The development-only `graft dev docker-runtime-agent` command may invoke the Docker/Compose CLI to prepare the local
+fixture; it is an explicit repository CLI entrypoint, not a production server launch path or a compatibility fallback.
+The one-time `cutover-v1` command remains migration/bootstrap authority only. Finite Application, Container, Build and
+Update Controller side effects continue to require a Task-owned external execution lease and the Runtime Agent.
+
 ## Rejected Alternatives
 
 - Install Docker CLI, Compose and buildx in server: fixes one image symptom while retaining vendor coupling and socket

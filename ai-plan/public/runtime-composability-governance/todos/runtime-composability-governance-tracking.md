@@ -47,8 +47,8 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: `docker-runtime-agent` Batch 8 (`ui-and-cross-boundary-convergence`) is accepted; Batch 9 is the next
-  bounded recovery point.
+- The Docker Runtime Agent subtopic Batch 9 (`runtime-boundary-closeout`) is accepted and archive-ready; no further
+  batch is created by this closeout.
 - Completed: architecture research, Work Intake, repository-wide design, roadmap and active-topic bootstrap.
 - Current risk: existing runtime resources use several lifecycle patterns; implementation must inventory before introducing shared cleanup abstractions.
 - Phase 0 result: server-side inventory is recorded below and in the trace; no shared Scope API is justified yet.
@@ -62,8 +62,9 @@ Batch 5 cross-boundary direction is frozen: Build Docker side effects use Task R
 `docker-runtime-agent` `docker/v1` SDK capability. Build retains intent, placement/reservation and Artifact/Publication
 semantics; Task retains lease, fence, renew/cancel, logs, transient-result digest, receipt, retry and recovery; Runtime
 Target retains generation-scoped capability binding. Build material and normalized result are resolved/submitted only in
-valid fenced windows and are never persisted as Task/Agent payloads. The server Docker socket remains only for the
-explicitly unmigrated Update Controller and Container read/stream/interactive boundaries.
+valid fenced windows and are never persisted as Task/Agent payloads. The Batch 9 inventory limits the retained server
+Docker socket to Update observation/recovery, Runtime Target discovery/summary, Container observation/interactive
+transport and Deployment Runtime Docker facts; no finite Build or mutation path uses it.
 
 ## Task Checklist
 
@@ -89,13 +90,27 @@ explicitly unmigrated Update Controller and Container read/stream/interactive bo
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
-  "pending_batches": ["docker-runtime-agent-batch-9-runtime-boundary-closeout"],
-  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
-  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
-  "closeout_status": "active"
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
+
+## Docker Runtime Agent Batch 9 Closeout
+
+- The retained server Docker socket inventory is now authoritative in the Docker Runtime Agent subtopic tracking and
+  ADR-026 clarification. It covers Update runner observation/recovery and settled cleanup; Runtime Target local
+  discovery/summary; Container snapshot/resource/log/stream/event/stats and interactive exec; and Deployment Runtime's
+  current-server Docker facts projection.
+- Each retained consumer has one canonical owner, a bounded lifecycle, a risk and a concrete Agent/transport deletion
+  trigger. These consumers are intentional observation/projection/read boundaries, not unresolved finite mutation paths.
+- `server/internal/cli/dev_docker_runtime_agent.go` is recorded as an explicit development fixture CLI; production
+  Application, Container, Build and Update mutations remain Task-owned external execution stages handled by the Runtime
+  Agent. `cutover-v1` remains one-time migration/bootstrap authority only.
+- Batch 9 acceptance and verification passed; parent topic status is `archive-ready` pending the normal archive
+  operation and scoped commit review.
 
 ## Phase 5 Remaining P0 Lifecycle Evidence Result
 

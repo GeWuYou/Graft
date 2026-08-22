@@ -21,7 +21,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 的 socket 挂载仅保留给 Runtime Target 发现/摘要、Container snapshot/stream/interactive 读取以及受限的 Update 观测/恢复。Update Controller 启动和其他 Docker 副作用由 Docker Runtime Agent 拥有。
+不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 的 socket 挂载仅保留给 Runtime Target 发现/摘要、Container snapshot/resource/log/stream/event/stats 与 interactive 读取、Deployment Runtime 当前 server Docker facts，以及受限的 Update 观测/恢复。Update Controller 启动和其他 Docker 副作用由 Docker Runtime Agent 拥有。
 
 ## 2. 保留已有数据
 

@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: 将运行时资源 ownership、capability visibility 和 composition unit 声明从设计固定到可分批实施的治理路径。
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `cross-boundary`
 - Intake summary: long-running architecture/governance refactor; design, roadmap and active topic are required before implementation.
 - Canonical authority:
@@ -11,7 +11,8 @@
   - `ai-plan/design/architecture/项目设计.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
 - Completed: Work Intake, design, roadmap, topic bootstrap, lifecycle inventory/cleanup, narrow-scope evaluation,
-  Phase 3 typed composition declarations, Phase 4 controlled-change evaluation, and Phase 5 remaining P0 lifecycle evidence.
+  Phase 3 typed composition declarations, Phase 4 controlled-change evaluation, Phase 5 remaining P0 lifecycle evidence,
+  and the Docker Runtime Agent Batch 9 runtime-boundary closeout.
 - Active subtopic: `subtopics/docker-runtime-agent/todos/docker-runtime-agent-tracking.md`; it owns the migration from
   server-local Docker execution to one Task-governed Runtime Agent.
 
@@ -41,12 +42,12 @@ Out of scope:
 ## Current Recovery Point
 
 - Runtime composition Phase 5 evidence is complete and its dynamic-change rejection remains unchanged.
-- Continue the Docker Runtime Agent subtopic. Current batches are architecture authority/recovery followed by Task
-  Runtime external execution foundation.
+- The Docker Runtime Agent subtopic is archive-ready. Its retained server socket inventory and deletion triggers are the
+  current authority for any future Agent-initiated observation/interactive transport migration.
 
 ## Archive Readiness
 
-- Decision: archive is not approved while the Docker Runtime Agent subtopic is active.
+- Decision: `archive-ready`; normal archive operation may proceed after the scoped Batch 9 commit is reviewed.
 
 ## Work Intake
 

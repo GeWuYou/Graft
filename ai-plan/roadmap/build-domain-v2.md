@@ -127,8 +127,9 @@ The current Docker Build cutover uses Task Runtime external leases and the bound
 `build.manifest.publish.v1` and `build.artifact.copy.v1`. Build material and normalized artifact results are transient
 fence-bound payloads; Task persists only the result digest and Build owns artifact/publication interpretation. The
 server-local Build Docker/CLI path, fallback and compatibility aliases are removed. The shared snapshot volume is
-`/tmp/graft-build-snapshots`; Update Controller, Runtime Target discovery/summary and Container read/stream/interactive
-boundaries remain the only explicit reasons for the server socket until their later batches.
+`/tmp/graft-build-snapshots`; Update Controller observation/recovery, Runtime Target discovery/summary, Container
+snapshot/resource/read/stream/interactive boundaries and Deployment Runtime Docker facts remain explicit retained reasons
+for the server socket until their Agent/transport deletion triggers complete.
 
 ## Cross-Phase Constraints
 

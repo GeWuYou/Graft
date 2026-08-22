@@ -119,8 +119,9 @@ services:
     volumes:
       - vault-secrets:/run/graft-secrets:ro
       # Backend socket is retained only for Runtime Target discovery/summary,
-      # Container snapshot/stream/interactive reads, and bounded Update
-      # observation/recovery. Agent owns Update Controller launch and Build.
+      # Container snapshot/resource/log/stream/event/stats/interactive reads,
+      # Deployment Runtime Docker facts, and bounded Update observation/
+      # recovery. Agent owns Update Controller launch and Build.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - build-snapshots:/tmp/graft-build-snapshots
     ports:
@@ -165,7 +166,8 @@ services:
       - agent-state:/var/lib/graft-runtime-agent/state
       # The Agent is the sole side-effect process with an always-on Docker
       # socket. It has no inbound port; the server socket above is read-only
-      # compatibility for the explicitly retained observation/read paths.
+      # compatibility for the explicitly retained observation/projection/read
+      # paths.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - build-snapshots:/tmp/graft-build-snapshots:ro
 

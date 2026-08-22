@@ -48,14 +48,13 @@
     "batch-5-build-sdk-migration",
     "batch-6-update-controller-launch-boundary",
     "batch-7-deployment-and-cli-deletion",
-    "batch-8-ui-and-cross-boundary-convergence"
+    "batch-8-ui-and-cross-boundary-convergence",
+    "batch-9-runtime-boundary-closeout"
   ],
-  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
-  "pending_batches": [
-    "docker-runtime-agent-batch-9-runtime-boundary-closeout"
-  ],
-  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
-  "closeout_status": "active"
+  "current_batch": null,
+  "pending_batches": [],
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
 
@@ -141,15 +140,9 @@ Evidence: focused Update/Agent/Runtime Target/Task tests, the same packages unde
 
 ## Next Recovery Point
 
-Batch 8 UI and cross-boundary convergence is accepted. The next bounded slice is Batch 9, which closes the remaining
-runtime-boundary evidence without reopening the already-migrated UI or execution authority. Build remains provider-neutral:
-Task Runtime owns its fenced lease, renewal, cancellation, logs, transient result digest, receipt, retry and recovery;
-Runtime Target binds `docker/v1`; and `docker-runtime-agent` performs Moby/OCI SDK side effects. Neither material nor
-result JSON is durable Task/Agent state.
-
-The server Docker socket remains only for the retained Update recovery/observation boundary, Runtime Target
-discovery/summary and explicitly unmigrated Container read/stream/interactive capabilities. Batch 9 must not introduce
-a second launch path while removing the remaining server-local recovery/CLI dependency.
+Batch 9 is archive-ready. There is no pending migration batch. Future work must start from a new authority-led slice and
+use the recorded deletion trigger for the specific retained Update, Runtime Target, Container/Deployment observation or
+interactive transport boundary; it must not reopen the completed Application/Container/Build/Update execution paths.
 
 ## Batch 8 UI And Cross-Boundary Convergence
 
@@ -241,3 +234,88 @@ checks, generated module registry freshness, AI-plan structure validation and `g
 
 Validation evidence for this documentation/configuration slice: `git diff --check` and
 `python3 scripts/validate_ai_plan_structure.py`.
+
+## Batch 9 Runtime Boundary Closeout
+
+### Scope and authority decision
+
+Batch 9 is a closeout/evidence slice. It does not redesign Runtime Target, Task Runtime, the Agent protocol, or the
+Update Controller. The authority chain remains:
+
+- Task Runtime owns the external execution lease, renewal, cancellation observation, bounded logs, transient result
+  digest, receipt settlement, retry and recovery.
+- Runtime Target owns Agent identity, generation, target binding and capability admission.
+- `docker-runtime-agent` owns all Docker/Moby/OCI side effects reached through a Task lease.
+- Update Controller owns durable self-update state and its survivor/recovery protocol.
+- Container owns resource semantics and authorization; Deployment Runtime owns deployment-context interpretation.
+
+### Final server Docker socket consumer inventory
+
+The inventory was cross-checked against handwritten Go, Compose/deployment fixtures, focused tests and the normative
+design/deployment documents. The server socket is retained only for bounded observation/projection/read transport:
+
+| Consumer and code authority | Evidence | Disposition | Retention reason, risk and deletion trigger |
+| --- | --- | --- | --- |
+| Update runner receipt/progress/failure observation and settled-runner cleanup (`server/modules/update/launcher.go`, `RolloutService`) | `NewDockerComposeRunnerLauncher`; `ReadRunnerReceipts`, `ReadRunnerProgress`, `ReadRunnerFailures`, `RemoveRunner`; `launcher_test.go` and `operation_test.go` | Retain temporarily | Update must reconcile the short-lived Controller after server recreation and remove a container only after a settled receipt. High socket privilege; delete when receipt/state projection is Agent-initiated or durable without server Docker access. |
+| Runtime Target local Docker discovery (`server/modules/runtime-target/discovery.go`) | `discoverLocalDocker`, `pingLocalDocker`; `discovery_test.go`, `audit_transaction_test.go` | Retain temporarily | System-managed local target bootstrap and availability fact. Delete when Agent enrollment/readiness becomes the authoritative target discovery input. |
+| Runtime Target target summary (`server/modules/runtime-target/summary.go`) | `dockerTargetSnapshotCollector`; `summary_test.go` and summary collection tests | Retain temporarily | Bounded version/info/workload/image/volume/network/host-usage projection. Delete when Agent telemetry supplies the equivalent bounded summary. |
+| Container snapshot/read, stats, runtime events, logs and stream (`server/modules/container/docker_runtime*.go`, `docker_resources.go`) | `docker_runtime_test.go`, `docker_resources_test.go`, `runtime_events_test.go`, service route tests | Retain temporarily | Container module owns read semantics, redaction, authorization and realtime transport; these are not Task stages. Delete when the Agent-initiated transport-only channel covers the same API/read semantics. |
+| Container interactive/exec (`server/modules/container/docker_exec_session.go`, `docker_runtime.go`) | `docker_runtime_test.go`, shell route/websocket tests | Retain temporarily | Interactive transport must not be disguised as a Task or Agent queue. Delete when an Agent-initiated interactive channel preserves the current authorization and session lifecycle. |
+| Current server container facts used by Deployment Runtime (`server/modules/container/docker_facts_provider.go`) | `docker_facts_provider_test.go`, `server/modules/deployment/runtime.go` | Retain temporarily | Deployment Runtime owns deployment-context interpretation while Container exposes the raw inspect projection. Delete when an explicit provider/Agent deployment projection replaces server-local inspect. |
+
+The explicit development CLI (`server/internal/cli/dev_docker_runtime_agent.go`) invokes `docker compose`/`docker cp` only
+to prepare the local development fixture. It is not a production `serve` launch path, does not execute Application,
+Container, Build or Update mutations, and is therefore recorded as a retained repository CLI entrypoint rather than a
+server runtime socket consumer. Its deletion trigger is a future developer-topology change that provides equivalent
+fixture preparation without a local Docker CLI; it is not a runtime fallback.
+
+The short-lived `server/cmd/graft-compose-runner` and `server/runner/compose` remain Update Controller code and use the
+Moby/official Compose SDK inside the Agent-launched process. A repository-wide search found no `exec docker`,
+`docker compose`, `docker-compose` or Buildx invocation in the migrated server mutation paths. The only remaining
+`exec.CommandContext(..., "docker", ...)` calls are the explicit development CLI above; shell scripts and conformance
+fixtures are test/deployment harnesses, not server runtime paths.
+
+### Mutation and duplicate-path audit
+
+- Application Compose lifecycle stages are created by `server/modules/project/service_lifecycle.go` and claimed only by
+  Task Runtime external execution; no server Docker client is reachable from that mutation path.
+- Container finite mutations and image/network/volume changes are submitted by `task_lifecycle.go` and
+  `task_docker_*.go`; Agent provider dispatch owns the Moby side effect. No server-local mutation executor, CLI command
+  assembler, fallback or compatibility alias remains.
+- Build operations are submitted by `server/modules/build/v2_submission.go`; Build material/result remain transient
+  and Task persists only the result digest. Build SDK calls exist only under `server/agents/docker-runtime-agent`.
+- Update Controller normal launch is submitted as `controller_launch` through the Task lease. The retained Update
+  launcher is observation/recovery/settled cleanup only; `cutover-v1` is a one-time migration/bootstrap authority and
+  cannot start runtime work.
+- No second scheduler, Task state machine, Agent queue, server push path or hidden launch fallback was found.
+
+### Batch 9 acceptance and verification
+
+- [x] Code/deployment/test/document inventory is complete and the retained consumers above have explicit authority,
+  lifecycle, risk and deletion triggers.
+- [x] All finite Application, Container, Build and normal Update Controller mutations cross a Task-owned external
+  execution lease and Runtime Agent capability; no server-local mutation path remains.
+- [x] Positive retained-boundary tests cover Update receipt/progress/failure observation, Runtime Target discovery and
+  summary, Container read/log/stream/exec/resource snapshots, and Deployment Docker facts.
+- [x] Static searches confirm no migrated server path invokes Docker/Compose/Buildx CLI or a second launch path.
+- [x] Deployment and conformance fixtures keep the Agent outbound-only/no-inbound-port boundary and document the
+  retained server socket consumers.
+- [x] `git diff --check` and `python3 scripts/validate_ai_plan_structure.py` pass; focused server and race tests plus
+  the complete backend validation entrypoint pass.
+
+### Closeout decision
+
+Batch 9 is `archive-ready`: retained socket consumers are intentional, bounded and evidence-backed rather than
+unresolved migration work. The cleanup triggers above are the next authority-led migration points; no new Batch 10 is
+created by this closeout. The parent topic may enter the normal archive workflow after this scoped commit is reviewed.
+
+## 2026-08-22 Batch 9 Recovery Record
+
+- Startup receipt was rerun from root `AGENTS.md` with task class `cross-boundary`, recovery source
+  `runtime-composability-governance/docker-runtime-agent`, owned scope
+  `docker-runtime-agent-batch-9-runtime-boundary-closeout`, and the ADR-026 authority summary.
+- HEAD was confirmed as `b72dcb1108d8dfe0fd5de899b72c28fe09fa1e84`. The checkout contained pre-existing file-mode-only
+  changes in `.claude/skills`, Husky scripts, smoke scripts and conformance shell fixtures; they were preserved and are
+  excluded from this Batch 9 scope.
+- Batch 8 receipt continuity remains recorded as `current_batch=Batch 8` in the trace; Batch 8 is accepted. Batch 9 is
+  the only implementation/closeout batch in this turn.

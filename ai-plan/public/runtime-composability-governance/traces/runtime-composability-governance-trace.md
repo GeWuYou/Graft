@@ -18,13 +18,11 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "phase-5-remaining-p0-lifecycle-evidence", "docker-runtime-agent-batch-1-architecture-authority-and-recovery", "docker-runtime-agent-batch-2-task-runtime-external-execution-foundation", "docker-runtime-agent-batch-3-docker-runtime-agent-promotion", "docker-runtime-agent-batch-4-application-and-container-migration", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence"],
-  "pending_batches": [
-    "docker-runtime-agent-batch-9-runtime-boundary-closeout"
-  ],
-  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
-  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
-  "closeout_status": "active"
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "phase-5-remaining-p0-lifecycle-evidence", "docker-runtime-agent-batch-1-architecture-authority-and-recovery", "docker-runtime-agent-batch-2-task-runtime-external-execution-foundation", "docker-runtime-agent-batch-3-docker-runtime-agent-promotion", "docker-runtime-agent-batch-4-application-and-container-migration", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
 
@@ -181,3 +179,32 @@
   Task failure codes. No endpoint, credential, host path, command or raw SDK error entered Task/API/UI state.
 - Full Web check, focused tests, OpenAPI/generated freshness, backend validation, AI-plan structure and diff checks
   passed. The active recovery point is Batch 8 with Batch 9 as the next bounded slice; Batch 9 was not started.
+
+## 2026-08-22 docker-runtime-agent-batch-9-runtime-boundary-closeout
+
+- Reran the root startup preflight and confirmed Batch 8 acceptance at HEAD
+  `b72dcb1108d8dfe0fd5de899b72c28fe09fa1e84`; the pre-existing file-mode-only checkout changes were preserved and
+  excluded from Batch 9.
+- Completed the cross-checked server socket inventory. Retained consumers are bounded Update runner
+  observation/recovery and settled cleanup; Runtime Target local discovery/summary; Container snapshots/resources,
+  logs/streams/events/stats and interactive exec; and Deployment Runtime's current-server Docker facts projection.
+  The explicit development Agent CLI is retained as a repository fixture entrypoint, not production runtime execution.
+- Confirmed finite Application, Container, Build and normal Update Controller mutations all cross the Task-owned external
+  execution lease and Runtime Agent. No second scheduler, Task state machine, Agent queue, server push path or hidden
+  launch fallback was found; `cutover-v1` remains one-time migration/bootstrap authority.
+- ADR-026, deployment/conformance guidance and active recovery materials now carry the same retained-consumer authority,
+  risk and deletion-trigger vocabulary. Batch 9 is archive-ready; normal topic archive can proceed after scoped commit
+  review.
+
+## Loop Batch State (Batch 9 closeout)
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["work-intake-design-bootstrap", "phase-0-resource-inventory", "phase-1-lifecycle-cleanup", "phase-2-narrow-resource-scope", "phase-3-capability-composition-declarations", "phase-4-controlled-change-evaluation", "docker-runtime-agent-batch-5-build-sdk-migration", "docker-runtime-agent-batch-6-update-controller-launch-boundary", "docker-runtime-agent-batch-7-deployment-and-cli-deletion", "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence", "docker-runtime-agent-batch-9-runtime-boundary-closeout"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```

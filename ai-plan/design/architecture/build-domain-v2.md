@@ -45,8 +45,8 @@ The Batch 5 operation set is `build.image.local.v1`, `build.image.publish.v1`, `
 `build.artifact.copy.v1`. No server-local Build Docker/CLI adapter, fallback or compatibility alias remains. The shared
 snapshot root is a named deployment volume mounted at `/tmp/graft-build-snapshots` in server and Agent; the path is
 deployment topology, not persisted Task or Build domain data. The server Docker socket remains only for explicitly
-unmigrated Update Controller, Runtime Target discovery/summary and Container read/stream/interactive boundaries until
-their batches complete.
+unmigrated Update Controller observation/recovery, Runtime Target discovery/summary, Container snapshot/resource/read/
+stream/interactive boundaries, and Deployment Runtime Docker facts until their Agent/transport deletion triggers complete.
 
 ## 2. Domain Boundaries
 

@@ -232,8 +232,9 @@ services:
       - "${GRAFT_HTTPX_AGENT_TLS_PORT:-8444}"
     volumes:
       # Retained only for Runtime Target discovery/summary, Container
-      # snapshot/stream/interactive reads, and bounded Update observation/
-      # recovery. Update Controller launch is Agent-owned.
+      # snapshot/resource/log/stream/event/stats/interactive reads,
+      # Deployment Runtime's current-server Docker facts, and bounded
+      # Update observation/recovery. Update Controller launch is Agent-owned.
       - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps

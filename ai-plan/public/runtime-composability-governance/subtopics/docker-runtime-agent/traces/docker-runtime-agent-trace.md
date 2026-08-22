@@ -4,9 +4,9 @@
 
 ```json
 {
-  "current_batch": "docker-runtime-agent-batch-8-ui-and-cross-boundary-convergence",
-  "next_batch": "docker-runtime-agent-batch-9-runtime-boundary-closeout",
-  "closeout_status": "active"
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
 
@@ -153,3 +153,24 @@ structure validation; and `git diff --check`. Build server-local Docker/CLI path
 - Documented the required self-update rollout order: server/web replacement, server health verification, Runtime Agent
   replacement last, then mTLS identity, generation, and capability-readiness verification.
 - Validation passed: `git diff --check` and `python3 scripts/validate_ai_plan_structure.py`.
+
+## 2026-08-22 batch-9-runtime-boundary-closeout
+
+- Reran the startup preflight from root `AGENTS.md`; confirmed HEAD
+  `b72dcb1108d8dfe0fd5de899b72c28fe09fa1e84`. Pre-existing file-mode-only changes in the checkout were preserved and
+  excluded from this scope. Batch 8 remains accepted; its `current_batch=Batch 8` receipt is continuity metadata, not an
+  incomplete-batch signal.
+- Cross-checked server code, Compose/development/conformance fixtures, tests and design/deployment docs. The complete
+  retained socket inventory is Update runner observation/recovery and settled cleanup; Runtime Target local discovery and
+  summary; Container snapshots/resources/logs/streams/events/stats and interactive exec; and Deployment Runtime's
+  current-server Docker facts projection. Each has one canonical owner, a bounded lifecycle and an explicit deletion
+  trigger; none is a finite mutation or launch fallback.
+- Confirmed `server/internal/cli/dev_docker_runtime_agent.go` is the only remaining server-side `exec ... "docker"`
+  path, and is an explicit development fixture CLI. Production Application/Container/Build/Update mutation paths use
+  Task-owned external execution leases and the Runtime Agent; `cutover-v1` remains one-time migration/bootstrap
+  authority only.
+- Added the Batch 9 retained-consumer clarification to ADR-026 and synchronized deployment/conformance/runtime docs so
+  the socket list cannot be mistaken for a second execution authority.
+- Focused retained-boundary tests, race tests, backend validation, OpenAPI/generated freshness checks and AI-plan
+  structure/diff checks passed. The subtopic is archive-ready; future socket removal follows the recorded Agent/transport
+  deletion triggers rather than an ad hoc compatibility layer.

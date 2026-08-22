@@ -25,8 +25,8 @@ and exact result replay is idempotent while a changed replay is rejected.
 The fixture Agent has no inbound port. Backend and Agent share the named `build-snapshots` volume at
 `/tmp/graft-build-snapshots`; material, Registry credentials, endpoints, host paths and commands remain transient and
 must not appear in Task rows, logs, receipts or Agent journal. The Backend Docker socket remains only for explicitly
-unmigrated Runtime Target discovery/summary, Container read/stream/interactive and Update Controller boundaries; it is
-not a Build execution path.
+unmigrated Runtime Target discovery/summary, Container snapshot/resource/log/stream/event/stats and interactive reads,
+Deployment Runtime Docker facts, and Update Controller observation/recovery; it is not a Build execution path.
 
 ## Required images and inputs
 
@@ -80,9 +80,9 @@ Update Controller rollout is ordered and must not be shortened: update
 `server`/`web`, verify the new server health, replace the Runtime Agent last,
 then verify the new Agent's mTLS identity, active generation, and declared
 capability readiness. The Backend socket in this fixture is retained only for
-Runtime Target discovery/summary, Container snapshot/stream/interactive reads,
-and bounded Update observation/recovery; it is not an Update launch or Build
-execution path.
+Runtime Target discovery/summary, Container snapshot/resource/log/stream/event/
+stats and interactive reads, Deployment Runtime Docker facts, and bounded
+Update observation/recovery; it is not an Update launch or Build execution path.
 
 The fixture Dockerfile compiles only `cmd/graft-docker-runtime-conformance` with
 the `conformance` build tag. It is not part of the Backend production image or

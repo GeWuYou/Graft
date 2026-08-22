@@ -23,7 +23,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server socket mount is retained only for Runtime Target discovery/summary, Container snapshot/stream/interactive reads, and bounded Update observation/recovery. The Docker Runtime Agent owns Update Controller launch and other Docker side effects.
+Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server socket mount is retained only for Runtime Target discovery/summary, Container snapshot/resource/log/stream/event/stats and interactive reads, Deployment Runtime's current-server Docker facts, and bounded Update observation/recovery. The Docker Runtime Agent owns Update Controller launch and other Docker side effects.
 
 ## 2. Preserve Existing Data
 
