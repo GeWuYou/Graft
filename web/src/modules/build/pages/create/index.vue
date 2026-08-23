@@ -343,13 +343,8 @@ async function loadSelectorOptions() {
   await Promise.all([loadSnapshots(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
 }
 
-async function loadSnapshots(reset = false) {
-  if (snapshotLoading.value || (!reset && !snapshotHasMore.value && snapshotOptions.value.length > 0)) return;
-  if (reset) {
-    snapshotOffset.value = 0;
-    snapshotTotal.value = undefined;
-    snapshotOptions.value = [];
-  }
+async function loadSnapshots() {
+  if (snapshotLoading.value || (!snapshotHasMore.value && snapshotOptions.value.length > 0)) return;
   snapshotLoading.value = true;
   snapshotError.value = '';
   const requestOffset = snapshotOffset.value;
