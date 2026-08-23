@@ -123,6 +123,7 @@ func extractInputArchive(data []byte) (string, error) {
 			_ = os.RemoveAll(root)
 		}
 	}()
+	var expandedStream *countingReader
 	if len(data) >= 2 && data[0] == 'P' && data[1] == 'K' {
 		err = extractZip(root, data)
 	} else {
@@ -132,20 +133,32 @@ func extractInputArchive(data []byte) (string, error) {
 			if gzipErr != nil {
 				return "", invalidInputSnapshotUpload("invalid TAR.GZ archive")
 			}
-			decompressed, readErr := io.ReadAll(io.LimitReader(gzipReader, maxInputSnapshotExpandedBytes+1))
-			_ = gzipReader.Close()
-			if readErr != nil || int64(len(decompressed)) > maxInputSnapshotExpandedBytes {
-				return "", invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
-			}
-			payload = bytes.NewReader(decompressed)
+			// 直接将解压流交给 TAR reader；写入端按实际字节执行展开配额，避免再复制一份完整归档。
+			defer func() { _ = gzipReader.Close() }()
+			expandedStream = &countingReader{Reader: io.LimitReader(gzipReader, maxInputSnapshotExpandedBytes+1)}
+			payload = expandedStream
 		}
 		err = extractTarReader(root, payload)
+	}
+	if expandedStream != nil && expandedStream.n > maxInputSnapshotExpandedBytes {
+		return "", invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 	}
 	if err != nil {
 		return "", err
 	}
 	failed = false
 	return root, nil
+}
+
+type countingReader struct {
+	io.Reader
+	n int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.n += int64(n)
+	return n, err
 }
 
 //nolint:gocognit,gocyclo,cyclop // ZIP 条目逐项校验路径、类型、去重和解压配额。
@@ -250,7 +263,7 @@ func extractTarReader(root string, payload io.Reader) error {
 
 func safeArchivePath(name string) (string, error) {
 	name = strings.ReplaceAll(name, "\\", "/")
-	if name == "" || strings.ContainsRune(name, 0) || strings.HasPrefix(name, "/") || filepath.IsAbs(name) {
+	if invalidArchivePath(name) {
 		return "", invalidInputSnapshotUpload("input snapshot archive contains an absolute path")
 	}
 	clean := path.Clean(name)
@@ -258,6 +271,14 @@ func safeArchivePath(name string) (string, error) {
 		return "", invalidInputSnapshotUpload("input snapshot archive contains a path traversal")
 	}
 	return clean, nil
+}
+
+func invalidArchivePath(name string) bool {
+	return name == "" || strings.ContainsRune(name, 0) || strings.HasPrefix(name, "/") || filepath.IsAbs(name) || filepath.VolumeName(name) != "" || hasDrivePrefix(name)
+}
+
+func hasDrivePrefix(name string) bool {
+	return len(name) >= 2 && name[1] == ':'
 }
 
 func writeArchiveFile(root, rel string, opener func() (io.ReadCloser, error), mode os.FileMode, limit int64) (int64, error) {
