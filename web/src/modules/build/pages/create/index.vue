@@ -57,6 +57,17 @@
                   :placeholder="t('build.jobs.create.snapshotPlaceholder')"
                   clearable
                 />
+                <t-button
+                  v-if="snapshotHasMore"
+                  data-testid="build-load-more-snapshots"
+                  class="build-create-page__load-more"
+                  variant="text"
+                  :loading="snapshotLoading"
+                  :disabled="snapshotLoading"
+                  @click="loadSnapshots()"
+                >
+                  {{ t('components.commonTable.more') }}
+                </t-button>
               </t-form-item>
             </div>
             <div class="build-create-page__section-feedback">
@@ -304,9 +315,12 @@ const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
   }));
 });
 const snapshotLoading = ref(false);
+const snapshotOffset = ref(0);
+const snapshotTotal = ref<number>();
 const runtimeTargetLoading = ref(false);
 const builderPoolLoading = ref(false);
 const snapshotError = ref('');
+const snapshotHasMore = computed(() => snapshotTotal.value !== undefined && snapshotOffset.value < snapshotTotal.value);
 const runtimeTargetError = ref('');
 const builderPoolError = ref('');
 const destinationLoading = ref(false);
@@ -329,12 +343,20 @@ async function loadSelectorOptions() {
   await Promise.all([loadSnapshots(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
 }
 
-async function loadSnapshots() {
+async function loadSnapshots(reset = false) {
+  if (snapshotLoading.value || (!reset && !snapshotHasMore.value && snapshotOptions.value.length > 0)) return;
+  if (reset) {
+    snapshotOffset.value = 0;
+    snapshotTotal.value = undefined;
+    snapshotOptions.value = [];
+  }
   snapshotLoading.value = true;
   snapshotError.value = '';
+  const requestOffset = snapshotOffset.value;
+  const requestLimit = 100;
   try {
-    const snapshots = await getBuildInputSnapshots({ limit: 100, offset: 0 });
-    const unique = new Map<string, SelectorOption>();
+    const snapshots = await getBuildInputSnapshots({ limit: requestLimit, offset: requestOffset });
+    const unique = new Map(snapshotOptions.value.map((option) => [String(option.value), option]));
     for (const item of snapshots.items ?? []) {
       if (!item.snapshot_id || unique.has(item.snapshot_id)) continue;
       unique.set(item.snapshot_id, {
@@ -343,6 +365,8 @@ async function loadSnapshots() {
       });
     }
     snapshotOptions.value = [...unique.values()];
+    snapshotTotal.value = snapshots.total;
+    snapshotOffset.value = (snapshots.offset ?? requestOffset) + (snapshots.limit ?? requestLimit);
   } catch (error) {
     snapshotError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.snapshotLoadFailed'));
   } finally {

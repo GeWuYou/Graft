@@ -1,0 +1,39 @@
+migration:
+  path: server/modules/build/migrations/202608230003_build_workspace_snapshot_access.sql
+  version: '202608230003'
+owner: build
+risk_level: L2
+affected_tables:
+  - build_workspace_snapshot_access
+referenced_tables:
+  - build_workspace_snapshots
+  - users
+operation_categories:
+  - additive_schema
+historical_data_assumptions:
+  - build_workspace_snapshots and users already exist in the live migration chain
+planned_upgrade_order:
+  - apply after build_workspace_snapshots is available
+safety_strategy:
+  duplicate_scan: No existing access rows exist because this is a new table.
+  live_reference_scan: Verify all existing snapshot and user references are valid before apply.
+  reconcile_or_abort: Abort if referenced snapshot or user rows are missing.
+  post_migration_invariant: Each live snapshot-user pair has at most one access relation.
+  reference_impact: Existing snapshot rows are unchanged.
+  recovery_or_retirement_rationale: The relation is additive and can be retired only by an explicit authority decision.
+validation_scenarios:
+  - verify duplicate live user access is rejected by the partial unique index
+  - verify soft-deleted access can be recreated
+preflight_checks:
+  - name: referenced-tables
+    query: SELECT 1
+    must_equal: 1
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-001

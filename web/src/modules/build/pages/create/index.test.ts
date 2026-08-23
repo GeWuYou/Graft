@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import BuildCreatePage from './index.vue';
 
@@ -116,6 +116,9 @@ describe('BuildCreatePage', () => {
           source_kind: 'uploaded_archive',
         },
       ],
+      total: 1,
+      limit: 100,
+      offset: 0,
     });
     mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
     mocks.getBuildBuilderPools.mockResolvedValue({ items: [] });
@@ -161,5 +164,36 @@ describe('BuildCreatePage', () => {
     expect(mocks.uploadBuildInputSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.createBuildJob.mock.invocationCallOrder[0],
     );
+  });
+
+  it('loads more snapshots with the next page and keeps unique options', async () => {
+    mocks.getBuildInputSnapshots
+      .mockResolvedValueOnce({
+        items: [
+          { snapshot_id: 'snap-1', content_digest: 'sha256:abc', source_kind: 'uploaded_archive' },
+          { snapshot_id: 'snap-2', content_digest: 'sha256:def', source_kind: 'uploaded_archive' },
+        ],
+        total: 101,
+        limit: 100,
+        offset: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          { snapshot_id: 'snap-2', content_digest: 'sha256:def', source_kind: 'uploaded_archive' },
+          { snapshot_id: 'snap-3', content_digest: 'sha256:ghi', source_kind: 'uploaded_archive' },
+        ],
+        total: 101,
+        limit: 100,
+        offset: 100,
+      });
+    const wrapper = mountPage();
+    await flushPromises();
+    (wrapper.vm as any).sourceMode = 'reuse';
+    await nextTick();
+    await wrapper.get('[data-testid="build-load-more-snapshots"]').trigger('click');
+    await flushPromises();
+    expect(mocks.getBuildInputSnapshots).toHaveBeenNthCalledWith(2, { limit: 100, offset: 100 });
+    expect(wrapper.findAll('select')[0].findAll('option')).toHaveLength(3);
+    expect(wrapper.find('[data-testid="build-load-more-snapshots"]').exists()).toBe(false);
   });
 });

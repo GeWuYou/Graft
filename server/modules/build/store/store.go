@@ -623,18 +623,64 @@ func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshotID
 	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" || strings.TrimSpace(contentDigest) == "" || strings.TrimSpace(materializationRef) == "" {
 		return moduleapi.WorkspaceSnapshot{}, errors.New("invalid build input snapshot")
 	}
+	return r.createBuildInputSnapshotTx(ctx, inputSnapshotCreateParams{snapshotID: snapshotID, sourceReference: sourceReference, contentDigest: contentDigest, materializationRef: materializationRef, requestedBy: requestedBy})
+}
+
+type inputSnapshotCreateParams struct {
+	snapshotID, sourceReference, contentDigest, materializationRef string
+	requestedBy                                                    uint64
+}
+
+func (r *SQLRepository) createBuildInputSnapshotTx(ctx context.Context, params inputSnapshotCreateParams) (moduleapi.WorkspaceSnapshot, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("begin create build input snapshot: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	existing, err := insertBuildInputSnapshot(ctx, tx, params)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, err
+	}
+	if err := grantBuildInputSnapshotAccess(ctx, tx, existing.ID, params.requestedBy); err != nil {
+		return moduleapi.WorkspaceSnapshot{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("commit build input snapshot: %w", err)
+	}
+	committed = true
+	return existing, nil
+}
+
+func insertBuildInputSnapshot(ctx context.Context, tx *sql.Tx, params inputSnapshotCreateParams) (moduleapi.WorkspaceSnapshot, error) {
 	var existing moduleapi.WorkspaceSnapshot
-	err := r.db.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
 VALUES ($1,$2,$3,$4,$5,'build','available','snapshot_lifetime',NOW() + INTERVAL '24 hours',$6)
 ON CONFLICT (content_digest) DO UPDATE SET
   materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_state ELSE 'available' END,
   materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
   retention_expires_at = GREATEST(COALESCE(build_workspace_snapshots.retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
-	RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshotID, moduleapi.WorkspaceSourceArchive, sourceReference, contentDigest, materializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
+	RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, params.snapshotID, moduleapi.WorkspaceSourceArchive, params.sourceReference, params.contentDigest, params.materializationRef, nullableUint64(params.requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("create build input snapshot: %w", err)
 	}
 	return existing, nil
+}
+
+func grantBuildInputSnapshotAccess(ctx context.Context, tx *sql.Tx, snapshotID string, requestedBy uint64) error {
+	if requestedBy == 0 {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO build_workspace_snapshot_access (workspace_snapshot_id, user_id, created_by)
+SELECT id, $2, $2 FROM build_workspace_snapshots WHERE snapshot_id = $1
+ON CONFLICT (workspace_snapshot_id, user_id) WHERE deleted_at = 0 DO NOTHING`, snapshotID, requestedBy); err != nil {
+		return fmt.Errorf("grant build input snapshot access: %w", err)
+	}
+	return nil
 }
 
 // GetBuildInputSnapshot 返回仍可用于新 Build 的 Snapshot；已清理物化内容的身份
@@ -646,7 +692,7 @@ func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID st
 	var snapshot moduleapi.WorkspaceSnapshot
 	err := r.db.QueryRowContext(ctx, `UPDATE build_workspace_snapshots
 SET retention_expires_at = GREATEST(COALESCE(retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
-WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND ($2 = 0 OR created_by = $2)
+WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND ($2 = 0 OR EXISTS (SELECT 1 FROM build_workspace_snapshot_access a WHERE a.workspace_snapshot_id = build_workspace_snapshots.id AND a.user_id = $2 AND a.deleted_at = 0))
 RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, strings.TrimSpace(snapshotID), nullableUint64(requestedBy)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
@@ -666,7 +712,7 @@ func (r *SQLRepository) ListBuildInputSnapshots(ctx context.Context, requestedBy
 	}
 	const predicate = `FROM build_workspace_snapshots
 WHERE materialization_owner = 'build' AND materialization_state = 'available'
-  AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND created_by = $1`
+  AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND EXISTS (SELECT 1 FROM build_workspace_snapshot_access a WHERE a.workspace_snapshot_id = build_workspace_snapshots.id AND a.user_id = $1 AND a.deleted_at = 0)`
 	var total int64
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) `+predicate, requestedBy).Scan(&total); err != nil {
 		return InputSnapshotListResult{}, fmt.Errorf("count build input snapshots: %w", err)
