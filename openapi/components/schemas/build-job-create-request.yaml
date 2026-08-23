@@ -1,7 +1,7 @@
 type: object
-required: [workspace_id, template_ref, driver, destination]
+required: [input_snapshot_id, template_ref, driver, destination]
 properties:
-  workspace_id:
+  input_snapshot_id:
     type: string
     minLength: 1
     maxLength: 64

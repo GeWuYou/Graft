@@ -6,9 +6,6 @@
       },
       "jobs": {
         "title": "Build Jobs"
-      },
-      "workspaces": {
-        "title": "Build Workspaces"
       }
     }
   },
@@ -45,13 +42,11 @@
       "emptyFilteredDescription": "Adjust the filters and try again.",
       "loadFailed": "Unable to load build jobs.",
       "filters": {
-        "application": "Application",
         "repository": "Repository",
         "imageTag": "Image tag",
         "status": "Status",
         "builder": "Builder",
         "createdTime": "Created time",
-        "applicationId": "Application ID",
         "all": "All",
         "createdAfter": "Created after",
         "createdBefore": "Created before",
@@ -61,7 +56,7 @@
       },
       "columns": {
         "build": "Build",
-        "application": "Application",
+        "snapshot": "Input Snapshot",
         "image": "Image",
         "repository": "Repository",
         "imageTag": "Image tag",
@@ -107,7 +102,7 @@
         "sections": {
           "source": {
             "title": "Build source",
-            "description": "Select the authorized workspace for this build."
+            "description": "Upload an archive or reuse an available Input Snapshot."
           },
           "execution": {
             "title": "Execution configuration",
@@ -122,13 +117,17 @@
         "submit": "Submit build",
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",
-        "workspace": "Workspace",
-        "workspaceId": "Workspace ID",
-        "workspaceIdRequired": "Workspace ID is required.",
-        "workspacePlaceholder": "Select a Build workspace",
-        "createWorkspace": "Create Build workspace",
-        "workspaceEmpty": "No build workspace is available. Create one or check its sharing scope.",
-        "workspaceLoadFailed": "Unable to load build workspaces.",
+        "sourceMode": "Build input",
+        "uploadArchive": "Upload archive",
+        "reuseSnapshot": "Reuse existing Input Snapshot",
+        "archive": "Archive",
+        "archivePlaceholder": "Choose a ZIP, TAR, or TAR.GZ containing a root Dockerfile",
+        "archiveRequired": "Choose an archive before submitting.",
+        "snapshot": "Input Snapshot",
+        "snapshotRequired": "Select an Input Snapshot.",
+        "snapshotPlaceholder": "Select an available Input Snapshot",
+        "snapshotEmpty": "No reusable Input Snapshot is available yet.",
+        "snapshotLoadFailed": "Unable to load reusable Input Snapshots.",
         "runtimeTarget": "Build runtime target",
         "runtimeTargetRequired": "Build runtime target is required.",
         "runtimeTargetPlaceholder": "Select a build-capable Runtime Target",
@@ -177,47 +176,6 @@
         "addRegistry": "Add Image Registry",
         "tag": "Image tag",
         "tagRequired": "Image tag is required."
-      }
-    },
-    "workspaces": {
-      "title": "Build Workspaces",
-      "eyebrow": "Build",
-      "description": "Register reusable application workspace sources for build jobs.",
-      "refresh": "Refresh",
-      "retry": "Retry",
-      "summary": "{count} workspaces",
-      "empty": "No Build workspaces yet",
-      "emptyDescription": "Create a workspace before selecting an application source for a build job.",
-      "loadFailed": "Unable to load Build workspaces.",
-      "applicationLoadFailed": "Unable to load source applications; the original workspace reference is retained.",
-      "applicationUnavailable": "Application #{id} / unavailable account",
-      "sourceKinds": {
-        "application_workspace": "Application workspace"
-      },
-      "columns": {
-        "name": "Name",
-        "sourceKind": "Source type",
-        "sourceApplication": "Source application",
-        "retentionPolicy": "Retention policy",
-        "createdAt": "Created",
-        "updatedAt": "Updated"
-      },
-      "create": {
-        "title": "Create Build workspace",
-        "description": "Register a reusable source from an existing application; the server owns the frozen workspace facts used by Build.",
-        "name": "Workspace name",
-        "namePlaceholder": "For example: Orders service build source",
-        "nameRequired": "Workspace name is required.",
-        "application": "Source application",
-        "applicationPlaceholder": "Select an existing application",
-        "applicationHelp": "Only applications available to the current account can be selected; the server resolves the source path.",
-        "applicationRequired": "Select a source application.",
-        "applicationEmpty": "No applications are available. Create one or check application access.",
-        "applicationLoadFailed": "Unable to load available applications.",
-        "manageApplications": "Manage applications",
-        "back": "Back to Build Workspaces",
-        "submit": "Create workspace",
-        "submitFailed": "Unable to create Build workspace."
       }
     }
   }

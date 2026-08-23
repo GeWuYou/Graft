@@ -42,41 +42,28 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group("/build")
 	group.Use(httpx.RequestIDMiddleware())
-	group.POST("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
-		var request openapigen.PostBuildWorkspaceJSONRequestBody
-		if err := c.ShouldBindJSON(&request); err != nil {
+	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
+		var request openapigen.PostBuildInputSnapshotMultipartRequestBody
+		if err := c.ShouldBind(&request); err != nil || request.Archive.FileSize() == 0 {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		requestedBy := uint64(0)
-		if requestAuth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context()); ok && requestAuth.User != nil {
-			requestedBy = requestAuth.User.ID
+		file, err := request.Archive.Reader()
+		if err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
 		}
-		workspace, createErr := service.CreateWorkspace(c.Request.Context(), request.Name, string(request.SourceKind), request.SourceReference, requestedBy)
+		defer func() { _ = file.Close() }()
+		snapshot, createErr := service.CreateInputSnapshot(c.Request.Context(), InputSnapshotUpload{Archive: file, Size: request.Archive.FileSize(), UserID: requestUserID(c)})
 		if createErr != nil {
-			status, key := http.StatusInternalServerError, "common.internalError"
-			if errors.Is(createErr, errInvalidBuildRequest) || strings.Contains(createErr.Error(), "unsupported") {
-				status, key = http.StatusBadRequest, "common.invalidArgument"
-			} else if errors.Is(createErr, buildstore.ErrConflict) {
-				status, key = http.StatusConflict, "common.invalidArgument"
+			status := http.StatusBadRequest
+			if !errors.Is(createErr, errInvalidBuildRequest) && !strings.Contains(createErr.Error(), "archive") && !strings.Contains(createErr.Error(), "Dockerfile") && !strings.Contains(createErr.Error(), "snapshot") {
+				status = http.StatusInternalServerError
 			}
-			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
+			httpx.WriteLocalizedError(c, ctx.I18n, status, "common.invalidArgument", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusCreated, toBuildWorkspace(workspace))
-	})
-	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
-		query, ok := buildWorkspaceListQuery(c)
-		if !ok {
-			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
-			return
-		}
-		result, listErr := service.ListWorkspaces(c.Request.Context(), requestUserID(c), query)
-		if listErr != nil {
-			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
-			return
-		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildWorkspaceList{Items: mapBuildWorkspaces(result.Items), Total: result.Total, Limit: query.Limit, Offset: query.Offset})
+		httpx.WriteSuccess(c, http.StatusCreated, gin.H{"snapshot_id": snapshot.ID, "source_kind": snapshot.SourceKind, "content_digest": snapshot.ContentDigest, "lifecycle_state": "available"})
 	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
@@ -147,7 +134,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		if strings.TrimSpace(request.WorkspaceId) == "" {
+		if strings.TrimSpace(request.InputSnapshotId) == "" {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -167,7 +154,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		if request.BuilderPoolId != nil {
 			builderPoolID = *request.BuilderPoolId
 		}
-		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{WorkspaceID: request.WorkspaceId, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
+		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{InputSnapshotID: request.InputSnapshotId, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
 		if submitErr != nil {
 			status, key := http.StatusInternalServerError, "common.internalError"
 			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {
@@ -277,29 +264,12 @@ func buildPaginationQuery(c *gin.Context) (buildstore.ListQuery, bool) {
 	return query, true
 }
 
-func buildWorkspaceListQuery(c *gin.Context) (buildstore.WorkspaceListQuery, bool) {
-	pagination, ok := buildPaginationQuery(c)
-	if !ok {
-		return buildstore.WorkspaceListQuery{}, false
-	}
-	search, ok := buildExactStringQuery(c, "search")
-	if !ok {
-		return buildstore.WorkspaceListQuery{}, false
-	}
-	return buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset, Search: search}, true
-}
-
 func bindBuildHistoryFilters(c *gin.Context, query *buildstore.ListQuery) bool {
 	search, ok := buildExactStringQuery(c, "search")
 	if !ok {
 		return false
 	}
 	query.Search = search
-	applicationID, ok := buildApplicationIDQuery(c)
-	if !ok {
-		return false
-	}
-	query.ApplicationID = applicationID
 	imageRepository, ok := buildExactStringQuery(c, "image_repository")
 	if !ok {
 		return false
@@ -354,18 +324,6 @@ func buildUint64Query(c *gin.Context, key string) (*uint64, bool) {
 	}
 	value, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
 	if err != nil || value == 0 {
-		return nil, false
-	}
-	return &value, true
-}
-
-func buildApplicationIDQuery(c *gin.Context) (*string, bool) {
-	raw, present := c.GetQuery("application_id")
-	if !present {
-		return nil, true
-	}
-	value := strings.TrimSpace(raw)
-	if value == "" {
 		return nil, false
 	}
 	return &value, true

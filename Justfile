@@ -28,6 +28,7 @@ help:
       '  just migration-check   Run the full migration governance gate' \
       '  just compose-up        Start repository Docker Compose services' \
       '  just compose-down      Stop repository Docker Compose services' \
+      '  just ensure-openapi-bundle Ensure the generated OpenAPI bundle exists and is fresh' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
       '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness'
 
@@ -49,10 +50,12 @@ web:
     cd web && bun run dev
 
 check:
+    just ensure-openapi-bundle
     cd server && go run ./cmd/graft validate backend
     cd web && bun run check
 
 check-server:
+    just ensure-openapi-bundle
     cd server && go run ./cmd/graft validate backend
 
 check-web:
@@ -149,14 +152,18 @@ compose-up:
 compose-down:
     docker compose down
 
+ensure-openapi-bundle:
+    node scripts/ensure-openapi-bundle.mjs
+
 generate:
-    node scripts/openapi-bundle.mjs
+    just ensure-openapi-bundle
     node scripts/openapi-runtime-paths.mjs
     cd server && go generate ./...
     cd web && bun run openapi:types
     cd server && go run ./internal/contract/projection/cmd/projectiongen
 
 openapi-check:
+    just ensure-openapi-bundle
     cd server && go run ./cmd/graft validate openapi
     node scripts/openapi-runtime-paths.mjs --check
     cd web && bun run openapi:types:check

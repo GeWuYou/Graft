@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -1853,6 +1854,42 @@ func (e BuildBuilderPoolSchedulingPolicy) Valid() bool {
 	}
 }
 
+// Defines values for BuildInputSnapshotLifecycleState.
+const (
+	BuildInputSnapshotLifecycleStateAvailable BuildInputSnapshotLifecycleState = "available"
+	BuildInputSnapshotLifecycleStateExpired   BuildInputSnapshotLifecycleState = "expired"
+	BuildInputSnapshotLifecycleStatePurged    BuildInputSnapshotLifecycleState = "purged"
+)
+
+// Valid indicates whether the value is a known member of the BuildInputSnapshotLifecycleState enum.
+func (e BuildInputSnapshotLifecycleState) Valid() bool {
+	switch e {
+	case BuildInputSnapshotLifecycleStateAvailable:
+		return true
+	case BuildInputSnapshotLifecycleStateExpired:
+		return true
+	case BuildInputSnapshotLifecycleStatePurged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BuildInputSnapshotSourceKind.
+const (
+	UploadedArchive BuildInputSnapshotSourceKind = "uploaded_archive"
+)
+
+// Valid indicates whether the value is a known member of the BuildInputSnapshotSourceKind enum.
+func (e BuildInputSnapshotSourceKind) Valid() bool {
+	switch e {
+	case UploadedArchive:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BuildJobCreateRequestDestinationKind.
 const (
 	BuildJobCreateRequestDestinationKindOciRegistry BuildJobCreateRequestDestinationKind = "oci_registry"
@@ -1922,36 +1959,6 @@ func (e BuildStatusFilter) Valid() bool {
 	case BuildStatusFilterRunning:
 		return true
 	case BuildStatusFilterSuccess:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for BuildWorkspaceSourceKind.
-const (
-	BuildWorkspaceSourceKindApplicationWorkspace BuildWorkspaceSourceKind = "application_workspace"
-)
-
-// Valid indicates whether the value is a known member of the BuildWorkspaceSourceKind enum.
-func (e BuildWorkspaceSourceKind) Valid() bool {
-	switch e {
-	case BuildWorkspaceSourceKindApplicationWorkspace:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for BuildWorkspaceCreateRequestSourceKind.
-const (
-	BuildWorkspaceCreateRequestSourceKindApplicationWorkspace BuildWorkspaceCreateRequestSourceKind = "application_workspace"
-)
-
-// Valid indicates whether the value is a known member of the BuildWorkspaceCreateRequestSourceKind enum.
-func (e BuildWorkspaceCreateRequestSourceKind) Valid() bool {
-	switch e {
-	case BuildWorkspaceCreateRequestSourceKindApplicationWorkspace:
 		return true
 	default:
 		return false
@@ -5287,19 +5294,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case SystemConfigItemRuntimeApplyModeRestartRequired:
+	case RestartRequired:
 		return true
-	case SystemConfigItemRuntimeApplyModeRuntimeHot:
+	case RuntimeHot:
 		return true
-	case SystemConfigItemRuntimeApplyModeUnknown:
+	case Unknown:
 		return true
 	default:
 		return false
@@ -8504,6 +8511,26 @@ type BuildBuilderSnapshot struct {
 	Provider string `json:"provider"`
 }
 
+// BuildInputSnapshot defines model for build-input-snapshot.
+type BuildInputSnapshot struct {
+	ContentDigest  string                           `json:"content_digest"`
+	LifecycleState BuildInputSnapshotLifecycleState `json:"lifecycle_state"`
+	SnapshotId     string                           `json:"snapshot_id"`
+	SourceKind     BuildInputSnapshotSourceKind     `json:"source_kind"`
+}
+
+// BuildInputSnapshotLifecycleState defines model for BuildInputSnapshot.LifecycleState.
+type BuildInputSnapshotLifecycleState string
+
+// BuildInputSnapshotSourceKind defines model for BuildInputSnapshot.SourceKind.
+type BuildInputSnapshotSourceKind string
+
+// BuildInputSnapshotUploadRequest defines model for build-input-snapshot-upload-request.
+type BuildInputSnapshotUploadRequest struct {
+	// Archive ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
+	Archive openapi_types.File `json:"archive"`
+}
+
 // BuildJobArtifact defines model for build-job-artifact.
 type BuildJobArtifact struct {
 	ArtifactId string  `json:"artifact_id"`
@@ -8527,7 +8554,8 @@ type BuildJobCreateRequest struct {
 	} `json:"destination"`
 
 	// Driver docker-buildx@v1 is required when platforms contains more than one platform.
-	Driver BuildJobCreateRequestDriver `json:"driver"`
+	Driver          BuildJobCreateRequestDriver `json:"driver"`
+	InputSnapshotId string                      `json:"input_snapshot_id"`
 
 	// Platforms A multi-platform request requires docker-buildx@v1 and a Builder Pool so Build can freeze one placement per platform.
 	Platforms *[]string `json:"platforms,omitempty"`
@@ -8535,7 +8563,6 @@ type BuildJobCreateRequest struct {
 	// RuntimeTargetId Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
 	RuntimeTargetId *int64                           `json:"runtime_target_id,omitempty"`
 	TemplateRef     BuildJobCreateRequestTemplateRef `json:"template_ref"`
-	WorkspaceId     string                           `json:"workspace_id"`
 }
 
 // BuildJobCreateRequestDestinationKind defines model for BuildJobCreateRequest.Destination.Kind.
@@ -8550,8 +8577,8 @@ type BuildJobCreateRequestTemplateRef string
 // BuildJobDetail defines model for build-job-detail.
 type BuildJobDetail struct {
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId     `json:"application_id"`
-	ApplicationName string            `json:"application_name"`
+	ApplicationId   *ApplicationId    `json:"application_id,omitempty"`
+	ApplicationName *string           `json:"application_name,omitempty"`
 	Artifact        *BuildJobArtifact `json:"artifact,omitempty"`
 	BuildArgs       []struct {
 		Name  string `json:"name"`
@@ -8561,16 +8588,19 @@ type BuildJobDetail struct {
 
 	// Builder Runtime target snapshot frozen when the Build job was submitted.
 	Builder        BuildBuilderSnapshot `json:"builder"`
-	ContextPath    string               `json:"context_path"`
+	ContextPath    *string              `json:"context_path,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
-	DockerfilePath string               `json:"dockerfile_path"`
+	DockerfilePath *string              `json:"dockerfile_path,omitempty"`
 
 	// Execution Task Runtime execution projection for a Build job.
-	Execution       BuildTaskExecution `json:"execution"`
-	ImageRepository string             `json:"image_repository"`
-	ImageTag        string             `json:"image_tag"`
-	RuntimeProvider string             `json:"runtime_provider"`
-	TaskId          int64              `json:"task_id"`
+	Execution           BuildTaskExecution `json:"execution"`
+	ImageRepository     *string            `json:"image_repository,omitempty"`
+	ImageTag            *string            `json:"image_tag,omitempty"`
+	InputSnapshotDigest string             `json:"input_snapshot_digest"`
+	InputSnapshotId     string             `json:"input_snapshot_id"`
+	RuntimeProvider     string             `json:"runtime_provider"`
+	SourceKind          string             `json:"source_kind"`
+	TaskId              int64              `json:"task_id"`
 }
 
 // BuildJobList defines model for build-job-list.
@@ -8584,22 +8614,25 @@ type BuildJobList struct {
 // BuildJobSummary defines model for build-job-summary.
 type BuildJobSummary struct {
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId     `json:"application_id"`
-	ApplicationName string            `json:"application_name"`
+	ApplicationId   *ApplicationId    `json:"application_id,omitempty"`
+	ApplicationName *string           `json:"application_name,omitempty"`
 	Artifact        *BuildJobArtifact `json:"artifact,omitempty"`
 	BuildId         string            `json:"build_id"`
 
 	// Builder Runtime target snapshot frozen when the Build job was submitted.
 	Builder        BuildBuilderSnapshot `json:"builder"`
-	ContextPath    string               `json:"context_path"`
+	ContextPath    *string              `json:"context_path,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
-	DockerfilePath string               `json:"dockerfile_path"`
+	DockerfilePath *string              `json:"dockerfile_path,omitempty"`
 
 	// Execution Task Runtime execution projection for a Build job.
-	Execution       BuildTaskExecution `json:"execution"`
-	ImageRepository string             `json:"image_repository"`
-	ImageTag        string             `json:"image_tag"`
-	TaskId          int64              `json:"task_id"`
+	Execution           BuildTaskExecution `json:"execution"`
+	ImageRepository     *string            `json:"image_repository,omitempty"`
+	ImageTag            *string            `json:"image_tag,omitempty"`
+	InputSnapshotDigest string             `json:"input_snapshot_digest"`
+	InputSnapshotId     string             `json:"input_snapshot_id"`
+	SourceKind          string             `json:"source_kind"`
+	TaskId              int64              `json:"task_id"`
 }
 
 // BuildRuntimeTarget defines model for build-runtime-target.
@@ -8636,38 +8669,6 @@ type BuildTaskExecution struct {
 
 	// Status Canonical persisted Task state-machine state.
 	Status TaskStatus `json:"status"`
-}
-
-// BuildWorkspace defines model for build-workspace.
-type BuildWorkspace struct {
-	CreatedAt       time.Time                `json:"created_at"`
-	Name            string                   `json:"name"`
-	RetentionPolicy string                   `json:"retention_policy"`
-	SourceKind      BuildWorkspaceSourceKind `json:"source_kind"`
-	SourceReference string                   `json:"source_reference"`
-	UpdatedAt       time.Time                `json:"updated_at"`
-	WorkspaceId     string                   `json:"workspace_id"`
-}
-
-// BuildWorkspaceSourceKind defines model for BuildWorkspace.SourceKind.
-type BuildWorkspaceSourceKind string
-
-// BuildWorkspaceCreateRequest defines model for build-workspace-create-request.
-type BuildWorkspaceCreateRequest struct {
-	Name            string                                `json:"name"`
-	SourceKind      BuildWorkspaceCreateRequestSourceKind `json:"source_kind"`
-	SourceReference string                                `json:"source_reference"`
-}
-
-// BuildWorkspaceCreateRequestSourceKind defines model for BuildWorkspaceCreateRequest.SourceKind.
-type BuildWorkspaceCreateRequestSourceKind string
-
-// BuildWorkspaceList defines model for build-workspace-list.
-type BuildWorkspaceList struct {
-	Items  []BuildWorkspace `json:"items"`
-	Limit  int              `json:"limit"`
-	Offset int              `json:"offset"`
-	Total  int64            `json:"total"`
 }
 
 // CapabilityCategory defines model for capability-category.
@@ -10797,6 +10798,11 @@ type EnvelopedBuildArtifactList struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedBuildInputSnapshot defines model for enveloped-build-input-snapshot.
+type EnvelopedBuildInputSnapshot struct {
+	Data BuildInputSnapshot `json:"data"`
+}
+
 // EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
 type EnvelopedBuildJobDetail struct {
 	// Code Existing canonical response code.
@@ -10822,26 +10828,6 @@ type EnvelopedBuildJobList struct {
 	// Code Existing canonical response code.
 	Code string       `json:"code"`
 	Data BuildJobList `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedBuildWorkspace defines model for enveloped-build-workspace.
-type EnvelopedBuildWorkspace struct {
-	// Code Existing canonical response code.
-	Code string         `json:"code"`
-	Data BuildWorkspace `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -16525,10 +16511,7 @@ type GetBuildJobsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 
-	// ApplicationId Optional exact Build snapshot public application identifier.
-	ApplicationId *ApplicationId `form:"application_id,omitempty" json:"application_id,omitempty"`
-
-	// Search Optional case-insensitive search over Build ID, application name, repository, and image tag.
+	// Search Optional case-insensitive search over Build ID, Snapshot digest, repository, and image tag.
 	Search *string `form:"search,omitempty" json:"search,omitempty"`
 
 	// ImageRepository Optional exact Build snapshot image repository.
@@ -16564,22 +16547,6 @@ type PostBuildJobParams struct {
 
 // GetBuildJobParams defines parameters for GetBuildJob.
 type GetBuildJobParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetBuildWorkspacesParams defines parameters for GetBuildWorkspaces.
-type GetBuildWorkspacesParams struct {
-	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
-
-	// Search Optional case-insensitive search over Workspace name, identifier, and source reference.
-	Search *string `form:"search,omitempty" json:"search,omitempty"`
-
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19313,11 +19280,11 @@ type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequ
 // PostBuildArtifactPromotionJSONRequestBody defines body for PostBuildArtifactPromotion for application/json ContentType.
 type PostBuildArtifactPromotionJSONRequestBody = BuildArtifactPromotionCreateRequest
 
+// PostBuildInputSnapshotMultipartRequestBody defines body for PostBuildInputSnapshot for multipart/form-data ContentType.
+type PostBuildInputSnapshotMultipartRequestBody = BuildInputSnapshotUploadRequest
+
 // PostBuildJobJSONRequestBody defines body for PostBuildJob for application/json ContentType.
 type PostBuildJobJSONRequestBody = BuildJobCreateRequest
-
-// PostBuildWorkspaceJSONRequestBody defines body for PostBuildWorkspace for application/json ContentType.
-type PostBuildWorkspaceJSONRequestBody = BuildWorkspaceCreateRequest
 
 // PostDockerImageSavedViewJSONRequestBody defines body for PostDockerImageSavedView for application/json ContentType.
 type PostDockerImageSavedViewJSONRequestBody = SavedViewRequest

@@ -25,14 +25,14 @@ import (
 func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	context, _ := gin.CreateTestContext(httptest.NewRecorder())
-	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&search=release&application_id=app_01JZ5R6M7N8P9Q0R1S2T3V4W5X&image_repository=example%2Fapp&image_tag=v1&build_status=running&builder_id=4&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
+	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&search=release&image_repository=example%2Fapp&image_tag=v1&build_status=running&builder_id=4&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
 	context.Request = request
 
 	query, ok := buildListQuery(context)
 	if !ok {
 		t.Fatal("expected valid Build history query")
 	}
-	if query.Limit != 50 || query.Offset != 100 || query.ApplicationID == nil || *query.ApplicationID != "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X" {
+	if query.Limit != 50 || query.Offset != 100 || query.ApplicationID != nil {
 		t.Fatalf("unexpected pagination or application filter: %#v", query)
 	}
 	if query.ImageRepository == nil || *query.ImageRepository != "example/app" || query.ImageTag == nil || *query.ImageTag != "v1" {
@@ -125,7 +125,7 @@ func TestBuildRoutesUseModuleRouterPrefixExactlyOnce(t *testing.T) {
 
 func TestBuildRoutesRejectInvalidListQuery(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, &recordingBuildRepository{})
-	for _, path := range []string{"/api/build/jobs?limit=0", "/api/build/workspaces?limit=101", "/api/build/workspaces?search=%20"} {
+	for _, path := range []string{"/api/build/jobs?limit=0"} {
 		response := httptest.NewRecorder()
 		engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, path, ""))
 		if response.Code != http.StatusBadRequest {
@@ -135,17 +135,8 @@ func TestBuildRoutesRejectInvalidListQuery(t *testing.T) {
 }
 
 func TestBuildRoutesExposeBuildSelectorReadModels(t *testing.T) {
-	repository := &recordingBuildRepository{workspaces: []moduleapi.BuildWorkspace{{ID: "workspace_app", Name: "Application", SourceKind: moduleapi.WorkspaceSourceApplication, SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"}}}
+	repository := &recordingBuildRepository{}
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
-
-	workspaceResponse := httptest.NewRecorder()
-	engine.ServeHTTP(workspaceResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/workspaces?limit=10&offset=20&search=Application", ""))
-	if workspaceResponse.Code != http.StatusOK || !strings.Contains(workspaceResponse.Body.String(), "workspace_app") || !strings.Contains(workspaceResponse.Body.String(), `"total":1`) || !strings.Contains(workspaceResponse.Body.String(), `"offset":20`) {
-		t.Fatalf("unexpected workspace selector response: status=%d body=%s", workspaceResponse.Code, workspaceResponse.Body.String())
-	}
-	if repository.workspaceQuery.Limit != 10 || repository.workspaceQuery.Offset != 20 || repository.workspaceQuery.Search == nil || *repository.workspaceQuery.Search != "Application" {
-		t.Fatalf("unexpected workspace list query: %#v", repository.workspaceQuery)
-	}
 
 	targetResponse := httptest.NewRecorder()
 	engine.ServeHTTP(targetResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/runtime-targets", ""))
@@ -187,7 +178,7 @@ func TestBuildRoutesMapBadBuildIDAndInternalReadFailureSeparately(t *testing.T) 
 func TestBuildSubmitRouteUsesInternalErrorKeyForRuntimeFailure(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{err: errors.New("task runtime unavailable")}, &recordingBuildRepository{})
 	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/jobs", `{"workspace_id":"workspace_app","runtime_target_id":4,"template_ref":"oci-dockerfile/default@v1","driver":"docker-engine@v1","destination":{"kind":"oci_registry","connection_ref":"registry:default","repository_ref":"team/app","reference":"v1"}}`))
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/jobs", `{"input_snapshot_id":"workspace_app","runtime_target_id":4,"template_ref":"oci-dockerfile/default@v1","driver":"docker-engine@v1","destination":{"kind":"oci_registry","connection_ref":"registry:default","repository_ref":"team/app","reference":"v1"}}`))
 	if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), "common.internalError") {
 		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
 	}

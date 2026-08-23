@@ -65,6 +65,7 @@ type preparedSubmission struct {
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
 	contexts          moduleapi.ApplicationBuildContextResolver
+	inputSnapshots    moduleapi.BuildInputSnapshotReader
 	submissions       moduleapi.TaskSubmissionService
 	taskBatch         moduleapi.TaskBatchQueryService
 	repository        buildstore.Repository
@@ -86,7 +87,14 @@ func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (bui
 	if s == nil || s.repository == nil {
 		return buildstore.ListResult{}, errors.New("build service is unavailable")
 	}
-	result, err := s.repository.ListJobs(ctx, query)
+	reader, hasV2 := s.repository.(buildstore.V2JobReader)
+	var result buildstore.ListResult
+	var err error
+	if hasV2 {
+		result, err = reader.ListV2Jobs(ctx, query)
+	} else {
+		result, err = s.repository.ListJobs(ctx, query)
+	}
 	if err != nil {
 		return buildstore.ListResult{}, err
 	}
@@ -249,7 +257,13 @@ func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobPro
 	if strings.TrimSpace(buildID) == "" {
 		return buildstore.JobProjection{}, errInvalidBuildID
 	}
-	job, err := s.repository.GetJobByBuildID(ctx, buildID)
+	var job buildstore.JobProjection
+	var err error
+	if reader, ok := s.repository.(buildstore.V2JobReader); ok {
+		job, err = reader.GetV2JobByBuildID(ctx, buildID)
+	} else {
+		job, err = s.repository.GetJobByBuildID(ctx, buildID)
+	}
 	if err != nil {
 		return buildstore.JobProjection{}, err
 	}
@@ -358,7 +372,7 @@ func filterSupportedBuilderPools(pools []moduleapi.BuilderPool) []moduleapi.Buil
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
 func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, taskBatch moduleapi.TaskBatchQueryService, repository buildstore.Repository) (*Service, error) {
-	if contexts == nil || submissions == nil || taskBatch == nil || repository == nil {
+	if submissions == nil || taskBatch == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
 	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, repository: repository, intents: newBuiltinBuildIntentRegistry()}, nil

@@ -1,0 +1,22 @@
+post:
+  tags: [build]
+  operationId: postBuildInputSnapshot
+  summary: Upload a Build input snapshot archive
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          $ref: ../components/schemas/build-input-snapshot-upload-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '201':
+      description: Input Snapshot created or reused by content digest.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-build-input-snapshot.yaml }
+    '400': { $ref: ../components/responses/bad-request.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

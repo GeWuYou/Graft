@@ -75,6 +75,7 @@
       :page-size-options="[20, 50, 100]"
       :cell-slot-names="[
         'build_id',
+        'snapshot',
         'repository',
         'image',
         'status',
@@ -86,6 +87,12 @@
       ]"
       @page-change="changePage"
     >
+      <template #snapshot="{ row }">
+        <div class="build-jobs-page__snapshot">
+          <span class="build-jobs-page__ellipsis">{{ (row as BuildJobSummary).input_snapshot_digest }}</span>
+          <small>{{ (row as BuildJobSummary).source_kind }}</small>
+        </div>
+      </template>
       <template #repository="{ row }"
         ><span class="build-jobs-page__ellipsis">{{ (row as BuildJobSummary).image_repository }}</span></template
       >
@@ -166,9 +173,6 @@
       @cancel="filterVisible = false"
     >
       <t-form layout="vertical">
-        <t-form-item :label="t('build.jobs.filters.application')"
-          ><t-input v-model="filters.application_id" clearable
-        /></t-form-item>
         <t-form-item :label="t('build.jobs.filters.repository')"
           ><t-input v-model="filters.image_repository" clearable
         /></t-form-item>
@@ -203,8 +207,8 @@
       <t-loading :loading="detailLoading"
         ><t-descriptions v-if="detail" bordered :column="2" size="small">
           <t-descriptions-item :label="t('build.jobs.columns.build')">{{ detail.build_id }}</t-descriptions-item
-          ><t-descriptions-item :label="t('build.jobs.columns.application')">{{
-            detail.application_name
+          ><t-descriptions-item :label="t('build.jobs.columns.snapshot')">{{
+            detail.input_snapshot_digest
           }}</t-descriptions-item>
           <t-descriptions-item :label="t('build.jobs.columns.repository')">{{
             detail.image_repository
@@ -271,7 +275,6 @@ const detail = ref<BuildJobDetail>();
 const errorDetailsVisible = ref(false);
 const createdRange = ref<string[]>([]);
 const filters = reactive({
-  application_id: '',
   image_repository: '',
   image_tag: '',
   status: '' as BuildStatusFilter | '',
@@ -293,14 +296,9 @@ const hasAppliedFilters = computed(() =>
 );
 const activeFilterCount = computed(
   () =>
-    [
-      filters.application_id,
-      filters.image_repository,
-      filters.image_tag,
-      filters.status,
-      filters.builder_id,
-      ...createdRange.value,
-    ].filter(Boolean).length,
+    [filters.image_repository, filters.image_tag, filters.status, filters.builder_id, ...createdRange.value].filter(
+      Boolean,
+    ).length,
 );
 const appliedFilters = computed(() => [
   ...Object.entries(filters)
@@ -314,7 +312,6 @@ const appliedFilters = computed(() => [
     : []),
 ]);
 function filterLabel(key: string) {
-  if (key === 'application_id') return t('build.jobs.filters.application');
   if (key === 'image_repository') return t('build.jobs.filters.repository');
   if (key === 'image_tag') return t('build.jobs.filters.imageTag');
   if (key === 'builder_id') return t('build.jobs.filters.builder');
@@ -322,7 +319,7 @@ function filterLabel(key: string) {
 }
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'build_id', title: t('build.jobs.columns.build'), ellipsis: true, width: 145 },
-  { colKey: 'application_name', title: t('build.jobs.columns.application'), ellipsis: true, width: 150 },
+  { colKey: 'snapshot', title: t('build.jobs.columns.snapshot'), cell: 'snapshot', ellipsis: true, width: 220 },
   {
     colKey: 'repository',
     title: t('build.jobs.columns.repository'),
@@ -344,7 +341,6 @@ function listQuery() {
     limit: pageSize.value,
     offset: (currentPage.value - 1) * pageSize.value,
     ...(search.value.trim() ? { search: search.value.trim() } : {}),
-    ...(filters.application_id ? { application_id: filters.application_id } : {}),
     ...(filters.image_repository ? { image_repository: filters.image_repository } : {}),
     ...(filters.image_tag ? { image_tag: filters.image_tag } : {}),
     ...(filters.status ? { build_status: filters.status } : {}),
@@ -379,7 +375,6 @@ function applyFilters() {
 }
 function resetFilters() {
   Object.assign(filters, {
-    application_id: '',
     image_repository: '',
     image_tag: '',
     status: '',
@@ -404,8 +399,6 @@ function clearFilter(key: string) {
     filters.builder_id = undefined;
   } else if (key === 'status') {
     filters.status = '';
-  } else if (key === 'application_id') {
-    filters.application_id = '';
   } else if (key === 'image_repository') {
     filters.image_repository = '';
   } else if (key === 'image_tag') {
@@ -515,6 +508,16 @@ void load();
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.build-jobs-page__snapshot {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.build-jobs-page__snapshot small {
+  color: var(--td-text-color-secondary);
 }
 
 .build-jobs-page__progress {

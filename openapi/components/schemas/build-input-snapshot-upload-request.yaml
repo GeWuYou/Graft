@@ -1,0 +1,8 @@
+type: object
+required: [archive]
+properties:
+  archive:
+    type: string
+    format: binary
+    description: ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
+additionalProperties: false

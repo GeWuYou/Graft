@@ -41,6 +41,9 @@ type JobSnapshot struct {
 	ImageTag            string
 	BuildArgs           []moduleapi.BuildArgument
 	RequestedBy         uint64
+	InputSnapshotID     string
+	InputSnapshotDigest string
+	SourceKind          string
 }
 
 // Artifact 是 Build 作业完成后由 Docker 结果结算的只读产物证据。
@@ -185,6 +188,13 @@ type ExecutionPlanRepository interface {
 	MaterializeExecutionPlan(context.Context, *sql.Tx, moduleapi.TaskSubmission, moduleapi.BuildExecutionPlan, uint64) (string, error)
 }
 
+// InputSnapshotRepository 持久化 Build-owned 上传输入；它复用既有
+// build_workspace_snapshots 表，不创建第二套 Snapshot/Blob 存储。
+type InputSnapshotRepository interface {
+	CreateBuildInputSnapshot(context.Context, moduleapi.WorkspaceSnapshot, uint64) (moduleapi.WorkspaceSnapshot, error)
+	GetBuildInputSnapshot(context.Context, string) (moduleapi.WorkspaceSnapshot, error)
+}
+
 // BuilderReservationRepository 暴露 Build 容量租约的事务化写入与终态更新。
 type BuilderReservationRepository interface {
 	moduleapi.BuilderReservationRepository
@@ -204,6 +214,13 @@ type WorkspaceRepository interface {
 // ExecutionPlanReader 是 frozen plan 的 execution-time read authority。
 type ExecutionPlanReader interface {
 	GetExecutionPlanByTaskID(context.Context, uint64) (moduleapi.BuildExecutionPlan, error)
+}
+
+// V2JobReader projects new Build jobs solely from execution plans, Tasks and
+// immutable v2 artifacts; legacy build_jobs remains historical read-only evidence.
+type V2JobReader interface {
+	ListV2Jobs(context.Context, ListQuery) (ListResult, error)
+	GetV2JobByBuildID(context.Context, string) (JobProjection, error)
 }
 
 // V2ArtifactSettlementRepository 在 target executor 完成两项动作后记录 immutable
@@ -574,13 +591,49 @@ func requireReservationUpdate(result sql.Result) error {
 
 func materializeWorkspaceSnapshot(ctx context.Context, tx *sql.Tx, snapshot moduleapi.WorkspaceSnapshot, requestedBy uint64) (uint64, error) {
 	var snapshotPK uint64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, created_by)
-VALUES ($1, $2, $3, $4, $5, 'build', 'available', 'task_lifetime', $6)
-ON CONFLICT (snapshot_id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id
+	if err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
+VALUES ($1, $2, $3, $4, $5, 'build', 'available', 'task_lifetime', NULL, $6)
+ON CONFLICT (snapshot_id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id, retention_policy = 'task_lifetime', retention_expires_at = NULL, materialization_state = 'available', materialization_ref = EXCLUDED.materialization_ref
 RETURNING id`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&snapshotPK); err != nil {
 		return 0, fmt.Errorf("materialize workspace snapshot: %w", err)
 	}
 	return snapshotPK, nil
+}
+
+// CreateBuildInputSnapshot 将已由 Build 校验并物化到 Build-owned 临时目录的归档
+// 注册为可复用 Snapshot。内容摘要冲突时返回已有可用 Snapshot，保证去重幂等。
+func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshot moduleapi.WorkspaceSnapshot, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(snapshot.ID) == "" || strings.TrimSpace(snapshot.ContentDigest) == "" || strings.TrimSpace(snapshot.MaterializationRef) == "" {
+		return moduleapi.WorkspaceSnapshot{}, errors.New("invalid build input snapshot")
+	}
+	var existing moduleapi.WorkspaceSnapshot
+	err := r.db.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
+VALUES ($1,$2,$3,$4,$5,'build','available','snapshot_lifetime',NOW() + INTERVAL '24 hours',$6)
+ON CONFLICT (content_digest) DO UPDATE SET content_digest = EXCLUDED.content_digest
+RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("create build input snapshot: %w", err)
+	}
+	return existing, nil
+}
+
+// GetBuildInputSnapshot 返回仍可用于新 Build 的 Snapshot；已清理物化内容的身份
+// 保留为历史证据，但不能重新提交执行计划。
+func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID string) (moduleapi.WorkspaceSnapshot, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" {
+		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
+	}
+	var snapshot moduleapi.WorkspaceSnapshot
+	err := r.db.QueryRowContext(ctx, `SELECT snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at
+FROM build_workspace_snapshots
+WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available'`, strings.TrimSpace(snapshotID)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
+	}
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("get build input snapshot: %w", err)
+	}
+	return snapshot, nil
 }
 
 type executionPlanFields struct {
@@ -1099,7 +1152,61 @@ func (r *SQLRepository) MaterializeSubmissionSnapshot(ctx context.Context, tx *s
 	return value.BuildID, nil
 }
 
-// ListJobs 读取 Build 域自己的作业与已结算 artifact，不联结 Task、Project 或 Container 内部表。
+// ListV2Jobs 读取新 Build 作业的 canonical execution-plan projection。
+func (r *SQLRepository) ListV2Jobs(ctx context.Context, query ListQuery) (result ListResult, err error) {
+	if r == nil || r.db == nil {
+		return result, errors.New("build repository is unavailable")
+	}
+	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE 1=1`).Scan(&total); err != nil {
+		return result, fmt.Errorf("count v2 build jobs: %w", err)
+	}
+	result.Total = total
+	rows, err := r.db.QueryContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN build_v2_artifacts a ON a.produced_plan_id = p.id
+ORDER BY p.created_at DESC, p.id DESC LIMIT $1 OFFSET $2`, query.Limit, query.Offset)
+	if err != nil {
+		return result, fmt.Errorf("list v2 build jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var item JobProjection
+		var artifactID, digest, tag string
+		var size int64
+		if err := rows.Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size); err != nil {
+			return result, fmt.Errorf("scan v2 build job: %w", err)
+		}
+		item.ImageTag = tag
+		if artifactID != "" {
+			item.Artifact = &Artifact{ArtifactID: artifactID, Digest: digest, Repository: item.ImageRepository, Tag: tag, SizeBytes: size}
+		}
+		result.Items = append(result.Items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return result, fmt.Errorf("iterate v2 build jobs: %w", err)
+	}
+	return result, nil
+}
+
+// GetV2JobByBuildID returns one canonical execution-plan projection by plan identity.
+func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, buildID string) (JobProjection, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(buildID) == "" {
+		return JobProjection{}, ErrNotFound
+	}
+	result, err := r.ListV2Jobs(ctx, ListQuery{Limit: DefaultListLimit, Offset: 0})
+	if err != nil {
+		return JobProjection{}, err
+	}
+	for _, item := range result.Items {
+		if item.BuildID == buildID {
+			return item, nil
+		}
+	}
+	return JobProjection{}, ErrNotFound
+}
+
+// ListJobs is the legacy projection retained for historical evidence.
 func (r *SQLRepository) ListJobs(ctx context.Context, query ListQuery) (result ListResult, err error) {
 	if r == nil || r.db == nil {
 		return result, errors.New("build repository is unavailable")

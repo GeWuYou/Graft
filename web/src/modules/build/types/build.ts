@@ -13,8 +13,8 @@ export type BuildArtifact = components['schemas']['build-artifact'];
 export type BuildArtifactListResponse = components['schemas']['build-artifact-list'];
 export type BuildArtifactPromotionCreateRequest = components['schemas']['build-artifact-promotion-create-request'];
 export type BuildBuilderPool = components['schemas']['build-builder-pool'];
-export type BuildWorkspace = components['schemas']['build-workspace'];
-export type BuildWorkspaceCreateRequest = components['schemas']['build-workspace-create-request'];
+export type BuildInputSnapshot = components['schemas']['build-input-snapshot'];
+export type BuildInputSnapshotUploadRequest = components['schemas']['build-input-snapshot-upload-request'];
 
 // 这些引用由 OpenAPI enum 派生，避免创建表单与提交契约各自维护一份可发布意图。
 export const BUILD_TEMPLATE_REF = 'oci-dockerfile/default@v1' satisfies BuildTemplateRef;

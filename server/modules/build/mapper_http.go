@@ -9,18 +9,6 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
-func toBuildWorkspace(workspace moduleapi.BuildWorkspace) openapigen.BuildWorkspace {
-	return openapigen.BuildWorkspace{WorkspaceId: workspace.ID, Name: workspace.Name, SourceKind: openapigen.BuildWorkspaceSourceKind(workspace.SourceKind), SourceReference: workspace.SourceReference, RetentionPolicy: workspace.RetentionPolicy, CreatedAt: workspace.CreatedAt, UpdatedAt: workspace.UpdatedAt}
-}
-
-func mapBuildWorkspaces(items []moduleapi.BuildWorkspace) []openapigen.BuildWorkspace {
-	result := make([]openapigen.BuildWorkspace, 0, len(items))
-	for _, item := range items {
-		result = append(result, toBuildWorkspace(item))
-	}
-	return result
-}
-
 func mapBuildRuntimeTargets(items []moduleapi.BuildRuntimeTargetSummary) []openapigen.BuildRuntimeTarget {
 	result := make([]openapigen.BuildRuntimeTarget, 0, len(items))
 	for _, item := range items {
@@ -65,10 +53,34 @@ func toBuildJobDetail(item buildstore.JobProjection) openapigen.BuildJobDetail {
 		}{Name: arg.Name, Value: arg.Value})
 	}
 	summary := toBuildJobSummary(item)
-	return openapigen.BuildJobDetail{ApplicationId: summary.ApplicationId, ApplicationName: summary.ApplicationName, Artifact: summary.Artifact, BuildArgs: args, BuildId: summary.BuildId, ContextPath: summary.ContextPath, CreatedAt: summary.CreatedAt, DockerfilePath: summary.DockerfilePath, ImageRepository: summary.ImageRepository, ImageTag: summary.ImageTag, RuntimeProvider: item.RuntimeProvider, TaskId: summary.TaskId, Builder: summary.Builder, Execution: summary.Execution}
+	return openapigen.BuildJobDetail{ApplicationId: summary.ApplicationId, ApplicationName: summary.ApplicationName, Artifact: summary.Artifact, BuildArgs: args, BuildId: summary.BuildId, ContextPath: summary.ContextPath, CreatedAt: summary.CreatedAt, DockerfilePath: summary.DockerfilePath, ImageRepository: summary.ImageRepository, ImageTag: summary.ImageTag, InputSnapshotId: item.InputSnapshotID, InputSnapshotDigest: item.InputSnapshotDigest, SourceKind: item.SourceKind, RuntimeProvider: item.RuntimeProvider, TaskId: summary.TaskId, Builder: summary.Builder, Execution: summary.Execution}
 }
 func toBuildJobSummary(item buildstore.JobProjection) openapigen.BuildJobSummary {
-	summary := openapigen.BuildJobSummary{ApplicationId: item.ApplicationID, ApplicationName: item.ApplicationName, BuildId: item.BuildID, ContextPath: item.ContextPath, CreatedAt: item.CreatedAt, DockerfilePath: item.DockerfilePath, ImageRepository: item.ImageRepository, ImageTag: item.ImageTag, TaskId: buildJobResponseID(item.TaskID), Builder: openapigen.BuildBuilderSnapshot{Id: buildJobResponseID(item.RuntimeTargetID), Name: item.RuntimeTargetName, Provider: item.RuntimeProvider}, Execution: openapigen.BuildTaskExecution{Status: openapigen.TaskStatus(item.Execution.Status), StageCount: item.Execution.StageCount, CompletedStageCount: item.Execution.CompletedStageCount, Capabilities: openapigen.TaskCapabilities{Cancel: item.Execution.Capabilities.Cancel, Retry: item.Execution.Capabilities.Retry, DownloadLog: item.Execution.Capabilities.DownloadLog}}}
+	summary := openapigen.BuildJobSummary{BuildId: item.BuildID, InputSnapshotId: item.InputSnapshotID, InputSnapshotDigest: item.InputSnapshotDigest, SourceKind: item.SourceKind, TaskId: buildJobResponseID(item.TaskID), Builder: openapigen.BuildBuilderSnapshot{Id: buildJobResponseID(item.RuntimeTargetID), Name: item.RuntimeTargetName, Provider: item.RuntimeProvider}, Execution: openapigen.BuildTaskExecution{Status: openapigen.TaskStatus(item.Execution.Status), StageCount: item.Execution.StageCount, CompletedStageCount: item.Execution.CompletedStageCount, Capabilities: openapigen.TaskCapabilities{Cancel: item.Execution.Capabilities.Cancel, Retry: item.Execution.Capabilities.Retry, DownloadLog: item.Execution.Capabilities.DownloadLog}}}
+	if item.ApplicationID != "" {
+		value := openapigen.ApplicationId(item.ApplicationID)
+		summary.ApplicationId = &value
+	}
+	if item.ApplicationName != "" {
+		value := item.ApplicationName
+		summary.ApplicationName = &value
+	}
+	if item.ContextPath != "" {
+		value := item.ContextPath
+		summary.ContextPath = &value
+	}
+	if item.DockerfilePath != "" {
+		value := item.DockerfilePath
+		summary.DockerfilePath = &value
+	}
+	if item.ImageRepository != "" {
+		value := item.ImageRepository
+		summary.ImageRepository = &value
+	}
+	if item.ImageTag != "" {
+		value := item.ImageTag
+		summary.ImageTag = &value
+	}
 	summary.Execution.CurrentStageKey = item.Execution.CurrentStageKey
 	summary.Execution.DurationMs = item.Execution.DurationMS
 	summary.Execution.FailureCode = item.Execution.FailureCode

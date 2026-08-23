@@ -1,10 +1,13 @@
 type: object
-required: [build_id, task_id, application_id, application_name, context_path, dockerfile_path, image_repository, image_tag, created_at, builder, execution]
+required: [build_id, task_id, input_snapshot_id, input_snapshot_digest, source_kind, created_at, builder, execution]
 properties:
   build_id: { type: string }
   task_id: { type: integer, format: int64, minimum: 1 }
-  application_id: { $ref: ./application-id.yaml }
-  application_name: { type: string }
+  input_snapshot_id: { type: string }
+  input_snapshot_digest: { type: string }
+  source_kind: { type: string }
+  application_id: { $ref: ./application-id.yaml, nullable: true }
+  application_name: { type: string, nullable: true }
   context_path: { type: string }
   dockerfile_path: { type: string }
   image_repository: { type: string }
