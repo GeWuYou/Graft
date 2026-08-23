@@ -32,8 +32,8 @@ type recordingBuildRepository struct {
 	inputSnapshots     buildstore.InputSnapshotListResult
 }
 
-func (r *recordingBuildRepository) CreateBuildInputSnapshot(_ context.Context, snapshot moduleapi.WorkspaceSnapshot, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
-	return snapshot, nil
+func (r *recordingBuildRepository) CreateBuildInputSnapshot(_ context.Context, snapshotID, sourceReference, contentDigest, materializationRef string, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
+	return moduleapi.WorkspaceSnapshot{ID: snapshotID, SourceKind: moduleapi.WorkspaceSourceArchive, SourceReference: sourceReference, ContentDigest: contentDigest, MaterializationRef: materializationRef}, nil
 }
 func (r *recordingBuildRepository) GetBuildInputSnapshot(_ context.Context, snapshotID string, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
 	for _, snapshot := range r.inputSnapshots.Items {

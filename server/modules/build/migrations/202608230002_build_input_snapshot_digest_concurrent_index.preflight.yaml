@@ -40,4 +40,4 @@ lesson_ids:
     - MIG-002
 unpublished_exception:
   reason: '该迁移尚未进入默认分支，当前修复用于本 PR 的并发唯一索引替换语义。'
-  evidence: 'git cat-file -e origin/main:server/modules/build/migrations/202608230002_build_input_snapshot_digest_concurrent_index.sql 失败，证明默认分支尚无该迁移。'
+  evidence: 'git cat-file -e 49c1e5fca5dc63fed6d374f213f5adac23eb992b:server/modules/build/migrations/202608230002_build_input_snapshot_digest_concurrent_index.sql 失败，证明 PR base tree 尚无该迁移。'

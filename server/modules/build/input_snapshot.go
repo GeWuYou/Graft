@@ -66,7 +66,8 @@ func (s *Service) CreateInputSnapshot(ctx context.Context, upload InputSnapshotU
 		_ = os.RemoveAll(root)
 		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("digest input snapshot: %w", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "Dockerfile")); err != nil {
+	dockerfileInfo, err := os.Stat(filepath.Join(root, "Dockerfile"))
+	if err != nil || !dockerfileInfo.Mode().IsRegular() {
 		_ = os.RemoveAll(root)
 		return moduleapi.WorkspaceSnapshot{}, invalidInputSnapshotUpload("input snapshot must contain a root Dockerfile")
 	}
@@ -77,7 +78,7 @@ func (s *Service) CreateInputSnapshot(ctx context.Context, upload InputSnapshotU
 		return moduleapi.WorkspaceSnapshot{}, err
 	}
 	snapshot := moduleapi.WorkspaceSnapshot{ID: snapshotID, SourceKind: moduleapi.WorkspaceSourceArchive, SourceReference: "upload:" + digest, ContentDigest: digest, MaterializationRef: reference, CreatedAt: time.Now().UTC()}
-	created, err := repository.CreateBuildInputSnapshot(ctx, snapshot, upload.UserID)
+	created, err := repository.CreateBuildInputSnapshot(ctx, snapshot.ID, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, upload.UserID)
 	if err != nil {
 		_ = os.RemoveAll(root)
 		return moduleapi.WorkspaceSnapshot{}, err
@@ -317,6 +318,9 @@ func writeTarFile(root, rel string, reader io.Reader, mode int64, limit int64) (
 }
 
 func archiveDestination(root, rel string) (string, error) {
+	if !filepath.IsLocal(rel) {
+		return "", invalidInputSnapshotUpload("input snapshot archive contains a path traversal")
+	}
 	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return "", err

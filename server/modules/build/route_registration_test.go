@@ -71,6 +71,32 @@ func TestBuildInputSnapshotUploadRoute(t *testing.T) {
 	}
 }
 
+func TestBuildInputSnapshotListRoutePaginationAndValidation(t *testing.T) {
+	repository := &recordingBuildRepository{inputSnapshots: buildstore.InputSnapshotListResult{
+		Items: []moduleapi.WorkspaceSnapshot{{ID: "snapshot-1", SourceKind: moduleapi.WorkspaceSourceArchive, ContentDigest: "sha256:test"}},
+		Total: 3,
+	}}
+	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, "/api/build/input-snapshots?limit=2&offset=1", ""))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected snapshot list to succeed, got %d: %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, expected := range []string{`"snapshot-1"`, `"total":3`, `"limit":2`, `"offset":1`} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("snapshot list response missing %s: %s", expected, body)
+		}
+	}
+	for _, path := range []string{"/api/build/input-snapshots?limit=0", "/api/build/input-snapshots?offset=-1"} {
+		invalid := httptest.NewRecorder()
+		engine.ServeHTTP(invalid, buildAuthorizedRequest(http.MethodGet, path, ""))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("expected invalid snapshot query %s to return 400, got %d", path, invalid.Code)
+		}
+	}
+}
+
 //nolint:gocyclo,cyclop // 表驱动式请求绑定回归同时覆盖分页、快照、执行和时间筛选。
 func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)

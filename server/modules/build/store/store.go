@@ -191,7 +191,7 @@ type ExecutionPlanRepository interface {
 // InputSnapshotRepository 持久化 Build-owned 上传输入；它复用既有
 // build_workspace_snapshots 表，不创建第二套 Snapshot/Blob 存储。
 type InputSnapshotRepository interface {
-	CreateBuildInputSnapshot(context.Context, moduleapi.WorkspaceSnapshot, uint64) (moduleapi.WorkspaceSnapshot, error)
+	CreateBuildInputSnapshot(context.Context, string, string, string, string, uint64) (moduleapi.WorkspaceSnapshot, error)
 	GetBuildInputSnapshot(context.Context, string, uint64) (moduleapi.WorkspaceSnapshot, error)
 }
 
@@ -619,8 +619,8 @@ RETURNING id`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snaps
 
 // CreateBuildInputSnapshot 将已由 Build 校验并物化到 Build-owned 临时目录的归档
 // 注册为可复用 Snapshot。内容摘要冲突时返回已有可用 Snapshot，保证去重幂等。
-func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshot moduleapi.WorkspaceSnapshot, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
-	if r == nil || r.db == nil || strings.TrimSpace(snapshot.ID) == "" || strings.TrimSpace(snapshot.ContentDigest) == "" || strings.TrimSpace(snapshot.MaterializationRef) == "" {
+func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshotID, sourceReference, contentDigest, materializationRef string, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" || strings.TrimSpace(contentDigest) == "" || strings.TrimSpace(materializationRef) == "" {
 		return moduleapi.WorkspaceSnapshot{}, errors.New("invalid build input snapshot")
 	}
 	var existing moduleapi.WorkspaceSnapshot
@@ -630,7 +630,7 @@ ON CONFLICT (content_digest) DO UPDATE SET
   materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_state ELSE 'available' END,
   materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
   retention_expires_at = GREATEST(COALESCE(build_workspace_snapshots.retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
-RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
+	RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshotID, moduleapi.WorkspaceSourceArchive, sourceReference, contentDigest, materializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("create build input snapshot: %w", err)
 	}

@@ -158,5 +158,8 @@ describe('BuildCreatePage', () => {
       expect.objectContaining({ input_snapshot_id: 'snap-upload' }),
       expect.any(String),
     );
+    expect(mocks.uploadBuildInputSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.createBuildJob.mock.invocationCallOrder[0],
+    );
   });
 });

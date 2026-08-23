@@ -333,17 +333,14 @@ async function loadSnapshots() {
   snapshotLoading.value = true;
   snapshotError.value = '';
   try {
+    const snapshots = await getBuildInputSnapshots({ limit: 100, offset: 0 });
     const unique = new Map<string, SelectorOption>();
-    for (let offset = 0; ; offset += 100) {
-      const snapshots = await getBuildInputSnapshots({ limit: 100, offset });
-      for (const item of snapshots.items ?? []) {
-        if (!item.snapshot_id || unique.has(item.snapshot_id)) continue;
-        unique.set(item.snapshot_id, {
-          value: item.snapshot_id,
-          label: `${item.content_digest} (${item.source_kind})`,
-        });
-      }
-      if ((snapshots.items?.length ?? 0) < 100) break;
+    for (const item of snapshots.items ?? []) {
+      if (!item.snapshot_id || unique.has(item.snapshot_id)) continue;
+      unique.set(item.snapshot_id, {
+        value: item.snapshot_id,
+        label: `${item.content_digest} (${item.source_kind})`,
+      });
     }
     snapshotOptions.value = [...unique.values()];
   } catch (error) {
