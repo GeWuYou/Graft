@@ -3105,7 +3105,7 @@ export interface paths {
     /** List Build-owned job projections */
     get: operations['getBuildJobs'];
     put?: never;
-    /** Submit an immutable Build execution plan for an authorized Workspace */
+    /** Submit an immutable Build execution plan for an available Input Snapshot */
     post: operations['postBuildJob'];
     delete?: never;
     options?: never;
@@ -3147,18 +3147,18 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/build/workspaces': {
+  '/api/build/input-snapshots': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** List Build-owned Workspaces available to the caller */
-    get: operations['getBuildWorkspaces'];
+    /** List reusable Build input snapshots */
+    get: operations['getBuildInputSnapshots'];
     put?: never;
-    /** Create a Build-owned Application Workspace source */
-    post: operations['postBuildWorkspace'];
+    /** Upload a Build input snapshot archive */
+    post: operations['postBuildInputSnapshot'];
     delete?: never;
     options?: never;
     head?: never;
@@ -9373,15 +9373,15 @@ export interface components {
       data: components['schemas']['docker-image-list-response'];
     };
     /**
-     * @description Stable public Graft Application identifier.
-     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
-     */
-    'application-id': string;
-    /**
      * @description Product-level Build Task status used for task-center filtering.
      * @enum {string}
      */
     'build-status-filter': 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
+    /**
+     * @description Stable public Graft Application identifier.
+     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
+     */
+    'application-id': string;
     /** @description Runtime target snapshot frozen when the Build job was submitted. */
     'build-builder-snapshot': {
       /** Format: int64 */
@@ -9416,12 +9416,15 @@ export interface components {
       build_id: string;
       /** Format: int64 */
       task_id: number;
-      application_id: components['schemas']['application-id'];
-      application_name: string;
-      context_path: string;
-      dockerfile_path: string;
-      image_repository: string;
-      image_tag: string;
+      input_snapshot_id: string;
+      input_snapshot_digest: string;
+      source_kind: string;
+      application_id?: components['schemas']['application-id'];
+      application_name?: string | null;
+      context_path?: string;
+      dockerfile_path?: string;
+      image_repository?: string;
+      image_tag?: string;
       /** Format: date-time */
       created_at: string;
       builder: components['schemas']['build-builder-snapshot'];
@@ -9439,7 +9442,7 @@ export interface components {
       data: components['schemas']['build-job-list'];
     };
     'build-job-create-request': {
-      workspace_id: string;
+      input_snapshot_id: string;
       /**
        * Format: int64
        * @description Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
@@ -9497,33 +9500,33 @@ export interface components {
         reference: string;
       };
     };
-    'build-workspace': {
-      workspace_id: string;
-      name: string;
+    'build-input-snapshot': {
+      snapshot_id: string;
       /** @enum {string} */
-      source_kind: 'application_workspace';
-      source_reference: string;
-      retention_policy: string;
-      /** Format: date-time */
-      created_at: string;
-      /** Format: date-time */
-      updated_at: string;
+      source_kind: 'uploaded_archive';
+      content_digest: string;
+      /** @enum {string} */
+      lifecycle_state: 'available' | 'expired' | 'purged';
     };
-    'build-workspace-list': {
-      items: components['schemas']['build-workspace'][];
+    'build-input-snapshot-list': {
+      items: components['schemas']['build-input-snapshot'][];
       /** Format: int64 */
       total: number;
       limit: number;
       offset: number;
     };
-    'build-workspace-create-request': {
-      name: string;
-      /** @enum {string} */
-      source_kind: 'application_workspace';
-      source_reference: string;
+    'enveloped-build-input-snapshot-list': {
+      data: components['schemas']['build-input-snapshot-list'];
     };
-    'enveloped-build-workspace': components['schemas']['api-envelope'] & {
-      data: components['schemas']['build-workspace'];
+    'build-input-snapshot-upload-request': {
+      /**
+       * Format: binary
+       * @description ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
+       */
+      archive: string;
+    };
+    'enveloped-build-input-snapshot': {
+      data: components['schemas']['build-input-snapshot'];
     };
     'build-runtime-target': {
       /** Format: int64 */
@@ -20940,9 +20943,7 @@ export interface operations {
       query?: {
         limit?: number;
         offset?: number;
-        /** @description Optional exact Build snapshot public application identifier. */
-        application_id?: components['schemas']['application-id'];
-        /** @description Optional case-insensitive search over Build ID, application name, repository, and image tag. */
+        /** @description Optional case-insensitive search over Build ID, Snapshot digest, repository, and image tag. */
         search?: string;
         /** @description Optional exact Build snapshot image repository. */
         image_repository?: string;
@@ -21106,13 +21107,11 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getBuildWorkspaces: {
+  getBuildInputSnapshots: {
     parameters: {
       query?: {
         limit?: number;
         offset?: number;
-        /** @description Optional case-insensitive search over Workspace name, identifier, and source reference. */
-        search?: string;
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -21128,30 +21127,22 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Build Workspaces. */
+      /** @description Reusable input snapshot page. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['api-envelope'] & {
-            data: components['schemas']['build-workspace-list'];
-          };
+          'application/json': components['schemas']['enveloped-build-input-snapshot-list'];
         };
       };
-      /** @description Invalid pagination or search query. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };
-  postBuildWorkspace: {
+  postBuildInputSnapshot: {
     parameters: {
       query?: never;
       header?: never;
@@ -21160,35 +21151,22 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['build-workspace-create-request'];
+        'multipart/form-data': components['schemas']['build-input-snapshot-upload-request'];
       };
     };
     responses: {
-      /** @description Build Workspace created. */
+      /** @description Input Snapshot created or reused by content digest. */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-build-workspace'];
+          'application/json': components['schemas']['enveloped-build-input-snapshot'];
         };
       };
-      /** @description Invalid workspace request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Workspace identity already exists with different source facts. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
       500: components['responses']['internal-server-error'];
     };
   };

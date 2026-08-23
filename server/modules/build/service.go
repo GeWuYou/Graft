@@ -65,6 +65,7 @@ type preparedSubmission struct {
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
 	contexts          moduleapi.ApplicationBuildContextResolver
+	inputSnapshots    moduleapi.BuildInputSnapshotReader
 	submissions       moduleapi.TaskSubmissionService
 	taskBatch         moduleapi.TaskBatchQueryService
 	repository        buildstore.Repository
@@ -82,11 +83,18 @@ type Service struct {
 }
 
 // ListJobs 返回一个按 Build 快照和 Task 执行状态过滤的受限作业页。
-func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
+func (s *Service) ListJobs(ctx context.Context, requestedBy uint64, query buildstore.ListQuery) (buildstore.ListResult, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.ListResult{}, errors.New("build service is unavailable")
 	}
-	result, err := s.repository.ListJobs(ctx, query)
+	reader, hasV2 := s.repository.(buildstore.V2JobReader)
+	var result buildstore.ListResult
+	var err error
+	if hasV2 {
+		result, err = reader.ListV2Jobs(ctx, requestedBy, query)
+	} else {
+		result, err = s.repository.ListJobs(ctx, query)
+	}
 	if err != nil {
 		return buildstore.ListResult{}, err
 	}
@@ -103,6 +111,18 @@ func (s *Service) ListArtifacts(ctx context.Context, limit, offset int) (buildst
 		return buildstore.V2ArtifactListResult{}, errors.New("build artifact reading is unavailable")
 	}
 	return reader.ListV2Artifacts(ctx, limit, offset)
+}
+
+// ListInputSnapshots 返回当前用户可复用的 Build 输入快照分页。
+func (s *Service) ListInputSnapshots(ctx context.Context, userID uint64, limit, offset int) (buildstore.InputSnapshotListResult, error) {
+	if s == nil || s.repository == nil {
+		return buildstore.InputSnapshotListResult{}, errors.New("build service is unavailable")
+	}
+	reader, ok := s.repository.(buildstore.InputSnapshotReader)
+	if !ok {
+		return buildstore.InputSnapshotListResult{}, errors.New("build input snapshot reader is unavailable")
+	}
+	return reader.ListBuildInputSnapshots(ctx, userID, limit, offset)
 }
 
 // ListArtifactPublicationSources 为 Promotion planning 提供 Build-owned Publication identity。
@@ -242,14 +262,20 @@ func (s *Service) enrichJobs(ctx context.Context, result buildstore.ListResult) 
 }
 
 // GetJob returns the Build-owned detail projection for one public build ID.
-func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobProjection, error) {
+func (s *Service) GetJob(ctx context.Context, requestedBy uint64, buildID string) (buildstore.JobProjection, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.JobProjection{}, errors.New("build service is unavailable")
 	}
 	if strings.TrimSpace(buildID) == "" {
 		return buildstore.JobProjection{}, errInvalidBuildID
 	}
-	job, err := s.repository.GetJobByBuildID(ctx, buildID)
+	var job buildstore.JobProjection
+	var err error
+	if reader, ok := s.repository.(buildstore.V2JobReader); ok {
+		job, err = reader.GetV2JobByBuildID(ctx, requestedBy, buildID)
+	} else {
+		job, err = s.repository.GetJobByBuildID(ctx, buildID)
+	}
 	if err != nil {
 		return buildstore.JobProjection{}, err
 	}
@@ -358,7 +384,7 @@ func filterSupportedBuilderPools(pools []moduleapi.BuilderPool) []moduleapi.Buil
 
 // NewService 以 Project、Task 和 Container 的窄能力创建 Build 提交服务。
 func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions moduleapi.TaskSubmissionService, taskBatch moduleapi.TaskBatchQueryService, repository buildstore.Repository) (*Service, error) {
-	if contexts == nil || submissions == nil || taskBatch == nil || repository == nil {
+	if submissions == nil || taskBatch == nil || repository == nil {
 		return nil, errors.New("build service dependencies are unavailable")
 	}
 	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, repository: repository, intents: newBuiltinBuildIntentRegistry()}, nil

@@ -18,35 +18,65 @@
             <div class="build-create-page__grid">
               <t-form-item
                 class="build-create-page__field--full"
-                name="workspace_id"
-                :label="t('build.jobs.create.workspace')"
+                name="source_mode"
+                :label="t('build.jobs.create.sourceMode')"
               >
-                <div class="build-create-page__workspace-picker">
-                  <t-select
-                    v-model="form.workspace_id"
-                    :options="workspaceOptions"
-                    :loading="workspaceLoading"
-                    :disabled="workspaceLoading"
-                    :placeholder="t('build.jobs.create.workspacePlaceholder')"
-                    :filter="showWorkspaceSearchResult"
-                    clearable
-                    filterable
-                    @search="scheduleWorkspaceSearch"
-                  />
-                  <t-button variant="outline" size="small" @click="openWorkspaceCreate">
-                    <template #icon><add-icon /></template>
-                    {{ t('build.jobs.create.createWorkspace') }}
-                  </t-button>
-                </div>
+                <t-radio-group v-model="sourceMode">
+                  <t-radio value="upload">{{ t('build.jobs.create.uploadArchive') }}</t-radio>
+                  <t-radio value="reuse">{{ t('build.jobs.create.reuseSnapshot') }}</t-radio>
+                </t-radio-group>
+              </t-form-item>
+              <t-form-item
+                v-if="sourceMode === 'upload'"
+                class="build-create-page__field--full"
+                name="archive"
+                :label="t('build.jobs.create.archive')"
+              >
+                <input
+                  class="build-create-page__file-input"
+                  data-testid="build-input-snapshot-file"
+                  type="file"
+                  accept=".zip,.tar,.tgz,.tar.gz,application/zip,application/x-tar,application/gzip"
+                  @change="onArchiveChange"
+                />
+                <p class="build-create-page__field-hint">
+                  {{ archiveFile?.name || t('build.jobs.create.archivePlaceholder') }}
+                </p>
+              </t-form-item>
+              <t-form-item
+                v-else
+                class="build-create-page__field--full"
+                name="input_snapshot_id"
+                :label="t('build.jobs.create.snapshot')"
+              >
+                <t-select
+                  v-model="form.input_snapshot_id"
+                  :options="snapshotOptions"
+                  :loading="snapshotLoading"
+                  :disabled="snapshotLoading || snapshotOptions.length === 0"
+                  :placeholder="t('build.jobs.create.snapshotPlaceholder')"
+                  clearable
+                />
+                <t-button
+                  v-if="snapshotHasMore"
+                  data-testid="build-load-more-snapshots"
+                  class="build-create-page__load-more"
+                  variant="text"
+                  :loading="snapshotLoading"
+                  :disabled="snapshotLoading"
+                  @click="loadSnapshots()"
+                >
+                  {{ t('components.commonTable.more') }}
+                </t-button>
               </t-form-item>
             </div>
             <div class="build-create-page__section-feedback">
               <t-alert
-                v-if="!workspaceLoading && !workspaceError && workspaceOptions.length === 0"
+                v-if="sourceMode === 'reuse' && !snapshotLoading && !snapshotError && snapshotOptions.length === 0"
                 theme="warning"
-                :message="t('build.jobs.create.workspaceEmpty')"
+                :message="t('build.jobs.create.snapshotEmpty')"
               />
-              <t-alert v-if="workspaceError" theme="warning" :message="workspaceError" />
+              <t-alert v-if="snapshotError" theme="warning" :message="snapshotError" />
             </div>
           </section>
 
@@ -214,10 +244,9 @@
   </section>
 </template>
 <script setup lang="ts">
-// 创建表单只提交 Build 所有的规范请求，应用授权仍由服务端边界负责。
-import { AddIcon } from 'tdesign-icons-vue-next';
+// 创建表单只提交 Build 所有的规范请求；Application/Project 不参与输入选择。
 import type { SubmitContext } from 'tdesign-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -228,11 +257,11 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   createBuildJob,
   getBuildBuilderPools,
+  getBuildInputSnapshots,
   getBuildRegistryDestinations,
   getBuildRuntimeTargets,
-  getBuildWorkspaces,
+  uploadBuildInputSnapshot,
 } from '../../api/build';
-import { BUILD_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
 import type { BuildBuilderPool } from '../../types/build';
 import {
@@ -247,9 +276,11 @@ const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
 const selectionMode = ref<'target' | 'pool'>('target');
+const sourceMode = ref<'upload' | 'reuse'>('upload');
+const archiveFile = ref<File>();
 type BuildJobForm = Parameters<typeof createBuildJob>[0];
 const form = ref<BuildJobForm>({
-  workspace_id: '',
+  input_snapshot_id: '',
   runtime_target_id: undefined,
   template_ref: BUILD_TEMPLATE_REF,
   driver: BUILD_DRIVER_REF,
@@ -258,7 +289,6 @@ const form = ref<BuildJobForm>({
 });
 type SelectorOption = { label: string; value: string | number };
 type BuilderPoolOption = SelectorOption & { policy: BuildBuilderPool['scheduling_policy'] };
-type WorkspaceSelectorOption = { label: string; value: string };
 const driverOptions = computed(() => [
   {
     label: t('build.jobs.create.driverOptions.dockerEngine'),
@@ -274,8 +304,7 @@ const platformOptions = computed(() =>
     disabled: selectionMode.value === 'target' && platform === 'linux/arm64',
   })),
 );
-const workspaceOptions = ref<WorkspaceSelectorOption[]>([]);
-const workspaceSelectorLimit = 20;
+const snapshotOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
 const builderPools = ref<BuildBuilderPool[]>([]);
 const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
@@ -285,16 +314,17 @@ const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
     policy: item.scheduling_policy,
   }));
 });
-const workspaceLoading = ref(false);
+const snapshotLoading = ref(false);
+const snapshotOffset = ref(0);
+const snapshotTotal = ref<number>();
 const runtimeTargetLoading = ref(false);
 const builderPoolLoading = ref(false);
-const workspaceError = ref('');
+const snapshotError = ref('');
+const snapshotHasMore = computed(() => snapshotTotal.value !== undefined && snapshotOffset.value < snapshotTotal.value);
 const runtimeTargetError = ref('');
 const builderPoolError = ref('');
 const destinationLoading = ref(false);
 const destinationError = ref('');
-let workspaceSearchTimer: ReturnType<typeof setTimeout> | undefined;
-let workspaceRequestSequence = 0;
 type RegistryDestination = Awaited<ReturnType<typeof getBuildRegistryDestinations>>['items'][number];
 const destinations = ref<RegistryDestination[]>([]);
 const registryOptions = computed(() => {
@@ -308,54 +338,39 @@ const repositoryOptions = computed(() =>
     .map((item) => ({ value: item.repository_ref, label: item.repository_display_name || item.repository_ref })),
 );
 onMounted(loadSelectorOptions);
-onBeforeUnmount(cancelWorkspaceSearch);
 
 async function loadSelectorOptions() {
-  await Promise.all([loadWorkspaces(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
+  await Promise.all([loadSnapshots(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
 }
 
-// Selector 只加载受限结果；服务端搜索覆盖首屏外 Workspace，保留当前选项避免搜索切换后丢失标签。
-async function loadWorkspaces(search = '') {
-  const sequence = ++workspaceRequestSequence;
-  workspaceLoading.value = true;
-  workspaceError.value = '';
+async function loadSnapshots() {
+  if (snapshotLoading.value || (!snapshotHasMore.value && snapshotOptions.value.length > 0)) return;
+  snapshotLoading.value = true;
+  snapshotError.value = '';
+  const requestOffset = snapshotOffset.value;
+  const requestLimit = 100;
   try {
-    const keyword = search.trim();
-    const workspaces = await getBuildWorkspaces({
-      limit: workspaceSelectorLimit,
-      offset: 0,
-      search: keyword || undefined,
-    });
-    if (sequence !== workspaceRequestSequence) return;
-    const selected = workspaceOptions.value.find((option) => option.value === form.value.workspace_id);
-    const options = workspaces.items.map((item) => ({ label: item.name, value: item.workspace_id }));
-    if (selected && !options.some((option) => option.value === selected.value)) options.unshift(selected);
-    workspaceOptions.value = options;
+    const snapshots = await getBuildInputSnapshots({ limit: requestLimit, offset: requestOffset });
+    const unique = new Map(snapshotOptions.value.map((option) => [String(option.value), option]));
+    for (const item of snapshots.items ?? []) {
+      if (!item.snapshot_id || unique.has(item.snapshot_id)) continue;
+      unique.set(item.snapshot_id, {
+        value: item.snapshot_id,
+        label: `${item.content_digest} (${item.source_kind})`,
+      });
+    }
+    snapshotOptions.value = [...unique.values()];
+    snapshotTotal.value = snapshots.total;
+    snapshotOffset.value = (snapshots.offset ?? requestOffset) + (snapshots.limit ?? requestLimit);
   } catch (error) {
-    if (sequence !== workspaceRequestSequence) return;
-    workspaceError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.workspaceLoadFailed'));
+    snapshotError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.snapshotLoadFailed'));
   } finally {
-    if (sequence === workspaceRequestSequence) workspaceLoading.value = false;
+    snapshotLoading.value = false;
   }
 }
 
-function showWorkspaceSearchResult() {
-  return true;
-}
-
-function scheduleWorkspaceSearch(keyword: string) {
-  cancelWorkspaceSearch();
-  workspaceRequestSequence += 1;
-  workspaceSearchTimer = setTimeout(() => {
-    workspaceSearchTimer = undefined;
-    void loadWorkspaces(keyword);
-  }, 300);
-}
-
-function cancelWorkspaceSearch() {
-  if (workspaceSearchTimer === undefined) return;
-  clearTimeout(workspaceSearchTimer);
-  workspaceSearchTimer = undefined;
+function onArchiveChange(event: Event) {
+  archiveFile.value = (event.target as HTMLInputElement).files?.[0];
 }
 
 async function loadRuntimeTargets() {
@@ -427,6 +442,12 @@ watch(selectionMode, (mode) => {
     form.value.platforms = ['linux/amd64'];
   }
 });
+watch(sourceMode, (mode) => {
+  if (mode === 'upload') form.value.input_snapshot_id = '';
+  else archiveFile.value = undefined;
+  idempotencyKey = undefined;
+  idempotencyPayload = undefined;
+});
 watch(
   () => form.value.platforms,
   (platforms) => {
@@ -453,8 +474,10 @@ watch(
 let idempotencyKey: string | undefined;
 let idempotencyPayload: string | undefined;
 let idempotencySequence = 0;
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
 const rules = computed(() => ({
-  workspace_id: [{ required: true, message: t('build.jobs.create.workspaceIdRequired') }],
+  input_snapshot_id:
+    sourceMode.value === 'reuse' ? [{ required: true, message: t('build.jobs.create.snapshotRequired') }] : [],
   runtime_target_id:
     selectionMode.value === 'target'
       ? [{ required: true, min: 1, message: t('build.jobs.create.runtimeTargetRequired') }]
@@ -479,25 +502,36 @@ const rules = computed(() => ({
 function openRegistries() {
   void router.push(REGISTRY_ROUTE_PATH.LIST);
 }
-function openWorkspaceCreate() {
-  void router.push(BUILD_BOOTSTRAP_ROUTE.CREATE_WORKSPACE.path);
-}
 function returnToJobs() {
   void router.push(BUILD_ROUTE_PATH.JOBS);
 }
 async function submit({ validateResult }: SubmitContext) {
   if (validateResult !== true) return;
+  if (sourceMode.value === 'upload' && !archiveFile.value) {
+    messageTheme.value = 'error';
+    message.value = t('build.jobs.create.archiveRequired');
+    return;
+  }
+  if (archiveFile.value && archiveFile.value.size > MAX_ARCHIVE_BYTES) {
+    messageTheme.value = 'error';
+    message.value = t('build.jobs.create.archiveTooLarge');
+    return;
+  }
   submitting.value = true;
   message.value = '';
-  const payload = { ...form.value };
-  const payloadSnapshot = JSON.stringify(payload);
-  if (idempotencyPayload !== payloadSnapshot) {
-    idempotencyPayload = payloadSnapshot;
-    idempotencyKey = createIdempotencyKey();
-  }
-  const currentIdempotencyKey = idempotencyKey ?? createIdempotencyKey();
-  idempotencyKey = currentIdempotencyKey;
   try {
+    if (sourceMode.value === 'upload' && archiveFile.value) {
+      const snapshot = await uploadBuildInputSnapshot(archiveFile.value);
+      form.value.input_snapshot_id = snapshot.snapshot_id;
+    }
+    const payload = { ...form.value };
+    const payloadSnapshot = JSON.stringify(payload);
+    if (idempotencyPayload !== payloadSnapshot) {
+      idempotencyPayload = payloadSnapshot;
+      idempotencyKey = createIdempotencyKey();
+    }
+    const currentIdempotencyKey = idempotencyKey ?? createIdempotencyKey();
+    idempotencyKey = currentIdempotencyKey;
     await createBuildJob(payload, currentIdempotencyKey);
     messageTheme.value = 'success';
     message.value = t('build.jobs.create.submitted');
@@ -563,16 +597,9 @@ function createIdempotencyKey() {
   margin: var(--graft-density-gap-8) 0 0;
 }
 
-.build-create-page__workspace-picker {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-8);
-  min-width: 0;
-}
-
-.build-create-page__workspace-picker :deep(.t-select) {
-  flex: 1;
-  min-width: 0;
+.build-create-page__file-input {
+  display: block;
+  max-width: 100%;
 }
 
 .build-create-page__section-header h2,
@@ -627,11 +654,6 @@ function createIdempotencyKey() {
 }
 
 @media (width <= 768px) {
-  .build-create-page__workspace-picker {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .build-create-page__grid {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -13,10 +13,9 @@ import (
 )
 
 const (
-	moduleID                 = "build"
-	buildMenuOrderJobs       = 1
-	buildMenuOrderArtifacts  = 2
-	buildMenuOrderWorkspaces = 3
+	moduleID                = "build"
+	buildMenuOrderJobs      = 1
+	buildMenuOrderArtifacts = 2
 )
 
 // Module 声明 Build domain 的生命周期边界，并在 Register 阶段接入其 Task executor 与 HTTP API。
@@ -46,11 +45,8 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	ctx.MenuRegistry.Register(menu.Item{Code: "build.jobs", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.jobs.title", Path: "/build/jobs", Icon: "build", Order: buildMenuOrderJobs, Permission: buildcontract.BuildReadPermission, Module: moduleID})
 	ctx.MenuRegistry.Register(menu.Item{Code: "build.artifacts", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.artifacts.title", Path: "/build/artifacts", Icon: "image-artifact", Order: buildMenuOrderArtifacts, Permission: buildcontract.BuildReadPermission, Module: moduleID})
-	ctx.MenuRegistry.Register(menu.Item{Code: "build.workspaces", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.workspaces.title", Path: "/build/workspaces", Icon: "build-workspace", Order: buildMenuOrderWorkspaces, Permission: buildcontract.BuildReadPermission, Module: moduleID})
-	contexts, err := module.ResolveService[moduleapi.ApplicationBuildContextResolver](ctx.Services, (*moduleapi.ApplicationBuildContextResolver)(nil))
-	if err != nil {
-		return fmt.Errorf("resolve application build context resolver: %w", err)
-	}
+	var contexts moduleapi.ApplicationBuildContextResolver
+	contexts, _ = module.ResolveService[moduleapi.ApplicationBuildContextResolver](ctx.Services, (*moduleapi.ApplicationBuildContextResolver)(nil))
 	submissions, err := module.ResolveService[moduleapi.TaskSubmissionService](ctx.Services, (*moduleapi.TaskSubmissionService)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve task service: %w", err)
@@ -73,6 +69,9 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	configureBuildV2Submission(ctx, service)
+	if reader, readerErr := module.ResolveService[moduleapi.BuildInputSnapshotReader](ctx.Services, (*moduleapi.BuildInputSnapshotReader)(nil)); readerErr == nil {
+		service.ConfigureInputSnapshotReader(reader)
+	}
 	configureArtifactPromotion(ctx, service)
 	registryPublication, _ := module.ResolveService[moduleapi.RegistryPublicationResolver](ctx.Services, (*moduleapi.RegistryPublicationResolver)(nil))
 	artifactCopyRegistry, _ := module.ResolveService[moduleapi.RegistryArtifactCopyResolver](ctx.Services, (*moduleapi.RegistryArtifactCopyResolver)(nil))

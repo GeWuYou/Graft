@@ -1,0 +1,41 @@
+migration:
+  path: server/modules/build/migrations/202608230001_build_input_snapshot_digest_unique.sql
+  version: '202608230001'
+owner: build
+risk_level: L3
+affected_tables:
+  - build_workspace_snapshots
+referenced_tables:
+  - build_workspace_snapshots
+operation_categories:
+  - unique-index
+  - comment-update
+historical_data_assumptions:
+  - Existing input snapshots may share a content digest only when they represent the same immutable uploaded content.
+planned_upgrade_order:
+  - Verify existing snapshot content digests are unique.
+  - Add the unique content-digest index and document its identity semantics.
+safety_strategy:
+  duplicate_scan: Abort if existing build_workspace_snapshots rows contain duplicate non-empty content digests.
+  live_reference_scan: The index changes lookup and deduplication only; snapshot and build-job references remain unchanged.
+  reconcile_or_abort: Abort migration if the unique index cannot be created because historical data violates the invariant.
+  post_migration_invariant: Each content digest identifies at most one immutable input snapshot.
+  reference_impact: No snapshot or build-job rows are deleted or rewritten.
+  recovery_or_retirement_rationale: The index is additive and can be removed only with an explicit authority decision.
+validation_scenarios:
+  - Existing unique content digests remain readable.
+  - A second snapshot with an existing content digest is rejected.
+  - Build job submission continues to resolve the original immutable snapshot.
+preflight_checks:
+  - name: duplicate-content-digests
+    query: SELECT COUNT(*) FROM (SELECT content_digest FROM build_workspace_snapshots GROUP BY content_digest HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-002

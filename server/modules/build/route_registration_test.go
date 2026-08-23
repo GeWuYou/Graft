@@ -1,8 +1,11 @@
 package build
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,18 +24,91 @@ import (
 	buildstore "graft/server/modules/build/store"
 )
 
+func buildSnapshotMultipart(t *testing.T, archive []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("archive", "input.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return body, writer.FormDataContentType()
+}
+
+func TestBuildInputSnapshotUploadRoute(t *testing.T) {
+	archive := &bytes.Buffer{}
+	tarWriter := tar.NewWriter(archive)
+	if err := tarWriter.WriteHeader(&tar.Header{Name: "Dockerfile", Mode: 0o644, Size: int64(len("FROM alpine\n"))}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = tarWriter.Write([]byte("FROM alpine\n"))
+	_ = tarWriter.Close()
+	repository := &recordingBuildRepository{}
+	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
+	body, contentType := buildSnapshotMultipart(t, archive.Bytes())
+	request := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", body)
+	request.Header.Set("Authorization", "Bearer route-test-token")
+	request.Header.Set("Content-Type", contentType)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected successful snapshot upload, got %d: %s", response.Code, response.Body.String())
+	}
+	invalidBody, invalidType := buildSnapshotMultipart(t, []byte("not an archive"))
+	invalidRequest := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", invalidBody)
+	invalidRequest.Header.Set("Authorization", "Bearer route-test-token")
+	invalidRequest.Header.Set("Content-Type", invalidType)
+	invalidResponse := httptest.NewRecorder()
+	engine.ServeHTTP(invalidResponse, invalidRequest)
+	if invalidResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid snapshot upload to return 400, got %d", invalidResponse.Code)
+	}
+}
+
+func TestBuildInputSnapshotListRoutePaginationAndValidation(t *testing.T) {
+	repository := &recordingBuildRepository{inputSnapshots: buildstore.InputSnapshotListResult{
+		Items: []moduleapi.WorkspaceSnapshot{{ID: "snapshot-1", SourceKind: moduleapi.WorkspaceSourceArchive, ContentDigest: "sha256:test"}},
+		Total: 3,
+	}}
+	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, "/api/build/input-snapshots?limit=2&offset=1", ""))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected snapshot list to succeed, got %d: %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, expected := range []string{`"snapshot-1"`, `"total":3`, `"limit":2`, `"offset":1`} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("snapshot list response missing %s: %s", expected, body)
+		}
+	}
+	for _, path := range []string{"/api/build/input-snapshots?limit=0", "/api/build/input-snapshots?offset=-1"} {
+		invalid := httptest.NewRecorder()
+		engine.ServeHTTP(invalid, buildAuthorizedRequest(http.MethodGet, path, ""))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("expected invalid snapshot query %s to return 400, got %d", path, invalid.Code)
+		}
+	}
+}
+
 //nolint:gocyclo,cyclop // 表驱动式请求绑定回归同时覆盖分页、快照、执行和时间筛选。
 func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	context, _ := gin.CreateTestContext(httptest.NewRecorder())
-	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&search=release&application_id=app_01JZ5R6M7N8P9Q0R1S2T3V4W5X&image_repository=example%2Fapp&image_tag=v1&build_status=running&builder_id=4&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
+	request := httptest.NewRequest("GET", "/api/build/jobs?limit=50&offset=100&search=release&image_repository=example%2Fapp&image_tag=v1&build_status=running&builder_id=4&created_after=2026-08-01T00%3A00%3A00Z&created_before=2026-08-02T00%3A00%3A00Z", nil)
 	context.Request = request
 
 	query, ok := buildListQuery(context)
 	if !ok {
 		t.Fatal("expected valid Build history query")
 	}
-	if query.Limit != 50 || query.Offset != 100 || query.ApplicationID == nil || *query.ApplicationID != "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X" {
+	if query.Limit != 50 || query.Offset != 100 || query.ApplicationID != nil {
 		t.Fatalf("unexpected pagination or application filter: %#v", query)
 	}
 	if query.ImageRepository == nil || *query.ImageRepository != "example/app" || query.ImageTag == nil || *query.ImageTag != "v1" {
@@ -125,7 +201,7 @@ func TestBuildRoutesUseModuleRouterPrefixExactlyOnce(t *testing.T) {
 
 func TestBuildRoutesRejectInvalidListQuery(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, &recordingBuildRepository{})
-	for _, path := range []string{"/api/build/jobs?limit=0", "/api/build/workspaces?limit=101", "/api/build/workspaces?search=%20"} {
+	for _, path := range []string{"/api/build/jobs?limit=0"} {
 		response := httptest.NewRecorder()
 		engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, path, ""))
 		if response.Code != http.StatusBadRequest {
@@ -135,17 +211,8 @@ func TestBuildRoutesRejectInvalidListQuery(t *testing.T) {
 }
 
 func TestBuildRoutesExposeBuildSelectorReadModels(t *testing.T) {
-	repository := &recordingBuildRepository{workspaces: []moduleapi.BuildWorkspace{{ID: "workspace_app", Name: "Application", SourceKind: moduleapi.WorkspaceSourceApplication, SourceReference: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X"}}}
+	repository := &recordingBuildRepository{}
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
-
-	workspaceResponse := httptest.NewRecorder()
-	engine.ServeHTTP(workspaceResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/workspaces?limit=10&offset=20&search=Application", ""))
-	if workspaceResponse.Code != http.StatusOK || !strings.Contains(workspaceResponse.Body.String(), "workspace_app") || !strings.Contains(workspaceResponse.Body.String(), `"total":1`) || !strings.Contains(workspaceResponse.Body.String(), `"offset":20`) {
-		t.Fatalf("unexpected workspace selector response: status=%d body=%s", workspaceResponse.Code, workspaceResponse.Body.String())
-	}
-	if repository.workspaceQuery.Limit != 10 || repository.workspaceQuery.Offset != 20 || repository.workspaceQuery.Search == nil || *repository.workspaceQuery.Search != "Application" {
-		t.Fatalf("unexpected workspace list query: %#v", repository.workspaceQuery)
-	}
 
 	targetResponse := httptest.NewRecorder()
 	engine.ServeHTTP(targetResponse, buildAuthorizedRequest(http.MethodGet, "/api/build/runtime-targets", ""))
@@ -187,7 +254,7 @@ func TestBuildRoutesMapBadBuildIDAndInternalReadFailureSeparately(t *testing.T) 
 func TestBuildSubmitRouteUsesInternalErrorKeyForRuntimeFailure(t *testing.T) {
 	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{err: errors.New("task runtime unavailable")}, &recordingBuildRepository{})
 	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/jobs", `{"workspace_id":"workspace_app","runtime_target_id":4,"template_ref":"oci-dockerfile/default@v1","driver":"docker-engine@v1","destination":{"kind":"oci_registry","connection_ref":"registry:default","repository_ref":"team/app","reference":"v1"}}`))
+	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/jobs", `{"input_snapshot_id":"workspace_app","runtime_target_id":4,"template_ref":"oci-dockerfile/default@v1","driver":"docker-engine@v1","destination":{"kind":"oci_registry","connection_ref":"registry:default","repository_ref":"team/app","reference":"v1"}}`))
 	if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), "common.internalError") {
 		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
 	}

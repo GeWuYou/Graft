@@ -1,0 +1,5 @@
+type: object
+required: [data]
+properties:
+  data: { $ref: ./build-input-snapshot.yaml }
+additionalProperties: false

@@ -1,9 +1,8 @@
 menu.build.jobs.title: 构建任务
-menu.build.workspaces.title: 构建工作区
 rbac.permissionCatalog.buildRead.display: 构建读取
 rbac.permissionCatalog.buildRead.description: 允许读取构建作业与任务状态。
 rbac.permissionCatalog.buildCreate.display: 创建构建
-rbac.permissionCatalog.buildCreate.description: 允许为已授权应用提交 Dockerfile 构建任务。
+rbac.permissionCatalog.buildCreate.description: 允许基于 Build 输入快照提交 Dockerfile 构建任务。
 rbac.permissionCatalog.buildCancel.display: 取消构建
 rbac.permissionCatalog.buildCancel.description: 允许取消正在执行的构建任务。
 rbac.permissionCatalog.buildRetry.display: 重试构建

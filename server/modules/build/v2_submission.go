@@ -33,6 +33,7 @@ const (
 // contains stable references only; source paths, daemon endpoints and
 // credentials are resolved within their authority boundaries.
 type ExecutionPlanRequest struct {
+	InputSnapshotID   string
 	WorkspaceID       string
 	BuilderPoolID     string
 	RuntimeTargetID   int64
@@ -62,6 +63,13 @@ func (s *Service) ConfigureV2Submission(snapshots moduleapi.ApplicationWorkspace
 	}
 	if repository, ok := s.repository.(moduleapi.BuilderResourceRepository); ok {
 		s.builderResources = repository
+	}
+}
+
+// ConfigureInputSnapshotReader 接入 Build-owned Input Snapshot 读取，不依赖 Project。
+func (s *Service) ConfigureInputSnapshotReader(reader moduleapi.BuildInputSnapshotReader) {
+	if s != nil {
+		s.inputSnapshots = reader
 	}
 }
 
@@ -471,14 +479,15 @@ func (s *Service) builderInstanceSupportsPlan(ctx context.Context, instance modu
 	return authorization, true
 }
 
-// SubmitExecutionPlan freezes an Application Workspace Snapshot and a
+// SubmitExecutionPlan freezes an Input Snapshot and a
 // provider-neutral Execution Plan before Task Runtime materializes execution.
 //
-//nolint:gocognit,gocyclo,cyclop,funlen,maintidx // Submission keeps authorization, freezing and Task reservation in one auditable boundary.
+//nolint:gocognit,gocyclo,cyclop,funlen,maintidx,nestif // Submission keeps authorization, freezing and Task reservation in one auditable boundary.
 func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlanRequest) (moduleapi.TaskReceipt, error) {
-	if s == nil || s.snapshots == nil || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil || s.workspaces == nil {
+	if s == nil || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil || (strings.TrimSpace(request.InputSnapshotID) != "" && s.inputSnapshots == nil) || (strings.TrimSpace(request.InputSnapshotID) == "" && (s.snapshots == nil || s.workspaces == nil)) {
 		return moduleapi.TaskReceipt{}, errors.New("build v2 submission dependencies are unavailable")
 	}
+	originalInputSnapshotID := strings.TrimSpace(request.InputSnapshotID)
 	request, err := normalizeExecutionPlanRequest(request)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, errInvalidBuildRequest
@@ -508,20 +517,33 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		return moduleapi.TaskReceipt{}, fmt.Errorf("resolve artifact destination: %w", err)
 	}
 	request.Destination = moduleapi.BuildDestination(authorizedDestination)
-	workspace, err := s.workspaces.GetWorkspace(ctx, request.WorkspaceID)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("resolve build workspace: %w", err)
-	}
-	if workspace.SourceKind != moduleapi.WorkspaceSourceApplication {
-		return moduleapi.TaskReceipt{}, errors.New("workspace source is not supported by the selected builder")
-	}
-	snapshot, _, err := s.snapshots.FreezeApplicationWorkspaceSnapshot(ctx, workspace.SourceReference)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("freeze application workspace snapshot: %w", err)
-	}
-	snapshot.WorkspaceID = workspace.ID
-	if snapshot.ID == "" || snapshot.ContentDigest == "" || snapshot.MaterializedRoot == "" {
-		return moduleapi.TaskReceipt{}, errors.New("application workspace snapshot is incomplete")
+	var snapshot moduleapi.WorkspaceSnapshot
+	inputSnapshotReuse := false
+	if originalInputSnapshotID != "" && s.inputSnapshots != nil {
+		snapshot, err = s.inputSnapshots.GetBuildInputSnapshot(ctx, request.InputSnapshotID, actorID)
+		if err != nil {
+			return moduleapi.TaskReceipt{}, fmt.Errorf("resolve input snapshot: %w", err)
+		}
+		if snapshot.ID == "" || snapshot.ContentDigest == "" || snapshot.MaterializationRef == "" {
+			return moduleapi.TaskReceipt{}, errors.New("input snapshot is unavailable")
+		}
+		inputSnapshotReuse = true
+	} else {
+		workspace, workspaceErr := s.workspaces.GetWorkspace(ctx, request.WorkspaceID)
+		if workspaceErr != nil {
+			return moduleapi.TaskReceipt{}, fmt.Errorf("resolve build workspace: %w", workspaceErr)
+		}
+		if workspace.SourceKind != moduleapi.WorkspaceSourceApplication {
+			return moduleapi.TaskReceipt{}, errors.New("workspace source is not supported by the selected builder")
+		}
+		snapshot, _, err = s.snapshots.FreezeApplicationWorkspaceSnapshot(ctx, workspace.SourceReference)
+		if err != nil {
+			return moduleapi.TaskReceipt{}, fmt.Errorf("freeze application workspace snapshot: %w", err)
+		}
+		snapshot.WorkspaceID = workspace.ID
+		if snapshot.ID == "" || snapshot.ContentDigest == "" || snapshot.MaterializedRoot == "" {
+			return moduleapi.TaskReceipt{}, errors.New("application workspace snapshot is incomplete")
+		}
 	}
 	selectedBuilderID := ""
 	if workspaceSelection := strings.TrimSpace(request.BuilderPoolID); workspaceSelection != "" {
@@ -558,25 +580,33 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	// Project 仅负责来源授权和初次捕获；提交后由 Build 保留执行物化内容，
 	// 后续保留策略不会改变 Snapshot identity。
-	materialization, materializeErr := (buildWorkspaceMaterializer{}).MaterializeSnapshot(ctx, snapshot, moduleapi.WorkspaceMaterializationRequest{ExecutionID: request.IdempotencyKey})
-	_ = os.RemoveAll(snapshot.MaterializedRoot)
-	if materializeErr != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize workspace snapshot: %w", materializeErr)
+	if !inputSnapshotReuse {
+		materialization, materializeErr := (buildWorkspaceMaterializer{}).MaterializeSnapshot(ctx, snapshot, moduleapi.WorkspaceMaterializationRequest{ExecutionID: request.IdempotencyKey})
+		_ = os.RemoveAll(snapshot.MaterializedRoot)
+		if materializeErr != nil {
+			return moduleapi.TaskReceipt{}, fmt.Errorf("materialize workspace snapshot: %w", materializeErr)
+		}
+		snapshot.MaterializedRoot = ""
+		snapshot.MaterializationRef = materialization.MaterializationRef
 	}
-	snapshot.MaterializedRoot = ""
-	snapshot.MaterializationRef = materialization.MaterializationRef
+	releaseSubmissionMaterialization := func() {
+		if !inputSnapshotReuse {
+			_ = releaseMaterialization(ctx, snapshot.MaterializationRef)
+		}
+	}
 	plan, err := freezeExecutionPlan(snapshot, request, selectedBuilderID)
 	if err != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, err
 	}
 	input, err := json.Marshal(moduleapi.BuildPlanTaskInput{BuildID: plan.ID, ExecutionPlanID: plan.ID})
 	if err != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal execution plan task input: %w", err)
 	}
 	placement, found := plan.PlacementForPlatform(plan.Platforms[0])
 	if !found {
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, errors.New("execution plan placement is incomplete")
 	}
 	taskPlan := moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "execution-plan", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildImagePublishOperation, input)}}}
@@ -587,10 +617,12 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 			legID := fmt.Sprintf("platform-%d", index+1)
 			legInput, marshalErr := json.Marshal(moduleapi.BuildPlanTaskInput{BuildID: plan.ID, ExecutionPlanID: plan.ID, Platform: platform, LegID: legID})
 			if marshalErr != nil {
+				releaseSubmissionMaterialization()
 				return moduleapi.TaskReceipt{}, fmt.Errorf("marshal coordinated build leg input: %w", marshalErr)
 			}
 			placement, found := plan.PlacementForPlatform(platform)
 			if !found || placement.BuilderInstanceID == "" {
+				releaseSubmissionMaterialization()
 				return moduleapi.TaskReceipt{}, errors.New("coordinated build placement is incomplete")
 			}
 			legs = append(legs, moduleapi.CoordinatedLegPlan{ID: legID, Platform: platform, BuilderInstanceID: placement.BuilderInstanceID, RuntimeTargetID: placement.RuntimeTargetID, Input: legInput})
@@ -602,35 +634,35 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	task := moduleapi.SubmitTaskInput{
 		Type:           v2BuildTaskType,
-		Owner:          moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "workspace:" + request.WorkspaceID},
-		RequestedBy:    request.RequestedBy,
+		Owner:          moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: plan.ID},
+		RequestedBy:    actorID,
 		IdempotencyKey: request.IdempotencyKey,
 		Input:          input,
 		Plan:           taskPlan,
 	}
 	handle, err := s.submissions.BeginSubmission(ctx, moduleapi.BeginTaskSubmissionInput{Task: task, Policy: moduleapi.TaskSubmissionPolicy{LeaseTTL: buildSubmissionLeaseTTL, AbsoluteDeadline: buildSubmissionDeadline, RenewBefore: buildSubmissionRenewBefore, AllowRenew: true, PrerequisiteKind: "build.execution_plan.v2"}})
 	if err != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, err
 	}
 	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 		return s.activatedSubmissionReceipt(ctx, *handle.Submission.TaskID)
 	}
 	repository, ok := s.repository.(buildstore.ExecutionPlanRepository)
 	if !ok {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, errors.New("build execution plan persistence is unavailable")
 	}
-	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, task, executionPlanSubmissionWriter{repository: repository, plan: plan, requestedBy: request.RequestedBy})
+	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, task, executionPlanSubmissionWriter{repository: repository, plan: plan, requestedBy: actorID})
 	if err != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 	}
 	return receipt, err
 }
 
-func releaseMaterialization(reference string) error {
-	return (buildWorkspaceMaterializer{}).ReleaseMaterialization(context.Background(), moduleapi.WorkspaceMaterialization{MaterializationRef: reference})
+func releaseMaterialization(ctx context.Context, reference string) error {
+	return (buildWorkspaceMaterializer{}).ReleaseMaterialization(ctx, moduleapi.WorkspaceMaterialization{MaterializationRef: reference})
 }
 
 type executionPlanSubmissionWriter struct {
@@ -783,7 +815,12 @@ func containsBuildRef(values []string, wanted string) bool {
 
 //nolint:cyclop,gocyclo // 规范化必须在持久化前枚举所有调用方可控的计划引用。
 func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanRequest, error) {
-	request.WorkspaceID, request.BuilderPoolID, request.TemplateRef, request.Driver = strings.TrimSpace(request.WorkspaceID), strings.TrimSpace(request.BuilderPoolID), strings.TrimSpace(request.TemplateRef), strings.TrimSpace(request.Driver)
+	request.InputSnapshotID, request.WorkspaceID, request.BuilderPoolID, request.TemplateRef, request.Driver = strings.TrimSpace(request.InputSnapshotID), strings.TrimSpace(request.WorkspaceID), strings.TrimSpace(request.BuilderPoolID), strings.TrimSpace(request.TemplateRef), strings.TrimSpace(request.Driver)
+	if request.InputSnapshotID != "" && request.WorkspaceID == "" {
+		// Migration fallback only: legacy Application resolver receives the same
+		// stable reference while the Build-owned reader is being rolled out.
+		request.WorkspaceID = request.InputSnapshotID
+	}
 	request.Destination.Kind = strings.TrimSpace(request.Destination.Kind)
 	request.Destination.ConnectionRef = strings.TrimSpace(request.Destination.ConnectionRef)
 	request.Destination.RepositoryRef = strings.TrimSpace(request.Destination.RepositoryRef)
@@ -799,7 +836,7 @@ func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanR
 	if request.CachePolicy != "disabled" || request.SecurityPolicy != "default" {
 		return ExecutionPlanRequest{}, errors.New("execution plan policy is unsupported")
 	}
-	if request.WorkspaceID == "" || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
+	if (request.InputSnapshotID == "" && request.WorkspaceID == "") || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.InputSnapshotID+request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
 		return ExecutionPlanRequest{}, errors.New("invalid execution plan request")
 	}
 	if len(request.Platforms) == 0 {

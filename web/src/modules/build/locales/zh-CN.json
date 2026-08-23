@@ -6,9 +6,6 @@
       },
       "jobs": {
         "title": "构建任务"
-      },
-      "workspaces": {
-        "title": "构建工作区"
       }
     }
   },
@@ -45,13 +42,11 @@
       "emptyFilteredDescription": "请调整筛选条件后重试。",
       "loadFailed": "无法加载构建任务。",
       "filters": {
-        "application": "应用",
         "repository": "镜像仓库",
         "imageTag": "镜像标签",
         "status": "状态",
         "builder": "构建器",
         "createdTime": "创建时间",
-        "applicationId": "应用 ID",
         "all": "全部",
         "createdAfter": "创建时间下限",
         "createdBefore": "创建时间上限",
@@ -61,7 +56,7 @@
       },
       "columns": {
         "build": "构建",
-        "application": "应用",
+        "snapshot": "构建输入快照",
         "image": "镜像",
         "repository": "仓库",
         "imageTag": "镜像标签",
@@ -102,7 +97,7 @@
         "sections": {
           "source": {
             "title": "构建来源",
-            "description": "选择本次构建使用的构建工作区。"
+            "description": "上传归档，或复用已有的构建输入快照。"
           },
           "execution": {
             "title": "执行配置",
@@ -117,13 +112,18 @@
         "submit": "提交构建",
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",
-        "workspace": "工作区",
-        "workspaceId": "工作区 ID",
-        "workspaceIdRequired": "请输入工作区 ID。",
-        "workspacePlaceholder": "选择构建工作区",
-        "createWorkspace": "创建构建工作区",
-        "workspaceEmpty": "暂无可用的构建工作区，请先创建工作区或检查共享范围。",
-        "workspaceLoadFailed": "无法加载构建工作区。",
+        "sourceMode": "构建输入",
+        "uploadArchive": "上传归档",
+        "reuseSnapshot": "复用已有构建输入快照",
+        "archive": "归档文件",
+        "archivePlaceholder": "选择包含根 Dockerfile 的 ZIP、TAR 或 TAR.GZ",
+        "archiveRequired": "提交前请选择归档文件。",
+        "archiveTooLarge": "归档文件不能超过 100 MiB。",
+        "snapshot": "构建输入快照",
+        "snapshotRequired": "请选择构建输入快照。",
+        "snapshotPlaceholder": "选择可用的构建输入快照",
+        "snapshotEmpty": "暂无可复用的构建输入快照。",
+        "snapshotLoadFailed": "无法加载可复用的构建输入快照。",
         "runtimeTarget": "运行目标",
         "runtimeTargetRequired": "请选择运行目标。",
         "runtimeTargetPlaceholder": "选择支持镜像构建的运行目标",
@@ -172,47 +172,6 @@
         "addRegistry": "添加镜像仓库",
         "tag": "镜像标签",
         "tagRequired": "请输入镜像标签。"
-      }
-    },
-    "workspaces": {
-      "title": "构建工作区",
-      "eyebrow": "构建",
-      "description": "登记可供构建任务复用的应用工作区来源。",
-      "refresh": "刷新",
-      "retry": "重试",
-      "summary": "共 {count} 个工作区",
-      "empty": "暂无构建工作区",
-      "emptyDescription": "创建工作区后，构建任务才能选择可授权的应用来源。",
-      "loadFailed": "无法加载构建工作区。",
-      "applicationLoadFailed": "无法加载来源应用，列表仍保留工作区原始引用。",
-      "applicationUnavailable": "应用 #{id} / 账号不可用",
-      "sourceKinds": {
-        "application_workspace": "应用工作区"
-      },
-      "columns": {
-        "name": "名称",
-        "sourceKind": "来源类型",
-        "sourceApplication": "来源应用",
-        "retentionPolicy": "保留策略",
-        "createdAt": "创建时间",
-        "updatedAt": "更新时间"
-      },
-      "create": {
-        "title": "创建构建工作区",
-        "description": "从已有应用登记一个可复用的构建来源，构建任务将使用服务端冻结的应用工作区事实。",
-        "name": "工作区名称",
-        "namePlaceholder": "例如：订单服务构建源",
-        "nameRequired": "请输入工作区名称。",
-        "application": "来源应用",
-        "applicationPlaceholder": "选择已有应用",
-        "applicationHelp": "只能选择当前账号可访问的应用，源码路径由服务端解析。",
-        "applicationRequired": "请选择来源应用。",
-        "applicationEmpty": "暂无可用应用，请先创建或检查应用访问权限。",
-        "applicationLoadFailed": "无法加载可用应用。",
-        "manageApplications": "管理应用",
-        "back": "返回构建工作区",
-        "submit": "创建工作区",
-        "submitFailed": "无法创建构建工作区。"
       }
     }
   }

@@ -204,7 +204,9 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	if repository.v2Plan.Workspace.MaterializedRoot != "" || repository.v2Plan.Workspace.MaterializationRef == "" {
 		t.Fatalf("persisted snapshot must retain only opaque materialization reference: %#v", repository.v2Plan.Workspace)
 	}
-	t.Cleanup(func() { _ = releaseMaterialization(repository.v2Plan.Workspace.MaterializationRef) })
+	t.Cleanup(func() {
+		_ = releaseMaterialization(context.Background(), repository.v2Plan.Workspace.MaterializationRef)
+	})
 	var input moduleapi.BuildPlanTaskInput
 	if err := json.Unmarshal(tasks.input.Input, &input); err != nil {
 		t.Fatal(err)

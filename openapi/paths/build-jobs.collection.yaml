@@ -12,12 +12,8 @@ get:
       name: offset
       schema: { type: integer, minimum: 0, default: 0 }
     - in: query
-      name: application_id
-      description: Optional exact Build snapshot public application identifier.
-      schema: { $ref: ../components/schemas/application-id.yaml }
-    - in: query
       name: search
-      description: Optional case-insensitive search over Build ID, application name, repository, and image tag.
+      description: Optional case-insensitive search over Build ID, Snapshot digest, repository, and image tag.
       schema: { type: string, minLength: 1, maxLength: 255 }
     - in: query
       name: image_repository
@@ -58,7 +54,7 @@ get:
 post:
   tags: [build]
   operationId: postBuildJob
-  summary: Submit an immutable Build execution plan for an authorized Workspace
+  summary: Submit an immutable Build execution plan for an available Input Snapshot
   parameters:
     - name: Idempotency-Key
       in: header

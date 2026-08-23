@@ -41,6 +41,9 @@ type JobSnapshot struct {
 	ImageTag            string
 	BuildArgs           []moduleapi.BuildArgument
 	RequestedBy         uint64
+	InputSnapshotID     string
+	InputSnapshotDigest string
+	SourceKind          string
 }
 
 // Artifact 是 Build 作业完成后由 Docker 结果结算的只读产物证据。
@@ -185,6 +188,24 @@ type ExecutionPlanRepository interface {
 	MaterializeExecutionPlan(context.Context, *sql.Tx, moduleapi.TaskSubmission, moduleapi.BuildExecutionPlan, uint64) (string, error)
 }
 
+// InputSnapshotRepository 持久化 Build-owned 上传输入；它复用既有
+// build_workspace_snapshots 表，不创建第二套 Snapshot/Blob 存储。
+type InputSnapshotRepository interface {
+	CreateBuildInputSnapshot(context.Context, string, string, string, string, uint64) (moduleapi.WorkspaceSnapshot, error)
+	GetBuildInputSnapshot(context.Context, string, uint64) (moduleapi.WorkspaceSnapshot, error)
+}
+
+// InputSnapshotListResult 保存调用者可复用的 Build 输入快照分页投影。
+type InputSnapshotListResult struct {
+	Items []moduleapi.WorkspaceSnapshot
+	Total int64
+}
+
+// InputSnapshotReader 暴露按所有权过滤的输入快照查询边界。
+type InputSnapshotReader interface {
+	ListBuildInputSnapshots(context.Context, uint64, int, int) (InputSnapshotListResult, error)
+}
+
 // BuilderReservationRepository 暴露 Build 容量租约的事务化写入与终态更新。
 type BuilderReservationRepository interface {
 	moduleapi.BuilderReservationRepository
@@ -204,6 +225,13 @@ type WorkspaceRepository interface {
 // ExecutionPlanReader 是 frozen plan 的 execution-time read authority。
 type ExecutionPlanReader interface {
 	GetExecutionPlanByTaskID(context.Context, uint64) (moduleapi.BuildExecutionPlan, error)
+}
+
+// V2JobReader projects new Build jobs solely from execution plans, Tasks and
+// immutable v2 artifacts; legacy build_jobs remains historical read-only evidence.
+type V2JobReader interface {
+	ListV2Jobs(context.Context, uint64, ListQuery) (ListResult, error)
+	GetV2JobByBuildID(context.Context, uint64, string) (JobProjection, error)
 }
 
 // V2ArtifactSettlementRepository 在 target executor 完成两项动作后记录 immutable
@@ -272,6 +300,12 @@ func (r *SQLRepository) ClaimExpiredSnapshotMaterializations(ctx context.Context
 		WHERE materialization_owner = 'build'
 		  AND retention_expires_at IS NOT NULL
 		  AND retention_expires_at <= $1
+		  AND NOT EXISTS (
+			SELECT 1 FROM build_execution_plans plan
+			JOIN tasks task ON task.id = plan.task_id
+			WHERE plan.workspace_snapshot_id = build_workspace_snapshots.id
+			  AND task.status NOT IN ('success', 'failed', 'cancelled')
+		  )
 		  AND (materialization_state IN ('available', 'expired') OR (materialization_state = 'purging' AND materialization_claimed_at <= $2))
 		ORDER BY retention_expires_at ASC, id ASC
 		LIMIT $3
@@ -574,13 +608,132 @@ func requireReservationUpdate(result sql.Result) error {
 
 func materializeWorkspaceSnapshot(ctx context.Context, tx *sql.Tx, snapshot moduleapi.WorkspaceSnapshot, requestedBy uint64) (uint64, error) {
 	var snapshotPK uint64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, created_by)
-VALUES ($1, $2, $3, $4, $5, 'build', 'available', 'task_lifetime', $6)
-ON CONFLICT (snapshot_id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id
+	if err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
+VALUES ($1, $2, $3, $4, $5, 'build', 'available', 'task_lifetime', NULL, $6)
+ON CONFLICT (snapshot_id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id, retention_policy = 'task_lifetime', retention_expires_at = NULL, materialization_state = 'available', materialization_ref = EXCLUDED.materialization_ref
 RETURNING id`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&snapshotPK); err != nil {
 		return 0, fmt.Errorf("materialize workspace snapshot: %w", err)
 	}
 	return snapshotPK, nil
+}
+
+// CreateBuildInputSnapshot 将已由 Build 校验并物化到 Build-owned 临时目录的归档
+// 注册为可复用 Snapshot。内容摘要冲突时返回已有可用 Snapshot，保证去重幂等。
+func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshotID, sourceReference, contentDigest, materializationRef string, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" || strings.TrimSpace(contentDigest) == "" || strings.TrimSpace(materializationRef) == "" {
+		return moduleapi.WorkspaceSnapshot{}, errors.New("invalid build input snapshot")
+	}
+	return r.createBuildInputSnapshotTx(ctx, inputSnapshotCreateParams{snapshotID: snapshotID, sourceReference: sourceReference, contentDigest: contentDigest, materializationRef: materializationRef, requestedBy: requestedBy})
+}
+
+type inputSnapshotCreateParams struct {
+	snapshotID, sourceReference, contentDigest, materializationRef string
+	requestedBy                                                    uint64
+}
+
+func (r *SQLRepository) createBuildInputSnapshotTx(ctx context.Context, params inputSnapshotCreateParams) (moduleapi.WorkspaceSnapshot, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("begin create build input snapshot: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	existing, err := insertBuildInputSnapshot(ctx, tx, params)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, err
+	}
+	if err := grantBuildInputSnapshotAccess(ctx, tx, existing.ID, params.requestedBy); err != nil {
+		return moduleapi.WorkspaceSnapshot{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("commit build input snapshot: %w", err)
+	}
+	committed = true
+	return existing, nil
+}
+
+func insertBuildInputSnapshot(ctx context.Context, tx *sql.Tx, params inputSnapshotCreateParams) (moduleapi.WorkspaceSnapshot, error) {
+	var existing moduleapi.WorkspaceSnapshot
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
+VALUES ($1,$2,$3,$4,$5,'build','available','snapshot_lifetime',NOW() + INTERVAL '24 hours',$6)
+ON CONFLICT (content_digest) DO UPDATE SET
+  materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_state ELSE 'available' END,
+  materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
+  retention_expires_at = GREATEST(COALESCE(build_workspace_snapshots.retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
+	RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, params.snapshotID, moduleapi.WorkspaceSourceArchive, params.sourceReference, params.contentDigest, params.materializationRef, nullableUint64(params.requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("create build input snapshot: %w", err)
+	}
+	return existing, nil
+}
+
+func grantBuildInputSnapshotAccess(ctx context.Context, tx *sql.Tx, snapshotID string, requestedBy uint64) error {
+	if requestedBy == 0 {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO build_workspace_snapshot_access (workspace_snapshot_id, user_id, created_by)
+SELECT id, $2, $2 FROM build_workspace_snapshots WHERE snapshot_id = $1
+ON CONFLICT (workspace_snapshot_id, user_id) WHERE deleted_at = 0 DO NOTHING`, snapshotID, requestedBy); err != nil {
+		return fmt.Errorf("grant build input snapshot access: %w", err)
+	}
+	return nil
+}
+
+// GetBuildInputSnapshot 返回仍可用于新 Build 的 Snapshot；已清理物化内容的身份
+// 保留为历史证据，但不能重新提交执行计划。
+func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID string, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" {
+		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
+	}
+	var snapshot moduleapi.WorkspaceSnapshot
+	err := r.db.QueryRowContext(ctx, `UPDATE build_workspace_snapshots
+SET retention_expires_at = GREATEST(COALESCE(retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
+WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND ($2 = 0 OR EXISTS (SELECT 1 FROM build_workspace_snapshot_access a WHERE a.workspace_snapshot_id = build_workspace_snapshots.id AND a.user_id = $2 AND a.deleted_at = 0))
+RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, strings.TrimSpace(snapshotID), nullableUint64(requestedBy)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
+	}
+	if err != nil {
+		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("get build input snapshot: %w", err)
+	}
+	return snapshot, nil
+}
+
+// ListBuildInputSnapshots 返回当前用户仍可复用的上传快照，结果按创建时间倒序稳定分页。
+//
+//nolint:cyclop // 查询同时校验分页边界、统计结果和行扫描错误。
+func (r *SQLRepository) ListBuildInputSnapshots(ctx context.Context, requestedBy uint64, limit, offset int) (InputSnapshotListResult, error) {
+	if r == nil || r.db == nil || requestedBy == 0 || limit < 1 || limit > 100 || offset < 0 {
+		return InputSnapshotListResult{}, errors.New("invalid build input snapshot list query")
+	}
+	const predicate = `FROM build_workspace_snapshots
+WHERE materialization_owner = 'build' AND materialization_state = 'available'
+  AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND EXISTS (SELECT 1 FROM build_workspace_snapshot_access a WHERE a.workspace_snapshot_id = build_workspace_snapshots.id AND a.user_id = $1 AND a.deleted_at = 0)`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) `+predicate, requestedBy).Scan(&total); err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("count build input snapshots: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at `+predicate+` ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`, requestedBy, limit, offset)
+	if err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("list build input snapshots: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]moduleapi.WorkspaceSnapshot, 0, limit)
+	for rows.Next() {
+		var item moduleapi.WorkspaceSnapshot
+		if err := rows.Scan(&item.ID, &item.SourceKind, &item.SourceReference, &item.ContentDigest, &item.MaterializationRef, &item.CreatedAt); err != nil {
+			return InputSnapshotListResult{}, fmt.Errorf("scan build input snapshot: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("iterate build input snapshots: %w", err)
+	}
+	return InputSnapshotListResult{Items: items, Total: total}, nil
 }
 
 type executionPlanFields struct {
@@ -1099,7 +1252,72 @@ func (r *SQLRepository) MaterializeSubmissionSnapshot(ctx context.Context, tx *s
 	return value.BuildID, nil
 }
 
-// ListJobs 读取 Build 域自己的作业与已结算 artifact，不联结 Task、Project 或 Container 内部表。
+// ListV2Jobs 读取新 Build 作业的 canonical execution-plan projection。
+func (r *SQLRepository) ListV2Jobs(ctx context.Context, requestedBy uint64, query ListQuery) (result ListResult, err error) {
+	if r == nil || r.db == nil || requestedBy == 0 {
+		return result, errors.New("build repository is unavailable")
+	}
+	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
+	where, args := v2JobListFilters(query, requestedBy)
+	predicate := strings.Join(where, " AND ")
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE `+predicate, args...).Scan(&total); err != nil {
+		return result, fmt.Errorf("count v2 build jobs: %w", err)
+	}
+	result.Total = total
+	args = append(args, query.Limit, query.Offset)
+	//nolint:gosec // predicate and placeholders are generated from fixed query fields; values remain bound args.
+	rows, err := r.db.QueryContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN LATERAL (SELECT artifact_id, artifact_digest, size_bytes FROM build_v2_artifacts WHERE produced_plan_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON TRUE
+WHERE `+predicate+` ORDER BY p.created_at DESC, p.id DESC LIMIT $`+strconv.Itoa(len(args)-1)+` OFFSET $`+strconv.Itoa(len(args)), args...)
+	if err != nil {
+		return result, fmt.Errorf("list v2 build jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var item JobProjection
+		var artifactID, digest, tag string
+		var size int64
+		if err := rows.Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size); err != nil {
+			return result, fmt.Errorf("scan v2 build job: %w", err)
+		}
+		item.ImageTag = tag
+		if artifactID != "" {
+			item.Artifact = &Artifact{ArtifactID: artifactID, Digest: digest, Repository: item.ImageRepository, Tag: tag, SizeBytes: size}
+		}
+		result.Items = append(result.Items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return result, fmt.Errorf("iterate v2 build jobs: %w", err)
+	}
+	return result, nil
+}
+
+// GetV2JobByBuildID returns one canonical execution-plan projection by plan identity.
+func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, requestedBy uint64, buildID string) (JobProjection, error) {
+	if r == nil || r.db == nil || requestedBy == 0 || strings.TrimSpace(buildID) == "" {
+		return JobProjection{}, ErrNotFound
+	}
+	var item JobProjection
+	var artifactID, digest, tag string
+	var size int64
+	err := r.db.QueryRowContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN LATERAL (SELECT artifact_id, artifact_digest, size_bytes FROM build_v2_artifacts WHERE produced_plan_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON TRUE
+WHERE p.plan_id = $1 AND EXISTS (SELECT 1 FROM build_workspace_snapshot_access access WHERE access.workspace_snapshot_id = s.id AND access.user_id = $2 AND access.deleted_at = 0)`, strings.TrimSpace(buildID), requestedBy).Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return JobProjection{}, ErrNotFound
+	}
+	if err != nil {
+		return JobProjection{}, fmt.Errorf("get v2 build job: %w", err)
+	}
+	item.ImageTag = tag
+	if artifactID != "" {
+		item.Artifact = &Artifact{ArtifactID: artifactID, Digest: digest, Repository: item.ImageRepository, Tag: tag, SizeBytes: size}
+	}
+	return item, nil
+}
+
+// ListJobs is the legacy projection retained for historical evidence.
 func (r *SQLRepository) ListJobs(ctx context.Context, query ListQuery) (result ListResult, err error) {
 	if r == nil || r.db == nil {
 		return result, errors.New("build repository is unavailable")
@@ -1195,6 +1413,46 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 		args = append(args, *query.CreatedBefore)
 	}
 	return appendTaskStatusFilter(where, args, query.BuildStatus)
+}
+
+func v2JobListFilters(query ListQuery, requestedBy uint64) ([]string, []any) {
+	where := []string{"1 = 1"}
+	args := make([]any, 0, jobListFilterCap+1)
+	where = append(where, `EXISTS (SELECT 1 FROM build_workspace_snapshot_access access WHERE access.workspace_snapshot_id = s.id AND access.user_id = $1 AND access.deleted_at = 0)`)
+	args = append(args, requestedBy)
+	if query.ApplicationID != nil {
+		where = append(where, "FALSE")
+	}
+	if query.ImageRepository != nil {
+		where = append(where, `p.destination_json->>'repository_ref' = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageRepository)
+	}
+	if query.ImageTag != nil {
+		where = append(where, `p.destination_json->>'reference' = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageTag)
+	}
+	if query.Search != nil {
+		placeholder := strconv.Itoa(len(args) + 1)
+		where = append(where, `(p.plan_id ILIKE '%' || $`+placeholder+` || '%' OR s.snapshot_id ILIKE '%' || $`+placeholder+` || '%' OR s.content_digest ILIKE '%' || $`+placeholder+` || '%')`)
+		args = append(args, *query.Search)
+	}
+	if query.BuilderID != nil {
+		where = append(where, `p.runtime_target_id = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.BuilderID)
+	}
+	if query.CreatedAfter != nil {
+		where = append(where, `p.created_at >= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedAfter)
+	}
+	if query.CreatedBefore != nil {
+		where = append(where, `p.created_at <= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedBefore)
+	}
+	if query.BuildStatus != nil {
+		where, args = appendTaskStatusFilter(where, args, query.BuildStatus)
+		where[len(where)-1] = strings.Replace(where[len(where)-1], "j.task_id", "p.task_id", 1)
+	}
+	return where, args
 }
 
 func appendTaskStatusFilter(where []string, args []any, filter *StatusFilter) ([]string, []any) {

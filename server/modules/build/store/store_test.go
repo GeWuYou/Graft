@@ -14,6 +14,35 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
+func TestCreateBuildInputSnapshotReusesDigestAndGrantsAccessWithoutChangingOwner(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdAt := time.Date(2026, time.August, 23, 12, 0, 0, 0, time.UTC)
+	mock.ExpectBegin()
+	mock.ExpectQuery("INSERT INTO build_workspace_snapshots").WithArgs("snapshot-new", moduleapi.WorkspaceSourceArchive, "upload:source", "sha256:digest", "build://materialized", uint64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"snapshot_id", "source_kind", "source_reference", "content_digest", "materialization_ref", "created_at"}).
+			AddRow("snapshot-original", moduleapi.WorkspaceSourceArchive, "upload:original", "sha256:digest", "build://original", createdAt))
+	mock.ExpectExec("INSERT INTO build_workspace_snapshot_access").WithArgs("snapshot-original", uint64(7)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	got, err := repository.CreateBuildInputSnapshot(context.Background(), "snapshot-new", "upload:source", "sha256:digest", "build://materialized", 7)
+	if err != nil {
+		t.Fatalf("create reused snapshot: %v", err)
+	}
+	if got.ID != "snapshot-original" || got.ContentDigest != "sha256:digest" || got.CreatedAt != createdAt {
+		t.Fatalf("reused snapshot = %#v", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestJobListFiltersPreserveExactFilterArgumentOrder(t *testing.T) {
 	repository := "example/app"
 	tag := "v1"

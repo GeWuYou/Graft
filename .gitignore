@@ -73,3 +73,7 @@ node_modules/
 /.worktrees/
 .VSCodeCounter/
 server/agents/docker-runtime-agent/cmd/__debug_bin*
+
+# OpenAPI bundle is a reproducible intermediate generated from openapi/openapi.yaml.
+# Generated server/web code remains tracked; the bundle is recreated by `just generate`.
+openapi/dist/
