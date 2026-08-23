@@ -622,14 +622,14 @@ RETURNING snapshot_id, source_kind, source_reference, content_digest, materializ
 
 // GetBuildInputSnapshot 返回仍可用于新 Build 的 Snapshot；已清理物化内容的身份
 // 保留为历史证据，但不能重新提交执行计划。
-func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID string) (moduleapi.WorkspaceSnapshot, error) {
+func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID string, requestedBy uint64) (moduleapi.WorkspaceSnapshot, error) {
 	if r == nil || r.db == nil || strings.TrimSpace(snapshotID) == "" {
 		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
 	}
 	var snapshot moduleapi.WorkspaceSnapshot
 	err := r.db.QueryRowContext(ctx, `SELECT snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at
 FROM build_workspace_snapshots
-WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW())`, strings.TrimSpace(snapshotID)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
+WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND ($2 = 0 OR created_by = $2)`, strings.TrimSpace(snapshotID), nullableUint64(requestedBy)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
 	}

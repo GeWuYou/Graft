@@ -334,17 +334,17 @@ async function loadSnapshots() {
   snapshotLoading.value = true;
   snapshotError.value = '';
   try {
-    const jobs = await getBuildJobs({
-      limit: 100,
-      offset: 0,
-    });
     const unique = new Map<string, SelectorOption>();
-    for (const item of jobs.items as BuildJobSummary[]) {
-      if (!item.input_snapshot_id || unique.has(item.input_snapshot_id)) continue;
-      unique.set(item.input_snapshot_id, {
-        value: item.input_snapshot_id,
-        label: `${item.input_snapshot_digest} (${item.source_kind})`,
-      });
+    for (let offset = 0; ; offset += 100) {
+      const jobs = await getBuildJobs({ limit: 100, offset });
+      for (const item of jobs.items as BuildJobSummary[]) {
+        if (!item.input_snapshot_id || unique.has(item.input_snapshot_id)) continue;
+        unique.set(item.input_snapshot_id, {
+          value: item.input_snapshot_id,
+          label: `${item.input_snapshot_digest} (${item.source_kind})`,
+        });
+      }
+      if (jobs.items.length < 100) break;
     }
     snapshotOptions.value = [...unique.values()];
   } catch (error) {

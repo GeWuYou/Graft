@@ -1,0 +1,40 @@
+migration:
+  path: server/modules/build/migrations/202608230002_build_input_snapshot_digest_concurrent_index.sql
+  version: '202608230002'
+owner: build
+risk_level: L4
+affected_tables:
+  - build_workspace_snapshots
+referenced_tables:
+  - build_workspace_snapshots
+operation_categories:
+  - duplicate-scan
+  - unique-index
+historical_data_assumptions:
+  - Duplicate content digests must be reconciled before index replacement.
+planned_upgrade_order:
+  - Scan all content digests before dropping and recreating the index.
+  - Recreate the unique index concurrently outside a transaction.
+safety_strategy:
+  duplicate_scan: Group every snapshot row by content_digest before index replacement.
+  live_reference_scan: Snapshot and job references remain unchanged.
+  reconcile_or_abort: Abort before dropping the index when duplicate digests exist.
+  post_migration_invariant: At most one snapshot row exists for each content digest.
+  reference_impact: No snapshot or build-job rows are deleted or rewritten.
+  recovery_or_retirement_rationale: Re-run after operator reconciliation.
+validation_scenarios:
+  - Duplicate content digests block migration preflight.
+  - Unique content digests allow concurrent index replacement.
+preflight_checks:
+  - name: duplicate-build-input-snapshot-digests
+    query: SELECT COUNT(*) FROM (SELECT content_digest FROM build_workspace_snapshots GROUP BY content_digest HAVING COUNT(*) > 1) duplicates
+    must_equal: 0
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+    - MIG-002

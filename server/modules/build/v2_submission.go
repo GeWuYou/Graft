@@ -520,7 +520,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	var snapshot moduleapi.WorkspaceSnapshot
 	inputSnapshotReuse := false
 	if originalInputSnapshotID != "" && s.inputSnapshots != nil {
-		snapshot, err = s.inputSnapshots.GetBuildInputSnapshot(ctx, request.InputSnapshotID)
+		snapshot, err = s.inputSnapshots.GetBuildInputSnapshot(ctx, request.InputSnapshotID, actorID)
 		if err != nil {
 			return moduleapi.TaskReceipt{}, fmt.Errorf("resolve input snapshot: %w", err)
 		}

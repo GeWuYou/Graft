@@ -27,7 +27,7 @@ type WorkspaceSnapshot struct {
 // BuildInputSnapshotReader 是 Build-owned 的不可变输入快照读取边界。
 // 它只返回 Snapshot 身份和 opaque 物化引用，不暴露宿主路径给 HTTP 或 Task metadata。
 type BuildInputSnapshotReader interface {
-	GetBuildInputSnapshot(context.Context, string) (WorkspaceSnapshot, error)
+	GetBuildInputSnapshot(context.Context, string, uint64) (WorkspaceSnapshot, error)
 }
 
 // BuildInputSnapshotWriter 负责由 Build 自己接收并冻结上传归档。
