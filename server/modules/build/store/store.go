@@ -610,8 +610,8 @@ func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshot m
 	err := r.db.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
 VALUES ($1,$2,$3,$4,$5,'build','available','snapshot_lifetime',NOW() + INTERVAL '24 hours',$6)
 ON CONFLICT (content_digest) DO UPDATE SET
-  materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' THEN EXCLUDED.materialization_state ELSE 'available' END,
-  materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
+  materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_state ELSE 'available' END,
+  materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' OR build_workspace_snapshots.retention_expires_at <= NOW() THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
   retention_expires_at = GREATEST(COALESCE(build_workspace_snapshots.retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
 RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
 	if err != nil {
@@ -1197,16 +1197,23 @@ func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, buildID string) (
 	if r == nil || r.db == nil || strings.TrimSpace(buildID) == "" {
 		return JobProjection{}, ErrNotFound
 	}
-	result, err := r.ListV2Jobs(ctx, ListQuery{Limit: DefaultListLimit, Offset: 0})
+	var item JobProjection
+	var artifactID, digest, tag string
+	var size int64
+	err := r.db.QueryRowContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN build_v2_artifacts a ON a.produced_plan_id = p.id
+WHERE p.plan_id = $1`, strings.TrimSpace(buildID)).Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return JobProjection{}, ErrNotFound
+	}
 	if err != nil {
-		return JobProjection{}, err
+		return JobProjection{}, fmt.Errorf("get v2 build job: %w", err)
 	}
-	for _, item := range result.Items {
-		if item.BuildID == buildID {
-			return item, nil
-		}
+	item.ImageTag = tag
+	if artifactID != "" {
+		item.Artifact = &Artifact{ArtifactID: artifactID, Digest: digest, Repository: item.ImageRepository, Tag: tag, SizeBytes: size}
 	}
-	return JobProjection{}, ErrNotFound
+	return item, nil
 }
 
 // ListJobs is the legacy projection retained for historical evidence.

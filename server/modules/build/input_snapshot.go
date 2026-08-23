@@ -28,6 +28,12 @@ const (
 	archiveFileMode                     = os.FileMode(0o777)
 )
 
+var errInvalidInputSnapshotUpload = errors.New("invalid input snapshot upload")
+
+func invalidInputSnapshotUpload(message string) error {
+	return fmt.Errorf("%w: %s", errInvalidInputSnapshotUpload, message)
+}
+
 // InputSnapshotUpload 是 Build-owned 的一次性归档上传输入。
 type InputSnapshotUpload struct {
 	Archive io.Reader
@@ -77,14 +83,14 @@ func (s *Service) CreateInputSnapshot(ctx context.Context, upload InputSnapshotU
 		return moduleapi.WorkspaceSnapshot{}, err
 	}
 	if created.MaterializationRef != snapshot.MaterializationRef {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		_ = releaseMaterialization(ctx, snapshot.MaterializationRef)
 	}
 	return created, nil
 }
 
 func readBoundedArchive(reader io.Reader, declaredSize int64) ([]byte, error) {
 	if declaredSize > maxInputSnapshotUploadBytes {
-		return nil, errors.New("input snapshot archive exceeds upload limit")
+		return nil, invalidInputSnapshotUpload("input snapshot archive exceeds upload limit")
 	}
 	limited := io.LimitReader(reader, maxInputSnapshotUploadBytes+1)
 	data, err := io.ReadAll(limited)
@@ -92,7 +98,7 @@ func readBoundedArchive(reader io.Reader, declaredSize int64) ([]byte, error) {
 		return nil, fmt.Errorf("read input snapshot archive: %w", err)
 	}
 	if int64(len(data)) > maxInputSnapshotUploadBytes {
-		return nil, errors.New("input snapshot archive exceeds upload limit")
+		return nil, invalidInputSnapshotUpload("input snapshot archive exceeds upload limit")
 	}
 	return data, nil
 }
@@ -124,12 +130,12 @@ func extractInputArchive(data []byte) (string, error) {
 		if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
 			gzipReader, gzipErr := gzip.NewReader(bytes.NewReader(data))
 			if gzipErr != nil {
-				return "", errors.New("invalid TAR.GZ archive")
+				return "", invalidInputSnapshotUpload("invalid TAR.GZ archive")
 			}
 			decompressed, readErr := io.ReadAll(io.LimitReader(gzipReader, maxInputSnapshotExpandedBytes+1))
 			_ = gzipReader.Close()
 			if readErr != nil || int64(len(decompressed)) > maxInputSnapshotExpandedBytes {
-				return "", errors.New("input snapshot archive exceeds extracted size limit")
+				return "", invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 			}
 			payload = bytes.NewReader(decompressed)
 		}
@@ -146,10 +152,10 @@ func extractInputArchive(data []byte) (string, error) {
 func extractZip(root string, data []byte) error {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return errors.New("invalid ZIP archive")
+		return invalidInputSnapshotUpload("invalid ZIP archive")
 	}
 	if len(reader.File) == 0 || len(reader.File) > maxInputSnapshotEntries {
-		return errors.New("input snapshot archive has too many entries")
+		return invalidInputSnapshotUpload("input snapshot archive has too many entries")
 	}
 	var expanded int64
 	seen := make(map[string]struct{}, len(reader.File))
@@ -159,24 +165,28 @@ func extractZip(root string, data []byte) error {
 			return err
 		}
 		if _, ok := seen[rel]; ok {
-			return errors.New("input snapshot archive contains duplicate entries")
+			return invalidInputSnapshotUpload("input snapshot archive contains duplicate entries")
 		}
 		seen[rel] = struct{}{}
 		if item.Mode()&os.ModeSymlink != 0 || item.Mode()&os.ModeType != 0 && !item.FileInfo().IsDir() {
-			return errors.New("input snapshot archive contains unsupported file")
+			return invalidInputSnapshotUpload("input snapshot archive contains unsupported file")
 		}
 		if item.FileInfo().IsDir() {
-			if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(rel)), managedSnapshotDirectoryMode); err != nil {
+			destination, destinationErr := archiveDestination(root, rel)
+			if destinationErr != nil {
+				return destinationErr
+			}
+			if err := os.MkdirAll(destination, managedSnapshotDirectoryMode); err != nil {
 				return err
 			}
 			continue
 		}
 		if item.UncompressedSize64 > uint64(maxInputSnapshotExpandedBytes) || item.UncompressedSize64 > uint64(maxInputSnapshotExpandedBytes-expanded) {
-			return errors.New("input snapshot archive exceeds extracted size limit")
+			return invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 		}
 		remaining := maxInputSnapshotExpandedBytes - expanded
 		if remaining <= 0 || item.UncompressedSize64 > uint64(remaining) {
-			return errors.New("input snapshot archive exceeds extracted size limit")
+			return invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 		}
 		written, err := writeArchiveFile(root, rel, item.Open, item.Mode().Perm(), remaining)
 		if err != nil {
@@ -199,28 +209,32 @@ func extractTarReader(root string, payload io.Reader) error {
 			break
 		}
 		if err != nil {
-			return errors.New("invalid TAR archive")
+			return invalidInputSnapshotUpload("invalid TAR archive")
 		}
 		entries++
 		if entries > maxInputSnapshotEntries {
-			return errors.New("input snapshot archive has too many entries")
+			return invalidInputSnapshotUpload("input snapshot archive has too many entries")
 		}
 		rel, err := safeArchivePath(header.Name)
 		if err != nil {
 			return err
 		}
 		if _, ok := seen[rel]; ok {
-			return errors.New("input snapshot archive contains duplicate entries")
+			return invalidInputSnapshotUpload("input snapshot archive contains duplicate entries")
 		}
 		seen[rel] = struct{}{}
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(rel)), managedSnapshotDirectoryMode); err != nil {
+			destination, destinationErr := archiveDestination(root, rel)
+			if destinationErr != nil {
+				return destinationErr
+			}
+			if err := os.MkdirAll(destination, managedSnapshotDirectoryMode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
 			if header.Size < 0 || header.Size > maxInputSnapshotExpandedBytes-expanded {
-				return errors.New("input snapshot archive exceeds extracted size limit")
+				return invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 			}
 			written, err := writeTarFile(root, rel, reader, header.Mode, maxInputSnapshotExpandedBytes-expanded)
 			if err != nil {
@@ -228,7 +242,7 @@ func extractTarReader(root string, payload io.Reader) error {
 			}
 			expanded += written
 		default:
-			return errors.New("input snapshot archive contains unsupported file")
+			return invalidInputSnapshotUpload("input snapshot archive contains unsupported file")
 		}
 	}
 	return nil
@@ -236,12 +250,12 @@ func extractTarReader(root string, payload io.Reader) error {
 
 func safeArchivePath(name string) (string, error) {
 	name = strings.ReplaceAll(name, "\\", "/")
-	if name == "" || strings.HasPrefix(name, "/") || filepath.IsAbs(name) {
-		return "", errors.New("input snapshot archive contains an absolute path")
+	if name == "" || strings.ContainsRune(name, 0) || strings.HasPrefix(name, "/") || filepath.IsAbs(name) {
+		return "", invalidInputSnapshotUpload("input snapshot archive contains an absolute path")
 	}
 	clean := path.Clean(name)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return "", errors.New("input snapshot archive contains a path traversal")
+		return "", invalidInputSnapshotUpload("input snapshot archive contains a path traversal")
 	}
 	return clean, nil
 }
@@ -257,13 +271,16 @@ func writeArchiveFile(root, rel string, opener func() (io.ReadCloser, error), mo
 
 func writeTarFile(root, rel string, reader io.Reader, mode int64, limit int64) (int64, error) {
 	if limit < 0 {
-		return 0, errors.New("input snapshot archive exceeds extracted size limit")
+		return 0, invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 	}
-	destination := filepath.Join(root, filepath.FromSlash(rel))
+	destination, err := archiveDestination(root, rel)
+	if err != nil {
+		return 0, err
+	}
 	if err := os.MkdirAll(filepath.Dir(destination), managedSnapshotDirectoryMode); err != nil {
 		return 0, err
 	}
-	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.FileMode(mode)&archiveFileMode) // #nosec G304,G115 -- rel is normalized beneath the Build-owned extraction root.
+	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.FileMode(mode)&archiveFileMode) // #nosec G304,G115 -- destination is containment-checked and archive mode is masked to os.FileMode.
 	if err != nil {
 		return 0, err
 	}
@@ -273,9 +290,25 @@ func writeTarFile(root, rel string, reader io.Reader, mode int64, limit int64) (
 		return written, copyErr
 	}
 	if written > limit {
-		return written, errors.New("input snapshot archive exceeds extracted size limit")
+		return written, invalidInputSnapshotUpload("input snapshot archive exceeds extracted size limit")
 	}
 	return written, closeErr
+}
+
+func archiveDestination(root, rel string) (string, error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	destination, err := filepath.Abs(filepath.Join(rootAbs, filepath.FromSlash(rel)))
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(rootAbs, destination)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", invalidInputSnapshotUpload("input snapshot archive contains a path traversal")
+	}
+	return destination, nil
 }
 
 func newSnapshotIdentity() string {

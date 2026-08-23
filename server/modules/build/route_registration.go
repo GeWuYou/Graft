@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	buildJobsRoute = "/jobs"
+	buildJobsRoute                       = "/jobs"
+	inputSnapshotMultipartOverhead int64 = 1 << 20
 )
 
 //nolint:gocognit,gocyclo,cyclop,funlen,maintidx // 单一 HTTP 边界将鉴权、查询和提交契约转换保持在一起。
@@ -43,6 +44,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group := ctx.Router.Group("/build")
 	group.Use(httpx.RequestIDMiddleware())
 	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
 		var request openapigen.PostBuildInputSnapshotMultipartRequestBody
 		if err := c.ShouldBind(&request); err != nil || request.Archive.FileSize() == 0 {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -56,13 +58,9 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		defer func() { _ = file.Close() }()
 		snapshot, createErr := service.CreateInputSnapshot(c.Request.Context(), InputSnapshotUpload{Archive: file, Size: request.Archive.FileSize(), UserID: requestUserID(c)})
 		if createErr != nil {
-			status := http.StatusBadRequest
-			if !errors.Is(createErr, errInvalidBuildRequest) && !strings.Contains(createErr.Error(), "archive") && !strings.Contains(createErr.Error(), "Dockerfile") && !strings.Contains(createErr.Error(), "snapshot") {
-				status = http.StatusInternalServerError
-			}
-			key := "common.invalidArgument"
-			if status == http.StatusInternalServerError {
-				key = "common.internalError"
+			status, key := http.StatusInternalServerError, "common.internalError"
+			if errors.Is(createErr, errInvalidBuildRequest) || errors.Is(createErr, errInvalidInputSnapshotUpload) {
+				status, key = http.StatusBadRequest, "common.invalidArgument"
 			}
 			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return

@@ -484,7 +484,7 @@ func (s *Service) builderInstanceSupportsPlan(ctx context.Context, instance modu
 //
 //nolint:gocognit,gocyclo,cyclop,funlen,maintidx,nestif // Submission keeps authorization, freezing and Task reservation in one auditable boundary.
 func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlanRequest) (moduleapi.TaskReceipt, error) {
-	if s == nil || (s.inputSnapshots == nil && (s.snapshots == nil || s.workspaces == nil)) || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil {
+	if s == nil || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil || (strings.TrimSpace(request.InputSnapshotID) != "" && s.inputSnapshots == nil) || (strings.TrimSpace(request.InputSnapshotID) == "" && (s.snapshots == nil || s.workspaces == nil)) {
 		return moduleapi.TaskReceipt{}, errors.New("build v2 submission dependencies are unavailable")
 	}
 	originalInputSnapshotID := strings.TrimSpace(request.InputSnapshotID)
@@ -591,7 +591,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	releaseSubmissionMaterialization := func() {
 		if !inputSnapshotReuse {
-			_ = releaseMaterialization(snapshot.MaterializationRef)
+			_ = releaseMaterialization(ctx, snapshot.MaterializationRef)
 		}
 	}
 	plan, err := freezeExecutionPlan(snapshot, request, selectedBuilderID)
@@ -661,8 +661,8 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	return receipt, err
 }
 
-func releaseMaterialization(reference string) error {
-	return (buildWorkspaceMaterializer{}).ReleaseMaterialization(context.Background(), moduleapi.WorkspaceMaterialization{MaterializationRef: reference})
+func releaseMaterialization(ctx context.Context, reference string) error {
+	return (buildWorkspaceMaterializer{}).ReleaseMaterialization(ctx, moduleapi.WorkspaceMaterialization{MaterializationRef: reference})
 }
 
 type executionPlanSubmissionWriter struct {
