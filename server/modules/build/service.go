@@ -83,7 +83,7 @@ type Service struct {
 }
 
 // ListJobs 返回一个按 Build 快照和 Task 执行状态过滤的受限作业页。
-func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (buildstore.ListResult, error) {
+func (s *Service) ListJobs(ctx context.Context, requestedBy uint64, query buildstore.ListQuery) (buildstore.ListResult, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.ListResult{}, errors.New("build service is unavailable")
 	}
@@ -91,7 +91,7 @@ func (s *Service) ListJobs(ctx context.Context, query buildstore.ListQuery) (bui
 	var result buildstore.ListResult
 	var err error
 	if hasV2 {
-		result, err = reader.ListV2Jobs(ctx, query)
+		result, err = reader.ListV2Jobs(ctx, requestedBy, query)
 	} else {
 		result, err = s.repository.ListJobs(ctx, query)
 	}
@@ -262,7 +262,7 @@ func (s *Service) enrichJobs(ctx context.Context, result buildstore.ListResult) 
 }
 
 // GetJob returns the Build-owned detail projection for one public build ID.
-func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobProjection, error) {
+func (s *Service) GetJob(ctx context.Context, requestedBy uint64, buildID string) (buildstore.JobProjection, error) {
 	if s == nil || s.repository == nil {
 		return buildstore.JobProjection{}, errors.New("build service is unavailable")
 	}
@@ -272,7 +272,7 @@ func (s *Service) GetJob(ctx context.Context, buildID string) (buildstore.JobPro
 	var job buildstore.JobProjection
 	var err error
 	if reader, ok := s.repository.(buildstore.V2JobReader); ok {
-		job, err = reader.GetV2JobByBuildID(ctx, buildID)
+		job, err = reader.GetV2JobByBuildID(ctx, requestedBy, buildID)
 	} else {
 		job, err = s.repository.GetJobByBuildID(ctx, buildID)
 	}

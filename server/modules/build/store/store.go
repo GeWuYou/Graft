@@ -230,8 +230,8 @@ type ExecutionPlanReader interface {
 // V2JobReader projects new Build jobs solely from execution plans, Tasks and
 // immutable v2 artifacts; legacy build_jobs remains historical read-only evidence.
 type V2JobReader interface {
-	ListV2Jobs(context.Context, ListQuery) (ListResult, error)
-	GetV2JobByBuildID(context.Context, string) (JobProjection, error)
+	ListV2Jobs(context.Context, uint64, ListQuery) (ListResult, error)
+	GetV2JobByBuildID(context.Context, uint64, string) (JobProjection, error)
 }
 
 // V2ArtifactSettlementRepository 在 target executor 完成两项动作后记录 immutable
@@ -1253,12 +1253,12 @@ func (r *SQLRepository) MaterializeSubmissionSnapshot(ctx context.Context, tx *s
 }
 
 // ListV2Jobs 读取新 Build 作业的 canonical execution-plan projection。
-func (r *SQLRepository) ListV2Jobs(ctx context.Context, query ListQuery) (result ListResult, err error) {
-	if r == nil || r.db == nil {
+func (r *SQLRepository) ListV2Jobs(ctx context.Context, requestedBy uint64, query ListQuery) (result ListResult, err error) {
+	if r == nil || r.db == nil || requestedBy == 0 {
 		return result, errors.New("build repository is unavailable")
 	}
 	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
-	where, args := v2JobListFilters(query)
+	where, args := v2JobListFilters(query, requestedBy)
 	predicate := strings.Join(where, " AND ")
 	var total int64
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE `+predicate, args...).Scan(&total); err != nil {
@@ -1294,8 +1294,8 @@ WHERE `+predicate+` ORDER BY p.created_at DESC, p.id DESC LIMIT $`+strconv.Itoa(
 }
 
 // GetV2JobByBuildID returns one canonical execution-plan projection by plan identity.
-func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, buildID string) (JobProjection, error) {
-	if r == nil || r.db == nil || strings.TrimSpace(buildID) == "" {
+func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, requestedBy uint64, buildID string) (JobProjection, error) {
+	if r == nil || r.db == nil || requestedBy == 0 || strings.TrimSpace(buildID) == "" {
 		return JobProjection{}, ErrNotFound
 	}
 	var item JobProjection
@@ -1303,7 +1303,7 @@ func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, buildID string) (
 	var size int64
 	err := r.db.QueryRowContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
 FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN LATERAL (SELECT artifact_id, artifact_digest, size_bytes FROM build_v2_artifacts WHERE produced_plan_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON TRUE
-WHERE p.plan_id = $1`, strings.TrimSpace(buildID)).Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size)
+WHERE p.plan_id = $1 AND EXISTS (SELECT 1 FROM build_workspace_snapshot_access access WHERE access.workspace_snapshot_id = s.id AND access.user_id = $2 AND access.deleted_at = 0)`, strings.TrimSpace(buildID), requestedBy).Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size)
 	if errors.Is(err, sql.ErrNoRows) {
 		return JobProjection{}, ErrNotFound
 	}
@@ -1415,9 +1415,11 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 	return appendTaskStatusFilter(where, args, query.BuildStatus)
 }
 
-func v2JobListFilters(query ListQuery) ([]string, []any) {
+func v2JobListFilters(query ListQuery, requestedBy uint64) ([]string, []any) {
 	where := []string{"1 = 1"}
-	args := make([]any, 0, jobListFilterCap)
+	args := make([]any, 0, jobListFilterCap+1)
+	where = append(where, `EXISTS (SELECT 1 FROM build_workspace_snapshot_access access WHERE access.workspace_snapshot_id = s.id AND access.user_id = $1 AND access.deleted_at = 0)`)
+	args = append(args, requestedBy)
 	if query.ApplicationID != nil {
 		where = append(where, "FALSE")
 	}

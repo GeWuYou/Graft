@@ -130,7 +130,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		result, err := service.ListJobs(c.Request.Context(), query)
+		result, err := service.ListJobs(c.Request.Context(), requestUserID(c), query)
 		if err != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
@@ -138,7 +138,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		httpx.WriteSuccess(c, http.StatusOK, toBuildJobList(result, query))
 	})
 	group.GET(buildJobsRoute+"/:buildId", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
-		job, err := service.GetJob(c.Request.Context(), c.Param("buildId"))
+		job, err := service.GetJob(c.Request.Context(), requestUserID(c), c.Param("buildId"))
 		if errors.Is(err, buildstore.ErrNotFound) {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
 			return
