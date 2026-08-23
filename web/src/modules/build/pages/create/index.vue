@@ -459,6 +459,7 @@ watch(
 let idempotencyKey: string | undefined;
 let idempotencyPayload: string | undefined;
 let idempotencySequence = 0;
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
 const rules = computed(() => ({
   input_snapshot_id:
     sourceMode.value === 'reuse' ? [{ required: true, message: t('build.jobs.create.snapshotRequired') }] : [],
@@ -494,6 +495,11 @@ async function submit({ validateResult }: SubmitContext) {
   if (sourceMode.value === 'upload' && !archiveFile.value) {
     messageTheme.value = 'error';
     message.value = t('build.jobs.create.archiveRequired');
+    return;
+  }
+  if (archiveFile.value && archiveFile.value.size > MAX_ARCHIVE_BYTES) {
+    messageTheme.value = 'error';
+    message.value = t('build.jobs.create.archiveTooLarge');
     return;
   }
   submitting.value = true;

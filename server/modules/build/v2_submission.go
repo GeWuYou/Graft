@@ -487,6 +487,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	if s == nil || (s.inputSnapshots == nil && (s.snapshots == nil || s.workspaces == nil)) || s.buildTargets == nil || s.buildAssignments == nil || s.registry == nil {
 		return moduleapi.TaskReceipt{}, errors.New("build v2 submission dependencies are unavailable")
 	}
+	originalInputSnapshotID := strings.TrimSpace(request.InputSnapshotID)
 	request, err := normalizeExecutionPlanRequest(request)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, errInvalidBuildRequest
@@ -518,7 +519,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	request.Destination = moduleapi.BuildDestination(authorizedDestination)
 	var snapshot moduleapi.WorkspaceSnapshot
 	inputSnapshotReuse := false
-	if request.InputSnapshotID != "" && s.inputSnapshots != nil {
+	if originalInputSnapshotID != "" && s.inputSnapshots != nil {
 		snapshot, err = s.inputSnapshots.GetBuildInputSnapshot(ctx, request.InputSnapshotID)
 		if err != nil {
 			return moduleapi.TaskReceipt{}, fmt.Errorf("resolve input snapshot: %w", err)
@@ -605,6 +606,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	placement, found := plan.PlacementForPlatform(plan.Platforms[0])
 	if !found {
+		releaseSubmissionMaterialization()
 		return moduleapi.TaskReceipt{}, errors.New("execution plan placement is incomplete")
 	}
 	taskPlan := moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "execution-plan", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildImagePublishOperation, input)}}}
@@ -615,10 +617,12 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 			legID := fmt.Sprintf("platform-%d", index+1)
 			legInput, marshalErr := json.Marshal(moduleapi.BuildPlanTaskInput{BuildID: plan.ID, ExecutionPlanID: plan.ID, Platform: platform, LegID: legID})
 			if marshalErr != nil {
+				releaseSubmissionMaterialization()
 				return moduleapi.TaskReceipt{}, fmt.Errorf("marshal coordinated build leg input: %w", marshalErr)
 			}
 			placement, found := plan.PlacementForPlatform(platform)
 			if !found || placement.BuilderInstanceID == "" {
+				releaseSubmissionMaterialization()
 				return moduleapi.TaskReceipt{}, errors.New("coordinated build placement is incomplete")
 			}
 			legs = append(legs, moduleapi.CoordinatedLegPlan{ID: legID, Platform: platform, BuilderInstanceID: placement.BuilderInstanceID, RuntimeTargetID: placement.RuntimeTargetID, Input: legInput})
@@ -652,7 +656,7 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 	}
 	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, task, executionPlanSubmissionWriter{repository: repository, plan: plan, requestedBy: actorID})
 	if err != nil {
-		_ = releaseMaterialization(snapshot.MaterializationRef)
+		releaseSubmissionMaterialization()
 	}
 	return receipt, err
 }
@@ -812,9 +816,7 @@ func containsBuildRef(values []string, wanted string) bool {
 //nolint:cyclop,gocyclo // 规范化必须在持久化前枚举所有调用方可控的计划引用。
 func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanRequest, error) {
 	request.InputSnapshotID, request.WorkspaceID, request.BuilderPoolID, request.TemplateRef, request.Driver = strings.TrimSpace(request.InputSnapshotID), strings.TrimSpace(request.WorkspaceID), strings.TrimSpace(request.BuilderPoolID), strings.TrimSpace(request.TemplateRef), strings.TrimSpace(request.Driver)
-	if request.InputSnapshotID == "" {
-		request.InputSnapshotID = request.WorkspaceID
-	} else if request.WorkspaceID == "" {
+	if request.InputSnapshotID != "" && request.WorkspaceID == "" {
 		// Migration fallback only: legacy Application resolver receives the same
 		// stable reference while the Build-owned reader is being rolled out.
 		request.WorkspaceID = request.InputSnapshotID
@@ -834,7 +836,7 @@ func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanR
 	if request.CachePolicy != "disabled" || request.SecurityPolicy != "default" {
 		return ExecutionPlanRequest{}, errors.New("execution plan policy is unsupported")
 	}
-	if request.InputSnapshotID == "" || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.InputSnapshotID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
+	if (request.InputSnapshotID == "" && request.WorkspaceID == "") || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.InputSnapshotID+request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
 		return ExecutionPlanRequest{}, errors.New("invalid execution plan request")
 	}
 	if len(request.Platforms) == 0 {

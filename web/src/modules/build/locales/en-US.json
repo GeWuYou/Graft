@@ -123,6 +123,7 @@
         "archive": "Archive",
         "archivePlaceholder": "Choose a ZIP, TAR, or TAR.GZ containing a root Dockerfile",
         "archiveRequired": "Choose an archive before submitting.",
+        "archiveTooLarge": "The archive must be 100 MiB or smaller.",
         "snapshot": "Input Snapshot",
         "snapshotRequired": "Select an Input Snapshot.",
         "snapshotPlaceholder": "Select an available Input Snapshot",

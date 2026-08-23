@@ -174,10 +174,15 @@ func extractZip(root string, data []byte) error {
 		if item.UncompressedSize64 > uint64(maxInputSnapshotExpandedBytes) || item.UncompressedSize64 > uint64(maxInputSnapshotExpandedBytes-expanded) {
 			return errors.New("input snapshot archive exceeds extracted size limit")
 		}
-		expanded += int64(item.UncompressedSize64)
-		if err := writeArchiveFile(root, rel, item.Open, item.Mode().Perm()); err != nil {
+		remaining := maxInputSnapshotExpandedBytes - expanded
+		if remaining <= 0 || item.UncompressedSize64 > uint64(remaining) {
+			return errors.New("input snapshot archive exceeds extracted size limit")
+		}
+		written, err := writeArchiveFile(root, rel, item.Open, item.Mode().Perm(), remaining)
+		if err != nil {
 			return err
 		}
+		expanded += written
 	}
 	return nil
 }
@@ -217,10 +222,11 @@ func extractTarReader(root string, payload io.Reader) error {
 			if header.Size < 0 || header.Size > maxInputSnapshotExpandedBytes-expanded {
 				return errors.New("input snapshot archive exceeds extracted size limit")
 			}
-			expanded += header.Size
-			if err := writeTarFile(root, rel, reader, header.Mode); err != nil {
+			written, err := writeTarFile(root, rel, reader, header.Mode, maxInputSnapshotExpandedBytes-expanded)
+			if err != nil {
 				return err
 			}
+			expanded += written
 		default:
 			return errors.New("input snapshot archive contains unsupported file")
 		}
@@ -240,30 +246,36 @@ func safeArchivePath(name string) (string, error) {
 	return clean, nil
 }
 
-func writeArchiveFile(root, rel string, opener func() (io.ReadCloser, error), mode os.FileMode) error {
+func writeArchiveFile(root, rel string, opener func() (io.ReadCloser, error), mode os.FileMode, limit int64) (int64, error) {
 	reader, err := opener()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer func() { _ = reader.Close() }()
-	return writeTarFile(root, rel, reader, int64(mode.Perm()))
+	return writeTarFile(root, rel, reader, int64(mode.Perm()), limit)
 }
 
-func writeTarFile(root, rel string, reader io.Reader, mode int64) error {
+func writeTarFile(root, rel string, reader io.Reader, mode int64, limit int64) (int64, error) {
+	if limit < 0 {
+		return 0, errors.New("input snapshot archive exceeds extracted size limit")
+	}
 	destination := filepath.Join(root, filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(destination), managedSnapshotDirectoryMode); err != nil {
-		return err
+		return 0, err
 	}
 	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.FileMode(mode)&archiveFileMode) // #nosec G304,G115 -- rel is normalized beneath the Build-owned extraction root.
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, copyErr := io.Copy(file, reader)
+	written, copyErr := io.Copy(file, io.LimitReader(reader, limit+1))
 	closeErr := file.Close()
 	if copyErr != nil {
-		return copyErr
+		return written, copyErr
 	}
-	return closeErr
+	if written > limit {
+		return written, errors.New("input snapshot archive exceeds extracted size limit")
+	}
+	return written, closeErr
 }
 
 func newSnapshotIdentity() string {

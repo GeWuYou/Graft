@@ -60,10 +60,14 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			if !errors.Is(createErr, errInvalidBuildRequest) && !strings.Contains(createErr.Error(), "archive") && !strings.Contains(createErr.Error(), "Dockerfile") && !strings.Contains(createErr.Error(), "snapshot") {
 				status = http.StatusInternalServerError
 			}
-			httpx.WriteLocalizedError(c, ctx.I18n, status, "common.invalidArgument", nil)
+			key := "common.invalidArgument"
+			if status == http.StatusInternalServerError {
+				key = "common.internalError"
+			}
+			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusCreated, gin.H{"snapshot_id": snapshot.ID, "source_kind": snapshot.SourceKind, "content_digest": snapshot.ContentDigest, "lifecycle_state": "available"})
+		httpx.WriteSuccess(c, http.StatusCreated, openapigen.EnvelopedBuildInputSnapshot{Data: openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")}})
 	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))

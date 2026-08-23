@@ -89,7 +89,9 @@
     >
       <template #snapshot="{ row }">
         <div class="build-jobs-page__snapshot">
-          <span class="build-jobs-page__ellipsis">{{ (row as BuildJobSummary).input_snapshot_digest }}</span>
+          <span class="build-jobs-page__ellipsis" :title="(row as BuildJobSummary).input_snapshot_digest">{{
+            (row as BuildJobSummary).input_snapshot_digest
+          }}</span>
           <small>{{ (row as BuildJobSummary).source_kind }}</small>
         </div>
       </template>

@@ -118,6 +118,7 @@
         "archive": "归档文件",
         "archivePlaceholder": "选择包含根 Dockerfile 的 ZIP、TAR 或 TAR.GZ",
         "archiveRequired": "提交前请选择归档文件。",
+        "archiveTooLarge": "归档文件不能超过 100 MiB。",
         "snapshot": "构建输入快照",
         "snapshotRequired": "请选择构建输入快照。",
         "snapshotPlaceholder": "选择可用的构建输入快照",

@@ -609,7 +609,10 @@ func (r *SQLRepository) CreateBuildInputSnapshot(ctx context.Context, snapshot m
 	var existing moduleapi.WorkspaceSnapshot
 	err := r.db.QueryRowContext(ctx, `INSERT INTO build_workspace_snapshots (snapshot_id, source_kind, source_reference, content_digest, materialization_ref, materialization_owner, materialization_state, retention_policy, retention_expires_at, created_by)
 VALUES ($1,$2,$3,$4,$5,'build','available','snapshot_lifetime',NOW() + INTERVAL '24 hours',$6)
-ON CONFLICT (content_digest) DO UPDATE SET content_digest = EXCLUDED.content_digest
+ON CONFLICT (content_digest) DO UPDATE SET
+  materialization_state = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' THEN EXCLUDED.materialization_state ELSE 'available' END,
+  materialization_ref = CASE WHEN build_workspace_snapshots.materialization_state = 'purged' THEN EXCLUDED.materialization_ref ELSE build_workspace_snapshots.materialization_ref END,
+  retention_expires_at = GREATEST(COALESCE(build_workspace_snapshots.retention_expires_at, NOW()), NOW() + INTERVAL '24 hours')
 RETURNING snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at`, snapshot.ID, snapshot.SourceKind, snapshot.SourceReference, snapshot.ContentDigest, snapshot.MaterializationRef, nullableUint64(requestedBy)).Scan(&existing.ID, &existing.SourceKind, &existing.SourceReference, &existing.ContentDigest, &existing.MaterializationRef, &existing.CreatedAt)
 	if err != nil {
 		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("create build input snapshot: %w", err)
@@ -626,7 +629,7 @@ func (r *SQLRepository) GetBuildInputSnapshot(ctx context.Context, snapshotID st
 	var snapshot moduleapi.WorkspaceSnapshot
 	err := r.db.QueryRowContext(ctx, `SELECT snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at
 FROM build_workspace_snapshots
-WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available'`, strings.TrimSpace(snapshotID)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
+WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_state = 'available' AND (retention_expires_at IS NULL OR retention_expires_at > NOW())`, strings.TrimSpace(snapshotID)).Scan(&snapshot.ID, &snapshot.SourceKind, &snapshot.SourceReference, &snapshot.ContentDigest, &snapshot.MaterializationRef, &snapshot.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.WorkspaceSnapshot{}, ErrNotFound
 	}
