@@ -68,7 +68,7 @@ func (s *Service) CreateInputSnapshot(ctx context.Context, upload InputSnapshotU
 	}
 	if _, err := os.Stat(filepath.Join(root, "Dockerfile")); err != nil {
 		_ = os.RemoveAll(root)
-		return moduleapi.WorkspaceSnapshot{}, errors.New("input snapshot must contain a root Dockerfile")
+		return moduleapi.WorkspaceSnapshot{}, invalidInputSnapshotUpload("input snapshot must contain a root Dockerfile")
 	}
 	snapshotID := newSnapshotIdentity()
 	reference, err := moduleapi.NewWorkspaceSnapshotMaterializationReference(snapshotID, digest, root)

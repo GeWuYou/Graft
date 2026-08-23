@@ -29,6 +29,22 @@ type recordingBuildRepository struct {
 	platformArtifacts  []moduleapi.PlatformArtifact
 	manifestInput      moduleapi.OCIManifestPublicationInput
 	manifestSettled    bool
+	inputSnapshots     buildstore.InputSnapshotListResult
+}
+
+func (r *recordingBuildRepository) CreateBuildInputSnapshot(_ context.Context, snapshot moduleapi.WorkspaceSnapshot, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
+	return snapshot, nil
+}
+func (r *recordingBuildRepository) GetBuildInputSnapshot(_ context.Context, snapshotID string, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
+	for _, snapshot := range r.inputSnapshots.Items {
+		if snapshot.ID == snapshotID {
+			return snapshot, nil
+		}
+	}
+	return moduleapi.WorkspaceSnapshot{}, buildstore.ErrNotFound
+}
+func (r *recordingBuildRepository) ListBuildInputSnapshots(_ context.Context, _ uint64, _ int, _ int) (buildstore.InputSnapshotListResult, error) {
+	return r.inputSnapshots, nil
 }
 
 func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {

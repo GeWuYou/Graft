@@ -1,8 +1,11 @@
 package build
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +23,53 @@ import (
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
+
+func buildSnapshotMultipart(t *testing.T, archive []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("archive", "input.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return body, writer.FormDataContentType()
+}
+
+func TestBuildInputSnapshotUploadRoute(t *testing.T) {
+	archive := &bytes.Buffer{}
+	tarWriter := tar.NewWriter(archive)
+	if err := tarWriter.WriteHeader(&tar.Header{Name: "Dockerfile", Mode: 0o644, Size: int64(len("FROM alpine\n"))}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = tarWriter.Write([]byte("FROM alpine\n"))
+	_ = tarWriter.Close()
+	repository := &recordingBuildRepository{}
+	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, repository)
+	body, contentType := buildSnapshotMultipart(t, archive.Bytes())
+	request := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", body)
+	request.Header.Set("Authorization", "Bearer route-test-token")
+	request.Header.Set("Content-Type", contentType)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected successful snapshot upload, got %d: %s", response.Code, response.Body.String())
+	}
+	invalidBody, invalidType := buildSnapshotMultipart(t, []byte("not an archive"))
+	invalidRequest := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", invalidBody)
+	invalidRequest.Header.Set("Authorization", "Bearer route-test-token")
+	invalidRequest.Header.Set("Content-Type", invalidType)
+	invalidResponse := httptest.NewRecorder()
+	engine.ServeHTTP(invalidResponse, invalidRequest)
+	if invalidResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid snapshot upload to return 400, got %d", invalidResponse.Code)
+	}
+}
 
 //nolint:gocyclo,cyclop // 表驱动式请求绑定回归同时覆盖分页、快照、执行和时间筛选。
 func TestBuildListQueryBindsBuildOwnedHistoryFilters(t *testing.T) {

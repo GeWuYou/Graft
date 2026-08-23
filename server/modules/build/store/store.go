@@ -192,7 +192,7 @@ type ExecutionPlanRepository interface {
 // build_workspace_snapshots 表，不创建第二套 Snapshot/Blob 存储。
 type InputSnapshotRepository interface {
 	CreateBuildInputSnapshot(context.Context, moduleapi.WorkspaceSnapshot, uint64) (moduleapi.WorkspaceSnapshot, error)
-	GetBuildInputSnapshot(context.Context, string) (moduleapi.WorkspaceSnapshot, error)
+	GetBuildInputSnapshot(context.Context, string, uint64) (moduleapi.WorkspaceSnapshot, error)
 }
 
 // InputSnapshotListResult 保存调用者可复用的 Build 输入快照分页投影。
@@ -300,6 +300,12 @@ func (r *SQLRepository) ClaimExpiredSnapshotMaterializations(ctx context.Context
 		WHERE materialization_owner = 'build'
 		  AND retention_expires_at IS NOT NULL
 		  AND retention_expires_at <= $1
+		  AND NOT EXISTS (
+			SELECT 1 FROM build_execution_plans plan
+			JOIN tasks task ON task.id = plan.task_id
+			WHERE plan.workspace_snapshot_id = build_workspace_snapshots.id
+			  AND task.status NOT IN ('success', 'failed', 'cancelled')
+		  )
 		  AND (materialization_state IN ('available', 'expired') OR (materialization_state = 'purging' AND materialization_claimed_at <= $2))
 		ORDER BY retention_expires_at ASC, id ASC
 		LIMIT $3

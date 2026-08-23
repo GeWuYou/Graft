@@ -46,10 +46,16 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
 		var request openapigen.PostBuildInputSnapshotMultipartRequestBody
-		if err := c.ShouldBind(&request); err != nil || request.Archive.FileSize() == 0 {
+		if err := c.Request.ParseMultipartForm(maxInputSnapshotUploadBytes + inputSnapshotMultipartOverhead); err != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
+		_, header, err := c.Request.FormFile("archive")
+		if err != nil || header == nil || header.Size == 0 {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		request.Archive.InitFromMultipart(header)
 		file, err := request.Archive.Reader()
 		if err != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
