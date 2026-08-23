@@ -3154,7 +3154,8 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /** List reusable Build input snapshots */
+    get: operations['getBuildInputSnapshots'];
     put?: never;
     /** Upload a Build input snapshot archive */
     post: operations['postBuildInputSnapshot'];
@@ -9499,13 +9500,6 @@ export interface components {
         reference: string;
       };
     };
-    'build-input-snapshot-upload-request': {
-      /**
-       * Format: binary
-       * @description ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
-       */
-      archive: string;
-    };
     'build-input-snapshot': {
       snapshot_id: string;
       /** @enum {string} */
@@ -9513,6 +9507,23 @@ export interface components {
       content_digest: string;
       /** @enum {string} */
       lifecycle_state: 'available' | 'expired' | 'purged';
+    };
+    'build-input-snapshot-list': {
+      items: components['schemas']['build-input-snapshot'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-build-input-snapshot-list': {
+      data: components['schemas']['build-input-snapshot-list'];
+    };
+    'build-input-snapshot-upload-request': {
+      /**
+       * Format: binary
+       * @description ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
+       */
+      archive: string;
     };
     'enveloped-build-input-snapshot': {
       data: components['schemas']['build-input-snapshot'];
@@ -21093,6 +21104,41 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildInputSnapshots: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Reusable input snapshot page. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-input-snapshot-list'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

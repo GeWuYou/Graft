@@ -15,6 +15,7 @@ type ListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildJobs]['get'];
 type DetailOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildJob]['get'];
 type CreateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildJob]['post'];
 type InputSnapshotUploadOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildInputSnapshot]['post'];
+type InputSnapshotListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildInputSnapshots]['get'];
 type TargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets]['get'];
 type PoolListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildBuilderPools]['get'];
 type ArtifactListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifacts]['get'];
@@ -52,6 +53,13 @@ export function uploadBuildInputSnapshot(file: File) {
     url: OPENAPI_RUNTIME_PATH.postBuildInputSnapshot,
     data,
   }) as Promise<BuildInputSnapshot>;
+}
+
+export function getBuildInputSnapshots(query?: InputSnapshotListOperation['parameters']['query']) {
+  return request.get<NonNullable<InputSnapshotListOperation['responses'][200]['content']['application/json']['data']>>({
+    url: OPENAPI_RUNTIME_PATH.getBuildInputSnapshots,
+    params: query,
+  });
 }
 
 export function getBuildRuntimeTargets() {

@@ -67,6 +67,23 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		}
 		httpx.WriteSuccess(c, http.StatusCreated, openapigen.EnvelopedBuildInputSnapshot{Data: openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")}})
 	})
+	group.GET("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		query, ok := buildPaginationQuery(c)
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		result, listErr := service.ListInputSnapshots(c.Request.Context(), requestUserID(c), query.Limit, query.Offset)
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		items := make([]openapigen.BuildInputSnapshot, 0, len(result.Items))
+		for _, snapshot := range result.Items {
+			items = append(items, openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")})
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildInputSnapshotList{Data: openapigen.BuildInputSnapshotList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset}})
+	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
 		if listErr != nil {

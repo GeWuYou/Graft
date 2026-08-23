@@ -7,7 +7,7 @@ import BuildCreatePage from './index.vue';
 const mocks = vi.hoisted(() => ({
   createBuildJob: vi.fn(),
   getBuildBuilderPools: vi.fn(),
-  getBuildJobs: vi.fn(),
+  getBuildInputSnapshots: vi.fn(),
   getBuildRegistryDestinations: vi.fn(),
   getBuildRuntimeTargets: vi.fn(),
   uploadBuildInputSnapshot: vi.fn(),
@@ -108,12 +108,11 @@ function mountPage() {
 describe('BuildCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getBuildJobs.mockResolvedValue({
+    mocks.getBuildInputSnapshots.mockResolvedValue({
       items: [
         {
-          build_id: 'b1',
-          input_snapshot_id: 'snap-1',
-          input_snapshot_digest: 'sha256:abc',
+          snapshot_id: 'snap-1',
+          content_digest: 'sha256:abc',
           source_kind: 'uploaded_archive',
         },
       ],
@@ -142,8 +141,7 @@ describe('BuildCreatePage', () => {
   it('loads reusable Input Snapshots without Project or Application APIs', async () => {
     mountPage();
     await flushPromises();
-    expect(mocks.getBuildJobs).toHaveBeenCalledWith({ limit: 100, offset: 0 });
-    expect(mocks.getBuildJobs).not.toHaveBeenCalledWith(expect.objectContaining({ application_id: expect.anything() }));
+    expect(mocks.getBuildInputSnapshots).toHaveBeenCalledWith({ limit: 100, offset: 0 });
   });
 
   it('uploads an archive before submitting the Build Job with input_snapshot_id', async () => {

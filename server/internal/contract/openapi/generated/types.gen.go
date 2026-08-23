@@ -8525,6 +8525,14 @@ type BuildInputSnapshotLifecycleState string
 // BuildInputSnapshotSourceKind defines model for BuildInputSnapshot.SourceKind.
 type BuildInputSnapshotSourceKind string
 
+// BuildInputSnapshotList defines model for build-input-snapshot-list.
+type BuildInputSnapshotList struct {
+	Items  []BuildInputSnapshot `json:"items"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Total  int64                `json:"total"`
+}
+
 // BuildInputSnapshotUploadRequest defines model for build-input-snapshot-upload-request.
 type BuildInputSnapshotUploadRequest struct {
 	// Archive ZIP, TAR, or TAR.GZ archive containing a root Dockerfile.
@@ -10801,6 +10809,11 @@ type EnvelopedBuildArtifactList struct {
 // EnvelopedBuildInputSnapshot defines model for enveloped-build-input-snapshot.
 type EnvelopedBuildInputSnapshot struct {
 	Data BuildInputSnapshot `json:"data"`
+}
+
+// EnvelopedBuildInputSnapshotList defines model for enveloped-build-input-snapshot-list.
+type EnvelopedBuildInputSnapshotList struct {
+	Data BuildInputSnapshotList `json:"data"`
 }
 
 // EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
@@ -16495,6 +16508,19 @@ type PostBuildArtifactPromotionParams struct {
 
 // GetBuildArtifactsParams defines parameters for GetBuildArtifacts.
 type GetBuildArtifactsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetBuildInputSnapshotsParams defines parameters for GetBuildInputSnapshots.
+type GetBuildInputSnapshotsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 

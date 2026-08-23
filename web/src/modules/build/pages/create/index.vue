@@ -246,13 +246,13 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   createBuildJob,
   getBuildBuilderPools,
-  getBuildJobs,
+  getBuildInputSnapshots,
   getBuildRegistryDestinations,
   getBuildRuntimeTargets,
   uploadBuildInputSnapshot,
 } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
-import type { BuildBuilderPool, BuildJobSummary } from '../../types/build';
+import type { BuildBuilderPool } from '../../types/build';
 import {
   BUILD_DRIVER_REF,
   BUILD_MULTI_PLATFORM_DRIVER_REF,
@@ -329,22 +329,21 @@ async function loadSelectorOptions() {
   await Promise.all([loadSnapshots(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
 }
 
-// 可复用输入只从已被历史 Build 引用的 Snapshot 投影中选择，避免引入独立 Workspace 资源。
 async function loadSnapshots() {
   snapshotLoading.value = true;
   snapshotError.value = '';
   try {
     const unique = new Map<string, SelectorOption>();
     for (let offset = 0; ; offset += 100) {
-      const jobs = await getBuildJobs({ limit: 100, offset });
-      for (const item of jobs.items as BuildJobSummary[]) {
-        if (!item.input_snapshot_id || unique.has(item.input_snapshot_id)) continue;
-        unique.set(item.input_snapshot_id, {
-          value: item.input_snapshot_id,
-          label: `${item.input_snapshot_digest} (${item.source_kind})`,
+      const snapshots = await getBuildInputSnapshots({ limit: 100, offset });
+      for (const item of snapshots.items ?? []) {
+        if (!item.snapshot_id || unique.has(item.snapshot_id)) continue;
+        unique.set(item.snapshot_id, {
+          value: item.snapshot_id,
+          label: `${item.content_digest} (${item.source_kind})`,
         });
       }
-      if (jobs.items.length < 100) break;
+      if ((snapshots.items?.length ?? 0) < 100) break;
     }
     snapshotOptions.value = [...unique.values()];
   } catch (error) {

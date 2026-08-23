@@ -195,6 +195,17 @@ type InputSnapshotRepository interface {
 	GetBuildInputSnapshot(context.Context, string) (moduleapi.WorkspaceSnapshot, error)
 }
 
+// InputSnapshotListResult 保存调用者可复用的 Build 输入快照分页投影。
+type InputSnapshotListResult struct {
+	Items []moduleapi.WorkspaceSnapshot
+	Total int64
+}
+
+// InputSnapshotReader 暴露按所有权过滤的输入快照查询边界。
+type InputSnapshotReader interface {
+	ListBuildInputSnapshots(context.Context, uint64, int, int) (InputSnapshotListResult, error)
+}
+
 // BuilderReservationRepository 暴露 Build 容量租约的事务化写入与终态更新。
 type BuilderReservationRepository interface {
 	moduleapi.BuilderReservationRepository
@@ -637,6 +648,39 @@ WHERE snapshot_id = $1 AND materialization_owner = 'build' AND materialization_s
 		return moduleapi.WorkspaceSnapshot{}, fmt.Errorf("get build input snapshot: %w", err)
 	}
 	return snapshot, nil
+}
+
+// ListBuildInputSnapshots 返回当前用户仍可复用的上传快照，结果按创建时间倒序稳定分页。
+//
+//nolint:cyclop // 查询同时校验分页边界、统计结果和行扫描错误。
+func (r *SQLRepository) ListBuildInputSnapshots(ctx context.Context, requestedBy uint64, limit, offset int) (InputSnapshotListResult, error) {
+	if r == nil || r.db == nil || requestedBy == 0 || limit < 1 || limit > 100 || offset < 0 {
+		return InputSnapshotListResult{}, errors.New("invalid build input snapshot list query")
+	}
+	const predicate = `FROM build_workspace_snapshots
+WHERE materialization_owner = 'build' AND materialization_state = 'available'
+  AND (retention_expires_at IS NULL OR retention_expires_at > NOW()) AND created_by = $1`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) `+predicate, requestedBy).Scan(&total); err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("count build input snapshots: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT snapshot_id, source_kind, source_reference, content_digest, materialization_ref, created_at `+predicate+` ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`, requestedBy, limit, offset)
+	if err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("list build input snapshots: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]moduleapi.WorkspaceSnapshot, 0, limit)
+	for rows.Next() {
+		var item moduleapi.WorkspaceSnapshot
+		if err := rows.Scan(&item.ID, &item.SourceKind, &item.SourceReference, &item.ContentDigest, &item.MaterializationRef, &item.CreatedAt); err != nil {
+			return InputSnapshotListResult{}, fmt.Errorf("scan build input snapshot: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return InputSnapshotListResult{}, fmt.Errorf("iterate build input snapshots: %w", err)
+	}
+	return InputSnapshotListResult{Items: items, Total: total}, nil
 }
 
 type executionPlanFields struct {
@@ -1161,14 +1205,18 @@ func (r *SQLRepository) ListV2Jobs(ctx context.Context, query ListQuery) (result
 		return result, errors.New("build repository is unavailable")
 	}
 	query.Limit, query.Offset = normalizedPagination(query.Limit, query.Offset)
+	where, args := v2JobListFilters(query)
+	predicate := strings.Join(where, " AND ")
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE 1=1`).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id WHERE `+predicate, args...).Scan(&total); err != nil {
 		return result, fmt.Errorf("count v2 build jobs: %w", err)
 	}
 	result.Total = total
+	args = append(args, query.Limit, query.Offset)
+	//nolint:gosec // predicate and placeholders are generated from fixed query fields; values remain bound args.
 	rows, err := r.db.QueryContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
-FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN build_v2_artifacts a ON a.produced_plan_id = p.id
-ORDER BY p.created_at DESC, p.id DESC LIMIT $1 OFFSET $2`, query.Limit, query.Offset)
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN LATERAL (SELECT artifact_id, artifact_digest, size_bytes FROM build_v2_artifacts WHERE produced_plan_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON TRUE
+WHERE `+predicate+` ORDER BY p.created_at DESC, p.id DESC LIMIT $`+strconv.Itoa(len(args)-1)+` OFFSET $`+strconv.Itoa(len(args)), args...)
 	if err != nil {
 		return result, fmt.Errorf("list v2 build jobs: %w", err)
 	}
@@ -1201,7 +1249,7 @@ func (r *SQLRepository) GetV2JobByBuildID(ctx context.Context, buildID string) (
 	var artifactID, digest, tag string
 	var size int64
 	err := r.db.QueryRowContext(ctx, `SELECT p.plan_id, p.task_id, s.snapshot_id, s.content_digest, s.source_kind, p.runtime_target_id, p.created_at, COALESCE(p.destination_json->>'repository_ref',''), COALESCE(p.destination_json->>'reference',''), COALESCE(a.artifact_id,''), COALESCE(a.artifact_digest,''), COALESCE(a.size_bytes,0)
-FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN build_v2_artifacts a ON a.produced_plan_id = p.id
+FROM build_execution_plans p JOIN build_workspace_snapshots s ON s.id = p.workspace_snapshot_id LEFT JOIN LATERAL (SELECT artifact_id, artifact_digest, size_bytes FROM build_v2_artifacts WHERE produced_plan_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON TRUE
 WHERE p.plan_id = $1`, strings.TrimSpace(buildID)).Scan(&item.BuildID, &item.TaskID, &item.InputSnapshotID, &item.InputSnapshotDigest, &item.SourceKind, &item.RuntimeTargetID, &item.CreatedAt, &item.ImageRepository, &tag, &artifactID, &digest, &size)
 	if errors.Is(err, sql.ErrNoRows) {
 		return JobProjection{}, ErrNotFound
@@ -1312,6 +1360,44 @@ func jobListFilters(query ListQuery) ([]string, []any) {
 		args = append(args, *query.CreatedBefore)
 	}
 	return appendTaskStatusFilter(where, args, query.BuildStatus)
+}
+
+func v2JobListFilters(query ListQuery) ([]string, []any) {
+	where := []string{"1 = 1"}
+	args := make([]any, 0, jobListFilterCap)
+	if query.ApplicationID != nil {
+		where = append(where, "FALSE")
+	}
+	if query.ImageRepository != nil {
+		where = append(where, `p.destination_json->>'repository_ref' = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageRepository)
+	}
+	if query.ImageTag != nil {
+		where = append(where, `p.destination_json->>'reference' = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.ImageTag)
+	}
+	if query.Search != nil {
+		placeholder := strconv.Itoa(len(args) + 1)
+		where = append(where, `(p.plan_id ILIKE '%' || $`+placeholder+` || '%' OR s.snapshot_id ILIKE '%' || $`+placeholder+` || '%' OR s.content_digest ILIKE '%' || $`+placeholder+` || '%')`)
+		args = append(args, *query.Search)
+	}
+	if query.BuilderID != nil {
+		where = append(where, `p.runtime_target_id = $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.BuilderID)
+	}
+	if query.CreatedAfter != nil {
+		where = append(where, `p.created_at >= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedAfter)
+	}
+	if query.CreatedBefore != nil {
+		where = append(where, `p.created_at <= $`+strconv.Itoa(len(args)+1))
+		args = append(args, *query.CreatedBefore)
+	}
+	if query.BuildStatus != nil {
+		where, args = appendTaskStatusFilter(where, args, query.BuildStatus)
+		where[len(where)-1] = strings.Replace(where[len(where)-1], "j.task_id", "p.task_id", 1)
+	}
+	return where, args
 }
 
 func appendTaskStatusFilter(where []string, args []any, filter *StatusFilter) ([]string, []any) {

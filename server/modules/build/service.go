@@ -113,6 +113,18 @@ func (s *Service) ListArtifacts(ctx context.Context, limit, offset int) (buildst
 	return reader.ListV2Artifacts(ctx, limit, offset)
 }
 
+// ListInputSnapshots 返回当前用户可复用的 Build 输入快照分页。
+func (s *Service) ListInputSnapshots(ctx context.Context, userID uint64, limit, offset int) (buildstore.InputSnapshotListResult, error) {
+	if s == nil || s.repository == nil {
+		return buildstore.InputSnapshotListResult{}, errors.New("build service is unavailable")
+	}
+	reader, ok := s.repository.(buildstore.InputSnapshotReader)
+	if !ok {
+		return buildstore.InputSnapshotListResult{}, errors.New("build input snapshot reader is unavailable")
+	}
+	return reader.ListBuildInputSnapshots(ctx, userID, limit, offset)
+}
+
 // ListArtifactPublicationSources 为 Promotion planning 提供 Build-owned Publication identity。
 // Registry 仍负责 source/destination access authorization 和 private execution binding。
 func (s *Service) ListArtifactPublicationSources(ctx context.Context, artifactID string) ([]moduleapi.ArtifactPublicationSource, error) {

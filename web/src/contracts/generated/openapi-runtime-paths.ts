@@ -76,6 +76,7 @@ export const OPENAPI_RUNTIME_PATH = {
   getAuthSessions: '/api/auth/sessions',
   getBuildArtifacts: '/api/build/artifacts',
   getBuildBuilderPools: '/api/build/builder-pools',
+  getBuildInputSnapshots: '/api/build/input-snapshots',
   getBuildJob: '/api/build/jobs/{buildId}',
   getBuildJobs: '/api/build/jobs',
   getBuildRuntimeTargets: '/api/build/runtime-targets',
