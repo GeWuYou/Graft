@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 LOOP_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-loop" / "SKILL.md"
 BATCH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-batch" / "SKILL.md"
 TASK_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-task" / "SKILL.md"
+WORKER_CONTRACT = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-batch" / "references" / "worker-contract.md"
 WORKER_CONTROLLER_FIELDS = frozenset(
     {
         "continue",
@@ -79,6 +80,137 @@ class Finding:
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _string_set(value: Any) -> set[str] | None:
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        return None
+    return set(value)
+
+
+def validate_topology_plan(plan: Mapping[str, Any], scenario: str) -> list[Finding]:
+    findings: list[Finding] = []
+    revision = plan.get("topology_revision")
+    if not isinstance(revision, int) or revision < 1:
+        findings.append(Finding(scenario, "topology_revision must be a positive integer"))
+    raw_nodes = plan.get("nodes")
+    if not isinstance(raw_nodes, list) or not raw_nodes:
+        findings.append(Finding(scenario, "topology plan must contain a non-empty nodes list"))
+        return findings
+    nodes: dict[str, Mapping[str, Any]] = {}
+    for index, node in enumerate(raw_nodes):
+        if not isinstance(node, Mapping):
+            findings.append(Finding(scenario, f"topology node {index} must be an object"))
+            continue
+        node_id = node.get("node_id")
+        if not isinstance(node_id, str) or not node_id:
+            findings.append(Finding(scenario, f"topology node {index} must have a node_id"))
+            continue
+        if node_id in nodes:
+            findings.append(Finding(scenario, f"topology node id {node_id!r} must be unique"))
+        nodes[node_id] = node
+        for field in ("objective", "authority_owner", "validation", "acceptance_gate", "execution_context"):
+            if not isinstance(node.get(field), str) or not node[field]:
+                findings.append(Finding(scenario, f"topology node {node_id!r} requires non-empty {field}"))
+        for field in ("depends_on", "owned_scope", "forbidden_scope"):
+            if _string_set(node.get(field)) is None:
+                findings.append(Finding(scenario, f"topology node {node_id!r} requires a string list for {field}"))
+    dependencies: dict[str, set[str]] = {}
+    for node_id, node in nodes.items():
+        deps = _string_set(node.get("depends_on")) or set()
+        dependencies[node_id] = deps
+        missing = sorted(deps.difference(nodes))
+        if missing:
+            findings.append(Finding(scenario, f"topology node {node_id!r} references missing dependencies: {', '.join(missing)}"))
+    visit_state: dict[str, int] = {}
+
+    def visit(node_id: str) -> None:
+        state = visit_state.get(node_id, 0)
+        if state == 1:
+            findings.append(Finding(scenario, f"topology dependency cycle includes {node_id!r}"))
+            return
+        if state == 2:
+            return
+        visit_state[node_id] = 1
+        for dependency in dependencies.get(node_id, set()):
+            if dependency in nodes:
+                visit(dependency)
+        visit_state[node_id] = 2
+    for node_id in nodes:
+        visit(node_id)
+    return findings
+
+
+def validate_ready_frontier(
+    plan: Mapping[str, Any], completed: set[str], ready: list[str], scenario: str
+) -> list[Finding]:
+    findings: list[Finding] = []
+    nodes = {
+        node["node_id"]: node
+        for node in plan.get("nodes", [])
+        if isinstance(node, Mapping) and node.get("node_id")
+    }
+    if len(ready) != len(set(ready)):
+        findings.append(Finding(scenario, "ready frontier node ids must be unique"))
+    for node_id in ready:
+        node = nodes.get(node_id)
+        if node is None:
+            findings.append(Finding(scenario, f"ready frontier contains unknown node {node_id!r}"))
+            continue
+        if not (_string_set(node.get("depends_on")) or set()).issubset(completed):
+            findings.append(Finding(scenario, f"ready node {node_id!r} has unsettled dependencies"))
+    for index, left_id in enumerate(ready):
+        left = nodes.get(left_id)
+        if left is None:
+            continue
+        left_scope = _string_set(left.get("owned_scope")) or set()
+        for right_id in ready[index + 1 :]:
+            right = nodes.get(right_id)
+            if right is None:
+                continue
+            right_scope = _string_set(right.get("owned_scope")) or set()
+            if (
+                left_scope.intersection(right_scope)
+                or left.get("authority_owner") == right.get("authority_owner")
+                or left.get("execution_context") == right.get("execution_context")
+                or left.get("acceptance_gate") == right.get("acceptance_gate")
+            ):
+                findings.append(Finding(scenario, f"ready nodes {left_id!r} and {right_id!r} are not independent"))
+    return findings
+
+
+def validate_topology_replan(
+    replan: Mapping[str, Any], completed_or_dispatched: set[str], scenario: str
+) -> list[Finding]:
+    findings: list[Finding] = []
+    if (
+        not isinstance(replan.get("topology_revision"), int)
+        or replan["topology_revision"] <= replan.get("previous_revision", 0)
+    ):
+        findings.append(Finding(scenario, "topology replan must increment topology_revision"))
+    affected = _string_set(replan.get("affected_nodes"))
+    if affected is None or not affected:
+        findings.append(Finding(scenario, "topology replan must identify affected nodes"))
+    elif affected.intersection(completed_or_dispatched):
+        findings.append(Finding(scenario, "topology replan cannot modify completed or dispatched nodes"))
+    for field in ("reason", "evidence", "dependency_delta", "authority_impact", "validation_impact"):
+        if not replan.get(field):
+            findings.append(Finding(scenario, f"topology replan requires {field} evidence"))
+    return findings
+
+
+def validate_topology_evidence(worker: Mapping[str, Any], scenario: str) -> list[Finding]:
+    findings: list[Finding] = []
+    evidence = worker.get("topology_evidence")
+    if not isinstance(evidence, Mapping):
+        findings.append(Finding(scenario, "worker topology_evidence must be an object"))
+        return findings
+    for field in ("topology_revision", "node_id", "node_status", "dependency_observed", "gate_evidence"):
+        if field not in evidence:
+            findings.append(Finding(scenario, f"worker topology_evidence is missing {field!r}"))
+    for field in sorted(WORKER_CONTROLLER_FIELDS.intersection(evidence)):
+        findings.append(Finding(scenario, f"worker topology_evidence cannot carry controller field {field!r}"))
+    return findings
 
 
 def has_concepts(text: str, concepts: tuple[tuple[str, ...], ...]) -> bool:
@@ -205,10 +337,24 @@ def validate_skill_contracts() -> list[Finding]:
             "batch-skill",
             (
                 (r"one\s+execution\s+wave",),
+                (r"hybrid\s+DAG|DAG", r"ready\s+frontier"),
+                (r"topology_revision", r"undispatched"),
+                (r"write\s+sets", r"authority", r"execution\s+contexts?"),
                 (r"returns?\s+control", r"outer\s+(loop\s+)?controller"),
                 (r"never\s+completes(?:\s+or\s+suspends)?\s+the\s+topic\s+loop",),
+                (r"workers?.*(?:must\s+not|cannot).*topology|worker.*mutate.*topology",),
                 (r"suggested_follow_up",),
                 (r"retry-exhaustion", r"wave\s+evidence", r"outer\s+controller"),
+            ),
+        ),
+        (
+            WORKER_CONTRACT,
+            "worker-contract",
+            (
+                (r"topology\s+revision", r"node\s+id", r"dependencies"),
+                (r"topology_evidence", r"node_status"),
+                (r"immutable\s+topology|cannot\s+change.*dependencies|must\s+not.*select.*frontier",),
+                (r"never\s+emits\s+controller\s+state",),
             ),
         ),
         (
@@ -216,6 +362,8 @@ def validate_skill_contracts() -> list[Finding]:
             "task-skill",
             (
                 (r"round\s+evidence", r"suggested_follow_up"),
+                (r"topology_revision", r"node_id", r"ready\s+node"),
+                (r"must\s+not.*mutate.*topology|outer\s+controller.*wave\s+boundary",),
                 (r"only\s+the\s+outer\s+(main\s+agent|controller)", r"next\s+batch"),
                 (r"must\s+not\s+decide\s+topic\s+completion",),
                 (r"must\s+not\s+resume\s+the\s+current\s+batch",),
@@ -233,8 +381,116 @@ def validate_skill_contracts() -> list[Finding]:
     return findings
 
 
+def _sample_topology() -> dict[str, Any]:
+    return {
+        "topology_revision": 1,
+        "nodes": [
+            {
+                "node_id": "authority-audit",
+                "objective": "confirm authority",
+                "depends_on": [],
+                "owned_scope": ["docs/a"],
+                "forbidden_scope": ["server"],
+                "authority_owner": "outer-controller",
+                "validation": "authority-check",
+                "acceptance_gate": "gate-a",
+                "execution_context": "primary-readonly",
+            },
+            {
+                "node_id": "implementation-a",
+                "objective": "implement slice",
+                "depends_on": ["authority-audit"],
+                "owned_scope": ["docs/b"],
+                "forbidden_scope": ["server"],
+                "authority_owner": "worker-a",
+                "validation": "focused-check-a",
+                "acceptance_gate": "gate-b",
+                "execution_context": "worker-a",
+            },
+            {
+                "node_id": "implementation-b",
+                "objective": "implement independent slice",
+                "depends_on": ["authority-audit"],
+                "owned_scope": ["docs/c"],
+                "forbidden_scope": ["server"],
+                "authority_owner": "worker-b",
+                "validation": "focused-check-b",
+                "acceptance_gate": "gate-c",
+                "execution_context": "worker-b",
+            },
+        ],
+    }
+
+
 def run_validation() -> list[Finding]:
     findings = validate_skill_contracts()
+    valid_topology = _sample_topology()
+    if validate_topology_plan(valid_topology, "valid-topology-plan"):
+        findings.append(Finding("valid-topology-plan", "valid hybrid DAG was rejected"))
+    if validate_ready_frontier(valid_topology, {"authority-audit"}, ["implementation-a", "implementation-b"], "valid-ready-frontier"):
+        findings.append(Finding("valid-ready-frontier", "independent ready frontier was rejected"))
+    valid_replan = {
+        "previous_revision": 1,
+        "topology_revision": 2,
+        "affected_nodes": ["implementation-b"],
+        "reason": "new evidence",
+        "evidence": "validation output",
+        "dependency_delta": {"implementation-b": ["authority-audit"]},
+        "authority_impact": "none",
+        "validation_impact": "rerun focused check",
+    }
+    if validate_topology_replan(valid_replan, {"authority-audit", "implementation-a"}, "valid-topology-replan"):
+        findings.append(Finding("valid-topology-replan", "valid undispatched topology replan was rejected"))
+    if validate_topology_evidence(
+        {
+            "topology_evidence": {
+                "topology_revision": 1,
+                "node_id": "implementation-a",
+                "node_status": "completed",
+                "dependency_observed": "passed",
+                "gate_evidence": "focused-check-a",
+            }
+        },
+        "valid-topology-evidence",
+    ):
+        findings.append(Finding("valid-topology-evidence", "valid worker topology evidence was rejected"))
+
+    cycle_topology = _sample_topology()
+    cycle_topology['nodes'][0]["node_id"] = "cycle-a"
+    cycle_topology['nodes'][0]["depends_on"] = ["cycle-b"]
+    cycle_topology['nodes'][1]["node_id"] = "cycle-b"
+    cycle_topology['nodes'][1]["depends_on"] = ["cycle-a"]
+    cycle_topology['nodes'][2]["depends_on"] = ["cycle-a"]
+    findings.extend(validate_topology_plan(cycle_topology, "topology-cycle-rejected"))
+    findings.extend(validate_ready_frontier(valid_topology, set(), ["implementation-a"], "ready-frontier-unsettled-dependency"))
+    findings.extend(validate_ready_frontier(valid_topology, {"authority-audit"}, ["implementation-a", "implementation-a"], "ready-frontier-duplicate-node"))
+
+    conflict_topology = _sample_topology()
+    conflict_topology['nodes'][1]["owned_scope"] = ["docs/shared"]
+    conflict_topology['nodes'][2]["owned_scope"] = ["docs/shared"]
+    findings.extend(validate_ready_frontier(conflict_topology, {"authority-audit"}, ["implementation-a", "implementation-b"], "ready-frontier-overlap"))
+    findings.extend(
+        validate_topology_replan(
+            {**valid_replan, "affected_nodes": ["authority-audit"]},
+            {"authority-audit"},
+            "replan-cannot-rewrite-dispatched-node",
+        )
+    )
+    findings.extend(
+        validate_topology_evidence(
+            {
+                "topology_evidence": {
+                    "topology_revision": 1,
+                    "node_id": "implementation-a",
+                    "node_status": "completed",
+                    "dependency_observed": "passed",
+                    "gate_evidence": "focused-check-a",
+                    "next_batch": "implementation-b",
+                }
+            },
+            "topology-evidence-cannot-transition-controller",
+        )
+    )
     findings.extend(validate_worker_handoff({"continue": False}, "worker-continue-cannot-terminate"))
     findings.extend(validate_worker_handoff({"next_batch": "phase-next"}, "worker-next-batch-is-not-controller-state"))
     findings.extend(
@@ -362,6 +618,12 @@ def main() -> int:
     expected_failures = {
         "worker-continue-cannot-terminate",
         "worker-next-batch-is-not-controller-state",
+        "topology-cycle-rejected",
+        "ready-frontier-unsettled-dependency",
+        "ready-frontier-duplicate-node",
+        "ready-frontier-overlap",
+        "replan-cannot-rewrite-dispatched-node",
+        "topology-evidence-cannot-transition-controller",
         "archive-ready-requires-settled-topic",
         "recovery-complete-cannot-end",
         "context-restored-cannot-end",

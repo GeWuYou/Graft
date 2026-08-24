@@ -22,6 +22,12 @@ The outer main agent is the only topic lifecycle owner, state owner, batch-trans
 owner. Workers return round evidence and optional `suggested_follow_up`; worker completion never completes a topic
 loop. A worker must not decide or emit `continue`, `pending_batches`, `next_batch`, archive readiness, or stop state.
 
+For tasks with dependency-bearing slices, the outer main agent also owns the best-known hybrid DAG. It creates the initial
+graph before dispatch, computes the ready frontier, and increments `topology_revision` when it adds, splits, merges, or
+reorders undispatched nodes at a wave boundary. Completed and dispatched nodes remain immutable history. The topology
+constrains scheduling only; it does not move architecture, acceptance, recovery, batch-state, or terminal authority to
+the batch or workers.
+
 Canonical controller transitions:
 
 ```text
@@ -54,15 +60,18 @@ Before dispatch:
 1. Complete root startup preflight and emit the required receipt.
 2. Restore parent/subtopic recovery only after preflight when applicable.
 3. Confirm task class, authority, owned/forbidden scope, acceptance criteria, and applicable semantic reviews.
-4. Establish `current_batch`, `completed_batches`, `pending_batches`, `next_batch`, and explicit budget.
+4. Establish the initial topology revision, node dependencies, ready frontier, `current_batch`, `completed_batches`,
+   `pending_batches`, `next_batch`, and explicit budget.
 5. Keep the first blocking architecture or authority decision local to the outer controller.
 
 ## Round Workflow
 
-1. Dispatch one worker through `graft-multi-agent-task` for the current bounded batch. The worker may use
-   `graft-multi-agent-batch` internally only when that round cleanly splits into disjoint scopes.
-2. Pass governance source, task class, recovery source, objective, owned and forbidden scope, validation, closeout
-   shape, commit authority, remaining budget, and verified parent/worker `model_relation` with comparison evidence.
+1. Compute the current ready frontier from the topology and dispatch one worker through `graft-multi-agent-task` for the
+   selected bounded node or wave. The worker may use `graft-multi-agent-batch` internally only when that frontier cleanly
+   splits into disjoint scopes.
+2. Pass governance source, task class, recovery source, topology revision, node id, dependencies, objective, owned and
+   forbidden scope, authority owner, execution context, validation, closeout shape, commit authority, remaining budget,
+   and verified parent/worker `model_relation` with comparison evidence.
    The worker model must be the
    same level as or lower than its direct parent; never infer rank from model names, availability, or reasoning effort.
 3. Wait for final round evidence. Treat quiet windows as observations, not automatic stall or takeover permission.
@@ -70,9 +79,11 @@ Before dispatch:
    model evidence.
 5. On accepted evidence, enter `SETTLE` and update state exactly once.
 6. In topic-completion mode:
+   - after settling a wave, recompute the ready frontier and update pending batches from the topology
    - when pending batches remain, enter `ADVANCE -> DISPATCH_NEXT -> DISPATCH`
    - when none remain, run topic acceptance and recovery/catalog checks in `ARCHIVE_CHECK`
-   - regenerate bounded pending work if archive checks expose clear remaining work
+   - regenerate bounded pending work if archive checks expose clear remaining work; only undispatched nodes may be
+     added or reordered, with a new topology revision and recorded replan evidence
 7. In checkpoint mode, stop after the accepted batch and emit the governed next-session prompt.
 8. On failure, keep the failed batch unsettled and follow the recovery/retry contract; never complete it locally after
    delegation.
