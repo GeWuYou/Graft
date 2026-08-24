@@ -476,6 +476,8 @@
           "reset": "Reset Theme",
           "resetSuccess": "Theme restored to default",
           "clearGroup": "Clear Group",
+          "scrollToTop": "Scroll to top",
+          "scrollToBottom": "Scroll to bottom",
           "cancel": "Cancel",
           "apply": "Apply"
         }

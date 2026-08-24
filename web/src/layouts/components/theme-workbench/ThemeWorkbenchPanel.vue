@@ -42,7 +42,12 @@
           </div>
         </aside>
 
-        <section class="theme-workbench-panel__content graft-scrollbar">
+        <section
+          ref="panelContentRef"
+          class="theme-workbench-panel__content graft-scrollbar"
+          data-testid="theme-workbench-content"
+          @scroll="updatePanelScrollState"
+        >
           <div v-if="activeGroup === 'overview'" class="overview-layout">
             <div class="section overview-layout__summary">
               <div class="section-title">{{ t('layout.setting.workbench.overview.currentConfig') }}</div>
@@ -760,6 +765,41 @@
             </div>
           </div>
         </section>
+
+        <div class="theme-workbench-panel__scroll-actions" aria-label="快速滚动">
+          <t-tooltip
+            v-if="showPanelScrollTopButton"
+            :content="t('layout.setting.workbench.actions.scrollToTop')"
+            placement="left"
+            show-arrow
+          >
+            <t-button
+              shape="square"
+              variant="outline"
+              class="theme-workbench-panel__scroll-button theme-workbench-panel__scroll-button--top"
+              :aria-label="t('layout.setting.workbench.actions.scrollToTop')"
+              @click="scrollPanelTo('top')"
+            >
+              <t-icon name="chevron-up" />
+            </t-button>
+          </t-tooltip>
+          <t-tooltip
+            v-if="showPanelScrollBottomButton"
+            :content="t('layout.setting.workbench.actions.scrollToBottom')"
+            placement="left"
+            show-arrow
+          >
+            <t-button
+              shape="square"
+              variant="outline"
+              class="theme-workbench-panel__scroll-button theme-workbench-panel__scroll-button--bottom"
+              :aria-label="t('layout.setting.workbench.actions.scrollToBottom')"
+              @click="scrollPanelTo('bottom')"
+            >
+              <t-icon name="chevron-down" />
+            </t-button>
+          </t-tooltip>
+        </div>
       </div>
 
       <footer class="theme-workbench-panel__footer">
@@ -798,7 +838,7 @@
 /** 主题工作台仅编排本地预览交互，主题草稿与持久化状态统一由 setting store 管理。 */
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import SettingAutoIcon from '@/assets/assets-setting-auto.svg';
@@ -832,6 +872,9 @@ const settingStore = useSettingStore();
 const route = useRoute();
 const { locale } = useLocale();
 const panelShellRef = ref<HTMLElement>();
+const panelContentRef = ref<HTMLElement>();
+const showPanelScrollTopButton = ref(false);
+const showPanelScrollBottomButton = ref(false);
 const advancedVisible = ref(false);
 const expandedAdvancedGroups = ref<Array<string | number>>(['brand']);
 const resetButtonLockedWidth = ref<number>();
@@ -1302,6 +1345,31 @@ const handlePresetSelect = (presetId: string, scope: ThemePresetApplicationScope
   settingStore.selectThemePreset(presetId, scope);
 };
 
+const scrollPanelTo = (position: 'top' | 'bottom') => {
+  const content = panelContentRef.value;
+  if (!content) {
+    return;
+  }
+
+  content.scrollTo({
+    behavior: 'smooth',
+    top: position === 'top' ? 0 : content.scrollHeight,
+  });
+};
+
+const updatePanelScrollState = () => {
+  const content = panelContentRef.value;
+  if (!content) {
+    showPanelScrollTopButton.value = false;
+    showPanelScrollBottomButton.value = false;
+    return;
+  }
+
+  const maxScrollTop = Math.max(content.scrollHeight - content.clientHeight, 0);
+  showPanelScrollTopButton.value = content.scrollTop > 4;
+  showPanelScrollBottomButton.value = maxScrollTop - content.scrollTop > 4;
+};
+
 const drawerVisible = computed({
   get: () => settingStore.showThemeWorkbench,
   set: (visible: boolean) => {
@@ -1317,6 +1385,8 @@ const drawerVisible = computed({
 const themeWorkbenchBudgetKeys = computed(() => [
   ...groups.value.map((group) => ({ scope: 'navigation' as const, key: group.labelKey })),
   { scope: 'button' as const, key: 'layout.setting.workbench.actions.reset' },
+  { scope: 'button' as const, key: 'layout.setting.workbench.actions.scrollToTop' },
+  { scope: 'button' as const, key: 'layout.setting.workbench.actions.scrollToBottom' },
   { scope: 'button' as const, key: 'layout.setting.workbench.actions.cancel' },
   { scope: 'button' as const, key: 'layout.setting.workbench.actions.apply' },
 ]);
@@ -1334,6 +1404,17 @@ watch(
   },
   { immediate: true },
 );
+
+watch(drawerVisible, async (visible) => {
+  if (!visible) {
+    showPanelScrollTopButton.value = false;
+    showPanelScrollBottomButton.value = false;
+    return;
+  }
+
+  await nextTick();
+  updatePanelScrollState();
+});
 
 watch(
   () => settingStore.displayMode,
@@ -1573,6 +1654,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-16);
+  position: relative;
 }
 
 .theme-workbench-panel__nav {
@@ -1651,6 +1733,10 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   overflow: hidden auto;
   padding-left: var(--graft-density-gap-12);
   padding-right: var(--graft-density-gap-4);
+}
+
+.theme-workbench-panel__scroll-actions {
+  display: none;
 }
 
 .section {
@@ -3237,7 +3323,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   .theme-workbench-panel__body {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    padding: var(--graft-density-gap-12);
+    padding: var(--graft-density-gap-16);
   }
 
   .theme-workbench-panel__nav {
@@ -3247,13 +3333,37 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     display: flex;
     max-width: 100%;
     overflow: auto hidden;
-    padding-bottom: var(--graft-density-gap-2);
+    padding-bottom: var(--graft-density-gap-16);
     padding-right: 0;
   }
 
   .theme-workbench-panel__content {
     padding-left: 0;
-    padding-top: var(--graft-density-gap-12);
+    padding-top: var(--graft-density-gap-16);
+  }
+
+  .theme-workbench-panel__scroll-actions {
+    display: block;
+    inset: 0;
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .theme-workbench-panel__scroll-button {
+    background: color-mix(in srgb, var(--td-bg-color-container) 92%, transparent);
+    box-shadow: var(--td-shadow-2);
+    pointer-events: auto;
+    position: absolute;
+    right: var(--graft-density-gap-16);
+  }
+
+  .theme-workbench-panel__scroll-button--top {
+    top: var(--graft-density-gap-16);
+  }
+
+  .theme-workbench-panel__scroll-button--bottom {
+    bottom: var(--graft-density-gap-16);
   }
 
   .theme-workbench-panel__nav-entry {

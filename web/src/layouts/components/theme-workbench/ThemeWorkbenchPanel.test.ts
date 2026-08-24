@@ -261,6 +261,35 @@ describe('ThemeWorkbenchPanel', () => {
     expect(wrapper.findAll('.nav-item__content')).toHaveLength(7);
   });
 
+  it('provides narrow-screen content scroll controls', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    const wrapper = mountPanel();
+    const content = wrapper.get('[data-testid="theme-workbench-content"]').element as HTMLElement;
+    const scrollTo = vi.fn();
+    content.scrollTo = scrollTo as unknown as HTMLElement['scrollTo'];
+    Object.defineProperties(content, {
+      clientHeight: { configurable: true, value: 480 },
+      scrollHeight: { configurable: true, value: 960 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+
+    await wrapper.get('[data-testid="theme-workbench-content"]').trigger('scroll');
+    expect(wrapper.findAll('.theme-workbench-panel__scroll-button')).toHaveLength(1);
+    expect(wrapper.find('.theme-workbench-panel__scroll-button--bottom').exists()).toBe(true);
+
+    await wrapper.get('.theme-workbench-panel__scroll-button--bottom').trigger('click');
+    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 960 });
+
+    content.scrollTop = 960;
+    await wrapper.get('[data-testid="theme-workbench-content"]').trigger('scroll');
+    expect(wrapper.findAll('.theme-workbench-panel__scroll-button')).toHaveLength(1);
+    expect(wrapper.find('.theme-workbench-panel__scroll-button--top').exists()).toBe(true);
+
+    await wrapper.get('.theme-workbench-panel__scroll-button--top').trigger('click');
+    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
+  });
+
   it('passes the local preset application scope to the workbench store', async () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
