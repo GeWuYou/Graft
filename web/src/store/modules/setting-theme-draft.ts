@@ -1,3 +1,4 @@
+import { THEME_PRESET_DEFINITIONS } from '@/config/theme-workbench';
 import type {
   ThemeAuthorityState,
   ThemeModeTokenState,
@@ -10,7 +11,7 @@ import { cloneThemeModeTokenState, createEmptyThemeModeTokenState } from '@/util
 import type { ModeType } from '@/utils/types';
 
 import type { WorkbenchStyleConfigSnapshot } from './setting-theme-authority';
-import { normalizeThemeAuthorityOverrides } from './setting-theme-authority';
+import { hasThemeTokenOverrideDiff, normalizeThemeAuthorityOverrides } from './setting-theme-authority';
 
 function createPresetThemeTokenOverrides(
   preset: ThemePresetDefinition,
@@ -33,6 +34,17 @@ function createPresetThemeTokenOverrides(
         if (currentPaletteTokens[mode][tokenKey] === tokenValue) {
           delete currentPaletteTokens[mode][tokenKey];
         }
+      });
+    });
+  }
+
+  if (scope === 'palette') {
+    (['light', 'dark'] as const).forEach((mode) => {
+      const materialKeys = THEME_PRESET_DEFINITIONS.flatMap((item) =>
+        Object.keys(item.materialTokenOverrides?.[mode] ?? {}),
+      );
+      materialKeys.forEach((tokenKey) => {
+        delete currentPaletteTokens[mode][tokenKey];
       });
     });
   }
@@ -77,13 +89,67 @@ export function buildUpdatedThemeDraft(
   base: ThemeAuthorityState,
   patch: Partial<ThemeAuthorityState>,
 ): ThemeAuthorityState {
-  return normalizeThemeAuthorityOverrides({
+  const nextState = normalizeThemeAuthorityOverrides({
     ...base,
     ...patch,
     themeTokenOverrides: patch.themeTokenOverrides
       ? cloneThemeModeTokenState(patch.themeTokenOverrides)
       : cloneThemeModeTokenState(base.themeTokenOverrides),
   });
+
+  // 显式选择预设时保留选择结果；其余编辑入口都根据最终 authority 重新判定预设归属。
+  if (patch.selectedThemePresetId !== undefined) {
+    return nextState;
+  }
+
+  const matchingPreset = THEME_PRESET_DEFINITIONS.find((preset) => matchesCompleteThemePreset(nextState, preset));
+  return {
+    ...nextState,
+    selectedThemePresetId: matchingPreset?.id ?? null,
+    themeSource: matchingPreset ? 'preset' : 'customized',
+  };
+}
+
+const THEME_PRESET_MATCH_KEYS = [
+  'mode',
+  'brandTheme',
+  'fontFamilyPreset',
+  'fontSizePreset',
+  'radiusPreset',
+  'radiusOverride',
+  'shadowPreset',
+  'shadowIntensity',
+  'shadowIntensityOverride',
+  'densityPreset',
+  'densityOverride',
+] as const;
+
+function matchesCompleteThemePreset(state: ThemeAuthorityState, preset: ThemePresetDefinition): boolean {
+  const expected = createCompleteThemePresetState(preset, state.mode);
+
+  return (
+    THEME_PRESET_MATCH_KEYS.every((key) => state[key] === expected[key]) &&
+    !hasThemeTokenOverrideDiff(state.themeTokenOverrides, expected.themeTokenOverrides)
+  );
+}
+
+/** 从仍保留的调色板 token 中恢复上一个预设，供下一次 palette 切换清理旧材质 token。 */
+export function findThemePresetForPaletteTransition(state: ThemeAuthorityState): ThemePresetDefinition | null {
+  return (
+    THEME_PRESET_DEFINITIONS.find((preset) => {
+      if (preset.brandTheme !== state.brandTheme || (preset.mode && preset.mode !== state.mode)) {
+        return false;
+      }
+
+      return (['light', 'dark'] as const).every((mode) => {
+        const expectedTokens = {
+          ...(preset.tokenOverrides?.[mode] ?? {}),
+          ...(preset.materialTokenOverrides?.[mode] ?? {}),
+        };
+        return Object.entries(expectedTokens).every(([key, value]) => state.themeTokenOverrides[mode][key] === value);
+      });
+    }) ?? null
+  );
 }
 
 export function buildSelectedThemePresetState(

@@ -1259,6 +1259,40 @@ describe('setting store theme authority', () => {
     expect(store.shadowIntensity).toBe('strong');
   });
 
+  it('clears the active preset when an authority value is customized', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+
+    expect(store.selectedThemePresetId).toBeNull();
+    expect(store.effectiveSelectedThemePreset).toBeNull();
+  });
+
+  it('reselects the matching preset when a customized value is restored', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'standard' });
+
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
+    expect(store.effectiveSelectedThemePreset?.id).toBe('one-dark-pro');
+  });
+
+  it('does not fall back to the default preset after a token customization', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
+
+    expect(store.selectedThemePresetId).toBeNull();
+    expect(store.effectiveSelectedThemePreset).toBeNull();
+  });
+
   it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
