@@ -1,47 +1,51 @@
 <template>
-  <div
-    v-if="compact && (controller.topVisible.value || controller.bottomVisible.value)"
-    ref="scrollEdgeActionsRef"
-    class="scroll-edge-actions"
-    data-scroll-edge-actions="true"
-    role="group"
-    :aria-label="labels.group"
-  >
-    <t-button
-      v-if="controller.topVisible.value"
-      key="scroll-edge-to-top"
-      class="scroll-edge-actions__button"
-      block
-      shape="circle"
-      size="medium"
-      theme="primary"
-      :aria-label="labels.toTop"
-      :title="labels.toTop"
-      data-scroll-edge-to-top="true"
-      @click="handleScrollToTop"
+  <Transition name="scroll-edge-actions-rail" appear>
+    <div
+      v-if="compact && (controller.topVisible.value || controller.bottomVisible.value)"
+      ref="scrollEdgeActionsRef"
+      class="scroll-edge-actions"
+      data-scroll-edge-actions="true"
+      role="group"
+      :aria-label="labels.group"
     >
-      <template #icon>
-        <slot name="top-icon"><arrow-up-icon size="20" /></slot>
-      </template>
-    </t-button>
-    <t-button
-      v-if="controller.bottomVisible.value"
-      key="scroll-edge-to-bottom"
-      class="scroll-edge-actions__button"
-      block
-      shape="circle"
-      size="medium"
-      theme="primary"
-      :aria-label="labels.toBottom"
-      :title="labels.toBottom"
-      data-scroll-edge-to-bottom="true"
-      @click="handleScrollToBottom"
-    >
-      <template #icon>
-        <slot name="bottom-icon"><arrow-down-icon size="20" /></slot>
-      </template>
-    </t-button>
-  </div>
+      <TransitionGroup name="scroll-edge-actions-item" tag="div" class="scroll-edge-actions__items">
+        <t-button
+          v-if="controller.topVisible.value"
+          key="scroll-edge-to-top"
+          class="scroll-edge-actions__button"
+          block
+          shape="circle"
+          size="medium"
+          theme="primary"
+          :aria-label="labels.toTop"
+          :title="labels.toTop"
+          data-scroll-edge-to-top="true"
+          @click="handleScrollToTop"
+        >
+          <template #icon>
+            <slot name="top-icon"><arrow-up-icon size="20" /></slot>
+          </template>
+        </t-button>
+        <t-button
+          v-if="controller.bottomVisible.value"
+          key="scroll-edge-to-bottom"
+          class="scroll-edge-actions__button"
+          block
+          shape="circle"
+          size="medium"
+          theme="primary"
+          :aria-label="labels.toBottom"
+          :title="labels.toBottom"
+          data-scroll-edge-to-bottom="true"
+          @click="handleScrollToBottom"
+        >
+          <template #icon>
+            <slot name="bottom-icon"><arrow-down-icon size="20" /></slot>
+          </template>
+        </t-button>
+      </TransitionGroup>
+    </div>
+  </Transition>
 </template>
 <script setup lang="ts">
 import { ArrowDownIcon, ArrowUpIcon } from 'tdesign-icons-vue-next';
@@ -55,6 +59,7 @@ import {
 import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 import { emitScrollEdgeDebug } from '@/shared/debug/scroll-edge-actions-investigation';
 
+/** 窄屏滚动操作只消费外部注册的控制器，不自行扫描页面滚动容器或绑定业务语义。 */
 const props = withDefaults(
   defineProps<
     ScrollEdgeActionsOptions & {
@@ -162,7 +167,6 @@ onBeforeUnmount(() => {
   box-shadow: var(--td-shadow-2);
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-8);
   inline-size: var(--scroll-edge-actions-size);
   padding: var(--graft-density-gap-4);
   pointer-events: none;
@@ -170,6 +174,15 @@ onBeforeUnmount(() => {
   right: var(--graft-shell-floating-actions-right, 16px);
   width: var(--scroll-edge-actions-size);
   z-index: 1090;
+}
+
+.scroll-edge-actions__items {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  inline-size: 100%;
+  position: relative;
 }
 
 .scroll-edge-actions__button {
@@ -190,5 +203,51 @@ onBeforeUnmount(() => {
   margin: 0 !important;
   min-width: var(--scroll-edge-actions-size);
   width: var(--scroll-edge-actions-size);
+}
+
+.scroll-edge-actions-rail-enter-active,
+.scroll-edge-actions-rail-leave-active,
+.scroll-edge-actions-item-enter-active,
+.scroll-edge-actions-item-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.38, 0, 0.24, 1);
+}
+
+.scroll-edge-actions-rail-enter-from,
+.scroll-edge-actions-rail-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+}
+
+.scroll-edge-actions-item-enter-from,
+.scroll-edge-actions-item-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.8);
+}
+
+.scroll-edge-actions-item-leave-active {
+  position: absolute;
+}
+
+.scroll-edge-actions-item-move {
+  transition: transform 180ms cubic-bezier(0.38, 0, 0.24, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-edge-actions-rail-enter-active,
+  .scroll-edge-actions-rail-leave-active,
+  .scroll-edge-actions-item-enter-active,
+  .scroll-edge-actions-item-leave-active,
+  .scroll-edge-actions-item-move {
+    transition: none;
+  }
+
+  .scroll-edge-actions-rail-enter-from,
+  .scroll-edge-actions-rail-leave-to,
+  .scroll-edge-actions-item-enter-from,
+  .scroll-edge-actions-item-leave-to {
+    transform: none;
+  }
 }
 </style>
