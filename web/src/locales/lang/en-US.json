@@ -83,6 +83,10 @@
       "placeholder": "Search menus or pages"
     },
     "routeLoading": "Loading Page",
+    "scrollActions": {
+      "top": "Scroll to top",
+      "bottom": "Scroll to bottom"
+    },
     "setting": {
       "theme": {
         "mode": "Theme Mode",
@@ -476,8 +480,6 @@
           "reset": "Reset Theme",
           "resetSuccess": "Theme restored to default",
           "clearGroup": "Clear Group",
-          "scrollToTop": "Scroll to top",
-          "scrollToBottom": "Scroll to bottom",
           "cancel": "Cancel",
           "apply": "Apply"
         }

@@ -4,6 +4,12 @@ import { Dialog, DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, nextTick, type PropType, ref } from 'vue';
 
+import {
+  type ScrollEdgeActionsContext,
+  type ScrollEdgeActionsController,
+  useScrollEdgeActionsContext,
+} from '@/shared/composables';
+
 import AppProviders from './AppProviders.vue';
 
 const localeRef = ref('zh-CN');
@@ -18,6 +24,7 @@ const routerMock = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 const routeProbeMounts = { count: 0 };
+let providedScrollContext: ScrollEdgeActionsContext | undefined;
 
 vi.mock('@/layouts/setting.vue', () => ({
   default: defineComponent({
@@ -84,6 +91,14 @@ const DialogRouteProbe = defineComponent({
   },
 });
 
+const ScrollContextProbe = defineComponent({
+  name: 'ScrollContextProbe',
+  setup() {
+    providedScrollContext = useScrollEdgeActionsContext();
+    return () => h('div', { 'data-testid': 'scroll-context-probe' });
+  },
+});
+
 describe('AppProviders', () => {
   beforeEach(() => {
     localeRef.value = 'zh-CN';
@@ -96,6 +111,37 @@ describe('AppProviders', () => {
     routerMock.currentRoute.value = { path: '/', fullPath: '/', query: {} };
     routerMock.replace.mockReset();
     routeProbeMounts.count = 0;
+    providedScrollContext = undefined;
+  });
+
+  it('provides a stack-based scroll controller registration surface', () => {
+    const wrapper = mount(AppProviders, {
+      global: {
+        stubs: {
+          RouterView: ScrollContextProbe,
+          TConfigProvider: defineComponent({
+            setup(_, { slots }) {
+              return () => h('div', slots.default?.());
+            },
+          }),
+        },
+      },
+    });
+
+    expect(providedScrollContext).toBeDefined();
+    const context = providedScrollContext!;
+    const first = {} as ScrollEdgeActionsController;
+    const second = {} as ScrollEdgeActionsController;
+    const unregisterFirst = context.register(first);
+    const unregisterSecond = context.register(second);
+
+    expect(context.activeController.value).toBe(second);
+    unregisterSecond();
+    expect(context.activeController.value).toBe(first);
+    unregisterFirst();
+    expect(context.activeController.value).toBeNull();
+
+    wrapper.unmount();
   });
 
   it('keeps the routed view mounted when locale changes', async () => {

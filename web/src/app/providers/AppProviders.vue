@@ -14,6 +14,7 @@ import { APP_RESULT_ROUTE_PATH, resolveRecoveryRoutePath } from '@/contracts/app
 import SettingCom from '@/layouts/setting.vue';
 import { useLocale } from '@/locales/useLocale';
 import router from '@/router';
+import { provideScrollEdgeActionsContext } from '@/shared/composables';
 import { useSettingStore } from '@/store';
 import { usePlatformAvailabilityStore } from '@/store/modules/platform-availability';
 import { store as pinia } from '@/store/pinia';
@@ -22,6 +23,7 @@ import { store as pinia } from '@/store/pinia';
 const store = useSettingStore();
 const availability = usePlatformAvailabilityStore(pinia);
 availability.bindRequestBridge();
+provideScrollEdgeActionsContext();
 let recoveryNavigation: Promise<void> | null = null;
 
 // 浏览器刷新与错误页按钮都经过同一恢复入口，避免首屏探测和状态监听重复消费回跳目标。

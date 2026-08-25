@@ -59,6 +59,25 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "scroll-edge-actions"
+    type: "frontend-component"
+    path: "web/src/shared/components/scroll"
+    owner: "web/shared"
+    purpose: "窄屏下为明确注册的滚动视口提供到顶部/到底部悬浮操作；默认绑定 PageContainer，也支持页面注册自定义 controller。"
+    use_when:
+      - "标准页面需要通过 PageContainer 提供页面滚动的窄屏边缘操作。"
+      - "日志、编辑器或虚拟列表等页面需要注册自己的滚动目标和滚动回调。"
+    do_not_use_when:
+      - "页面需要自动扫描未知嵌套滚动容器或把滚动语义绑定到业务路由。"
+    examples:
+      - "web/src/layouts/components/PageContainer.vue"
+      - "web/src/layouts/setting.vue"
+      - "web/src/shared/composables/useScrollEdgeActionsContext.ts"
+    related_assets:
+      - "responsive-layout-primitives"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "management-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"

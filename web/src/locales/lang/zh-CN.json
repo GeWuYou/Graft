@@ -65,6 +65,10 @@
       "placeholder": "输入要搜索内容"
     },
     "routeLoading": "页面加载中",
+    "scrollActions": {
+      "top": "到顶部",
+      "bottom": "到底部"
+    },
     "tagTabs": {
       "actions": "标签页操作",
       "closeOther": "关闭其他",
@@ -476,8 +480,6 @@
           "reset": "恢复默认主题",
           "resetSuccess": "已恢复默认主题",
           "clearGroup": "清空当前分组",
-          "scrollToTop": "到顶部",
-          "scrollToBottom": "到底部",
           "cancel": "取消",
           "apply": "应用"
         }
