@@ -1245,10 +1245,10 @@ describe('setting store theme authority', () => {
     store.openThemeWorkbench('presets');
 
     store.selectThemePreset('one-dark-pro', 'complete');
-    store.updateThemeToken('dark', '--graft-glass-bg', '30px');
+    store.updateThemeToken('dark', '--graft-glass-bg', 'rgba(27, 31, 36, 0.74)');
     store.selectThemePreset('industrial-yellow', 'palette');
 
-    expect(store.themeTokenOverrides.dark['--graft-glass-bg']).toBe('30px');
+    expect(store.themeTokenOverrides.dark['--graft-glass-bg']).toBe('rgba(27, 31, 36, 0.74)');
   });
 
   it('restores the target preset style values when leaving Industrial Yellow', () => {

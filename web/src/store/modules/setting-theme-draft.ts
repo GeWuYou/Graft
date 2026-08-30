@@ -38,26 +38,6 @@ function createPresetThemeTokenOverrides(
     });
   }
 
-  if (scope === 'palette') {
-    // 即使其它 token 已被个性化导致无法识别旧预设，也只清掉仍等于内置材质值的残留；
-    // 用户改过的材质 token 必须继续随调色板切换保留。
-    (['light', 'dark'] as const).forEach((mode) => {
-      const builtInMaterialValuesByKey = new Map<string, Set<string>>();
-      THEME_PRESET_DEFINITIONS.forEach((item) => {
-        Object.entries(item.materialTokenOverrides?.[mode] ?? {}).forEach(([tokenKey, tokenValue]) => {
-          const values = builtInMaterialValuesByKey.get(tokenKey) ?? new Set<string>();
-          values.add(tokenValue);
-          builtInMaterialValuesByKey.set(tokenKey, values);
-        });
-      });
-      Object.entries(currentPaletteTokens[mode]).forEach(([tokenKey, tokenValue]) => {
-        if (builtInMaterialValuesByKey.get(tokenKey)?.has(tokenValue)) {
-          delete currentPaletteTokens[mode][tokenKey];
-        }
-      });
-    });
-  }
-
   return {
     light: {
       ...(preset.tokenOverrides?.light ?? {}),
@@ -144,20 +124,40 @@ function matchesCompleteThemePreset(state: ThemeAuthorityState, preset: ThemePre
 
 /** 从仍保留的调色板 token 中恢复上一个预设，供下一次 palette 切换清理旧材质 token。 */
 export function findThemePresetForPaletteTransition(state: ThemeAuthorityState): ThemePresetDefinition | null {
-  return (
-    THEME_PRESET_DEFINITIONS.find((preset) => {
-      if (preset.brandTheme !== state.brandTheme || (preset.mode && preset.mode !== state.mode)) {
-        return false;
-      }
+  const candidates = THEME_PRESET_DEFINITIONS.filter(
+    (preset) => preset.brandTheme === state.brandTheme && (!preset.mode || preset.mode === state.mode),
+  );
+  const paletteMatch = candidates.find((preset) =>
+    (['light', 'dark'] as const).every((mode) => {
+      const expectedTokens = {
+        ...(preset.tokenOverrides?.[mode] ?? {}),
+        ...(preset.materialTokenOverrides?.[mode] ?? {}),
+      };
+      return Object.entries(expectedTokens).every(([key, value]) => state.themeTokenOverrides[mode][key] === value);
+    }),
+  );
 
-      return (['light', 'dark'] as const).every((mode) => {
-        const expectedTokens = {
-          ...(preset.tokenOverrides?.[mode] ?? {}),
-          ...(preset.materialTokenOverrides?.[mode] ?? {}),
-        };
-        return Object.entries(expectedTokens).every(([key, value]) => state.themeTokenOverrides[mode][key] === value);
-      });
-    }) ?? null
+  if (paletteMatch) {
+    return paletteMatch;
+  }
+
+  // 个性化调色板 token 可能遮蔽预设的完整调色板，但材质 token 仍可用于识别待清理的上一个预设。
+  return (
+    candidates
+      .map((preset) => {
+        const materialTokenEntries = (['light', 'dark'] as const).flatMap((mode) =>
+          Object.entries(preset.materialTokenOverrides?.[mode] ?? {}).map(
+            ([key, value]) => [mode, key, value] as const,
+          ),
+        );
+        const matchingMaterialTokens = materialTokenEntries.filter(
+          ([mode, key, value]) => state.themeTokenOverrides[mode][key] === value,
+        ).length;
+        return { preset, materialTokenCount: materialTokenEntries.length, matchingMaterialTokens };
+      })
+      .filter(({ materialTokenCount, matchingMaterialTokens }) => materialTokenCount > 0 && matchingMaterialTokens > 0)
+      .sort((left, right) => right.matchingMaterialTokens - left.matchingMaterialTokens)
+      .at(0)?.preset ?? null
   );
 }
 

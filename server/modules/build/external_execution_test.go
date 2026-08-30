@@ -23,6 +23,9 @@ type externalExecutionRepository struct {
 	manifestResult       moduleapi.OCIManifestPublicationResult
 	promotionInput       moduleapi.OCIArtifactCopyInput
 	promotionResult      moduleapi.OCIArtifactCopyResult
+	settledTaskID        uint64
+	settledResult        moduleapi.BuildArtifactResult
+	settledArtifacts     int
 	v2Settlements        int
 	platformSettlements  int
 	manifestSettlements  int
@@ -43,7 +46,10 @@ func (*externalExecutionRepository) MaterializeSubmissionSnapshot(context.Contex
 func (r *externalExecutionRepository) GetJobByTaskID(context.Context, uint64) (buildstore.JobSnapshot, error) {
 	return r.job, nil
 }
-func (*externalExecutionRepository) SettleBuildArtifact(_ context.Context, _ uint64, _ moduleapi.BuildArtifactResult) error {
+func (r *externalExecutionRepository) SettleBuildArtifact(_ context.Context, taskID uint64, result moduleapi.BuildArtifactResult) error {
+	r.settledTaskID = taskID
+	r.settledResult = result
+	r.settledArtifacts++
 	return nil
 }
 func (*externalExecutionRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
@@ -139,6 +145,36 @@ func TestBuildExternalExecutionLegacyExecutorResolvesFrozenJob(t *testing.T) {
 	}
 	if decoded.Context == nil || decoded.Context.Root != "/workspace/app" || decoded.Context.Repository != job.ImageRepository || len(decoded.Context.BuildArgs) != 1 || contexts.calls != 1 {
 		t.Fatalf("unexpected legacy material: %#v (context calls=%d)", decoded, contexts.calls)
+	}
+}
+
+func TestBuildExternalExecutionLegacyResultSettlesArtifact(t *testing.T) {
+	job := buildstore.JobSnapshot{BuildID: "build-1", RuntimeTargetID: 4, ImageRepository: "team/api", ImageTag: "latest"}
+	repository := &externalExecutionRepository{job: job}
+	handler := &buildExternalExecutionHandler{executorType: buildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: &Service{repository: repository}}}
+	request := moduleapi.ExternalExecutionResultRequest{
+		TaskID:          42,
+		ExecutorType:    buildStageExecutor,
+		RuntimeTargetID: 4,
+		OperationID:     buildImageLocalOperation,
+		Input:           mustExternalJSON(t, moduleapi.BuildTaskInput{BuildID: job.BuildID}),
+		Protocol:        buildExecutionResultProtocol,
+		Result:          mustExternalJSON(t, buildExecutionResult{ImageID: "image-1", Digest: testExternalDigest, Repository: job.ImageRepository, Reference: job.ImageTag, SizeBytes: 1234, OS: "linux", Architecture: "amd64", Variant: "v1"}),
+	}
+
+	if err := handler.RecordExternalExecutionResult(context.Background(), request); err != nil {
+		t.Fatalf("record legacy result: %v", err)
+	}
+
+	want := moduleapi.BuildArtifactResult{ImageID: "image-1", Digest: testExternalDigest, Repository: job.ImageRepository, Tag: job.ImageTag, SizeBytes: 1234, OS: "linux", Architecture: "amd64", Variant: "v1"}
+	if repository.settledTaskID != request.TaskID {
+		t.Fatalf("settled task ID = %d, want %d", repository.settledTaskID, request.TaskID)
+	}
+	if repository.settledArtifacts != 1 {
+		t.Fatalf("settled artifact count = %d, want 1", repository.settledArtifacts)
+	}
+	if repository.settledResult != want {
+		t.Fatalf("settled artifact = %#v, want %#v", repository.settledResult, want)
 	}
 }
 
