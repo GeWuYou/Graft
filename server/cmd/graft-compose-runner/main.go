@@ -25,7 +25,7 @@ import (
 	dockerflags "github.com/docker/cli/cli/flags"
 	composeapi "github.com/docker/compose/v2/pkg/api"
 	compose "github.com/docker/compose/v2/pkg/compose"
-	dockerclient "github.com/docker/docker/client"
+	dockerclient "github.com/moby/moby/client"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
