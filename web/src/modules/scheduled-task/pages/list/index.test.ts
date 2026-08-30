@@ -299,15 +299,6 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   }),
 }));
 
-vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
-  calendar: 'gregory',
-  locale: 'zh-CN',
-  numberingSystem: 'latn',
-  timeZone: 'Asia/Shanghai',
-} as Intl.ResolvedDateTimeFormatOptions);
-
-vi.setSystemTime(new Date('2026-06-06T08:00:00+08:00'));
-
 function scheduledTasksResponse() {
   return {
     items: [
@@ -968,6 +959,14 @@ async function openConfigDialog(wrapper: ReturnType<typeof mountPage>) {
 
 describe('ScheduledTaskListPage', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-06T08:00:00+08:00'));
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      calendar: 'gregory',
+      locale: 'zh-CN',
+      numberingSystem: 'latn',
+      timeZone: 'Asia/Shanghai',
+    } as Intl.ResolvedDateTimeFormatOptions);
     vi.clearAllMocks();
     apiMocks.getScheduledTasks.mockResolvedValue(scheduledTasksResponse());
     apiMocks.getScheduledTask.mockImplementation(async (taskKey: string) => {

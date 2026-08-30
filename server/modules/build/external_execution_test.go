@@ -31,6 +31,7 @@ type externalExecutionRepository struct {
 	retryReservationErr  error
 	markReservationErr   error
 	renewCalls           int
+	renewErr             error
 }
 
 func (*externalExecutionRepository) CreateJob(context.Context, buildstore.JobSnapshot) error {
@@ -114,10 +115,43 @@ func (r *externalExecutionRepository) MarkBuilderReservationRunning(context.Cont
 }
 func (r *externalExecutionRepository) RenewBuilderReservation(context.Context, uint64, string, string, time.Time) error {
 	r.renewCalls++
+	if r.renewErr != nil {
+		return r.renewErr
+	}
 	if !r.reservationRunning {
 		return buildstore.ErrConflict
 	}
 	return nil
+}
+
+func TestBuildExternalExecutionLegacyExecutorResolvesFrozenJob(t *testing.T) {
+	job := buildstore.JobSnapshot{BuildID: "build-1", ApplicationID: "app_01JZ5R6M7N8P9Q0R1S2T3V4W5X", ApplicationRecordID: 9, RuntimeTargetID: 4, ContextPath: ".", DockerfilePath: "Dockerfile", ImageRepository: "team/api", ImageTag: "latest", BuildArgs: []moduleapi.BuildArgument{{Name: "MODE", Value: "release"}}}
+	repository := &externalExecutionRepository{job: job}
+	contexts := &recordingBuildContexts{}
+	handler := &buildExternalExecutionHandler{executorType: buildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: &Service{repository: repository, contexts: contexts}}}
+	material, err := handler.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{TaskID: 42, ExecutorType: buildStageExecutor, RuntimeTargetID: 4, OperationID: buildImageLocalOperation, Input: mustExternalJSON(t, moduleapi.BuildTaskInput{BuildID: job.BuildID})})
+	if err != nil {
+		t.Fatalf("resolve legacy material: %v", err)
+	}
+	var decoded buildExecutionMaterial
+	if err := json.Unmarshal(material.Payload, &decoded); err != nil {
+		t.Fatalf("decode legacy material: %v", err)
+	}
+	if decoded.Context == nil || decoded.Context.Root != "/workspace/app" || decoded.Context.Repository != job.ImageRepository || len(decoded.Context.BuildArgs) != 1 || contexts.calls != 1 {
+		t.Fatalf("unexpected legacy material: %#v (context calls=%d)", decoded, contexts.calls)
+	}
+}
+
+func TestBuildExternalExecutionRetryConflictReturnsRenewError(t *testing.T) {
+	renewErr := errors.New("renew failed")
+	repository := &externalExecutionRepository{plan: singlePlatformExecutionPlan(), markReservationErr: buildstore.ErrConflict, reservationRunning: true, renewErr: renewErr}
+	service := &Service{repository: repository}
+	handler := &buildExternalExecutionHandler{executorType: v2BuildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: service}}
+	request := moduleapi.ExternalExecutionMaterialRequest{TaskID: 42, Attempt: 1, ExecutorType: v2BuildStageExecutor, RuntimeTargetID: 9, OperationID: buildImagePublishOperation, Input: mustExternalJSON(t, moduleapi.BuildPlanTaskInput{BuildID: "plan-1", ExecutionPlanID: "plan-1"})}
+	_, err := handler.ResolveExternalExecutionMaterial(context.Background(), request)
+	if !errors.Is(err, renewErr) {
+		t.Fatalf("reservation error = %v, want renew error", err)
+	}
 }
 func (r *externalExecutionRepository) ReleaseBuilderReservation(context.Context, uint64, string, string, string) error {
 	if !r.reservationRunning {

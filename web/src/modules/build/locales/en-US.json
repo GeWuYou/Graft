@@ -32,7 +32,8 @@
         "open": "Publications",
         "title": "Artifact publications",
         "empty": "No publication record",
-        "loadFailed": "Publication records could not be loaded."
+        "loadFailed": "Publication records could not be loaded.",
+        "loadMore": "Load more"
       }
     },
     "jobs": {

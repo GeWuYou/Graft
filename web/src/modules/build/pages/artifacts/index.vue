@@ -86,6 +86,15 @@
             </list-item-meta>
           </t-list-item>
         </t-list>
+        <t-button
+          v-if="publications.length < publicationTotal"
+          class="build-artifacts-page__load-more"
+          variant="outline"
+          :loading="publicationLoading"
+          @click="loadMorePublications"
+        >
+          {{ t('build.artifacts.publications.loadMore') }}
+        </t-button>
       </t-loading>
     </t-drawer>
   </section>
@@ -112,9 +121,13 @@ const pageSize = ref(20);
 const loading = ref(false);
 const errorMessage = ref('');
 const publicationVisible = ref(false);
+const publicationArtifactId = ref('');
 const publicationLoading = ref(false);
 const publicationError = ref('');
 const publications = ref<BuildArtifactPublication[]>([]);
+const publicationTotal = ref(0);
+const publicationOffset = ref(0);
+const publicationPageSize = 20;
 let requestSequence = 0;
 let publicationRequestSequence = 0;
 
@@ -130,16 +143,45 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
 async function openPublications(artifact: BuildArtifact) {
   const sequence = ++publicationRequestSequence;
   publicationVisible.value = true;
+  publicationArtifactId.value = artifact.artifact_id;
   publicationLoading.value = true;
   publicationError.value = '';
   publications.value = [];
+  publicationTotal.value = 0;
+  publicationOffset.value = 0;
   try {
-    const response = await getBuildArtifactPublications(artifact.artifact_id);
+    const response = await getBuildArtifactPublications(artifact.artifact_id, {
+      limit: publicationPageSize,
+      offset: 0,
+    });
     if (sequence !== publicationRequestSequence) return;
     publications.value = response.items;
+    publicationTotal.value = response.total;
+    publicationOffset.value = response.offset + response.items.length;
   } catch {
     if (sequence !== publicationRequestSequence) return;
     publicationError.value = t('build.artifacts.publications.loadFailed');
+  } finally {
+    if (sequence === publicationRequestSequence) publicationLoading.value = false;
+  }
+}
+
+async function loadMorePublications() {
+  if (!publicationVisible.value || publicationLoading.value || publications.value.length >= publicationTotal.value)
+    return;
+  const sequence = ++publicationRequestSequence;
+  publicationLoading.value = true;
+  try {
+    const response = await getBuildArtifactPublications(publicationArtifactId.value, {
+      limit: publicationPageSize,
+      offset: publicationOffset.value,
+    });
+    if (sequence !== publicationRequestSequence) return;
+    publications.value = [...publications.value, ...response.items];
+    publicationTotal.value = response.total;
+    publicationOffset.value = response.offset + response.items.length;
+  } catch {
+    if (sequence === publicationRequestSequence) publicationError.value = t('build.artifacts.publications.loadFailed');
   } finally {
     if (sequence === publicationRequestSequence) publicationLoading.value = false;
   }

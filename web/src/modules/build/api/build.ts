@@ -98,11 +98,15 @@ export function getBuildArtifacts(query?: ArtifactListOperation['parameters']['q
   }) as Promise<BuildArtifactListResponse>;
 }
 
-export function getBuildArtifactPublications(artifactId: string) {
+export function getBuildArtifactPublications(
+  artifactId: string,
+  query?: ArtifactPublicationListOperation['parameters']['query'],
+) {
   type ResponseData = NonNullable<
     ArtifactPublicationListOperation['responses'][200]['content']['application/json']['data']
   >;
   return request.get<ResponseData>({
     url: buildOpenApiRuntimePath('getBuildArtifactPublications', { artifactId }),
+    params: query,
   }) as Promise<BuildArtifactPublicationListResponse>;
 }

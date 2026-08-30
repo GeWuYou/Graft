@@ -581,7 +581,7 @@ func (h *buildExternalExecutionHandler) beginBuilderReservation(ctx context.Cont
 			return fmt.Errorf("start builder reservation: %w", err)
 		}
 		if renewErr := repository.RenewBuilderReservation(ctx, request.TaskID, platform, fence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); renewErr != nil {
-			return fmt.Errorf("start builder reservation: %w", err)
+			return fmt.Errorf("start builder reservation: %w", renewErr)
 		}
 		return nil
 	}

@@ -5,7 +5,7 @@ import { defineComponent, h, nextTick } from 'vue';
 import type { AnnouncementItem } from '../../types/announcement';
 import AnnouncementManagementPage from './index.vue';
 
-const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+let dispatchSpy: ReturnType<typeof vi.spyOn>;
 
 const apiMocks = vi.hoisted(() => ({
   archiveAnnouncement: vi.fn(),
@@ -472,6 +472,7 @@ function getAnnouncementTitleInput(wrapper: ReturnType<typeof mountPage>) {
 describe('announcement management page', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     vi.clearAllMocks();
     dispatchSpy.mockClear();
     window.localStorage.clear();
@@ -650,7 +651,7 @@ describe('announcement management page', () => {
 
     expect(apiMocks.deleteAnnouncement).toHaveBeenCalledWith(1);
     expect(apiMocks.getAnnouncements).toHaveBeenCalledTimes(1);
-    expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
   });
 
   it('archives a published announcement instead of exposing delete', async () => {
@@ -809,7 +810,7 @@ describe('announcement management page', () => {
         title: 'Title',
       }),
     );
-    expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
   });
 
   it('keeps markdown preview collapsed by default and toggles inline preview on demand', async () => {

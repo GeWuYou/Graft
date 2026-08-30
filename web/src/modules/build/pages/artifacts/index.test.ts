@@ -66,7 +66,7 @@ describe('BuildArtifactsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getBuildArtifacts.mockResolvedValue({ items: [], total: 0 });
-    mocks.getBuildArtifactPublications.mockResolvedValue({ items: [] });
+    mocks.getBuildArtifactPublications.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
   });
 
   it('loads the immutable Artifact projection from the Build-owned read boundary', async () => {
@@ -143,10 +143,36 @@ describe('BuildArtifactsPage', () => {
     });
     await firstRequest;
 
-    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(1, 'artifact-old');
-    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(2, 'artifact-new');
-    expect((wrapper.vm as any).publications).toEqual([
+    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(1, 'artifact-old', { limit: 20, offset: 0 });
+    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(2, 'artifact-new', { limit: 20, offset: 0 });
+    const vm = wrapper.vm as unknown as { publications: Publication[] };
+    expect(vm.publications).toEqual([
       { publication_id: 'publication-new', destination: { repository_ref: 'repo', reference: 'new' }, created_at: '' },
     ]);
+  });
+
+  it('loads additional publication history pages when requested', async () => {
+    const publication = (id: string) => ({
+      publication_id: id,
+      destination: { repository_ref: 'repo', reference: id },
+      created_at: '',
+    });
+    mocks.getBuildArtifactPublications
+      .mockResolvedValueOnce({ items: [publication('first')], total: 2, limit: 20, offset: 0 })
+      .mockResolvedValueOnce({ items: [publication('second')], total: 2, limit: 20, offset: 1 });
+    const wrapper = mountPage();
+    const vm = wrapper.vm as unknown as {
+      openPublications: (artifact: { artifact_id: string }) => Promise<void>;
+    };
+    await vm.openPublications({ artifact_id: 'artifact-1' });
+    expect(wrapper.text()).toContain('first');
+    const loadMore = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'build.artifacts.publications.loadMore');
+    expect(loadMore).toBeDefined();
+    await loadMore!.trigger('click');
+    await flushPromises();
+    expect(mocks.getBuildArtifactPublications).toHaveBeenLastCalledWith('artifact-1', { limit: 20, offset: 1 });
+    expect(wrapper.text()).toContain('second');
   });
 });

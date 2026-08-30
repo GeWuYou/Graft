@@ -42,14 +42,16 @@ function createPresetThemeTokenOverrides(
     // 即使其它 token 已被个性化导致无法识别旧预设，也只清掉仍等于内置材质值的残留；
     // 用户改过的材质 token 必须继续随调色板切换保留。
     (['light', 'dark'] as const).forEach((mode) => {
-      const builtInMaterialValues = new Set(
-        THEME_PRESET_DEFINITIONS.flatMap((item) => Object.values(item.materialTokenOverrides?.[mode] ?? {})),
-      );
-      const builtInMaterialKeys = new Set(
-        THEME_PRESET_DEFINITIONS.flatMap((item) => Object.keys(item.materialTokenOverrides?.[mode] ?? {})),
-      );
+      const builtInMaterialValuesByKey = new Map<string, Set<string>>();
+      THEME_PRESET_DEFINITIONS.forEach((item) => {
+        Object.entries(item.materialTokenOverrides?.[mode] ?? {}).forEach(([tokenKey, tokenValue]) => {
+          const values = builtInMaterialValuesByKey.get(tokenKey) ?? new Set<string>();
+          values.add(tokenValue);
+          builtInMaterialValuesByKey.set(tokenKey, values);
+        });
+      });
       Object.entries(currentPaletteTokens[mode]).forEach(([tokenKey, tokenValue]) => {
-        if (builtInMaterialKeys.has(tokenKey) && builtInMaterialValues.has(tokenValue)) {
+        if (builtInMaterialValuesByKey.get(tokenKey)?.has(tokenValue)) {
           delete currentPaletteTokens[mode][tokenKey];
         }
       });
