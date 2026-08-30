@@ -17,14 +17,12 @@ const testExternalDigest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 type externalExecutionRepository struct {
 	job                  buildstore.JobSnapshot
 	plan                 moduleapi.BuildExecutionPlan
-	legacyResult         moduleapi.BuildArtifactResult
 	v2Result             moduleapi.BuildArtifactResult
 	platformArtifact     moduleapi.PlatformArtifact
 	manifestInput        moduleapi.OCIManifestPublicationInput
 	manifestResult       moduleapi.OCIManifestPublicationResult
 	promotionInput       moduleapi.OCIArtifactCopyInput
 	promotionResult      moduleapi.OCIArtifactCopyResult
-	legacySettlements    int
 	v2Settlements        int
 	platformSettlements  int
 	manifestSettlements  int
@@ -41,9 +39,7 @@ func (*externalExecutionRepository) MaterializeSubmissionSnapshot(context.Contex
 func (r *externalExecutionRepository) GetJobByTaskID(context.Context, uint64) (buildstore.JobSnapshot, error) {
 	return r.job, nil
 }
-func (r *externalExecutionRepository) SettleBuildArtifact(_ context.Context, _ uint64, result moduleapi.BuildArtifactResult) error {
-	r.legacyResult = result
-	r.legacySettlements++
+func (*externalExecutionRepository) SettleBuildArtifact(_ context.Context, _ uint64, _ moduleapi.BuildArtifactResult) error {
 	return nil
 }
 func (*externalExecutionRepository) ListJobs(context.Context, buildstore.ListQuery) (buildstore.ListResult, error) {
@@ -118,16 +114,6 @@ func (r *externalExecutionRepository) ReleaseBuilderReservation(context.Context,
 	return nil
 }
 
-type externalExecutionContexts struct {
-	context moduleapi.ApplicationBuildContext
-	calls   int
-}
-
-func (r *externalExecutionContexts) ResolveApplicationBuildContext(context.Context, string) (moduleapi.ApplicationBuildContext, error) {
-	r.calls++
-	return r.context, nil
-}
-
 type externalExecutionCredentials struct {
 	prepared []moduleapi.CredentialRequest
 	revoked  int
@@ -160,26 +146,42 @@ func (r externalExecutionRegistry) ResolvePublicationBinding(context.Context, mo
 	return r.binding, nil
 }
 
-func TestBuildExternalExecutionLegacyUsesLiveApplicationContext(t *testing.T) {
-	repository := &externalExecutionRepository{job: buildstore.JobSnapshot{BuildID: "build-1", ApplicationID: "app-1", WorkspaceRoot: "/stale", ContextPath: "src", DockerfilePath: "Dockerfile", RuntimeTargetID: 9, ImageRepository: "team/api", ImageTag: "latest"}}
-	contexts := &externalExecutionContexts{context: moduleapi.ApplicationBuildContext{ApplicationID: "app-1", WorkspaceRoot: "/live", RuntimeTargetID: 9, CanBuild: true}}
-	service := &Service{contexts: contexts, repository: repository}
-	handler := &buildExternalExecutionHandler{executorType: buildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: service}}
-	input := mustExternalJSON(t, moduleapi.BuildTaskInput{BuildID: "build-1", ApplicationID: "app-1"})
+type externalExecutionRegistrar struct {
+	materialResolvers []moduleapi.ExternalExecutionMaterialResolver
+	resultRecorders   []moduleapi.ExternalExecutionResultRecorder
+}
 
-	material, err := handler.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{TaskID: 41, ExecutorType: buildStageExecutor, RuntimeTargetID: 9, OperationID: buildImageLocalOperation, Input: input})
-	if err != nil {
-		t.Fatalf("resolve legacy material: %v", err)
+func (*externalExecutionRegistrar) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
+
+func (r *externalExecutionRegistrar) RegisterExternalExecutionMaterialResolver(resolver moduleapi.ExternalExecutionMaterialResolver) error {
+	r.materialResolvers = append(r.materialResolvers, resolver)
+	return nil
+}
+
+func (r *externalExecutionRegistrar) RegisterExternalExecutionResultRecorder(recorder moduleapi.ExternalExecutionResultRecorder) error {
+	r.resultRecorders = append(r.resultRecorders, recorder)
+	return nil
+}
+
+func (*externalExecutionRegistrar) RegisterTaskOwnerAuthorizer(moduleapi.TaskOwnerAuthorizer) error {
+	return nil
+}
+
+func TestRegisterBuildExternalExecutionRegistersOnlyCurrentExecutors(t *testing.T) {
+	registrar := &externalExecutionRegistrar{}
+	if err := registerBuildExternalExecution(registrar, buildExternalExecutionDependencies{repository: &externalExecutionRepository{}, service: &Service{}}); err != nil {
+		t.Fatalf("register build external execution: %v", err)
 	}
-	var decoded buildExecutionMaterial
-	if err := json.Unmarshal(material.Payload, &decoded); err != nil {
-		t.Fatalf("decode legacy material: %v", err)
+	if len(registrar.materialResolvers) != 2 || len(registrar.resultRecorders) != 2 {
+		t.Fatalf("registered executor count = material %d/result %d, want 2/2", len(registrar.materialResolvers), len(registrar.resultRecorders))
 	}
-	if material.Protocol != buildExecutionMaterialProtocol || decoded.Context == nil || decoded.Context.Root != "/live" || decoded.Context.Root == repository.job.WorkspaceRoot || contexts.calls != 1 {
-		t.Fatalf("unexpected legacy material: protocol=%q material=%#v calls=%d", material.Protocol, decoded, contexts.calls)
-	}
-	if _, err := handler.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{TaskID: 41, ExecutorType: buildStageExecutor, RuntimeTargetID: 9, OperationID: buildImagePublishOperation, Input: input}); err == nil {
-		t.Fatal("expected operation mismatch to fail")
+	for index, want := range []moduleapi.StageExecutorType{v2BuildStageExecutor, artifactPromotionStageExecutor} {
+		if got := registrar.materialResolvers[index].Type(); got != want {
+			t.Fatalf("material resolver %d = %q, want %q", index, got, want)
+		}
+		if got := registrar.resultRecorders[index].Type(); got != want {
+			t.Fatalf("result recorder %d = %q, want %q", index, got, want)
+		}
 	}
 }
 
@@ -214,18 +216,6 @@ func TestBuildExternalExecutionPublicationMaterialRevokesCredential(t *testing.T
 func TestBuildExternalExecutionResultMappingsAndReplay(t *testing.T) {
 	repository := &externalExecutionRepository{job: buildstore.JobSnapshot{BuildID: "build-1", RuntimeTargetID: 9, ImageRepository: "team/api", ImageTag: "latest"}, plan: singlePlatformExecutionPlan()}
 	service := &Service{repository: repository}
-	legacy := &buildExternalExecutionHandler{executorType: buildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: service}}
-	legacyRequest := moduleapi.ExternalExecutionResultRequest{TaskID: 41, ExecutorType: buildStageExecutor, RuntimeTargetID: 9, OperationID: buildImageLocalOperation, Input: mustExternalJSON(t, moduleapi.BuildTaskInput{BuildID: "build-1"}), Protocol: buildExecutionResultProtocol, Result: mustExternalJSON(t, buildExecutionResult{ImageID: "image-1", Digest: "team/api@" + testExternalDigest, Repository: "team/api", Reference: "latest"})}
-	if err := legacy.RecordExternalExecutionResult(context.Background(), legacyRequest); err != nil {
-		t.Fatalf("record legacy result: %v", err)
-	}
-	if err := legacy.RecordExternalExecutionResult(context.Background(), legacyRequest); err != nil {
-		t.Fatalf("replay legacy result: %v", err)
-	}
-	if repository.legacySettlements != 2 || repository.legacyResult.Digest != testExternalDigest {
-		t.Fatalf("unexpected legacy settlement: %#v count=%d", repository.legacyResult, repository.legacySettlements)
-	}
-
 	v2 := &buildExternalExecutionHandler{executorType: v2BuildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: service}}
 	repository.reservationRunning = true
 	v2Request := moduleapi.ExternalExecutionResultRequest{TaskID: 42, Attempt: 1, ExecutorType: v2BuildStageExecutor, RuntimeTargetID: 9, OperationID: buildImagePublishOperation, Input: mustExternalJSON(t, moduleapi.BuildPlanTaskInput{BuildID: "plan-1", ExecutionPlanID: "plan-1"}), Protocol: buildExecutionResultProtocol, Result: mustExternalJSON(t, buildExecutionResult{ImageID: "image-2", Digest: testExternalDigest, Repository: "team/api", Reference: "latest", OS: "linux", Architecture: "amd64"})}

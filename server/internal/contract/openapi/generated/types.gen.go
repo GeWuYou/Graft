@@ -1824,6 +1824,21 @@ func (e BuildArtifactPromotionCreateRequestDestinationKind) Valid() bool {
 	}
 }
 
+// Defines values for BuildArtifactPublicationDestinationKind.
+const (
+	BuildArtifactPublicationDestinationKindOciRegistry BuildArtifactPublicationDestinationKind = "oci_registry"
+)
+
+// Valid indicates whether the value is a known member of the BuildArtifactPublicationDestinationKind enum.
+func (e BuildArtifactPublicationDestinationKind) Valid() bool {
+	switch e {
+	case BuildArtifactPublicationDestinationKindOciRegistry:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BuildBuilderPoolSchedulingPolicy.
 const (
 	BuildBuilderPoolSchedulingPolicyAffinity   BuildBuilderPoolSchedulingPolicy = "affinity"
@@ -1877,13 +1892,13 @@ func (e BuildInputSnapshotLifecycleState) Valid() bool {
 
 // Defines values for BuildInputSnapshotSourceKind.
 const (
-	UploadedArchive BuildInputSnapshotSourceKind = "uploaded_archive"
+	BuildInputSnapshotSourceKindUploadedArchive BuildInputSnapshotSourceKind = "uploaded_archive"
 )
 
 // Valid indicates whether the value is a known member of the BuildInputSnapshotSourceKind enum.
 func (e BuildInputSnapshotSourceKind) Valid() bool {
 	switch e {
-	case UploadedArchive:
+	case BuildInputSnapshotSourceKindUploadedArchive:
 		return true
 	default:
 		return false
@@ -1959,6 +1974,33 @@ func (e BuildStatusFilter) Valid() bool {
 	case BuildStatusFilterRunning:
 		return true
 	case BuildStatusFilterSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BuildWorkspaceSourceKind.
+const (
+	BuildWorkspaceSourceKindApplicationWorkspace BuildWorkspaceSourceKind = "application_workspace"
+	BuildWorkspaceSourceKindGenerated            BuildWorkspaceSourceKind = "generated"
+	BuildWorkspaceSourceKindGit                  BuildWorkspaceSourceKind = "git"
+	BuildWorkspaceSourceKindTargetLocal          BuildWorkspaceSourceKind = "target_local"
+	BuildWorkspaceSourceKindUploadedArchive      BuildWorkspaceSourceKind = "uploaded_archive"
+)
+
+// Valid indicates whether the value is a known member of the BuildWorkspaceSourceKind enum.
+func (e BuildWorkspaceSourceKind) Valid() bool {
+	switch e {
+	case BuildWorkspaceSourceKindApplicationWorkspace:
+		return true
+	case BuildWorkspaceSourceKindGenerated:
+		return true
+	case BuildWorkspaceSourceKindGit:
+		return true
+	case BuildWorkspaceSourceKindTargetLocal:
+		return true
+	case BuildWorkspaceSourceKindUploadedArchive:
 		return true
 	default:
 		return false
@@ -4196,13 +4238,13 @@ func (e PlatformUpdateStatusInstallationProfileServiceManager) Valid() bool {
 
 // Defines values for RegistryAvailableDestinationKind.
 const (
-	OciRegistry RegistryAvailableDestinationKind = "oci_registry"
+	RegistryAvailableDestinationKindOciRegistry RegistryAvailableDestinationKind = "oci_registry"
 )
 
 // Valid indicates whether the value is a known member of the RegistryAvailableDestinationKind enum.
 func (e RegistryAvailableDestinationKind) Valid() bool {
 	switch e {
-	case OciRegistry:
+	case RegistryAvailableDestinationKindOciRegistry:
 		return true
 	default:
 		return false
@@ -8487,6 +8529,30 @@ type BuildArtifactPromotionCreateRequest struct {
 // BuildArtifactPromotionCreateRequestDestinationKind defines model for BuildArtifactPromotionCreateRequest.Destination.Kind.
 type BuildArtifactPromotionCreateRequestDestinationKind string
 
+// BuildArtifactPublication defines model for build-artifact-publication.
+type BuildArtifactPublication struct {
+	ArtifactId              string    `json:"artifact_id"`
+	CreatedAt               time.Time `json:"created_at"`
+	CredentialExecutionMode string    `json:"credential_execution_mode"`
+	Destination             struct {
+		ConnectionRef string                                  `json:"connection_ref"`
+		Kind          BuildArtifactPublicationDestinationKind `json:"kind"`
+		Reference     string                                  `json:"reference"`
+		RepositoryRef string                                  `json:"repository_ref"`
+	} `json:"destination"`
+	Digest        string `json:"digest"`
+	MediaType     string `json:"media_type"`
+	PublicationId string `json:"publication_id"`
+}
+
+// BuildArtifactPublicationDestinationKind defines model for BuildArtifactPublication.Destination.Kind.
+type BuildArtifactPublicationDestinationKind string
+
+// BuildArtifactPublicationList defines model for build-artifact-publication-list.
+type BuildArtifactPublicationList struct {
+	Items []BuildArtifactPublication `json:"items"`
+}
+
 // BuildBuilderPool defines model for build-builder-pool.
 type BuildBuilderPool struct {
 	DisplayName string `json:"display_name"`
@@ -8550,7 +8616,7 @@ type BuildJobArtifact struct {
 	Tag        string  `json:"tag"`
 }
 
-// BuildJobCreateRequest defines model for build-job-create-request.
+// BuildJobCreateRequest Provide exactly one of workspace_id or input_snapshot_id as the immutable Build source identity.
 type BuildJobCreateRequest struct {
 	// BuilderPoolId Build-owned Builder Pool selection. Provide exactly one of builder_pool_id or runtime_target_id.
 	BuilderPoolId *string `json:"builder_pool_id,omitempty"`
@@ -8563,7 +8629,7 @@ type BuildJobCreateRequest struct {
 
 	// Driver docker-buildx@v1 is required when platforms contains more than one platform.
 	Driver          BuildJobCreateRequestDriver `json:"driver"`
-	InputSnapshotId string                      `json:"input_snapshot_id"`
+	InputSnapshotId *string                     `json:"input_snapshot_id,omitempty"`
 
 	// Platforms A multi-platform request requires docker-buildx@v1 and a Builder Pool so Build can freeze one placement per platform.
 	Platforms *[]string `json:"platforms,omitempty"`
@@ -8571,6 +8637,7 @@ type BuildJobCreateRequest struct {
 	// RuntimeTargetId Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
 	RuntimeTargetId *int64                           `json:"runtime_target_id,omitempty"`
 	TemplateRef     BuildJobCreateRequestTemplateRef `json:"template_ref"`
+	WorkspaceId     *string                          `json:"workspace_id,omitempty"`
 }
 
 // BuildJobCreateRequestDestinationKind defines model for BuildJobCreateRequest.Destination.Kind.
@@ -8677,6 +8744,28 @@ type BuildTaskExecution struct {
 
 	// Status Canonical persisted Task state-machine state.
 	Status TaskStatus `json:"status"`
+}
+
+// BuildWorkspace defines model for build-workspace.
+type BuildWorkspace struct {
+	CreatedAt       time.Time                `json:"created_at"`
+	Name            string                   `json:"name"`
+	RetentionPolicy string                   `json:"retention_policy"`
+	SourceKind      BuildWorkspaceSourceKind `json:"source_kind"`
+	SourceReference string                   `json:"source_reference"`
+	UpdatedAt       time.Time                `json:"updated_at"`
+	WorkspaceId     string                   `json:"workspace_id"`
+}
+
+// BuildWorkspaceSourceKind defines model for BuildWorkspace.SourceKind.
+type BuildWorkspaceSourceKind string
+
+// BuildWorkspaceList defines model for build-workspace-list.
+type BuildWorkspaceList struct {
+	Items  []BuildWorkspace `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int64            `json:"total"`
 }
 
 // CapabilityCategory defines model for capability-category.
@@ -10806,6 +10895,26 @@ type EnvelopedBuildArtifactList struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedBuildArtifactPublicationList defines model for enveloped-build-artifact-publication-list.
+type EnvelopedBuildArtifactPublicationList struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data BuildArtifactPublicationList `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedBuildInputSnapshot defines model for enveloped-build-input-snapshot.
 type EnvelopedBuildInputSnapshot struct {
 	Data BuildInputSnapshot `json:"data"`
@@ -10841,6 +10950,26 @@ type EnvelopedBuildJobList struct {
 	// Code Existing canonical response code.
 	Code string       `json:"code"`
 	Data BuildJobList `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedBuildWorkspaceList defines model for enveloped-build-workspace-list.
+type EnvelopedBuildWorkspaceList struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
+	Data BuildWorkspaceList `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -16519,6 +16648,16 @@ type GetBuildArtifactsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetBuildArtifactPublicationsParams defines parameters for GetBuildArtifactPublications.
+type GetBuildArtifactPublicationsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetBuildInputSnapshotsParams defines parameters for GetBuildInputSnapshots.
 type GetBuildInputSnapshotsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -16573,6 +16712,20 @@ type PostBuildJobParams struct {
 
 // GetBuildJobParams defines parameters for GetBuildJob.
 type GetBuildJobParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetBuildWorkspacesParams defines parameters for GetBuildWorkspaces.
+type GetBuildWorkspacesParams struct {
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

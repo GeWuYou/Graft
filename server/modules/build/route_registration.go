@@ -95,6 +95,24 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		}
 		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildInputSnapshotList{Data: openapigen.BuildInputSnapshotList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset}})
 	})
+	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		pagination, ok := buildPaginationQuery(c)
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		search, ok := buildExactStringQuery(c, "search")
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		result, listErr := service.ListWorkspaces(c.Request.Context(), requestUserID(c), buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset, Search: search})
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildWorkspaceList{Data: toBuildWorkspaceList(result, buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset})})
+	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
 		if listErr != nil {
@@ -123,6 +141,23 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildArtifactList(result, query.Limit, query.Offset))
+	})
+	group.GET("/artifacts/:artifactId/publications", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+		artifactID := strings.TrimSpace(c.Param("artifactId"))
+		if artifactID == "" || utf8.RuneCountInString(artifactID) > 64 {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		items, listErr := service.ListArtifactPublications(c.Request.Context(), artifactID)
+		if errors.Is(listErr, buildstore.ErrNotFound) {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
+			return
+		}
+		if listErr != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+			return
+		}
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildArtifactPublicationList{Data: toBuildArtifactPublicationList(items)})
 	})
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildListQuery(c)
@@ -164,7 +199,15 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		if strings.TrimSpace(request.InputSnapshotId) == "" {
+		inputSnapshotID := ""
+		if request.InputSnapshotId != nil {
+			inputSnapshotID = strings.TrimSpace(*request.InputSnapshotId)
+		}
+		workspaceID := ""
+		if request.WorkspaceId != nil {
+			workspaceID = strings.TrimSpace(*request.WorkspaceId)
+		}
+		if inputSnapshotID == "" && workspaceID == "" {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -184,7 +227,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		if request.BuilderPoolId != nil {
 			builderPoolID = *request.BuilderPoolId
 		}
-		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{InputSnapshotID: request.InputSnapshotId, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
+		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{InputSnapshotID: inputSnapshotID, WorkspaceID: workspaceID, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
 		if submitErr != nil {
 			status, key := http.StatusInternalServerError, "common.internalError"
 			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {

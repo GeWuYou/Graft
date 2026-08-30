@@ -111,8 +111,8 @@ func configureArtifactPromotion(ctx *module.Context, service *Service) {
 	}
 }
 
-// configureBuildV2Submission 在仓库迁移 legacy read 期间刻意保持可选；生产注册
-// 提供全部 authority，focused legacy test 不必构造第二套 fake graph。
+// configureBuildV2Submission 在 focused 单元测试中保持可选；生产注册提供完整
+// 的 Workspace、Snapshot、Builder 和 Registry authority，不创建旧提交路径。
 func configureBuildV2Submission(ctx *module.Context, service *Service) {
 	if ctx == nil || ctx.Services == nil || service == nil {
 		return

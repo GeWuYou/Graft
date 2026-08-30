@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"strings"
 	"time"
 
@@ -106,7 +105,7 @@ func registerBuildExternalExecution(registrar moduleapi.TaskRuntimeRegistrar, de
 	if registrar == nil || dependencies.repository == nil || dependencies.service == nil {
 		return errors.New("build external execution dependencies are unavailable")
 	}
-	for _, executorType := range []moduleapi.StageExecutorType{buildStageExecutor, v2BuildStageExecutor, artifactPromotionStageExecutor} {
+	for _, executorType := range []moduleapi.StageExecutorType{v2BuildStageExecutor, artifactPromotionStageExecutor} {
 		handler := &buildExternalExecutionHandler{executorType: executorType, dependencies: dependencies}
 		if err := registrar.RegisterExternalExecutionMaterialResolver(handler); err != nil {
 			return err
@@ -132,8 +131,6 @@ func (h *buildExternalExecutionHandler) ResolveExternalExecutionMaterial(ctx con
 	var material buildExecutionMaterial
 	var err error
 	switch h.executorType {
-	case buildStageExecutor:
-		material, err = h.resolveLegacyMaterial(ctx, request)
 	case v2BuildStageExecutor:
 		material, err = h.resolveV2Material(ctx, request)
 	case artifactPromotionStageExecutor:
@@ -166,8 +163,6 @@ func (h *buildExternalExecutionHandler) RecordExternalExecutionResult(ctx contex
 		return errors.New("build execution result is invalid")
 	}
 	switch h.executorType {
-	case buildStageExecutor:
-		return h.recordLegacyResult(ctx, request, result)
 	case v2BuildStageExecutor:
 		return h.recordV2Result(ctx, request, result)
 	case artifactPromotionStageExecutor:
@@ -182,39 +177,6 @@ func (h *buildExternalExecutionHandler) validateRequest(executorType moduleapi.S
 		return errors.New("build external execution request is invalid")
 	}
 	return nil
-}
-
-//nolint:cyclop // Legacy material is reconstructed only after fence validation from immutable Build facts.
-func (h *buildExternalExecutionHandler) resolveLegacyMaterial(ctx context.Context, request moduleapi.ExternalExecutionMaterialRequest) (buildExecutionMaterial, error) {
-	if request.OperationID != buildImageLocalOperation {
-		return buildExecutionMaterial{}, errors.New("build execution operation is invalid")
-	}
-	var input moduleapi.BuildTaskInput
-	if err := strictDecodeJSON(request.Input, &input); err != nil || strings.TrimSpace(input.BuildID) == "" {
-		return buildExecutionMaterial{}, errors.New("build task input is invalid")
-	}
-	job, err := h.dependencies.repository.GetJobByTaskID(ctx, request.TaskID)
-	if err != nil {
-		return buildExecutionMaterial{}, err
-	}
-	if job.RuntimeTargetID > math.MaxInt64 || job.BuildID != input.BuildID || int64(job.RuntimeTargetID) != request.RuntimeTargetID { //nolint:gosec // Range is checked immediately before conversion.
-		return buildExecutionMaterial{}, errors.New("build task input does not match frozen job")
-	}
-	if h.dependencies.service.contexts == nil {
-		return buildExecutionMaterial{}, errors.New("application build context resolver is unavailable")
-	}
-	live, err := h.dependencies.service.contexts.ResolveApplicationBuildContext(ctx, job.ApplicationID)
-	if err != nil {
-		return buildExecutionMaterial{}, errors.New("application build context resolution failed")
-	}
-	if live.ApplicationID != job.ApplicationID || live.RuntimeTargetID != job.RuntimeTargetID || !live.CanBuild || strings.TrimSpace(live.WorkspaceRoot) == "" {
-		return buildExecutionMaterial{}, errors.New("application build context no longer authorizes execution")
-	}
-	buildArgs := make([]buildExecutionBuildArg, 0, len(job.BuildArgs))
-	for _, argument := range job.BuildArgs {
-		buildArgs = append(buildArgs, buildExecutionBuildArg{Name: argument.Name, Value: argument.Value})
-	}
-	return buildExecutionMaterial{Context: &buildExecutionContextMaterial{Root: live.WorkspaceRoot, ContextPath: job.ContextPath, DockerfilePath: job.DockerfilePath, Repository: job.ImageRepository, Reference: job.ImageTag, BuildArgs: buildArgs}}, nil
 }
 
 //nolint:cyclop // V2 material joins plan placement, snapshot and ephemeral registry credentials in one fenced window.
@@ -356,29 +318,6 @@ func (h *buildExternalExecutionHandler) resolveCredentialMaterial(ctx context.Co
 		return moduleapi.EphemeralCredentialMaterial{}, errors.New("registry credential material resolution failed")
 	}
 	return material, nil
-}
-
-//nolint:cyclop // Legacy result settlement checks frozen task identity before idempotent artifact persistence.
-func (h *buildExternalExecutionHandler) recordLegacyResult(ctx context.Context, request moduleapi.ExternalExecutionResultRequest, result buildExecutionResult) error {
-	if request.OperationID != buildImageLocalOperation || strings.TrimSpace(result.ImageID) == "" {
-		return errors.New("build image result is invalid")
-	}
-	var input moduleapi.BuildTaskInput
-	if err := strictDecodeJSON(request.Input, &input); err != nil {
-		return errors.New("build task input is invalid")
-	}
-	job, err := h.dependencies.repository.GetJobByTaskID(ctx, request.TaskID)
-	if err != nil {
-		return err
-	}
-	if job.RuntimeTargetID > math.MaxInt64 || job.BuildID != input.BuildID || int64(job.RuntimeTargetID) != request.RuntimeTargetID || result.Repository != job.ImageRepository || result.Reference != job.ImageTag { //nolint:gosec // Range is checked immediately before conversion.
-		return errors.New("build image result does not match frozen job")
-	}
-	digest, err := optionalNormalizedDigest(result.Digest)
-	if err != nil {
-		return err
-	}
-	return h.dependencies.repository.SettleBuildArtifact(ctx, request.TaskID, moduleapi.BuildArtifactResult{ImageID: result.ImageID, Digest: digest, Repository: result.Repository, Tag: result.Reference, SizeBytes: result.SizeBytes, OS: result.OS, Architecture: result.Architecture, Variant: result.Variant})
 }
 
 //nolint:gocognit,gocyclo,cyclop // V2 settlement separates manifest, platform-leg and single-artifact interpretations.
@@ -561,17 +500,6 @@ func (h *buildExternalExecutionHandler) releaseBuilderReservation(ctx context.Co
 		return nil
 	}
 	return err
-}
-
-func optionalNormalizedDigest(value string) (string, error) {
-	if strings.TrimSpace(value) == "" {
-		return "", nil
-	}
-	digest, valid := normalizePlatformDigest(value)
-	if !valid {
-		return "", errors.New("build execution result digest is invalid")
-	}
-	return digest, nil
 }
 
 func resultMatchesPlatform(result buildExecutionResult, platform string) bool {

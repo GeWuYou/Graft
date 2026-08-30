@@ -1,0 +1,22 @@
+get:
+  tags: [build]
+  operationId: getBuildArtifactPublications
+  summary: List Build Artifact Publications
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - in: path
+      name: artifactId
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200':
+      description: Publication references for an immutable Artifact.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-build-artifact-publication-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { $ref: ../components/responses/not-found.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

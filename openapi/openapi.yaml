@@ -399,10 +399,14 @@ paths:
     $ref: ./paths/build-jobs.collection.yaml
   /api/build/artifacts:
     $ref: ./paths/build-artifacts.collection.yaml
+  /api/build/artifacts/{artifactId}/publications:
+    $ref: ./paths/build-artifact-publications.collection.yaml
   /api/build/artifact-promotions:
     $ref: ./paths/build-artifact-promotions.collection.yaml
   /api/build/input-snapshots:
     $ref: ./paths/build-input-snapshots.collection.yaml
+  /api/build/workspaces:
+    $ref: ./paths/build-workspaces.collection.yaml
   /api/build/runtime-targets:
     $ref: ./paths/build-runtime-targets.collection.yaml
   /api/build/builder-pools:

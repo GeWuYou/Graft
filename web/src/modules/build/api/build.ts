@@ -5,10 +5,12 @@ import { request } from '@/utils/request';
 import type {
   BuildArtifactListResponse,
   BuildArtifactPromotionCreateRequest,
+  BuildArtifactPublicationListResponse,
   BuildInputSnapshot,
   BuildJobCreateRequest,
   BuildJobDetail,
   BuildJobListResponse,
+  BuildWorkspaceListResponse,
 } from '../types/build';
 
 type ListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildJobs]['get'];
@@ -19,8 +21,10 @@ type InputSnapshotListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildInpu
 type TargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets]['get'];
 type PoolListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildBuilderPools]['get'];
 type ArtifactListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifacts]['get'];
+type ArtifactPublicationListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifactPublications]['get'];
 type PromotionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildArtifactPromotion]['post'];
 type RegistryDestinationOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryAvailableDestinations]['get'];
+type WorkspaceListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildWorkspaces]['get'];
 
 export function getBuildJobs(query?: ListOperation['parameters']['query']) {
   return request.get<NonNullable<ListOperation['responses'][200]['content']['application/json']['data']>>({
@@ -62,6 +66,13 @@ export function getBuildInputSnapshots(query?: InputSnapshotListOperation['param
   });
 }
 
+export function getBuildWorkspaces(query?: WorkspaceListOperation['parameters']['query']) {
+  return request.get<NonNullable<WorkspaceListOperation['responses'][200]['content']['application/json']['data']>>({
+    url: OPENAPI_RUNTIME_PATH.getBuildWorkspaces,
+    params: query,
+  }) as Promise<BuildWorkspaceListResponse>;
+}
+
 export function getBuildRuntimeTargets() {
   return request.get<NonNullable<TargetListOperation['responses'][200]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.getBuildRuntimeTargets,
@@ -89,7 +100,16 @@ export function getBuildArtifacts(query?: ArtifactListOperation['parameters']['q
   }) as Promise<BuildArtifactListResponse>;
 }
 
-/** @public Promotion 写入契约先由 API 客户端提供，Publication 发现与页面工作流另行接入。 */
+export function getBuildArtifactPublications(artifactId: string) {
+  type ResponseData = NonNullable<
+    ArtifactPublicationListOperation['responses'][200]['content']['application/json']['data']
+  >;
+  return request.get<ResponseData>({
+    url: buildOpenApiRuntimePath('getBuildArtifactPublications', { artifactId }),
+  }) as Promise<BuildArtifactPublicationListResponse>;
+}
+
+/** 创建制品 Promotion 请求；调用方必须提供幂等键，以避免重试造成重复提交。 */
 export function createArtifactPromotion(payload: BuildArtifactPromotionCreateRequest, idempotencyKey: string) {
   return request.post<NonNullable<PromotionOperation['responses'][202]['content']['application/json']['data']>>({
     url: OPENAPI_RUNTIME_PATH.postBuildArtifactPromotion,

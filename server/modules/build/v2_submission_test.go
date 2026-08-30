@@ -483,6 +483,44 @@ func TestNormalizeExecutionPlanRequestRequiresExactlyOneBuilderSelector(t *testi
 	}
 }
 
+func TestNormalizeExecutionPlanRequestRequiresExactlyOneSourceSelector(t *testing.T) {
+	base := ExecutionPlanRequest{RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}
+	for name, request := range map[string]ExecutionPlanRequest{
+		"missing source": base,
+		"ambiguous source": func() ExecutionPlanRequest {
+			request := base
+			request.InputSnapshotID = "snapshot_1"
+			request.WorkspaceID = "workspace_1"
+			return request
+		}(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := normalizeExecutionPlanRequest(request); err == nil {
+				t.Fatalf("expected %s to be rejected", name)
+			}
+		})
+	}
+
+	for name, request := range map[string]ExecutionPlanRequest{
+		"workspace": func() ExecutionPlanRequest {
+			request := base
+			request.WorkspaceID = "workspace_1"
+			return request
+		}(),
+		"input snapshot": func() ExecutionPlanRequest {
+			request := base
+			request.InputSnapshotID = "snapshot_1"
+			return request
+		}(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := normalizeExecutionPlanRequest(request); err != nil {
+				t.Fatalf("expected %s to remain valid: %v", name, err)
+			}
+		})
+	}
+}
+
 func TestNormalizeExecutionPlanRequestFreezesOnlySupportedResolvedPolicies(t *testing.T) {
 	base := ExecutionPlanRequest{WorkspaceID: "workspace_app", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}
 	normalized, err := normalizeExecutionPlanRequest(base)
@@ -492,6 +530,17 @@ func TestNormalizeExecutionPlanRequestFreezesOnlySupportedResolvedPolicies(t *te
 	base.CachePolicy = "registry-import"
 	if _, err := normalizeExecutionPlanRequest(base); err == nil {
 		t.Fatal("expected unsupported cache policy to be rejected")
+	}
+}
+
+func TestNormalizeExecutionPlanRequestDoesNotAliasInputSnapshotAsWorkspace(t *testing.T) {
+	request := ExecutionPlanRequest{InputSnapshotID: "snapshot_1", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry", RepositoryRef: "team/app", Reference: "v1"}}
+	normalized, err := normalizeExecutionPlanRequest(request)
+	if err != nil {
+		t.Fatalf("input snapshot request should remain valid: %v", err)
+	}
+	if normalized.InputSnapshotID != request.InputSnapshotID || normalized.WorkspaceID != "" {
+		t.Fatalf("input snapshot was aliased into workspace: %#v", normalized)
 	}
 }
 

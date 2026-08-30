@@ -25,7 +25,14 @@
         "mediaType": "媒体类型",
         "platforms": "平台",
         "size": "大小",
-        "createdAt": "创建时间"
+        "createdAt": "创建时间",
+        "actions": "操作"
+      },
+      "publications": {
+        "open": "查看发布",
+        "title": "产物发布记录",
+        "empty": "暂无发布记录",
+        "loadFailed": "发布记录加载失败"
       }
     },
     "jobs": {
@@ -113,8 +120,14 @@
         "submitted": "构建任务已提交。",
         "submitFailed": "无法提交构建任务。",
         "sourceMode": "构建输入",
+        "selectWorkspace": "选择工作区",
         "uploadArchive": "上传归档",
         "reuseSnapshot": "复用已有构建输入快照",
+        "workspace": "工作区",
+        "workspaceRequired": "请选择工作区。",
+        "workspacePlaceholder": "选择已授权的构建工作区",
+        "workspaceEmpty": "暂无可用的已授权构建工作区。",
+        "workspaceLoadFailed": "无法加载构建工作区。",
         "archive": "归档文件",
         "archivePlaceholder": "选择包含根 Dockerfile 的 ZIP、TAR 或 TAR.GZ",
         "archiveRequired": "提交前请选择归档文件。",

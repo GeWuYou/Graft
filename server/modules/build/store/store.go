@@ -108,6 +108,21 @@ type V2ArtifactListResult struct {
 	Total int64
 }
 
+// ArtifactPublicationProjection 是面向 Artifact 页的非秘密 Publication 读取投影。
+// 它只包含可审计的不可变摘要和目的地稳定引用，不包含 endpoint 或 credential。
+type ArtifactPublicationProjection struct {
+	PublicationID           string
+	ArtifactID              string
+	Digest                  string
+	MediaType               string
+	DestinationKind         string
+	ConnectionRef           string
+	RepositoryRef           string
+	Reference               string
+	CredentialExecutionMode string
+	CreatedAt               time.Time
+}
+
 // ListQuery 描述 Build 历史列表支持的冻结快照过滤条件和分页窗口。
 type ListQuery struct {
 	Limit, Offset               int
@@ -249,6 +264,11 @@ type V2ArtifactReader interface {
 // Registry 会在 copy 前重新授权两个仓库；此 reader 从不解析 endpoint 或 credential。
 type ArtifactPublicationReader interface {
 	ListArtifactPublicationSources(context.Context, string) ([]moduleapi.ArtifactPublicationSource, error)
+}
+
+// ArtifactPublicationProjectionReader 为 Artifact 页面提供 Build-owned Publication 查询。
+type ArtifactPublicationProjectionReader interface {
+	ListArtifactPublications(context.Context, string) ([]ArtifactPublicationProjection, error)
 }
 
 // ArtifactPromotionSettlementRepository 记录 provider 已完成的 digest-preserving promotion。
@@ -1053,6 +1073,64 @@ func (r *SQLRepository) ListArtifactPublicationSources(ctx context.Context, arti
 	return items, nil
 }
 
+// ListArtifactPublications 返回指定 Artifact 的 Publication 历史，供 Build HTTP 只读投影使用；Artifact 存在但尚无 Publication 时返回非 nil 空列表，Artifact 不存在时返回 ErrNotFound。
+func (r *SQLRepository) ListArtifactPublications(ctx context.Context, artifactID string) ([]ArtifactPublicationProjection, error) {
+	if r == nil || r.db == nil || strings.TrimSpace(artifactID) == "" {
+		return nil, ErrNotFound
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT publication.publication_id, artifact.artifact_id, artifact.artifact_digest, artifact.media_type, publication.destination_kind, publication.connection_ref, publication.repository_ref, publication.mutable_reference, publication.credential_execution_mode, publication.created_at
+		FROM build_v2_artifacts artifact
+		LEFT JOIN build_publications publication ON publication.artifact_id = artifact.id
+		WHERE artifact.artifact_id = $1
+		ORDER BY publication.created_at DESC, publication.id DESC`, strings.TrimSpace(artifactID))
+	if err != nil {
+		return nil, fmt.Errorf("list artifact publication projections: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]ArtifactPublicationProjection, 0)
+	foundArtifact := false
+	for rows.Next() {
+		item, hasPublication, scanErr := scanArtifactPublicationProjection(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		foundArtifact = true
+		if !hasPublication {
+			continue
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate artifact publication projections: %w", err)
+	}
+	if !foundArtifact {
+		return nil, ErrNotFound
+	}
+	return items, nil
+}
+
+func scanArtifactPublicationProjection(rows *sql.Rows) (ArtifactPublicationProjection, bool, error) {
+	var item ArtifactPublicationProjection
+	var publicationID, destinationKind, connectionRef, repositoryRef, reference, credentialExecutionMode sql.NullString
+	var createdAt sql.NullTime
+	if err := rows.Scan(&publicationID, &item.ArtifactID, &item.Digest, &item.MediaType, &destinationKind, &connectionRef, &repositoryRef, &reference, &credentialExecutionMode, &createdAt); err != nil {
+		return ArtifactPublicationProjection{}, false, fmt.Errorf("scan artifact publication projection: %w", err)
+	}
+	if !publicationID.Valid {
+		return item, false, nil
+	}
+	item.PublicationID = publicationID.String
+	item.DestinationKind = destinationKind.String
+	item.ConnectionRef = connectionRef.String
+	item.RepositoryRef = repositoryRef.String
+	item.Reference = reference.String
+	item.CredentialExecutionMode = credentialExecutionMode.String
+	if createdAt.Valid {
+		item.CreatedAt = createdAt.Time
+	}
+	return item, true, nil
+}
+
 func (r *SQLRepository) countV2Artifacts(ctx context.Context) (int64, error) {
 	var total int64
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM build_v2_artifacts`).Scan(&total); err != nil {
@@ -1571,7 +1649,7 @@ FROM build_workspaces WHERE workspace_id = $1 AND deleted_at = 0`, workspaceID).
 	return workspace, nil
 }
 
-// ListWorkspaces 只返回调用者创建或平台共享的来源定义，不包含物化路径。
+// ListWorkspaces 只返回调用者创建或平台共享的可执行 Application Workspace 来源定义，不包含物化路径。
 func (r *SQLRepository) ListWorkspaces(ctx context.Context, requestedBy uint64, query WorkspaceListQuery) (result WorkspaceListResult, err error) {
 	if r == nil || r.db == nil {
 		return result, errors.New("build repository is unavailable")
@@ -1589,8 +1667,8 @@ func (r *SQLRepository) ListWorkspaces(ctx context.Context, requestedBy uint64, 
 }
 
 func buildWorkspaceListFilter(requestedBy uint64, searchQuery *string) (string, []any, error) {
-	where := `deleted_at = 0 AND (created_by = $1 OR created_by IS NULL)`
-	args := []any{nullableUint64(requestedBy)}
+	where := `deleted_at = 0 AND source_kind = $1 AND (created_by = $2 OR created_by IS NULL)`
+	args := []any{moduleapi.WorkspaceSourceApplication, nullableUint64(requestedBy)}
 	if searchQuery != nil {
 		search := strings.TrimSpace(*searchQuery)
 		if search == "" || utf8.RuneCountInString(search) > 255 {

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getBuildInputSnapshots: vi.fn(),
   getBuildRegistryDestinations: vi.fn(),
   getBuildRuntimeTargets: vi.fn(),
+  getBuildWorkspaces: vi.fn(),
   uploadBuildInputSnapshot: vi.fn(),
   push: vi.fn(),
 }));
@@ -121,6 +122,7 @@ describe('BuildCreatePage', () => {
       offset: 0,
     });
     mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
     mocks.getBuildBuilderPools.mockResolvedValue({ items: [] });
     mocks.getBuildRegistryDestinations.mockResolvedValue({
       items: [

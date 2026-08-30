@@ -298,6 +298,57 @@ func TestListArtifactPublicationSourcesUsesArtifactIdentityAndNeverReturnsMutabl
 	}
 }
 
+func TestListArtifactPublicationsReturnsEmptyListWhenArtifactHasNoPublication(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("artifact_1").WillReturnRows(
+		sqlmock.NewRows([]string{"publication_id", "artifact_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref", "mutable_reference", "credential_execution_mode", "created_at"}).
+			AddRow(nil, "artifact_1", "sha256:abc", "application/vnd.oci.image.manifest.v1+json", nil, nil, nil, nil, nil, nil),
+	)
+	items, err := repository.ListArtifactPublications(context.Background(), "artifact_1")
+	if err != nil {
+		t.Fatalf("ListArtifactPublications() error = %v", err)
+	}
+	if items == nil || len(items) != 0 {
+		t.Fatalf("ListArtifactPublications() = %#v, want non-nil empty list", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListArtifactPublicationsReturnsNotFoundWhenArtifactDoesNotExist(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("missing").WillReturnRows(
+		sqlmock.NewRows([]string{"publication_id", "artifact_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref", "mutable_reference", "credential_execution_mode", "created_at"}),
+	)
+	items, err := repository.ListArtifactPublications(context.Background(), "missing")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ListArtifactPublications() error = %v, want ErrNotFound", err)
+	}
+	if items != nil {
+		t.Fatalf("ListArtifactPublications() items = %#v, want nil on missing artifact", items)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSettleArtifactPromotionRequiresMatchingImmutableArtifactAndPreservesDestinationHistory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -410,11 +461,11 @@ func TestListWorkspacesScopesToCallerAndSharedSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM build_workspaces").WithArgs(uint64(7), "app").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
-	mock.ExpectQuery("SELECT workspace_id, display_name, source_kind, source_reference").WithArgs(uint64(7), "app", 20, 20).WillReturnRows(
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM build_workspaces").WithArgs(moduleapi.WorkspaceSourceApplication, uint64(7), "app").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+	mock.ExpectQuery("SELECT workspace_id, display_name, source_kind, source_reference").WithArgs(moduleapi.WorkspaceSourceApplication, uint64(7), "app", 20, 20).WillReturnRows(
 		sqlmock.NewRows([]string{"workspace_id", "display_name", "source_kind", "source_reference", "retention_policy", "created_by", "created_at", "updated_at"}).
 			AddRow("workspace_shared", "Shared", moduleapi.WorkspaceSourceApplication, "app_shared", "workspace", nil, time.Now(), time.Now()).
-			AddRow("workspace_owned", "Owned", moduleapi.WorkspaceSourceGit, "git:main", "workspace", uint64(7), time.Now(), time.Now()),
+			AddRow("workspace_owned", "Owned", moduleapi.WorkspaceSourceApplication, "app_owned", "workspace", uint64(7), time.Now(), time.Now()),
 	)
 	search := "app"
 	result, err := repository.ListWorkspaces(context.Background(), 7, WorkspaceListQuery{Limit: 20, Offset: 20, Search: &search})
@@ -429,13 +480,26 @@ func TestListWorkspacesScopesToCallerAndSharedSources(t *testing.T) {
 	}
 }
 
+func TestBuildWorkspaceListFilterRestrictsToExecutableApplicationSources(t *testing.T) {
+	where, args, err := buildWorkspaceListFilter(7, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(where, "source_kind = $1") {
+		t.Fatalf("workspace filter = %q, want executable source restriction", where)
+	}
+	if len(args) != 2 || args[0] != moduleapi.WorkspaceSourceApplication || args[1] != uint64(7) {
+		t.Fatalf("workspace filter args = %#v", args)
+	}
+}
+
 func TestListWorkspacesEnforcesUnicodeSearchLimitBeforeQuery(t *testing.T) {
 	accepted := strings.Repeat("界", 255)
 	_, args, err := buildWorkspaceListFilter(7, &accepted)
 	if err != nil {
 		t.Fatalf("255-rune workspace query: %v", err)
 	}
-	if len(args) != 2 || args[1] != accepted {
+	if len(args) != 3 || args[0] != moduleapi.WorkspaceSourceApplication || args[1] != uint64(7) || args[2] != accepted {
 		t.Fatalf("255-rune workspace query arguments = %#v", args)
 	}
 

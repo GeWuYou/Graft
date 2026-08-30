@@ -4,24 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/distribution/reference"
 
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
 
 const (
-	buildTaskType              = moduleapi.TaskType("build.dockerfile.v1")
-	buildStageExecutor         = moduleapi.StageExecutorType("build.dockerfile.v1")
 	buildTaskOwnerType         = "build_job"
 	buildSubmissionLeaseTTL    = 2 * time.Minute
 	buildSubmissionDeadline    = 10 * time.Minute
@@ -32,7 +26,6 @@ const (
 	buildExecutionCapability   = "oci-build"
 	buildExecutionVersion      = "docker/v1"
 	buildExecutionProtocol     = "build-execution/v1"
-	buildImageLocalOperation   = "build.image.local.v1"
 	buildImagePublishOperation = "build.image.publish.v1"
 	buildManifestOperation     = "build.manifest.publish.v1"
 	buildArtifactCopyOperation = "build.artifact.copy.v1"
@@ -42,25 +35,6 @@ var (
 	errInvalidBuildID      = errors.New("invalid build id")
 	errInvalidBuildRequest = errors.New("invalid build submission")
 )
-
-// SubmitRequest 是 Dockerfile 构建提交的内部传输无关输入。
-type SubmitRequest struct {
-	ApplicationID   string
-	ContextPath     string
-	DockerfilePath  string
-	ImageRepository string
-	ImageTag        string
-	BuildArgs       []moduleapi.BuildArgument
-	RequestedBy     uint64
-	IdempotencyKey  string
-}
-
-type preparedSubmission struct {
-	request      SubmitRequest
-	buildContext moduleapi.ApplicationBuildContext
-	buildID      string
-	input        json.RawMessage
-}
 
 // Service 拥有 Build 提交编排，并将工作区、任务状态和 Docker 执行委托给各自权威模块。
 type Service struct {
@@ -136,6 +110,18 @@ func (s *Service) ListArtifactPublicationSources(ctx context.Context, artifactID
 		return nil, errors.New("build artifact publication reading is unavailable")
 	}
 	return reader.ListArtifactPublicationSources(ctx, artifactID)
+}
+
+// ListArtifactPublications 返回指定 Artifact 的 Build-owned Publication 历史投影。
+func (s *Service) ListArtifactPublications(ctx context.Context, artifactID string) ([]buildstore.ArtifactPublicationProjection, error) {
+	if s == nil || s.repository == nil {
+		return nil, errors.New("build service is unavailable")
+	}
+	reader, ok := s.repository.(buildstore.ArtifactPublicationProjectionReader)
+	if !ok {
+		return nil, errors.New("build artifact publication projection reading is unavailable")
+	}
+	return reader.ListArtifactPublications(ctx, artifactID)
 }
 
 // SettleArtifactPromotion 记录 provider 已证明的不可变 promotion 结果；Build 不解析 Registry 连接细节。
@@ -390,42 +376,6 @@ func NewService(contexts moduleapi.ApplicationBuildContextResolver, submissions 
 	return &Service{contexts: contexts, submissions: submissions, taskBatch: taskBatch, repository: repository, intents: newBuiltinBuildIntentRegistry()}, nil
 }
 
-// Submit 解析服务端授权工作区，并为 Build 请求创建单阶段的 Task 计划。
-func (s *Service) Submit(ctx context.Context, request SubmitRequest) (moduleapi.TaskReceipt, error) {
-	if s == nil || s.contexts == nil || s.submissions == nil {
-		return moduleapi.TaskReceipt{}, errors.New("build service is unavailable")
-	}
-	prepared, err := s.prepareSubmission(ctx, request)
-	if err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	taskInput := s.taskInput(prepared.request, prepared.input, int64(prepared.buildContext.RuntimeTargetID)) //nolint:gosec // resolveBuildContext bounds the positive target identity.
-	handle, err := s.submissions.BeginSubmission(ctx, moduleapi.BeginTaskSubmissionInput{Task: taskInput, Policy: moduleapi.TaskSubmissionPolicy{LeaseTTL: buildSubmissionLeaseTTL, AbsoluteDeadline: buildSubmissionDeadline, RenewBefore: buildSubmissionRenewBefore, AllowRenew: true, PrerequisiteKind: "build.snapshot.v1"}})
-	if err != nil {
-		return moduleapi.TaskReceipt{}, err
-	}
-	if handle.Submission.State == moduleapi.TaskSubmissionStateActivated && handle.Submission.TaskID != nil {
-		return s.activatedSubmissionReceipt(ctx, *handle.Submission.TaskID)
-	}
-	snapshot := buildstore.JobSnapshot{BuildID: prepared.buildID, ApplicationID: prepared.buildContext.ApplicationID, ApplicationRecordID: prepared.buildContext.ApplicationRecordID, ApplicationName: prepared.buildContext.DisplayName, ContextPath: prepared.request.ContextPath, DockerfilePath: prepared.request.DockerfilePath, RuntimeTargetID: prepared.buildContext.RuntimeTargetID, RuntimeTargetName: prepared.buildContext.RuntimeTargetName, RuntimeProvider: prepared.buildContext.RuntimeProvider, ImageRepository: prepared.request.ImageRepository, ImageTag: prepared.request.ImageTag, RequestedBy: prepared.request.RequestedBy}
-	receipt, err := s.submissions.MaterializeSubmission(ctx, handle, taskInput, buildSubmissionWriter{repository: s.repository, snapshot: snapshot})
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("materialize build submission: %w", err)
-	}
-	return receipt, nil
-}
-
-func (s *Service) activatedSubmissionReceipt(ctx context.Context, taskID uint64) (moduleapi.TaskReceipt, error) {
-	tasks, err := s.taskBatch.GetTasksByIDs(ctx, []uint64{taskID})
-	if err != nil {
-		return moduleapi.TaskReceipt{}, fmt.Errorf("load idempotent build task receipt: %w", err)
-	}
-	if len(tasks) != 1 || tasks[0].ID != taskID {
-		return moduleapi.TaskReceipt{}, buildstore.ErrNotFound
-	}
-	return moduleapi.TaskReceipt{TaskID: tasks[0].ID, Status: tasks[0].Status}, nil
-}
-
 func buildTaskExecution(task moduleapi.TaskView) buildstore.TaskExecution {
 	completed := 0
 	if task.Status == moduleapi.TaskStatusSuccess || task.Status == moduleapi.TaskStatusFailed || task.Status == moduleapi.TaskStatusCancelled {
@@ -443,61 +393,20 @@ func buildTaskExecution(task moduleapi.TaskView) buildstore.TaskExecution {
 	return buildstore.TaskExecution{Status: task.Status, CurrentStageKey: task.CurrentStageKey, StageCount: 1, CompletedStageCount: completed, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage, RecoveryReason: recoveryReason, Capabilities: capabilities}
 }
 
-func (s *Service) prepareSubmission(ctx context.Context, request SubmitRequest) (preparedSubmission, error) {
-	normalizedRequest, err := normalizeSubmitRequest(request)
+func (s *Service) activatedSubmissionReceipt(ctx context.Context, taskID uint64) (moduleapi.TaskReceipt, error) {
+	tasks, err := s.taskBatch.GetTasksByIDs(ctx, []uint64{taskID})
 	if err != nil {
-		return preparedSubmission{}, err
+		return moduleapi.TaskReceipt{}, fmt.Errorf("load idempotent build task receipt: %w", err)
 	}
-	buildContext, err := s.resolveBuildContext(ctx, normalizedRequest.ApplicationID)
-	if err != nil {
-		return preparedSubmission{}, err
+	if len(tasks) != 1 || tasks[0].ID != taskID {
+		return moduleapi.TaskReceipt{}, buildstore.ErrNotFound
 	}
-	buildID, err := newBuildID()
-	if err != nil {
-		return preparedSubmission{}, err
-	}
-	input, err := buildTaskInput(buildID)
-	if err != nil {
-		return preparedSubmission{}, err
-	}
-	return preparedSubmission{request: normalizedRequest, buildContext: buildContext, buildID: buildID, input: input}, nil
-}
-
-func (s *Service) resolveBuildContext(ctx context.Context, applicationID string) (moduleapi.ApplicationBuildContext, error) {
-	buildContext, err := s.contexts.ResolveApplicationBuildContext(ctx, applicationID)
-	if err != nil {
-		return moduleapi.ApplicationBuildContext{}, fmt.Errorf("resolve application build context: %w", err)
-	}
-	if !buildContext.CanBuild || buildContext.RuntimeProvider != "docker" || buildContext.RuntimeTargetID == 0 || buildContext.RuntimeTargetID > uint64(^uint64(0)>>1) {
-		return moduleapi.ApplicationBuildContext{}, errors.New("application does not support Docker builds")
-	}
-	return buildContext, nil
-}
-
-func buildTaskInput(buildID string) (json.RawMessage, error) {
-	input, err := json.Marshal(moduleapi.BuildTaskInput{BuildID: buildID})
-	if err != nil {
-		return nil, fmt.Errorf("marshal build task input: %w", err)
-	}
-	return input, nil
-}
-
-func (s *Service) taskInput(request SubmitRequest, input json.RawMessage, targetID int64) moduleapi.SubmitTaskInput {
-	return moduleapi.SubmitTaskInput{Type: buildTaskType, Owner: moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: "application:" + request.ApplicationID}, RequestedBy: request.RequestedBy, IdempotencyKey: request.IdempotencyKey, Input: input, Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "dockerfile-build", ExecutorType: buildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(targetID, buildImageLocalOperation, input)}}}}
+	return moduleapi.TaskReceipt{TaskID: tasks[0].ID, Status: tasks[0].Status}, nil
 }
 
 func buildExternalExecution(targetID int64, operation string, input json.RawMessage) *moduleapi.ExternalExecutionExpectation {
 	digest := sha256.Sum256(input)
 	return &moduleapi.ExternalExecutionExpectation{RuntimeTargetID: targetID, ProviderID: buildExecutionProvider, Capability: buildExecutionCapability, CapabilityVersion: buildExecutionVersion, Protocol: buildExecutionProtocol, OperationID: operation, PayloadSHA256: hex.EncodeToString(digest[:]), LeaseTTL: buildExternalLeaseTTL, AbsoluteDeadline: buildExternalDeadline}
-}
-
-type buildSubmissionWriter struct {
-	repository buildstore.Repository
-	snapshot   buildstore.JobSnapshot
-}
-
-func (w buildSubmissionWriter) MaterializeTaskSubmission(ctx context.Context, tx *sql.Tx, submission moduleapi.TaskSubmission) (string, error) {
-	return w.repository.MaterializeSubmissionSnapshot(ctx, tx, submission, w.snapshot)
 }
 
 func newBuildID() (string, error) {
@@ -506,59 +415,4 @@ func newBuildID() (string, error) {
 		return "", fmt.Errorf("generate build id: %w", err)
 	}
 	return fmt.Sprintf("build_%x", value), nil
-}
-
-func normalizeSubmitRequest(request SubmitRequest) (SubmitRequest, error) {
-	request.ImageRepository = strings.TrimSpace(request.ImageRepository)
-	request.ImageTag = strings.TrimSpace(request.ImageTag)
-	request.ApplicationID = strings.TrimSpace(request.ApplicationID)
-	if request.ApplicationID == "" || len(request.BuildArgs) != 0 || !validDockerImageReference(request.ImageRepository, request.ImageTag) {
-		return SubmitRequest{}, errInvalidBuildRequest
-	}
-	var err error
-	if request.ContextPath, err = normalizeBuildRelativePath(request.ContextPath); err != nil {
-		return SubmitRequest{}, fmt.Errorf("%w: %v", errInvalidBuildRequest, err)
-	}
-	if request.DockerfilePath, err = normalizeBuildRelativePath(request.DockerfilePath); err != nil {
-		return SubmitRequest{}, fmt.Errorf("%w: %v", errInvalidBuildRequest, err)
-	}
-	seen := make(map[string]struct{}, len(request.BuildArgs))
-	for index := range request.BuildArgs {
-		item := &request.BuildArgs[index]
-		item.Name = strings.TrimSpace(item.Name)
-		if item.Name == "" || strings.ContainsAny(item.Name, "=\x00\r\n") {
-			return SubmitRequest{}, errInvalidBuildRequest
-		}
-		if _, ok := seen[item.Name]; ok {
-			return SubmitRequest{}, errInvalidBuildRequest
-		}
-		seen[item.Name] = struct{}{}
-	}
-	return request, nil
-}
-
-func validDockerImageReference(repository, tag string) bool {
-	named, err := reference.ParseNormalizedNamed(repository)
-	if err != nil {
-		return false
-	}
-	if _, hasTag := named.(reference.Tagged); hasTag {
-		return false
-	}
-	if _, hasDigest := named.(reference.Canonical); hasDigest {
-		return false
-	}
-	return reference.TagRegexp.FindString(tag) == tag
-}
-
-func normalizeBuildRelativePath(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" || filepath.IsAbs(value) || strings.ContainsAny(value, "\x00\r\n") {
-		return "", errors.New("invalid build path")
-	}
-	value = filepath.Clean(value)
-	if value == "." || value == ".." || strings.HasPrefix(value, ".."+string(filepath.Separator)) {
-		return "", errors.New("build path escapes workspace")
-	}
-	return value, nil
 }

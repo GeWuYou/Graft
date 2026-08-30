@@ -3130,6 +3130,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/build/artifacts/{artifactId}/publications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Build Artifact Publications */
+    get: operations['getBuildArtifactPublications'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/build/artifact-promotions': {
     parameters: {
       query?: never;
@@ -3159,6 +3176,23 @@ export interface paths {
     put?: never;
     /** Upload a Build input snapshot archive */
     post: operations['postBuildInputSnapshot'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/build/workspaces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Build Workspaces */
+    get: operations['getBuildWorkspaces'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -9441,8 +9475,10 @@ export interface components {
     'enveloped-build-job-list': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-job-list'];
     };
+    /** @description Provide exactly one of workspace_id or input_snapshot_id as the immutable Build source identity. */
     'build-job-create-request': {
-      input_snapshot_id: string;
+      workspace_id?: string;
+      input_snapshot_id?: string;
       /**
        * Format: int64
        * @description Direct Runtime Target selection. Provide exactly one of runtime_target_id or builder_pool_id.
@@ -9487,6 +9523,28 @@ export interface components {
     'enveloped-build-artifact-list': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-artifact-list'];
     };
+    'build-artifact-publication': {
+      publication_id: string;
+      artifact_id: string;
+      digest: string;
+      media_type: string;
+      destination: {
+        /** @enum {string} */
+        kind: 'oci_registry';
+        connection_ref: string;
+        repository_ref: string;
+        reference: string;
+      };
+      credential_execution_mode: string;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'build-artifact-publication-list': {
+      items: components['schemas']['build-artifact-publication'][];
+    };
+    'enveloped-build-artifact-publication-list': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-artifact-publication-list'];
+    };
     'build-artifact-promotion-create-request': {
       artifact_id: string;
       publication_id: string;
@@ -9527,6 +9585,28 @@ export interface components {
     };
     'enveloped-build-input-snapshot': {
       data: components['schemas']['build-input-snapshot'];
+    };
+    'build-workspace': {
+      workspace_id: string;
+      name: string;
+      /** @enum {string} */
+      source_kind: 'application_workspace' | 'git' | 'uploaded_archive' | 'generated' | 'target_local';
+      source_reference: string;
+      retention_policy: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    'build-workspace-list': {
+      items: components['schemas']['build-workspace'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-build-workspace-list': components['schemas']['api-envelope'] & {
+      data: components['schemas']['build-workspace-list'];
     };
     'build-runtime-target': {
       /** Format: int64 */
@@ -21063,6 +21143,40 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getBuildArtifactPublications: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        artifactId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Publication references for an immutable Artifact. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-artifact-publication-list'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      404: components['responses']['not-found'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postBuildArtifactPromotion: {
     parameters: {
       query?: never;
@@ -21162,6 +21276,42 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-build-input-snapshot'];
+        };
+      };
+      400: components['responses']['bad-request'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getBuildWorkspaces: {
+    parameters: {
+      query?: {
+        search?: string;
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Caller-scoped Build Workspace list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-build-workspace-list'];
         };
       };
       400: components['responses']['bad-request'];

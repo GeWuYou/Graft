@@ -41,7 +41,7 @@
       row-key="artifact_id"
       :pagination-props="{ showPageSize: true }"
       :page-size-options="[20, 50, 100]"
-      :cell-slot-names="['digest', 'platforms', 'size_bytes', 'created_at']"
+      :cell-slot-names="['digest', 'platforms', 'size_bytes', 'created_at', 'actions']"
       @page-change="changePage"
     >
       <template #digest="{ row }">
@@ -58,13 +58,42 @@
       </template>
       <template #size_bytes="{ row }">{{ formatBytes((row as BuildArtifact).size_bytes) }}</template>
       <template #created_at="{ row }">{{ formatLocaleDateTime((row as BuildArtifact).created_at, locale) }}</template>
+      <template #actions="{ row }">
+        <t-button variant="text" size="small" @click="openPublications(row as BuildArtifact)">
+          {{ t('build.artifacts.publications.open') }}
+        </t-button>
+      </template>
     </management-paged-table>
+
+    <t-drawer
+      v-model:visible="publicationVisible"
+      :header="t('build.artifacts.publications.title')"
+      :footer="false"
+      size="min(720px, 92vw)"
+    >
+      <t-loading :loading="publicationLoading">
+        <t-alert v-if="publicationError" theme="error" :message="publicationError" />
+        <t-empty v-else-if="!publications.length" :description="t('build.artifacts.publications.empty')" />
+        <t-list v-else>
+          <t-list-item v-for="publication in publications" :key="publication.publication_id">
+            <list-item-meta>
+              <template #title
+                >{{ publication.destination.repository_ref }}:{{ publication.destination.reference }}</template
+              >
+              <template #description>
+                {{ publication.publication_id }} · {{ formatLocaleDateTime(publication.created_at, locale) }}
+              </template>
+            </list-item-meta>
+          </t-list-item>
+        </t-list>
+      </t-loading>
+    </t-drawer>
   </section>
 </template>
 <script setup lang="ts">
 // 构建产物页只呈现不可变 Artifact 投影，不以构建任务、标签或仓库引用替代产物身份。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
-import type { TableProps } from 'tdesign-vue-next';
+import { ListItemMeta, type TableProps } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -72,8 +101,8 @@ import { ManagementPageHeader, ManagementTableCard, ManagementToolbar } from '@/
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
-import { getBuildArtifacts } from '../../api/build';
-import type { BuildArtifact } from '../../types/build';
+import { getBuildArtifactPublications, getBuildArtifacts } from '../../api/build';
+import type { BuildArtifact, BuildArtifactPublication } from '../../types/build';
 
 const { locale, t } = useI18n();
 const items = ref<BuildArtifact[]>([]);
@@ -82,6 +111,10 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
 const errorMessage = ref('');
+const publicationVisible = ref(false);
+const publicationLoading = ref(false);
+const publicationError = ref('');
+const publications = ref<BuildArtifactPublication[]>([]);
 let requestSequence = 0;
 
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
@@ -90,7 +123,23 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'platforms', title: t('build.artifacts.columns.platforms'), cell: 'platforms', minWidth: 180 },
   { colKey: 'size_bytes', title: t('build.artifacts.columns.size'), cell: 'size_bytes', width: 120 },
   { colKey: 'created_at', title: t('build.artifacts.columns.createdAt'), cell: 'created_at', width: 180 },
+  { colKey: 'actions', title: t('build.artifacts.columns.actions'), cell: 'actions', width: 120 },
 ]);
+
+async function openPublications(artifact: BuildArtifact) {
+  publicationVisible.value = true;
+  publicationLoading.value = true;
+  publicationError.value = '';
+  publications.value = [];
+  try {
+    const response = await getBuildArtifactPublications(artifact.artifact_id);
+    publications.value = response.items;
+  } catch {
+    publicationError.value = t('build.artifacts.publications.loadFailed');
+  } finally {
+    publicationLoading.value = false;
+  }
+}
 
 async function load() {
   const sequence = ++requestSequence;
