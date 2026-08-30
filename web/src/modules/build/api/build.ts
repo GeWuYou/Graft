@@ -4,7 +4,6 @@ import { request } from '@/utils/request';
 
 import type {
   BuildArtifactListResponse,
-  BuildArtifactPromotionCreateRequest,
   BuildArtifactPublicationListResponse,
   BuildInputSnapshot,
   BuildJobCreateRequest,
@@ -22,7 +21,6 @@ type TargetListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildRuntimeTarg
 type PoolListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildBuilderPools]['get'];
 type ArtifactListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifacts]['get'];
 type ArtifactPublicationListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildArtifactPublications]['get'];
-type PromotionOperation = paths[typeof OPENAPI_RUNTIME_PATH.postBuildArtifactPromotion]['post'];
 type RegistryDestinationOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRegistryAvailableDestinations]['get'];
 type WorkspaceListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getBuildWorkspaces]['get'];
 
@@ -107,13 +105,4 @@ export function getBuildArtifactPublications(artifactId: string) {
   return request.get<ResponseData>({
     url: buildOpenApiRuntimePath('getBuildArtifactPublications', { artifactId }),
   }) as Promise<BuildArtifactPublicationListResponse>;
-}
-
-/** 创建制品 Promotion 请求；调用方必须提供幂等键，以避免重试造成重复提交。 */
-export function createArtifactPromotion(payload: BuildArtifactPromotionCreateRequest, idempotencyKey: string) {
-  return request.post<NonNullable<PromotionOperation['responses'][202]['content']['application/json']['data']>>({
-    url: OPENAPI_RUNTIME_PATH.postBuildArtifactPromotion,
-    data: payload,
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
 }
