@@ -104,7 +104,7 @@
         "sections": {
           "source": {
             "title": "构建来源",
-            "description": "上传归档，或复用已有的构建输入快照。"
+            "description": "选择工作区、上传归档，或复用已有的构建输入快照。"
           },
           "execution": {
             "title": "执行配置",

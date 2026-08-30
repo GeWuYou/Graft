@@ -308,16 +308,18 @@ func TestListArtifactPublicationsReturnsEmptyListWhenArtifactHasNoPublication(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("artifact_1").WillReturnRows(
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs("artifact_1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs("artifact_1").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("artifact_1", 20, 0).WillReturnRows(
 		sqlmock.NewRows([]string{"publication_id", "artifact_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref", "mutable_reference", "credential_execution_mode", "created_at"}).
 			AddRow(nil, "artifact_1", "sha256:abc", "application/vnd.oci.image.manifest.v1+json", nil, nil, nil, nil, nil, nil),
 	)
-	items, err := repository.ListArtifactPublications(context.Background(), "artifact_1")
+	result, err := repository.ListArtifactPublications(context.Background(), "artifact_1", 20, 0)
 	if err != nil {
 		t.Fatalf("ListArtifactPublications() error = %v", err)
 	}
-	if items == nil || len(items) != 0 {
-		t.Fatalf("ListArtifactPublications() = %#v, want non-nil empty list", items)
+	if result.Items == nil || len(result.Items) != 0 || result.Total != 0 {
+		t.Fatalf("ListArtifactPublications() = %#v, want non-nil empty list", result)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
@@ -334,15 +336,39 @@ func TestListArtifactPublicationsReturnsNotFoundWhenArtifactDoesNotExist(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("missing").WillReturnRows(
-		sqlmock.NewRows([]string{"publication_id", "artifact_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref", "mutable_reference", "credential_execution_mode", "created_at"}),
-	)
-	items, err := repository.ListArtifactPublications(context.Background(), "missing")
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs("missing").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs("missing").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	result, err := repository.ListArtifactPublications(context.Background(), "missing", 20, 0)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("ListArtifactPublications() error = %v, want ErrNotFound", err)
 	}
-	if items != nil {
-		t.Fatalf("ListArtifactPublications() items = %#v, want nil on missing artifact", items)
+	if result.Items != nil {
+		t.Fatalf("ListArtifactPublications() items = %#v, want nil on missing artifact", result)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListArtifactPublicationsPaginatesAndReturnsTotal(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := NewSQLRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs("artifact_1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs("artifact_1").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery("SELECT publication.publication_id, artifact.artifact_id").WithArgs("artifact_1", 2, 1).WillReturnRows(
+		sqlmock.NewRows([]string{"publication_id", "artifact_id", "artifact_digest", "media_type", "destination_kind", "connection_ref", "repository_ref", "mutable_reference", "credential_execution_mode", "created_at"}).
+			AddRow("publication_2", "artifact_1", "sha256:abc", "application/vnd.oci.image.manifest.v1+json", "oci_registry", "registry:one", "team/api", "stable", "ephemeral-credential", time.Now().UTC()),
+	)
+	result, err := repository.ListArtifactPublications(context.Background(), "artifact_1", 2, 1)
+	if err != nil || result.Total != 3 || len(result.Items) != 1 || result.Items[0].PublicationID != "publication_2" {
+		t.Fatalf("ListArtifactPublications() = %#v, err=%v", result, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

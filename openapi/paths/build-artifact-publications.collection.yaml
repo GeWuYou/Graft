@@ -9,6 +9,12 @@ get:
       name: artifactId
       required: true
       schema: { type: string, minLength: 1, maxLength: 64 }
+    - in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - in: query
+      name: offset
+      schema: { type: integer, minimum: 0, default: 0 }
   security: [{ bearerAuth: [] }]
   responses:
     '200':

@@ -49,25 +49,25 @@ func toBuildArtifactList(result buildstore.V2ArtifactListResult, limit, offset i
 	return openapigen.BuildArtifactList{Items: items, Total: result.Total, Limit: limit, Offset: offset}
 }
 
-func toBuildArtifactPublicationList(items []buildstore.ArtifactPublicationProjection) openapigen.BuildArtifactPublicationList {
-	result := make([]openapigen.BuildArtifactPublication, 0, len(items))
-	for _, item := range items {
-		result = append(result, openapigen.BuildArtifactPublication{
+func toBuildArtifactPublicationList(result buildstore.ArtifactPublicationListResult, limit, offset int) openapigen.BuildArtifactPublicationList {
+	items := make([]openapigen.BuildArtifactPublication, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, openapigen.BuildArtifactPublication{
 			PublicationId: item.PublicationID,
-			ArtifactId: item.ArtifactID,
-			Digest: item.Digest,
-			MediaType: item.MediaType,
+			ArtifactId:    item.ArtifactID,
+			Digest:        item.Digest,
+			MediaType:     item.MediaType,
 			Destination: struct {
-				ConnectionRef string `json:"connection_ref"`
+				ConnectionRef string                                             `json:"connection_ref"`
 				Kind          openapigen.BuildArtifactPublicationDestinationKind `json:"kind"`
-				Reference     string `json:"reference"`
-				RepositoryRef string `json:"repository_ref"`
+				Reference     string                                             `json:"reference"`
+				RepositoryRef string                                             `json:"repository_ref"`
 			}{ConnectionRef: item.ConnectionRef, Kind: openapigen.BuildArtifactPublicationDestinationKind(item.DestinationKind), RepositoryRef: item.RepositoryRef, Reference: item.Reference},
 			CredentialExecutionMode: item.CredentialExecutionMode,
-			CreatedAt: item.CreatedAt,
+			CreatedAt:               item.CreatedAt,
 		})
 	}
-	return openapigen.BuildArtifactPublicationList{Items: result}
+	return openapigen.BuildArtifactPublicationList{Items: items, Total: result.Total, Limit: limit, Offset: offset}
 }
 
 func toBuildJobDetail(item buildstore.JobProjection) openapigen.BuildJobDetail {

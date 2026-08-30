@@ -1,4 +1,13 @@
-import { computed, type ComputedRef, type MaybeRefOrGetter, type Ref, ref, toValue, watchEffect } from 'vue';
+import {
+  computed,
+  type ComputedRef,
+  type MaybeRefOrGetter,
+  type Ref,
+  ref,
+  shallowRef,
+  toValue,
+  watchEffect,
+} from 'vue';
 
 import { emitScrollEdgeDebug } from '@/shared/debug/scroll-edge-actions-investigation';
 
@@ -65,11 +74,15 @@ function prefersReducedMotion(): boolean {
 export function useScrollEdgeActions(options: ScrollEdgeActionsOptions = {}): ScrollEdgeActionsController {
   const controllerId = ++controllerSequence;
   const threshold = Math.max(0, options.threshold ?? DEFAULT_THRESHOLD);
-  const targetSource = ref<MaybeRefOrGetter<HTMLElement | null | undefined>>(options.target);
+  // 保持目标来源本身的引用身份，避免 ref 自动解包导致 registerTarget 无法可靠恢复。
+  const targetSource = shallowRef<MaybeRefOrGetter<HTMLElement | null | undefined>>(options.target) as Ref<
+    MaybeRefOrGetter<HTMLElement | null | undefined>
+  >;
   const metrics = ref<ScrollEdgeMetrics>(emptyMetrics());
 
   let boundTarget: HTMLElement | null = null;
   let targetResizeObserver: ResizeObserver | null = null;
+  let targetMutationObserver: MutationObserver | null = null;
   let lastDebugMetricsSignature = '';
 
   function readMetrics(target: HTMLElement | null): ScrollEdgeMetrics {
@@ -127,6 +140,8 @@ export function useScrollEdgeActions(options: ScrollEdgeActionsOptions = {}): Sc
     if (boundTarget) boundTarget.removeEventListener('scroll', refresh);
     targetResizeObserver?.disconnect();
     targetResizeObserver = null;
+    targetMutationObserver?.disconnect();
+    targetMutationObserver = null;
     boundTarget = null;
     refresh();
   }
@@ -149,6 +164,15 @@ export function useScrollEdgeActions(options: ScrollEdgeActionsOptions = {}): Sc
     if (typeof ResizeObserver !== 'undefined') {
       targetResizeObserver = new ResizeObserver(refresh);
       targetResizeObserver.observe(boundTarget);
+    }
+    if (typeof MutationObserver !== 'undefined') {
+      targetMutationObserver = new MutationObserver(refresh);
+      targetMutationObserver.observe(boundTarget, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
     }
     refresh();
   }

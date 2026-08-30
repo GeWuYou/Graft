@@ -379,14 +379,28 @@ async function loadSelectorOptions() {
 }
 
 async function loadWorkspaces() {
+  if (workspaceLoading.value) return;
   workspaceLoading.value = true;
   workspaceError.value = '';
   try {
-    const response = await getBuildWorkspaces({ limit: 100, offset: 0 });
-    workspaceOptions.value = response.items.map((item) => ({
-      value: item.workspace_id,
-      label: `${item.name} (${item.source_kind})`,
-    }));
+    const requestLimit = 100;
+    const options = new Map<string, SelectorOption>();
+    let requestOffset = 0;
+    while (true) {
+      const response = await getBuildWorkspaces({ limit: requestLimit, offset: requestOffset });
+      for (const item of response.items ?? []) {
+        if (!item.workspace_id || options.has(item.workspace_id)) continue;
+        options.set(item.workspace_id, {
+          value: item.workspace_id,
+          label: `${item.name} (${item.source_kind})`,
+        });
+      }
+
+      const nextOffset = (response.offset ?? requestOffset) + (response.limit ?? requestLimit);
+      if (!response.items?.length || nextOffset <= requestOffset || nextOffset >= response.total) break;
+      requestOffset = nextOffset;
+    }
+    workspaceOptions.value = [...options.values()];
   } catch (error) {
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.workspaceLoadFailed'));
   } finally {

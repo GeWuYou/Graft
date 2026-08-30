@@ -105,7 +105,7 @@ func registerBuildExternalExecution(registrar moduleapi.TaskRuntimeRegistrar, de
 	if registrar == nil || dependencies.repository == nil || dependencies.service == nil {
 		return errors.New("build external execution dependencies are unavailable")
 	}
-	for _, executorType := range []moduleapi.StageExecutorType{v2BuildStageExecutor, artifactPromotionStageExecutor} {
+	for _, executorType := range []moduleapi.StageExecutorType{buildStageExecutor, v2BuildStageExecutor, artifactPromotionStageExecutor} {
 		handler := &buildExternalExecutionHandler{executorType: executorType, dependencies: dependencies}
 		if err := registrar.RegisterExternalExecutionMaterialResolver(handler); err != nil {
 			return err
@@ -131,6 +131,8 @@ func (h *buildExternalExecutionHandler) ResolveExternalExecutionMaterial(ctx con
 	var material buildExecutionMaterial
 	var err error
 	switch h.executorType {
+	case buildStageExecutor:
+		material, err = h.resolveLegacyMaterial(ctx, request)
 	case v2BuildStageExecutor:
 		material, err = h.resolveV2Material(ctx, request)
 	case artifactPromotionStageExecutor:
@@ -163,6 +165,8 @@ func (h *buildExternalExecutionHandler) RecordExternalExecutionResult(ctx contex
 		return errors.New("build execution result is invalid")
 	}
 	switch h.executorType {
+	case buildStageExecutor:
+		return h.recordLegacyResult(ctx, request, result)
 	case v2BuildStageExecutor:
 		return h.recordV2Result(ctx, request, result)
 	case artifactPromotionStageExecutor:
@@ -177,6 +181,67 @@ func (h *buildExternalExecutionHandler) validateRequest(executorType moduleapi.S
 		return errors.New("build external execution request is invalid")
 	}
 	return nil
+}
+
+// COMPAT(owner=Build Task Runtime canonical executor registry, cleanup=all pre-v2 build tasks settled)
+// 旧版作业在全部结算后移除；当前仅基于冻结作业身份重新授权工作区并重建材料。
+func (h *buildExternalExecutionHandler) resolveLegacyMaterial(ctx context.Context, request moduleapi.ExternalExecutionMaterialRequest) (buildExecutionMaterial, error) {
+	input, err := decodeLegacyTaskInput(request)
+	if err != nil {
+		return buildExecutionMaterial{}, err
+	}
+	job, err := h.dependencies.repository.GetJobByTaskID(ctx, request.TaskID)
+	if err != nil {
+		return buildExecutionMaterial{}, err
+	}
+	if err := validateLegacyJobInput(input, job, request.RuntimeTargetID); err != nil {
+		return buildExecutionMaterial{}, err
+	}
+	live, err := h.resolveLegacyBuildContext(ctx, job)
+	if err != nil {
+		return buildExecutionMaterial{}, err
+	}
+	return buildExecutionMaterial{Context: legacyExecutionContext(live, job)}, nil
+}
+
+func decodeLegacyTaskInput(request moduleapi.ExternalExecutionMaterialRequest) (moduleapi.BuildTaskInput, error) {
+	if request.OperationID != buildImageLocalOperation {
+		return moduleapi.BuildTaskInput{}, errors.New("build execution operation is invalid")
+	}
+	var input moduleapi.BuildTaskInput
+	if err := strictDecodeJSON(request.Input, &input); err != nil || strings.TrimSpace(input.BuildID) == "" {
+		return moduleapi.BuildTaskInput{}, errors.New("build task input is invalid")
+	}
+	return input, nil
+}
+
+func validateLegacyJobInput(input moduleapi.BuildTaskInput, job buildstore.JobSnapshot, runtimeTargetID int64) error {
+	if job.BuildID != input.BuildID || job.RuntimeTargetID > uint64(^uint64(0)>>1) || int64(job.RuntimeTargetID) != runtimeTargetID {
+		return errors.New("build task input does not match frozen job")
+	}
+	return nil
+}
+
+func (h *buildExternalExecutionHandler) resolveLegacyBuildContext(ctx context.Context, job buildstore.JobSnapshot) (moduleapi.ApplicationBuildContext, error) {
+	if h.dependencies.service.contexts == nil {
+		return moduleapi.ApplicationBuildContext{}, errors.New("application build context resolver is unavailable")
+	}
+	live, err := h.dependencies.service.contexts.ResolveApplicationBuildContext(ctx, job.ApplicationID)
+	if err != nil {
+		return moduleapi.ApplicationBuildContext{}, errors.New("application build context resolution failed")
+	}
+	if live.ApplicationID != job.ApplicationID || live.RuntimeTargetID != job.RuntimeTargetID || !live.CanBuild || strings.TrimSpace(live.WorkspaceRoot) == "" {
+		return moduleapi.ApplicationBuildContext{}, errors.New("application build context no longer authorizes execution")
+	}
+	return live, nil
+}
+
+func legacyExecutionContext(live moduleapi.ApplicationBuildContext, job buildstore.JobSnapshot) *buildExecutionContextMaterial {
+	buildArgs := make([]buildExecutionBuildArg, 0, len(job.BuildArgs))
+	for _, argument := range job.BuildArgs {
+		buildArgs = append(buildArgs, buildExecutionBuildArg{Name: argument.Name, Value: argument.Value})
+	}
+	return &buildExecutionContextMaterial{Root: live.WorkspaceRoot, ContextPath: job.ContextPath, DockerfilePath: job.DockerfilePath, Repository: job.ImageRepository, Reference: job.ImageTag, BuildArgs: buildArgs}
 }
 
 //nolint:cyclop // V2 material joins plan placement, snapshot and ephemeral registry credentials in one fenced window.
@@ -381,6 +446,52 @@ func (h *buildExternalExecutionHandler) recordV2Result(ctx context.Context, requ
 	return h.releaseBuilderReservation(ctx, request, plan, platform)
 }
 
+// COMPAT(owner=Build Task Runtime canonical executor registry, cleanup=all pre-v2 build tasks settled)
+// recordLegacyResult 保留存量 Task Runtime 结算路径，清理触发为全部 v2 前作业完成结算。
+func (h *buildExternalExecutionHandler) recordLegacyResult(ctx context.Context, request moduleapi.ExternalExecutionResultRequest, result buildExecutionResult) error {
+	if err := validateLegacyResultRequest(request, result); err != nil {
+		return err
+	}
+	input, err := decodeLegacyResultInput(request)
+	if err != nil {
+		return err
+	}
+	job, err := h.dependencies.repository.GetJobByTaskID(ctx, request.TaskID)
+	if err != nil {
+		return err
+	}
+	if err := validateLegacyResultAgainstJob(input, job, request.RuntimeTargetID, result); err != nil {
+		return err
+	}
+	digest, err := optionalNormalizedDigest(result.Digest)
+	if err != nil {
+		return err
+	}
+	return h.dependencies.repository.SettleBuildArtifact(ctx, request.TaskID, moduleapi.BuildArtifactResult{ImageID: result.ImageID, Digest: digest, Repository: result.Repository, Tag: result.Reference, SizeBytes: result.SizeBytes, OS: result.OS, Architecture: result.Architecture, Variant: result.Variant})
+}
+
+func validateLegacyResultRequest(request moduleapi.ExternalExecutionResultRequest, result buildExecutionResult) error {
+	if request.OperationID != buildImageLocalOperation || strings.TrimSpace(result.ImageID) == "" {
+		return errors.New("build image result is invalid")
+	}
+	return nil
+}
+
+func decodeLegacyResultInput(request moduleapi.ExternalExecutionResultRequest) (moduleapi.BuildTaskInput, error) {
+	var input moduleapi.BuildTaskInput
+	if err := strictDecodeJSON(request.Input, &input); err != nil {
+		return moduleapi.BuildTaskInput{}, errors.New("build task input is invalid")
+	}
+	return input, nil
+}
+
+func validateLegacyResultAgainstJob(input moduleapi.BuildTaskInput, job buildstore.JobSnapshot, runtimeTargetID int64, result buildExecutionResult) error {
+	if job.BuildID != input.BuildID || job.RuntimeTargetID > uint64(^uint64(0)>>1) || int64(job.RuntimeTargetID) != runtimeTargetID || result.Repository != job.ImageRepository || result.Reference != job.ImageTag {
+		return errors.New("build image result does not match frozen job")
+	}
+	return nil
+}
+
 func manifestRuntimeTargetID(plan moduleapi.BuildExecutionPlan) int64 {
 	if plan.RuntimeTargetID > 0 {
 		return plan.RuntimeTargetID
@@ -464,8 +575,13 @@ func (h *buildExternalExecutionHandler) beginBuilderReservation(ctx context.Cont
 		}
 	}
 	if err != nil {
+		// 首次尝试重放可能观察到已运行的 reservation；仅在这一窄场景续租匹配
+		// fence，不能把 reservation 失败或重试容量冲突变成可执行租约。
+		if request.Attempt != 1 || !errors.Is(err, buildstore.ErrConflict) {
+			return fmt.Errorf("start builder reservation: %w", err)
+		}
 		if renewErr := repository.RenewBuilderReservation(ctx, request.TaskID, platform, fence, time.Now().UTC().Add(buildstore.BuilderReservationLeaseTTL)); renewErr != nil {
-			return err
+			return fmt.Errorf("start builder reservation: %w", err)
 		}
 		return nil
 	}
@@ -525,4 +641,15 @@ func strictDecodeJSON(raw json.RawMessage, destination any) error {
 		return fmt.Errorf("unexpected trailing JSON data")
 	}
 	return nil
+}
+
+func optionalNormalizedDigest(value string) (string, error) {
+	if strings.TrimSpace(value) == "" {
+		return "", nil
+	}
+	digest, valid := normalizePlatformDigest(value)
+	if !valid {
+		return "", errors.New("build execution result digest is invalid")
+	}
+	return digest, nil
 }

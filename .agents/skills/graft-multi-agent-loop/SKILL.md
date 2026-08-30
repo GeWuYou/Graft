@@ -83,7 +83,7 @@ Before dispatch:
    - when pending batches remain, enter `ADVANCE -> DISPATCH_NEXT -> DISPATCH`
    - when none remain, run topic acceptance and recovery/catalog checks in `ARCHIVE_CHECK`
    - regenerate bounded pending work if archive checks expose clear remaining work; only undispatched nodes may be
-     added or reordered, with a new topology revision and recorded replan evidence
+     added, split, merged, or reordered, with a new topology revision and recorded replan evidence
 7. In checkpoint mode, stop after the accepted batch and emit the governed next-session prompt.
 8. On failure, keep the failed batch unsettled and follow the recovery/retry contract; never complete it locally after
    delegation.

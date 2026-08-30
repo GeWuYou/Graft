@@ -9502,7 +9502,7 @@ export interface components {
         repository_ref: string;
         reference: string;
       };
-    };
+    } & (unknown | unknown);
     'build-artifact': {
       artifact_id: string;
       digest: string;
@@ -9541,6 +9541,10 @@ export interface components {
     };
     'build-artifact-publication-list': {
       items: components['schemas']['build-artifact-publication'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-build-artifact-publication-list': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-artifact-publication-list'];
@@ -21145,7 +21149,10 @@ export interface operations {
   };
   getBuildArtifactPublications: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];

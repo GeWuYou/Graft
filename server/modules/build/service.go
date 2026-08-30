@@ -16,6 +16,9 @@ import (
 )
 
 const (
+	// 保留存量 executor 标识，使 v2 执行计划切换前创建的任务可基于冻结事实安全完成。
+	buildStageExecutor         = moduleapi.StageExecutorType("build.dockerfile.v1")
+	buildImageLocalOperation   = "build.image.local.v1"
 	buildTaskOwnerType         = "build_job"
 	buildSubmissionLeaseTTL    = 2 * time.Minute
 	buildSubmissionDeadline    = 10 * time.Minute
@@ -113,15 +116,15 @@ func (s *Service) ListArtifactPublicationSources(ctx context.Context, artifactID
 }
 
 // ListArtifactPublications 返回指定 Artifact 的 Build-owned Publication 历史投影。
-func (s *Service) ListArtifactPublications(ctx context.Context, artifactID string) ([]buildstore.ArtifactPublicationProjection, error) {
+func (s *Service) ListArtifactPublications(ctx context.Context, artifactID string, limit, offset int) (buildstore.ArtifactPublicationListResult, error) {
 	if s == nil || s.repository == nil {
-		return nil, errors.New("build service is unavailable")
+		return buildstore.ArtifactPublicationListResult{}, errors.New("build service is unavailable")
 	}
 	reader, ok := s.repository.(buildstore.ArtifactPublicationProjectionReader)
 	if !ok {
-		return nil, errors.New("build artifact publication projection reading is unavailable")
+		return buildstore.ArtifactPublicationListResult{}, errors.New("build artifact publication projection reading is unavailable")
 	}
-	return reader.ListArtifactPublications(ctx, artifactID)
+	return reader.ListArtifactPublications(ctx, artifactID, limit, offset)
 }
 
 // SettleArtifactPromotion 记录 provider 已证明的不可变 promotion 结果；Build 不解析 Registry 连接细节。

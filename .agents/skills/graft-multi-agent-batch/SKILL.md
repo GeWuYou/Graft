@@ -76,7 +76,7 @@ delegate small, overlapping, authority-unclear, or validation-strategy-changing 
    retry-exhaustion wave evidence and `required_context` to the caller or outer controller; its descendants remain
    unsettled and it never terminates the topic loop.
 10. At the wave boundary, let the outer controller recompute the ready frontier and, when justified by new evidence,
-    add or reorder only undispatched nodes with a new `topology_revision`.
+    add, split, merge, or reorder only undispatched nodes with a new `topology_revision`.
 11. Stop the wave when ownership begins to overlap, authority moves outside the inherited scope, validation changes
     strategy, or parallel execution becomes harder to review than local work.
 

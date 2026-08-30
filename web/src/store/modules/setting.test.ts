@@ -1229,6 +1229,17 @@ describe('setting store theme authority', () => {
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBeUndefined();
   });
 
+  it('preserves custom material tokens when applying only a new palette', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset('one-dark-pro', 'complete');
+    store.updateThemeToken('dark', '--graft-glass-blur', '42px');
+    store.selectThemePreset('industrial-yellow', 'palette');
+
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('42px');
+  });
+
   it('restores the target preset style values when leaving Industrial Yellow', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');

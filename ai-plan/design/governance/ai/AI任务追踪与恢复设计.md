@@ -188,7 +188,7 @@ runner：
 
 - batch wave 只执行当前 DAG ready frontier：节点的所有依赖必须先成功结算；无安全并行条件时允许退化为单节点波次
 - ready frontier 内的并行仍受 owned scope、authority owner、execution context 和 acceptance gate 独立性约束
-- 每个波次结算后由 outer main agent 重新计算 ready 集合；只允许增补或重排尚未 dispatch 的节点
+- 每个波次结算后由 outer main agent 重新计算 ready 集合；只允许增补、拆分、合并或重排尚未 dispatch 的节点
 - 已完成或已 dispatch 的节点是不可重写的历史事实；重规划必须记录 `topology_revision`、原因、证据、受影响节点、依赖变化、authority 影响和验证影响
 - outer main agent 负责切片、派发、验收与后续验证准备，不负责替代 active worker 完成其已委派的实现切片
 - 对 write-capable worker，`timeout != stalled`

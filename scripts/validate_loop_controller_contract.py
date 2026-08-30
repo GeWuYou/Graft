@@ -142,7 +142,7 @@ def validate_topology_plan(plan: Mapping[str, Any], scenario: str) -> list[Findi
 
 
 def validate_ready_frontier(
-    plan: Mapping[str, Any], completed: set[str], ready: list[str], scenario: str
+    plan: Mapping[str, Any], completed: set[str], dispatched: set[str], ready: list[str], scenario: str
 ) -> list[Finding]:
     findings: list[Finding] = []
     nodes = {
@@ -157,6 +157,10 @@ def validate_ready_frontier(
         if node is None:
             findings.append(Finding(scenario, f"ready frontier contains unknown node {node_id!r}"))
             continue
+        if node_id in completed:
+            findings.append(Finding(scenario, f"ready frontier cannot contain completed node {node_id!r}"))
+        elif node_id in dispatched:
+            findings.append(Finding(scenario, f"ready frontier cannot contain dispatched-but-unsettled node {node_id!r}"))
         if not (_string_set(node.get("depends_on")) or set()).issubset(completed):
             findings.append(Finding(scenario, f"ready node {node_id!r} has unsettled dependencies"))
     for index, left_id in enumerate(ready):
@@ -208,6 +212,14 @@ def validate_topology_evidence(worker: Mapping[str, Any], scenario: str) -> list
     for field in ("topology_revision", "node_id", "node_status", "dependency_observed", "gate_evidence"):
         if field not in evidence:
             findings.append(Finding(scenario, f"worker topology_evidence is missing {field!r}"))
+    revision = evidence.get("topology_revision")
+    if "topology_revision" in evidence and (type(revision) is not int or revision < 1):
+        findings.append(Finding(scenario, "worker topology_evidence topology_revision must be a positive integer"))
+    node_id = evidence.get("node_id")
+    if "node_id" in evidence and (not isinstance(node_id, str) or not node_id.strip()):
+        findings.append(Finding(scenario, "worker topology_evidence node_id must be a non-empty string"))
+    if "node_status" in evidence and evidence.get("node_status") not in {"completed", "blocked", "retry-needed"}:
+        findings.append(Finding(scenario, "worker topology_evidence node_status must be completed, blocked, or retry-needed"))
     for field in sorted(WORKER_CONTROLLER_FIELDS.intersection(evidence)):
         findings.append(Finding(scenario, f"worker topology_evidence cannot carry controller field {field!r}"))
     return findings
@@ -427,7 +439,13 @@ def run_validation() -> list[Finding]:
     valid_topology = _sample_topology()
     if validate_topology_plan(valid_topology, "valid-topology-plan"):
         findings.append(Finding("valid-topology-plan", "valid hybrid DAG was rejected"))
-    if validate_ready_frontier(valid_topology, {"authority-audit"}, ["implementation-a", "implementation-b"], "valid-ready-frontier"):
+    if validate_ready_frontier(
+        valid_topology,
+        {"authority-audit"},
+        {"authority-audit"},
+        ["implementation-a", "implementation-b"],
+        "valid-ready-frontier",
+    ):
         findings.append(Finding("valid-ready-frontier", "independent ready frontier was rejected"))
     valid_replan = {
         "previous_revision": 1,
@@ -462,13 +480,55 @@ def run_validation() -> list[Finding]:
     cycle_topology['nodes'][1]["depends_on"] = ["cycle-a"]
     cycle_topology['nodes'][2]["depends_on"] = ["cycle-a"]
     findings.extend(validate_topology_plan(cycle_topology, "topology-cycle-rejected"))
-    findings.extend(validate_ready_frontier(valid_topology, set(), ["implementation-a"], "ready-frontier-unsettled-dependency"))
-    findings.extend(validate_ready_frontier(valid_topology, {"authority-audit"}, ["implementation-a", "implementation-a"], "ready-frontier-duplicate-node"))
+    findings.extend(
+        validate_ready_frontier(
+            valid_topology,
+            set(),
+            set(),
+            ["implementation-a"],
+            "ready-frontier-unsettled-dependency",
+        )
+    )
+    findings.extend(
+        validate_ready_frontier(
+            valid_topology,
+            {"authority-audit"},
+            set(),
+            ["implementation-a", "implementation-a"],
+            "ready-frontier-duplicate-node",
+        )
+    )
+    findings.extend(
+        validate_ready_frontier(
+            valid_topology,
+            {"authority-audit", "implementation-a"},
+            {"authority-audit", "implementation-a"},
+            ["implementation-a"],
+            "ready-frontier-completed-node",
+        )
+    )
+    findings.extend(
+        validate_ready_frontier(
+            valid_topology,
+            {"authority-audit"},
+            {"authority-audit", "implementation-a"},
+            ["implementation-a"],
+            "ready-frontier-dispatched-unsettled-node",
+        )
+    )
 
     conflict_topology = _sample_topology()
     conflict_topology['nodes'][1]["owned_scope"] = ["docs/shared"]
     conflict_topology['nodes'][2]["owned_scope"] = ["docs/shared"]
-    findings.extend(validate_ready_frontier(conflict_topology, {"authority-audit"}, ["implementation-a", "implementation-b"], "ready-frontier-overlap"))
+    findings.extend(
+        validate_ready_frontier(
+            conflict_topology,
+            {"authority-audit"},
+            {"authority-audit"},
+            ["implementation-a", "implementation-b"],
+            "ready-frontier-overlap",
+        )
+    )
     findings.extend(
         validate_topology_replan(
             {**valid_replan, "affected_nodes": ["authority-audit"]},
@@ -489,6 +549,20 @@ def run_validation() -> list[Finding]:
                 }
             },
             "topology-evidence-cannot-transition-controller",
+        )
+    )
+    findings.extend(
+        validate_topology_evidence(
+            {
+                "topology_evidence": {
+                    "topology_revision": 0,
+                    "node_id": "",
+                    "node_status": "running",
+                    "dependency_observed": "passed",
+                    "gate_evidence": "focused-check-a",
+                }
+            },
+            "topology-evidence-validates-identity-and-status",
         )
     )
     findings.extend(validate_worker_handoff({"continue": False}, "worker-continue-cannot-terminate"))
@@ -621,9 +695,12 @@ def main() -> int:
         "topology-cycle-rejected",
         "ready-frontier-unsettled-dependency",
         "ready-frontier-duplicate-node",
+        "ready-frontier-completed-node",
+        "ready-frontier-dispatched-unsettled-node",
         "ready-frontier-overlap",
         "replan-cannot-rewrite-dispatched-node",
         "topology-evidence-cannot-transition-controller",
+        "topology-evidence-validates-identity-and-status",
         "archive-ready-requires-settled-topic",
         "recovery-complete-cannot-end",
         "context-restored-cannot-end",

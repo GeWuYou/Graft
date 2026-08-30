@@ -4,9 +4,12 @@ import { defineComponent, h } from 'vue';
 
 import BuildArtifactsPage from './index.vue';
 
-const mocks = vi.hoisted(() => ({ getBuildArtifacts: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getBuildArtifactPublications: vi.fn(), getBuildArtifacts: vi.fn() }));
 
-vi.mock('../../api/build', () => ({ getBuildArtifacts: mocks.getBuildArtifacts }));
+vi.mock('../../api/build', () => ({
+  getBuildArtifactPublications: mocks.getBuildArtifactPublications,
+  getBuildArtifacts: mocks.getBuildArtifacts,
+}));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }) }));
 vi.mock('@/shared/observability', () => ({
   formatBytes: (value: number) => `${value} B`,
@@ -63,6 +66,7 @@ describe('BuildArtifactsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getBuildArtifacts.mockResolvedValue({ items: [], total: 0 });
+    mocks.getBuildArtifactPublications.mockResolvedValue({ items: [] });
   });
 
   it('loads the immutable Artifact projection from the Build-owned read boundary', async () => {
@@ -92,5 +96,57 @@ describe('BuildArtifactsPage', () => {
 
     expect(wrapper.text()).toContain('new');
     expect(wrapper.text()).not.toContain('old');
+  });
+
+  it('ignores stale publication responses when switching artifacts quickly', async () => {
+    type Publication = {
+      publication_id: string;
+      destination: { repository_ref: string; reference: string };
+      created_at: string;
+    };
+    let resolveFirst!: (value: { items: Publication[] }) => void;
+    let resolveSecond!: (value: { items: Publication[] }) => void;
+    const first = new Promise<{ items: Publication[] }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<{ items: Publication[] }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    mocks.getBuildArtifactPublications.mockReset().mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const wrapper = mountPage();
+    const openPublications = (
+      wrapper.vm as unknown as {
+        openPublications: (artifact: { artifact_id: string }) => Promise<void>;
+      }
+    ).openPublications;
+
+    const firstRequest = openPublications({ artifact_id: 'artifact-old' });
+    const secondRequest = openPublications({ artifact_id: 'artifact-new' });
+    resolveSecond({
+      items: [
+        {
+          publication_id: 'publication-new',
+          destination: { repository_ref: 'repo', reference: 'new' },
+          created_at: '',
+        },
+      ],
+    });
+    await secondRequest;
+    resolveFirst({
+      items: [
+        {
+          publication_id: 'publication-old',
+          destination: { repository_ref: 'repo', reference: 'old' },
+          created_at: '',
+        },
+      ],
+    });
+    await firstRequest;
+
+    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(1, 'artifact-old');
+    expect(mocks.getBuildArtifactPublications).toHaveBeenNthCalledWith(2, 'artifact-new');
+    expect((wrapper.vm as any).publications).toEqual([
+      { publication_id: 'publication-new', destination: { repository_ref: 'repo', reference: 'new' }, created_at: '' },
+    ]);
   });
 });

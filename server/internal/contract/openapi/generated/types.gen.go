@@ -8550,7 +8550,10 @@ type BuildArtifactPublicationDestinationKind string
 
 // BuildArtifactPublicationList defines model for build-artifact-publication-list.
 type BuildArtifactPublicationList struct {
-	Items []BuildArtifactPublication `json:"items"`
+	Items  []BuildArtifactPublication `json:"items"`
+	Limit  int                        `json:"limit"`
+	Offset int                        `json:"offset"`
+	Total  int64                      `json:"total"`
 }
 
 // BuildBuilderPool defines model for build-builder-pool.
@@ -8638,6 +8641,7 @@ type BuildJobCreateRequest struct {
 	RuntimeTargetId *int64                           `json:"runtime_target_id,omitempty"`
 	TemplateRef     BuildJobCreateRequestTemplateRef `json:"template_ref"`
 	WorkspaceId     *string                          `json:"workspace_id,omitempty"`
+	union           json.RawMessage
 }
 
 // BuildJobCreateRequestDestinationKind defines model for BuildJobCreateRequest.Destination.Kind.
@@ -8648,6 +8652,12 @@ type BuildJobCreateRequestDriver string
 
 // BuildJobCreateRequestTemplateRef defines model for BuildJobCreateRequest.TemplateRef.
 type BuildJobCreateRequestTemplateRef string
+
+// BuildJobCreateRequest0 defines model for .
+type BuildJobCreateRequest0 = interface{}
+
+// BuildJobCreateRequest1 defines model for .
+type BuildJobCreateRequest1 = interface{}
 
 // BuildJobDetail defines model for build-job-detail.
 type BuildJobDetail struct {
@@ -16650,6 +16660,9 @@ type GetBuildArtifactsParams struct {
 
 // GetBuildArtifactPublicationsParams defines parameters for GetBuildArtifactPublications.
 type GetBuildArtifactPublicationsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -19913,6 +19926,194 @@ func (t ApplicationWorkspaceEntryCreateRequest) MarshalJSON() ([]byte, error) {
 
 func (t *ApplicationWorkspaceEntryCreateRequest) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsBuildJobCreateRequest0 returns the union data inside the BuildJobCreateRequest as a BuildJobCreateRequest0
+func (t BuildJobCreateRequest) AsBuildJobCreateRequest0() (BuildJobCreateRequest0, error) {
+	var body BuildJobCreateRequest0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromBuildJobCreateRequest0 overwrites any union data inside the BuildJobCreateRequest as the provided BuildJobCreateRequest0
+func (t *BuildJobCreateRequest) FromBuildJobCreateRequest0(v BuildJobCreateRequest0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeBuildJobCreateRequest0 performs a merge with any union data inside the BuildJobCreateRequest, using the provided BuildJobCreateRequest0
+func (t *BuildJobCreateRequest) MergeBuildJobCreateRequest0(v BuildJobCreateRequest0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsBuildJobCreateRequest1 returns the union data inside the BuildJobCreateRequest as a BuildJobCreateRequest1
+func (t BuildJobCreateRequest) AsBuildJobCreateRequest1() (BuildJobCreateRequest1, error) {
+	var body BuildJobCreateRequest1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromBuildJobCreateRequest1 overwrites any union data inside the BuildJobCreateRequest as the provided BuildJobCreateRequest1
+func (t *BuildJobCreateRequest) FromBuildJobCreateRequest1(v BuildJobCreateRequest1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeBuildJobCreateRequest1 performs a merge with any union data inside the BuildJobCreateRequest, using the provided BuildJobCreateRequest1
+func (t *BuildJobCreateRequest) MergeBuildJobCreateRequest1(v BuildJobCreateRequest1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t BuildJobCreateRequest) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.BuilderPoolId != nil {
+		object["builder_pool_id"], err = json.Marshal(t.BuilderPoolId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'builder_pool_id': %w", err)
+		}
+	}
+
+	object["destination"], err = json.Marshal(t.Destination)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'destination': %w", err)
+	}
+
+	object["driver"], err = json.Marshal(t.Driver)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'driver': %w", err)
+	}
+
+	if t.InputSnapshotId != nil {
+		object["input_snapshot_id"], err = json.Marshal(t.InputSnapshotId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'input_snapshot_id': %w", err)
+		}
+	}
+
+	if t.Platforms != nil {
+		object["platforms"], err = json.Marshal(t.Platforms)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'platforms': %w", err)
+		}
+	}
+
+	if t.RuntimeTargetId != nil {
+		object["runtime_target_id"], err = json.Marshal(t.RuntimeTargetId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'runtime_target_id': %w", err)
+		}
+	}
+
+	object["template_ref"], err = json.Marshal(t.TemplateRef)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'template_ref': %w", err)
+	}
+
+	if t.WorkspaceId != nil {
+		object["workspace_id"], err = json.Marshal(t.WorkspaceId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'workspace_id': %w", err)
+		}
+	}
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *BuildJobCreateRequest) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["builder_pool_id"]; found {
+		err = json.Unmarshal(raw, &t.BuilderPoolId)
+		if err != nil {
+			return fmt.Errorf("error reading 'builder_pool_id': %w", err)
+		}
+	}
+
+	if raw, found := object["destination"]; found {
+		err = json.Unmarshal(raw, &t.Destination)
+		if err != nil {
+			return fmt.Errorf("error reading 'destination': %w", err)
+		}
+	}
+
+	if raw, found := object["driver"]; found {
+		err = json.Unmarshal(raw, &t.Driver)
+		if err != nil {
+			return fmt.Errorf("error reading 'driver': %w", err)
+		}
+	}
+
+	if raw, found := object["input_snapshot_id"]; found {
+		err = json.Unmarshal(raw, &t.InputSnapshotId)
+		if err != nil {
+			return fmt.Errorf("error reading 'input_snapshot_id': %w", err)
+		}
+	}
+
+	if raw, found := object["platforms"]; found {
+		err = json.Unmarshal(raw, &t.Platforms)
+		if err != nil {
+			return fmt.Errorf("error reading 'platforms': %w", err)
+		}
+	}
+
+	if raw, found := object["runtime_target_id"]; found {
+		err = json.Unmarshal(raw, &t.RuntimeTargetId)
+		if err != nil {
+			return fmt.Errorf("error reading 'runtime_target_id': %w", err)
+		}
+	}
+
+	if raw, found := object["template_ref"]; found {
+		err = json.Unmarshal(raw, &t.TemplateRef)
+		if err != nil {
+			return fmt.Errorf("error reading 'template_ref': %w", err)
+		}
+	}
+
+	if raw, found := object["workspace_id"]; found {
+		err = json.Unmarshal(raw, &t.WorkspaceId)
+		if err != nil {
+			return fmt.Errorf("error reading 'workspace_id': %w", err)
+		}
+	}
+
 	return err
 }
 

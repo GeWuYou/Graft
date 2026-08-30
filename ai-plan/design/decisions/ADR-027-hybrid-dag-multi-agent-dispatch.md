@@ -5,6 +5,21 @@
 - Scope: repository-local multi-agent batch dispatch, worker contracts, loop frontier scheduling, and recovery-boundary planning
 - Extends: ADR-004 task runtime state machine
 
+## Semantic Review Layer
+
+- `graft-platform-architecture-review`: applicable because this ADR assigns topology, scheduling, and recovery
+  authority across the outer controller, batch wave, and worker boundaries; the review checks that no runtime or
+  terminal authority leaks into workers.
+- `graft-consistency-review`: applicable because the hybrid-DAG vocabulary and topology evidence are repeated across
+  the batch, loop, task, and recovery contracts; the review keeps those terms and state ownership aligned.
+- `graft-change-review`: applicable at implementation closeout to verify that the skills, validator, and recovery
+  documents preserve this ADR's authority boundaries.
+- `graft-ai-plan-governance`: applicable because the decision updates `ai-plan` recovery/governance language; it
+  confirms that `Work Contract` remains owned by intake governance and that no second workflow authority is added.
+
+No applicable Semantic Review Layer skill was unavailable for this decision. `Work Contract` rules remain owned by
+the intake governance and are unchanged by this ADR.
+
 ## Context
 
 `graft-multi-agent-batch` coordinates bounded worker slices, while the outer loop owns topic state, recovery, and

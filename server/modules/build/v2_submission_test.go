@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"graft/server/internal/moduleapi"
+	buildstore "graft/server/modules/build/store"
 )
 
 type v2SnapshotResolver struct{ snapshot moduleapi.WorkspaceSnapshot }
@@ -214,6 +215,30 @@ func TestSubmitExecutionPlanFreezesV2ReferencesWithoutTaskPathLeakage(t *testing
 	assertFrozenV2TaskInput(t, input, repository.v2Plan.ID, tasks.input.Input)
 	placement, found := repository.v2Plan.PlacementForPlatform("linux/amd64")
 	assertFrozenV2Placement(t, found, placement.SchedulingEvidence)
+}
+
+func TestSubmitExecutionPlanReusesAuthorizedInputSnapshot(t *testing.T) {
+	tasks := &recordingBuildTasks{}
+	repository := &recordingBuildRepository{inputSnapshots: buildstore.InputSnapshotListResult{Items: []moduleapi.WorkspaceSnapshot{{ID: "snapshot_1", SourceKind: moduleapi.WorkspaceSourceArchive, ContentDigest: "sha256:source", MaterializationRef: "snapshot-materialization://snapshot_1"}}}}
+	service, err := NewService(&recordingBuildContexts{}, tasks, tasks, repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.ConfigureInputSnapshotReader(repository)
+	service.ConfigureV2Submission(
+		v2SnapshotResolver{},
+		v2TargetReader{target: moduleapi.BuildRuntimeTargetSummary{ID: 4, Available: true, ProviderCapabilityProfile: "oci-build", ProviderCapabilityVersion: "docker/v1", SupportedDrivers: []string{"docker-engine"}, SupportedPlatforms: []string{"linux/amd64"}, WorkspaceLocalities: []string{"build-snapshot"}, SnapshotDeliveryModes: []string{moduleapi.SnapshotDeliveryModeTargetLocal}, BuildFeatures: []string{"registry-login"}}},
+		v2TargetAssignments{allowed: true},
+		v2RegistryResolver{},
+	)
+	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
+	receipt, err := service.SubmitExecutionPlan(ctx, ExecutionPlanRequest{InputSnapshotID: "snapshot_1", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Platforms: []string{"linux/amd64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry:primary", RepositoryRef: "team/app", Reference: "v1"}, IdempotencyKey: "snapshot-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.TaskID != 42 || repository.v2Plan.Workspace.ID != "snapshot_1" || repository.v2Plan.Workspace.MaterializationRef == "" {
+		t.Fatalf("input snapshot was not reused: receipt=%#v plan=%#v", receipt, repository.v2Plan)
+	}
 }
 
 func assertFrozenV2Submission(t *testing.T, receipt moduleapi.TaskReceipt, plan moduleapi.BuildExecutionPlan) {

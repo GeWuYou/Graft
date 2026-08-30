@@ -94,8 +94,8 @@ for the real Compose fixture gate below.
 ## Batch 5 follow-up scope
 
 The deterministic Build SDK gate is now executable locally through the Task-owned lease and the
-`docker-runtime-agent` Moby/OCI SDK path. It verifies transient material/result handling, result-digest replay, and the
-absence of the removed server-local Build Docker/CLI fallback. The remaining acceptance gap is the real Compose fixture
+`docker-runtime-agent` Moby/OCI SDK path. It verifies transient material/result handling and result-digest replay. The
+remaining acceptance gap is the real Compose fixture
 gate, which still requires immutable Backend, Agent, and fixture-only driver images, the Agent digest, and the Vault/
 registry credentials described above. The Backend/Agent fixture must mount the named `build-snapshots` volume at
 `/tmp/graft-build-snapshots`; the Agent still publishes no inbound port. Runtime Target discovery/summary, Container

@@ -116,6 +116,7 @@ const publicationLoading = ref(false);
 const publicationError = ref('');
 const publications = ref<BuildArtifactPublication[]>([]);
 let requestSequence = 0;
+let publicationRequestSequence = 0;
 
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'digest', title: t('build.artifacts.columns.digest'), cell: 'digest', ellipsis: true, minWidth: 250 },
@@ -127,17 +128,20 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
 ]);
 
 async function openPublications(artifact: BuildArtifact) {
+  const sequence = ++publicationRequestSequence;
   publicationVisible.value = true;
   publicationLoading.value = true;
   publicationError.value = '';
   publications.value = [];
   try {
     const response = await getBuildArtifactPublications(artifact.artifact_id);
+    if (sequence !== publicationRequestSequence) return;
     publications.value = response.items;
   } catch {
+    if (sequence !== publicationRequestSequence) return;
     publicationError.value = t('build.artifacts.publications.loadFailed');
   } finally {
-    publicationLoading.value = false;
+    if (sequence === publicationRequestSequence) publicationLoading.value = false;
   }
 }
 

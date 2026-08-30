@@ -121,6 +121,25 @@ describe('useScrollEdgeActions', () => {
     expect(controller.metrics.value.target).toBe(null);
   });
 
+  it('restores the original ref target identity after temporary registration', async () => {
+    const first = createTarget();
+    const second = createTarget({ scrollTop: 200 });
+    const initialTarget = ref<HTMLElement | null>(first);
+    const { controller, stop } = mountController({ target: initialTarget });
+    await nextTick();
+
+    const unregister = controller.registerTarget(second);
+    await nextTick();
+    unregister();
+    await nextTick();
+
+    const third = createTarget({ scrollTop: 100 });
+    initialTarget.value = third;
+    await nextTick();
+    expect(controller.metrics.value.target).toBe(third);
+    stop();
+  });
+
   it('uses instant scrolling when reduced motion is preferred', async () => {
     const target = createTarget();
     const scrollTo = vi.fn();
@@ -148,6 +167,33 @@ describe('useScrollEdgeActions', () => {
     await nextTick();
     expect(observe).toHaveBeenCalledOnce();
     expect(controller.metrics.value.target).not.toBeNull();
+
+    stop();
+    expect(disconnect).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it('refreshes metrics after target mutations and disconnects the observer on cleanup', async () => {
+    let observerCallback!: MutationCallback;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    class MutationObserverStub {
+      constructor(callback: MutationCallback) {
+        observerCallback = callback;
+      }
+      observe = observe;
+      disconnect = disconnect;
+    }
+    vi.stubGlobal('MutationObserver', MutationObserverStub);
+
+    const target = createTarget();
+    const { controller, stop } = mountController({ target });
+    await nextTick();
+    expect(observe).toHaveBeenCalledWith(target, expect.objectContaining({ childList: true, subtree: true }));
+
+    Object.defineProperty(target, 'scrollHeight', { configurable: true, value: 500 });
+    observerCallback([], {} as MutationObserver);
+    expect(controller.metrics.value.scrollHeight).toBe(500);
 
     stop();
     expect(disconnect).toHaveBeenCalledOnce();

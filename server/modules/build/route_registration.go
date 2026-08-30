@@ -148,7 +148,12 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
-		items, listErr := service.ListArtifactPublications(c.Request.Context(), artifactID)
+		query, ok := buildPaginationQuery(c)
+		if !ok {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		result, listErr := service.ListArtifactPublications(c.Request.Context(), artifactID, query.Limit, query.Offset)
 		if errors.Is(listErr, buildstore.ErrNotFound) {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
 			return
@@ -157,7 +162,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildArtifactPublicationList{Data: toBuildArtifactPublicationList(items)})
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildArtifactPublicationList{Data: toBuildArtifactPublicationList(result, query.Limit, query.Offset)})
 	})
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildListQuery(c)

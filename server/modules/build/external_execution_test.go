@@ -28,6 +28,9 @@ type externalExecutionRepository struct {
 	manifestSettlements  int
 	promotionSettlements int
 	reservationRunning   bool
+	retryReservationErr  error
+	markReservationErr   error
+	renewCalls           int
 }
 
 func (*externalExecutionRepository) CreateJob(context.Context, buildstore.JobSnapshot) error {
@@ -93,7 +96,16 @@ func (*externalExecutionRepository) ReserveBuilder(context.Context, *sql.Tx, mod
 func (*externalExecutionRepository) ReserveBuilderAttempt(context.Context, moduleapi.BuilderReservation) (moduleapi.BuilderReservation, error) {
 	return moduleapi.BuilderReservation{}, nil
 }
+func (r *externalExecutionRepository) ReserveBuilderAttemptWithCapacity(context.Context, moduleapi.BuilderReservation, int) (moduleapi.BuilderReservation, error) {
+	if r.retryReservationErr != nil {
+		return moduleapi.BuilderReservation{}, r.retryReservationErr
+	}
+	return moduleapi.BuilderReservation{}, nil
+}
 func (r *externalExecutionRepository) MarkBuilderReservationRunning(context.Context, uint64, string, string) error {
+	if r.markReservationErr != nil {
+		return r.markReservationErr
+	}
 	if r.reservationRunning {
 		return buildstore.ErrConflict
 	}
@@ -101,6 +113,7 @@ func (r *externalExecutionRepository) MarkBuilderReservationRunning(context.Cont
 	return nil
 }
 func (r *externalExecutionRepository) RenewBuilderReservation(context.Context, uint64, string, string, time.Time) error {
+	r.renewCalls++
 	if !r.reservationRunning {
 		return buildstore.ErrConflict
 	}
@@ -172,10 +185,10 @@ func TestRegisterBuildExternalExecutionRegistersOnlyCurrentExecutors(t *testing.
 	if err := registerBuildExternalExecution(registrar, buildExternalExecutionDependencies{repository: &externalExecutionRepository{}, service: &Service{}}); err != nil {
 		t.Fatalf("register build external execution: %v", err)
 	}
-	if len(registrar.materialResolvers) != 2 || len(registrar.resultRecorders) != 2 {
-		t.Fatalf("registered executor count = material %d/result %d, want 2/2", len(registrar.materialResolvers), len(registrar.resultRecorders))
+	if len(registrar.materialResolvers) != 3 || len(registrar.resultRecorders) != 3 {
+		t.Fatalf("registered executor count = material %d/result %d, want 3/3", len(registrar.materialResolvers), len(registrar.resultRecorders))
 	}
-	for index, want := range []moduleapi.StageExecutorType{v2BuildStageExecutor, artifactPromotionStageExecutor} {
+	for index, want := range []moduleapi.StageExecutorType{buildStageExecutor, v2BuildStageExecutor, artifactPromotionStageExecutor} {
 		if got := registrar.materialResolvers[index].Type(); got != want {
 			t.Fatalf("material resolver %d = %q, want %q", index, got, want)
 		}
@@ -227,6 +240,19 @@ func TestBuildExternalExecutionResultMappingsAndReplay(t *testing.T) {
 	}
 	if repository.v2Settlements != 2 || repository.v2Result.Tag != "latest" {
 		t.Fatalf("unexpected v2 settlement: %#v", repository.v2Result)
+	}
+}
+
+func TestBuildExternalExecutionRetryReservationConflictDoesNotRenewOldLease(t *testing.T) {
+	repository := &externalExecutionRepository{plan: singlePlatformExecutionPlan(), retryReservationErr: buildstore.ErrConflict}
+	service := &Service{repository: repository}
+	handler := &buildExternalExecutionHandler{executorType: v2BuildStageExecutor, dependencies: buildExternalExecutionDependencies{repository: repository, service: service}}
+	request := moduleapi.ExternalExecutionMaterialRequest{TaskID: 42, Attempt: 2, ExecutorType: v2BuildStageExecutor, RuntimeTargetID: 9, OperationID: buildImagePublishOperation, Input: mustExternalJSON(t, moduleapi.BuildPlanTaskInput{BuildID: "plan-1", ExecutionPlanID: "plan-1"})}
+	if _, err := handler.ResolveExternalExecutionMaterial(context.Background(), request); !errors.Is(err, buildstore.ErrConflict) {
+		t.Fatalf("retry reservation error = %v, want conflict", err)
+	}
+	if repository.renewCalls != 0 {
+		t.Fatalf("retry reservation conflict renewed a lease %d times", repository.renewCalls)
 	}
 }
 
