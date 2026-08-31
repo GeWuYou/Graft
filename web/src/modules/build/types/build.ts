@@ -11,10 +11,14 @@ export type BuildJobCreateRequest = components['schemas']['build-job-create-requ
 export type BuildJobListResponse = components['schemas']['build-job-list'];
 export type BuildArtifact = components['schemas']['build-artifact'];
 export type BuildArtifactListResponse = components['schemas']['build-artifact-list'];
+export type BuildArtifactPublication = components['schemas']['build-artifact-publication'];
+export type BuildArtifactPublicationListResponse = components['schemas']['build-artifact-publication-list'];
 export type BuildArtifactPromotionCreateRequest = components['schemas']['build-artifact-promotion-create-request'];
 export type BuildBuilderPool = components['schemas']['build-builder-pool'];
 export type BuildInputSnapshot = components['schemas']['build-input-snapshot'];
 export type BuildInputSnapshotUploadRequest = components['schemas']['build-input-snapshot-upload-request'];
+export type BuildWorkspace = components['schemas']['build-workspace'];
+export type BuildWorkspaceListResponse = components['schemas']['build-workspace-list'];
 
 // 这些引用由 OpenAPI enum 派生，避免创建表单与提交契约各自维护一份可发布意图。
 export const BUILD_TEMPLATE_REF = 'oci-dockerfile/default@v1' satisfies BuildTemplateRef;

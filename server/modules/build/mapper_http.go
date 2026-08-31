@@ -25,6 +25,14 @@ func mapBuilderPools(items []moduleapi.BuilderPool) []openapigen.BuildBuilderPoo
 	return result
 }
 
+func toBuildWorkspaceList(result buildstore.WorkspaceListResult, query buildstore.WorkspaceListQuery) openapigen.BuildWorkspaceList {
+	items := make([]openapigen.BuildWorkspace, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, openapigen.BuildWorkspace{WorkspaceId: item.ID, Name: item.Name, SourceKind: openapigen.BuildWorkspaceSourceKind(item.SourceKind), SourceReference: item.SourceReference, RetentionPolicy: item.RetentionPolicy, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt})
+	}
+	return openapigen.BuildWorkspaceList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset}
+}
+
 func toBuildJobList(result buildstore.ListResult, query buildstore.ListQuery) openapigen.BuildJobList {
 	items := make([]openapigen.BuildJobSummary, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -39,6 +47,27 @@ func toBuildArtifactList(result buildstore.V2ArtifactListResult, limit, offset i
 		items = append(items, openapigen.BuildArtifact{ArtifactId: item.ArtifactID, Digest: item.Digest, MediaType: item.MediaType, Platforms: item.Platforms, SizeBytes: item.SizeBytes, CreatedAt: item.CreatedAt})
 	}
 	return openapigen.BuildArtifactList{Items: items, Total: result.Total, Limit: limit, Offset: offset}
+}
+
+func toBuildArtifactPublicationList(result buildstore.ArtifactPublicationListResult, limit, offset int) openapigen.BuildArtifactPublicationList {
+	items := make([]openapigen.BuildArtifactPublication, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, openapigen.BuildArtifactPublication{
+			PublicationId: item.PublicationID,
+			ArtifactId:    item.ArtifactID,
+			Digest:        item.Digest,
+			MediaType:     item.MediaType,
+			Destination: struct {
+				ConnectionRef string                                             `json:"connection_ref"`
+				Kind          openapigen.BuildArtifactPublicationDestinationKind `json:"kind"`
+				Reference     string                                             `json:"reference"`
+				RepositoryRef string                                             `json:"repository_ref"`
+			}{ConnectionRef: item.ConnectionRef, Kind: openapigen.BuildArtifactPublicationDestinationKind(item.DestinationKind), RepositoryRef: item.RepositoryRef, Reference: item.Reference},
+			CredentialExecutionMode: item.CredentialExecutionMode,
+			CreatedAt:               item.CreatedAt,
+		})
+	}
+	return openapigen.BuildArtifactPublicationList{Items: items, Total: result.Total, Limit: limit, Offset: offset}
 }
 
 func toBuildJobDetail(item buildstore.JobProjection) openapigen.BuildJobDetail {

@@ -816,11 +816,6 @@ func containsBuildRef(values []string, wanted string) bool {
 //nolint:cyclop,gocyclo // 规范化必须在持久化前枚举所有调用方可控的计划引用。
 func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanRequest, error) {
 	request.InputSnapshotID, request.WorkspaceID, request.BuilderPoolID, request.TemplateRef, request.Driver = strings.TrimSpace(request.InputSnapshotID), strings.TrimSpace(request.WorkspaceID), strings.TrimSpace(request.BuilderPoolID), strings.TrimSpace(request.TemplateRef), strings.TrimSpace(request.Driver)
-	if request.InputSnapshotID != "" && request.WorkspaceID == "" {
-		// Migration fallback only: legacy Application resolver receives the same
-		// stable reference while the Build-owned reader is being rolled out.
-		request.WorkspaceID = request.InputSnapshotID
-	}
 	request.Destination.Kind = strings.TrimSpace(request.Destination.Kind)
 	request.Destination.ConnectionRef = strings.TrimSpace(request.Destination.ConnectionRef)
 	request.Destination.RepositoryRef = strings.TrimSpace(request.Destination.RepositoryRef)
@@ -836,7 +831,7 @@ func normalizeExecutionPlanRequest(request ExecutionPlanRequest) (ExecutionPlanR
 	if request.CachePolicy != "disabled" || request.SecurityPolicy != "default" {
 		return ExecutionPlanRequest{}, errors.New("execution plan policy is unsupported")
 	}
-	if (request.InputSnapshotID == "" && request.WorkspaceID == "") || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.InputSnapshotID+request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
+	if (request.InputSnapshotID == "") == (request.WorkspaceID == "") || (request.RuntimeTargetID <= 0 && request.BuilderPoolID == "") || (request.RuntimeTargetID > 0 && request.BuilderPoolID != "") || request.TemplateRef == "" || request.Driver == "" || request.Destination.Kind != v2OCIDestination || request.Destination.ConnectionRef == "" || request.Destination.RepositoryRef == "" || request.Destination.Reference == "" || strings.ContainsAny(request.InputSnapshotID+request.WorkspaceID+request.BuilderPoolID+request.Destination.RepositoryRef+request.Destination.Reference, "\x00\r\n") {
 		return ExecutionPlanRequest{}, errors.New("invalid execution plan request")
 	}
 	if len(request.Platforms) == 0 {

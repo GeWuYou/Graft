@@ -22,9 +22,25 @@
                 :label="t('build.jobs.create.sourceMode')"
               >
                 <t-radio-group v-model="sourceMode">
+                  <t-radio value="workspace">{{ t('build.jobs.create.selectWorkspace') }}</t-radio>
                   <t-radio value="upload">{{ t('build.jobs.create.uploadArchive') }}</t-radio>
                   <t-radio value="reuse">{{ t('build.jobs.create.reuseSnapshot') }}</t-radio>
                 </t-radio-group>
+              </t-form-item>
+              <t-form-item
+                v-if="sourceMode === 'workspace'"
+                class="build-create-page__field--full"
+                name="workspace_id"
+                :label="t('build.jobs.create.workspace')"
+              >
+                <t-select
+                  v-model="form.workspace_id"
+                  :options="workspaceOptions"
+                  :loading="workspaceLoading"
+                  :disabled="workspaceLoading || workspaceOptions.length === 0"
+                  :placeholder="t('build.jobs.create.workspacePlaceholder')"
+                  clearable
+                />
               </t-form-item>
               <t-form-item
                 v-if="sourceMode === 'upload'"
@@ -44,7 +60,7 @@
                 </p>
               </t-form-item>
               <t-form-item
-                v-else
+                v-if="sourceMode === 'reuse'"
                 class="build-create-page__field--full"
                 name="input_snapshot_id"
                 :label="t('build.jobs.create.snapshot')"
@@ -76,7 +92,15 @@
                 theme="warning"
                 :message="t('build.jobs.create.snapshotEmpty')"
               />
+              <t-alert
+                v-if="
+                  sourceMode === 'workspace' && !workspaceLoading && !workspaceError && workspaceOptions.length === 0
+                "
+                theme="warning"
+                :message="t('build.jobs.create.workspaceEmpty')"
+              />
               <t-alert v-if="snapshotError" theme="warning" :message="snapshotError" />
+              <t-alert v-if="workspaceError" theme="warning" :message="workspaceError" />
             </div>
           </section>
 
@@ -260,6 +284,7 @@ import {
   getBuildInputSnapshots,
   getBuildRegistryDestinations,
   getBuildRuntimeTargets,
+  getBuildWorkspaces,
   uploadBuildInputSnapshot,
 } from '../../api/build';
 import { BUILD_ROUTE_PATH } from '../../contract/paths';
@@ -276,10 +301,11 @@ const submitting = ref(false);
 const message = ref('');
 const messageTheme = ref<'success' | 'error'>('success');
 const selectionMode = ref<'target' | 'pool'>('target');
-const sourceMode = ref<'upload' | 'reuse'>('upload');
+const sourceMode = ref<'workspace' | 'upload' | 'reuse'>('upload');
 const archiveFile = ref<File>();
 type BuildJobForm = Parameters<typeof createBuildJob>[0];
 const form = ref<BuildJobForm>({
+  workspace_id: '',
   input_snapshot_id: '',
   runtime_target_id: undefined,
   template_ref: BUILD_TEMPLATE_REF,
@@ -305,6 +331,7 @@ const platformOptions = computed(() =>
   })),
 );
 const snapshotOptions = ref<SelectorOption[]>([]);
+const workspaceOptions = ref<SelectorOption[]>([]);
 const runtimeTargetOptions = ref<SelectorOption[]>([]);
 const builderPools = ref<BuildBuilderPool[]>([]);
 const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
@@ -315,11 +342,13 @@ const builderPoolOptions = computed<BuilderPoolOption[]>(() => {
   }));
 });
 const snapshotLoading = ref(false);
+const workspaceLoading = ref(false);
 const snapshotOffset = ref(0);
 const snapshotTotal = ref<number>();
 const runtimeTargetLoading = ref(false);
 const builderPoolLoading = ref(false);
 const snapshotError = ref('');
+const workspaceError = ref('');
 const snapshotHasMore = computed(() => snapshotTotal.value !== undefined && snapshotOffset.value < snapshotTotal.value);
 const runtimeTargetError = ref('');
 const builderPoolError = ref('');
@@ -340,7 +369,43 @@ const repositoryOptions = computed(() =>
 onMounted(loadSelectorOptions);
 
 async function loadSelectorOptions() {
-  await Promise.all([loadSnapshots(), loadRuntimeTargets(), loadBuilderPools(), loadRegistryDestinations()]);
+  await Promise.all([
+    loadSnapshots(),
+    loadWorkspaces(),
+    loadRuntimeTargets(),
+    loadBuilderPools(),
+    loadRegistryDestinations(),
+  ]);
+}
+
+async function loadWorkspaces() {
+  if (workspaceLoading.value) return;
+  workspaceLoading.value = true;
+  workspaceError.value = '';
+  try {
+    const requestLimit = 100;
+    const options = new Map<string, SelectorOption>();
+    let requestOffset = 0;
+    while (true) {
+      const response = await getBuildWorkspaces({ limit: requestLimit, offset: requestOffset });
+      for (const item of response.items ?? []) {
+        if (!item.workspace_id || options.has(item.workspace_id)) continue;
+        options.set(item.workspace_id, {
+          value: item.workspace_id,
+          label: `${item.name} (${item.source_kind})`,
+        });
+      }
+
+      const nextOffset = (response.offset ?? requestOffset) + (response.limit ?? requestLimit);
+      if (!response.items?.length || nextOffset <= requestOffset || nextOffset >= response.total) break;
+      requestOffset = nextOffset;
+    }
+    workspaceOptions.value = [...options.values()];
+  } catch (error) {
+    workspaceError.value = resolveLocalizedErrorMessage(t, error, t('build.jobs.create.workspaceLoadFailed'));
+  } finally {
+    workspaceLoading.value = false;
+  }
 }
 
 async function loadSnapshots() {
@@ -443,8 +508,16 @@ watch(selectionMode, (mode) => {
   }
 });
 watch(sourceMode, (mode) => {
-  if (mode === 'upload') form.value.input_snapshot_id = '';
-  else archiveFile.value = undefined;
+  if (mode === 'upload') {
+    form.value.input_snapshot_id = '';
+    form.value.workspace_id = '';
+  } else if (mode === 'reuse') {
+    form.value.workspace_id = '';
+    archiveFile.value = undefined;
+  } else {
+    form.value.input_snapshot_id = '';
+    archiveFile.value = undefined;
+  }
   idempotencyKey = undefined;
   idempotencyPayload = undefined;
 });
@@ -476,6 +549,8 @@ let idempotencyPayload: string | undefined;
 let idempotencySequence = 0;
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
 const rules = computed(() => ({
+  workspace_id:
+    sourceMode.value === 'workspace' ? [{ required: true, message: t('build.jobs.create.workspaceRequired') }] : [],
   input_snapshot_id:
     sourceMode.value === 'reuse' ? [{ required: true, message: t('build.jobs.create.snapshotRequired') }] : [],
   runtime_target_id:
@@ -524,7 +599,11 @@ async function submit({ validateResult }: SubmitContext) {
       const snapshot = await uploadBuildInputSnapshot(archiveFile.value);
       form.value.input_snapshot_id = snapshot.snapshot_id;
     }
-    const payload = { ...form.value };
+    const payload = {
+      ...form.value,
+      ...(form.value.workspace_id ? {} : { workspace_id: undefined }),
+      ...(form.value.input_snapshot_id ? {} : { input_snapshot_id: undefined }),
+    };
     const payloadSnapshot = JSON.stringify(payload);
     if (idempotencyPayload !== payloadSnapshot) {
       idempotencyPayload = payloadSnapshot;

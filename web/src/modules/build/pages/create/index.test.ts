@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getBuildInputSnapshots: vi.fn(),
   getBuildRegistryDestinations: vi.fn(),
   getBuildRuntimeTargets: vi.fn(),
+  getBuildWorkspaces: vi.fn(),
   uploadBuildInputSnapshot: vi.fn(),
   push: vi.fn(),
 }));
@@ -121,6 +122,7 @@ describe('BuildCreatePage', () => {
       offset: 0,
     });
     mocks.getBuildRuntimeTargets.mockResolvedValue({ items: [{ target_id: 4, display_name: 'Local Docker' }] });
+    mocks.getBuildWorkspaces.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
     mocks.getBuildBuilderPools.mockResolvedValue({ items: [] });
     mocks.getBuildRegistryDestinations.mockResolvedValue({
       items: [
@@ -195,5 +197,27 @@ describe('BuildCreatePage', () => {
     expect(mocks.getBuildInputSnapshots).toHaveBeenNthCalledWith(2, { limit: 100, offset: 100 });
     expect(wrapper.findAll('select')[0].findAll('option')).toHaveLength(3);
     expect(wrapper.find('[data-testid="build-load-more-snapshots"]').exists()).toBe(false);
+  });
+
+  it('discovers all authorized workspaces across paginated responses', async () => {
+    mocks.getBuildWorkspaces
+      .mockResolvedValueOnce({
+        items: [{ workspace_id: 'workspace-1', name: 'First', source_kind: 'git' }],
+        total: 101,
+        limit: 100,
+        offset: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [{ workspace_id: 'workspace-2', name: 'Second', source_kind: 'generated' }],
+        total: 101,
+        limit: 100,
+        offset: 100,
+      });
+
+    mountPage();
+    await flushPromises();
+
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(1, { limit: 100, offset: 0 });
+    expect(mocks.getBuildWorkspaces).toHaveBeenNthCalledWith(2, { limit: 100, offset: 100 });
   });
 });

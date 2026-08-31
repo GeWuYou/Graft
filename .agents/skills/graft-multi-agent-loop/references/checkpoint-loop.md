@@ -1,5 +1,9 @@
 # Checkpoint Loop Example
 
+When a task uses the hybrid DAG contract, `pending_batches` and `next_batch` remain outer-controller projections of the
+ready frontier. A checkpoint reports node evidence only and cannot change `topology_revision` or replan undispatched
+nodes.
+
 This example shows the explicit non-default `checkpoint-loop` mode.
 
 Use this mode only when the caller explicitly sets `loop_mode=checkpoint-loop`.

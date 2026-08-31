@@ -70,13 +70,33 @@ through the production-owned lifecycle rather than a fixture database shortcut.
 Run `tests/conformance/docker-runtime-agent/run.sh` with the required images and
 digest to repeat the full lifecycle gate.
 
+## Deterministic Build SDK evidence
+
+The Docker Runtime Agent package now has an executable lease-to-provider seam
+test in `server/agents/docker-runtime-agent/internal/build_provider_test.go`.
+It verifies that `build-execution-material/v1` is fetched with the lease fence
+token before the Moby SDK is called, that the Dockerfile context is sent through
+the SDK, and that the returned value is the provider-neutral
+`build-execution-result/v1` payload. The adjacent execution tests cover result
+submission before terminal receipt, transient result transport recovery, and
+no provider replay during digest/result replay.
+
+Run the deterministic gate with:
+
+```sh
+cd server
+go test ./agents/docker-runtime-agent/...
+```
+
+This is a local executable proof of the Agent boundary; it is not a substitute
+for the real Compose fixture gate below.
+
 ## Batch 5 follow-up scope
 
-The Batch 5 Build SDK migration keeps the lifecycle gates above as prior Agent enrollment evidence and adds a pending
-Build execution gate. That gate must run the Build operation allowlist through the Task-owned lease and the
-`docker-runtime-agent` Moby/OCI SDK path, verify transient material/result handling and result-digest replay, and prove
-that no server-local Build Docker/CLI path or fallback remains. The Backend/Agent fixture must mount the named
-`build-snapshots` volume at `/tmp/graft-build-snapshots`; the Agent still publishes no inbound port. Runtime Target
-discovery/summary, Container read/stream/interactive and Update Controller remain explicit server-socket consumers.
-Validation evidence
-for this follow-up is intentionally left for the Batch 5 main-agent closeout.
+The deterministic Build SDK gate is now executable locally through the Task-owned lease and the
+`docker-runtime-agent` Moby/OCI SDK path. It verifies transient material/result handling and result-digest replay. The
+remaining acceptance gap is the real Compose fixture
+gate, which still requires immutable Backend, Agent, and fixture-only driver images, the Agent digest, and the Vault/
+registry credentials described above. The Backend/Agent fixture must mount the named `build-snapshots` volume at
+`/tmp/graft-build-snapshots`; the Agent still publishes no inbound port. Runtime Target discovery/summary, Container
+read/stream/interactive and Update Controller remain explicit server-socket consumers.

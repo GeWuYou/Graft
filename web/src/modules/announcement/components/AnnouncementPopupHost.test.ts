@@ -6,7 +6,6 @@ import { defineComponent, h, nextTick } from 'vue';
 import AnnouncementPopupHost from './AnnouncementPopupHost.vue';
 
 const pushMock = vi.fn();
-const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
 async function flushPromises() {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -151,7 +150,7 @@ describe('AnnouncementPopupHost', () => {
     const api = await import('../api/announcement');
     vi.mocked(api.markAnnouncementRead).mockClear();
     vi.mocked(MessagePlugin.error).mockClear();
-    dispatchSpy.mockClear();
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
     const wrapper = mount(AnnouncementPopupHost, {
       global: { stubs: { AnnouncementReadPanel: panelStub } },

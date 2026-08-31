@@ -1,5 +1,9 @@
 # Topic Completion Loop Example
 
+When a task uses the hybrid DAG contract, `pending_batches` and `next_batch` in these examples are projections of the
+outer controller's current ready frontier. The controller also preserves `topology_revision` and any boundary replan
+evidence; workers never select or mutate that frontier.
+
 - [Initial State](#initial-state)
 - [Batch 1 Closeout](#batch-1-closeout)
 - [Batch 2 Closeout](#batch-2-closeout)

@@ -130,6 +130,7 @@ export const DEBUG_FLAG_REGISTRY = [
   },
   {
     flagId: 'frontend-investigation',
+    envKeys: ['VITE_DEBUG_FRONTEND_INVESTIGATION'],
     owner: 'shared frontend behavior investigation foundation',
     summary: '前端行为取证基础事件、关联 ID、序列和脱敏日志开关；具体业务探针仍按调查范围临时添加。',
     relatedPaths: ['src/shared/debug/behavior-investigation.ts'],

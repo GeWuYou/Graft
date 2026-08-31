@@ -84,6 +84,23 @@ function resolveLogLevel(rawLevel: string | undefined): LogLevel {
   return resolveDefaultLevel();
 }
 
+function resolveDebugModuleAllowlist(rawModules: string | undefined): readonly string[] | null {
+  const modules = (rawModules ?? '')
+    .split(',')
+    .map((moduleName) => moduleName.trim())
+    .filter(Boolean);
+
+  return modules.length > 0 ? modules : null;
+}
+
+function isDebugModuleAllowed(moduleName: string, allowlist: readonly string[] | null): boolean {
+  if (!allowlist) {
+    return true;
+  }
+
+  return allowlist.some((allowedModule) => moduleName === allowedModule || moduleName.startsWith(`${allowedModule}:`));
+}
+
 function shouldLog(eventLevel: Exclude<LogLevel, 'silent'>, currentLevel: LogLevel): boolean {
   if (currentLevel === 'silent') {
     return false;
@@ -109,6 +126,7 @@ class LoggerCore implements Logger {
     private readonly moduleName: string,
     private readonly currentLevel: LogLevel,
     private readonly transport: LoggerTransport,
+    private readonly debugModuleAllowlist: readonly string[] | null,
     private readonly context: LoggerContext = {},
   ) {}
 
@@ -134,15 +152,31 @@ class LoggerCore implements Logger {
   }
 
   child(name: string): Logger {
-    return new LoggerCore(joinModuleName(this.moduleName, name), this.currentLevel, this.transport, this.context);
+    return new LoggerCore(
+      joinModuleName(this.moduleName, name),
+      this.currentLevel,
+      this.transport,
+      this.debugModuleAllowlist,
+      this.context,
+    );
   }
 
   withContext(context: LoggerContext): Logger {
-    return new LoggerCore(this.moduleName, this.currentLevel, this.transport, mergeContext(this.context, context));
+    return new LoggerCore(
+      this.moduleName,
+      this.currentLevel,
+      this.transport,
+      this.debugModuleAllowlist,
+      mergeContext(this.context, context),
+    );
   }
 
   private emit(level: Exclude<LogLevel, 'silent'>, message: string, meta?: unknown, error?: Error): void {
     if (!shouldLog(level, this.currentLevel)) {
+      return;
+    }
+
+    if (level === 'debug' && !isDebugModuleAllowed(this.moduleName, this.debugModuleAllowlist)) {
       return;
     }
 
@@ -162,10 +196,16 @@ class LoggerCore implements Logger {
 }
 
 const defaultLogLevel = resolveLogLevel(import.meta.env.VITE_LOG_LEVEL);
+const defaultDebugModuleAllowlist = resolveDebugModuleAllowlist(import.meta.env.VITE_LOG_DEBUG_MODULES);
 const defaultTransport = createTransport(defaultLogLevel);
 
 export function createLogger(moduleName: string): Logger {
-  return new LoggerCore(normalizeModuleSegment(moduleName), defaultLogLevel, defaultTransport);
+  return new LoggerCore(
+    normalizeModuleSegment(moduleName),
+    defaultLogLevel,
+    defaultTransport,
+    defaultDebugModuleAllowlist,
+  );
 }
 
 export function patchGlobalLoggerContext(context: LoggerContext): void {
