@@ -1,5 +1,5 @@
 <template>
-  <section :class="containerClasses" @scroll="emit('scroll', $event)">
+  <section ref="pageContainerRef" :class="containerClasses" @scroll="emit('scroll', $event)">
     <main :class="mainClasses">
       <div :class="`${prefix}-page-container__content`">
         <breadcrumb />
@@ -12,9 +12,10 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { prefix } from '@/config/global';
+import { useScrollEdgeActions, useScrollEdgeActionsContext } from '@/shared/composables';
 import type { PageSurfaceType } from '@/utils/route/meta';
 
 import Breadcrumb from './Breadcrumb.vue';
@@ -29,6 +30,20 @@ const props = defineProps<{
 const emit = defineEmits<{
   scroll: [event: Event];
 }>();
+
+const pageContainerRef = ref<HTMLElement | null>(null);
+const scrollEdgeActions = useScrollEdgeActions({ target: pageContainerRef });
+const scrollEdgeActionsContext = useScrollEdgeActionsContext();
+let unregisterScrollEdgeActions: (() => void) | undefined;
+
+onMounted(() => {
+  unregisterScrollEdgeActions = scrollEdgeActionsContext?.register(scrollEdgeActions);
+});
+
+onBeforeUnmount(() => {
+  unregisterScrollEdgeActions?.();
+  unregisterScrollEdgeActions = undefined;
+});
 
 const containerClasses = computed(() => [
   'graft-page-container',

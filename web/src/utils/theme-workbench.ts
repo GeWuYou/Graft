@@ -1,4 +1,3 @@
-import { DEFAULT_THEME_PRESET_ID } from '@/config/theme-workbench';
 import type { ThemeModeTokenState, ThemeTokenMap } from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
@@ -44,10 +43,6 @@ export function buildThemeModeSnapshot(options: {
     light: mergeThemeTokenMaps(brandTokens.light, baseTokens?.light, userTokens?.light, customTokens.light),
     dark: mergeThemeTokenMaps(brandTokens.dark, baseTokens?.dark, userTokens?.dark, customTokens.dark),
   };
-}
-
-export function resolvePresetId(presetId: string | null | undefined): string {
-  return presetId ?? DEFAULT_THEME_PRESET_ID;
 }
 
 export function resolveModeTokens(tokens: ThemeModeTokenState, mode: ModeType): ThemeTokenMap {

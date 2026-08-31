@@ -1,11 +1,11 @@
 import { mount } from '@vue/test-utils';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import UserAnnouncementPage from './index.vue';
 
-const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+let dispatchSpy: ReturnType<typeof vi.spyOn>;
 
 async function flushPromises() {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -246,6 +246,10 @@ const componentStubs = {
 };
 
 describe('UserAnnouncementPage', () => {
+  beforeEach(() => {
+    dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+  });
+
   it('loads current-user announcements and marks one announcement read', async () => {
     const api = await import('../../api/announcement');
     vi.mocked(MessagePlugin.success).mockReset();

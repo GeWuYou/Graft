@@ -65,6 +65,10 @@
       "placeholder": "输入要搜索内容"
     },
     "routeLoading": "页面加载中",
+    "scrollActions": {
+      "top": "到顶部",
+      "bottom": "到底部"
+    },
     "tagTabs": {
       "actions": "标签页操作",
       "closeOther": "关闭其他",

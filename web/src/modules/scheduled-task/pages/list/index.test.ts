@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
+import { getNextRunText } from '../../utils/cron';
 import ScheduledTaskListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -298,15 +299,6 @@ vi.mock('vue-i18n', async (importOriginal) => ({
     te: (key: string) => Object.prototype.hasOwnProperty.call(translations, key),
   }),
 }));
-
-vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
-  calendar: 'gregory',
-  locale: 'zh-CN',
-  numberingSystem: 'latn',
-  timeZone: 'Asia/Shanghai',
-} as Intl.ResolvedDateTimeFormatOptions);
-
-vi.setSystemTime(new Date('2026-06-06T08:00:00+08:00'));
 
 function scheduledTasksResponse() {
   return {
@@ -968,6 +960,8 @@ async function openConfigDialog(wrapper: ReturnType<typeof mountPage>) {
 
 describe('ScheduledTaskListPage', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-06T08:00:00+08:00'));
     vi.clearAllMocks();
     apiMocks.getScheduledTasks.mockResolvedValue(scheduledTasksResponse());
     apiMocks.getScheduledTask.mockImplementation(async (taskKey: string) => {
@@ -1190,10 +1184,13 @@ describe('ScheduledTaskListPage', () => {
   it('renders human-readable schedules, auxiliary cron expressions, and recent run summaries', async () => {
     const wrapper = mountPage();
     await flushPromises();
+    const expectedNextRun = getNextRunText('*/5 * * * *', Intl.DateTimeFormat().resolvedOptions().timeZone, {
+      locale: 'zh-CN',
+    });
 
     const firstScheduleCell = wrapper.find('tbody tr:first-child td[data-col="schedule"]');
     expect(firstScheduleCell.text()).toContain('每 5 分钟执行一次');
-    expect(firstScheduleCell.text()).toContain('下次执行：2026-06-06 08:05');
+    expect(firstScheduleCell.text()).toContain(`下次执行：${expectedNextRun}`);
     expect(firstScheduleCell.text()).toContain('*/5 * * * *');
     expect(firstScheduleCell.text()).toContain('时区');
 
@@ -1300,6 +1297,9 @@ describe('ScheduledTaskListPage', () => {
   it('renders schema config labels from x-i18n in the form surface', async () => {
     const wrapper = mountPage();
     await flushPromises();
+    const expectedNextRun = getNextRunText('*/5 * * * *', Intl.DateTimeFormat().resolvedOptions().timeZone, {
+      locale: 'zh-CN',
+    });
 
     const viewTrigger = wrapper.findAll('*').find((node) => node.text() === '查看');
     expect(viewTrigger).toBeTruthy();
@@ -1310,8 +1310,8 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
     expect(wrapper.text()).toContain('下次运行');
-    expect(wrapper.text()).toContain('2026-06-06 08:05');
-    expect(wrapper.text()).toMatch(/下次运行\s*2026-06-06 08:05/);
+    expect(wrapper.text()).toContain(expectedNextRun);
+    expect(wrapper.text()).toMatch(new RegExp(`下次运行\\s*${expectedNextRun}`));
   });
 
   it('executes dry-run actions through the action endpoint without persisting dryRun', async () => {

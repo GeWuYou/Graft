@@ -1,6 +1,14 @@
 type: object
-required: [input_snapshot_id, template_ref, driver, destination]
+description: Provide exactly one of workspace_id or input_snapshot_id as the immutable Build source identity.
+required: [template_ref, driver, destination]
+oneOf:
+  - required: [workspace_id]
+  - required: [input_snapshot_id]
 properties:
+  workspace_id:
+    type: string
+    minLength: 1
+    maxLength: 64
   input_snapshot_id:
     type: string
     minLength: 1

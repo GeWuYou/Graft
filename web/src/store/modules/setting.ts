@@ -30,7 +30,6 @@ import {
   cloneThemeModeTokenState,
   createEmptyThemeModeTokenState,
   resolveModeTokens,
-  resolvePresetId,
 } from '@/utils/theme-workbench';
 import type { ModeType } from '@/utils/types';
 
@@ -59,6 +58,7 @@ import {
   clearThemeTokenGroupOverrides,
   closeThemeWorkbenchDraft,
   createCompleteThemePresetState,
+  findThemePresetForPaletteTransition,
   openThemeWorkbenchDraft,
   previewThemeWorkbenchDraft,
   resetThemeWorkbenchDraftToDefault,
@@ -168,14 +168,14 @@ export const useSettingStore = defineStore('setting', {
     themePresetDefinitions: () => THEME_PRESET_DEFINITIONS,
     themeWorkbenchScenarioPresets: () => THEME_WORKBENCH_SCENARIO_PRESETS,
     selectedThemePreset(state): ThemePresetDefinition | null {
-      return THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(state.selectedThemePresetId)) ?? null;
+      return THEME_PRESET_DEFINITIONS.find((item) => item.id === state.selectedThemePresetId) ?? null;
     },
     effectiveThemeState(state): ThemeAuthorityState {
       return state.themeDraft ?? createPersistedThemeAuthoritySnapshot(state);
     },
     effectiveSelectedThemePreset(state): ThemePresetDefinition | null {
       const effectivePresetId = state.themeDraft?.selectedThemePresetId ?? state.selectedThemePresetId;
-      return THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(effectivePresetId)) ?? null;
+      return THEME_PRESET_DEFINITIONS.find((item) => item.id === effectivePresetId) ?? null;
     },
     effectiveThemeDisplayNameKey(): string {
       const preset = this.effectiveSelectedThemePreset;
@@ -192,8 +192,7 @@ export const useSettingStore = defineStore('setting', {
     themeAuthorityDiff(state): ThemeAuthorityDiffItem[] {
       const persistedSnapshot = createPersistedThemeAuthoritySnapshot(state);
       const current = state.themeDraft ?? persistedSnapshot;
-      const sourcePreset =
-        THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(current.selectedThemePresetId)) ?? null;
+      const sourcePreset = THEME_PRESET_DEFINITIONS.find((item) => item.id === current.selectedThemePresetId) ?? null;
       const baseline = createThemeAuthoritySourceSnapshot(sourcePreset, current);
 
       const presetDiffItems = THEME_AUTHORITY_DIFF_KEYS.flatMap((key) => {
@@ -460,11 +459,11 @@ export const useSettingStore = defineStore('setting', {
       }
     },
     selectThemePreset(presetId: string | null, scope: ThemePresetApplicationScope = 'palette') {
-      const resolvedPresetId = resolvePresetId(presetId);
-      const preset = THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvedPresetId);
+      const preset = THEME_PRESET_DEFINITIONS.find((item) => item.id === presetId);
       const currentPresetId = this.themeDraft?.selectedThemePresetId ?? this.selectedThemePresetId;
       const currentPreset =
-        THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(currentPresetId)) ?? null;
+        THEME_PRESET_DEFINITIONS.find((item) => item.id === currentPresetId) ??
+        (this.themeDraft ? findThemePresetForPaletteTransition(this.themeDraft) : null);
 
       if (!preset) {
         return;
@@ -578,7 +577,6 @@ export const useSettingStore = defineStore('setting', {
         return;
       }
 
-      this.selectedThemePresetId = resolvePresetId(this.selectedThemePresetId);
       this.themeTokenOverrides = cloneThemeModeTokenState(this.themeTokenOverrides);
       this.themeResolvedTokens = cloneThemeModeTokenState(this.themeResolvedTokens);
       if (this.layout === 'top') {

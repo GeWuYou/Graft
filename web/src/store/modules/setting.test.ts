@@ -1229,6 +1229,28 @@ describe('setting store theme authority', () => {
     expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBeUndefined();
   });
 
+  it('preserves custom material tokens when applying only a new palette', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset('one-dark-pro', 'complete');
+    store.updateThemeToken('dark', '--graft-glass-blur', '42px');
+    store.selectThemePreset('industrial-yellow', 'palette');
+
+    expect(store.themeTokenOverrides.dark['--graft-glass-blur']).toBe('42px');
+  });
+
+  it('preserves custom material tokens whose value matches another material token', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+
+    store.selectThemePreset('one-dark-pro', 'complete');
+    store.updateThemeToken('dark', '--graft-glass-bg', 'rgba(27, 31, 36, 0.74)');
+    store.selectThemePreset('industrial-yellow', 'palette');
+
+    expect(store.themeTokenOverrides.dark['--graft-glass-bg']).toBe('rgba(27, 31, 36, 0.74)');
+  });
+
   it('restores the target preset style values when leaving Industrial Yellow', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');
@@ -1257,6 +1279,40 @@ describe('setting store theme authority', () => {
     expect(store.radiusPreset).toBe('square');
     expect(store.shadowPreset).toBe('hard-offset');
     expect(store.shadowIntensity).toBe('strong');
+  });
+
+  it('clears the active preset when an authority value is customized', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+
+    expect(store.selectedThemePresetId).toBeNull();
+    expect(store.effectiveSelectedThemePreset).toBeNull();
+  });
+
+  it('reselects the matching preset when a customized value is restored', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'standard' });
+
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
+    expect(store.effectiveSelectedThemePreset?.id).toBe('one-dark-pro');
+  });
+
+  it('does not fall back to the default preset after a token customization', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('one-dark-pro', 'complete');
+
+    store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
+
+    expect(store.selectedThemePresetId).toBeNull();
+    expect(store.effectiveSelectedThemePreset).toBeNull();
   });
 
   it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {

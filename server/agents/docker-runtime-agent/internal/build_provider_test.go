@@ -216,3 +216,81 @@ func TestBuildImageLocalUsesMobySDKAndReturnsProviderNeutralResult(t *testing.T)
 		t.Fatalf("buildObserved=%v inspectObserved=%v result=%#v", buildObserved, inspectObserved, result)
 	}
 }
+
+func TestBuildExecutionResolvesFenceBoundMaterialBeforeMobySDK(t *testing.T) {
+	root := t.TempDir()
+	contextRoot := filepath.Join(root, "context")
+	if err := os.MkdirAll(contextRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(contextRoot, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	materialPayload, err := json.Marshal(buildExecutionMaterial{Context: &buildContextMaterial{
+		Root: root, ContextPath: "context", DockerfilePath: "context/Dockerfile", Repository: "team/app", Reference: "latest",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease := executionLease{
+		ID: "lease-build-material", FenceToken: "fence-build-material", OperationID: buildImageLocalOperation,
+		Protocol: buildExecutionProtocol, Capability: buildExecutionCapability, PayloadSHA256: "payload", Input: json.RawMessage(`{"build_id":"build-material"}`),
+	}
+	materialObserved := false
+	materialServer := newBuildMaterialTestServer(t, lease, materialPayload, &materialObserved)
+	defer materialServer.Close()
+
+	dockerServer := newBuildDockerTestServer(t)
+	defer dockerServer.Close()
+
+	result := executeBuildOperation(t.Context(), materialServer.Client(), config{AgentURL: materialServer.URL, DockerSocket: dockerServer.URL}, lease)
+	if result.Outcome != "success" || result.Protocol != buildExecutionResultProtocol || !materialObserved {
+		t.Fatalf("result=%#v materialObserved=%v", result, materialObserved)
+	}
+	var payload buildExecutionResultPayload
+	if err := json.Unmarshal(result.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Repository != "team/app" || payload.Reference != "latest" || payload.ImageID == "" {
+		t.Fatalf("provider-neutral payload=%#v", payload)
+	}
+}
+
+func newBuildMaterialTestServer(t *testing.T, lease executionLease, payload []byte, observed *bool) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/agent/v1/execution-leases/lease-build-material/material" {
+			t.Fatalf("unexpected material request %s %s", r.Method, r.URL.Path)
+		}
+		var request executionHandleRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.FenceToken != lease.FenceToken {
+			t.Fatalf("material request fence token=%q want=%q", request.FenceToken, lease.FenceToken)
+		}
+		*observed = true
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(executionMaterial{Protocol: buildExecutionMaterialProtocol, Payload: payload})
+	}))
+}
+
+func newBuildDockerTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodHead && r.URL.Path == "/_ping":
+			w.Header().Set("API-Version", "1.55")
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/build"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"stream":"build complete"}`+"\n")
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/images/") && strings.HasSuffix(r.URL.Path, "/json"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"Id":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Size":64,"Os":"linux","Architecture":"amd64"}`)
+		default:
+			t.Fatalf("unexpected Moby request %s %s", r.Method, r.URL.String())
+		}
+	}))
+}

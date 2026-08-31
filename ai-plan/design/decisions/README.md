@@ -10,6 +10,8 @@ This directory stores ADRs that lock design or governance decisions before wider
 Current architecture decisions also include `ADR-004-task-runtime-state-machine.md`, which fixes the platform Task Runtime boundary before consumer implementation.
 `ADR-005-mcp-runtime-contract-and-transport-boundary.md` fixes the product MCP runtime boundary before its adapter
 and compiler batches begin.
+`ADR-027-hybrid-dag-multi-agent-dispatch.md` fixes topology-aware batch dispatch, ready-frontier scheduling, and
+outer-controller authority before the related skill and validator contracts converge.
 `ADR-020-configuration-governance-schema.md` fixes the versioned deployment-configuration Schema authority before
 runtime, Compose, template, and CI consumers converge.
 `ADR-025-provider-oriented-project-layout.md` fixes the Provider-oriented project layout and legacy-frozen migration

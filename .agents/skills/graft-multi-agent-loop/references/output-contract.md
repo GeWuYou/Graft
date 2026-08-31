@@ -6,15 +6,18 @@ outer-controller closeout.
 ## Worker round evidence
 
 Worker closeout contains `round_status`, `implementation_result`, `changed_scope`, `commit`, `validation_evidence`,
-`risks`, `blockers`, model-relation evidence, and `required_context` when retry or recovery depends on prior facts.
-`suggested_follow_up` is optional advisory metadata. A worker never emits controller fields such as `continue`,
+`risks`, `blockers`, `topology_evidence`, model-relation evidence, and `required_context` when retry or recovery
+depends on prior facts. `topology_evidence` identifies the assigned `topology_revision` and `node_id`, reports
+dependency and acceptance-gate observations, and remains node-level evidence only. `suggested_follow_up` is optional
+advisory metadata. A worker never emits controller fields such as `continue`,
 `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`, `stop_loop`, `suspend_topic`, or `wait_for_user`.
 
 ## Controller decision
 
 After `VERIFY`, only the outer controller records `closeout_status`, `current_batch`, `completed_batches`,
-`pending_batches`, `next_batch`, budgets, recovery, and stop reason. `retry_exhausted` remains wave evidence until the
-outer controller verifies and settles it. An unsettled failure remains a recovery handoff; a terminal `blocked`,
+`pending_batches`, `next_batch`, topology revision/frontier state, budgets, recovery, and stop reason. `retry_exhausted`
+and batch frontier/replan evidence remain wave evidence until the outer controller verifies and settles them. An
+unsettled failure remains a recovery handoff; a terminal `blocked`,
 `cancelled`, or `unsafe` decision requires `failed_batch_settled: true`.
 
 For a terminal blocker that occurs before any worker batch fails, `failed_batch_settled: true` means there is no

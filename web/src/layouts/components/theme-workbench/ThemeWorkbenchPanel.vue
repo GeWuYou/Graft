@@ -42,7 +42,7 @@
           </div>
         </aside>
 
-        <section class="theme-workbench-panel__content graft-scrollbar">
+        <section class="theme-workbench-panel__content graft-scrollbar" data-testid="theme-workbench-content">
           <div v-if="activeGroup === 'overview'" class="overview-layout">
             <div class="section overview-layout__summary">
               <div class="section-title">{{ t('layout.setting.workbench.overview.currentConfig') }}</div>
@@ -1573,6 +1573,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-16);
+  position: relative;
 }
 
 .theme-workbench-panel__nav {
@@ -3237,7 +3238,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   .theme-workbench-panel__body {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    padding: var(--graft-density-gap-12);
+    padding: var(--graft-density-gap-16);
   }
 
   .theme-workbench-panel__nav {
@@ -3247,13 +3248,13 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
     display: flex;
     max-width: 100%;
     overflow: auto hidden;
-    padding-bottom: var(--graft-density-gap-2);
+    padding-bottom: var(--graft-density-gap-16);
     padding-right: 0;
   }
 
   .theme-workbench-panel__content {
     padding-left: 0;
-    padding-top: var(--graft-density-gap-12);
+    padding-top: var(--graft-density-gap-16);
   }
 
   .theme-workbench-panel__nav-entry {

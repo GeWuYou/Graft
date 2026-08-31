@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_API_TARGET: string;
   readonly VITE_API_URL_PREFIX: string;
   readonly VITE_LOG_LEVEL?: string;
+  readonly VITE_LOG_DEBUG_MODULES?: string;
   readonly VITE_DEBUG_NAVIGATION?: 'true' | 'false';
   readonly VITE_DEBUG_TABS?: 'true' | 'false';
   readonly VITE_DEBUG_TABS_LAYOUT?: 'true' | 'false';
@@ -19,6 +20,7 @@ interface ImportMetaEnv {
   readonly VITE_DEBUG_PROJECT_TEMPLATES?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_WORKSPACE?: 'true' | 'false';
   readonly VITE_DEBUG_CONTAINER_RAW_JSON?: 'true' | 'false';
+  readonly VITE_DEBUG_FRONTEND_INVESTIGATION?: 'true' | 'false';
 }
 
 declare global {

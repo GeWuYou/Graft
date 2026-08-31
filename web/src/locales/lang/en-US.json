@@ -83,6 +83,10 @@
       "placeholder": "Search menus or pages"
     },
     "routeLoading": "Loading Page",
+    "scrollActions": {
+      "top": "Scroll to top",
+      "bottom": "Scroll to bottom"
+    },
     "setting": {
       "theme": {
         "mode": "Theme Mode",

@@ -25,7 +25,15 @@
         "mediaType": "Media Type",
         "platforms": "Platforms",
         "size": "Size",
-        "createdAt": "Created"
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "publications": {
+        "open": "Publications",
+        "title": "Artifact publications",
+        "empty": "No publication record",
+        "loadFailed": "Publication records could not be loaded.",
+        "loadMore": "Load more"
       }
     },
     "jobs": {
@@ -102,7 +110,7 @@
         "sections": {
           "source": {
             "title": "Build source",
-            "description": "Upload an archive or reuse an available Input Snapshot."
+            "description": "Select a Workspace, upload an archive, or reuse an available Input Snapshot."
           },
           "execution": {
             "title": "Execution configuration",
@@ -118,8 +126,14 @@
         "submitted": "Build job submitted.",
         "submitFailed": "Unable to submit build job.",
         "sourceMode": "Build input",
+        "selectWorkspace": "Select Workspace",
         "uploadArchive": "Upload archive",
         "reuseSnapshot": "Reuse existing Input Snapshot",
+        "workspace": "Workspace",
+        "workspaceRequired": "Select a Workspace.",
+        "workspacePlaceholder": "Select an authorized Build Workspace",
+        "workspaceEmpty": "No authorized Build Workspace is available yet.",
+        "workspaceLoadFailed": "Unable to load Build Workspaces.",
         "archive": "Archive",
         "archivePlaceholder": "Choose a ZIP, TAR, or TAR.GZ containing a root Dockerfile",
         "archiveRequired": "Choose an archive before submitting.",

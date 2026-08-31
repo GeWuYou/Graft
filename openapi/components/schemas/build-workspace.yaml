@@ -1,0 +1,11 @@
+type: object
+required: [workspace_id, name, source_kind, source_reference, retention_policy, created_at, updated_at]
+properties:
+  workspace_id: { type: string, minLength: 1, maxLength: 64 }
+  name: { type: string, minLength: 1, maxLength: 255 }
+  source_kind: { type: string, enum: [application_workspace, git, uploaded_archive, generated, target_local] }
+  source_reference: { type: string, minLength: 1, maxLength: 512 }
+  retention_policy: { type: string, minLength: 1, maxLength: 64 }
+  created_at: { type: string, format: date-time }
+  updated_at: { type: string, format: date-time }
+additionalProperties: false

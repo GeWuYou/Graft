@@ -101,6 +101,24 @@ describe('createLogger', () => {
     );
   });
 
+  it('filters debug output by the configured module allowlist without filtering other levels', async () => {
+    vi.stubEnv('DEV', true);
+    vi.stubEnv('PROD', false);
+    vi.stubEnv('VITE_LOG_LEVEL', 'debug');
+    vi.stubEnv('VITE_LOG_DEBUG_MODULES', 'debug.frontend-investigation');
+
+    const { createLogger } = await loadLoggerModule();
+    createLogger('other.module').debug('suppressed debug message');
+    createLogger('debug.frontend-investigation').debug('allowed debug message');
+    createLogger('other.module').warn('allowed warning message');
+
+    expect(transportLog).toHaveBeenCalledTimes(2);
+    expect(transportLog.mock.calls.map(([event]) => event.message)).toEqual([
+      'allowed debug message',
+      'allowed warning message',
+    ]);
+  });
+
   it('merges context with per-call meta and lets per-call meta override same-name fields', async () => {
     vi.stubEnv('DEV', true);
     vi.stubEnv('PROD', false);

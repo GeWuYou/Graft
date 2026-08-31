@@ -33,6 +33,8 @@ Typical triggers:
      worker subagent rather than the outer loop orchestrator
    - split only disjoint, reviewable slices
    - pass inherited startup context to every subagent
+   - when the outer controller supplies a hybrid DAG, pass the immutable `topology_revision`, `node_id`, dependencies,
+     authority owner, execution context, validation, and acceptance gate for the assigned ready node
    - pass `parent_model`, `worker_model`, verified `model_relation`, and comparison evidence to every
      dispatch; the worker model must be the same level as or lower than the current execution owner's model
    - if the relation is higher or unknown, pause and request explicit user approval or direction before dispatch;
@@ -58,7 +60,8 @@ Typical triggers:
 10. When the current task is being orchestrated by `graft-multi-agent-loop`, treat the current slice as one delegated
    round and end the closeout with one fenced ` ```json ` block containing the machine-readable closeout result:
    - in the default `topic-completion-loop` mode, ordinary batch success must not emit `Next-session startup prompt:`
-   - return round evidence and, when useful, an advisory `suggested_follow_up` containing candidate work or recovery
+   - return round evidence including node-level `topology_evidence` and, when useful, an advisory `suggested_follow_up`
+     containing candidate work or recovery
      context; do not return controller state or terminal decisions
    - only the outer main agent decides whether to continue, selects any next batch, and emits terminal handoff output
    - ordinary lint, type, style, or test failures remain owned by the current round worker for diagnosis. Before any
@@ -103,6 +106,8 @@ Typical triggers:
 
 - do not use this skill as a substitute for `graft-boot`
 - do not treat this skill as permission to skip `graft-multi-agent-batch` suitability checks
+- do not let the delegated round mutate the topology, reorder undispatched nodes, or select the next ready frontier;
+  those decisions remain with the outer controller at the wave boundary
 - do not duplicate `graft-task-closeout` or `graft-commit`
 - do not invent a second governance source, second closeout format, or second commit workflow
 - do not broaden ownership beyond the confirmed slice
@@ -122,6 +127,7 @@ When reporting progress or closeout from this wrapper, keep the result brief and
    - `round_status`
    - `implementation_result`
    - `changed_scope`
+   - `topology_evidence`
    - `commit`
    - `validation_evidence`
    - `risks`
