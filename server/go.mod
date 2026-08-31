@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/getkin/kin-openapi v0.147.0
+	github.com/getkin/kin-openapi v0.148.0
 	// Gin 是 server 的 HTTP 路由、中间件和请求处理框架。
 	github.com/gin-gonic/gin v1.12.0
 
@@ -47,7 +47,7 @@ require (
 	github.com/compose-spec/compose-go/v2 v2.14.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v29.2.0+incompatible
+	github.com/docker/cli v29.7.2+incompatible
 	github.com/docker/compose/v2 v2.40.3
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
@@ -172,7 +172,7 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.10.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
