@@ -69,7 +69,7 @@ jobs:
           persist-credentials: false
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@bcfcf73aaf4759d4dadc2783177c245a02792318
+        uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b
         with:
           path: .
           base: ${{ github.event.pull_request.base.sha }}
