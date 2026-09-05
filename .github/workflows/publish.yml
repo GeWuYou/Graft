@@ -1231,7 +1231,7 @@ jobs:
             versions_response="$(mktemp)"
             versions_error="$(mktemp)"
             if ! gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}" 2> "${versions_error}"; then
-              if jq -e 'any(.[]?; (.status? // 0) == 404)' "${versions_response}" >/dev/null 2>&1; then
+              if grep -qE '(^|[^0-9])404([^0-9]|$)' "${versions_error}" "${versions_response}"; then
                 echo "No GHCR package ${package_name} exists; skipping package-version cleanup."
                 return
               fi
