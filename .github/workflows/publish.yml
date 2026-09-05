@@ -36,6 +36,18 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.13
+
+      - name: Install web dependencies for OpenAPI generation
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Generate OpenAPI bundle
+        run: node scripts/ensure-openapi-bundle.mjs
+
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
@@ -1211,12 +1223,24 @@ jobs:
             local package_name="$1"
             local package_path="${package_owner_path}/container/${package_name}/versions"
             local versions_response
+            local versions_error
             local shared_version_ids
             local version_ids
             local version_id
 
             versions_response="$(mktemp)"
-            gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}"
+            versions_error="$(mktemp)"
+            if ! gh api --paginate --slurp "${package_path}?per_page=100" > "${versions_response}" 2> "${versions_error}"; then
+              if grep -qE '(^|[^0-9])404([^0-9]|$)' "${versions_error}" "${versions_response}"; then
+                echo "No GHCR package ${package_name} exists; skipping package-version cleanup."
+                return
+              fi
+
+              echo "::error::Failed to list GHCR package versions for ${package_name}."
+              cat "${versions_error}"
+              cat "${versions_response}"
+              exit 1
+            fi
 
             shared_version_ids="$(jq -r --arg tag "${RELEASE_TAG}" --argjson expected_tags "${release_owned_tags}" '
               [ .[][]
