@@ -16,7 +16,8 @@ Read this reference only after the core skill has selected `inventory/review` or
 
 ## Final dispositions
 
-Map each row to exactly one final disposition:
+Read-only reports may retain actionable findings as `open/reported` with evidence, risk, and next step. Those report
+states never enter the managed ledger. For a complete authorized remediation run, map each row to one final disposition:
 
 - `fixed`: repaired and validated in the authorized scope
 - `delegated`: dispatched through a governed multi-agent route with explicit ownership and next context
@@ -24,7 +25,8 @@ Map each row to exactly one final disposition:
 - `stale`: proven not to apply to current HEAD
 - `noise`: proven false positive or reviewer misread
 
-`Warning` rows additionally record `remediate` or `accept-with-reason`. `Inconclusive` has no optional acceptance path.
+`Warning` rows additionally record `remediate` or `accept-with-reason`. `Inconclusive` has no optional acceptance path:
+resolve it from evidence or preserve the missing evidence and blocker in the report.
 
 ## Remote responses
 

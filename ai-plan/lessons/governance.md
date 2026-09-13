@@ -252,3 +252,35 @@
   - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
 - Updated at:
   2026-08-17
+
+## LESSON-GOVERNANCE-GIT-ENV-ISOLATION-001：Git fixture 测试不能继承真实工作树定位变量
+
+- Status: active
+- Level: L1
+- Applies to:
+  - 创建临时 Git 仓库的 unittest 与 skill helper tests
+  - 原生系统与 WSL 间的只读检查及验证环境切换
+- Source:
+  - ai-guidance-streamlining 最终验证的原生系统回退尝试
+- Problem:
+  为定位真实工作树而在测试进程导出 GIT_DIR/GIT_WORK_TREE，会被子进程继承。fixture 中的 git init/config/add
+  即使切换 cwd，也可能操作真实 Git common state；临时目录并不能抵消环境变量指向。
+- Correct pattern:
+  只读单条 Git 检查使用明确的 --git-dir/--work-tree 参数，不把定位变量导出到 unittest/helper-test 父进程。
+  完整 fixture suite 在预期平台和干净 Git 环境中运行；运行前检查环境键名，避免输出可能含秘密的完整环境。
+  如发现污染，立即停止，核验 config/index/HEAD/受保护文件，按已确认范围恢复并重新验证。
+- Anti-pattern:
+  把真实仓库 GIT_DIR/GIT_WORK_TREE 注入测试进程，假设子 fixture 的 cwd 或临时目录能够保证隔离；用不支持
+  Linux fcntl/临时文件语义的原生运行结果替代 WSL 验证。
+- Enforcement:
+  启动 fixture suite 前拒绝继承真实仓库定位变量；审查 subprocess env，测试 Git 操作只指向其临时仓库。
+  验证后核对真实仓库 config/index/HEAD 未变化；平台不满足时报告未运行，不宣称通过。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - scripts/test_validate_ai_governance.py
+  - scripts/run_skill_tests.py
+  - ai-plan/public/archive/ai-guidance-streamlining/todos/ai-guidance-streamlining-tracking.md
+- Updated at:
+  2026-09-13

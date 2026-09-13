@@ -1,27 +1,23 @@
 ---
 name: graft-domain-model-review
-description: Default semantic review of Graft domain language, aggregate boundaries, ownership, lifecycle transitions, and scenario invariants. Use during design and review of domain behavior, state machines, persistence facts, or cross-module workflows.
+description: "Review Graft domain terms, ownership, invariants, and lifecycle transitions when business behavior or cross-module workflows change."
 ---
 
 # Graft Domain Model Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as Graft's default semantic review layer for domain behavior. It complements the owning module,
 `ai-plan/design/domains/**`, architecture documents, API contracts, and repository validation; it does not create a
 second domain authority, issue tracker, `CONTEXT.md`, or design/closeout workflow.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `server/AGENTS.md` for backend domain or persistence changes and `web/AGENTS.md` for frontend workflow
-   changes; read both for cross-boundary behavior.
-3. Read the owning domain README and canonical design documents under `ai-plan/design/domains/<domain>/`.
-4. Read the relevant architecture, contract, security, database, notification, or task-lifecycle governance documents
-   named by the change.
-5. Inspect the owning module descriptor, public module API, persistence schema, OpenAPI source, and concrete callers.
+Reuse startup and applicable [server](../../../server/AGENTS.md)/[web](../../../web/AGENTS.md) guidance. Inspect the changed domain fact, its owning design section, module contract, and concrete actors/callers. Read persistence, API, event, security, notification, or Task lifecycle rules only for representations and transitions affected by this change. A new domain boundary needs architectural evidence; a local invariant repair does not require every domain document. Share evidence with the integrated review.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - introduces or renames a business concept, resource, command, event, or module boundary;
 - adds or changes an aggregate, entity relationship, ownership rule, invariant, or persistence fact;
@@ -29,8 +25,7 @@ Run before implementation during design and again during review when a change:
 - changes a cross-module workflow such as task submission, build execution, scheduler ownership, audit, notification,
   or runtime reconciliation.
 
-Boot and design workflows should actively match this skill for these triggers. It runs by default for matching work,
-not only when a user explicitly asks for a domain review.
+Use the changed semantics to select checks; a file extension or incidental keyword alone does not require a full review.
 
 ## Workflow
 
@@ -72,11 +67,9 @@ Trace the domain fact through its representations:
 
 Confirm each layer preserves the domain meaning, names, requiredness, enum/state semantics, ownership, and error
 behavior. Prefer a canonical fact plus narrow projections; flag duplicate DTOs, copied state machines, presentation
-models that can mutate domain state, or adapters that conceal authority drift. Invoke `graft-api-dx-review`,
-`graft-event-contract-review`, `graft-permission-model-review`, or `graft-cross-boundary-review` when their specialized
-review is triggered. When a representation changes a query key, cache invalidation, polling, or realtime refresh, also
-invoke `graft-query-key-consistency`; when it changes a handwritten TypeScript caller, contract, adapter, composable,
-store, or public helper, also invoke `graft-typescript-dx-audit`.
+models that can mutate domain state, or adapters that conceal authority drift. Cover affected API, event, permission,
+query-cache, and TypeScript concerns in the integrated review. Load the corresponding specialized skill only when its
+detail is needed to resolve a concrete risk or evidence gap.
 
 ### 5. Align Design And Evidence
 
@@ -98,18 +91,8 @@ validation of both bridge and cleanup path.
 
 ## Review Output
 
-```text
-Domain model review:
-- domain_and_authority: <domain/module and canonical ai-plan design path>
-- vocabulary: <terms, definitions, renamed/synonym decisions>
-- aggregate_and_ownership: <roots, boundaries, actors, invariants>
-- lifecycle: <states, valid transitions, retries, recovery, terminal cleanup>
-- scenarios: <normal, duplicate, concurrent, failure, cancellation, expiration>
-- representations: <persistence/contract/event/TypeScript/UI alignment>
-- evolution: additive | behavior-changing | deprecated | breaking | exception-with-expiry
-- findings: <severity, evidence, recommendation>
-- validation: <commands and results>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 

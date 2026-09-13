@@ -1,6 +1,6 @@
 ---
 name: graft-platform-architecture-review
-description: Perform the default semantic review of Graft changes for platform architecture, authority ownership, runtime boundaries, and long-term extensibility. Use during design and before implementation for changes that add or reshape platform capabilities, modules, lifecycle semantics, configuration, or shared contracts.
+description: "Review platform authority, runtime boundaries, lifecycle, and extensibility when Graft capabilities or architecture change."
 ---
 
 # Graft Platform Architecture Review
@@ -13,8 +13,8 @@ Graft behaves as a platform, even when the user did not explicitly request an ar
 ## Review Authority And Scope
 
 - Establish the product/module intent and the owning platform or module boundary before judging local code shape.
-- Treat the root `AGENTS.md`, relevant `ai-plan/design/**` documents, and `server/AGENTS.md` or `web/AGENTS.md` as
-  governance authority. When the scope includes `ai-plan/**`, also read and follow `ai-plan/AGENTS.md`. Treat module
+- Treat the root [AGENTS.md](../../../AGENTS.md), relevant `ai-plan/design/**` documents, and [server/AGENTS.md](../../../server/AGENTS.md) or [web/AGENTS.md](../../../web/AGENTS.md) as
+  governance authority. When the scope includes `ai-plan/**`, also read and follow [ai-plan/AGENTS.md](../../../ai-plan/AGENTS.md). Treat module
   descriptors, stable contracts, and `openapi/**` as their respective technical sources of truth.
 - Generated artifacts, page-local models, infrastructure manifests, and convenience wrappers are projections or
   implementation details unless an existing governance document explicitly makes them authoritative.
@@ -32,12 +32,11 @@ Run this review by default when a change:
 - introduces a new abstraction, package boundary, integration, persistence strategy, or platform-wide convention; or
 - changes architecture, module boundaries, or execution governance documents.
 
-For a narrow page or implementation-only fix with no platform implications, record why this review is not applicable and
-use the more specific review skill instead.
+For a narrow page or implementation-only fix with no platform implications, skip this workflow and use directly relevant guidance.
 
 ## Review Workflow
 
-1. Establish the startup receipt and identify the canonical authority owner, task class, recovery source, and affected
+1. Reuse or restore the root startup receipt and identify the canonical authority owner, task class, recovery source, and affected
    platform surfaces. Read the applicable architecture and governance documents before freezing scope.
 2. State the capability and user-facing workflow in platform terms: what application/module owns it, which lifecycle it
    follows, and which stable contracts or runtime services it needs.

@@ -1,9 +1,11 @@
 ---
 name: graft-server-module-scaffold
-description: Scaffold or shape a new Graft server module before implementation. Use when adding a backend capability under server/modules and Codex needs to define module lifecycle, dependencies, public service boundaries, permissions, menus, migrations, routes, jobs, and validation scope in the repository's standard pattern.
+description: "Shape a new Graft server module with explicit lifecycle, public contracts, routes, permissions, and validation."
 ---
 
 # Graft Server Module Scaffold
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill when adding a new compile-time module under `server/modules/<name>`.
 
@@ -33,10 +35,7 @@ Use this skill when adding a new compile-time module under `server/modules/<name
    - homepage quick actions are derived from visible sidebar / bootstrap menus
    - keep widget contribution review separate when the homepage needs module-owned summary UI
 9. Add tests for dependency ordering, duplicate registration, and service resolution whenever those concerns are touched.
-10. At closeout, do not skip reusable-lesson evaluation:
-   - prefer routing the slice through `graft-task-closeout`
-   - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
-     to `graft-lessons-learned`
+10. Capture reusable corrections through normal closeout when this task actually exposes one.
 
 ## Guardrails
 

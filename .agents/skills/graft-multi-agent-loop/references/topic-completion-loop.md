@@ -194,7 +194,7 @@ Outer main agent action:
 
 ```text
 Final archive-readiness check passed. Topic reached archive-ready state and the owned closeout docs were committed.
-Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: none. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md 4.1 only if follow-up governance work is later reopened.
+Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: none. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md Startup Governance only if follow-up governance work is later reopened.
 ```
 
 ```json
@@ -212,7 +212,7 @@ Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs
   "pending_batches": [],
   "next_batch": null,
   "next_batch_prompt": null,
-  "next_prompt": "Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: none. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md 4.1 only if follow-up governance work is later reopened.",
+  "next_prompt": "Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: none. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md Startup Governance only if follow-up governance work is later reopened.",
   "stop_reason": "archive-ready",
   "validation": {
     "status": "passed",

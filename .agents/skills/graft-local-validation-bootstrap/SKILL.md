@@ -1,6 +1,6 @@
 ---
 name: graft-local-validation-bootstrap
-description: Create or deliberately recreate Graft's isolated local three-version Docker Compose validation environment. Use when a developer needs the initial `.local` deployment for `beta`, `latest`, and fixed `v0.11.0-beta.39`, or needs a requested full rebuild after confirming its data-reset impact.
+description: "Create or explicitly recreate the isolated Graft beta, latest, and fixed-version local validation deployment."
 ---
 
 # Graft Local Validation Bootstrap
@@ -16,8 +16,7 @@ This skill owns first creation and explicit recreation only. Use
 
 ## Preconditions
 
-1. Establish the root `AGENTS.md` startup receipt and read
-   `.ai/environment/tools.ai.yaml` before selecting local tools.
+1. Reuse or restore the root [AGENTS.md](../../../AGENTS.md) receipt and environment inventory evidence before selecting tools.
 2. Treat the official `compose.yml` and `compose.env.example` as the deployment
    contract. Do not create a second Compose topology or validation truth.
 3. Inspect the current `.local/graft-validation/` state. Do not overwrite

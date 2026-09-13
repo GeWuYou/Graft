@@ -1,33 +1,32 @@
 ---
 name: graft-api-dx-review
-description: Default semantic review of Graft API caller experience across OpenAPI, Gin handlers, generated TypeScript, and Axios consumers. Use when adding or changing an HTTP API, shared request/response contract, pagination, errors, permissions, or asynchronous task receipt.
+description: "Review caller-facing Graft HTTP contracts, errors, pagination, and asynchronous receipts when API behavior changes."
 ---
 
 # Graft API DX Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as the default semantic review layer for API design work. It complements, and does not replace, the
 canonical API boundary and OpenAPI governance, repository startup, or existing validation entrypoints. Do not create a
 second API authority, compatibility workflow, CI gate, or closeout format.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `server/AGENTS.md` and `web/AGENTS.md` for cross-boundary API work.
-3. Read `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`.
-4. Read `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` when the change affects shared contract semantics.
-5. Read the owning module descriptor, OpenAPI source, generated contract consumer, and the relevant API client/handler.
+Reuse startup and applicable subdomain guidance. Inspect the changed operation’s canonical OpenAPI/module contract, handler, and real caller chain. Use [API boundary governance](../../../ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md) for public request/response changes and [contract governance](../../../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) for shared semantic changes.
+
+For cross-boundary APIs, use both [server](../../../server/AGENTS.md) and [web](../../../web/AGENTS.md) rules, without rereading already-established evidence. Do not load unrelated callers or a complete architecture set for a narrow operation change.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - adds, removes, renames, or semantically changes an HTTP operation or field;
 - changes shared pagination, filtering, sorting, enum, error, auth, or permission semantics;
 - introduces or changes an asynchronous task, submission, polling, or receipt flow; or
 - claims that an API change is compatible or has no downstream consumer impact.
 
-The boot and design workflows should actively match this skill for these triggers. It is not limited to explicit user
-requests for an API review.
+A concrete changed concern triggers review; merely touching a file or type does not require the complete API workflow.
 
 ## Workflow
 
@@ -100,18 +99,8 @@ become a second completion path.
 
 ## Review Output
 
-```text
-API DX review:
-- authority_owner: <OpenAPI/module contract path>
-- primary_callers: <modules or integrations>
-- operation_scope: <paths/operations>
-- shape_decisions: <request/response/error/pagination summary>
-- workflow_decisions: <auth/permission/idempotency/async summary>
-- consumer_impact: <generated TS and concrete consumers>
-- compatibility: additive | behavior-changing | deprecated | breaking | exception-with-expiry
-- findings: <severity, evidence, recommendation>
-- validation: <commands and results>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 
@@ -119,5 +108,4 @@ API DX review:
 - Do not expose Entity models or internal error causes through the API.
 - Do not invent a generic API adapter, polling framework, error taxonomy, or compatibility layer for one endpoint.
 - Do not optimize for theoretical type sophistication; optimize for callers needing fewer annotations and casts.
-- When the review identifies a domain, permission, event, query-key, or cross-boundary concern, invoke the corresponding
-  Graft semantic review skill rather than duplicating its rules here.
+- When the review identifies a domain, permission, event, query-key, or cross-boundary concern, cover the corresponding concern in the integrated review; load its specialized skill only for needed detail.

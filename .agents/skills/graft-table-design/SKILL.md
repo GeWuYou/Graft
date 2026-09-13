@@ -1,13 +1,13 @@
 ---
 name: graft-table-design
-description: Repository-specific workflow for Graft database table design and migration governance. Use when designing or changing DB tables, Ent schemas, Atlas migrations, audit fields, soft delete fields, deleted_by, indexes, partial unique indexes, store query semantics, or database table and column comments.
+description: "Design or review Graft tables, Ent schemas, audit fields, soft deletion, indexes, and store-query semantics."
 ---
 
 # Graft Table Design
 
 Use this skill before designing, changing, or reviewing database table structures in `Graft`.
 
-This skill is a governance workflow. It does not replace root `AGENTS.md`, `server/AGENTS.md`, backend validation, Ent
+This skill is a governance workflow. It does not replace root [AGENTS.md](../../../AGENTS.md), [server/AGENTS.md](../../../server/AGENTS.md), backend validation, Ent
 generation, Atlas migration generation, or module ownership rules.
 
 `graft-table-design` owns modeling decisions: table owner, fields, audit fields, soft delete, store query semantics,
@@ -17,15 +17,15 @@ with conflicting wording in this skill.
 
 ## Workflow
 
-1. Complete the startup preflight from root `AGENTS.md`.
+1. Reuse the current task startup receipt; recover it from root startup governance only when missing or lost.
 2. Classify the task:
    - `server` when changing Ent schema, migrations, store query code, or backend tests.
    - `docs/automation with server impact` when only changing governance docs or skills.
    - `cross-boundary` when table changes alter shared contracts, OpenAPI, web bootstrap semantics, or frontend-visible behavior.
 3. Read:
-   - `server/AGENTS.md`
-   - `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
-   - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` when table semantics affect shared contracts, status values, permission codes, or API-visible fields
+   - [server/AGENTS.md](../../../server/AGENTS.md)
+   - [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](../../../ai-plan/design/governance/backend/数据库表设计与迁移规范.md)
+   - [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](../../../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) when table semantics affect shared contracts, status values, permission codes, or API-visible fields
 4. Identify the owner before proposing fields:
    - owner module or core owner
    - table name
@@ -42,8 +42,8 @@ with conflicting wording in this skill.
 6. Treat nullable timestamp soft delete as existing-table compatibility only. Before adding compatibility, record the
    canonical owner, why direct repair is not done now, affected consumers, cleanup trigger, and validation scope.
 7. Validate according to the task class:
-   - schema / migration changes: follow `server/AGENTS.md` Ent generate, migration, test, and backend validation rules.
-   - migration SQL creation or edits: also follow `graft-sql-migration` and run `python3 scripts/validate_sql_migrations.py`.
+   - schema / migration changes: follow [server/AGENTS.md](../../../server/AGENTS.md) Ent generate, migration, test, and backend validation rules.
+   - migration SQL creation or edits: also follow `graft-sql-migration` and run the scoped migration validation command it documents.
    - governance-only changes: run the relevant docs / skill validation and explain why runtime validation is not applicable.
 
 ## Required Output

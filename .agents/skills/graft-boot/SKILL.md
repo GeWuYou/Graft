@@ -1,63 +1,16 @@
 ---
 name: graft-boot
-description: Repository-specific startup workflow for Graft. Use when the task starts from a short prompt such as "boot", "continue", "read AGENTS", or "next step", and Codex should first ground itself in AGENTS.md, the ai-plan/ documents, the current repo state, assess whether multi-agent work is justified, and then enter implementation with the repository's closeout and commit workflow in place.
+description: "Start or resume Graft work from a short prompt using root startup governance and only the relevant recovery context."
 ---
 
 # Graft Boot
 
-Use this skill to start or resume work in `Graft` with minimal prompting.
+Start or resume through [root startup governance](../../../AGENTS.md#startup-governance). Reuse a trustworthy receipt and already-read evidence in the current task; recover them when context is missing or lost.
 
-Treat `AGENTS.md` as the source of truth. This skill performs startup plus the mandatory workflow hooks that follow
-startup; it does not replace repository rules.
+1. Confirm repository, environment inventory, task class, canonical authority, and required subdomain guidance; emit the root receipt once.
+2. For recovery, follow [the active-topic router](../../../ai-plan/public/README.md) into the mapped parent and relevant subtopic. For new long-running work without an owner, use `graft-work-intake`; short-lived fixes need no topic.
+3. Select guidance by changed behavior and risk. Cover contracts, security, persistence, lifecycle, and cross-boundary concerns when affected. One integrated review may cover several concerns; load specialized skills only for unresolved relevant detail, not every possible keyword match.
+4. Inspect current code and Git state, then carry out the authorized goal. Resolve the first blocking authority decision before delegating; use a batch only for useful disjoint work, or the explicitly selected loop contract.
+5. Reuse relevant validation and review evidence at closeout. Use `graft-task-closeout` for scoped commit eligibility and a startup prompt only when handing work to another turn.
 
-## Startup Workflow
-
-1. Run the startup preflight defined in `AGENTS.md` `4.1 Startup Governance`.
-2. Emit the minimum startup receipt from `AGENTS.md` before substantive work:
-   - `governance source`
-   - `task class`
-   - `recovery source`
-   - `authority summary`
-3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
-   mapped parent topic and relevant subtopic recovery files for the current task shape.
-4. Read the relevant repository-wide design and roadmap truth needed by the task.
-5. Actively match the default Semantic Review Layer before implementation. Select all applicable skills from
-   this matrix: OpenAPI (`graft-openapi-contract-review`), cross-boundary (`graft-cross-boundary-review`), platform
-   architecture (`graft-platform-architecture-review`), API DX (`graft-api-dx-review`), domain (`graft-domain-model-review`),
-   event (`graft-event-contract-review`), TypeScript DX (`graft-typescript-dx-audit`), Query keys
-   (`graft-query-key-consistency`), permissions (`graft-permission-model-review`), module architecture
-   (`graft-module-architecture-review`), test seams (`graft-test-seam-review`), change diff (`graft-change-review`),
-   consistency (`graft-consistency-review`), and deletion (`graft-delete-review`). Run each selected skill at its own
-   declared phase: record design-stage selection, evidence, gaps, and unresolved decisions in the design or Work
-   Contract before implementation; run review/closeout skills at their declared later phase and record their evidence
-   in closeout. If one is unavailable, record the gap and use existing governance; never silently skip semantic review.
-6. Inspect the current repository state before assuming toolchains or entrypoints exist.
-7. If the request introduces new long-running work and no active topic already owns it, route through
-   `graft-work-intake` before creating a new `topic`, `design`, `roadmap`, or `ADR`.
-8. Identify the first concrete boundary decision before editing.
-9. If the task touches live schema or migration files, re-read the `server/AGENTS.md` migration/comment rules and
-   treat table/column comment completeness as a mandatory implementation item, including core-owned handwritten
-   migration directories such as `server/internal/httpx/migrations/**`.
-10. Assess whether `graft-multi-agent-batch` is justified:
-   - use it only when the task is large enough, write scopes stay disjoint, and the current slice owner can keep the
-     immediate blocking step local
-   - when the task explicitly uses `graft-multi-agent-loop`, the outer loop owner may instead delegate the whole
-     bounded round to one worker subagent and keep only orchestration, budget tracking, acceptance, and stop
-     conditions local
-   - do not enable it for small, overlapping, or review-hostile slices
-11. Before edits, tell the user what you read, how you classified the task, whether multi-agent work is justified, and
-   the first implementation step.
-12. When the current slice reaches a stop, completion, or handoff point, route the ending through `graft-task-closeout`
-   instead of relying on an implicit wrap-up path.
-13. `graft-task-closeout` must evaluate commit eligibility through `graft-commit` rules:
-   - if validation and ownership allow a safe scoped commit, use `graft-commit`
-   - if they do not, report the exact blocker and keep the handoff status honest
-14. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
-    startup receipt fields needed by the next turn instead of assuming boot state carries across turns.
-
-## Recovery Rules
-
-* recovery follows startup preflight; it does not replace it
-* prefer repository truth over assumptions
-* if the repo still lacks a stable build or runtime contract, say so explicitly and keep validation expectations honest
-* if docs and code diverge, update the docs first or in the same change
+Keep the startup update brief: receipt, relevant evidence, delegation decision if applicable, and next action. Do not repeat complete reading lists or create a new receipt for each skill.

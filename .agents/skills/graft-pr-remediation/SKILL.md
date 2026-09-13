@@ -1,11 +1,11 @@
 ---
 name: graft-pr-remediation
-description: "Repository-specific closed-loop workflow for Graft PR remediation. Use when the user explicitly invokes `$graft-pr-remediation` or makes an equivalent explicit request for the complete bounded workflow: fix verified PR findings, validate, commit, push, reply to and resolve eligible AI threads, and append the verified managed-ledger run."
+description: "On explicit request, repair and publish current-PR findings, reply to and resolve eligible AI threads, and verify the final managed ledger."
 ---
 
 # Graft PR Remediation
 
-Use this skill for one explicitly authorized end-to-end PR repair run. Treat root `AGENTS.md` as the startup,
+Use this skill for one explicitly authorized end-to-end PR repair run. Treat root [AGENTS.md](../../../AGENTS.md) as the startup,
 validation, commit, push, and closeout authority. Reuse `graft-pr-review` for inventory and dispositions;
 `graft-validation-runner`, `graft-commit`, and `graft-push` remain the owners of their respective stages.
 
@@ -25,7 +25,7 @@ gates. Managed-ledger authority and payload validation remain owned by `graft-pr
 
 ## Closed-Loop Workflow
 
-1. Complete the root startup preflight and inspect `git status --short` before any write.
+1. Reuse or restore the root startup receipt and inspect `git status --short` before any write.
 2. Run the complete `graft-pr-review` inventory. Reconcile every open thread, folded group, pre-merge warning or
    inconclusive check, failed workflow, security signal, and test report before editing.
 3. Assign every finding exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`.

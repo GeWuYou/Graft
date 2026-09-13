@@ -1,30 +1,21 @@
 ---
 name: graft-work-intake
-description: Repository-specific workflow orchestrator for new long-running work. Use when startup discovers a request that may need design, topic, roadmap, ADR, bootstrap, or loop dispatch, and the repository must classify it through one Work Intake path instead of special-case entry flows.
+description: "Classify new long-running Graft work and create its minimal Work Contract and recovery structure."
 ---
 
 # Graft Work Intake
 
 Use this skill as the only workflow-level entry for new long-running work in `Graft`.
 
-Treat root `AGENTS.md`, `ai-plan/AGENTS.md`, `ai-plan/README.md`, and the approved `ai-plan` ADRs as the authority
+Treat root [AGENTS.md](../../../AGENTS.md), [ai-plan/AGENTS.md](../../../ai-plan/AGENTS.md), [ai-plan/README.md](../../../ai-plan/README.md), and the approved `ai-plan` ADRs as the authority
 sources. This skill is a thin orchestration wrapper: it does not define independent business rules, startup rules, or
 content-generation rules.
 
-Guardrail summary:
+## Relevant Authority
 
-- do not define independent business rules
+Reuse the current startup receipt and [ai-plan local rules](../../../ai-plan/AGENTS.md). For classification and contract fields, use the relevant [ADR-003 Work Intake decision](../../../ai-plan/design/decisions/ADR-003-work-intake-and-bootstrap-model.md). Do not reread root or environment inventory solely because intake begins.
 
-## Read First
-
-1. Complete the root `AGENTS.md` startup preflight.
-2. Read `ai-plan/AGENTS.md`.
-3. Read `ai-plan/README.md`.
-4. Read `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`.
-5. Read `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
-6. Read `ai-plan/design/decisions/ADR-003-work-intake-and-bootstrap-model.md`.
-7. Read `ai-plan/public/README.md` only after startup preflight and only to confirm whether an active topic already
-   owns the work.
+Consult [the active router](../../../ai-plan/public/README.md) only if no reliable ownership mapping is already known. When creating recovery materials, read the affected [tracking/recovery contract](../../../ai-plan/design/governance/ai/AI任务追踪与恢复设计.md); when choosing artifact locations, consult [ai-plan directory semantics](../../../ai-plan/README.md). Tooling governance is relevant only if intake itself changes skills, tools, or helper ownership.
 
 ## When To Use
 

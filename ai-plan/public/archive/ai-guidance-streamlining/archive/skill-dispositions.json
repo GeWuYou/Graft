@@ -1,0 +1,607 @@
+{
+  "baseline": "fe36f69c17ad6c2dfb3d84185a18254afe2dc7a3",
+  "skills": [
+    {
+      "name": "graft-ai-governance-audit",
+      "path": ".agents/skills/graft-ai-governance-audit/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained tool/privacy/owner/validator boundary; concise trigger, receipt reuse and owner links.",
+      "before_bytes": 4503,
+      "after_bytes": 4767,
+      "description_before_characters": 256,
+      "description_after_characters": 115,
+      "new_references": []
+    },
+    {
+      "name": "graft-ai-plan-governance",
+      "path": ".agents/skills/graft-ai-plan-governance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained router/topic/ADR and validator scope rules; concise trigger, receipt reuse and owner links.",
+      "before_bytes": 5064,
+      "after_bytes": 5845,
+      "description_before_characters": 281,
+      "description_after_characters": 110,
+      "new_references": []
+    },
+    {
+      "name": "graft-api-dx-review",
+      "path": ".agents/skills/graft-api-dx-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized api-dx-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 7004,
+      "after_bytes": 6906,
+      "description_before_characters": 265,
+      "description_after_characters": 115,
+      "new_references": []
+    },
+    {
+      "name": "graft-boot",
+      "path": ".agents/skills/graft-boot/SKILL.md",
+      "disposition": "edited",
+      "reason": "Rewrote as root startup/recovery router with same-task reuse and risk-based review selection.",
+      "before_bytes": 4651,
+      "after_bytes": 1638,
+      "description_before_characters": 387,
+      "description_after_characters": 116,
+      "new_references": []
+    },
+    {
+      "name": "graft-cache-governance",
+      "path": ".agents/skills/graft-cache-governance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Condensed duplicate inventory/rules into authority, strategy, admission and focused validation evidence.",
+      "before_bytes": 8184,
+      "after_bytes": 3595,
+      "description_before_characters": 303,
+      "description_after_characters": 124,
+      "new_references": []
+    },
+    {
+      "name": "graft-change-review",
+      "path": ".agents/skills/graft-change-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized change-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 2246,
+      "after_bytes": 2407,
+      "description_before_characters": 166,
+      "description_after_characters": 121,
+      "new_references": []
+    },
+    {
+      "name": "graft-codegraph-mcp",
+      "path": ".agents/skills/graft-codegraph-mcp/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained CLI/MCP/local-index hygiene and setup/troubleshooting; concise trigger and receipt reuse.",
+      "before_bytes": 4810,
+      "after_bytes": 4846,
+      "description_before_characters": 310,
+      "description_after_characters": 84,
+      "new_references": []
+    },
+    {
+      "name": "graft-comment-governance",
+      "path": ".agents/skills/graft-comment-governance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained Chinese comment value/language rules; removed tier and independent commit barriers.",
+      "before_bytes": 9281,
+      "after_bytes": 3524,
+      "description_before_characters": 272,
+      "description_after_characters": 123,
+      "new_references": []
+    },
+    {
+      "name": "graft-commit",
+      "path": ".agents/skills/graft-commit/SKILL.md",
+      "disposition": "edited",
+      "reason": "Unified necessary task-owned repairs and exact staging; links delivery owner and reuses validation.",
+      "before_bytes": 8995,
+      "after_bytes": 2780,
+      "description_before_characters": 385,
+      "description_after_characters": 116,
+      "new_references": []
+    },
+    {
+      "name": "graft-consistency-review",
+      "path": ".agents/skills/graft-consistency-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized consistency-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 2216,
+      "after_bytes": 2234,
+      "description_before_characters": 196,
+      "description_after_characters": 110,
+      "new_references": []
+    },
+    {
+      "name": "graft-cross-boundary-review",
+      "path": ".agents/skills/graft-cross-boundary-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized cross-boundary-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 4680,
+      "after_bytes": 4734,
+      "description_before_characters": 201,
+      "description_after_characters": 131,
+      "new_references": []
+    },
+    {
+      "name": "graft-delete-review",
+      "path": ".agents/skills/graft-delete-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized delete-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 2159,
+      "after_bytes": 2186,
+      "description_before_characters": 192,
+      "description_after_characters": 115,
+      "new_references": []
+    },
+    {
+      "name": "graft-domain-model-review",
+      "path": ".agents/skills/graft-domain-model-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized domain-model-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 7590,
+      "after_bytes": 6853,
+      "description_before_characters": 241,
+      "description_after_characters": 132,
+      "new_references": []
+    },
+    {
+      "name": "graft-event-contract-review",
+      "path": ".agents/skills/graft-event-contract-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized event-contract-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 8854,
+      "after_bytes": 8278,
+      "description_before_characters": 289,
+      "description_after_characters": 125,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-behavior-investigation",
+      "path": ".agents/skills/graft-frontend-behavior-investigation/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained evidence gate, probes, privacy and cleanup; concise precise uncertainty trigger and owner links.",
+      "before_bytes": 8394,
+      "after_bytes": 8199,
+      "description_before_characters": 348,
+      "description_after_characters": 107,
+      "new_references": []
+    },
+    {
+      "name": "graft-lessons-learned",
+      "path": ".agents/skills/graft-lessons-learned/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved admission/promotion thresholds; moved entry template and removed redundant purpose/examples.",
+      "before_bytes": 8258,
+      "after_bytes": 7387,
+      "description_before_characters": 148,
+      "description_after_characters": 97,
+      "new_references": [
+        ".agents/skills/graft-lessons-learned/references/lesson-format.md"
+      ]
+    },
+    {
+      "name": "graft-local-validation-bootstrap",
+      "path": ".agents/skills/graft-local-validation-bootstrap/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained first/recreate data safety and three-version contract; concise trigger and receipt reuse.",
+      "before_bytes": 3003,
+      "after_bytes": 2827,
+      "description_before_characters": 291,
+      "description_after_characters": 109,
+      "new_references": []
+    },
+    {
+      "name": "graft-local-validation-maintenance",
+      "path": ".agents/skills/graft-local-validation-maintenance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained instance-only/data-preserving deployment steps; concise trigger and receipt reuse.",
+      "before_bytes": 3124,
+      "after_bytes": 2951,
+      "description_before_characters": 275,
+      "description_after_characters": 96,
+      "new_references": []
+    },
+    {
+      "name": "graft-localization-governance",
+      "path": ".agents/skills/graft-localization-governance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained i18n owner/facade/catalog rules; removed stale phase chronology and dated blanket claim.",
+      "before_bytes": 7195,
+      "after_bytes": 6715,
+      "description_before_characters": 271,
+      "description_after_characters": 118,
+      "new_references": []
+    },
+    {
+      "name": "graft-module-architecture-review",
+      "path": ".agents/skills/graft-module-architecture-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized module-architecture-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 2355,
+      "after_bytes": 2389,
+      "description_before_characters": 216,
+      "description_after_characters": 134,
+      "new_references": []
+    },
+    {
+      "name": "graft-multi-agent-batch",
+      "path": ".agents/skills/graft-multi-agent-batch/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved DAG dispatch/history/retry semantics; autonomous parent-ceiling models and actual host mapping.",
+      "before_bytes": 6770,
+      "after_bytes": 6357,
+      "description_before_characters": 447,
+      "description_after_characters": 118,
+      "new_references": [
+        ".agents/skills/graft-multi-agent-batch/references/host-delegation.md"
+      ]
+    },
+    {
+      "name": "graft-multi-agent-loop",
+      "path": ".agents/skills/graft-multi-agent-loop/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved modes/state/transition and acceptance semantics; model inheritance and receipt reuse.",
+      "before_bytes": 7118,
+      "after_bytes": 7133,
+      "description_before_characters": 337,
+      "description_after_characters": 150,
+      "new_references": []
+    },
+    {
+      "name": "graft-multi-agent-task",
+      "path": ".agents/skills/graft-multi-agent-task/SKILL.md",
+      "disposition": "edited",
+      "reason": "Reduced wrapper; routed loop outputs/checkpoints; same-scope repair and coordinator atomic commit.",
+      "before_bytes": 11272,
+      "after_bytes": 2866,
+      "description_before_characters": 248,
+      "description_after_characters": 120,
+      "new_references": [
+        ".agents/skills/graft-multi-agent-task/references/loop-worker.md"
+      ]
+    },
+    {
+      "name": "graft-navigation-route-governance",
+      "path": ".agents/skills/graft-navigation-route-governance/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained navigation taxonomy; resolve discoverable placement before asking for a product decision.",
+      "before_bytes": 4399,
+      "after_bytes": 4571,
+      "description_before_characters": 256,
+      "description_after_characters": 123,
+      "new_references": []
+    },
+    {
+      "name": "graft-openapi-contract-review",
+      "path": ".agents/skills/graft-openapi-contract-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized openapi-contract-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 6965,
+      "after_bytes": 6965,
+      "description_before_characters": 220,
+      "description_after_characters": 104,
+      "new_references": []
+    },
+    {
+      "name": "graft-permission-model-review",
+      "path": ".agents/skills/graft-permission-model-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized permission-model-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 6749,
+      "after_bytes": 6572,
+      "description_before_characters": 240,
+      "description_after_characters": 120,
+      "new_references": []
+    },
+    {
+      "name": "graft-platform-architecture-review",
+      "path": ".agents/skills/graft-platform-architecture-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized platform-architecture-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 8868,
+      "after_bytes": 8756,
+      "description_before_characters": 314,
+      "description_after_characters": 123,
+      "new_references": []
+    },
+    {
+      "name": "graft-pr-create",
+      "path": ".agents/skills/graft-pr-create/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved helper write/idempotency/protection contract; conditional description/CLI reference and read-only diagnosis.",
+      "before_bytes": 7988,
+      "after_bytes": 5132,
+      "description_before_characters": 328,
+      "description_after_characters": 116,
+      "new_references": [
+        ".agents/skills/graft-pr-create/references/description-and-commands.md"
+      ]
+    },
+    {
+      "name": "graft-pr-remediation",
+      "path": ".agents/skills/graft-pr-remediation/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved complete protected write/reply/resolve/ledger contract; concise trigger and startup reuse.",
+      "before_bytes": 7826,
+      "after_bytes": 7653,
+      "description_before_characters": 338,
+      "description_after_characters": 139,
+      "new_references": []
+    },
+    {
+      "name": "graft-pr-review",
+      "path": ".agents/skills/graft-pr-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved exhaustive inventory/publication; read-only open/reported separate from final ledger disposition.",
+      "before_bytes": 5887,
+      "after_bytes": 6130,
+      "description_before_characters": 334,
+      "description_after_characters": 103,
+      "new_references": []
+    },
+    {
+      "name": "graft-push",
+      "path": ".agents/skills/graft-push/SKILL.md",
+      "disposition": "edited",
+      "reason": "Unified local repairs and delivery rules; preserves explicit publication and exact remote SHA proof.",
+      "before_bytes": 9515,
+      "after_bytes": 2576,
+      "description_before_characters": 274,
+      "description_after_characters": 122,
+      "new_references": []
+    },
+    {
+      "name": "graft-query-key-consistency",
+      "path": ".agents/skills/graft-query-key-consistency/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized query-key-consistency semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 6095,
+      "after_bytes": 5846,
+      "description_before_characters": 242,
+      "description_after_characters": 114,
+      "new_references": []
+    },
+    {
+      "name": "graft-security-remediation",
+      "path": ".agents/skills/graft-security-remediation/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved alert inventory/stage boundaries; local commits use root eligibility and external writes remain separate.",
+      "before_bytes": 4377,
+      "after_bytes": 4372,
+      "description_before_characters": 222,
+      "description_after_characters": 115,
+      "new_references": []
+    },
+    {
+      "name": "graft-server-module-scaffold",
+      "path": ".agents/skills/graft-server-module-scaffold/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained lifecycle/contract/module boundaries; lessons only for an evidenced reusable correction.",
+      "before_bytes": 2235,
+      "after_bytes": 1962,
+      "description_before_characters": 314,
+      "description_after_characters": 111,
+      "new_references": []
+    },
+    {
+      "name": "graft-shared-asset-reuse",
+      "path": ".agents/skills/graft-shared-asset-reuse/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved registry admission/removal safety; no irrelevant registries or not-applicable report ceremony.",
+      "before_bytes": 6122,
+      "after_bytes": 6272,
+      "description_before_characters": 250,
+      "description_after_characters": 127,
+      "new_references": []
+    },
+    {
+      "name": "graft-sql-migration",
+      "path": ".agents/skills/graft-sql-migration/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained SQL/preflight/version/forward-only/checksum rules; concise trigger and owner links.",
+      "before_bytes": 5528,
+      "after_bytes": 5777,
+      "description_before_characters": 208,
+      "description_after_characters": 126,
+      "new_references": []
+    },
+    {
+      "name": "graft-system-config-field-renderer",
+      "path": ".agents/skills/graft-system-config-field-renderer/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved schema-first mapping/i18n; conditional TDesign evidence and validation authority links.",
+      "before_bytes": 3429,
+      "after_bytes": 3277,
+      "description_before_characters": 120,
+      "description_after_characters": 117,
+      "new_references": []
+    },
+    {
+      "name": "graft-table-design",
+      "path": ".agents/skills/graft-table-design/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained table/audit/soft-delete/index rules; directs migration execution to scoped owning command.",
+      "before_bytes": 3860,
+      "after_bytes": 3998,
+      "description_before_characters": 300,
+      "description_after_characters": 108,
+      "new_references": []
+    },
+    {
+      "name": "graft-task-closeout",
+      "path": ".agents/skills/graft-task-closeout/SKILL.md",
+      "disposition": "edited",
+      "reason": "Reduced ordinary closeout; routed machine JSON conditionally and preserved controller ownership.",
+      "before_bytes": 11740,
+      "after_bytes": 2689,
+      "description_before_characters": 317,
+      "description_after_characters": 123,
+      "new_references": [
+        ".agents/skills/graft-task-closeout/references/json-closeout.md"
+      ]
+    },
+    {
+      "name": "graft-test-seam-review",
+      "path": ".agents/skills/graft-test-seam-review/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized test-seam-review semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 2369,
+      "after_bytes": 2400,
+      "description_before_characters": 176,
+      "description_after_characters": 103,
+      "new_references": []
+    },
+    {
+      "name": "graft-typescript-dx-audit",
+      "path": ".agents/skills/graft-typescript-dx-audit/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained specialized typescript-dx-audit semantic checks; precise trigger, root route, relevant evidence and integrated review reuse.",
+      "before_bytes": 8661,
+      "after_bytes": 8227,
+      "description_before_characters": 332,
+      "description_after_characters": 124,
+      "new_references": []
+    },
+    {
+      "name": "graft-validation-runner",
+      "path": ".agents/skills/graft-validation-runner/SKILL.md",
+      "disposition": "edited",
+      "reason": "Reuses unchanged passing evidence and inventory; corrected migration command to scoped owner contract.",
+      "before_bytes": 4135,
+      "after_bytes": 4309,
+      "description_before_characters": 293,
+      "description_after_characters": 99,
+      "new_references": []
+    },
+    {
+      "name": "graft-web-browser-agent",
+      "path": ".agents/skills/graft-web-browser-agent/SKILL.md",
+      "disposition": "edited",
+      "reason": "Preserved approved-runtime/privacy safety; moved setup, private schema and recipes to conditional reference.",
+      "before_bytes": 10235,
+      "after_bytes": 6301,
+      "description_before_characters": 322,
+      "description_after_characters": 117,
+      "new_references": [
+        ".agents/skills/graft-web-browser-agent/references/commands-and-targets.md"
+      ]
+    },
+    {
+      "name": "graft-web-module-scaffold",
+      "path": ".agents/skills/graft-web-module-scaffold/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained server/web/menu/permission ownership; lessons only for an evidenced reusable correction.",
+      "before_bytes": 1949,
+      "after_bytes": 1702,
+      "description_before_characters": 287,
+      "description_after_characters": 109,
+      "new_references": []
+    },
+    {
+      "name": "graft-web-vibe-coding",
+      "path": ".agents/skills/graft-web-vibe-coding/SKILL.md",
+      "disposition": "edited",
+      "reason": "Scaled planning to affected UI; TDesign queries only for new/uncertain API, DOM or versions.",
+      "before_bytes": 7231,
+      "after_bytes": 6271,
+      "description_before_characters": 325,
+      "description_after_characters": 135,
+      "new_references": []
+    },
+    {
+      "name": "graft-work-intake",
+      "path": ".agents/skills/graft-work-intake/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained minimal Work Contract and tracking authority; concise long-running trigger and receipt reuse.",
+      "before_bytes": 3716,
+      "after_bytes": 3886,
+      "description_before_characters": 279,
+      "description_after_characters": 97,
+      "new_references": []
+    },
+    {
+      "name": "graft-worktree-interactive-cleanup",
+      "path": ".agents/skills/graft-worktree-interactive-cleanup/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained integration/equivalence/confirmation safeguards; startup reuse and delivery-owner route.",
+      "before_bytes": 3836,
+      "after_bytes": 3778,
+      "description_before_characters": 347,
+      "description_after_characters": 101,
+      "new_references": []
+    },
+    {
+      "name": "graft-worktree-manager",
+      "path": ".agents/skills/graft-worktree-manager/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained helper lifecycle/lease/data/branch safety; explicit delivery-owner route.",
+      "before_bytes": 7870,
+      "after_bytes": 7994,
+      "description_before_characters": 165,
+      "description_after_characters": 108,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-asset-motion",
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-asset-motion/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained concise asset/motion/accessibility/no-dependency rules; explicit root route.",
+      "before_bytes": 3014,
+      "after_bytes": 2885,
+      "description_before_characters": 339,
+      "description_after_characters": 103,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-browser-qa",
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-browser-qa/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained accessibility/runtime safety; source checks first and explicitly conditional browser operation.",
+      "before_bytes": 3466,
+      "after_bytes": 3521,
+      "description_before_characters": 344,
+      "description_after_characters": 111,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-figma-intake",
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-figma-intake/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained Figma-as-reference and asset rights; browser verification conditional.",
+      "before_bytes": 1917,
+      "after_bytes": 1866,
+      "description_before_characters": 327,
+      "description_after_characters": 117,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-page-builder",
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-page-builder/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained Vue/TDesign/module constraints; conditional design reading and reuse page type for small fix.",
+      "before_bytes": 4454,
+      "after_bytes": 4152,
+      "description_before_characters": 331,
+      "description_after_characters": 112,
+      "new_references": []
+    },
+    {
+      "name": "graft-frontend-skill-intake",
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-skill-intake/SKILL.md",
+      "disposition": "edited",
+      "reason": "Retained external-advice routing/exclusions; reuse receipt and do not infer browser authority.",
+      "before_bytes": 4694,
+      "after_bytes": 4679,
+      "description_before_characters": 355,
+      "description_after_characters": 104,
+      "new_references": []
+    }
+  ],
+  "metrics": {
+    "entry_bytes_before": 306856,
+    "entry_bytes_after": 251936,
+    "description_characters_before": 14824,
+    "description_characters_after": 6117,
+    "scope": "53 SKILL.md entries; references excluded from entry byte totals"
+  }
+}

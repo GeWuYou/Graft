@@ -1,23 +1,20 @@
 ---
 name: graft-codegraph-mcp
-description: Repository-specific workflow for installing, registering, initializing, validating, or troubleshooting CodeGraph MCP for Graft. Use when the task mentions CodeGraph, codegraph init, codegraph serve --mcp, MCP navigation, /mcp missing codegraph, or turning CodeGraph setup into a repeatable repository workflow.
+description: "Set up or troubleshoot CodeGraph MCP as a developer-local Graft code-navigation aid."
 ---
 
 # Graft CodeGraph MCP
 
 Use this skill to set up or verify CodeGraph MCP as a developer-local AI navigation aid for `Graft`.
 
-Treat root `AGENTS.md` and `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md` as the source of truth. This skill does not
+Treat root [AGENTS.md](../../../AGENTS.md) and [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](../../../ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md) as the source of truth. This skill does not
 replace startup governance, authority discovery, direct source reads, or repository validation entrypoints.
 
 ## Startup
 
-1. Run the startup preflight from root `AGENTS.md` before repository conclusions or edits.
+1. Reuse a trustworthy startup receipt; restore it from root [AGENTS.md](../../../AGENTS.md) only when missing or lost.
 2. Classify CodeGraph setup and troubleshooting as `docs/automation` unless the task also changes `server` or `web`.
-3. Read:
-   - root `AGENTS.md`
-   - `.ai/environment/tools.ai.yaml`
-   - `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md`
+3. Reuse root/environment evidence and consult [CodeGraph governance](../../../ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md) for the setup or troubleshooting operation at hand.
 4. Inspect `git status --short` before edits. If other agents have changes, keep this skill's scope limited to
    `.agents/skills/graft-codegraph-mcp/**`, CodeGraph governance docs, `.gitignore`, and confirmed CodeGraph-only
    hunks.
@@ -102,7 +99,7 @@ replace startup governance, authority discovery, direct source reads, or reposit
   validation, or commit scope.
 - Always read real files before modifying code or making a final technical claim.
 - When a task touches TDesign Vue Next components, still use TDesign MCP according to
-  `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`; CodeGraph does not replace component docs.
+  [ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md](../../../ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md); CodeGraph does not replace component docs.
 
 ## Validation
 

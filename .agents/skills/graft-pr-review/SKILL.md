@@ -1,11 +1,11 @@
 ---
 name: graft-pr-review
-description: Repository-specific GitHub PR review workflow for Graft. Use to inventory and verify current-branch PR findings from CodeRabbit, Greptile, Gemini Code Assist, GitHub Advanced Security, failed checks, MegaLinter, or failed tests; default to read-only review and require explicit authorization before local remediation or GitHub writes.
+description: "Inventory and verify all current-PR findings and failed checks; default to a read-only evidence report."
 ---
 
 # Graft PR Review
 
-Use this skill when the task depends on live GitHub PR state rather than local files alone. Treat root `AGENTS.md` as
+Use this skill when the task depends on live GitHub PR state rather than local files alone. Treat root [AGENTS.md](../../../AGENTS.md) as
 the authority for startup, validation, commit, push, and closeout.
 
 ## Permission Stages
@@ -15,8 +15,8 @@ Use two fail-closed stages:
 1. `inventory/review` is the default. Read GitHub and local code, build an exhaustive inventory, verify findings, and
    report dispositions. Do not edit files, commit, push, change PR metadata, reply to threads, or update the ledger.
 2. `remediation/write` starts only when the user explicitly requests local fixes or a specific remote write. Permission
-   to fix locally does not authorize commit, push, PR metadata changes, replies, ledger writes, or other GitHub writes;
-   satisfy each owning skill's authorization gate independently.
+   to fix locally follows root scoped-commit eligibility and does not authorize push, PR metadata changes, replies,
+   ledger writes, or other GitHub writes; satisfy each owning skill's authorization gate independently.
 
 When the user explicitly invokes `$graft-pr-remediation`, route through that companion workflow. Its explicit contract
 bundles verified local repair, validation, scoped commit, push, supported-AI thread replies, and eligible thread
@@ -25,7 +25,7 @@ disposition requirements.
 
 ## Inventory Workflow
 
-1. Complete startup preflight and resolve the current branch and its PR.
+1. Reuse or restore the root startup receipt and resolve the current branch and its PR.
 2. Prefer GitHub MCP for focused live discovery. Use `scripts/fetch_current_pr_review.py` as the deterministic fallback
    and JSON normalizer whenever MCP is unavailable or a complete machine-readable inventory is needed.
 3. Build one exhaustive inventory before any remediation:
@@ -37,8 +37,9 @@ disposition requirements.
 4. Reconcile every declared folded-section count with parsed rows. An under-parsed group makes the inventory incomplete;
    inspect the raw review body or a focused helper section until all items are enumerated or an exact blocker is known.
 5. Verify every row against the checked-out HEAD and classify it as `actionable-local`, `actionable-large`, `stale`, or
-   `noise`. For CI, reproduce the smallest matching local command before diagnosing the failure. `Inconclusive` must be
-   resolved; every `Warning` needs an explicit remediate or accept-with-reason decision.
+   `noise`. For CI, reproduce the smallest matching local command before diagnosing the failure. Resolve `Inconclusive`
+   from evidence or report its exact missing evidence/blocker; every `Warning` needs an explicit next repair or
+   accept-with-reason decision.
 6. In the default read-only stage, stop after reporting the full inventory, evidence, proposed repairs, and the exact
    authorization needed for any next write.
 
@@ -55,8 +56,8 @@ When explicit local-remediation authority exists:
    `stale` or `noise`.
 2. Use `graft-validation-runner` for any changed code. Focused checks are supplemental; completion still requires the
    full backend/web entrypoint selected by repository governance.
-3. Keep commit and push behind `graft-commit` and `graft-push` authorization. A remediation request alone does not
-   grant either operation.
+3. Keep commit and push behind `graft-commit` and `graft-push` authorization. Root closeout may authorize a local scoped commit;
+   push and other external operations still require their own authorization.
 4. Before any authorized PR-thread reply or managed ledger write, run
    `git ls-remote --exit-code origin refs/heads/<current-branch>` and require its SHA to equal `git rev-parse HEAD`.
    If publication is absent or mismatched, leave PR threads and the ledger untouched.
@@ -65,7 +66,10 @@ When explicit local-remediation authority exists:
 
 ## Completion Contract
 
-Every inventoried finding must end in exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`.
+In read-only `inventory/review`, every finding must be reported with evidence, risk, and a concrete next step or blocker;
+valid actionable findings may remain `open/reported`. In a complete authorized remediation run, every finding must end
+in exactly one final disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`. The read-only report states are
+not managed-ledger disposition values.
 Partial fixes, handled open threads, or a successful push do not close unreconciled folded findings.
 
 Report:

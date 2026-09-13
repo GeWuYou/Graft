@@ -1,13 +1,13 @@
 ---
 name: graft-frontend-behavior-investigation
-description: Evidence-first runtime investigation workflow for Vue frontend behavior whose real event, lifecycle, state, route, query, or request trigger chain cannot be proven by static analysis. Use structured, scoped probes, pause for user reproduction, reconstruct the causal timeline, verify the root cause, then clean up and add a durable regression test.
+description: "Investigate Vue trigger chains with scoped runtime probes when source and tests cannot establish the cause."
 ---
 
 # Graft Frontend Behavior Investigation
 
 Use this skill when a frontend behavior has multiple plausible trigger paths and source inspection cannot prove which
 path occurred during the user's operation. It is an investigation protocol, not a general logging or automatic browser
-testing skill. Follow root `AGENTS.md`, `web/AGENTS.md`, relevant frontend governance, and the normal validation entrypoint.
+testing skill. Follow root [AGENTS.md](../../../AGENTS.md), [web/AGENTS.md](../../../web/AGENTS.md), relevant frontend governance, and the normal validation entrypoint.
 
 ## Non-negotiable evidence gate
 

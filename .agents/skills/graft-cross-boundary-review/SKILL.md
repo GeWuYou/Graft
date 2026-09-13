@@ -1,12 +1,14 @@
 ---
 name: graft-cross-boundary-review
-description: Review Graft changes that cross server, OpenAPI, generated TypeScript, TanStack Query, composables, stores, and views for authority drift, duplicated transformations, and leaked layer responsibilities.
+description: "Review authority and semantic consistency when Graft data or behavior changes across server, OpenAPI, generated contracts, and web."
 ---
 
 # Graft Cross-Boundary Review
 
-Use this skill when a change crosses `server` and `web`, changes an OpenAPI or shared contract, updates generated
-artifacts, or moves data through an API client, query/composable, store, or view. It is a semantic review aid, not a
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
+
+Use this skill when a change crosses `server` and `web`, changes an OpenAPI or shared contract, changes shared generated
+contracts, or changes semantics across an API client, query/composable, store, and view chain. It is a semantic review aid, not a
 replacement for `graft-boot`, domain-specific governance, code generation, or repository validation.
 
 ## Review Authority

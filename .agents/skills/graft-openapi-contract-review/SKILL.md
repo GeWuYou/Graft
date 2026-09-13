@@ -1,9 +1,11 @@
 ---
 name: graft-openapi-contract-review
-description: Review Graft OpenAPI source changes for contract quality, compatibility, and server/web impact before implementation or regeneration. Use when openapi/**/*.yaml, shared API contracts, or their generated consumers change.
+description: "Review Graft OpenAPI source changes for contract quality, compatibility, and server/web consumer impact."
 ---
 
 # Graft OpenAPI Contract Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill for semantic review of Graft's HTTP wire contract. It complements repository validation and does not
 create a second OpenAPI authority, generation path, startup flow, or completion gate.
@@ -21,7 +23,7 @@ create a second OpenAPI authority, generation path, startup flow, or completion 
 
 ## Review Workflow
 
-1. Establish the startup receipt and read the applicable root, server, web, and contract-governance instructions.
+1. Reuse or restore the root startup receipt and read the applicable root, server, web, and contract-governance instructions.
 2. Inventory the source diff and classify each change as additive, corrective, behavioral, deprecation, or breaking.
 3. Identify the canonical owner, lifecycle (`experimental`, `stable`, `deprecated`, or `removed`), direct consumers, and
    whether generated artifacts are expected to change.

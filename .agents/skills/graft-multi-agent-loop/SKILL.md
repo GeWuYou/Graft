@@ -1,11 +1,11 @@
 ---
 name: graft-multi-agent-loop
-description: Repository-specific loop orchestrator for Graft multi-agent tasks. Use when one bounded task should run through repeated same-session serial worker-subagent rounds of `graft-multi-agent-task` under the default `topic-completion-loop` mode until the topic reaches `archive-ready`, becomes `blocked`, or no remaining batches stay in scope.
+description: "Run a bounded Graft topic through repeated delegated batches, continuing by default until acceptance, a real blocker, or the declared budget boundary."
 ---
 
 # Graft Multi-Agent Loop
 
-Use this skill for repeated bounded delegated rounds under one outer main agent. Treat root `AGENTS.md` as authority;
+Use this skill for repeated bounded delegated rounds under one outer main agent. Treat root [AGENTS.md](../../../AGENTS.md) as authority;
 this skill owns orchestration state only and never replaces startup, recovery, validation, commit, or closeout rules.
 
 ## Modes
@@ -57,7 +57,7 @@ acceptance boundary.
 
 Before dispatch:
 
-1. Complete root startup preflight and emit the required receipt.
+1. Reuse the current trustworthy startup receipt; restore it through root preflight only when missing or lost.
 2. Restore parent/subtopic recovery only after preflight when applicable.
 3. Confirm task class, authority, owned/forbidden scope, acceptance criteria, and applicable semantic reviews.
 4. Establish the initial topology revision, node dependencies, ready frontier, `current_batch`, `completed_batches`,
@@ -73,7 +73,8 @@ Before dispatch:
    forbidden scope, authority owner, execution context, validation, closeout shape, commit authority, remaining budget,
    and verified parent/worker `model_relation` with comparison evidence.
    The worker model must be the
-   same level as or lower than its direct parent; never infer rank from model names, availability, or reasoning effort.
+   same level as or lower than its direct parent; when comparison is unavailable inherit the parent and continue.
+   Use [host delegation mapping](../graft-multi-agent-batch/references/host-delegation.md); never infer rank from names or reasoning effort.
 3. Wait for final round evidence. Treat quiet windows as observations, not automatic stall or takeover permission.
 4. Enter `VERIFY`: confirm scope, implementation, validation, comment governance, commit state, risks, blockers, and
    model evidence.

@@ -1,15 +1,17 @@
 ---
 name: graft-frontend-browser-qa
-description: Verify Graft frontend changes with repository-approved browser inspection, screenshots, DOM checks, accessibility-oriented review, and frontend validation. Use as the Graft replacement for generic Frontend Testing Debugging, Playwright, Screenshot, or AccessLint skills, without adding Playwright test dependencies or changing web/package.json.
+description: "Review Graft UI accessibility and layout; run browser inspection only for an approved primary-checkout runtime."
 ---
 
 # Graft Frontend Browser QA
+
+Apply [root governance](../../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill after or during Graft web UI changes when behavior, layout, visibility, responsiveness, authentication, or browser evidence matters.
 
 ## Workflow
 
-1. Start from repository governance. For web changes, `bun run check` is the completion entrypoint.
+1. Reuse current task governance and passing evidence. Review changed accessibility/layout through source and focused tests first; `bun run check` remains the web completion entrypoint. Browser inspection is conditional on the task’s explicit runtime question and authorization.
 2. Run browser QA only in the developer-owned primary checkout after a user or developer approves a runtime proven to
    serve the branch and HEAD under review. Numbered agent worktrees must not start services or use browser agents,
    Playwright, screenshots, or browser interaction; record primary-checkout browser QA as follow-up rather than

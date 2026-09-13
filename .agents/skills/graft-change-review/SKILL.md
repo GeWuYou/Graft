@@ -1,9 +1,11 @@
 ---
 name: graft-change-review
-description: "Review a Graft change on two independent axes: repository standards and originating design/spec intent. Use before commit or integration for any implementation slice."
+description: "Review an implementation diff against Graft standards and the originating request or design before commit or integration."
 ---
 
 # Graft Change Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Run this after implementation and before closeout. It is the Graft adaptation of standards/spec review and complements
 specialized semantic reviews, PR review, validation, and commit governance.
@@ -42,4 +44,5 @@ Graft change review:
 
 - Never create a second commit, validation, or PR review path.
 - Do not rank Standards findings against Spec findings; the two axes must remain independently visible.
-- Do not repair a finding during review unless the caller starts the normal governed repair workflow.
+- A read-only review request stays read-only. Within an already authorized implementation task, record the finding,
+  repair its task-owned cause, and review/revalidate the changed result under root rules.

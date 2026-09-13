@@ -13,7 +13,7 @@
 ## 2. 默认工作方式
 
 - 先识别 authority owner，再冻结改动范围。
-- 只在当前 owned scope 内修改；发现 authority 在上游时，先升级任务范围，不做下游补丁伪完成。
+- 在已授权目标内完成必要修复；owned scope 管理归属，发现上游 authority 或跨 worker 依赖时由协调者重分配，不做下游补丁伪完成。
 - 没有明确要求时，不做顺手修复、顺手重命名、顺手升级依赖或顺手整理结构。
 - 以最小闭环完成当前切片：规则、实现、必要测试、closeout 证据。
 - 前端页面的数据流设计先区分 server state 与 UI/client state；出现重复请求、手工 loading/error/data、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，先按 `ai-plan/design/architecture/前端架构设计.md` 评估 `@tanstack/vue-query`。
@@ -22,21 +22,24 @@
 ## 2.1 Inspection 与写操作授权
 
 - PR review 与 security alert 请求默认只授权只读 inventory、证据提取、finding 分类和根因诊断。
+- 只读报告可用 open/reported 收尾，但每项包含证据、风险、下一步/阻塞；完整 remediation 用 fixed/delegated/blocked/stale/noise。远端 managed ledger 最终枚举不加入只读状态。
 - 只有用户明确要求修复，才授权进入对应代码 repair；只读审查本身不授权修改工作树。
-- GitHub 评论、alert 回复或关闭、commit、push、PR 创建或更新等 external write 必须由用户明确要求，并继续受
+- GitHub 评论、alert 回复或关闭、push、PR 创建或更新等 external write 必须由用户明确要求，并继续受
   对应 `graft-commit`、`graft-push`、`graft-pr-create` 或专项 skill 约束。
 - 用户显式调用 `graft-pr-remediation` 时，该调用就是当前分支 PR 的 bounded repair / validate / commit / push /
   supported-AI thread reply / resolve / managed-ledger append 授权；它不授权 force-push、merge、PR metadata、
   arbitrary issue comment、human-authored thread resolution 或 unbounded finding。所有回复、resolve 与 ledger 写入
   仍必须在远端分支和 PR head 精确匹配本地 HEAD 后执行，ledger schema 和 append-only payload validation 继续由
   `graft-pr-review` 持有。
-- 从 inspection 进入 repair 或 external write 时必须重新确认 authority、owned scope、验证和 closeout 路径；
+- 本地 commit 依据根 AGENTS 的显式触发或 validated owned scope closeout 规则，不误归为必须再次授权的 external write。
+- 从 inspection 进入 repair 或 external write 时必须核对已有授权、authority、owned scope、验证和 closeout 路径；
   不得把“finding 可执行”解释为已获得写操作授权。
 
 ## 2.2 Semantic Review Layer
 
-语义审查是设计阶段的默认层，不是用户显式要求时才运行的工具。Boot 必须按 authority、task class 和影响面
-主动匹配所有适用 Review Skill，并在设计或 Work Contract 中记录选择、发现和未决决策。
+语义审查按实际改变的行为与风险匹配，不能只按关键词加载全部 Review Skill。高风险关注点仍须覆盖；一份证据可
+满足多个相关关注点，复用本轮回执与已读内容。设计或 Work Contract 记录必要选择、发现和未决决策；局部修复可在
+简短 closeout 中记录，不要求为了审查而新建完整设计或 topic。
 
 匹配矩阵：OpenAPI/共享 wire contract 使用 `graft-openapi-contract-review`；跨 server/OpenAPI/generated web/query
 链使用 `graft-cross-boundary-review`；平台/runtime/Task/Submission/config/source-of-truth 使用
@@ -53,7 +56,7 @@ change、consistency、delete 分别使用同名 `graft-*` Review Skill。
 
 - 跨模块重构
 - authority 与范围不清的跨 `server` / `web` / OpenAPI / shared contract 连锁改动
-- 自动生成或自动改写数据库迁移
+- 未经 schema 变更授权的数据库迁移生成或改写；获授权 schema 任务仍须显式生成和验证，不得自动应用 live DB
 - 依赖升级、锁文件批量刷新、工具链版本漂移
 - 大范围 rename wave、目录迁移、批量移动文件
 - 以“统一风格”为名的仓库级格式化或整理 import
@@ -73,14 +76,19 @@ AI 在当前任务中不得：
 - 借用户没限制的空档做个人偏好的架构调整
 - 在评审阶段夹带功能修改
 
-例外只允许在以下同时满足时发生：
+## 4.1 授权目标内的连续修复
 
-- 与当前 authority 修复直接相关
-- 不扩大 task class
-- 有直接验证
-- closeout 明确列出
+根 [AGENTS.md](../../../../AGENTS.md) 的 Authorized Work 是唯一授权政策。已授权实现包括必要相关文件、回归测试、
+已诊断 validation/hook 失败的修复与复验；新文件或 task class 的必要升级本身不产生新的确认门槛。先核对必要性、
+canonical owner、用户改动和副作用；归属明确且保持目标时说明影响后继续，不强制文件/hunk 白名单或 execute_repair。
+worker 在分配范围修复；跨 worker 或共享 authority 范围先交协调者重新分配，不能私自覆盖或用下游兼容代替。
 
-当验证或提交链路暴露出需要修复的问题时，Agent 仅可在根因已诊断且被直接修复、归属明确、全部文件/hunk 均留在用户已确认 task scope 内、并且 authority 与行为均不变时连续完成修复，并重跑受影响验证。任一条件不满足时，必须遵循根 `AGENTS.md` 的 `Repair Confirmation Interaction Contract`，形成结构化 `Repair required` proposal，而不是只写“暂停”或询问 `Approve?`、`Should I fix this?`、`Confirm repair?` 要求用户重新说明方向。proposal 必须包括失败命令和根因、精确文件路径与行号或 hunk、拟改内容、ownership 与 blast radius、将重跑的验证，以及独立 repair commit 或合并当前 commit 的策略。Agent 必须优先通过宿主原生 structured-choice interaction（例如 `request_user_input`）提供 `execute_repair`、`continue_current_scope`、`show_detailed_diff`、`cancel_workflow` 四个选项，不能在普通回复中要求用户输入编号；只有 `execute_repair` 才允许修改、暂存、提交或推送结构化提案中展示的 repair，`show_detailed_diff` 必须展示 patch 后重新调用同一控件，且新文件或 hunk 必须重新提案。只有宿主确认不支持原生交互时，才允许输出完整 proposal、四个数字选项各自的说明与后果后停止，并等待下一轮用户仅回复 `1 / 2 / 3 / 4`；该 fallback 必须映射到同一四个选项，不能用于方便起见的降级或二元确认。
+只有混合/未知归属、目标变化或新增外部副作用才需要具体确认。确认前完成可安全完成的诊断和可审阅提案，说明：
+失败命令与根因、拟改文件/行为、ownership 与影响、复验命令、必要时提交策略。使用宿主可用且符合宿主限制的交互；
+不强制四选项、数字回复或固定工具名。已有授权继续有效，不把新相关 hunk 当成重新授权理由。
+
+证据必须区分直接相关修复与无关整理；不得顺手升级依赖/扩大架构范围。复验只覆盖变化与失效证据，复用有效完成态
+检查，不跳过 hooks/CI/server/web 完成入口。
 
 ## 5. 禁止 TODO 泄漏
 
@@ -174,12 +182,9 @@ AI closeout:
 - 汇总验证与最终 closeout
 - 拒绝把未知来源改动打包进同一结论
 
-多 agent 委派的模型约束：
-
-- 子 agent 模型不得高于直接委派者模型；同级或更低级模型才可直接委派。
-- `fork_context=true` 只能继承父模型与推理强度；显式模型配置必须使用 `fork_context=false`，并完成等级比较。
-- 更高模型需要用户对具体模型、范围和风险理由的明确授权；等级未知或无法验证时不得 dispatch。
-- retry、sidecar、loop worker 和嵌套 worker 必须重新验证该关系，不能通过重试或嵌套路径升级模型等级。
+多 agent 模型政策只引用根 AGENTS.md 的 Delegation：按复杂度、成本、能力自主选择同级/更低级模型；其他模型等级
+不可验证时继承直接父模型继续，不暂停询问。禁止高于父模型，也不从名称或 reasoning effort 推断等级。注释不再
+要求恰好低一级。每条嵌套/retry/replacement/sidecar/loop 边均记录实际继承或可信比较证据；宿主参数放技能 reference。
 
 子 agent 必须：
 
@@ -195,7 +200,7 @@ AI closeout:
 ### 9.1 单 Agent Review
 
 - authority owner 是否确认清楚
-- 是否严格留在 owned scope
+- 是否围绕已授权目标，必要范围扩展是否确认 owner 并协调分配
 - 是否存在机会主义修复
 - 是否新增 TODO 泄漏、伪实现或静默 fallback
 - 前端 server state 是否已优先评估 Query，且未把 URL、草稿、选择或编辑器实例放进 query cache
@@ -208,11 +213,11 @@ AI closeout:
 ### 9.2 多 Agent Review
 
 - 各 agent 的 owned scope 是否明确且不重叠
-- 是否有人越界修改上游 authority 或共享契约
+- 上游 authority 或共享契约变更是否经协调分配并有对应验证
 - 汇总结果是否遗漏冲突、风险或未验证项
 - 主 agent 是否明确列出每个子切片的验证状态
 - 是否把“另一位 agent 会处理”当成未完成工作的借口
-- 每个委派是否包含 `parent_model`、`worker_model`、`model_relation` 和可复核的等级比较证据
+- 每个委派是否记录实际父/子配置与继承证据，或可信 model_relation 比较；未知关系是否通过继承继续
 - 如果协作来自 PR review finding repair，是否把 `Outside diff range comments`、`Nitpick comments` 和其它
   folded latest-review findings 继续保留在统一 disposition 清单内，而不是在拆批后丢失
 

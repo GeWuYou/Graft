@@ -1,0 +1,276 @@
+{
+  "commit": "fe36f69c17ad6c2dfb3d84185a18254afe2dc7a3",
+  "agents_bytes": {
+    "AGENTS.md": 79364,
+    "server/AGENTS.md": 44633,
+    "web/AGENTS.md": 35415,
+    "ai-plan/AGENTS.md": 10071
+  },
+  "skills": [
+    {
+      "path": ".agents/skills/graft-ai-governance-audit/SKILL.md",
+      "bytes": 4503,
+      "description_characters": 256
+    },
+    {
+      "path": ".agents/skills/graft-ai-plan-governance/SKILL.md",
+      "bytes": 5064,
+      "description_characters": 281
+    },
+    {
+      "path": ".agents/skills/graft-api-dx-review/SKILL.md",
+      "bytes": 7004,
+      "description_characters": 265
+    },
+    {
+      "path": ".agents/skills/graft-boot/SKILL.md",
+      "bytes": 4651,
+      "description_characters": 387
+    },
+    {
+      "path": ".agents/skills/graft-cache-governance/SKILL.md",
+      "bytes": 8184,
+      "description_characters": 303
+    },
+    {
+      "path": ".agents/skills/graft-change-review/SKILL.md",
+      "bytes": 2246,
+      "description_characters": 168
+    },
+    {
+      "path": ".agents/skills/graft-codegraph-mcp/SKILL.md",
+      "bytes": 4810,
+      "description_characters": 310
+    },
+    {
+      "path": ".agents/skills/graft-comment-governance/SKILL.md",
+      "bytes": 9281,
+      "description_characters": 272
+    },
+    {
+      "path": ".agents/skills/graft-commit/SKILL.md",
+      "bytes": 8995,
+      "description_characters": 385
+    },
+    {
+      "path": ".agents/skills/graft-consistency-review/SKILL.md",
+      "bytes": 2216,
+      "description_characters": 196
+    },
+    {
+      "path": ".agents/skills/graft-cross-boundary-review/SKILL.md",
+      "bytes": 4680,
+      "description_characters": 201
+    },
+    {
+      "path": ".agents/skills/graft-delete-review/SKILL.md",
+      "bytes": 2159,
+      "description_characters": 192
+    },
+    {
+      "path": ".agents/skills/graft-domain-model-review/SKILL.md",
+      "bytes": 7590,
+      "description_characters": 241
+    },
+    {
+      "path": ".agents/skills/graft-event-contract-review/SKILL.md",
+      "bytes": 8854,
+      "description_characters": 289
+    },
+    {
+      "path": ".agents/skills/graft-frontend-behavior-investigation/SKILL.md",
+      "bytes": 8394,
+      "description_characters": 348
+    },
+    {
+      "path": ".agents/skills/graft-lessons-learned/SKILL.md",
+      "bytes": 8258,
+      "description_characters": 148
+    },
+    {
+      "path": ".agents/skills/graft-local-validation-bootstrap/SKILL.md",
+      "bytes": 3003,
+      "description_characters": 291
+    },
+    {
+      "path": ".agents/skills/graft-local-validation-maintenance/SKILL.md",
+      "bytes": 3124,
+      "description_characters": 275
+    },
+    {
+      "path": ".agents/skills/graft-localization-governance/SKILL.md",
+      "bytes": 7195,
+      "description_characters": 271
+    },
+    {
+      "path": ".agents/skills/graft-module-architecture-review/SKILL.md",
+      "bytes": 2355,
+      "description_characters": 216
+    },
+    {
+      "path": ".agents/skills/graft-multi-agent-batch/SKILL.md",
+      "bytes": 6770,
+      "description_characters": 447
+    },
+    {
+      "path": ".agents/skills/graft-multi-agent-loop/SKILL.md",
+      "bytes": 7118,
+      "description_characters": 337
+    },
+    {
+      "path": ".agents/skills/graft-multi-agent-task/SKILL.md",
+      "bytes": 11272,
+      "description_characters": 248
+    },
+    {
+      "path": ".agents/skills/graft-navigation-route-governance/SKILL.md",
+      "bytes": 4399,
+      "description_characters": 256
+    },
+    {
+      "path": ".agents/skills/graft-openapi-contract-review/SKILL.md",
+      "bytes": 6965,
+      "description_characters": 220
+    },
+    {
+      "path": ".agents/skills/graft-permission-model-review/SKILL.md",
+      "bytes": 6749,
+      "description_characters": 240
+    },
+    {
+      "path": ".agents/skills/graft-platform-architecture-review/SKILL.md",
+      "bytes": 8868,
+      "description_characters": 314
+    },
+    {
+      "path": ".agents/skills/graft-pr-create/SKILL.md",
+      "bytes": 7988,
+      "description_characters": 328
+    },
+    {
+      "path": ".agents/skills/graft-pr-remediation/SKILL.md",
+      "bytes": 7826,
+      "description_characters": 340
+    },
+    {
+      "path": ".agents/skills/graft-pr-review/SKILL.md",
+      "bytes": 5887,
+      "description_characters": 334
+    },
+    {
+      "path": ".agents/skills/graft-push/SKILL.md",
+      "bytes": 9515,
+      "description_characters": 274
+    },
+    {
+      "path": ".agents/skills/graft-query-key-consistency/SKILL.md",
+      "bytes": 6095,
+      "description_characters": 242
+    },
+    {
+      "path": ".agents/skills/graft-security-remediation/SKILL.md",
+      "bytes": 4377,
+      "description_characters": 222
+    },
+    {
+      "path": ".agents/skills/graft-server-module-scaffold/SKILL.md",
+      "bytes": 2235,
+      "description_characters": 314
+    },
+    {
+      "path": ".agents/skills/graft-shared-asset-reuse/SKILL.md",
+      "bytes": 6122,
+      "description_characters": 250
+    },
+    {
+      "path": ".agents/skills/graft-sql-migration/SKILL.md",
+      "bytes": 5528,
+      "description_characters": 208
+    },
+    {
+      "path": ".agents/skills/graft-system-config-field-renderer/SKILL.md",
+      "bytes": 3429,
+      "description_characters": 120
+    },
+    {
+      "path": ".agents/skills/graft-table-design/SKILL.md",
+      "bytes": 3860,
+      "description_characters": 300
+    },
+    {
+      "path": ".agents/skills/graft-task-closeout/SKILL.md",
+      "bytes": 11740,
+      "description_characters": 317
+    },
+    {
+      "path": ".agents/skills/graft-test-seam-review/SKILL.md",
+      "bytes": 2369,
+      "description_characters": 176
+    },
+    {
+      "path": ".agents/skills/graft-typescript-dx-audit/SKILL.md",
+      "bytes": 8661,
+      "description_characters": 332
+    },
+    {
+      "path": ".agents/skills/graft-validation-runner/SKILL.md",
+      "bytes": 4135,
+      "description_characters": 293
+    },
+    {
+      "path": ".agents/skills/graft-web-browser-agent/SKILL.md",
+      "bytes": 10235,
+      "description_characters": 322
+    },
+    {
+      "path": ".agents/skills/graft-web-module-scaffold/SKILL.md",
+      "bytes": 1949,
+      "description_characters": 287
+    },
+    {
+      "path": ".agents/skills/graft-web-vibe-coding/SKILL.md",
+      "bytes": 7231,
+      "description_characters": 325
+    },
+    {
+      "path": ".agents/skills/graft-work-intake/SKILL.md",
+      "bytes": 3716,
+      "description_characters": 279
+    },
+    {
+      "path": ".agents/skills/graft-worktree-interactive-cleanup/SKILL.md",
+      "bytes": 3836,
+      "description_characters": 347
+    },
+    {
+      "path": ".agents/skills/graft-worktree-manager/SKILL.md",
+      "bytes": 7870,
+      "description_characters": 165
+    },
+    {
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-asset-motion/SKILL.md",
+      "bytes": 3014,
+      "description_characters": 339
+    },
+    {
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-browser-qa/SKILL.md",
+      "bytes": 3466,
+      "description_characters": 344
+    },
+    {
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-figma-intake/SKILL.md",
+      "bytes": 1917,
+      "description_characters": 327
+    },
+    {
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-page-builder/SKILL.md",
+      "bytes": 4454,
+      "description_characters": 331
+    },
+    {
+      "path": "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-skill-intake/SKILL.md",
+      "bytes": 4694,
+      "description_characters": 355
+    }
+  ]
+}

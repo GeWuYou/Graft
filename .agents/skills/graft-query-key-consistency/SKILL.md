@@ -1,33 +1,30 @@
 ---
 name: graft-query-key-consistency
-description: Default semantic review of Graft TanStack Query key ownership, normalization, invalidation, and realtime refresh behavior. Use when adding or changing web queries, mutations, cache updates, polling, subscriptions, or shared resource adapters.
+description: "Review Graft query identity, normalization, invalidation, and realtime refresh when client cache behavior changes."
 ---
 
 # Graft Query Key Consistency
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as Graft's default semantic review layer for client cache identity. It complements the owning web
 module contract, API/OpenAPI authority, TanStack Query conventions, and `bun run check`; it does not create a second
 cache library, query registry, invalidation framework, or validation path.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `web/AGENTS.md` and the relevant frontend architecture and contract governance documents.
-3. Read the owning module's API/contract files, existing shared query helpers, and any event, notification, polling, or
-   realtime design that supplies fresh data.
-4. Inspect neighboring modules for established query-key factories before introducing a new shape.
+Reuse startup and [web guidance](../../../web/AGENTS.md). Inspect the affected key factory, API contract, consumers, and mutation/invalidation paths. Read realtime, notification, or polling design only when that source supplies freshness to the changed query. Use relevant architecture/contract rules when identity or ownership changes, and compare neighboring factories before introducing a new shape. Keep the evidence in the integrated review.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - adds or changes `useQuery`, `useInfiniteQuery`, `useMutation`, `queryClient` calls, polling, or realtime refresh;
 - adds a list, detail, saved-view, summary, count, permission, or resource query;
 - changes filters, pagination, sorting, selected IDs, tenant/user scope, or normalization of query inputs; or
 - changes a mutation, event, notification, websocket, or task transition that should refresh cached data.
 
-Boot and design workflows should actively match this skill for these triggers. It runs by default for matching work,
-not only when a user explicitly asks for a query review.
+Use the changed semantics to select checks; a file extension or incidental keyword alone does not require a full review.
 
 ## Workflow
 
@@ -83,17 +80,8 @@ compatibility alias.
 
 ## Review Output
 
-```text
-Query key consistency review:
-- authority_owner: <module contract/query owner>
-- key_namespace: <canonical prefixes and factories>
-- normalization: <filter/scope/ID rules>
-- consumers: <queries, mutations, views, realtime sources>
-- invalidation_map: <mutation/event -> affected keys>
-- freshness: <polling/subscription/reconnect/terminal behavior>
-- findings: <severity, evidence, recommendation>
-- validation: <bun run check or focused tests and results>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 

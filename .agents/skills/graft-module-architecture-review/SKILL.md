@@ -1,16 +1,18 @@
 ---
 name: graft-module-architecture-review
-description: Review Graft module and interface design for ownership, depth, locality, dependency direction, and platform extensibility. Use during design before introducing packages, adapters, shared helpers, or runtime surfaces.
+description: "Review module ownership, interface depth, dependencies, and lifecycle when introducing or reshaping a Graft module or shared boundary."
 ---
 
 # Graft Module Architecture Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this as the semantic architecture review for module shape. It complements `graft-platform-architecture-review`,
 server/web module rules, and validation; it never creates a second architecture authority or review gate.
 
 ## Workflow
 
-1. Establish the startup receipt and identify the product capability, owning module, task class, and canonical contract.
+1. Reuse or restore the root startup receipt and identify the product capability, owning module, task class, and canonical contract.
 2. Map the module interface, implementation, adapters, dependencies, lifecycle, and callers. Use **depth**, **seam**,
    **locality**, and **leverage** to describe the design.
 3. Apply the deletion test: if the module disappeared, would complexity vanish or return across callers? A pass-through

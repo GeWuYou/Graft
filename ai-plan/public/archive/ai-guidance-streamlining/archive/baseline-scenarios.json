@@ -1,0 +1,88 @@
+{
+  "baseline_commit": "fe36f69c17ad6c2dfb3d84185a18254afe2dc7a3",
+  "evaluator": "independent baseline agent",
+  "context": "fork_turns=none; no explicit model/reasoning override; inherited parent configuration; no approved plan, ADR-028, topic or expected answers supplied",
+  "method": "Read-only git show of baseline policy; business source, topic and PR data simulated, not accessed. Some full outputs truncated and missing relevant sections reread.",
+  "measurement": "Unique whole-policy-file bundle footprint estimates, not actual tool-read bytes, tokens, latency or observed runtime savings; some documents read only in sections.",
+  "scenarios": [
+    {
+      "id": "S1",
+      "case": "Small copy/style repair in an existing web page, without new component API or browser-specific defect.",
+      "decision": "Direct small repair; boot/vibe/localization/change/validation/closeout. TDesign not applicable, no browser. Comment governance conditional on TS/Vue. Web completion and lint:i18n.",
+      "footprint_files": 21,
+      "footprint_bytes": 298156,
+      "footprint_caveat": "Subtract 19752 bytes for JSON/LESS only with no comment guidance."
+    },
+    {
+      "id": "S2",
+      "case": "Localized server behavior repair with a direct regression seam.",
+      "decision": "Local regression plus comment review as needed and backend completion; no unnecessary platform/OpenAPI review.",
+      "footprint_files": 19,
+      "footprint_bytes": 290015
+    },
+    {
+      "id": "S3",
+      "case": "A web API symptom requires repair of upstream descriptor/OpenAPI semantics and generated consumers.",
+      "decision": "Repair descriptor→OpenAPI→generated→web; OpenAPI/cross/platform/API-DX/permission/delete/test/TS-DX concerns and both completion gates. Preserve legitimate display-label mapping.",
+      "footprint_files": 36,
+      "footprint_bytes": 497507,
+      "footprint_caveat": "Navigation document identified as needed but not actually read."
+    },
+    {
+      "id": "S4",
+      "case": "Read-only PR review contains valid/stale findings and a failing test signal, without write authorization.",
+      "decision": "Valid finding marked blocked awaiting repair authority under old final contract; stale needs HEAD proof; investigate test signal. No local/remote writes.",
+      "footprint_files": 11,
+      "footprint_bytes": 144379,
+      "footprint_lower_bound": true,
+      "footprint_caveat": "Additional PR/domain context not included."
+    },
+    {
+      "id": "S5",
+      "case": "An authorized implementation hits a diagnosed validation failure requiring a newly discovered related file; initial file list may be an estimate or confirmed allowlist.",
+      "decision": "Ambiguous list meaning: goal scope permits continuous repair, hard confirmed file scope requires Repair required plus execute_repair. Cross-worker scope goes to coordinator.",
+      "footprint_files": 21,
+      "footprint_bytes": 299837,
+      "footprint_caveat": "Dispatch/recovery context additional."
+    },
+    {
+      "id": "S6",
+      "case": "Necessary repair intersects mixed user edits, with a separable fixture and possible DDL/push/reply side effects.",
+      "decision": "Mixed user edits block that file; independent fixture continues only in confirmed scope, otherwise repair approval. No DDL/push/reply without authorization.",
+      "footprint_files": 12,
+      "footprint_bytes": 168262,
+      "footprint_lower_bound": true,
+      "footprint_caveat": "Additional domain context not included."
+    },
+    {
+      "id": "S7",
+      "case": "Choose same/lower/unknown/higher child models, including comment work and nested delegation.",
+      "decision": "Same/lower normally autonomous; higher may request override; unknown child pauses or uses known inheritance. Comment worker requires exactly one tier lower and verified adjacency; merely lower is insufficient and can pause.",
+      "footprint_files": 8,
+      "footprint_bytes": 134840,
+      "footprint_lower_bound": true,
+      "footprint_caveat": "Worker domain context not included."
+    },
+    {
+      "id": "S8",
+      "case": "Loop ordinary success, recoverable interruption, malformed closeout and necessary unapproved external side effect.",
+      "decision": "VERIFY→SETTLE→ADVANCE→DISPATCH_NEXT. Restored context resumes; necessary unapproved external write blocks. Worker does not control state. Root second-malformed-closeout fail-closed rule overrides broader retry wording.",
+      "footprint_files": 24,
+      "footprint_bytes": 278467,
+      "footprint_lower_bound": true,
+      "footprint_caveat": "Topic/domain context additional."
+    }
+  ],
+  "quotes": [
+    "every file and hunk remains inside the confirmed scope",
+    "if … the one-level relation cannot be verified, pause and ask the user",
+    "简单文案、样式、小交互修复：可以直接实现"
+  ],
+  "bundle_estimates": {
+    "root_plus_environment": 85083,
+    "server_design_bundle": 101447,
+    "web_design_bundle": 97509,
+    "common_implementation_bundle": 83179
+  },
+  "limitation": "Single qualitative evaluation per version; no statistical score. S5 retains initial-list interpretation ambiguity."
+}

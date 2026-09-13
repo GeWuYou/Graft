@@ -1,9 +1,11 @@
 ---
 name: graft-test-seam-review
-description: Review whether Graft tests exercise durable behavior through the right module, HTTP, event, or web seam. Use when adding behavior, fixing bugs, or restructuring code and tests.
+description: "Review regression coverage at durable public seams when changing Graft behavior or restructuring tests."
 ---
 
 # Graft Test Seam Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this semantic review before implementation and before closeout. It complements `graft-validation-runner`,
 backend/web test governance, and TDD practices; it does not define a second test command or completion gate.

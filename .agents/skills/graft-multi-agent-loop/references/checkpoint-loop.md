@@ -43,7 +43,7 @@ Rules illustrated here:
 
 ```text
 Architecture decision is required before Batch 2 can continue safely.
-Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: parent topic. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md 4.1, then resume with the architecture decision for Batch 2.
+Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: parent topic. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md Startup Governance, then resume with the architecture decision for Batch 2.
 ```
 
 ```json
@@ -56,7 +56,7 @@ Next-session startup prompt: Governance source: root AGENTS.md. Task class: docs
   "pending_batches": ["batch2-risk-evaluation"],
   "next_batch": null,
   "next_batch_prompt": null,
-  "next_prompt": "Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: parent topic. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md 4.1, then resume with the architecture decision for Batch 2.",
+  "next_prompt": "Governance source: root AGENTS.md. Task class: docs/automation. Recovery source: parent topic. Owned scope: .agents/skills/graft-multi-agent-loop/** plus bounded shared governance docs. First rerun startup preflight from AGENTS.md Startup Governance, then resume with the architecture decision for Batch 2.",
   "stop_reason": "architecture decision required",
   "validation": {
     "status": "not_run",

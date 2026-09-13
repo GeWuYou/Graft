@@ -1,14 +1,14 @@
 ---
 name: graft-sql-migration
-description: Repository-specific workflow for creating or modifying Graft live Atlas/PostgreSQL migration SQL with Chinese database comments, globally unique versions, live/legacy boundaries, and deterministic validation.
+description: "Create or change Graft Atlas/PostgreSQL migration SQL with Chinese comments, preflight evidence, and globally unique versions."
 ---
 
 # Graft SQL Migration
 
 Use this skill whenever a task creates or modifies migration SQL in `Graft`.
 
-This skill owns SQL comment and migration validation workflow details. It does not replace root `AGENTS.md`,
-`server/AGENTS.md`, `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`, `graft-table-design`, Ent generation, Atlas migration
+This skill owns SQL comment and migration validation workflow details. It does not replace root [AGENTS.md](../../../AGENTS.md),
+[server/AGENTS.md](../../../server/AGENTS.md), [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](../../../ai-plan/design/governance/backend/数据库表设计与迁移规范.md), `graft-table-design`, Ent generation, Atlas migration
 generation, or backend validation.
 
 ## Trigger
@@ -26,10 +26,10 @@ Use this skill when the task touches any of:
 
 ## Required Reading
 
-1. Complete the startup preflight from root `AGENTS.md`.
-2. Read `server/AGENTS.md`.
-3. Read `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`.
-4. Search `ai-plan/lessons/migrations.md` by operation, risk, and affected tables, then report the matched `MIG-###` IDs before migration design. No match is a valid result for unrelated L0 work.
+1. Reuse the current task startup receipt; recover it from root startup governance only when missing or lost.
+2. Read [server/AGENTS.md](../../../server/AGENTS.md).
+3. Read [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](../../../ai-plan/design/governance/backend/数据库表设计与迁移规范.md).
+4. Search [ai-plan/lessons/migrations.md](../../../ai-plan/lessons/migrations.md) by operation, risk, and affected tables, then report the matched `MIG-###` IDs before migration design. No match is a valid result for unrelated L0 work.
 5. Read the current module's related migration files.
 5. If the task also requires table design decisions, use `graft-table-design` first.
 

@@ -1,6 +1,6 @@
 ---
 name: graft-security-remediation
-description: Repository-specific workflow for triaging, remediating, validating, and closing Graft GitHub Code Scanning and Dependabot alerts, including branch hygiene, scoped fixes, commit/push/PR flow, and post-push security recheck.
+description: "Inventory Graft Code Scanning and Dependabot alerts; remediate or publish changes only within the authorized stage."
 ---
 
 # Graft Security Remediation
@@ -11,7 +11,7 @@ Use this skill when a task asks to inspect, classify, remediate, validate, or re
 - GitHub `security/dependabot`
 - related GitHub Advanced Security findings surfaced through those alert APIs
 
-Treat root `AGENTS.md` as the startup, authority, validation, commit, and closeout source of truth. This skill adds a
+Treat root [AGENTS.md](../../../AGENTS.md) as the startup, authority, validation, commit, and closeout source of truth. This skill adds a
 security-specific workflow plus reusable inventory assets; it does not create a second release path.
 
 ## Workflow
@@ -21,12 +21,12 @@ This skill has two explicit stages:
 - `inventory/review` is the default and is read-only. It may query alerts, inspect local code, classify findings, and
   propose validation, but it must not edit files, dismiss alerts, commit, push, create/update a PR, or post comments.
 - `remediation/write` starts only when the user explicitly requests local fixes or a specific external write. Local
-  remediation authority does not implicitly authorize GitHub writes, commits, or pushes; apply each owning workflow's
-  authorization gate independently.
+  remediation follows root scoped-commit eligibility and does not authorize GitHub writes or pushes; apply each owning
+  workflow’s authorization gate independently.
 
-1. Complete the startup preflight from root `AGENTS.md` and classify the task as `server`, `web`, `cross-boundary`, or
+1. Reuse or restore the startup receipt from root [AGENTS.md](../../../AGENTS.md) and classify the task as `server`, `web`, `cross-boundary`, or
    `docs/automation`.
-2. Read the required subdomain `AGENTS.md` before edits, then inspect the current worktree with `git status --short`.
+2. Read the required subdomain [AGENTS.md](../../../AGENTS.md) before edits, then inspect the current worktree with `git status --short`.
 3. Build one full open-alert inventory before planning or fixing:
 
    ```bash
@@ -53,7 +53,7 @@ This skill has two explicit stages:
 6. Enter `remediation/write` only under explicit authorization, then remediate with the smallest authority-correct fix:
    - verify `source -> sink` for code scanning alerts
    - verify direct vs indirect usage and patched version reality for dependency alerts
-   - do not add suppressions, aliases, or compatibility layers unless root `AGENTS.md` exception rules are satisfied
+   - do not add suppressions, aliases, or compatibility layers unless root [AGENTS.md](../../../AGENTS.md) exception rules are satisfied
 7. Use `graft-validation-runner` and complete the full entrypoint for the touched runtime scope:
    - `server`: focused `go test` during iteration, then `graft validate backend`
    - `web`: `bun run check`

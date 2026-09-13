@@ -1,34 +1,34 @@
 ---
 name: graft-permission-model-review
-description: Default semantic review of Graft permission, protected route, menu/bootstrap visibility, capability, and audit alignment. Use when adding or changing permissions, roles, routes, menus, authorization checks, or security-sensitive UI actions.
+description: "Review Graft authorization, protected routes, menu visibility, and audit when permission or capability semantics change."
 ---
 
 # Graft Permission Model Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as Graft's default semantic review layer for authorization semantics. It complements the canonical
 permission registry/module contract, backend security governance, navigation governance, bootstrap aggregation, audit
 design, and normal validation; it does not create a second policy engine or client-side security authority.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `server/AGENTS.md` and `web/AGENTS.md` for cross-boundary permission or route work.
-3. Read `ai-plan/design/governance/backend/后端安全与信任边界治理规范.md`, the navigation/route governance document,
-   and notification/audit design documents when affected.
-4. Inspect the owning module descriptor and contract permission constants, server permission registry, protected route
-   guards, menu metadata, user bootstrap filtering, generated/API contract, and concrete web capability checks.
+Reuse startup and applicable subdomain guidance. Trace the changed permission from its module contract to affected protected operations and projections.
+
+Use [backend security rules](../../../ai-plan/design/governance/backend/后端安全与信任边界治理规范.md) for authorization/trust changes; consult navigation rules for changed placement or route ownership, audit design for changed emission requirements, and notification design only when notification behavior changes. Read both [server](../../../server/AGENTS.md) and [web](../../../web/AGENTS.md) when the permission change crosses their boundary, reusing existing reads.
+
+Cover affected concerns in the integrated review; unrelated capabilities and consumer paths need no inventory.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - adds, removes, renames, or changes a permission, role, resource, action, risk level, or ownership rule;
 - adds or changes a protected HTTP route, menu item, route metadata, bootstrap capability, or object action;
 - changes frontend visibility, disabled-state, authorization directives, or API error handling for forbidden actions; or
 - changes an auditable operation, dangerous action, impersonation, credential, task control, or permission assignment.
 
-Boot and design workflows should actively match this skill for these triggers. It runs by default for matching work,
-not only when a user explicitly asks for a permission review.
+Use the changed semantics to select checks; a file extension or incidental keyword alone does not require a full review.
 
 ## Workflow
 
@@ -89,17 +89,8 @@ registries over compatibility maps.
 
 ## Review Output
 
-```text
-Permission model review:
-- authority_owner: <module contract/permission registry>
-- permission_matrix: <resource/action/risk/owner summary>
-- protected_routes: <methods and paths with guards>
-- navigation_projection: <menu/route/bootstrap/web capability alignment>
-- trust_boundary: <server checks, actor/resource scope, deny-by-default>
-- audit_and_dangerous_ops: <events, fields, confirmations, recovery>
-- findings: <severity, evidence, recommendation>
-- validation: <task-class completion entrypoint(s), plus focused results when useful>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 

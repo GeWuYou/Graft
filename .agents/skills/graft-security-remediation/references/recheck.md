@@ -6,7 +6,7 @@ Use this reference when the remediation slice is ready for local closeout or for
 
 Before any remote step:
 
-1. rerun the relevant validation commands for the touched scope
+1. reuse passing validation for unchanged scope, or rerun relevant commands when a fix or new evidence invalidates it
 2. rerun the inventory helper if classification depended on current open-alert counts
 3. confirm each fixed alert now maps to one of:
    - `already-remediated-locally`

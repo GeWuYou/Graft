@@ -1,13 +1,15 @@
 ---
 name: graft-worktree-manager
-description: Manage reusable Graft AI-agent worktrees through guarded status, acquire, and release commands without treating directories or task branches as long-lived ownership.
+description: "Acquire, inspect, close out, or release reusable Graft agent worktrees through the guarded lifecycle helper."
 ---
 
 # Graft Worktree Manager
 
 Use this skill whenever an agent needs a reusable local worktree, needs to report pool occupancy, or needs to return a
-completed worktree to the pool. Root `AGENTS.md` remains the source of truth for startup, commits, validation, and
+completed worktree to the pool. Root [AGENTS.md](../../../AGENTS.md) remains the source of truth for startup, commits, validation, and
 final integration.
+
+Read [delivery details](../../../ai-plan/design/governance/ai/仓库协作与交付细则.md) for the relevant worktree, integration, or ownership operation.
 
 ## Model
 
