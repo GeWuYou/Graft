@@ -69,7 +69,7 @@ jobs:
           persist-credentials: false
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9
         with:
           path: .
           base: ${{ github.event.pull_request.base.sha }}
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload contract governance report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: contract-governance-ci
           path: /tmp/contract-governance-ci.json
@@ -139,7 +139,7 @@ jobs:
 
       - name: Upload contract drift report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: contract-governance-report
           path: /tmp/contract-governance-report.json
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload web test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: web-test-results
           path: web/.tmp/test-results/ctrf-report.json
@@ -401,7 +401,7 @@ jobs:
 
       - name: Upload backend lint audit artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: server-golangci-lint-audit
           path: /tmp/server-golangci-lint-audit.txt
@@ -481,7 +481,7 @@ jobs:
 
       - name: Upload server test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: server-test-results
           path: .tmp/test-results/server-go-test-ctrf.json
