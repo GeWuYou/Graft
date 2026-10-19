@@ -120,7 +120,7 @@ jobs:
           tar -czf "../release-web-asset/graft-web-dist-${RELEASE_REF_NAME}.tar.gz" dist
 
       - name: Upload validated web distribution
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-web-asset
           path: release-web-asset/*
@@ -194,7 +194,7 @@ jobs:
         run: node scripts/ensure-openapi-bundle.mjs
 
       - name: Download validated web distribution
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-web-asset
           path: release-assets
@@ -235,7 +235,7 @@ jobs:
           sha256sum release-assets/* > "release-assets/graft-sha256sums-${RELEASE_REF_NAME}.txt"
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-assets
           path: release-assets/*
@@ -299,7 +299,7 @@ jobs:
           cache-dependency-path: server/go.sum
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
@@ -636,7 +636,7 @@ jobs:
 
       - name: Upload Compose smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-compose-smoke-logs
           path: .tmp/release-compose-smoke/*
@@ -838,7 +838,7 @@ jobs:
           sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"
 
       - name: Upload image manifest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: image-assets
           path: image-assets/*
@@ -898,7 +898,7 @@ jobs:
           persist-credentials: false
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
@@ -961,7 +961,7 @@ jobs:
 
       - name: Upload bubble smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-bubble-smoke-logs
           path: |
@@ -1016,20 +1016,20 @@ jobs:
           workflow-dispatch-required-message: PAT_TOKEN must allow workflow dispatch for license-compliance.yml; use a classic token with workflow scope or a fine-grained token with Actions read/write permission.
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
 
       - name: Download image manifest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: image-assets
           path: release-assets
 
       - name: Generate release notes
         id: cliff_release
-        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff
         with:
           config: .github/cliff.toml
           args: >-
@@ -1040,7 +1040,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Create GitHub Release and upload assets
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           name: Release ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
