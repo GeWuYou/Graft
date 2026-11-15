@@ -37,6 +37,11 @@ class PrivateDockerTopologyTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "workspace mapping"):
             validate_topology(self.configuration)
 
+    def test_rejects_readonly_parent_hiding_nested_mountpoints(self):
+        self.configuration["services"]["backend"]["volumes"][0]["read_only"] = True
+        with self.assertRaisesRegex(RuntimeError, "nested secret mountpoints"):
+            validate_topology(self.configuration)
+
 
 class FixtureLifecycleTests(unittest.TestCase):
     def test_waits_for_successful_one_shot_jobs_separately(self):

@@ -352,8 +352,12 @@ def validate_topology(configuration: dict) -> None:
         volumes = configuration["services"][service]["volumes"]
         if any(v.get("type") == "bind" and "docker.sock" in v.get("source", "") for v in volumes):
             raise RuntimeError(f"{service} inherited a host Docker socket")
-        if not any(v.get("type") == "volume" and v.get("source") == "daemon-socket" and v["target"] == "/run" for v in volumes):
+        socket_mount = next((v for v in volumes if v.get("type") == "volume" and
+                             v.get("source") == "daemon-socket" and v["target"] == "/run"), None)
+        if socket_mount is None:
             raise RuntimeError(f"{service} has no private daemon socket")
+        if socket_mount.get("read_only"):
+            raise RuntimeError(f"{service} cannot prepare nested secret mountpoints in a read-only run volume")
     for service in ("docker-daemon", "backend", "docker-runtime-agent"):
         if not any(v.get("source") == "application-workspaces" and v["target"] == "/opt/graft/apps" for v in configuration["services"][service]["volumes"]):
             raise RuntimeError(f"{service} has inconsistent application workspace mapping")

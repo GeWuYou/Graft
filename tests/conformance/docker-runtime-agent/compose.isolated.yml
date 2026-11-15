@@ -34,7 +34,7 @@ services:
         condition: service_healthy
     volumes: !override
       - vault-secrets:/run/graft-secrets:ro
-      - daemon-socket:/run:ro
+      - daemon-socket:/run
       - application-workspaces:/opt/graft/apps
       - build-snapshots:/tmp/graft-build-snapshots
     ports: !override
@@ -48,7 +48,7 @@ services:
         condition: service_healthy
     volumes: !override
       - vault-secrets:/run/graft-secrets:ro
-      - daemon-socket:/run:ro
+      - daemon-socket:/run
       - agent-config:/conformance/agent-config
       - agent-bootstrap:/conformance/agent-bootstrap
       - agent-trust:/conformance/agent-trust:ro
@@ -63,7 +63,7 @@ services:
       - agent-bootstrap:/run/graft-bootstrap:ro
       - agent-trust:/run/graft-agent-trust:ro
       - agent-state:/var/lib/graft-runtime-agent/state
-      - daemon-socket:/run:ro
+      - daemon-socket:/run
       - application-workspaces:/opt/graft/apps
       - build-snapshots:/tmp/graft-build-snapshots:ro
 
