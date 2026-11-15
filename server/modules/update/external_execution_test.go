@@ -32,20 +32,13 @@ func TestUpdateControllerRecoveryMaterialBindsClaimAndStateVolume(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	var payload updateControllerMaterial
-	if err := json.Unmarshal(material.Payload, &payload); err != nil {
-		t.Fatal(err)
-	}
+	payload := decodeControllerMaterial(t, material.Payload)
 	if !payload.Recovery || payload.RecoveryClaimID != "recovery-material" || payload.OperationID != operation.OperationID || payload.StateVolume == "" || payload.InputBase64 != "" || payload.ComposeRoot != "" || payload.DockerSocket != "" {
 		t.Fatalf("recovery material leaked or lost binding: %#v", payload)
 	}
-	decoded, err := base64.RawStdEncoding.DecodeString(payload.RecoveryStateBase64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got RunnerRecoveryInput
-	if err := json.Unmarshal(decoded, &got); err != nil || got.OperationID != recovery.OperationID || got.RunnerID != recovery.RunnerID {
-		t.Fatalf("recovery state binding = %#v, %v", got, err)
+	got := decodeControllerRecoveryInput(t, payload.RecoveryStateBase64)
+	if got.OperationID != recovery.OperationID || got.RunnerID != recovery.RunnerID {
+		t.Fatalf("recovery state binding = %#v", got)
 	}
 	if got.LaunchStageID != 23 || got.LaunchAttempt != 2 {
 		t.Fatalf("recovery lost the current launch attempt: %#v", got)
@@ -107,16 +100,47 @@ func TestUpdateControllerMaterialWaitsForPreparedHandoff(t *testing.T) {
 	if err := <-errorsCh; err != nil {
 		t.Fatal(err)
 	}
-	var payload updateControllerMaterial
-	if material.Protocol != composeUpdateLaunchMaterialProtocol || json.Unmarshal(material.Payload, &payload) != nil || payload.OperationID != operation.OperationID || payload.ComposeRoot != root {
+	payload := decodeControllerMaterial(t, material.Payload)
+	if material.Protocol != composeUpdateLaunchMaterialProtocol || payload.OperationID != operation.OperationID || payload.ComposeRoot != root {
 		t.Fatalf("unexpected transient material: %#v %#v", material, payload)
 	}
-	decoded, err := base64.RawStdEncoding.DecodeString(payload.InputBase64)
+	frozen := decodeControllerLaunchInput(t, payload.InputBase64)
+	if frozen.LaunchStageID != 24 || frozen.LaunchAttempt != 3 {
+		t.Fatalf("controller lost the current launch attempt: %#v", frozen)
+	}
+}
+
+func decodeControllerMaterial(t *testing.T, body []byte) updateControllerMaterial {
+	t.Helper()
+	var value updateControllerMaterial
+	if err := json.Unmarshal(body, &value); err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
+func decodeControllerRecoveryInput(t *testing.T, encoded string) RunnerRecoveryInput {
+	t.Helper()
+	body, err := base64.RawStdEncoding.DecodeString(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var frozen RunnerInput
-	if err := json.Unmarshal(decoded, &frozen); err != nil || frozen.LaunchStageID != 24 || frozen.LaunchAttempt != 3 {
-		t.Fatalf("controller lost the current launch attempt: %#v / %v", frozen, err)
+	var value RunnerRecoveryInput
+	if err := json.Unmarshal(body, &value); err != nil {
+		t.Fatal(err)
 	}
+	return value
+}
+
+func decodeControllerLaunchInput(t *testing.T, encoded string) RunnerInput {
+	t.Helper()
+	body, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value RunnerInput
+	if err := json.Unmarshal(body, &value); err != nil {
+		t.Fatal(err)
+	}
+	return value
 }

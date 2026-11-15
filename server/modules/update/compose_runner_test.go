@@ -160,6 +160,8 @@ func fixtureRunnerInput(root string) RunnerInput {
 type tracingRunnerActions struct {
 	trace             []string
 	failAt            string
+	failWith          error
+	onFailure         func()
 	backupErr         error
 	recover           bool
 	omitBackupReceipt bool
@@ -189,7 +191,10 @@ func (runnerActionsWithoutReporter) LocalExecutionReadiness(context.Context, Run
 	return nil
 }
 
-func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
+func (actions *tracingRunnerActions) RecoverPreMigration(ctx context.Context, _ RunnerInput) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !actions.recover {
 		return errors.New("fixture recovery unavailable")
 	}
@@ -262,6 +267,12 @@ func (actions *tracingRunnerActions) LocalExecutionReadiness(context.Context, Ru
 func (actions *tracingRunnerActions) run(stage string) error {
 	actions.trace = append(actions.trace, stage)
 	if actions.failAt == stage {
+		if actions.onFailure != nil {
+			actions.onFailure()
+		}
+		if actions.failWith != nil {
+			return actions.failWith
+		}
 		return errors.New("fixture stage failure")
 	}
 	return nil

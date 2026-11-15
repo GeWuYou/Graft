@@ -57,6 +57,13 @@ def controller_receipt(output: str, operation: str, runner: str) -> dict:
     return receipt
 
 
+def completed_official_install(directory: Path) -> bool:
+    path = directory / "official" / "installation-evidence.json"
+    if not path.is_file():
+        return False
+    return json.loads(path.read_text()).get("complete") is True
+
+
 def save(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     path.chmod(0o600)
@@ -652,23 +659,25 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 raise RuntimeError("Registered official root was lost; preserve evidence and initialize a fresh fixture")
             self.compose("cp", str(env_path), "docker-daemon:" + root + "/.env")
         nested = OfficialFixture(self, directory, root)
+        proof = {"source_revision": self.state["source_revision"], "execution_mode": "local",
+            "official_compose": True, "complete": False,
+            "backend_image": self.environment["GRAFT_BACKEND_IMAGE"], "web_image": self.environment["GRAFT_WEB_IMAGE"]}
+        save(directory / "installation-evidence.json", proof)
         nested.compose("up", "-d", "--wait", timeout=600)
         for service, role in (("server", "BACKEND"), ("web", "WEB")):
             identifier = nested.compose("ps", "-q", service).strip()
             actual = self.engine("inspect", "--format", "{{.Image}}", identifier).strip()
             if actual != self.environment[f"GRAFT_{role}_IMAGE"]:
                 raise RuntimeError("Official installation image no longer matches its registered source")
-        save(directory / "installation-evidence.json", {"source_revision": self.state["source_revision"],
-            "execution_mode": "local", "official_compose": True,
-            "backend_image": self.environment["GRAFT_BACKEND_IMAGE"], "web_image": self.environment["GRAFT_WEB_IMAGE"]})
         nested.probe()
         require_local_acceptance(nested.results)
+        save(directory / "installation-evidence.json", {**proof, "complete": True})
 
     def controller_smoke(self) -> None:
         if not self.environment.get("GRAFT_RUNNER_IMAGE"):
             raise RuntimeError("controller-smoke requires registration with --runner-image from the same source")
         directory = self.directory / "official"
-        if not (directory / "installation-evidence.json").exists():
+        if not completed_official_install(self.directory):
             raise RuntimeError("controller-smoke requires a successful official-install first")
         self.import_image(self.environment["GRAFT_RUNNER_IMAGE"])
         registry_name = self.state["project"] + "-controller-registry"
@@ -741,7 +750,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         print("Production local Controller replaced the server and persisted verified backup/receipt evidence", flush=True)
 
     def update_api(self) -> None:
-        if self.execution_mode != "local" or not (self.directory / "official" / "installation-evidence.json").exists():
+        if self.execution_mode != "local" or not completed_official_install(self.directory):
             raise RuntimeError("update-api requires a successful local official-install first")
         source = self.directory / "source-assets" / "fixture" / "release_api.py"
         if not source.is_file():
@@ -755,7 +764,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         module.run_release_api(self, nested)
 
     def build_api(self) -> None:
-        if self.execution_mode != "local" or not (self.directory / "official" / "installation-evidence.json").exists():
+        if self.execution_mode != "local" or not completed_official_install(self.directory):
             raise RuntimeError("build-api requires a successful local official-install first")
         source = self.directory / "source-assets" / "fixture" / "build_api.py"
         specification = importlib.util.spec_from_file_location("graft_build_acceptance", source)

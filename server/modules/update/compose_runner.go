@@ -210,6 +210,10 @@ func runRunnerMigrationAndHealth(ctx context.Context, input RunnerInput, actions
 		receipt.FailureCode = runnerFailureRecreate
 		return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
 	}
+	return runRunnerHealthChecks(ctx, input, actions, reporter, receipt)
+}
+
+func runRunnerHealthChecks(ctx context.Context, input RunnerInput, actions ComposeRunnerActions, reporter RunnerStateReporter, receipt *RunnerReceipt) error {
 	emitRunnerProgress(RunnerProgressVerifying)
 	if err := reportRunnerState(reporter, RunnerPhaseHealthCheck, runnerProgressHealth, "checking_health", ""); err != nil {
 		return fmt.Errorf("persist runner health-check state: %w", err)

@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	composetypes "github.com/compose-spec/compose-go/v2/types"
 
@@ -71,45 +67,16 @@ func TestLocalRecoveryPersistsModeAcrossTrustedMissingAndCorruptState(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			recovery := update.RunnerRecoveryInput{OperationID: "update-local-recovery", RunnerID: "runner-before",
-				SourceVersion: "1.0.0", TargetVersion: "1.1.0", Strategy: string(update.DeploymentStrategyBetaTracking), ExecutionMode: "local", LaunchStageID: 30, LaunchAttempt: 3}
-			if scenario != "missing" {
-				input := update.RunnerInput{OperationID: recovery.OperationID, SourceVersion: recovery.SourceVersion,
-					TargetVersion: recovery.TargetVersion, ExecutionMode: "local", Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategyBetaTracking}}
-				state := update.NewRunnerState(input, recovery.RunnerID, update.RunnerPhaseReady, 0, "runner_accepted", "", update.RunnerState{})
-				state.LeaseHeartbeatAt = time.Now().UTC().Add(-10 * time.Minute)
-				state.LeaseExpiresAt = time.Now().UTC().Add(-5 * time.Minute)
-				if err := store.Write(state); err != nil {
-					t.Fatal(err)
-				}
-				state, err = store.Read()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if scenario == "trusted" {
-					recovery.State = &state
-					// 已验证的快照拥有恢复模式，兼容缺少新增模式字段的恢复材料。
-					recovery.ExecutionMode = ""
-				} else {
-					if err := os.WriteFile(filepath.Join(root, "current.json"), []byte(`{"schema_version":2}`), 0o600); err != nil {
-						t.Fatal(err)
-					}
-					recovery.Corrupt = true
-				}
-			}
-			body, err := json.Marshal(recovery)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := recoverTerminatedRunnerWithStore(base64.RawStdEncoding.EncodeToString(body), store, io.Discard); err != nil {
-				t.Fatal(err)
-			}
-			state, err := store.Read()
-			if err != nil || state.ExecutionMode != "local" || state.Receipt == nil || state.Receipt.ExecutionMode != "local" || !isTerminalPhase(state.Phase) {
-				t.Fatalf("local terminal recovery evidence was lost: %#v / %v", state, err)
+			recovery := localRecoveryFixture(t, root, store, scenario)
+			state := recoverControllerFixture(t, store, recovery)
+			if state.ExecutionMode != "local" || state.Receipt.ExecutionMode != "local" || !isTerminalPhase(state.Phase) {
+				t.Fatalf("local terminal recovery evidence was lost: %#v", state)
 			}
 			if state.Receipt.LaunchStageID != 30 || state.Receipt.LaunchAttempt != 3 {
 				t.Fatalf("recovery receipt lost current retry binding: %#v", state.Receipt)
+			}
+			if state.Receipt.MigrationStarted != (scenario == "corrupt") {
+				t.Fatalf("recovery uncertainty boundary was lost: %#v", state.Receipt)
 			}
 		})
 	}

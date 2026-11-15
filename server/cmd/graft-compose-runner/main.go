@@ -42,6 +42,7 @@ const (
 	runnerLeaseHeartbeatInterval                      = 30 * time.Second
 	runnerLeaseHeartbeatFailureLimit                  = 3
 	healthzCurlTimeoutSeconds                         = "30"
+	composeServiceWaitTimeoutSeconds                  = 60
 	runnerIDRandomBytes                               = 12
 	runnerProtocolVersion                             = 2
 )
@@ -159,10 +160,15 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 	}
 	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: mode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
 	failureCode, failureDetail := update.RunnerFailureCodeInvalidInput, "interrupted_before_migration"
+	migrationStarted := persisted.MigrationStarted()
+	if migrationStarted {
+		failureDetail = "interrupted_during_or_after_migration"
+	}
 	if input.Corrupt {
 		failureCode, failureDetail = update.RunnerFailureCodeStateCorrupt, "state_snapshot_quarantined"
+		migrationStarted = true
 	}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt, MigrationStarted: migrationStarted, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}
@@ -673,7 +679,7 @@ func validateProjectExecutionMode(project *composetypes.Project, in update.Runne
 			return errors.New("local update topology includes an active Agent service")
 		}
 	} else if _, active := project.Services["docker-runtime-agent"]; !active {
-		return errors.New("Agent update topology requires an active docker-runtime-agent service and its configured profile")
+		return errors.New("agent update topology requires an active docker-runtime-agent service and its configured profile")
 	}
 	return nil
 }
@@ -699,7 +705,7 @@ func (r *composeRuntime) up(ctx context.Context, services []string) error {
 	if err != nil {
 		return err
 	}
-	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services, Wait: true, WaitTimeout: 60}})
+	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services, Wait: true, WaitTimeout: composeServiceWaitTimeoutSeconds}})
 }
 func (r *composeRuntime) run(ctx context.Context, serviceName string) error {
 	code, err := r.service.RunOneOffContainer(ctx, r.project, composeapi.RunOptions{Project: r.project, Service: serviceName, AutoRemove: true, Tty: false, Interactive: false})

@@ -79,6 +79,26 @@ type RunnerState struct {
 	Receipt          *RunnerReceipt `json:"receipt,omitempty"`
 }
 
+// MigrationStarted 保留受信快照中的前向迁移边界，避免中断恢复将迁移后的失败归为可回退状态。
+func (state RunnerState) MigrationStarted() bool {
+	if state.Receipt != nil && state.Receipt.MigrationStarted {
+		return true
+	}
+	switch state.Phase {
+	case RunnerPhaseMigration, RunnerPhaseStartServices, RunnerPhaseHealthCheck, RunnerPhaseSuccess:
+		return true
+	case RunnerPhaseFailed:
+		switch state.Error {
+		case RunnerFailureCodeInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices:
+			return false
+		default:
+			return true
+		}
+	default:
+		return false
+	}
+}
+
 // RunnerRecoveryInput 绑定受控恢复 runner 的授权身份；缺失快照时 State 为 nil，恢复 runner 只能写入终态。
 type RunnerRecoveryInput struct {
 	OperationID   string       `json:"operation_id"`
