@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+from copy import deepcopy
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,10 @@ class RuntimeArtifactTests(unittest.TestCase):
         self.revision = patch("scripts.ci_runtime_artifacts.source_revision", return_value="a" * 40)
         self.revision.start()
         self.addCleanup(self.revision.stop)
+        self.identity = patch("scripts.ci_runtime_artifacts.binary_identity", return_value={
+            "version": "0.0.0-beta.1", "git_commit": "a" * 40, "git_tree_state": "clean"})
+        self.identity_mock = self.identity.start()
+        self.addCleanup(self.identity.stop)
 
     def write(self, path, content):
         target = self.root / path
@@ -23,7 +28,7 @@ class RuntimeArtifactTests(unittest.TestCase):
         return target
 
     def test_server_artifact_reuses_binary_and_verifies_revision_and_bytes(self):
-        self.write("server/graft", "frozen binary bytes")
+        self.write(".tmp/compiled/server/graft-server-linux-amd64", "frozen binary bytes")
         artifact = self.root / "artifact"
         prepare(self.root, artifact, "server")
         self.assertEqual((artifact / "graft-server-linux-amd64").read_text(), "frozen binary bytes")
@@ -42,7 +47,7 @@ class RuntimeArtifactTests(unittest.TestCase):
         self.assertIn("dist/.vite/manifest.json", metadata["sha256"])
 
     def test_artifact_rejects_different_source_and_unrecorded_files(self):
-        self.write("server/graft", "binary")
+        self.write(".tmp/compiled/server/graft-server-linux-amd64", "binary")
         artifact = self.root / "artifact"
         prepare(self.root, artifact, "server")
         with patch("scripts.ci_runtime_artifacts.source_revision", return_value="b" * 40):
@@ -81,3 +86,53 @@ class RuntimeArtifactTests(unittest.TestCase):
         self.write("fixture/api-evidence.json", json.dumps({**evidence, "source_revision": "b" * 40}))
         with self.assertRaisesRegex(ValueError, "source"):
             verify_acceptance(self.root, self.root / "fixture")
+
+    def test_target_backend_identity_is_version_specific(self):
+        self.write(".tmp/compiled/target-server/graft-server-linux-amd64", "target")
+        artifact = self.root / "target"
+        with self.assertRaisesRegex(ValueError, "identity"):
+            prepare(self.root, artifact, "target-server")
+        self.identity_mock.return_value = {"version": "0.0.0-beta.2", "git_commit": "a" * 40, "git_tree_state": "clean"}
+        prepare(self.root, self.root / "correct-target", "target-server")
+        verify(self.root, self.root / "correct-target", "target-server")
+
+    def test_runner_and_release_source_match_existing_build_stage_paths(self):
+        for kind, binary in [("runner", "graft-compose-runner"), ("release-source", "graft-release-fixture")]:
+            self.write(f".tmp/compiled/{kind}/{binary}", "compiled")
+            artifact = self.root / ("artifact-" + kind)
+            prepare(self.root, artifact, kind)
+            verify(self.root, artifact, kind)
+            self.assertTrue((artifact / "out" / binary).is_file())
+
+    def test_update_acceptance_requires_distinct_binary_provenance_and_backup_receipt(self):
+        from scripts.ci_runtime_artifacts import verify_update_acceptance
+        evidence = {
+            "source_revision": "a" * 40, "synthetic_release_source": True,
+            "source_version": "0.0.0-beta.1", "target_version": "0.0.0-beta.2",
+            "source_binary_sha256": "1" * 64, "target_binary_sha256": "2" * 64,
+            "task_status": "success", "task_id": 7, "server_container_replaced": True,
+            "operation": {"operation_id": "update-test", "status": "SUCCESS"},
+            "failed_backup_operation": {"status": "FAILED", "failure_code": "backup_failed"},
+            "receipt": {"execution_mode": "local", "succeeded": True, "operation_id": "update-test",
+                        "protocol_version": 2, "migration_started": True,
+                        "launch_stage_id": 9, "launch_attempt": 1,
+                        "backup_completion": {"OperationID": "update-test", "TaskID": 7,
+                                              "ConfigSnapshotBytes": 10, "DatabaseDumpBytes": 20,
+                                              "ConfigSnapshotSHA256": "3" * 64, "DatabaseDumpSHA256": "4" * 64}},
+        }
+        self.write(".tmp/runtime-server/provenance.json", json.dumps({"source_revision": "a" * 40, "kind": "server", "sha256": {"graft-server-linux-amd64": "1" * 64}}))
+        self.write(".tmp/runtime-target-server/provenance.json", json.dumps({"source_revision": "a" * 40, "kind": "target-server", "sha256": {"graft-server-linux-amd64": "2" * 64}}))
+        path = self.write("fixture/release-api/update-api-evidence.json", json.dumps(evidence))
+        with patch("scripts.ci_runtime_artifacts.verify_acceptance"):
+            verify_update_acceptance(self.root, self.root / "fixture")
+            for field, value in [("task_status", "needs_attention"), ("target_binary_sha256", "1" * 64),
+                                 ("server_container_replaced", False), ("source_version", "dev")]:
+                broken = {**evidence, field: value}
+                path.write_text(json.dumps(broken))
+                with self.assertRaisesRegex(ValueError, "incomplete"):
+                    verify_update_acceptance(self.root, self.root / "fixture")
+            broken = deepcopy(evidence)
+            broken["receipt"]["backup_completion"]["TaskID"] = 999
+            path.write_text(json.dumps(broken))
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                verify_update_acceptance(self.root, self.root / "fixture")

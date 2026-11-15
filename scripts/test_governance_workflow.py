@@ -84,5 +84,26 @@ class GovernanceWorkflowTests(unittest.TestCase):
             ".local/docker-isolated/ci/official/installation-evidence.json",
             ".tmp/runtime-server/provenance.json",
             ".tmp/runtime-web/provenance.json",
+            ".tmp/runtime-target-server/provenance.json",
+            ".tmp/runtime-runner/provenance.json",
+            ".tmp/runtime-release-source/provenance.json",
+            ".local/docker-isolated/ci/release-api/update-api-evidence.json",
         })
         self.assertTrue(upload["with"]["include-hidden-files"])
+
+    def test_public_update_job_uses_versioned_artifacts_and_production_controller(self):
+        job = self.jobs["local-runtime-acceptance"]
+        commands = "\n".join(step.get("run", "") for step in job["steps"])
+        for kind in ("target-server", "runner", "release-source"):
+            self.assertIn("verify --kind " + kind, commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-runner"', commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-release-source"', commands)
+        self.assertIn("--target-backend-image", commands)
+        self.assertIn("--release-fixture-image", commands)
+        self.assertIn("--runner-image", commands)
+        self.assertLess(commands.index("official-install"), commands.index("update-api"))
+        self.assertIn("ci_runtime_artifacts.py update-acceptance", commands)
+        self.assertNotIn("controller-smoke", commands)
+        backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
+        self.assertIn("bash scripts/build_runtime_acceptance.sh", backend)
+        self.assertEqual(backend.count("validate backend --stage buildtest --test-report"), 1)
