@@ -150,16 +150,19 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 	if mode != "" && mode != "agent" && mode != "local" {
 		return errors.New("recovery runner execution mode is invalid")
 	}
+	if input.LaunchAttempt < 0 || (input.LaunchStageID == 0) != (input.LaunchAttempt == 0) {
+		return errors.New("recovery runner launch attempt binding is invalid")
+	}
 	recoveryRunnerID, err := newRunnerID()
 	if err != nil {
 		return err
 	}
-	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: mode, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
+	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: mode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
 	failureCode, failureDetail := update.RunnerFailureCodeInvalidInput, "interrupted_before_migration"
 	if input.Corrupt {
 		failureCode, failureDetail = update.RunnerFailureCodeStateCorrupt, "state_snapshot_quarantined"
 	}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}

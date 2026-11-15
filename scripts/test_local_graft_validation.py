@@ -44,6 +44,7 @@ class LocalValidationTests(unittest.TestCase):
             self.assertEqual(env["GRAFT_APP_ENV"], "production")
             self.assertEqual(env["GRAFT_WEB_HOST_PORT"], port)
             self.assertEqual(env["GRAFT_UPDATE_STATE_VOLUME"], MODULE.update_volume_name(instance))
+            self.assertEqual(env["GRAFT_BUILD_SNAPSHOT_VOLUME"], MODULE.compose_project_name(instance) + "-build-snapshots")
             self.assertEqual(env["GRAFT_DEPLOYMENT_COMPOSE_ROOT"], str((self.root / instance).resolve()))
             self.assertTrue((self.root / instance / ".data" / "postgres").is_dir())
         self.assertEqual(validate_ports.call_count, 1)
@@ -304,6 +305,14 @@ class OfficialComposeExecutionTests(unittest.TestCase):
         self.assertLess(bootstrap.index("/app/graft migrate up"), bootstrap.index("runtime mode preflight"))
         self.assertEqual(services["server"]["depends_on"]["bootstrap"]["condition"], "service_completed_successfully")
         self.assertEqual(services["runtime-mode-preflight"]["image"], services["server"]["image"])
+
+    def test_build_snapshot_permissions_are_initialized_before_server(self):
+        services = self.compose["services"]
+        initializer = services["build-snapshot-root-init"]
+        self.assertIn("chown 10001:10001 /tmp/graft-build-snapshots", initializer["command"][0])
+        self.assertIn("chmod 0750 /tmp/graft-build-snapshots", initializer["command"][0])
+        self.assertEqual(services["server"]["depends_on"]["build-snapshot-root-init"]["condition"], "service_completed_successfully")
+        self.assertEqual(self.compose["volumes"]["graft-build-snapshots"]["name"], "${GRAFT_BUILD_SNAPSHOT_VOLUME:-graft-build-snapshots}")
 
 
 if __name__ == "__main__":

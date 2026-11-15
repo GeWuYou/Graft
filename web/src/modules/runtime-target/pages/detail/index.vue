@@ -54,7 +54,37 @@
             class="runtime-target-diagnostic"
           />
         </t-card>
-        <t-card :title="t('runtimeTarget.detail.agentStatus')" class="runtime-target-section">
+        <t-card v-if="target.execution" :title="t('runtimeTarget.detail.execution')" class="runtime-target-section">
+          <t-descriptions :column="2" bordered>
+            <t-descriptions-item :label="t('runtimeTarget.detail.executionMode')">
+              {{ t(`runtimeTarget.executionModes.${target.execution.mode}`) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('runtimeTarget.detail.executionReadiness')">
+              <t-tag :theme="target.execution.ready ? 'success' : 'warning'" variant="light">
+                {{ t(target.execution.ready ? 'runtimeTarget.executionReady' : 'runtimeTarget.executionUnavailable') }}
+              </t-tag>
+            </t-descriptions-item>
+          </t-descriptions>
+          <t-alert
+            v-if="!target.execution.ready"
+            theme="warning"
+            :message="t(`runtimeTarget.executionDiagnostics.${target.execution.diagnostic_code}`)"
+            class="runtime-target-diagnostic"
+          />
+          <div v-if="target.execution.capabilities.length" class="runtime-target-capabilities">
+            <span class="runtime-target-capabilities-title">{{ t('runtimeTarget.detail.capabilities') }}</span>
+            <div class="runtime-target-capability-list">
+              <span v-for="capability in target.execution.capabilities" :key="capability">
+                {{ t(`runtimeTarget.executionCapabilities.${capability}`) }}
+              </span>
+            </div>
+          </div>
+        </t-card>
+        <t-card
+          v-if="target.execution?.mode !== 'local'"
+          :title="t('runtimeTarget.detail.agentStatus')"
+          class="runtime-target-section"
+        >
           <t-alert
             v-if="agentProjection.diagnostic_code !== 'none'"
             theme="warning"

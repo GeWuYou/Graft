@@ -68,7 +68,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: platformUpdateTaskOwnerType, ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
 		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{
 			{Key: "controller_launch", ExecutorType: composeUpdateLaunchExecutor, Input: input, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: updateControllerExecutionExpectation(runtimeTargetID, fmt.Sprintf("%x", digest))},
-			{Key: "controller_result", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID}},
+			{Key: "controller_result", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID, LaunchStageKey: "controller_launch"}},
 		}},
 	})
 	if err != nil {
@@ -121,7 +121,7 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 		return ComposeUpdateOperation{}, err
 	}
 	protocol, _ := runnerProtocolForVersion(receipt.ProtocolVersion)
-	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: protocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
+	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: protocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity, LaunchStageID: receipt.LaunchStageID, LaunchAttempt: receipt.LaunchAttempt})
 	if err != nil {
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
 	}

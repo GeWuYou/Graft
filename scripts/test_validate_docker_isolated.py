@@ -268,12 +268,15 @@ class RuntimeRepairEvidenceTests(unittest.TestCase):
                 fixture = self.fixture(directory)
                 fixture.state["execution_mode"] = "local"
                 fixture.api = Mock(side_effect=[(201, {"data": {"application_id": "app-fixture"}}),
-                    (202, {"data": {"task_id": 1}})])
-                fixture.wait_task = Mock(return_value={"status": status})
-                fixture.engine = Mock(side_effect=["graft-interruption-probe-test-app", "id started", "id started"])
+                    (202, {"data": {"task_id": 1}}), (200, {})])
+                fixture.wait_task = Mock(side_effect=[{"status": status}, {"status": "cancelled"}])
+                fixture.engine = Mock(side_effect=["graft-interruption-probe-test-app", "id started", "id started", "id started"])
                 with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
                     fixture.interruption_probe({}, "services: {}", "original", {})
-                self.assertEqual(fixture.record.call_args.args, ("local-execution-interruption", expected))
+                results = {call.args[0]: call for call in fixture.record.call_args_list}
+                self.assertEqual(results["local-execution-interruption"].args, ("local-execution-interruption", expected))
+                if expected == "passed":
+                    self.assertEqual(results["local-interruption-reconciliation"].args[1], "passed")
                 self.assertIn(unittest.mock.call("kill", "--signal", "SIGKILL", "backend"), fixture.compose.call_args_list)
 
     def test_original_runner_reuses_complete_restart_evidence(self):

@@ -49,7 +49,7 @@ func TestLocalRecoveryPersistsModeAcrossTrustedMissingAndCorruptState(t *testing
 				t.Fatal(err)
 			}
 			recovery := update.RunnerRecoveryInput{OperationID: "update-local-recovery", RunnerID: "runner-before",
-				SourceVersion: "1.0.0", TargetVersion: "1.1.0", Strategy: string(update.DeploymentStrategyBetaTracking), ExecutionMode: "local"}
+				SourceVersion: "1.0.0", TargetVersion: "1.1.0", Strategy: string(update.DeploymentStrategyBetaTracking), ExecutionMode: "local", LaunchStageID: 30, LaunchAttempt: 3}
 			if scenario != "missing" {
 				input := update.RunnerInput{OperationID: recovery.OperationID, SourceVersion: recovery.SourceVersion,
 					TargetVersion: recovery.TargetVersion, ExecutionMode: "local", Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategyBetaTracking}}
@@ -84,6 +84,9 @@ func TestLocalRecoveryPersistsModeAcrossTrustedMissingAndCorruptState(t *testing
 			state, err := store.Read()
 			if err != nil || state.ExecutionMode != "local" || state.Receipt == nil || state.Receipt.ExecutionMode != "local" || !isTerminalPhase(state.Phase) {
 				t.Fatalf("local terminal recovery evidence was lost: %#v / %v", state, err)
+			}
+			if state.Receipt.LaunchStageID != 30 || state.Receipt.LaunchAttempt != 3 {
+				t.Fatalf("recovery receipt lost current retry binding: %#v", state.Receipt)
 			}
 		})
 	}

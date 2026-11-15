@@ -111,7 +111,7 @@ func NewRunnerBackupFailure(stage RunnerBackupFailureStage, detail RunnerBackupF
 //
 //nolint:cyclop,funlen // 每一个失败分支都对应不可折叠的升级安全边界和受控终态。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
-	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID, ExecutionMode: input.ExecutionMode}
+	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID, ExecutionMode: input.ExecutionMode, LaunchStageID: input.LaunchStageID, LaunchAttempt: input.LaunchAttempt}
 	reporter, ok := actions.(RunnerStateReporter)
 	if !ok || reporter == nil {
 		return receipt, errors.New("compose runner state reporter is required")

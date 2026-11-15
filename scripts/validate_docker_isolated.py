@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -25,6 +26,7 @@ LOCAL_REQUIRED_SCENARIOS = frozenset({
     "container-stop", "container-start", "container-restart", "shell-ticket", "shell-command-output",
     "compose-managed-create", "compose-up", "compose-relative-bind", "compose-stop", "compose-material-missing",
     "compose-import", "compose-import-readback", "compose-reimport-conflict", "local-execution-interruption",
+    "local-interruption-reconciliation",
     "backend-socket-permission-denied", "local-mode-preflight", "image-pull-unreachable",
 })
 
@@ -393,6 +395,13 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         self.record(scenario, "passed" if expected else "failed", task=task,
                     same_container_and_started_at=before == after,
                     scope="Task settlement and container identity after killing the executing process")
+        if expected and self.execution_mode == "local":
+            status, _ = self.api("POST", f"/api/tasks/{task_id}/cancel", {})
+            reconciled = self.wait_task(task_id, timeout=30)
+            preserved = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", interrupted_container).strip() == before
+            self.record("local-interruption-reconciliation", "passed" if status == 200 and reconciled.get("status") == "cancelled" and preserved else "failed",
+                task=reconciled, engine_effect_preserved=preserved,
+                scope="Fixture operator inspected the preserved effect and cancelled the unresolved operation through the public owner-authorized API")
 
     def persisted_application(self, identifier: str) -> dict:
         if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
@@ -617,6 +626,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 "GRAFT_REDIS_PASSWORD": secrets.token_urlsafe(24), "GRAFT_APPLICATION_ROOT_HOST_PATH": "/opt/graft/apps",
                 "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": "/opt/graft/apps", "GRAFT_WEB_HOST_PORT": "3000",
                 "GRAFT_UPDATE_STATE_VOLUME": self.state["project"] + "-official-update-state",
+                "GRAFT_BUILD_SNAPSHOT_VOLUME": self.state["project"] + "-official-build-snapshots",
                 "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS": "http://127.0.0.1:" + self.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
             template = (source / "compose.env.example").read_text()
             lines = []
@@ -683,7 +693,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         root = "/opt/graft-official"
         overlay = directory / "compose.registry.yml"
         server_services = ("server", "bootstrap", "config-validate", "application-root-init",
-                           "backup-root-init", "migration-preflight", "runtime-mode-preflight")
+                           "backup-root-init", "build-snapshot-root-init", "migration-preflight", "runtime-mode-preflight")
         services = {name: {"image": images["server"]["repository"] + ":${GRAFT_IMAGE_TAG}"} for name in server_services}
         services["web"] = {"image": images["web"]["repository"] + ":${GRAFT_IMAGE_TAG}"}
         overlay.write_text(json.dumps({"services": services}, indent=2) + "\n")
@@ -720,6 +730,20 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             "server_container_replaced": True, "execution_mode": "local", "receipt": receipt,
             "scope": "Production Controller protocol with same-source image retags; public Update API and Task settlement are separate acceptance"})
         print("Production local Controller replaced the server and persisted verified backup/receipt evidence", flush=True)
+
+    def update_api(self) -> None:
+        if self.execution_mode != "local" or not (self.directory / "official" / "installation-evidence.json").exists():
+            raise RuntimeError("update-api requires a successful local official-install first")
+        source = self.directory / "source-assets" / "fixture" / "release_api.py"
+        if not source.is_file():
+            raise RuntimeError("Update acceptance driver was not frozen at registration")
+        specification = importlib.util.spec_from_file_location("graft_release_acceptance", source)
+        if specification is None or specification.loader is None:
+            raise RuntimeError("Frozen Update acceptance driver cannot be loaded")
+        module = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(module)
+        nested = OfficialFixture(self, self.directory / "official", "/opt/graft-official")
+        module.run_release_api(self, nested)
 
 
 class OfficialFixture(Fixture):
@@ -776,7 +800,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, epilog=(
         "stop pauses fixture workloads and retains the running development Vault authority. "
         "destroy removes every registered fixture service and volume."))
-    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "status", "stop", "destroy"))
+    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "update-api", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
     parser.add_argument("--source-revision")
@@ -785,6 +809,8 @@ def main() -> None:
     parser.add_argument("--driver-image")
     parser.add_argument("--web-image", help="Same-source web image required for official-install")
     parser.add_argument("--runner-image", help="Same-source Controller image required for controller-smoke")
+    parser.add_argument("--target-backend-image", help="Same-source server built as 0.0.0-beta.2 for Update API acceptance")
+    parser.add_argument("--release-fixture-image", help="Same-source task-private TLS release fixture image")
     parser.add_argument("--execution-mode", choices=("local", "agent"), default="agent")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--confirm-project")
@@ -798,6 +824,10 @@ def main() -> None:
             required_images["web"] = args.web_image
         if args.runner_image:
             required_images["runner"] = args.runner_image
+        if args.target_backend_image:
+            required_images["target-backend"] = args.target_backend_image
+        if args.release_fixture_image:
+            required_images["release-fixture"] = args.release_fixture_image
         if args.execution_mode == "agent":
             required_images.update(agent=args.agent_image, driver=args.driver_image)
         if not args.source_revision or not all(required_images.values()):
@@ -832,11 +862,15 @@ def main() -> None:
             env["GRAFT_WEB_IMAGE"] = images["web"]
         if args.runner_image:
             env["GRAFT_RUNNER_IMAGE"] = images["runner"]
+        if args.target_backend_image:
+            env["GRAFT_TARGET_BACKEND_IMAGE"] = images["target-backend"]
+        if args.release_fixture_image:
+            env["GRAFT_RELEASE_FIXTURE_IMAGE"] = images["release-fixture"]
         if args.execution_mode == "agent":
             env.update(GRAFT_AGENT_IMAGE=images["agent"], GRAFT_CONFORMANCE_DRIVER_IMAGE=images["driver"],
                        GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST=images["agent"])
         assets = {"root/compose.yml": "compose.yml", "root/compose.env.example": "compose.env.example"}
-        fixture_files = ("compose.local.yml",) if args.execution_mode == "local" else (
+        fixture_files = ("compose.local.yml", "release_api.py") if args.execution_mode == "local" else (
             "compose.yml", "compose.isolated.yml", "vault-init.sh")
         assets.update({"fixture/" + name: "tests/conformance/docker-runtime-agent/" + name for name in fixture_files})
         fingerprints = {}
@@ -865,6 +899,8 @@ def main() -> None:
         fixture.official_install()
     elif args.action == "controller-smoke":
         fixture.controller_smoke()
+    elif args.action == "update-api":
+        fixture.update_api()
     else:
         getattr(fixture, args.action)()
         if args.action == "probe":

@@ -28,7 +28,7 @@ func TestUpdateControllerRecoveryMaterialBindsClaimAndStateVolume(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	material, err := service.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{TaskID: 1, ExecutorType: composeUpdateLaunchExecutor, RuntimeTargetID: 9, OperationID: composeUpdateLaunchOperation, Input: taskInput})
+	material, err := service.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{TaskID: 1, StageID: 23, Attempt: 2, ExecutorType: composeUpdateLaunchExecutor, RuntimeTargetID: 9, OperationID: composeUpdateLaunchOperation, Input: taskInput})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +46,9 @@ func TestUpdateControllerRecoveryMaterialBindsClaimAndStateVolume(t *testing.T) 
 	var got RunnerRecoveryInput
 	if err := json.Unmarshal(decoded, &got); err != nil || got.OperationID != recovery.OperationID || got.RunnerID != recovery.RunnerID {
 		t.Fatalf("recovery state binding = %#v, %v", got, err)
+	}
+	if got.LaunchStageID != 23 || got.LaunchAttempt != 2 {
+		t.Fatalf("recovery lost the current launch attempt: %#v", got)
 	}
 }
 
@@ -86,7 +89,7 @@ func TestUpdateControllerMaterialWaitsForPreparedHandoff(t *testing.T) {
 	errorsCh := make(chan error, 1)
 	go func() {
 		material, resolveErr := service.ResolveExternalExecutionMaterial(context.Background(), moduleapi.ExternalExecutionMaterialRequest{
-			TaskID: input.TaskID, ExecutorType: composeUpdateLaunchExecutor, RuntimeTargetID: 7,
+			TaskID: input.TaskID, StageID: 24, Attempt: 3, ExecutorType: composeUpdateLaunchExecutor, RuntimeTargetID: 7,
 			OperationID: composeUpdateLaunchOperation, Input: taskInput,
 		})
 		result <- material
@@ -107,5 +110,13 @@ func TestUpdateControllerMaterialWaitsForPreparedHandoff(t *testing.T) {
 	var payload updateControllerMaterial
 	if material.Protocol != composeUpdateLaunchMaterialProtocol || json.Unmarshal(material.Payload, &payload) != nil || payload.OperationID != operation.OperationID || payload.ComposeRoot != root {
 		t.Fatalf("unexpected transient material: %#v %#v", material, payload)
+	}
+	decoded, err := base64.RawStdEncoding.DecodeString(payload.InputBase64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var frozen RunnerInput
+	if err := json.Unmarshal(decoded, &frozen); err != nil || frozen.LaunchStageID != 24 || frozen.LaunchAttempt != 3 {
+		t.Fatalf("controller lost the current launch attempt: %#v / %v", frozen, err)
 	}
 }

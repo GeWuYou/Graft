@@ -128,6 +128,31 @@ For the real Controller restart boundary, also register a same-source `--runner-
 python3 scripts/validate_docker_isolated.py controller-smoke --directory .local/docker-isolated/local
 ```
 
+### Public Update API through server replacement
+
+`update-api` uses a separate fresh local registration. Build source and target server images from the same frozen commit with build versions `0.0.0-beta.1` and `0.0.0-beta.2`, and record both binary hashes. Build `Dockerfile.release-source` from this directory with the same revision label as the server, web and Controller images. Register the source server, target server, web, Controller and release-fixture image IDs, then run `up`, `official-install` and `update-api`.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --execution-mode local \
+  --directory .local/docker-isolated/update-api \
+  --project graft-isolated-update-api \
+  --source-revision <full-commit> \
+  --backend-image <source-server-image> \
+  --target-backend-image <target-server-image> \
+  --web-image <web-image> \
+  --runner-image <controller-image> \
+  --release-fixture-image <release-source-image> \
+  --port 28180
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/update-api
+python3 scripts/validate_docker_isolated.py official-install --directory .local/docker-isolated/update-api
+python3 scripts/validate_docker_isolated.py update-api --directory .local/docker-isolated/update-api
+```
+
+The fixture creates an ephemeral CA and HTTPS endpoints for the standard GitHub release URLs inside its private Docker network. A TLS registry inside that daemon serves the real official `ghcr.io` image names and repository digests. Only the registered daemon's hosts/certificate directory and nested server's standard `SSL_CERT_FILE` mount receive fixture trust. Production release parsing, manifest checksum verification, image digest validation, Update API, Task execution, Backup and Controller code run through their normal entrypoints.
+
+The source image version and original image tag are required before any fixture trust is installed. A missing deployment-environment snapshot is then injected and restored to verify a failed Backup and Task with the server retained. The normal update must settle both launch and final Task stages, retain attempt-bound receipts, replace the server with the registered target image, report the target build version and expose persisted backup bytes matching the receipt hashes and sizes. Evidence under `release-api/update-api-evidence.json` explicitly identifies the synthetic release source and its source/target binary hashes, CA, overlay and manifest fingerprints. Run guarded outer `destroy` with the registered project identity after inspection to remove every nested resource.
+
 Local fixture stop pauses all registered services. Guarded destroy removes only that instance's project and named volumes. Agent-mode registrations keep the existing Vault-retention lifecycle described below. Build publication and full platform self-update have separate acceptance boundaries, because this API fixture's backend runs outside its private daemon's managed topology. A full self-update exercise must install the official Compose topology inside that daemon and provide verified release images and controller artifacts from the tested commit.
 
 ### Agent execution
