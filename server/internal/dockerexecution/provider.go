@@ -166,11 +166,12 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 		return failedExecution(failureProviderOperation)
 	}
 	if _, err := docker.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
+		// 启动响应丢失时 Controller 可能已执行替换；后续删除也无法撤销它的副作用。
+		if !containerderrdefs.IsConflict(err) && !containerderrdefs.IsInvalidArgument(err) && !containerderrdefs.IsPermissionDenied(err) {
+			return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
+		}
 		if cleanupErr := removeUnstartedController(ctx, docker, created.ID); cleanupErr != nil {
-			if material.Recovery {
-				return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
-			}
-			return failedExecution(failureProviderOperation)
+			return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
 		}
 		return failedExecution(failureProviderOperation)
 	}
@@ -274,8 +275,16 @@ func materialContainerName(operationID string) string { return "graft-update-" +
 
 func removeUnstartedController(ctx context.Context, docker *mobyclient.Client, id string) error {
 	inspected, err := docker.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
-	if err != nil || inspected.Container.State == nil || inspected.Container.State.Running {
+	if err != nil {
 		return err
+	}
+	state := inspected.Container.State
+	if state == nil || state.Running || state.Status != containertypes.StateCreated {
+		return errors.New("controller has no unstarted state confirmation")
+	}
+	startedAt, err := time.Parse(time.RFC3339Nano, state.StartedAt)
+	if err != nil || !startedAt.IsZero() {
+		return errors.New("controller has no unstarted timestamp confirmation")
 	}
 	_, err = docker.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
 	return err
