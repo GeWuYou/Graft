@@ -19,4 +19,6 @@ properties:
     type: string
     description: Mirrors the request id contract used by the current runtime.
   data:
-    nullable: true
+    anyOf:
+      - {}
+      - type: "null"

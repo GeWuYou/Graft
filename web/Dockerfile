@@ -1,4 +1,4 @@
-FROM nginx:1.29-alpine AS runtime
+FROM nginx:1.30.6-alpine AS runtime
 
 COPY dist /usr/share/nginx/html
 COPY docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template

@@ -13,8 +13,7 @@ properties:
   current_path:
     type: string
   parent_path:
-    type: string
-    nullable: true
+    type: [string, "null"]
   has_more_hidden:
     type: boolean
   items:

@@ -37,8 +37,7 @@ properties:
   compose_project_name:
     type: string
   application_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
   ownership_mode:
     $ref: ./application-ownership-mode.yaml
   workspace_path:
@@ -48,11 +47,9 @@ properties:
   compose_file_absolute_path:
     type: string
   env_file_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
   env_file_absolute_path:
-    type: string
-    nullable: true
+    type: [string, "null"]
   source_metadata:
     $ref: ./application-source-metadata.yaml
   snapshot_summary:
@@ -70,11 +67,9 @@ properties:
         type: integer
         minimum: 0
   message_key:
-    type: string
-    nullable: true
+    type: [string, "null"]
   message:
-    type: string
-    nullable: true
+    type: [string, "null"]
   warnings:
     type: array
     items:

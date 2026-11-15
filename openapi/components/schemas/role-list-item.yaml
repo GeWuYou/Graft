@@ -22,8 +22,7 @@ properties:
     type: string
     enum: [system, custom]
   builtin_key:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable key for a version-managed system role; null for custom roles.
   editable:
     type: boolean

@@ -208,18 +208,19 @@
     >
       <t-loading :loading="detailLoading"
         ><t-descriptions v-if="detail" bordered :column="2" size="small">
-          <t-descriptions-item :label="t('build.jobs.columns.build')">{{ detail.build_id }}</t-descriptions-item
-          ><t-descriptions-item :label="t('build.jobs.columns.snapshot')">{{
+          <t-descriptions-item :label="t('build.jobs.columns.build')">{{
+            detail.build_id
+          }}</t-descriptions-item><t-descriptions-item :label="t('build.jobs.columns.snapshot')">{{
             detail.input_snapshot_digest
           }}</t-descriptions-item>
           <t-descriptions-item :label="t('build.jobs.columns.repository')">{{
             detail.image_repository
-          }}</t-descriptions-item
-          ><t-descriptions-item :label="t('build.jobs.columns.imageTag')">{{ detail.image_tag }}</t-descriptions-item>
+          }}</t-descriptions-item><t-descriptions-item :label="t('build.jobs.columns.imageTag')">{{
+            detail.image_tag
+          }}</t-descriptions-item>
           <t-descriptions-item :label="t('build.jobs.columns.status')">{{
             statusLabel(detail.execution?.status)
-          }}</t-descriptions-item
-          ><t-descriptions-item :label="t('build.jobs.columns.builder')">{{
+          }}</t-descriptions-item><t-descriptions-item :label="t('build.jobs.columns.builder')">{{
             detail.builder?.name || '-'
           }}</t-descriptions-item> </t-descriptions
         ><t-alert v-else-if="detailError" theme="error" :message="detailError"

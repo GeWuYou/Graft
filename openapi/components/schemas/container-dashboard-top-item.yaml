@@ -28,18 +28,23 @@ properties:
       - ContainerDashboardTopItemStateDead
       - ContainerDashboardTopItemStateUnknown
   health:
-    type: string
-    nullable: true
-    enum: [healthy, unhealthy, starting, none, unavailable]
-    x-enum-varnames:
-      - ContainerDashboardTopItemHealthHealthy
-      - ContainerDashboardTopItemHealthUnhealthy
-      - ContainerDashboardTopItemHealthStarting
-      - ContainerDashboardTopItemHealthNone
-      - ContainerDashboardTopItemHealthUnavailable
+    anyOf:
+      - type: string
+        enum:
+          - healthy
+          - unhealthy
+          - starting
+          - none
+          - unavailable
+        x-enum-varnames:
+          - ContainerDashboardTopItemHealthHealthy
+          - ContainerDashboardTopItemHealthUnhealthy
+          - ContainerDashboardTopItemHealthStarting
+          - ContainerDashboardTopItemHealthNone
+          - ContainerDashboardTopItemHealthUnavailable
+      - type: 'null'
   restart_count:
-    type: integer
+    type: [integer, "null"]
     minimum: 0
-    nullable: true
   resource:
     $ref: ./container-resource-summary.yaml

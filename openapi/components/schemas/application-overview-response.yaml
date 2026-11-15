@@ -11,9 +11,8 @@ properties:
   compose_project_name:
     type: string
   collected_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   health:
     $ref: ./application-overview-health-summary.yaml
   resources:

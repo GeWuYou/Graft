@@ -67,14 +67,12 @@ properties:
   runtime_gc_cycles:
     type: integer
   runtime_last_gc_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle.
   runtime_last_gc_pause_ns:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
     description: Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle.
   runtime_gc_pause_total_ns:
     type: integer

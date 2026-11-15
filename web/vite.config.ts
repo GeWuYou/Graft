@@ -56,7 +56,11 @@ function createTDesignVueNextResolver(): ComponentResolverObject {
   const resolver = TDesignResolver({
     library: 'vue-next',
     esm: true,
-  }) as ComponentResolverObject;
+  }).find((item) => typeof item === 'object' && item.type === 'component');
+
+  if (!resolver || typeof resolver === 'function') {
+    throw new Error('TDesign component resolver is unavailable');
+  }
 
   return {
     ...resolver,
@@ -143,57 +147,21 @@ export function createViteConfig(mode: string): UserConfig {
       exclude: ['monaco-editor'],
     },
     build: {
-      // Monaco 与 YAML worker 代码需独立成 vendor chunk；Monaco 0.56 的已测产物约为 3962 KiB，保留 4000 KiB 预算以继续暴露后续增长。
+      // Monaco 与 YAML worker 独立分包，编辑器代码按需加载，体积告警继续暴露依赖增长。
       chunkSizeWarningLimit: 4096,
-      rollupOptions: {
-        onwarn(warning, warn) {
-          // `@vueuse/core` 当前版本产物会触发 Rollup 对 `#__PURE__` 注释位置的已知噪音，
-          // 这里仅按精确来源收口日志，不吞掉其它依赖或业务代码 warning。
-          if (
-            warning.message.includes(
-              'contains an annotation that Rollup cannot interpret due to the position of the comment',
-            ) &&
-            warning.id?.includes('/node_modules/@vueuse/core/dist/index.js')
-          ) {
-            return;
-          }
-
-          warn(warning);
-        },
+      rolldownOptions: {
         output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) {
-              return undefined;
-            }
-
-            if (id.includes('/node_modules/monaco-editor/') || id.includes('/node_modules/monaco-yaml/')) {
-              return 'vendor-monaco';
-            }
-
-            if (id.includes('/node_modules/tdesign-icons-vue-next/')) {
-              return 'vendor-tdesign-icons';
-            }
-
-            if (id.includes('/node_modules/tdesign-vue-next/') || id.includes('/node_modules/tvision-color/')) {
-              return 'vendor-tdesign';
-            }
-
-            if (
-              id.includes('/node_modules/vue/') ||
-              id.includes('/node_modules/@vue/') ||
-              id.includes('/node_modules/vue-router/') ||
-              id.includes('/node_modules/pinia/') ||
-              id.includes('/node_modules/vue-i18n/') ||
-              id.includes('/node_modules/@vueuse/core/')
-            ) {
-              return 'vendor-vue';
-            }
-
-            if (id.includes('/node_modules/lodash/')) {
-              return 'vendor-utils';
-            }
-
-            return undefined;
+          codeSplitting: {
+            groups: [
+              { name: 'vendor-monaco', test: /\/node_modules\/(?:monaco-editor|monaco-yaml)\//u },
+              { name: 'vendor-tdesign-icons', test: /\/node_modules\/tdesign-icons-vue-next\//u },
+              { name: 'vendor-tdesign', test: /\/node_modules\/(?:tdesign-vue-next|tvision-color)\//u },
+              {
+                name: 'vendor-vue',
+                test: /\/node_modules\/(?:vue|@vue\/[^/]+|vue-router|pinia|vue-i18n|@vueuse\/core)\//u,
+              },
+              { name: 'vendor-utils', test: /\/node_modules\/lodash\//u },
+            ],
           },
         },
       },
@@ -201,7 +169,7 @@ export function createViteConfig(mode: string): UserConfig {
     resolve: {
       alias: {
         '@/router/development-routes': developmentRoutesModule,
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(import.meta.dirname, './src'),
         'monaco-editor/esm/vs': monacoEditorEsmVsDirectory,
         'monaco-editor/min/vs/editor/editor.main.css': monacoEditorMainCssFile,
       },

@@ -1,0 +1,73 @@
+# Overlay for compose.yml. Controlled Docker resources live in this private daemon.
+services:
+  docker-daemon:
+    image: ${GRAFT_CONFORMANCE_DOCKER_IMAGE:-docker:29.9.3-dind}
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["dockerd", "--host=unix:///run/graft-docker/docker.sock", "--storage-driver=overlay2", "--group=root"]
+    volumes:
+      - daemon-socket:/run/graft-docker
+      - daemon-data:/var/lib/docker
+      - application-workspaces:/opt/graft/apps
+      - build-snapshots:/tmp/graft-build-snapshots:ro
+    healthcheck:
+      test: ["CMD", "docker", "--host=unix:///run/graft-docker/docker.sock", "info"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  workspace-init:
+    image: alpine:3.24.4
+    command: ["sh", "-ec", "chown 10001:10001 /opt/graft/apps; chmod 0750 /opt/graft/apps"]
+    volumes:
+      - application-workspaces:/opt/graft/apps
+
+  backend:
+    environment:
+      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: http://127.0.0.1:${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}
+    group_add: ["0"]
+    depends_on:
+      workspace-init:
+        condition: service_completed_successfully
+      docker-daemon:
+        condition: service_healthy
+    volumes: !override
+      - vault-secrets:/run/graft-secrets:ro
+      - daemon-socket:/run
+      - application-workspaces:/opt/graft/apps
+      - build-snapshots:/tmp/graft-build-snapshots
+    ports: !override
+      - "127.0.0.1:${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}:8080"
+      - "127.0.0.1:${GRAFT_CONFORMANCE_BOOTSTRAP_PORT:-18443}:8443"
+      - "127.0.0.1:${GRAFT_CONFORMANCE_AGENT_PORT:-18444}:8444"
+
+  conformance-driver:
+    depends_on:
+      docker-daemon:
+        condition: service_healthy
+    volumes: !override
+      - vault-secrets:/run/graft-secrets:ro
+      - daemon-socket:/run
+      - agent-config:/conformance/agent-config
+      - agent-bootstrap:/conformance/agent-bootstrap
+      - agent-trust:/conformance/agent-trust:ro
+
+  docker-runtime-agent:
+    depends_on:
+      docker-daemon:
+        condition: service_healthy
+    command: !override []
+    volumes: !override
+      - agent-config:/etc/graft/config:ro
+      - agent-bootstrap:/run/graft-bootstrap:ro
+      - agent-trust:/run/graft-agent-trust:ro
+      - agent-state:/var/lib/graft-runtime-agent/state
+      - daemon-socket:/run
+      - application-workspaces:/opt/graft/apps
+      - build-snapshots:/tmp/graft-build-snapshots:ro
+
+volumes:
+  daemon-socket:
+  daemon-data:
+  application-workspaces:

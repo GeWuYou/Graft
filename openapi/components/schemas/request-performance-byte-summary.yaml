@@ -10,12 +10,10 @@ properties:
     format: int64
     minimum: 0
   average_bytes:
-    type: number
-    nullable: true
+    type: [number, "null"]
     format: double
     minimum: 0
   bytes_per_second:
-    type: number
-    nullable: true
+    type: [number, "null"]
     format: double
     minimum: 0

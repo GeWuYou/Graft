@@ -28,34 +28,43 @@ properties:
       - ContainerDashboardAnomalyItemStateDead
       - ContainerDashboardAnomalyItemStateUnknown
   health:
-    type: string
-    nullable: true
-    enum: [healthy, unhealthy, starting, none, unavailable]
-    x-enum-varnames:
-      - ContainerDashboardAnomalyItemHealthHealthy
-      - ContainerDashboardAnomalyItemHealthUnhealthy
-      - ContainerDashboardAnomalyItemHealthStarting
-      - ContainerDashboardAnomalyItemHealthNone
-      - ContainerDashboardAnomalyItemHealthUnavailable
+    anyOf:
+      - type: string
+        enum:
+          - healthy
+          - unhealthy
+          - starting
+          - none
+          - unavailable
+        x-enum-varnames:
+          - ContainerDashboardAnomalyItemHealthHealthy
+          - ContainerDashboardAnomalyItemHealthUnhealthy
+          - ContainerDashboardAnomalyItemHealthStarting
+          - ContainerDashboardAnomalyItemHealthNone
+          - ContainerDashboardAnomalyItemHealthUnavailable
+      - type: 'null'
   restart_count:
-    type: integer
+    type: [integer, "null"]
     minimum: 0
-    nullable: true
   status:
-    type: string
-    nullable: true
+    type: [string, "null"]
   reason_code:
-    type: string
-    nullable: true
-    enum: [health.unhealthy, state.restarting, state.exited, state.dead, state.unknown]
-    x-enum-varnames:
-      - ContainerDashboardAnomalyReasonCodeHealthUnhealthy
-      - ContainerDashboardAnomalyReasonCodeStateRestarting
-      - ContainerDashboardAnomalyReasonCodeStateExited
-      - ContainerDashboardAnomalyReasonCodeStateDead
-      - ContainerDashboardAnomalyReasonCodeStateUnknown
+    anyOf:
+      - type: string
+        enum:
+          - health.unhealthy
+          - state.restarting
+          - state.exited
+          - state.dead
+          - state.unknown
+        x-enum-varnames:
+          - ContainerDashboardAnomalyReasonCodeHealthUnhealthy
+          - ContainerDashboardAnomalyReasonCodeStateRestarting
+          - ContainerDashboardAnomalyReasonCodeStateExited
+          - ContainerDashboardAnomalyReasonCodeStateDead
+          - ContainerDashboardAnomalyReasonCodeStateUnknown
+      - type: 'null'
   reason_label:
-    type: string
-    nullable: true
+    type: [string, "null"]
   resource:
     $ref: ./container-resource-summary.yaml

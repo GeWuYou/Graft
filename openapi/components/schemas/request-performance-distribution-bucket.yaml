@@ -6,8 +6,7 @@ properties:
     format: int64
     minimum: 0
   upper_bound:
-    type: integer
-    nullable: true
+    type: [integer, "null"]
     format: int64
     minimum: 0
   sample_count:

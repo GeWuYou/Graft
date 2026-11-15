@@ -8,7 +8,8 @@
     "resolveJsonModule": true,
     "types": ["node"],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["vite.config.ts", "uno.config.ts", "vitest.config.ts"]
 }

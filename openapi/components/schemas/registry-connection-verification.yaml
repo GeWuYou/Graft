@@ -12,7 +12,6 @@ properties:
     type: string
     format: date-time
   error_code:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable sanitized failure classification. It never includes endpoint credentials, session data, challenge headers, source paths, remote response bodies, or repository authorization claims.
 additionalProperties: false

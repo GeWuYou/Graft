@@ -24,7 +24,7 @@ type ApplicationServicesResponse = components['schemas']['ApplicationServicesRes
 type ApplicationLogEntry = components['schemas']['ApplicationLogEntry'];
 type ApplicationContainerCounts = components['schemas']['ApplicationContainerCounts'];
 type ApplicationDriftStatus = components['schemas']['ApplicationDriftStatus'];
-type ApplicationRuntimeStatus = ApplicationDetailResponse['runtime_status'];
+type ApplicationRuntimeStatus = NonNullable<ApplicationDetailResponse['runtime_status']>;
 
 export type ApplicationListSummaryRealtimeItem = {
   application_id: string;

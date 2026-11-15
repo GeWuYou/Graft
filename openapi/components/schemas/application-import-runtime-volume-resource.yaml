@@ -11,8 +11,7 @@ properties:
   name:
     type: string
   driver:
-    type: string
-    nullable: true
+    type: [string, "null"]
   anonymous:
     type: boolean
   mount_target:

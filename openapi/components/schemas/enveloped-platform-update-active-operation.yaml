@@ -6,6 +6,7 @@ properties:
   message: { type: string }
   traceId: { type: string }
   data:
-    allOf:
-      - { $ref: ./platform-update-operation.yaml }
-    nullable: true
+    anyOf:
+    - allOf:
+      - $ref: ./platform-update-operation.yaml
+    - type: 'null'

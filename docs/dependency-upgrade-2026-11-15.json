@@ -1,0 +1,2310 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-11-15",
+  "baseline_commit": "3989727b06bf446a03bcabceba0246c43bf3f181",
+  "server": {
+    "go_before": "1.26.5",
+    "go_after": "1.27.4",
+    "lint_before": "v2.12.2",
+    "lint_after": "v2.15.0",
+    "alpine_before": "3.22",
+    "alpine_after": "3.24.4",
+    "sources": [
+      "https://go.dev/dl/?mode=json",
+      "https://github.com/docker/compose/releases/tag/v5.7.1",
+      "https://github.com/docker/compose/blob/v5.7.1/go.mod",
+      "https://github.com/golangci/golangci-lint/releases/tag/v2.15.0",
+      "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/latest-releases.yaml"
+    ],
+    "modules": [
+      {
+        "module": "connectrpc.com/connect",
+        "before": null,
+        "after": "v1.21.1"
+      },
+      {
+        "module": "github.com/Azure/go-ansiterm",
+        "before": "v0.0.0-20250102033503-faa5f7b0171c",
+        "after": "v0.0.0-20261013165250-51075c6ea6bc"
+      },
+      {
+        "module": "github.com/DefangLabs/secret-detector",
+        "before": "v0.0.0-20250403165618-22662109213e",
+        "after": "v0.0.0-20260916192156-3e28d7ed64df"
+      },
+      {
+        "module": "github.com/Masterminds/semver/v3",
+        "before": "v3.4.0",
+        "after": null
+      },
+      {
+        "module": "github.com/Microsoft/go-winio",
+        "before": "v0.6.2",
+        "after": "v0.6.4"
+      },
+      {
+        "module": "github.com/air-verse/air",
+        "before": "v1.65.2",
+        "after": "v1.67.4"
+      },
+      {
+        "module": "github.com/alicebob/miniredis/v2",
+        "before": "v2.38.0",
+        "after": "v2.40.0"
+      },
+      {
+        "module": "github.com/andybalholm/brotli",
+        "before": "v1.2.0",
+        "after": "v1.3.0"
+      },
+      {
+        "module": "github.com/apparentlymart/go-textseg/v17",
+        "before": null,
+        "after": "v17.0.1"
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2",
+        "before": "v1.41.6",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/config",
+        "before": "v1.32.2",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/credentials",
+        "before": "v1.19.2",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/feature/ec2/imds",
+        "before": "v1.18.14",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/internal/configsources",
+        "before": "v1.4.22",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2",
+        "before": "v2.7.22",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/internal/ini",
+        "before": "v1.8.4",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding",
+        "before": "v1.13.7",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url",
+        "before": "v1.13.21",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/signin",
+        "before": "v1.0.2",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/sso",
+        "before": "v1.30.5",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/ssooidc",
+        "before": "v1.35.10",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/aws-sdk-go-v2/service/sts",
+        "before": "v1.41.2",
+        "after": null
+      },
+      {
+        "module": "github.com/aws/smithy-go",
+        "before": "v1.25.0",
+        "after": null
+      },
+      {
+        "module": "github.com/beorn7/perks",
+        "before": "v1.0.1",
+        "after": null
+      },
+      {
+        "module": "github.com/bep/golibsass",
+        "before": "v1.2.0",
+        "after": null
+      },
+      {
+        "module": "github.com/bep/helpers",
+        "before": null,
+        "after": "v0.12.0"
+      },
+      {
+        "module": "github.com/bits-and-blooms/bitset",
+        "before": "v1.24.5",
+        "after": "v1.29.0"
+      },
+      {
+        "module": "github.com/buger/goterm",
+        "before": "v1.0.4",
+        "after": null
+      },
+      {
+        "module": "github.com/bytedance/sonic",
+        "before": "v1.15.2",
+        "after": "v1.15.5"
+      },
+      {
+        "module": "github.com/bytedance/sonic/loader",
+        "before": "v0.5.1",
+        "after": "v0.5.3"
+      },
+      {
+        "module": "github.com/cenkalti/backoff/v4",
+        "before": "v4.3.0",
+        "after": null
+      },
+      {
+        "module": "github.com/clipperhouse/uax29/v2",
+        "before": "v2.6.0",
+        "after": "v2.7.0"
+      },
+      {
+        "module": "github.com/compose-spec/compose-go/v2",
+        "before": "v2.9.1",
+        "after": "v2.16.2"
+      },
+      {
+        "module": "github.com/containerd/containerd/api",
+        "before": "v1.10.0",
+        "after": "v1.12.0"
+      },
+      {
+        "module": "github.com/containerd/containerd/v2",
+        "before": "v2.2.5",
+        "after": "v2.4.2"
+      },
+      {
+        "module": "github.com/containerd/continuity",
+        "before": "v0.4.5",
+        "after": "v0.5.0"
+      },
+      {
+        "module": "github.com/containerd/log",
+        "before": "v0.1.0",
+        "after": "v0.2.0"
+      },
+      {
+        "module": "github.com/containerd/log/otel",
+        "before": null,
+        "after": "v0.1.0"
+      },
+      {
+        "module": "github.com/containerd/ttrpc",
+        "before": "v1.2.7",
+        "after": "v1.2.10"
+      },
+      {
+        "module": "github.com/containerd/typeurl/v2",
+        "before": "v2.2.3",
+        "after": "v2.3.0"
+      },
+      {
+        "module": "github.com/davecgh/go-spew",
+        "before": "v1.1.2-0.20180830191138-d8f796af33cc",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/buildx",
+        "before": "v0.29.1",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/cli",
+        "before": "v28.5.2+incompatible",
+        "after": "v29.9.3+incompatible"
+      },
+      {
+        "module": "github.com/docker/cli-docs-tool",
+        "before": "v0.10.0",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/compose/v2",
+        "before": "v2.40.3",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/compose/v5",
+        "before": null,
+        "after": "v5.7.1"
+      },
+      {
+        "module": "github.com/docker/distribution",
+        "before": "v2.8.3+incompatible",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/docker",
+        "before": "v28.5.2+incompatible",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/docker-credential-helpers",
+        "before": "v0.9.3",
+        "after": "v0.9.13"
+      },
+      {
+        "module": "github.com/docker/go",
+        "before": "v1.5.1-1.0.20160303222718-d30aec9fd63c",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/go-connections",
+        "before": "v0.7.0",
+        "after": "v0.8.2"
+      },
+      {
+        "module": "github.com/docker/go-metrics",
+        "before": "v0.0.1",
+        "after": null
+      },
+      {
+        "module": "github.com/docker/secrets-engine/client",
+        "before": null,
+        "after": "v0.2.2"
+      },
+      {
+        "module": "github.com/docker/secrets-engine/x",
+        "before": null,
+        "after": "v0.8.5"
+      },
+      {
+        "module": "github.com/ebitengine/purego",
+        "before": "v0.10.2",
+        "after": "v0.11.3"
+      },
+      {
+        "module": "github.com/eiannone/keyboard",
+        "before": "v0.0.0-20220611211555-0d226195f203",
+        "after": null
+      },
+      {
+        "module": "github.com/emicklei/go-restful/v3",
+        "before": "v3.13.0",
+        "after": null
+      },
+      {
+        "module": "github.com/fatih/color",
+        "before": "v1.18.0",
+        "after": "v1.19.0"
+      },
+      {
+        "module": "github.com/felixge/httpsnoop",
+        "before": "v1.0.4",
+        "after": "v1.1.0"
+      },
+      {
+        "module": "github.com/fvbommel/sortorder",
+        "before": "v1.1.0",
+        "after": "v1.2.1"
+      },
+      {
+        "module": "github.com/fxamacker/cbor/v2",
+        "before": "v2.9.0",
+        "after": null
+      },
+      {
+        "module": "github.com/gabriel-vasile/mimetype",
+        "before": "v1.4.13",
+        "after": "v1.4.16"
+      },
+      {
+        "module": "github.com/getkin/kin-openapi",
+        "before": "v0.147.0",
+        "after": "v0.153.0"
+      },
+      {
+        "module": "github.com/gin-contrib/sse",
+        "before": "v1.1.1",
+        "after": "v1.2.1"
+      },
+      {
+        "module": "github.com/go-logr/logr",
+        "before": "v1.4.3",
+        "after": "v1.4.4"
+      },
+      {
+        "module": "github.com/go-ole/go-ole",
+        "before": "v1.2.6",
+        "after": "v1.3.0"
+      },
+      {
+        "module": "github.com/go-openapi/inflect",
+        "before": "v0.19.0",
+        "after": "v1.0.1"
+      },
+      {
+        "module": "github.com/go-openapi/jsonpointer",
+        "before": "v0.22.5",
+        "after": "v1.0.2"
+      },
+      {
+        "module": "github.com/go-openapi/jsonreference",
+        "before": "v0.20.2",
+        "after": null
+      },
+      {
+        "module": "github.com/go-openapi/swag",
+        "before": "v0.23.0",
+        "after": null
+      },
+      {
+        "module": "github.com/go-openapi/swag/jsonname",
+        "before": "v0.25.5",
+        "after": null
+      },
+      {
+        "module": "github.com/go-playground/locales",
+        "before": "v0.14.1",
+        "after": "v0.14.2"
+      },
+      {
+        "module": "github.com/go-playground/universal-translator",
+        "before": "v0.18.1",
+        "after": "v0.18.2"
+      },
+      {
+        "module": "github.com/go-playground/validator/v10",
+        "before": "v10.30.3",
+        "after": "v10.30.6"
+      },
+      {
+        "module": "github.com/gobwas/glob",
+        "before": "v0.2.3",
+        "after": "v1.1.0"
+      },
+      {
+        "module": "github.com/goccy/go-json",
+        "before": "v0.10.6",
+        "after": "v0.12.0"
+      },
+      {
+        "module": "github.com/gofrs/flock",
+        "before": "v0.12.1",
+        "after": "v0.13.2"
+      },
+      {
+        "module": "github.com/gogo/protobuf",
+        "before": "v1.3.2",
+        "after": null
+      },
+      {
+        "module": "github.com/gohugoio/hashstructure",
+        "before": "v0.6.0",
+        "after": "v1.1.0"
+      },
+      {
+        "module": "github.com/gohugoio/hugo",
+        "before": "v0.163.3",
+        "after": "v0.170.0"
+      },
+      {
+        "module": "github.com/golang/protobuf",
+        "before": "v1.5.4",
+        "after": null
+      },
+      {
+        "module": "github.com/google/gnostic-models",
+        "before": "v0.7.0",
+        "after": null
+      },
+      {
+        "module": "github.com/gorilla/mux",
+        "before": "v1.8.1",
+        "after": null
+      },
+      {
+        "module": "github.com/grpc-ecosystem/grpc-gateway/v2",
+        "before": "v2.28.0",
+        "after": "v2.33.0"
+      },
+      {
+        "module": "github.com/hashicorp/errwrap",
+        "before": "v1.1.0",
+        "after": null
+      },
+      {
+        "module": "github.com/hashicorp/go-cleanhttp",
+        "before": "v0.5.2",
+        "after": null
+      },
+      {
+        "module": "github.com/hashicorp/go-multierror",
+        "before": "v1.1.1",
+        "after": null
+      },
+      {
+        "module": "github.com/hashicorp/go-version",
+        "before": "v1.7.0",
+        "after": "v1.9.0"
+      },
+      {
+        "module": "github.com/hashicorp/hcl/v2",
+        "before": "v2.24.0",
+        "after": "v2.25.0"
+      },
+      {
+        "module": "github.com/in-toto/attestation",
+        "before": "v1.1.2",
+        "after": "v1.2.0"
+      },
+      {
+        "module": "github.com/jackc/pgx/v5",
+        "before": "v5.10.0",
+        "after": "v5.13.0"
+      },
+      {
+        "module": "github.com/jackc/puddle/v2",
+        "before": "v2.2.2",
+        "after": "v2.2.3"
+      },
+      {
+        "module": "github.com/jonboulle/clockwork",
+        "before": "v0.5.0",
+        "after": null
+      },
+      {
+        "module": "github.com/josharian/intern",
+        "before": "v1.0.0",
+        "after": null
+      },
+      {
+        "module": "github.com/klauspost/compress",
+        "before": "v1.18.7",
+        "after": "v1.20.4"
+      },
+      {
+        "module": "github.com/klauspost/cpuid/v2",
+        "before": "v2.3.0",
+        "after": "v2.4.2"
+      },
+      {
+        "module": "github.com/leodido/go-urn",
+        "before": "v1.4.0",
+        "after": "v1.5.0"
+      },
+      {
+        "module": "github.com/lufia/plan9stats",
+        "before": "v0.0.0-20211012122336-39d0f177ccd0",
+        "after": "v0.0.0-20261101121723-be84dd9509a0"
+      },
+      {
+        "module": "github.com/mailru/easyjson",
+        "before": "v0.9.1",
+        "after": null
+      },
+      {
+        "module": "github.com/mattn/go-colorable",
+        "before": "v0.1.14",
+        "after": "v0.1.16"
+      },
+      {
+        "module": "github.com/mattn/go-isatty",
+        "before": "v0.0.22",
+        "after": "v0.0.24"
+      },
+      {
+        "module": "github.com/mattn/go-runewidth",
+        "before": "v0.0.19",
+        "after": "v0.0.31"
+      },
+      {
+        "module": "github.com/mattn/go-shellwords",
+        "before": "v1.0.12",
+        "after": "v1.0.16"
+      },
+      {
+        "module": "github.com/mattn/go-sqlite3",
+        "before": "v1.14.50",
+        "after": "v1.14.53"
+      },
+      {
+        "module": "github.com/miekg/pkcs11",
+        "before": "v1.1.1",
+        "after": null
+      },
+      {
+        "module": "github.com/mitchellh/hashstructure/v2",
+        "before": "v2.0.2",
+        "after": null
+      },
+      {
+        "module": "github.com/moby/buildkit",
+        "before": "v0.25.1",
+        "after": "v0.35.0"
+      },
+      {
+        "module": "github.com/moby/go-archive",
+        "before": "v0.1.0",
+        "after": "v0.3.3"
+      },
+      {
+        "module": "github.com/moby/moby/api",
+        "before": "v1.55.0",
+        "after": "v1.57.0"
+      },
+      {
+        "module": "github.com/moby/moby/client",
+        "before": "v0.5.1",
+        "after": "v0.6.3"
+      },
+      {
+        "module": "github.com/moby/spdystream",
+        "before": "v0.5.1",
+        "after": null
+      },
+      {
+        "module": "github.com/moby/sys/capability",
+        "before": "v0.4.0",
+        "after": "v0.5.0"
+      },
+      {
+        "module": "github.com/moby/sys/mountinfo",
+        "before": "v0.7.2",
+        "after": null
+      },
+      {
+        "module": "github.com/moby/sys/user",
+        "before": "v0.4.1",
+        "after": "v0.5.0"
+      },
+      {
+        "module": "github.com/moby/sys/userns",
+        "before": "v0.1.0",
+        "after": "v0.2.1"
+      },
+      {
+        "module": "github.com/modelcontextprotocol/go-sdk",
+        "before": "v1.7.0",
+        "after": "v1.8.0"
+      },
+      {
+        "module": "github.com/morikuni/aec",
+        "before": "v1.0.0",
+        "after": "v1.1.0"
+      },
+      {
+        "module": "github.com/munnerz/goautoneg",
+        "before": "v0.0.0-20191010083416-a7dc8b61c822",
+        "after": null
+      },
+      {
+        "module": "github.com/mxk/go-flowrate",
+        "before": "v0.0.0-20140419014527-cca7078d478f",
+        "after": null
+      },
+      {
+        "module": "github.com/oapi-codegen/oapi-codegen/v2",
+        "before": "v2.7.1",
+        "after": "v2.8.2"
+      },
+      {
+        "module": "github.com/oapi-codegen/runtime",
+        "before": "v1.7.0",
+        "after": "v1.9.0"
+      },
+      {
+        "module": "github.com/oasdiff/yaml",
+        "before": "v0.1.1",
+        "after": null
+      },
+      {
+        "module": "github.com/oasdiff/yaml3",
+        "before": "v0.0.14",
+        "after": null
+      },
+      {
+        "module": "github.com/pelletier/go-toml/v2",
+        "before": "v2.3.1",
+        "after": "v2.4.3"
+      },
+      {
+        "module": "github.com/pmezard/go-difflib",
+        "before": "v1.0.1-0.20181226105442-5d4384ee4fb2",
+        "after": null
+      },
+      {
+        "module": "github.com/power-devops/perfstat",
+        "before": "v0.0.0-20240221224432-82ca36839d55",
+        "after": "v0.0.0-20260916203055-22a1a467d9f0"
+      },
+      {
+        "module": "github.com/prometheus/client_golang",
+        "before": "v1.23.2",
+        "after": null
+      },
+      {
+        "module": "github.com/prometheus/client_model",
+        "before": "v0.6.2",
+        "after": null
+      },
+      {
+        "module": "github.com/prometheus/common",
+        "before": "v0.66.1",
+        "after": null
+      },
+      {
+        "module": "github.com/prometheus/procfs",
+        "before": "v0.16.1",
+        "after": null
+      },
+      {
+        "module": "github.com/quic-go/quic-go",
+        "before": "v0.60.0",
+        "after": "v0.65.0"
+      },
+      {
+        "module": "github.com/redis/go-redis/v9",
+        "before": "v9.22.0",
+        "after": "v9.23.0"
+      },
+      {
+        "module": "github.com/santhosh-tekuri/jsonschema/v6",
+        "before": "v6.0.2",
+        "after": "v6.0.3"
+      },
+      {
+        "module": "github.com/secure-systems-lab/go-securesystemslib",
+        "before": "v0.10.0",
+        "after": "v0.11.1"
+      },
+      {
+        "module": "github.com/segmentio/asm",
+        "before": "v1.1.3",
+        "after": "v1.2.1"
+      },
+      {
+        "module": "github.com/serialx/hashring",
+        "before": "v0.0.0-20200727003509-22c0c7ab6b1b",
+        "after": null
+      },
+      {
+        "module": "github.com/shirou/gopsutil/v4",
+        "before": "v4.26.7",
+        "after": "v4.26.10"
+      },
+      {
+        "module": "github.com/sirupsen/logrus",
+        "before": "v1.9.4",
+        "after": "v1.10.2"
+      },
+      {
+        "module": "github.com/skratchdot/open-golang",
+        "before": "v0.0.0-20200116055534-eef842397966",
+        "after": null
+      },
+      {
+        "module": "github.com/speakeasy-api/openapi",
+        "before": "v1.19.2",
+        "after": "v1.24.0"
+      },
+      {
+        "module": "github.com/spf13/pflag",
+        "before": "v1.0.10",
+        "after": "v1.1.0"
+      },
+      {
+        "module": "github.com/stretchr/testify",
+        "before": "v1.11.1",
+        "after": null
+      },
+      {
+        "module": "github.com/tdewolff/parse/v2",
+        "before": "v2.8.12",
+        "after": "v2.8.20"
+      },
+      {
+        "module": "github.com/tdewolff/test",
+        "before": "v1.0.12",
+        "after": null
+      },
+      {
+        "module": "github.com/theupdateframework/notary",
+        "before": "v0.7.0",
+        "after": null
+      },
+      {
+        "module": "github.com/tklauser/go-sysconf",
+        "before": "v0.3.16",
+        "after": "v0.4.0"
+      },
+      {
+        "module": "github.com/tklauser/numcpus",
+        "before": "v0.11.0",
+        "after": "v0.12.0"
+      },
+      {
+        "module": "github.com/tonistiigi/dchapes-mode",
+        "before": "v0.0.0-20250318174251-73d941a28323",
+        "after": null
+      },
+      {
+        "module": "github.com/tonistiigi/fsutil",
+        "before": "v0.0.0-20250605211040-586307ad452f",
+        "after": "v0.0.0-20261103125000-e075fd9305eb"
+      },
+      {
+        "module": "github.com/ugorji/go/codec",
+        "before": "v1.3.1",
+        "after": "v1.3.2"
+      },
+      {
+        "module": "github.com/x448/float16",
+        "before": "v0.8.4",
+        "after": null
+      },
+      {
+        "module": "github.com/xhit/go-str2duration/v2",
+        "before": "v2.1.0",
+        "after": "v2.2.0"
+      },
+      {
+        "module": "github.com/zclconf/go-cty",
+        "before": "v1.17.0",
+        "after": "v1.20.0"
+      },
+      {
+        "module": "github.com/zclconf/go-cty-yaml",
+        "before": "v1.1.0",
+        "after": "v1.2.0"
+      },
+      {
+        "module": "go.mongodb.org/mongo-driver/v2",
+        "before": "v2.6.0",
+        "after": "v2.10.0"
+      },
+      {
+        "module": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+        "before": "v0.67.0",
+        "after": "v0.72.0"
+      },
+      {
+        "module": "go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace",
+        "before": "v0.60.0",
+        "after": "v0.72.0"
+      },
+      {
+        "module": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+        "before": "v0.67.0",
+        "after": "v0.72.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel",
+        "before": "v1.44.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc",
+        "before": "v1.35.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp",
+        "before": "v1.43.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+        "before": "v1.43.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+        "before": "v1.35.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp",
+        "before": "v1.43.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/log",
+        "before": null,
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/metric",
+        "before": "v1.44.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/sdk",
+        "before": "v1.44.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/sdk/metric",
+        "before": "v1.44.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/otel/trace",
+        "before": "v1.44.0",
+        "after": "v1.47.0"
+      },
+      {
+        "module": "go.opentelemetry.io/proto/otlp",
+        "before": "v1.10.0",
+        "after": "v1.11.1"
+      },
+      {
+        "module": "go.uber.org/atomic",
+        "before": "v1.11.0",
+        "after": "v1.12.0"
+      },
+      {
+        "module": "go.yaml.in/yaml/v2",
+        "before": "v2.4.2",
+        "after": null
+      },
+      {
+        "module": "go.yaml.in/yaml/v3",
+        "before": "v3.0.4",
+        "after": "v3.0.6"
+      },
+      {
+        "module": "go.yaml.in/yaml/v4",
+        "before": null,
+        "after": "v4.0.0"
+      },
+      {
+        "module": "golang.org/x/arch",
+        "before": "v0.27.0",
+        "after": "v0.33.0"
+      },
+      {
+        "module": "golang.org/x/crypto",
+        "before": "v0.55.0",
+        "after": "v0.59.0"
+      },
+      {
+        "module": "golang.org/x/mod",
+        "before": "v0.38.0",
+        "after": "v0.43.0"
+      },
+      {
+        "module": "golang.org/x/net",
+        "before": "v0.58.0",
+        "after": "v0.62.0"
+      },
+      {
+        "module": "golang.org/x/oauth2",
+        "before": "v0.36.0",
+        "after": "v0.38.0"
+      },
+      {
+        "module": "golang.org/x/sync",
+        "before": "v0.22.0",
+        "after": "v0.25.0"
+      },
+      {
+        "module": "golang.org/x/sys",
+        "before": "v0.47.0",
+        "after": "v0.50.0"
+      },
+      {
+        "module": "golang.org/x/term",
+        "before": "v0.45.0",
+        "after": null
+      },
+      {
+        "module": "golang.org/x/text",
+        "before": "v0.41.0",
+        "after": "v0.44.0"
+      },
+      {
+        "module": "golang.org/x/time",
+        "before": "v0.15.0",
+        "after": "v0.16.0"
+      },
+      {
+        "module": "golang.org/x/tools",
+        "before": "v0.48.0",
+        "after": "v0.52.0"
+      },
+      {
+        "module": "google.golang.org/genproto/googleapis/api",
+        "before": "v0.0.0-20260526163538-3dc84a4a5aaa",
+        "after": "v0.0.0-20261110000943-09e21b237f2c"
+      },
+      {
+        "module": "google.golang.org/genproto/googleapis/rpc",
+        "before": "v0.0.0-20260526163538-3dc84a4a5aaa",
+        "after": "v0.0.0-20261110000943-09e21b237f2c"
+      },
+      {
+        "module": "google.golang.org/grpc",
+        "before": "v1.83.1",
+        "after": "v1.85.0"
+      },
+      {
+        "module": "google.golang.org/protobuf",
+        "before": "v1.36.11",
+        "after": "v1.36.12"
+      },
+      {
+        "module": "gopkg.in/evanphx/json-patch.v4",
+        "before": "v4.12.0",
+        "after": null
+      },
+      {
+        "module": "gopkg.in/inf.v0",
+        "before": "v0.9.1",
+        "after": null
+      },
+      {
+        "module": "gopkg.in/ini.v1",
+        "before": "v1.67.0",
+        "after": "v1.68.0"
+      },
+      {
+        "module": "gotest.tools/v3",
+        "before": null,
+        "after": "v3.5.2"
+      },
+      {
+        "module": "k8s.io/api",
+        "before": "v0.34.1",
+        "after": null
+      },
+      {
+        "module": "k8s.io/apimachinery",
+        "before": "v0.34.1",
+        "after": null
+      },
+      {
+        "module": "k8s.io/client-go",
+        "before": "v0.34.1",
+        "after": null
+      },
+      {
+        "module": "k8s.io/klog/v2",
+        "before": "v2.130.1",
+        "after": null
+      },
+      {
+        "module": "k8s.io/kube-openapi",
+        "before": "v0.0.0-20250710124328-f3f2b991d03b",
+        "after": null
+      },
+      {
+        "module": "k8s.io/utils",
+        "before": "v0.0.0-20250604170112-4c0f3b243397",
+        "after": null
+      },
+      {
+        "module": "oras.land/oras-go/v2",
+        "before": "v2.6.2",
+        "after": "v2.7.0"
+      },
+      {
+        "module": "sigs.k8s.io/json",
+        "before": "v0.0.0-20241014173422-cfa47c3a1cc8",
+        "after": null
+      },
+      {
+        "module": "sigs.k8s.io/randfill",
+        "before": "v1.0.0",
+        "after": null
+      },
+      {
+        "module": "sigs.k8s.io/structured-merge-diff/v6",
+        "before": "v6.3.0",
+        "after": null
+      },
+      {
+        "module": "sigs.k8s.io/yaml",
+        "before": "v1.6.0",
+        "after": null
+      },
+      {
+        "module": "tags.cncf.io/container-device-interface",
+        "before": "v1.1.0",
+        "after": "v1.1.2"
+      }
+    ],
+    "upstream_required_exceptions": [
+      {
+        "module": "github.com/containerd/platforms",
+        "selected": "v1.0.0-rc.5",
+        "latest_tagged_stable": "v0.2.1",
+        "reason": "Required by Compose v5.7.1, BuildKit v0.35.0 and containerd v2.4.2; downgrading would violate their dependency minima"
+      },
+      {
+        "module": "github.com/gorilla/websocket",
+        "selected": "v1.5.4-0.20250319132907-e064f32e3674",
+        "latest_tagged_stable": "v1.5.3",
+        "reason": "Required by containerd v2.4.2 and already selected by baseline graph"
+      }
+    ],
+    "validation_status": "passed",
+    "nullable_enum_repair": {
+      "inventory": [
+        {
+          "file": "openapi/components/schemas/container-dashboard-top-item.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerDashboardTopItemHealthHealthy",
+            "ContainerDashboardTopItemHealthUnhealthy",
+            "ContainerDashboardTopItemHealthStarting",
+            "ContainerDashboardTopItemHealthNone",
+            "ContainerDashboardTopItemHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-dashboard-anomaly-item.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerDashboardAnomalyItemHealthHealthy",
+            "ContainerDashboardAnomalyItemHealthUnhealthy",
+            "ContainerDashboardAnomalyItemHealthStarting",
+            "ContainerDashboardAnomalyItemHealthNone",
+            "ContainerDashboardAnomalyItemHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-dashboard-anomaly-item.yaml",
+          "property": "properties.reason_code",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "health.unhealthy",
+            "state.restarting",
+            "state.exited",
+            "state.dead",
+            "state.unknown"
+          ],
+          "varnames": [
+            "ContainerDashboardAnomalyReasonCodeHealthUnhealthy",
+            "ContainerDashboardAnomalyReasonCodeStateRestarting",
+            "ContainerDashboardAnomalyReasonCodeStateExited",
+            "ContainerDashboardAnomalyReasonCodeStateDead",
+            "ContainerDashboardAnomalyReasonCodeStateUnknown"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/application-file-tree-item.yaml",
+          "property": "properties.tooltip_source",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "application-note",
+            "default-rule"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/container-summary.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerSummaryHealthHealthy",
+            "ContainerSummaryHealthUnhealthy",
+            "ContainerSummaryHealthStarting",
+            "ContainerSummaryHealthNone",
+            "ContainerSummaryHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-orchestrator-info.yaml",
+          "property": "properties.group_scope_kind",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "compose_project",
+            "swarm_stack",
+            "kubernetes_namespace"
+          ],
+          "varnames": [
+            "ContainerOrchestratorInfoGroupScopeKindComposeProject",
+            "ContainerOrchestratorInfoGroupScopeKindSwarmStack",
+            "ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-orchestrator-info.yaml",
+          "property": "properties.member_scope_kind",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "compose_service",
+            "swarm_task",
+            "kubernetes_pod"
+          ],
+          "varnames": [
+            "ContainerOrchestratorInfoMemberScopeKindComposeService",
+            "ContainerOrchestratorInfoMemberScopeKindSwarmTask",
+            "ContainerOrchestratorInfoMemberScopeKindKubernetesPod"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/server-status-dependency-history.yaml",
+          "property": "properties.unavailable_reason",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "redis_not_configured",
+            "read_failed"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/server-status-redis-current-metrics.yaml",
+          "property": "properties.replication_role",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "master",
+            "replica",
+            "unknown"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/server-status-redis-current-metrics.yaml",
+          "property": "properties.master_link_status",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "up",
+            "down"
+          ],
+          "varnames": null
+        }
+      ],
+      "before": "All10 fields rejected null under EnableJSONSchema2020, reproduced by bounded regression before schema edits",
+      "after": "all10 accept null and representative declared string values and reject invalid string/bool values",
+      "schema_representation": "anyOf constrained string enum with original named-constant metadata, or bare null",
+      "generated_go_contract": "Go type declarations and constants identical after generated comments stripped",
+      "baseline_behavior_evidence": "kin-openapi v0.147.0 openapi3/schema.go visitJSON returns early for nullable nil before enum validation",
+      "normalization_audit": "98/98 canonical source files match intended legacy nullable structure after corrected enum handling",
+      "validation_status": "passed just generate, direct before/after regression, full go run ./cmd/graft validate backend (both lint configurations0issues, full tests/build), just openapi-check",
+      "commit": "3944f0e5a4b86ac76729cd292251fd632c65e108"
+    }
+  },
+  "web": {
+    "dependencies": [
+      {
+        "group": "dependencies",
+        "name": "@iconify-icons/lucide",
+        "before": "^1.2.136",
+        "source": "https://registry.npmjs.org/%40iconify-icons%2Flucide/latest",
+        "resolved_before": "@iconify-icons/lucide@1.2.136",
+        "resolved_after": "2.0.31",
+        "latest_stable": "2.0.31",
+        "after": "^2.0.31"
+      },
+      {
+        "group": "dependencies",
+        "name": "@iconify-icons/tabler",
+        "before": "^1.2.96",
+        "source": "https://registry.npmjs.org/%40iconify-icons%2Ftabler/latest",
+        "resolved_before": "@iconify-icons/tabler@1.2.96",
+        "resolved_after": "2.0.8",
+        "latest_stable": "2.0.8",
+        "after": "^2.0.8"
+      },
+      {
+        "group": "dependencies",
+        "name": "@iconify/vue",
+        "before": "^5.0.1",
+        "source": "https://registry.npmjs.org/%40iconify%2Fvue/latest",
+        "resolved_before": "@iconify/vue@5.0.1",
+        "resolved_after": "5.0.5",
+        "latest_stable": "5.0.5",
+        "after": "^5.0.5"
+      },
+      {
+        "group": "dependencies",
+        "name": "@tanstack/vue-query",
+        "before": "^5.101.4",
+        "source": "https://registry.npmjs.org/%40tanstack%2Fvue-query/latest",
+        "resolved_before": "@tanstack/vue-query@5.101.4",
+        "resolved_after": "5.107.1",
+        "latest_stable": "5.107.1",
+        "after": "^5.107.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "@vueuse/core",
+        "before": "^14.4.0",
+        "source": "https://registry.npmjs.org/%40vueuse%2Fcore/latest",
+        "resolved_before": "@vueuse/core@14.4.0",
+        "resolved_after": "15.0.0",
+        "latest_stable": "15.0.0",
+        "after": "^15.0.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "@xterm/addon-fit",
+        "before": "^0.11.0",
+        "source": "https://registry.npmjs.org/%40xterm%2Faddon-fit/latest",
+        "resolved_before": "@xterm/addon-fit@0.11.0",
+        "resolved_after": "0.11.0",
+        "latest_stable": "0.11.0",
+        "after": "^0.11.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "@xterm/addon-search",
+        "before": "^0.16.0",
+        "source": "https://registry.npmjs.org/%40xterm%2Faddon-search/latest",
+        "resolved_before": "@xterm/addon-search@0.16.0",
+        "resolved_after": "0.16.0",
+        "latest_stable": "0.16.0",
+        "after": "^0.16.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "@xterm/addon-web-links",
+        "before": "^0.12.0",
+        "source": "https://registry.npmjs.org/%40xterm%2Faddon-web-links/latest",
+        "resolved_before": "@xterm/addon-web-links@0.12.0",
+        "resolved_after": "0.12.0",
+        "latest_stable": "0.12.0",
+        "after": "^0.12.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "@xterm/xterm",
+        "before": "^6.0.0",
+        "source": "https://registry.npmjs.org/%40xterm%2Fxterm/latest",
+        "resolved_before": "@xterm/xterm@6.0.0",
+        "resolved_after": "6.0.0",
+        "latest_stable": "6.0.0",
+        "after": "^6.0.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "axios",
+        "before": "^1.19.0",
+        "source": "https://registry.npmjs.org/axios/latest",
+        "resolved_before": "axios@1.19.0",
+        "resolved_after": "1.21.1",
+        "latest_stable": "1.21.1",
+        "after": "^1.21.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "consola",
+        "before": "^3.4.2",
+        "source": "https://registry.npmjs.org/consola/latest",
+        "resolved_before": "consola@3.4.2",
+        "resolved_after": "3.4.2",
+        "latest_stable": "3.4.2",
+        "after": "^3.4.2"
+      },
+      {
+        "group": "dependencies",
+        "name": "cron-parser",
+        "before": "5.10.0",
+        "source": "https://registry.npmjs.org/cron-parser/latest",
+        "resolved_before": "cron-parser@5.10.0",
+        "resolved_after": "5.10.6",
+        "latest_stable": "5.10.6",
+        "after": "5.10.6"
+      },
+      {
+        "group": "dependencies",
+        "name": "cronstrue",
+        "before": "3.24.0",
+        "source": "https://registry.npmjs.org/cronstrue/latest",
+        "resolved_before": "cronstrue@3.24.0",
+        "resolved_after": "3.39.0",
+        "latest_stable": "3.39.0",
+        "after": "3.39.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "dompurify",
+        "before": "^3.4.14",
+        "source": "https://registry.npmjs.org/dompurify/latest",
+        "resolved_before": "dompurify@3.4.14",
+        "resolved_after": "3.4.18",
+        "latest_stable": "3.4.18",
+        "after": "^3.4.18"
+      },
+      {
+        "group": "dependencies",
+        "name": "echarts",
+        "before": "6.1.0",
+        "source": "https://registry.npmjs.org/echarts/latest",
+        "resolved_before": "echarts@6.1.0",
+        "resolved_after": "6.1.0",
+        "latest_stable": "6.1.0",
+        "after": "6.1.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "lodash",
+        "before": "^4.17.23",
+        "source": "https://registry.npmjs.org/lodash/latest",
+        "resolved_before": "lodash@4.18.1",
+        "resolved_after": "4.18.1",
+        "latest_stable": "4.18.1",
+        "after": "^4.18.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "markdown-it",
+        "before": "^14.3.0",
+        "source": "https://registry.npmjs.org/markdown-it/latest",
+        "resolved_before": "markdown-it@14.3.0",
+        "resolved_after": "15.0.3",
+        "latest_stable": "15.0.3",
+        "after": "^15.0.3"
+      },
+      {
+        "group": "dependencies",
+        "name": "monaco-editor",
+        "before": "^0.56.0",
+        "source": "https://registry.npmjs.org/monaco-editor/latest",
+        "resolved_before": "monaco-editor@0.56.0",
+        "resolved_after": "0.57.0",
+        "latest_stable": "0.57.0",
+        "after": "^0.57.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "monaco-yaml",
+        "before": "5.5.1",
+        "source": "https://registry.npmjs.org/monaco-yaml/latest",
+        "resolved_before": "monaco-yaml@5.5.1",
+        "resolved_after": "5.5.1",
+        "latest_stable": "5.5.1",
+        "after": "5.5.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "nprogress",
+        "before": "^0.2.0",
+        "source": "https://registry.npmjs.org/nprogress/latest",
+        "resolved_before": "nprogress@0.2.0",
+        "resolved_after": "0.2.0",
+        "latest_stable": "0.2.0",
+        "after": "^0.2.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "pinia",
+        "before": "^3.0.4",
+        "source": "https://registry.npmjs.org/pinia/latest",
+        "resolved_before": "pinia@3.0.4",
+        "resolved_after": "4.1.0",
+        "latest_stable": "4.1.0",
+        "after": "^4.1.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "pinia-plugin-persistedstate",
+        "before": "^4.7.1",
+        "source": "https://registry.npmjs.org/pinia-plugin-persistedstate/latest",
+        "resolved_before": "pinia-plugin-persistedstate@4.7.1",
+        "resolved_after": "4.7.1",
+        "latest_stable": "4.7.1",
+        "after": "^4.7.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "shiki",
+        "before": "^4.4.3",
+        "source": "https://registry.npmjs.org/shiki/latest",
+        "resolved_before": "shiki@4.4.3",
+        "resolved_after": "4.6.0",
+        "latest_stable": "4.6.0",
+        "after": "^4.6.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "tdesign-icons-vue-next",
+        "before": "^0.4.10",
+        "source": "https://registry.npmjs.org/tdesign-icons-vue-next/latest",
+        "resolved_before": "tdesign-icons-vue-next@0.4.10",
+        "resolved_after": "0.4.12",
+        "latest_stable": "0.4.12",
+        "after": "^0.4.12"
+      },
+      {
+        "group": "dependencies",
+        "name": "tdesign-vue-next",
+        "before": "^1.20.6",
+        "source": "https://registry.npmjs.org/tdesign-vue-next/latest",
+        "resolved_before": "tdesign-vue-next@1.20.6",
+        "resolved_after": "1.20.11",
+        "latest_stable": "1.20.11",
+        "after": "^1.20.11"
+      },
+      {
+        "group": "dependencies",
+        "name": "tinykeys",
+        "before": "^4.0.0",
+        "source": "https://registry.npmjs.org/tinykeys/latest",
+        "resolved_before": "tinykeys@4.0.0",
+        "resolved_after": "4.0.1",
+        "latest_stable": "4.0.1",
+        "after": "^4.0.1"
+      },
+      {
+        "group": "dependencies",
+        "name": "tvision-color",
+        "before": "^1.6.0",
+        "source": "https://registry.npmjs.org/tvision-color/latest",
+        "resolved_before": "tvision-color@1.6.0",
+        "resolved_after": "1.6.0",
+        "latest_stable": "1.6.0",
+        "after": "^1.6.0"
+      },
+      {
+        "group": "dependencies",
+        "name": "vue",
+        "before": "^3.5.41",
+        "source": "https://registry.npmjs.org/vue/latest",
+        "resolved_before": "vue@3.5.41",
+        "resolved_after": "3.5.45",
+        "latest_stable": "3.5.45",
+        "after": "^3.5.45"
+      },
+      {
+        "group": "dependencies",
+        "name": "vue-i18n",
+        "before": "^9.9.1",
+        "source": "https://registry.npmjs.org/vue-i18n/latest",
+        "resolved_before": "vue-i18n@9.14.5",
+        "resolved_after": "11.4.20",
+        "latest_stable": "11.4.20",
+        "after": "^11.4.20"
+      },
+      {
+        "group": "dependencies",
+        "name": "vue-router",
+        "before": "^4.6.0",
+        "source": "https://registry.npmjs.org/vue-router/latest",
+        "resolved_before": "vue-router@4.6.4",
+        "resolved_after": "5.5.1",
+        "latest_stable": "5.5.1",
+        "after": "^5.5.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@commitlint/cli",
+        "before": "^20.5.3",
+        "source": "https://registry.npmjs.org/%40commitlint%2Fcli/latest",
+        "resolved_before": "@commitlint/cli@20.5.3",
+        "resolved_after": "21.2.4",
+        "latest_stable": "21.2.4",
+        "after": "^21.2.4"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@commitlint/config-conventional",
+        "before": "^20.5.3",
+        "source": "https://registry.npmjs.org/%40commitlint%2Fconfig-conventional/latest",
+        "resolved_before": "@commitlint/config-conventional@20.5.3",
+        "resolved_after": "21.2.4",
+        "latest_stable": "21.2.4",
+        "after": "^21.2.4"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@d2t/vitest-ctrf-json-reporter",
+        "before": "1.3.0",
+        "source": "https://registry.npmjs.org/%40d2t%2Fvitest-ctrf-json-reporter/latest",
+        "resolved_before": "@d2t/vitest-ctrf-json-reporter@1.3.0",
+        "resolved_after": "1.3.0",
+        "latest_stable": "1.3.0",
+        "after": "1.3.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@eslint/js",
+        "before": "^9.39.5",
+        "source": "https://registry.npmjs.org/%40eslint%2Fjs/latest",
+        "resolved_before": "@eslint/js@9.39.5",
+        "resolved_after": "10.0.1",
+        "latest_stable": "10.0.1",
+        "after": "^10.0.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@tdesign-vue-next/auto-import-resolver",
+        "before": "^0.1.7",
+        "source": "https://registry.npmjs.org/%40tdesign-vue-next%2Fauto-import-resolver/latest",
+        "resolved_before": "@tdesign-vue-next/auto-import-resolver@0.1.7",
+        "resolved_after": "0.1.8",
+        "latest_stable": "0.1.8",
+        "after": "^0.1.8"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@types/lodash",
+        "before": "^4.17.25",
+        "source": "https://registry.npmjs.org/%40types%2Flodash/latest",
+        "resolved_before": "@types/lodash@4.17.25",
+        "resolved_after": "4.17.27",
+        "latest_stable": "4.17.27",
+        "after": "^4.17.27"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@types/markdown-it",
+        "before": "^14.1.2",
+        "source": "https://registry.npmjs.org/%40types%2Fmarkdown-it/latest",
+        "resolved_before": "@types/markdown-it@14.1.2",
+        "resolved_after": null,
+        "latest_stable": "14.2.0",
+        "after": null,
+        "disposition": "removed"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@types/mockjs",
+        "before": "^1.0.10",
+        "source": "https://registry.npmjs.org/%40types%2Fmockjs/latest",
+        "resolved_before": "@types/mockjs@1.0.10",
+        "resolved_after": "1.0.10",
+        "latest_stable": "1.0.10",
+        "after": "^1.0.10"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@types/node",
+        "before": "^22.20.1",
+        "source": "https://registry.npmjs.org/%40types%2Fnode/latest",
+        "resolved_before": "@types/node@22.20.1",
+        "resolved_after": "26.6.6",
+        "latest_stable": "26.6.6",
+        "after": "^26.6.6"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@types/nprogress",
+        "before": "^0.2.3",
+        "source": "https://registry.npmjs.org/%40types%2Fnprogress/latest",
+        "resolved_before": "@types/nprogress@0.2.3",
+        "resolved_after": "0.2.3",
+        "latest_stable": "0.2.3",
+        "after": "^0.2.3"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@unocss/vite",
+        "before": "^66.8.0",
+        "source": "https://registry.npmjs.org/%40unocss%2Fvite/latest",
+        "resolved_before": "@unocss/vite@66.8.0",
+        "resolved_after": "66.13.0",
+        "latest_stable": "66.13.0",
+        "after": "^66.13.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@vitejs/plugin-vue",
+        "before": "^6.0.8",
+        "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-vue/latest",
+        "resolved_before": "@vitejs/plugin-vue@6.0.8",
+        "resolved_after": "6.0.11",
+        "latest_stable": "6.0.11",
+        "after": "^6.0.11"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@vitejs/plugin-vue-jsx",
+        "before": "^5.1.6",
+        "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-vue-jsx/latest",
+        "resolved_before": "@vitejs/plugin-vue-jsx@5.1.6",
+        "resolved_after": "5.1.6",
+        "latest_stable": "5.1.6",
+        "after": "^5.1.6"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@vitest/coverage-v8",
+        "before": "^4.1.11",
+        "source": "https://registry.npmjs.org/%40vitest%2Fcoverage-v8/latest",
+        "resolved_before": "@vitest/coverage-v8@4.1.11",
+        "resolved_after": "5.1.0",
+        "latest_stable": "5.1.0",
+        "after": "^5.1.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "@vue/test-utils",
+        "before": "^2.4.11",
+        "source": "https://registry.npmjs.org/%40vue%2Ftest-utils/latest",
+        "resolved_before": "@vue/test-utils@2.4.11",
+        "resolved_after": "2.6.0",
+        "latest_stable": "2.6.0",
+        "after": "^2.6.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "eslint",
+        "before": "^9.39.5",
+        "source": "https://registry.npmjs.org/eslint/latest",
+        "resolved_before": "eslint@9.39.5",
+        "resolved_after": "10.15.0",
+        "latest_stable": "10.15.0",
+        "after": "^10.15.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "eslint-config-prettier",
+        "before": "^10.1.5",
+        "source": "https://registry.npmjs.org/eslint-config-prettier/latest",
+        "resolved_before": "eslint-config-prettier@10.1.8",
+        "resolved_after": "10.1.8",
+        "latest_stable": "10.1.8",
+        "after": "^10.1.8"
+      },
+      {
+        "group": "devDependencies",
+        "name": "eslint-plugin-simple-import-sort",
+        "before": "^12.1.1",
+        "source": "https://registry.npmjs.org/eslint-plugin-simple-import-sort/latest",
+        "resolved_before": "eslint-plugin-simple-import-sort@12.1.1",
+        "resolved_after": "14.0.0",
+        "latest_stable": "14.0.0",
+        "after": "^14.0.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "eslint-plugin-unused-imports",
+        "before": "^4.1.4",
+        "source": "https://registry.npmjs.org/eslint-plugin-unused-imports/latest",
+        "resolved_before": "eslint-plugin-unused-imports@4.4.1",
+        "resolved_after": "4.4.1",
+        "latest_stable": "4.4.1",
+        "after": "^4.4.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "eslint-plugin-vue",
+        "before": "^9.33.0",
+        "source": "https://registry.npmjs.org/eslint-plugin-vue/latest",
+        "resolved_before": "eslint-plugin-vue@9.33.0",
+        "resolved_after": "10.12.1",
+        "latest_stable": "10.12.1",
+        "after": "^10.12.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "globals",
+        "before": "^16.0.0",
+        "source": "https://registry.npmjs.org/globals/latest",
+        "resolved_before": "globals@16.5.0",
+        "resolved_after": "17.14.0",
+        "latest_stable": "17.14.0",
+        "after": "^17.14.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "jscpd",
+        "before": "4.3.0",
+        "source": "https://registry.npmjs.org/jscpd/latest",
+        "resolved_before": "jscpd@4.3.0",
+        "resolved_after": "4.3.0",
+        "latest_stable": "5.4.3",
+        "after": "4.3.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "jsdom",
+        "before": "^26.1.0",
+        "source": "https://registry.npmjs.org/jsdom/latest",
+        "resolved_before": "jsdom@26.1.0",
+        "resolved_after": "31.0.1",
+        "latest_stable": "31.0.1",
+        "after": "^31.0.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "knip",
+        "before": "6.32.2",
+        "source": "https://registry.npmjs.org/knip/latest",
+        "resolved_before": "knip@6.32.2",
+        "resolved_after": "6.45.1",
+        "latest_stable": "6.45.1",
+        "after": "6.45.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "less",
+        "before": "^4.9.0",
+        "source": "https://registry.npmjs.org/less/latest",
+        "resolved_before": "less@4.9.0",
+        "resolved_after": "4.9.1",
+        "latest_stable": "4.9.1",
+        "after": "^4.9.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "lint-staged",
+        "before": "^16.0.0",
+        "source": "https://registry.npmjs.org/lint-staged/latest",
+        "resolved_before": "lint-staged@16.4.0",
+        "resolved_after": "17.6.0",
+        "latest_stable": "17.6.0",
+        "after": "^17.6.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "mockjs",
+        "before": "^1.1.0",
+        "source": "https://registry.npmjs.org/mockjs/latest",
+        "resolved_before": "mockjs@1.1.0",
+        "resolved_after": "1.1.0",
+        "latest_stable": "1.1.0",
+        "after": "^1.1.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "openapi-typescript",
+        "before": "7.13.0",
+        "source": "https://registry.npmjs.org/openapi-typescript/latest",
+        "resolved_before": "openapi-typescript@7.13.0",
+        "resolved_after": "7.13.0",
+        "latest_stable": "7.13.0",
+        "after": "7.13.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "postcss-html",
+        "before": "^1.8.0",
+        "source": "https://registry.npmjs.org/postcss-html/latest",
+        "resolved_before": "postcss-html@1.8.1",
+        "resolved_after": "2.0.0",
+        "latest_stable": "2.0.0",
+        "after": "^2.0.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "postcss-less",
+        "before": "^6.0.0",
+        "source": "https://registry.npmjs.org/postcss-less/latest",
+        "resolved_before": "postcss-less@6.0.0",
+        "resolved_after": "7.1.1",
+        "latest_stable": "7.1.1",
+        "after": "^7.1.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "prettier",
+        "before": "^3.9.6",
+        "source": "https://registry.npmjs.org/prettier/latest",
+        "resolved_before": "prettier@3.9.6",
+        "resolved_after": "3.10.1",
+        "latest_stable": "3.10.1",
+        "after": "^3.10.1"
+      },
+      {
+        "group": "devDependencies",
+        "name": "stylelint",
+        "before": "^16.19.1",
+        "source": "https://registry.npmjs.org/stylelint/latest",
+        "resolved_before": "stylelint@16.26.1",
+        "resolved_after": "18.0.0",
+        "latest_stable": "18.0.0",
+        "after": "^18.0.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "stylelint-config-standard",
+        "before": "^38.0.0",
+        "source": "https://registry.npmjs.org/stylelint-config-standard/latest",
+        "resolved_before": "stylelint-config-standard@38.0.0",
+        "resolved_after": "41.0.0",
+        "latest_stable": "41.0.0",
+        "after": "^41.0.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "stylelint-order",
+        "before": "^7.0.0",
+        "source": "https://registry.npmjs.org/stylelint-order/latest",
+        "resolved_before": "stylelint-order@7.0.1",
+        "resolved_after": "8.1.3",
+        "latest_stable": "8.1.3",
+        "after": "^8.1.3"
+      },
+      {
+        "group": "devDependencies",
+        "name": "typescript",
+        "before": "6.0.3",
+        "source": "https://registry.npmjs.org/typescript/latest",
+        "resolved_before": "typescript@6.0.3",
+        "resolved_after": "6.0.3",
+        "latest_stable": "7.0.2",
+        "after": "6.0.3"
+      },
+      {
+        "group": "devDependencies",
+        "name": "typescript-eslint",
+        "before": "^8.67.0",
+        "source": "https://registry.npmjs.org/typescript-eslint/latest",
+        "resolved_before": "typescript-eslint@8.67.0",
+        "resolved_after": "8.72.2",
+        "latest_stable": "8.72.2",
+        "after": "^8.72.2"
+      },
+      {
+        "group": "devDependencies",
+        "name": "typescript7",
+        "before": "npm:typescript@7.0.2",
+        "source": "https://registry.npmjs.org/typescript/latest",
+        "resolved_before": "typescript@7.0.2",
+        "resolved_after": "7.0.2",
+        "latest_stable": "7.0.2",
+        "after": "npm:typescript@7.0.2"
+      },
+      {
+        "group": "devDependencies",
+        "name": "unocss",
+        "before": "^66.8.0",
+        "source": "https://registry.npmjs.org/unocss/latest",
+        "resolved_before": "unocss@66.8.0",
+        "resolved_after": "66.13.0",
+        "latest_stable": "66.13.0",
+        "after": "^66.13.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "unplugin-auto-import",
+        "before": "^21.1.0",
+        "source": "https://registry.npmjs.org/unplugin-auto-import/latest",
+        "resolved_before": "unplugin-auto-import@21.1.0",
+        "resolved_after": "21.1.0",
+        "latest_stable": "21.1.0",
+        "after": "^21.1.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "unplugin-vue-components",
+        "before": "^32.1.0",
+        "source": "https://registry.npmjs.org/unplugin-vue-components/latest",
+        "resolved_before": "unplugin-vue-components@32.1.0",
+        "resolved_after": "32.1.0",
+        "latest_stable": "32.1.0",
+        "after": "^32.1.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "vite",
+        "before": "^7.3.6",
+        "source": "https://registry.npmjs.org/vite/latest",
+        "resolved_before": "vite@7.3.6",
+        "resolved_after": "8.3.8",
+        "latest_stable": "8.3.8",
+        "after": "^8.3.8"
+      },
+      {
+        "group": "devDependencies",
+        "name": "vite-plugin-mock",
+        "before": "^3.0.1",
+        "source": "https://registry.npmjs.org/vite-plugin-mock/latest",
+        "resolved_before": "vite-plugin-mock@3.0.2",
+        "resolved_after": "3.0.2",
+        "latest_stable": "3.0.2",
+        "after": "^3.0.2"
+      },
+      {
+        "group": "devDependencies",
+        "name": "vite-svg-loader",
+        "before": "^5.1.0",
+        "source": "https://registry.npmjs.org/vite-svg-loader/latest",
+        "resolved_before": "vite-svg-loader@5.1.1",
+        "resolved_after": "5.1.3",
+        "latest_stable": "5.1.3",
+        "after": "^5.1.3"
+      },
+      {
+        "group": "devDependencies",
+        "name": "vitest",
+        "before": "^4.1.11",
+        "source": "https://registry.npmjs.org/vitest/latest",
+        "resolved_before": "vitest@4.1.11",
+        "resolved_after": "5.1.0",
+        "latest_stable": "5.1.0",
+        "after": "^5.1.0"
+      },
+      {
+        "group": "devDependencies",
+        "name": "vue-tsc",
+        "before": "3.3.10",
+        "source": "https://registry.npmjs.org/vue-tsc/latest",
+        "resolved_before": "vue-tsc@3.3.10",
+        "resolved_after": "3.3.14",
+        "latest_stable": "3.3.14",
+        "after": "3.3.14"
+      },
+      {
+        "group": "overrides",
+        "name": "@babel/runtime-corejs3",
+        "before": "^7.26.10",
+        "source": "https://registry.npmjs.org/%40babel%2Fruntime-corejs3/latest",
+        "resolved_before": "@babel/runtime-corejs3@7.29.7",
+        "resolved_after": "7.29.14",
+        "latest_stable": "8.1.2",
+        "after": "^7.29.14"
+      }
+    ],
+    "toolchain": {
+      "node": "26.13.1",
+      "bun": "1.4.4",
+      "node_source": "https://nodejs.org/dist/index.json",
+      "bun_source": "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.4"
+    },
+    "exceptions": [
+      {
+        "package": "typescript",
+        "selected": "6.0.3",
+        "latest_stable": "7.0.2",
+        "consumers": [
+          "vue-tsc@3.3.14",
+          "typescript-eslint@8.72.2",
+          "openapi-typescript@7.13.0"
+        ],
+        "reason": "TypeScript7 root exports version only and removes the typescript/lib/tsc export and JS createSourceFile/createProgram API required by Vue/Volar and lint/generation. Latest typescript-eslint peer requires <6.1.0. Existing TypeScript7 alias remains the standalone native Node config compiler.",
+        "observed_probe": {
+          "version": "7.0.2",
+          "createSourceFile": "undefined",
+          "createProgram": "undefined",
+          "typescript7/lib/tsc": "ERR_PACKAGE_PATH_NOT_EXPORTED"
+        },
+        "source": "https://github.com/vuejs/language-tools/blob/v3.3.14/packages/tsc/index.ts",
+        "cleanup_trigger": "Upgrade primary TypeScript when Vue/Volar, typescript-eslint and OpenAPI generation support the native compiler API or stop requiring the removed JS API."
+      },
+      {
+        "package": "jscpd",
+        "selected": "4.3.0",
+        "latest_stable": "5.4.3",
+        "reason": "The rewritten Rust/cross-format tokenizer changes the established duplicate-detection contract. Same-source current tree scan v4 has0 clones/1174blocks100987lines; v5 after exact715file input equivalence still25clones/1214blocks145122lines. Threshold and current ignore directives stay intact.",
+        "source": "https://github.com/kucherenko/jscpd/blob/v5.4.3/README.md",
+        "probe": "jscpd4-current and jscpd5-equivalent JSON reports under ignored .local. Both versions honor jscpd:ignore markers in controlled fixtures.",
+        "cleanup_trigger": "Adopt5 when its input/tokenization semantics can preserve the current scoped detector contract, or in a separately reviewed baseline migration of the duplication policy."
+      }
+    ],
+    "removed_dependencies": [
+      {
+        "name": "@types/markdown-it",
+        "reason": "markdown-it15 ships native public Token types; the older DefinitelyTyped subpath conflicts with TokenAttribute values."
+      }
+    ],
+    "images": [
+      {
+        "name": "nginx",
+        "before": "1.29-alpine",
+        "after": "1.30.6-alpine",
+        "digest": "sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a",
+        "source": "https://nginx.org/en/download.html",
+        "registry_source": "https://hub.docker.com/v2/repositories/library/nginx/tags/1.30.6-alpine"
+      }
+    ],
+    "babel_runtime_compatibility": {
+      "upstream_owner": "tvision-color@1.6.0",
+      "upstream_requirement": "7.18.9 exact",
+      "selected_latest_compatible": "7.29.14",
+      "latest_stable": "8.1.2",
+      "reason": "Tvision color compiled Babel7 imports core-js-stable/symbol and core-js-stable/instance/fill, removed in Babel8 exports. Keep original security override floor updated to latest patched7.",
+      "cleanup_trigger": "Remove override after upstream tvision-color updates its pinned runtime or rebuilds for Babel8."
+    },
+    "validation": {
+      "combined_server_commit": "4be45857c",
+      "web_commit": "da67d87d0443ebbec9d5f4a84427d12b8006b28b",
+      "command": "bun run check",
+      "runtime": {
+        "node": "26.13.1",
+        "bun": "1.4.4"
+      },
+      "status": "passed",
+      "test_files": 312,
+      "tests_passed": 2175,
+      "frozen_lockfile": "passed",
+      "production_build": "passed, zero build warnings"
+    }
+  },
+  "actions": {
+    "actions/checkout": {
+      "tag": "v7.0.1",
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "old": [
+        "d23441a48e516b6c34aea4fa41551a30e30af803"
+      ]
+    },
+    "actions/setup-python": {
+      "tag": "v7.1.0",
+      "sha": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+      "old": [
+        "ece7cb06caefa5fff74198d8649806c4678c61a1"
+      ]
+    },
+    "trufflesecurity/trufflehog": {
+      "tag": "v3.99.9",
+      "sha": "3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc",
+      "old": [
+        "20652fbbdefffcdaa493a5bf57ab2ac6b1db715b"
+      ]
+    },
+    "actions/upload-artifact": {
+      "tag": "v7.0.2",
+      "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "old": [
+        "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+      ]
+    },
+    "oven-sh/setup-bun": {
+      "tag": "v2.2.0",
+      "sha": "0c5077e51419868618aeaa5fe8019c62421857d6",
+      "old": [
+        "0c5077e51419868618aeaa5fe8019c62421857d6"
+      ]
+    },
+    "actions/cache": {
+      "tag": "v6.1.0",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "old": [
+        "caa296126883cff596d87d8935842f9db880ef25"
+      ]
+    },
+    "ctrf-io/github-test-reporter": {
+      "tag": "v1.3.2",
+      "sha": "dbb08957b5b2af918b39136ab2c5532002c7649b",
+      "old": [
+        "7974087018bf4857cf5a9d78723e152038c3fa31"
+      ]
+    },
+    "actions/setup-go": {
+      "tag": "v7.0.0",
+      "sha": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+      "old": [
+        "924ae3a1cded613372ab5595356fb5720e22ba16"
+      ]
+    },
+    "golangci/golangci-lint-action": {
+      "tag": "v9.3.0",
+      "sha": "ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a",
+      "old": [
+        "ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a"
+      ]
+    },
+    "anchore/sbom-action": {
+      "tag": "v0.24.3",
+      "sha": "66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c",
+      "old": [
+        "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
+      ]
+    },
+    "softprops/action-gh-release": {
+      "tag": "v3.0.4",
+      "sha": "8a0cd651e5b2365bd640854a3fa5dfc70e4875f3",
+      "old": [
+        "3d0d9888cb7fd7b750713d6e236d1fcb99157228"
+      ]
+    },
+    "actions/download-artifact": {
+      "tag": "v8.0.2",
+      "sha": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+      "old": [
+        "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+      ]
+    },
+    "docker/setup-buildx-action": {
+      "tag": "v4.4.1",
+      "sha": "f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "old": [
+        "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+      ]
+    },
+    "docker/login-action": {
+      "tag": "v4.8.0",
+      "sha": "8aa5831fb8d48d8f76594c7ddde61ae58019f550",
+      "old": [
+        "c94ce9fb468520275223c153574b00df6fe4bcc9"
+      ]
+    },
+    "docker/metadata-action": {
+      "tag": "v6.2.0",
+      "sha": "dc802804100637a589fabce1cb79ff13a1411302",
+      "old": [
+        "c299e40c65443455700f0fdfc63efafe5b349051"
+      ]
+    },
+    "docker/build-push-action": {
+      "tag": "v7.4.0",
+      "sha": "c3c9e263c25d99ce0380d002d59b67737d91b0dc",
+      "old": [
+        "10e90e3645eae34f1e60eeb005ba3a3d33f178e8"
+      ]
+    },
+    "orhun/git-cliff-action": {
+      "tag": "v4.9.1",
+      "sha": "a9a95522b26fe6403f7bb24031f21fb573d0f5ff",
+      "old": [
+        "f50e11560dce63f7c33227798f90b924471a88b5"
+      ]
+    },
+    "cycjimmy/semantic-release-action": {
+      "tag": "v8.1.4",
+      "sha": "ad51787758d9654d5a75150a89a6fa9b3ccef95e",
+      "old": [
+        "b12c8f6015dc215fe37bc154d4ad456dd3833c90"
+      ]
+    },
+    "github/codeql-action": {
+      "tag": "v4.39.3",
+      "sha": "33d7b85da1a04171e211befe2c739303b9a4c066",
+      "old": [
+        "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      ]
+    },
+    "actions/setup-node": {
+      "tag": "v7.1.0",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "old": []
+    }
+  },
+  "runtime_images": {
+    "postgres16": {
+      "tag": "16.16-alpine",
+      "digest": "sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106",
+      "source": "https://hub.docker.com/v2/repositories/library/postgres/tags?page_size=100&name=16."
+    },
+    "postgres17": {
+      "tag": "17.12-alpine",
+      "digest": "sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7",
+      "source": "https://hub.docker.com/v2/repositories/library/postgres/tags?page_size=100&name=17."
+    },
+    "redis7": {
+      "tag": "7.4.12-alpine",
+      "digest": "sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe",
+      "source": "https://hub.docker.com/v2/repositories/library/redis/tags?page_size=100&name=7."
+    },
+    "vault1": {
+      "tag": "1.21.4",
+      "digest": "sha256:4e33b126a59c0c333b76fb4e894722462659a6bec7c48c9ee8cea56fccfd2569",
+      "source": "https://hub.docker.com/v2/repositories/hashicorp/vault/tags?page_size=100&name=1."
+    }
+  },
+  "root_packages": [
+    {
+      "name": "eff-u-code",
+      "before": "2.2.2",
+      "after": "2.2.2",
+      "source": "https://registry.npmjs.org/eff-u-code/latest"
+    }
+  ],
+  "local_inventory": {
+    "owner_commands": [
+      "bash scripts/collect-dev-environment.sh --write",
+      "python3 scripts/generate-ai-environment.py"
+    ],
+    "scope": "Global installed commands in the task checkout, latest validated toolchain is task-local and CI-pinned",
+    "go": "1.26.11",
+    "node": "24.19.0",
+    "bun": "1.3.14"
+  },
+  "runtime_assessment": {
+    "baseline_source": "3989727b06bf446a03bcabceba0246c43bf3f181",
+    "upgraded_image_source": "c274ac9236a240cf209638434fd370692e204a2d",
+    "docker_engine": "29.9.3",
+    "same_scenarios_verified": [
+      "config-validation",
+      "agent-enrollment-mtls-restart",
+      "container-list",
+      "container-logs",
+      "websocket-shell-command",
+      "managed-create",
+      "fresh-nonroot-socket-permission-rejection"
+    ],
+    "observed_preexisting_failures": [
+      "image-pull-and-lifecycle-tasks-accepted-but-unclaimed",
+      "compose-up-task-unclaimed",
+      "compose-import-sql-binding-order",
+      "baseline-agent-once-does-not-exit-after-success"
+    ],
+    "blocked_provider_acceptance": [
+      "compose-relative-bind-mount",
+      "agent-execution-interruption-recovery",
+      "docker-sdk-mutation-result"
+    ],
+    "evidence_scope": "Task-owned private-daemon baseline and upgraded runs, raw evidence remains in ignored local storage",
+    "followup_issues": [
+      "https://github.com/GeWuYou/Graft/issues/342",
+      "https://github.com/GeWuYou/Graft/issues/343"
+    ],
+    "delivery_tracking": "https://github.com/GeWuYou/Graft/issues/341",
+    "stop_resume_authority_verification": {
+      "helper_sha256": "2f9194dcee7126ceb7d25103c74a160f2988a3e7a1fb655d56bb08c2c085de4b",
+      "image_source_revision": "c274ac9236a240cf209638434fd370692e204a2d",
+      "only_vault_retained_on_stop": true,
+      "live_stop_resume_authority_verified": true,
+      "pki_fingerprint_unchanged": true,
+      "lost_vault_state_rejected_before_workloads": true
+    },
+    "harness_regression_tests": 13
+  }
+}

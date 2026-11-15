@@ -23,8 +23,7 @@ properties:
       type: string
     description: Docker Healthcheck test command as reported by inspect.
   exit_code:
-    type: integer
-    nullable: true
+    type: [integer, "null"]
     description: Exit code from the most recent Docker Healthcheck result when available.
   output:
     type: string
@@ -34,9 +33,8 @@ properties:
     format: date-time
     description: Completion time of the most recent Docker Healthcheck result when available.
   failing_streak:
-    type: integer
+    type: [integer, "null"]
     minimum: 0
-    nullable: true
     description: Docker reported consecutive Healthcheck failure count.
   failure_message:
     type: string

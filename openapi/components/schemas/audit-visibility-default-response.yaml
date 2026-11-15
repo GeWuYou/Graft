@@ -10,8 +10,7 @@ properties:
     type: string
     format: date-time
   updated_by:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
   updated_by_name:
     type: string

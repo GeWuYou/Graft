@@ -17,7 +17,7 @@ import uuid
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVER_DIR = REPO_ROOT / "server"
-POSTGRES_IMAGE = "postgres:16-alpine"
+POSTGRES_IMAGE = "postgres:16.16-alpine"
 POSTGRES_USER = "graft"
 POSTGRES_PASSWORD = "graft"
 POSTGRES_DATABASE = "graft"

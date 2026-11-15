@@ -8,11 +8,11 @@ properties:
   owner_type: { type: string }
   owner_id: { type: string }
   status: { $ref: ./task-status.yaml }
-  current_stage_key: { type: string, nullable: true }
-  created_by: { type: integer, format: int64, minimum: 1, nullable: true }
+  current_stage_key: { type: [string, "null"] }
+  created_by: { type: [integer, "null"], format: int64, minimum: 1 }
   created_at: { type: string, format: date-time }
-  started_at: { type: string, format: date-time, nullable: true }
-  finished_at: { type: string, format: date-time, nullable: true }
-  duration_ms: { type: integer, format: int64, minimum: 0, nullable: true }
-  failure_code: { type: string, nullable: true }
-  failure_message: { type: string, nullable: true }
+  started_at: { type: [string, "null"], format: date-time }
+  finished_at: { type: [string, "null"], format: date-time }
+  duration_ms: { type: [integer, "null"], format: int64, minimum: 0 }
+  failure_code: { type: [string, "null"] }
+  failure_message: { type: [string, "null"] }

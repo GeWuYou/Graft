@@ -1,7 +1,6 @@
 type: object
 properties:
   publish_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.

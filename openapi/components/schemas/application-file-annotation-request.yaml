@@ -1,6 +1,5 @@
 type: object
 properties:
   annotation:
-    type: string
+    type: [string, "null"]
     maxLength: 500
-    nullable: true

@@ -10,6 +10,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import * as BuilderHelpers from '@/shared/components/query-list';
 import {
   AdvancedQueryFilterBuilderFrame,
   type AdvancedQueryFilterFieldDefinition,
@@ -18,7 +19,6 @@ import {
   type SavedQueryViewController,
   type SavedQueryViewId,
 } from '@/shared/components/query-list';
-import * as BuilderHelpers from '@/shared/components/query-list';
 
 import type { ScheduledTaskJobKey } from '../types/scheduled-task';
 

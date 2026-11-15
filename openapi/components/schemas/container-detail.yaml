@@ -37,12 +37,10 @@ allOf:
       working_dir:
         type: string
       last_exit_code:
-        type: integer
-        nullable: true
+        type: [integer, "null"]
         description: Last container process exit code from Docker inspect state when available.
       oom_killed:
-        type: boolean
-        nullable: true
+        type: [boolean, "null"]
         description: Whether Docker inspect reports the container was killed by the OOM killer.
       mounts:
         type: array

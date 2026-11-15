@@ -31,7 +31,7 @@ const (
 
 	defaultBackendLintConfig     = ".golangci.yml"
 	defaultBackendTestLintConfig = ".golangci.test.yml"
-	defaultGolangCILintVersion   = "v2.12.2"
+	defaultGolangCILintVersion   = "v2.15.0"
 	defaultBackendCacheRoot      = "graft-backend-validate"
 	defaultBackendDirPerm        = 0o755
 	defaultHealthProbeReadLimit  = 256

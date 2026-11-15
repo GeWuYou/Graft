@@ -2,7 +2,7 @@ import { useLocalStorage } from '@vueuse/core';
 import type { GlobalConfigProvider } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
-import { getDefaultLocale, normalizeLocale, type SupportedLocale } from '@/contracts/i18n/locales';
+import { getDefaultLocale, normalizeLocale, type SupportedLocale, toTDesignLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n } from '@/locales/index';
 
@@ -21,8 +21,19 @@ export function useLocale() {
     storedLocale.value = validLang;
   };
 
-  const getComponentsLocale = computed(() => {
-    return i18n.global.getLocaleMessage(locale.value).componentsLocale as GlobalConfigProvider;
+  const getComponentsLocale = computed<GlobalConfigProvider>(() => {
+    const componentsLocale = toTDesignLocale(locale.value);
+    // 语言包导出只读元组，ConfigProvider 接受可写列表，因此在 provider 边界复制这些数组。
+    return {
+      ...componentsLocale,
+      datePicker: {
+        ...componentsLocale.datePicker,
+        weekdays: [...componentsLocale.datePicker.weekdays],
+        months: [...componentsLocale.datePicker.months],
+        quarters: [...componentsLocale.datePicker.quarters],
+      },
+      rate: { ...componentsLocale.rate, rateText: [...componentsLocale.rate.rateText] },
+    };
   });
 
   return {

@@ -83,16 +83,14 @@ properties:
   status:
     $ref: ./notification-status.yaml
   read_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   occurred_at:
     type: string
     format: date-time
   expires_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   delivery_created_at:
     type: string
     format: date-time

@@ -161,7 +161,7 @@ function sanitizeDebugPath(path?: string) {
 <style lang="less" scoped>
 .fade-leave-active,
 .fade-enter-active {
-  transition: opacity @anim-duration-slow @anim-time-fn-easing;
+  transition: ~'opacity @{anim-duration-slow} @{anim-time-fn-easing}';
 }
 
 .fade-enter-from,

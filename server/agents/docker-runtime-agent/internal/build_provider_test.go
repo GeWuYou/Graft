@@ -294,3 +294,23 @@ func newBuildDockerTestServer(t *testing.T) *httptest.Server {
 		}
 	}))
 }
+
+func TestConsumeBuildResponsePreservesSDKStreamErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantError bool
+	}{
+		{name: "progress", body: `{"stream":"build complete"}`},
+		{name: "provider error", body: `{"errorDetail":{"message":"build rejected"}}`, wantError: true},
+		{name: "invalid stream", body: `{`, wantError: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := consumeBuildResponse(io.NopCloser(strings.NewReader(test.body)))
+			if (err != nil) != test.wantError {
+				t.Fatalf("consumeBuildResponse() error=%v wantError=%v", err, test.wantError)
+			}
+		})
+	}
+}

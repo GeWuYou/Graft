@@ -13,5 +13,4 @@ properties:
     items:
       $ref: ./application-workspace-entry.yaml
   compose_file_path:
-    type: string
-    nullable: true
+    type: [string, "null"]

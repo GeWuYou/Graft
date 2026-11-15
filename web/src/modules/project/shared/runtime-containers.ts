@@ -21,7 +21,7 @@ export async function fetchApplicationRuntimeContainers(
 
   const rows: ProjectContainerSummary[] = [];
   let offset = 0;
-  let total = 0;
+  let total: number;
 
   do {
     const payload = await getContainers({

@@ -40,7 +40,7 @@
 </template>
 <script setup lang="ts">
 import { TranslateIcon } from 'tdesign-icons-vue-next';
-import type { DropdownProps } from 'tdesign-vue-next';
+import type { DropdownItemProps } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
 import { languageList, t } from '@/locales';
@@ -65,7 +65,7 @@ const changeLang = (lang: string) => {
   dialogVisible.value = false;
 };
 
-const handleDropdownChange: NonNullable<DropdownProps['onClick']> = (value) => {
+const handleDropdownChange: NonNullable<DropdownItemProps['onClick']> = (value) => {
   if (typeof value === 'string') changeLang(value);
 };
 

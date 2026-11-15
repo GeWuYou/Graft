@@ -25,21 +25,26 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 26.13.1
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: 1.3.13
+          bun-version: 1.4.4
 
       - name: Install web dependencies for OpenAPI generation
         working-directory: web
@@ -51,7 +56,7 @@ jobs:
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
-          version: v2.12.2
+          version: v2.15.0
           working-directory: server
           install-only: true
 
@@ -83,18 +88,23 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 26.13.1
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: 1.3.13
+          bun-version: 1.4.4
 
       - name: Cache Bun package downloads
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
@@ -120,7 +130,7 @@ jobs:
           tar -czf "../release-web-asset/graft-web-dist-${RELEASE_REF_NAME}.tar.gz" dist
 
       - name: Upload validated web distribution
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-web-asset
           path: release-web-asset/*
@@ -144,7 +154,7 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -176,7 +186,7 @@ jobs:
           echo "is_prerelease=${is_prerelease}" >> "${GITHUB_OUTPUT}"
 
       - name: Setup Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -184,7 +194,7 @@ jobs:
       - name: Setup Bun for release binary validation
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: 1.3.13
+          bun-version: 1.4.4
 
       - name: Install web dependencies for release binary validation
         working-directory: web
@@ -194,7 +204,7 @@ jobs:
         run: node scripts/ensure-openapi-bundle.mjs
 
       - name: Download validated web distribution
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-web-asset
           path: release-assets
@@ -235,7 +245,7 @@ jobs:
           sha256sum release-assets/* > "release-assets/graft-sha256sums-${RELEASE_REF_NAME}.txt"
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-assets
           path: release-assets/*
@@ -268,7 +278,7 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -290,16 +300,16 @@ jobs:
           echo "agent_image=${agent_image}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Go for Runner and Agent input discovery
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
@@ -322,7 +332,7 @@ jobs:
           chmod +x dist/server/graft-server-linux-amd64
 
       - name: Log in to GHCR for Runner reuse inspection
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -528,7 +538,7 @@ jobs:
 
       - name: Docker metadata for server image
         id: server_meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image_vars.outputs.server_image }}
           tags: ${{ steps.image_tags.outputs.tags }}
@@ -538,7 +548,7 @@ jobs:
 
       - name: Docker metadata for web image
         id: web_meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image_vars.outputs.web_image }}
           tags: ${{ steps.image_tags.outputs.tags }}
@@ -548,7 +558,7 @@ jobs:
 
       - name: Docker metadata for Compose runner image
         id: runner_meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image_vars.outputs.runner_image }}
           tags: ${{ steps.image_tags.outputs.tags }}
@@ -558,7 +568,7 @@ jobs:
 
       - name: Docker metadata for Docker Runtime Agent image
         id: agent_meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image_vars.outputs.agent_image }}
           tags: ${{ steps.image_tags.outputs.tags }}
@@ -568,7 +578,7 @@ jobs:
 
       - name: Build and push server image
         id: server_build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ./server
           file: ./server/Dockerfile
@@ -584,7 +594,7 @@ jobs:
 
       - name: Build web image for smoke
         id: web_build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ./web
           file: ./web/Dockerfile
@@ -599,7 +609,7 @@ jobs:
       - name: Build Compose runner image for smoke
         if: steps.runner_reuse.outputs.reuse != 'true'
         id: runner_build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ./server
           file: ./server/runner/compose/Dockerfile
@@ -614,7 +624,7 @@ jobs:
       - name: Build Docker Runtime Agent image
         if: steps.agent_reuse.outputs.reuse != 'true'
         id: agent_build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ./server
           file: ./server/agents/docker-runtime-agent/Dockerfile
@@ -636,14 +646,14 @@ jobs:
 
       - name: Upload Compose smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-compose-smoke-logs
           path: .tmp/release-compose-smoke/*
           if-no-files-found: ignore
 
       - name: Log in to GHCR after smoke gates
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -838,7 +848,7 @@ jobs:
           sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"
 
       - name: Upload image manifest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: image-assets
           path: image-assets/*
@@ -855,7 +865,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16.16-alpine
         env:
           POSTGRES_DB: graft
           POSTGRES_USER: graft
@@ -868,7 +878,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:7.4.12-alpine
         ports:
           - 6379:6379
         options: >-
@@ -892,13 +902,13 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
@@ -961,7 +971,7 @@ jobs:
 
       - name: Upload bubble smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-bubble-smoke-logs
           path: |
@@ -1000,7 +1010,7 @@ jobs:
 
     steps:
       - name: Checkout repository at tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -1016,20 +1026,20 @@ jobs:
           workflow-dispatch-required-message: PAT_TOKEN must allow workflow dispatch for license-compliance.yml; use a classic token with workflow scope or a fine-grained token with Actions read/write permission.
 
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: release-assets
           path: release-assets
 
       - name: Download image manifest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: image-assets
           path: release-assets
 
       - name: Generate release notes
         id: cliff_release
-        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff
         with:
           config: .github/cliff.toml
           args: >-
@@ -1040,7 +1050,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Create GitHub Release and upload assets
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3
         with:
           name: Release ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
@@ -1347,7 +1357,7 @@ jobs:
           echo "tag=${mutable_tag}" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

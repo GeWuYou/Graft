@@ -94,3 +94,33 @@ The one-shot Agent remains root in this fixture because it must read the
 driver-created `0600` bootstrap token. The conformance driver runs as a
 dedicated non-root user and owns its writable fixture mounts. Neither grants the
 Agent Vault credentials or a database connection.
+
+## Dedicated Docker daemon verification
+
+`compose.isolated.yml` overlays this fixture with a private Docker Engine. The Backend, Agent and fixture driver share only its named socket volume mounted at canonical `/run`. Alpine resolves `/var/run` through a symlink, so mounting `/run` lets the runtime order the parent volume before nested secret mounts. This private parent volume remains writable so the OCI runtime can create nested mountpoints, while the nested certificate and bootstrap volumes remain read-only. The daemon and application consumers use the same `/opt/graft/apps` volume path, so relative Compose bind mounts resolve against the daemon's actual filesystem. The Backend receives the private socket group explicitly.
+
+`python3 scripts/validate_docker_isolated.py --help` exposes `init`, `up`, `probe`, `status`, `stop` and guarded `destroy`. Run orchestration from the stable checkout with Docker available. Build the three fixture images from the same exact commit and label each image with `org.opencontainers.image.revision=<commit>`. `init` verifies that label and saves immutable local image IDs. Supply an ignored task evidence directory, a unique `graft-isolated-<task>` project, and three unused loopback ports starting at `--port`.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --directory .local/docker-isolated/baseline \
+  --project graft-isolated-baseline \
+  --source-revision <full-commit> \
+  --backend-image <backend-image> \
+  --agent-image <agent-image> \
+  --driver-image <fixture-driver-image> \
+  --port 28080
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/baseline
+python3 scripts/validate_docker_isolated.py probe --directory .local/docker-isolated/baseline
+python3 scripts/validate_docker_isolated.py stop --directory .local/docker-isolated/baseline
+```
+
+The runner verifies the rendered socket boundary before startup, performs normal migrations and Backend-owned enrollment, starts the regular polling Agent, verifies bootstrap through bounded driver retries, stops and restarts that service, and verifies the persisted identity and receipt advancement. This lifecycle avoids the baseline CLI `--once` path, whose successful `runOnce` currently reaches an unconditional signal wait. The API probe changes the disposable administrator password, enables the fixture's container actions, checks list/logs and start/stop/restart Tasks against actual engine state, verifies a Shell command over the actual WebSocket bridge, creates and deploys a Compose application with a relative bind mount, imports a workspace, and records missing Compose material, execution interruption, Backend socket permission denial and Agent-offline behavior. The interruption probe kills the Agent only after observing its application container in the private engine, then compares Task settlement and container identity after reconnect.
+
+`instance.json` and command diagnostics contain synthetic secrets and remain restricted local files. Share `trust-evidence.json` and `api-evidence.json` after inspecting them. Each API scenario carries its actual verification scope. The fixture Agent runs as root for the existing bootstrap-secret contract. The socket permission test compares fresh curl connections under the Backend UID before and after chmod, while recording the existing API connection separately. An already-open Unix connection can remain usable after socket file permissions change.
+
+`stop` pauses the registered workload and dependency services while retaining the running development Vault service. Vault dev keeps its PKI and AppRole authority in process memory, so this retained service preserves the trust represented by the fixture's delivered files and `.initialized` marker. `status` continues to show that task-owned Vault service. `up` verifies a fresh AppRole login and checks the live PKI CA against the delivered CA before migrations or Backend startup, saving the non-secret result in `vault-authority-evidence.json`.
+
+For a bounded resume check, run `up`, save the authority fingerprint, run `stop`, confirm Vault remains running and the workload services are stopped, then run `up` again and compare the authority fingerprint and Agent restart evidence. If Vault was stopped or recreated independently, its dev authority is lost and `up` rejects the stale material. Destroy that disposable fixture and initialize a fresh task instance.
+
+After verified delivery, remove only the registered fixture resources with `destroy --confirm-project <same-project>`. Its named volumes contain disposable data. The command never invokes global Docker pruning. The Backend's deployment/self-update discovery sees the private engine, while the Backend container itself runs in the fixture's outer project. Self-update acceptance therefore needs a separate full deployment inside the private engine.

@@ -1,11 +1,10 @@
-import MarkdownIt from 'markdown-it';
-import type Token from 'markdown-it/lib/token.mjs';
+import MarkdownIt, { type Token } from 'markdown-it';
 
 const MARKDOWN_TABLE_SEPARATOR = /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/u;
 const markdown = new MarkdownIt({ html: false, linkify: false, typographer: false });
 
 export function markdownToPlainTextSummary(source: string | null | undefined, maxLength = 160) {
-  let normalized = '';
+  let normalized: string;
   try {
     normalized = markdown
       .parse(source ?? '', {})

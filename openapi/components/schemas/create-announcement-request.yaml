@@ -21,12 +21,10 @@ properties:
     type: boolean
     default: false
   publish_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: Announcement visibility start time. Null means immediately visible after publish.
   expire_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: Announcement visibility end time. Null means long-term valid.
