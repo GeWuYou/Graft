@@ -88,6 +88,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
             ".tmp/runtime-runner/provenance.json",
             ".tmp/runtime-release-source/provenance.json",
             ".local/docker-isolated/ci/release-api/update-api-evidence.json",
+            ".tmp/runtime-build-registry/provenance.json",
+            ".local/docker-isolated/ci/build-api/build-api-evidence.json",
         })
         self.assertTrue(upload["with"]["include-hidden-files"])
 
@@ -116,3 +118,15 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(web["devDependencies"]["yaml"], "2.9.1")
         bundler = (ROOT / "scripts/openapi-bundle.mjs").read_text()
         self.assertIn("requireFromRoot('@redocly/openapi-core')", bundler)
+
+    def test_build_acceptance_precedes_update_and_reuses_authenticated_fixture_binary(self):
+        commands = "\n".join(step.get("run", "") for step in self.jobs["local-runtime-acceptance"]["steps"])
+        self.assertIn("verify --kind build-registry", commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-build-registry"', commands)
+        self.assertIn("Dockerfile.build-registry", commands)
+        self.assertIn("--build-registry-image", commands)
+        self.assertLess(commands.index("official-install"), commands.index("build-api"))
+        self.assertLess(commands.index("build-api"), commands.index("update-api"))
+        self.assertIn("ci_runtime_artifacts.py build-acceptance", commands)
+        backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
+        self.assertIn("registry-auth/main_test.go", backend)

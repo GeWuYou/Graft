@@ -17,6 +17,7 @@ BINARY_ARTIFACTS = {
     "target-server": (".tmp/compiled/target-server/graft-server-linux-amd64", "graft-server-linux-amd64", "0.0.0-beta.2"),
     "runner": (".tmp/compiled/runner/graft-compose-runner", "out/graft-compose-runner", None),
     "release-source": (".tmp/compiled/release-source/graft-release-fixture", "out/graft-release-fixture", None),
+    "build-registry": (".tmp/compiled/build-registry/graft-fixture-htpasswd", "out/graft-fixture-htpasswd", None),
 }
 
 
@@ -114,8 +115,43 @@ def verify_acceptance(root: Path, directory: Path) -> None:
         raise ValueError("Official local installation proof is incomplete")
 
 
+def verify_build_acceptance(root: Path, directory: Path) -> None:
+    evidence = json.loads((directory / "build-api/build-api-evidence.json").read_text())
+    artifact = evidence.get("artifact") or {}
+    digest = artifact.get("digest", "")
+    image = evidence.get("engine_image_id", "")
+    publications = evidence.get("publications") or []
+    matching_publication = any(
+        item.get("publication_id")
+        and item.get("artifact_id") == artifact.get("artifact_id")
+        and item.get("digest") == digest
+        and (item.get("destination") or {}).get("kind") == "oci_registry"
+        and (item.get("destination") or {}).get("reference") == artifact.get("tag")
+        for item in publications
+    )
+    valid = (
+        evidence.get("source_revision") == source_revision(root)
+        and int(evidence.get("task_id", 0)) > 0
+        and evidence.get("task_status") == "success"
+        and evidence.get("registry_anonymous_status") == 401
+        and evidence.get("registry_authenticated_status") == 200
+        and evidence.get("registry_verified") is True
+        and evidence.get("credential_absent_from_task_and_logs") is True
+        and bool(artifact.get("artifact_id"))
+        and bool(artifact.get("tag"))
+        and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", digest))
+        and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", image))
+        and artifact.get("image_id") == image
+        and evidence.get("remote_manifest_digest") == digest
+        and matching_publication
+    )
+    if not valid:
+        raise ValueError("Build API acceptance evidence has incomplete authentication, artifact, publication or engine proof")
+
+
 def verify_update_acceptance(root: Path, directory: Path) -> None:
     verify_acceptance(root, directory)
+    verify_build_acceptance(root, directory)
     evidence = json.loads((directory / "release-api/update-api-evidence.json").read_text())
     source = json.loads((root / ".tmp/runtime-server/provenance.json").read_text())
     target = json.loads((root / ".tmp/runtime-target-server/provenance.json").read_text())
@@ -165,7 +201,7 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "verify", "acceptance", "update-acceptance"))
+    parser.add_argument("action", choices=("prepare", "verify", "acceptance", "build-acceptance", "update-acceptance"))
     parser.add_argument("--kind", choices=(*BINARY_ARTIFACTS, "web"))
     parser.add_argument("--directory", type=Path, required=True)
     args = parser.parse_args()
@@ -174,6 +210,8 @@ def main() -> None:
     try:
         if args.action == "acceptance":
             verify_acceptance(ROOT, args.directory.resolve())
+        elif args.action == "build-acceptance":
+            verify_build_acceptance(ROOT, args.directory.resolve())
         elif args.action == "update-acceptance":
             verify_update_acceptance(ROOT, args.directory.resolve())
         else:

@@ -97,3 +97,14 @@ bundler 从根 package.json 解析它。Web i18n 检查直接导入 yaml，由 W
 2026-11-16 在隔离任务检出中重新创建依赖链接并执行根 frozen install，随后直接生成 OpenAPI bundle，
 运行完整 Web check。源码检查、生产构建与 312 个测试文件的 2175 项测试通过。
 本轮 Web 源码为治理切片，运行时诊断 UI 的独立切片由其 scoped 测试和后续组合 CI 提供证据。
+
+## 认证 Registry 的 Build 验收
+
+同一构建脚本追加构建既有 Go module 锁定的 bcrypt fixture helper，产物与运行镜像继续绑定源码和文件摘要。
+CI 注册传入 build-registry-image，在 official-install 后执行 build-api，再执行 update-api。
+独立 Build 证明要求真实匿名 401、认证 200、Registry 验证、成功 Task、artifact/publication 关联、
+Docker Image ID 和远端 manifest digest 一致，并要求任务与日志中的秘密检查通过。
+更新证明同时要求前序 Build 证明存在且完整。
+
+新增上传文件限定为 build-api/build-api-evidence.json 与辅助二进制 provenance。
+私有 TLS、认证文件及其生成秘密受 fixture 本地生命周期管理，CI 消费正常 Registry/Build API 与 SDK 执行入口。

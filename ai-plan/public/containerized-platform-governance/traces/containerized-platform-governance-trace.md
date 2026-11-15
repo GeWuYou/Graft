@@ -23,3 +23,5 @@
 
 - Full integration validation exposed two previously hoisted tooling imports. Root Redocly and Web yaml declarations now match their actual consumers at existing locked versions.
 - Clean task dependency install, direct bundle generation and full Web check passed all source gates, production build and 312 files / 2175 tests. Combined diagnostic UI verification remains separately scoped.
+
+- Extended required CI to authenticated Build API publication before Update API, with locked bcrypt helper provenance, Task/artifact/publication/engine checks and explicit secret-exclusion evidence. Runtime results await integrated execution.

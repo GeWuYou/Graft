@@ -96,8 +96,8 @@ class RuntimeArtifactTests(unittest.TestCase):
         prepare(self.root, self.root / "correct-target", "target-server")
         verify(self.root, self.root / "correct-target", "target-server")
 
-    def test_runner_and_release_source_match_existing_build_stage_paths(self):
-        for kind, binary in [("runner", "graft-compose-runner"), ("release-source", "graft-release-fixture")]:
+    def test_runtime_helpers_match_existing_build_stage_paths(self):
+        for kind, binary in [("runner", "graft-compose-runner"), ("release-source", "graft-release-fixture"), ("build-registry", "graft-fixture-htpasswd")]:
             self.write(f".tmp/compiled/{kind}/{binary}", "compiled")
             artifact = self.root / ("artifact-" + kind)
             prepare(self.root, artifact, kind)
@@ -123,7 +123,7 @@ class RuntimeArtifactTests(unittest.TestCase):
         self.write(".tmp/runtime-server/provenance.json", json.dumps({"source_revision": "a" * 40, "kind": "server", "sha256": {"graft-server-linux-amd64": "1" * 64}}))
         self.write(".tmp/runtime-target-server/provenance.json", json.dumps({"source_revision": "a" * 40, "kind": "target-server", "sha256": {"graft-server-linux-amd64": "2" * 64}}))
         path = self.write("fixture/release-api/update-api-evidence.json", json.dumps(evidence))
-        with patch("scripts.ci_runtime_artifacts.verify_acceptance"):
+        with patch("scripts.ci_runtime_artifacts.verify_acceptance"), patch("scripts.ci_runtime_artifacts.verify_build_acceptance"):
             verify_update_acceptance(self.root, self.root / "fixture")
             for field, value in [("task_status", "needs_attention"), ("target_binary_sha256", "1" * 64),
                                  ("server_container_replaced", False), ("source_version", "dev")]:
@@ -136,3 +136,43 @@ class RuntimeArtifactTests(unittest.TestCase):
             path.write_text(json.dumps(broken))
             with self.assertRaisesRegex(ValueError, "incomplete"):
                 verify_update_acceptance(self.root, self.root / "fixture")
+
+    def test_build_proof_binds_authentication_publication_engine_and_secret_checks(self):
+        from scripts.ci_runtime_artifacts import verify_build_acceptance
+        image = "sha256:" + "1" * 64
+        digest = "sha256:" + "2" * 64
+        evidence = {
+            "source_revision": "a" * 40, "task_id": 7, "task_status": "success",
+            "registry_anonymous_status": 401, "registry_authenticated_status": 200,
+            "registry_verified": True, "credential_absent_from_task_and_logs": True,
+            "artifact": {"artifact_id": "artifact-fixture", "digest": digest, "image_id": image, "tag": "probe"},
+            "engine_image_id": image, "remote_manifest_digest": digest,
+            "publications": [{"publication_id": "publication-fixture", "artifact_id": "artifact-fixture",
+                              "digest": digest, "destination": {"kind": "oci_registry", "reference": "probe"}}],
+        }
+        path = self.write("fixture/build-api/build-api-evidence.json", json.dumps(evidence))
+        verify_build_acceptance(self.root, self.root / "fixture")
+        for field, value in [
+            ("registry_anonymous_status", 200), ("registry_authenticated_status", 401),
+            ("credential_absent_from_task_and_logs", False), ("publications", []),
+            ("engine_image_id", "sha256:" + "3" * 64), ("remote_manifest_digest", "sha256:" + "3" * 64),
+            ("source_revision", "b" * 40), ("task_status", "needs_attention"),
+        ]:
+            with self.subTest(field=field):
+                path.write_text(json.dumps({**evidence, field: value}))
+                with self.assertRaisesRegex(ValueError, "incomplete"):
+                    verify_build_acceptance(self.root, self.root / "fixture")
+        broken = deepcopy(evidence)
+        broken["publications"][0]["artifact_id"] = "different-artifact"
+        path.write_text(json.dumps(broken))
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            verify_build_acceptance(self.root, self.root / "fixture")
+
+    def test_update_proof_requires_prior_build_acceptance(self):
+        from scripts.ci_runtime_artifacts import verify_update_acceptance
+        with patch("scripts.ci_runtime_artifacts.verify_acceptance"), patch(
+            "scripts.ci_runtime_artifacts.verify_build_acceptance", side_effect=ValueError("Build proof incomplete")
+        ) as build:
+            with self.assertRaisesRegex(ValueError, "Build proof incomplete"):
+                verify_update_acceptance(self.root, self.root / "fixture")
+        build.assert_called_once_with(self.root, self.root / "fixture")

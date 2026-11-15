@@ -482,6 +482,9 @@ jobs:
       - name: Test standard-library TLS release fixture
         run: go test tests/conformance/docker-runtime-agent/release-source.go tests/conformance/docker-runtime-agent/release-source_test.go
 
+      - name: Test authenticated Registry fixture helper
+        run: go -C server test -mod=readonly ../tests/conformance/docker-runtime-agent/registry-auth/main.go ../tests/conformance/docker-runtime-agent/registry-auth/main_test.go
+
       - name: Link versioned runtime acceptance binaries
         run: bash scripts/build_runtime_acceptance.sh
 
@@ -491,6 +494,7 @@ jobs:
           python3 scripts/ci_runtime_artifacts.py prepare --kind target-server --directory .tmp/runtime-target-server
           python3 scripts/ci_runtime_artifacts.py prepare --kind runner --directory .tmp/runtime-runner
           python3 scripts/ci_runtime_artifacts.py prepare --kind release-source --directory .tmp/runtime-release-source
+          python3 scripts/ci_runtime_artifacts.py prepare --kind build-registry --directory .tmp/runtime-build-registry
 
       - name: Upload validated server runtime artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -524,6 +528,15 @@ jobs:
         with:
           name: runtime-release-source
           path: .tmp/runtime-release-source
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload validated build-registry runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-build-registry
+          path: .tmp/runtime-build-registry
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -609,6 +622,12 @@ jobs:
           name: runtime-release-source
           path: .tmp/runtime-release-source
 
+      - name: Download validated build-registry runtime artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-build-registry
+          path: .tmp/runtime-build-registry
+
       - name: Verify runtime artifact source and bytes
         run: |
           python3 scripts/ci_runtime_artifacts.py verify --kind server --directory .tmp/runtime-server
@@ -616,6 +635,7 @@ jobs:
           python3 scripts/ci_runtime_artifacts.py verify --kind target-server --directory .tmp/runtime-target-server
           python3 scripts/ci_runtime_artifacts.py verify --kind runner --directory .tmp/runtime-runner
           python3 scripts/ci_runtime_artifacts.py verify --kind release-source --directory .tmp/runtime-release-source
+          python3 scripts/ci_runtime_artifacts.py verify --kind build-registry --directory .tmp/runtime-build-registry
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
@@ -627,17 +647,20 @@ jobs:
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "release-binary=$PWD/.tmp/runtime-target-server" -f server/Dockerfile -t "graft-local-ci-target-server:$source_revision" server
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-runner" -f server/runner/compose/Dockerfile -t "graft-local-ci-runner:$source_revision" server
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-release-source" -f tests/conformance/docker-runtime-agent/Dockerfile.release-source -t "graft-local-ci-release-source:$source_revision" tests/conformance/docker-runtime-agent
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-build-registry" -f tests/conformance/docker-runtime-agent/Dockerfile.build-registry -t "graft-local-ci-build-registry:$source_revision" .
           cp -a .tmp/runtime-web/dist web/dist
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" -f web/Dockerfile -t "graft-local-ci-web:$source_revision" web
 
       - name: Verify private-engine operations and frozen official installation
         run: |
           source_revision="$(git rev-parse HEAD)"
-          python3 scripts/validate_docker_isolated.py init --execution-mode local --directory "$GRAFT_CI_DIRECTORY" --project "$GRAFT_CI_PROJECT" --source-revision "$source_revision" --backend-image "graft-local-ci-server:$source_revision" --target-backend-image "graft-local-ci-target-server:$source_revision" --web-image "graft-local-ci-web:$source_revision" --runner-image "graft-local-ci-runner:$source_revision" --release-fixture-image "graft-local-ci-release-source:$source_revision" --port 28080
+          python3 scripts/validate_docker_isolated.py init --execution-mode local --directory "$GRAFT_CI_DIRECTORY" --project "$GRAFT_CI_PROJECT" --source-revision "$source_revision" --backend-image "graft-local-ci-server:$source_revision" --target-backend-image "graft-local-ci-target-server:$source_revision" --web-image "graft-local-ci-web:$source_revision" --runner-image "graft-local-ci-runner:$source_revision" --release-fixture-image "graft-local-ci-release-source:$source_revision" --build-registry-image "graft-local-ci-build-registry:$source_revision" --port 28080
           python3 scripts/validate_docker_isolated.py up --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/validate_docker_isolated.py probe --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/validate_docker_isolated.py official-install --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/ci_runtime_artifacts.py acceptance --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/validate_docker_isolated.py build-api --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/ci_runtime_artifacts.py build-acceptance --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/validate_docker_isolated.py update-api --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/ci_runtime_artifacts.py update-acceptance --directory "$GRAFT_CI_DIRECTORY"
 
@@ -668,6 +691,8 @@ jobs:
             .tmp/runtime-runner/provenance.json
             .tmp/runtime-release-source/provenance.json
             .local/docker-isolated/ci/release-api/update-api-evidence.json
+            .tmp/runtime-build-registry/provenance.json
+            .local/docker-isolated/ci/build-api/build-api-evidence.json
 
   required-checks:
     name: Required checks passed
