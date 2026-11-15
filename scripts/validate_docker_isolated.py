@@ -502,14 +502,20 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task,
                     engine_running=running, engine_started_at_changed=before != after)
 
+    def enable_operations(self) -> None:
+        for key in ("ops.container.runtime.enabled", "ops.container.actions.dangerous_enabled", "ops.container.shell.enabled"):
+            status, _ = self.api("PUT", "/api/system-configs/" + key, {"value": True})
+            read_status, response = self.api("GET", "/api/system-configs/" + key) if status == 200 else (status, {})
+            value = (response.get("data") or {}).get("effective_value")
+            enabled = status == 200 and read_status == 200 and isinstance(value, str) and json.loads(value) is True
+            self.record("enable-" + key, "passed" if enabled else "failed", http_status=status,
+                        readback_http_status=read_status, effective_value_enabled=enabled)
+
     def probe(self) -> None:
         self.authenticate()
         if self.execution_mode == "agent":
             self.once_probe()
-        for key in ("ops.container.runtime.enabled", "ops.container.actions.dangerous_enabled", "ops.container.shell.enabled"):
-            status, _ = self.api("PUT", "/api/system-configs/" + key, {"value": True})
-            if status != 200:
-                self.record("enable-" + key, "failed", http_status=status)
+        self.enable_operations()
         name = "graft-isolated-api-probe"
         status, response = self.api("POST", "/api/ops/docker/images/pull", {"reference": "alpine:3.24.4"})
         task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}

@@ -60,6 +60,17 @@ class PrivateDockerTopologyTests(unittest.TestCase):
 
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_operation_setup_records_success_only_after_actual_effective_value_readback(self):
+        for effective, expected in (("true", "passed"), ("false", "failed")):
+            with self.subTest(effective=effective), tempfile.TemporaryDirectory() as temporary:
+                fixture = Fixture.__new__(Fixture)
+                fixture.api = Mock(side_effect=[(200, {}), (200, {"data": {"effective_value": effective}})] * 3)
+                fixture.record = Mock()
+                fixture.enable_operations()
+                self.assertEqual(fixture.record.call_count, 3)
+                self.assertTrue(all(call.args[1] == expected for call in fixture.record.call_args_list))
+                self.assertEqual([call.args[0] for call in fixture.api.call_args_list], ["PUT", "GET"] * 3)
+
     def test_controller_receipt_requires_actual_bound_success_and_backup_digests(self):
         receipt = {"protocol_version": 2, "operation_id": "controller-test", "runner_id": "runner-test",
             "execution_mode": "local", "succeeded": True, "migration_started": True,
