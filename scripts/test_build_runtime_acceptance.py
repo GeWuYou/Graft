@@ -35,6 +35,8 @@ class RuntimeCompileCommandTests(unittest.TestCase):
                                 "GRAFT_GO_RECORD_FILE": str(record)})
             calls = [json.loads(line) for line in record.read_text().splitlines()]
             self.assertEqual(len(calls), 5)
+            for call in calls:
+                self.assertEqual(call["args"][:3], ["-C", str(root / "server"), "build"])
             self.assertIn("version=0.0.0-beta.1", " ".join(calls[0]["args"]))
             self.assertIn("version=0.0.0-beta.2", " ".join(calls[1]["args"]))
             for call in calls[:2]:

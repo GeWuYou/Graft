@@ -25,7 +25,7 @@ for version in 0.0.0-beta.1 0.0.0-beta.2; do
     -o "$repository_root/.tmp/compiled/$output/graft-server-linux-amd64" ./cmd/graft
 done
 go -C "$repository_root/server" build -trimpath -ldflags="-s -w" -o "$repository_root/.tmp/compiled/runner/graft-compose-runner" ./cmd/graft-compose-runner
-go build -trimpath -ldflags="-s -w" -o "$repository_root/.tmp/compiled/release-source/graft-release-fixture" \
+go -C "$repository_root/server" build -trimpath -ldflags="-s -w" -o "$repository_root/.tmp/compiled/release-source/graft-release-fixture" \
   "$repository_root/tests/conformance/docker-runtime-agent/release-source.go"
 go -C "$repository_root/server" build -mod=readonly -trimpath -ldflags="-s -w" \
   -o "$repository_root/.tmp/compiled/build-registry/graft-fixture-htpasswd" \
