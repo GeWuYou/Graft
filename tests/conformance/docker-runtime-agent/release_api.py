@@ -88,11 +88,11 @@ def release_metadata(images: dict, hashes: dict) -> tuple[dict, list]:
 
 
 def start_trusted_source(fixture, nested, directory: Path) -> dict:
-    environment = fixture.environment
-    for key in ("GRAFT_TARGET_BACKEND_IMAGE", "GRAFT_RELEASE_FIXTURE_IMAGE", "GRAFT_RUNNER_IMAGE"):
+    environment = dict(fixture.environment)
+    for key in ("GRAFT_TARGET_BACKEND_IMAGE", "GRAFT_RELEASE_FIXTURE_IMAGE", "GRAFT_RUNNER_IMAGE", "GRAFT_WEB_IMAGE"):
         if not environment.get(key):
             raise RuntimeError("update-api requires --target-backend-image, --release-fixture-image and --runner-image at registration")
-        fixture.import_image(environment[key])
+        environment[key] = fixture.import_image(environment[key])
     daemon(fixture, "mkdir", "-p", RELEASE_ROOT)
     docker(fixture, "run", "--rm", "-v", RELEASE_ROOT + ":/fixture", environment["GRAFT_RELEASE_FIXTURE_IMAGE"], "--init-ca")
     daemon(fixture, "sh", "-ec", "mkdir -p /etc/docker/certs.d/ghcr.io && cp /opt/graft-official/.fixture-release/ca.crt /etc/docker/certs.d/ghcr.io/ca.crt && (grep -q '^127.0.0.1[[:space:]]ghcr.io$' /etc/hosts || echo '127.0.0.1 ghcr.io' >> /etc/hosts)")
@@ -132,7 +132,7 @@ def start_trusted_source(fixture, nested, directory: Path) -> dict:
         compose.extend(["-f", ROOT + "/compose.build-fixture.yml"])
     compose.extend(["-f", ROOT + "/compose.release-fixture.yml", "up", "-d", "--no-deps", "--force-recreate", "--wait", "server"])
     docker(fixture, *compose)
-    return {"images": images, "manifest_sha256": manifest_sha,
+    return {"images": images, "manifest_sha256": manifest_sha, "target_private_image": environment["GRAFT_TARGET_BACKEND_IMAGE"],
         "overlay_sha256": hashlib.sha256(overlay_bytes).hexdigest(),
         "target_binary_sha256": daemon(fixture, "sha256sum", RELEASE_ROOT + "/artifacts/server/graft").split()[0],
         "ca_sha256": daemon(fixture, "sha256sum", RELEASE_ROOT + "/ca.crt").split()[0]}
@@ -225,7 +225,7 @@ def run_release_api(fixture, nested):
     launch = next((item for item in stages if item.get("key") == "controller_launch"), {})
     final = next((item for item in stages if item.get("key") == "controller_result"), {})
     backup = receipt.get("backup_completion") or {}
-    valid = (task.get("status") == "success" and before != after and actual_image == fixture.environment["GRAFT_TARGET_BACKEND_IMAGE"]
+    valid = (task.get("status") == "success" and before != after and actual_image == source["target_private_image"]
         and status == 200 and response.get("data", {}).get("current_version") == TARGET_VERSION
         and receipt.get("operation_id") == operation and receipt.get("execution_mode") == "local"
         and receipt.get("succeeded") is True and backup.get("OperationID") == operation

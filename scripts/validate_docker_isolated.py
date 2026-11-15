@@ -14,12 +14,61 @@ import secrets
 import socket
 import struct
 import subprocess
+import tarfile
+import tempfile
 import time
 from urllib import error, request
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/conformance/docker-runtime-agent"
 TERMINAL = {"success", "failed", "cancelled", "needs_attention"}
+
+
+def image_archive_identity(path: Path, image: str, revision: str) -> dict:
+    """校验导出的内容寻址图，并选择私有 Linux/amd64 引擎可读取的配置身份。"""
+    def read_json(archive, name):
+        member = archive.getmember(name)
+        if not member.isfile() or member.size > 1024 * 1024:
+            raise RuntimeError("Image archive metadata is not a bounded regular file")
+        payload = archive.extractfile(member).read()
+        if name.startswith("blobs/sha256/") and hashlib.sha256(payload).hexdigest() != name.rsplit("/", 1)[1]:
+            raise RuntimeError("Image archive metadata content digest differs")
+        return json.loads(payload)
+
+    def referenced_configs(archive, digest):
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):
+            raise RuntimeError("Image archive descriptor digest is invalid")
+        document = read_json(archive, "blobs/sha256/" + digest.partition(":")[2])
+        if "config" in document:
+            return {document["config"]["digest"]}
+        configs = set()
+        for descriptor in document.get("manifests", []):
+            platform = descriptor.get("platform", {})
+            if platform and (platform.get("os"), platform.get("architecture")) != ("linux", "amd64"):
+                continue
+            configs.update(referenced_configs(archive, descriptor["digest"]))
+        return configs
+
+    with tarfile.open(path) as archive:
+        candidates = []
+        for manifest in read_json(archive, "manifest.json"):
+            config_name = manifest["Config"]
+            config = read_json(archive, config_name)
+            payload = archive.extractfile(config_name).read()
+            identifier = "sha256:" + hashlib.sha256(payload).hexdigest()
+            if (config.get("os"), config.get("architecture")) == ("linux", "amd64"):
+                candidates.append((identifier, config))
+        if len(candidates) != 1:
+            raise RuntimeError("Image archive requires one Linux/amd64 runtime configuration")
+        identifier, config = candidates[0]
+        if image != identifier and identifier not in referenced_configs(archive, image):
+            raise RuntimeError("Exported runtime configuration is outside its registered image graph")
+        if config.get("config", {}).get("Labels", {}).get("org.opencontainers.image.revision") != revision:
+            raise RuntimeError("Exported runtime configuration differs from its registered source")
+        layers = config.get("rootfs", {}).get("diff_ids")
+        if not layers or any(not re.fullmatch(r"sha256:[a-f0-9]{64}", layer) for layer in layers):
+            raise RuntimeError("Image archive has no valid runtime filesystem identity")
+    return {"registered_image": image, "private_image": identifier, "rootfs_layers": layers}
 LOCAL_REQUIRED_SCENARIOS = frozenset({
     "enable-ops.container.runtime.enabled", "enable-ops.container.actions.dangerous_enabled",
     "enable-ops.container.shell.enabled", "image-pull", "container-list", "container-logs",
@@ -601,22 +650,40 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         passed = task.get("status") == "failed" and bool(task.get("failure_code"))
         self.record("image-pull-unreachable", "passed" if passed else "failed", http_status=status, task=task)
 
-    def import_image(self, image: str) -> None:
-        # 镜像字节只流入任务私有 daemon，避免把主机标签或全局 Docker 资源变成验收目标。
-        with subprocess.Popen(["docker", "image", "save", image], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, cwd=ROOT, env=self.environment) as exporter:
-            try:
+    def import_image(self, image: str) -> str:
+        # containerd 的索引 ID 与经典引擎的配置 ID 不同，导出图和文件系统身份必须同时对应。
+        with tempfile.TemporaryDirectory(prefix="image-import-", dir=self.directory) as temporary:
+            archive = Path(temporary) / "image.tar"
+            exported = subprocess.run(["docker", "image", "save", "--output", str(archive), image],
+                capture_output=True, cwd=ROOT, env=self.environment, timeout=600)
+            if exported.returncode:
+                self.image_import_error(exported.stderr)
+            identity = image_archive_identity(archive, image, self.state["source_revision"])
+            with archive.open("rb") as payload:
+                digest = hashlib.file_digest(payload, "sha256").hexdigest()
+            with archive.open("rb") as payload:
                 loaded = subprocess.run(self.prefix + ["exec", "-T", "docker-daemon", "docker",
-                    "--host=unix:///run/graft-docker/docker.sock", "image", "load"], stdin=exporter.stdout,
+                    "--host=unix:///run/graft-docker/docker.sock", "image", "load"], stdin=payload,
                     capture_output=True, cwd=ROOT, env=self.environment, timeout=600)
-            finally:
-                exporter.stdout.close()
-                exporter.stdout = None
-            _, diagnostics = exporter.communicate(timeout=30)
-            if exporter.returncode != 0 or loaded.returncode != 0:
-                (self.directory / "image-import-error.log").write_bytes(diagnostics + loaded.stderr)
-                (self.directory / "image-import-error.log").chmod(0o600)
-                raise RuntimeError("Private daemon image import failed; restricted diagnostics retained")
+            if loaded.returncode:
+                self.image_import_error(loaded.stderr)
+            identifier = identity["private_image"]
+            actual = json.loads(self.engine("image", "inspect", identifier))[0]
+            if (actual.get("Id") != identifier or actual.get("RootFS", {}).get("Layers") != identity["rootfs_layers"]
+                or (actual.get("Os"), actual.get("Architecture")) != ("linux", "amd64")
+                or actual.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") != self.state["source_revision"]):
+                raise RuntimeError("Private engine image differs from its verified exported configuration")
+            proof_path = self.directory / "image-import-evidence.json"
+            proof = json.loads(proof_path.read_text()) if proof_path.is_file() else {"source_revision": self.state["source_revision"], "images": {}}
+            proof["images"][image] = {**identity, "archive_sha256": digest}
+            save(proof_path, proof)
+            return identifier
+
+    def image_import_error(self, diagnostics: bytes) -> None:
+        path = self.directory / "image-import-error.log"
+        path.write_bytes(diagnostics)
+        path.chmod(0o600)
+        raise RuntimeError("Private daemon image import failed; restricted diagnostics retained")
 
     def official_install(self) -> None:
         if self.execution_mode != "local" or not self.environment.get("GRAFT_WEB_IMAGE"):
@@ -624,11 +691,11 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         source = self.directory / "source-assets" / "root"
         if not (source / "compose.yml").is_file():
             raise RuntimeError("Official Compose source was not frozen at registration; initialize a new task")
-        for role in ("BACKEND", "WEB"):
-            self.import_image(self.environment[f"GRAFT_{role}_IMAGE"])
+        private_images = {role: self.import_image(self.environment[f"GRAFT_{role}_IMAGE"])
+                          for role in ("BACKEND", "WEB")}
         tag = "v0.0.0-beta.1"
-        self.engine("tag", self.environment["GRAFT_BACKEND_IMAGE"], "ghcr.io/gewuyou/graft-server:" + tag)
-        self.engine("tag", self.environment["GRAFT_WEB_IMAGE"], "ghcr.io/gewuyou/graft-web:" + tag)
+        self.engine("tag", private_images["BACKEND"], "ghcr.io/gewuyou/graft-server:" + tag)
+        self.engine("tag", private_images["WEB"], "ghcr.io/gewuyou/graft-web:" + tag)
         root = "/opt/graft-official"
         self.compose("exec", "-T", "docker-daemon", "sh", "-ec",
                      "mkdir -p /opt/graft-official; ln -sf /run/graft-docker/docker.sock /var/run/docker.sock")
@@ -661,13 +728,13 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         nested = OfficialFixture(self, directory, root)
         proof = {"source_revision": self.state["source_revision"], "execution_mode": "local",
             "official_compose": True, "complete": False,
-            "backend_image": self.environment["GRAFT_BACKEND_IMAGE"], "web_image": self.environment["GRAFT_WEB_IMAGE"]}
+            "backend_image": private_images["BACKEND"], "web_image": private_images["WEB"]}
         save(directory / "installation-evidence.json", proof)
         nested.compose("up", "-d", "--wait", timeout=600)
         for service, role in (("server", "BACKEND"), ("web", "WEB")):
             identifier = nested.compose("ps", "-q", service).strip()
             actual = self.engine("inspect", "--format", "{{.Image}}", identifier).strip()
-            if actual != self.environment[f"GRAFT_{role}_IMAGE"]:
+            if actual != private_images[role]:
                 raise RuntimeError("Official installation image no longer matches its registered source")
         nested.probe()
         require_local_acceptance(nested.results)
@@ -679,7 +746,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         directory = self.directory / "official"
         if not completed_official_install(self.directory):
             raise RuntimeError("controller-smoke requires a successful official-install first")
-        self.import_image(self.environment["GRAFT_RUNNER_IMAGE"])
+        private_images = {role: self.import_image(self.environment[f"GRAFT_{role}_IMAGE"])
+                          for role in ("BACKEND", "WEB", "RUNNER")}
         registry_name = self.state["project"] + "-controller-registry"
         if registry_name in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
             self.engine("start", registry_name)
@@ -700,7 +768,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         for service, role in (("server", "BACKEND"), ("web", "WEB"), ("compose-runner", "RUNNER")):
             repository = registry + "/graft-" + service
             reference = repository + ":" + tag
-            self.engine("tag", self.environment[f"GRAFT_{role}_IMAGE"], reference)
+            self.engine("tag", private_images[role], reference)
             self.engine("push", reference)
             digests = json.loads(self.engine("image", "inspect", "--format", "{{json .RepoDigests}}", reference))
             digest_reference = next((value for value in digests if value.startswith(repository + "@sha256:")), "")

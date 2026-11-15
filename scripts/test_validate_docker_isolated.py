@@ -4,6 +4,8 @@ import base64
 import unittest
 import json
 import io
+import hashlib
+import tarfile
 from urllib.error import HTTPError
 from pathlib import Path
 import tempfile
@@ -12,7 +14,85 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, completed_official_install, controller_receipt, require_local_acceptance, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, completed_official_install, controller_receipt, image_archive_identity, require_local_acceptance, validate_topology
+
+
+def image_archive_fixture(path, *, index=False, revision="a" * 40, architecture="amd64", tamper=False):
+    config = {"os": "linux", "architecture": architecture,
+        "config": {"Labels": {"org.opencontainers.image.revision": revision}},
+        "rootfs": {"type": "layers", "diff_ids": ["sha256:" + "b" * 64]}}
+    payload = json.dumps(config).encode()
+    config_digest = hashlib.sha256(payload).hexdigest()
+    files = {"blobs/sha256/" + config_digest: payload + (b" " if tamper else b""),
+        "manifest.json": json.dumps([{"Config": "blobs/sha256/" + config_digest, "RepoTags": None, "Layers": []}]).encode()}
+    registered = "sha256:" + config_digest
+    if index:
+        manifest = json.dumps({"schemaVersion": 2, "config": {"digest": registered}, "layers": []}).encode()
+        manifest_digest = hashlib.sha256(manifest).hexdigest()
+        files["blobs/sha256/" + manifest_digest] = manifest
+        descriptor = json.dumps({"schemaVersion": 2, "manifests": [{"digest": "sha256:" + manifest_digest,
+            "platform": {"os": "linux", "architecture": architecture}}]}).encode()
+        descriptor_digest = hashlib.sha256(descriptor).hexdigest()
+        files["blobs/sha256/" + descriptor_digest] = descriptor
+        registered = "sha256:" + descriptor_digest
+    with tarfile.open(path, "w") as archive:
+        for name, content in files.items():
+            member = tarfile.TarInfo(name)
+            member.size = len(content)
+            archive.addfile(member, io.BytesIO(content))
+    return registered, "sha256:" + config_digest, config
+
+
+class ImageImportIdentityTests(unittest.TestCase):
+    def test_classic_configuration_and_containerd_index_resolve_the_same_runtime_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "image.tar"
+            for index in (False, True):
+                registered, private, config = image_archive_fixture(path, index=index)
+                identity = image_archive_identity(path, registered, "a" * 40)
+                self.assertEqual(identity["registered_image"], registered)
+                self.assertEqual(identity["private_image"], private)
+                self.assertEqual(identity["rootfs_layers"], config["rootfs"]["diff_ids"])
+
+    def test_rejects_tampered_metadata_wrong_source_platform_and_unbound_graph(self):
+        for kwargs, requested in (({"tamper": True}, None), ({"revision": "c" * 40}, None),
+                                  ({"architecture": "arm64"}, None), ({}, "sha256:" + "d" * 64)):
+            with self.subTest(kwargs=kwargs), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / "image.tar"
+                registered, _, _ = image_archive_fixture(path, index=True, **kwargs)
+                with self.assertRaises((RuntimeError, KeyError)):
+                    image_archive_identity(path, requested or registered, "a" * 40)
+
+    def test_private_load_verifies_actual_config_and_filesystem_before_returning_identity(self):
+        for mismatch in (False, True):
+            with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as temporary:
+                fixture = Fixture.__new__(Fixture)
+                fixture.directory = Path(temporary)
+                fixture.state = {"source_revision": "a" * 40}
+                fixture.environment = {}
+                fixture.prefix = ["docker", "compose", "--project-name", "owned-fixture"]
+                archive_path = Path(temporary) / "source.tar"
+                registered, private, config = image_archive_fixture(archive_path, index=True)
+                actual = {"Id": private, "RootFS": {"Layers": config["rootfs"]["diff_ids"]},
+                    "Os": "linux", "Architecture": "amd64", "Config": config["config"]}
+                if mismatch:
+                    actual["RootFS"]["Layers"] = ["sha256:" + "e" * 64]
+                fixture.engine = Mock(return_value=json.dumps([actual]))
+                def command(args, **kwargs):
+                    if args[:3] == ["docker", "image", "save"]:
+                        Path(args[4]).write_bytes(archive_path.read_bytes())
+                    else:
+                        self.assertTrue(kwargs["stdin"].read(1))
+                    return subprocess.CompletedProcess(args, 0, stdout=b"Loaded image ID: " + private.encode(), stderr=b"")
+                with patch("validate_docker_isolated.subprocess.run", side_effect=command):
+                    if mismatch:
+                        with self.assertRaisesRegex(RuntimeError, "verified exported configuration"):
+                            fixture.import_image(registered)
+                    else:
+                        self.assertEqual(fixture.import_image(registered), private)
+                        proof = json.loads((fixture.directory / "image-import-evidence.json").read_text())
+                        self.assertEqual(proof["images"][registered]["private_image"], private)
+                self.assertFalse([path for path in fixture.directory.glob("image-import-*") if path.is_dir()])
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -78,11 +158,13 @@ class FixtureLifecycleTests(unittest.TestCase):
                         official = fixture.directory / "official"
                         official.mkdir()
                         (official / "installation-evidence.json").write_text('{"complete":true}')
-                    fixture.import_image = Mock()
+                    private_images = {fixture.environment["GRAFT_BACKEND_IMAGE"]: "sha256:" + "d" * 64,
+                                      fixture.environment["GRAFT_WEB_IMAGE"]: "sha256:" + "e" * 64}
+                    fixture.import_image = Mock(side_effect=lambda image: private_images[image])
                     fixture.last_command_returncode = 0
                     fixture.compose = Mock(return_value="")
-                    fixture.engine = Mock(side_effect=lambda *args: fixture.environment["GRAFT_BACKEND_IMAGE"]
-                        if args[-1] == "container-server" else fixture.environment["GRAFT_WEB_IMAGE"])
+                    fixture.engine = Mock(side_effect=lambda *args: private_images[fixture.environment["GRAFT_BACKEND_IMAGE"]]
+                        if args[-1] == "container-server" else private_images[fixture.environment["GRAFT_WEB_IMAGE"]])
                     nested = Mock()
                     nested.compose.side_effect = lambda *args, **kwargs: "container-" + args[-1] if args[0] == "ps" else ""
                     nested.results = []
@@ -91,6 +173,7 @@ class FixtureLifecycleTests(unittest.TestCase):
                     with patch("validate_docker_isolated.OfficialFixture", return_value=nested):
                         with self.assertRaises(RuntimeError):
                             fixture.official_install()
+                    fixture.engine.assert_any_call("tag", "sha256:" + "d" * 64, "ghcr.io/gewuyou/graft-server:v0.0.0-beta.1")
                     self.assertFalse(completed_official_install(fixture.directory))
                     with self.assertRaisesRegex(RuntimeError, "successful local official-install"):
                         fixture.build_api()

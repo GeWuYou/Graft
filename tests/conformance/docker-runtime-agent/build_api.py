@@ -89,11 +89,11 @@ def verify_image_probe(fixture, image_id: str) -> dict:
 
 
 def prepare_registry(fixture, nested, directory):
-    images = fixture.environment
+    images = dict(fixture.environment)
     if not images.get("GRAFT_BUILD_REGISTRY_IMAGE") or not images.get("GRAFT_RELEASE_FIXTURE_IMAGE"):
         raise RuntimeError("build-api requires same-source --build-registry-image and --release-fixture-image")
-    fixture.import_image(images["GRAFT_BUILD_REGISTRY_IMAGE"])
-    fixture.import_image(images["GRAFT_RELEASE_FIXTURE_IMAGE"])
+    for key in ("GRAFT_BUILD_REGISTRY_IMAGE", "GRAFT_RELEASE_FIXTURE_IMAGE"):
+        images[key] = fixture.import_image(images[key])
     daemon(fixture, "mkdir", "-p", TRUST_ROOT + "/build")
     fixture.engine("run", "--rm", "-v", TRUST_ROOT + ":/fixture", images["GRAFT_RELEASE_FIXTURE_IMAGE"], "--init-ca")
     password = secrets.token_urlsafe(24)
