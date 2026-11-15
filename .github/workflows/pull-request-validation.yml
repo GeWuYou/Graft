@@ -473,9 +473,7 @@ jobs:
       - name: Run repository backend build/test stage
         working-directory: server
         env:
-          CGO_ENABLED: "0"
-          GOOS: linux
-          GOARCH: amd64
+          CGO_ENABLED: "1"
         run: go run ./cmd/graft validate backend --stage buildtest --test-report .tmp/test-results/server-go-test-ctrf.json
 
 
