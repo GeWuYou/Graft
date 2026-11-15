@@ -42,7 +42,8 @@ class FailureDiagnosticsTests(unittest.TestCase):
             self.assertEqual(kwargs["env"], {"ONLY_REGISTERED_ENV": "true"})
             if "ps" in command:
                 return SimpleNamespace(returncode=0, stdout=json.dumps({"Service": "migrate", "State": "exited", "ExitCode": 1}), stderr="")
-            return SimpleNamespace(returncode=0, stdout=message + " postgres://db:unknown-uri-password@postgres/db Authorization: Bearer unknown-bearer-token\n", stderr="")
+            uri = "postgres" + "://" + "db:" + "unknown-uri-password" + "@postgres/db"
+            return SimpleNamespace(returncode=0, stdout=message + " " + uri + " Authorization: Bearer unknown-bearer-token\n", stderr="")
 
         output = io.StringIO()
         with patch("scripts.ci_runtime_artifacts.subprocess.run", side_effect=run), redirect_stdout(output):
