@@ -7,6 +7,7 @@ from urllib.error import HTTPError
 from pathlib import Path
 import tempfile
 import sys
+import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -176,6 +177,157 @@ class FixtureAPIContractTests(unittest.TestCase):
             self.assertIn("safe-trace", evidence)
             self.assertIn("INVALID", evidence)
             self.assertNotIn("sensitive", evidence)
+
+
+class RuntimeRepairEvidenceTests(unittest.TestCase):
+    def test_original_runner_reuses_complete_restart_evidence(self):
+        runner = Path(__file__).resolve().parents[1] / "tests/conformance/docker-runtime-agent/run.sh"
+        script = runner.read_text()
+        self.assertEqual(script.count("$compose run --rm --no-deps docker-runtime-agent"), 2)
+        self.assertIn("--phase verify-bootstrap", script)
+        command = script.split('echo "[8/8]', 1)[1].split("| jq", 1)[0]
+        self.assertIn("--phase verify-restart", command)
+        self.assertIn("--agent-id", command)
+        for partial_flag in ("--target-id", "--identity-id", "--generation", "--receipt-count"):
+            self.assertNotIn(partial_flag, command)
+
+    def fixture(self, directory):
+        fixture = Fixture.__new__(Fixture)
+        fixture.directory = Path(directory)
+        fixture.state = {"project": "graft-isolated-test"}
+        fixture.environment = {}
+        fixture.compose = Mock(return_value="")
+        fixture.record = Mock()
+        return fixture
+
+    def identity(self, receipts):
+        return {"agent_id": "fixture", "target_id": 1, "identity_id": "identity", "generation": 2,
+                "ledger_receipt_count": receipts}
+
+    def test_once_requires_successful_exit_and_advanced_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (Path(directory) / "trust-evidence.json").write_text(json.dumps({"restart": self.identity(1)}))
+            fixture.wait_driver = Mock(side_effect=[self.identity(2), self.identity(3)])
+            with patch("validate_docker_isolated.subprocess.run") as cleanup:
+                fixture.once_probe()
+            fixture.record.assert_called_once()
+            self.assertEqual(fixture.record.call_args.args, ("agent-once-exit", "passed"))
+            calls = fixture.compose.call_args_list
+            one_shot = next(call for call in calls if "--once" in call.args)
+            self.assertEqual(one_shot.kwargs["timeout"], 60)
+            self.assertEqual(calls[-1].args, ("up", "-d", "--no-deps", "docker-runtime-agent"))
+            self.assertEqual(cleanup.call_args.args[0], ["docker", "rm", "-f", "graft-isolated-test-once-probe"])
+            self.assertTrue(fixture.record.call_args.kwargs["ledger_receipt_advanced"])
+            restart = fixture.wait_driver.call_args_list[-1]
+            self.assertEqual(restart.args, ("--phase", "verify-restart", "--agent-id", "fixture"))
+
+    def test_once_timeout_fails_and_restores_regular_agent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (Path(directory) / "trust-evidence.json").write_text(json.dumps({"restart": self.identity(1)}))
+            fixture.wait_driver = Mock(return_value=self.identity(2))
+            def compose(*args, **kwargs):
+                if "--once" in args:
+                    raise subprocess.TimeoutExpired("fixture-agent", 60)
+                return ""
+            fixture.compose.side_effect = compose
+            with patch("validate_docker_isolated.subprocess.run") as cleanup:
+                fixture.once_probe()
+            self.assertEqual(fixture.record.call_args.args, ("agent-once-exit", "failed"))
+            self.assertEqual(fixture.compose.call_args.args, ("up", "-d", "--no-deps", "docker-runtime-agent"))
+            cleanup.assert_called_once()
+
+    def test_once_receipt_without_advance_cannot_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (Path(directory) / "trust-evidence.json").write_text(json.dumps({"restart": self.identity(1)}))
+            fixture.wait_driver = Mock(return_value=self.identity(2))
+            with patch("validate_docker_isolated.subprocess.run"):
+                fixture.once_probe()
+            self.assertEqual(fixture.record.call_args.args, ("agent-once-exit", "failed"))
+
+    def test_import_readback_detects_persisted_field_drift(self):
+        self.assert_import_readback(persisted_target=99, expected_status="failed")
+
+    def test_import_readback_and_conflict_preserve_persisted_fields(self):
+        self.assert_import_readback(persisted_target=1, expected_status="passed")
+
+    def assert_import_readback(self, persisted_target, expected_status):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            identifier = "app_" + "0" * 26
+            expected = {"display_name": "Imported graft-import-probe-test", "runtime_target_id": 1,
+                        "compose_project_name": "compose-probe", "compose_project_name_source": "computed"}
+            detail = {key: value for key, value in expected.items() if key != "runtime_target_id"}
+            detail["runtime_target"] = {"id": 1}
+            fixture.api = Mock(side_effect=[
+                (200, {"data": {"items": [{"managed": True, "provider": "local", "root_id": "root"}]}}),
+                (200, {"data": {"inspection_id": "first", "compose_project_name": "compose-probe", "compose_project_name_source": "computed"}}),
+                (201, {"data": {"application": {"application_id": identifier}}}),
+                (200, {"data": detail}), (200, {"data": {"inspection_id": "second"}}), (409, {})])
+            fixture.persisted_application = Mock(return_value={**expected, "runtime_target_id": persisted_target})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                fixture.import_probe("/workspace", "services: {}", "container", 1, {})
+            results = {call.args[0]: call for call in fixture.record.call_args_list}
+            self.assertEqual(results["compose-import-readback"].args[1], expected_status)
+            self.assertEqual(results["compose-reimport-conflict"].args[1], "passed")
+            self.assertEqual(fixture.persisted_application.call_count, 2)
+            self.assertEqual(fixture.api.call_args_list[-1].args[2]["inspection_id"], "second")
+
+    def test_compose_stop_requires_engine_to_be_stopped(self):
+        for running, expected in (("true", "failed"), ("false", "passed")):
+            with self.subTest(running=running), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                (Path(directory) / "trust-evidence.json").write_text(json.dumps({"bootstrap": self.identity(1)}))
+                fixture.api = Mock(side_effect=[
+                    (201, {"data": {"application_id": "app-fixture", "workspace_path": "/workspace"}}),
+                    (202, {"data": {"task_id": 1}}), (202, {"data": {"task_id": 2}}),
+                    (409, {}), (500, {})])
+                fixture.wait_task = Mock(return_value={"status": "success"})
+                fixture.import_probe = Mock()
+                fixture.engine = Mock(side_effect=["graft-compose-probe-test-app", "true",
+                    "graft-relative-mount-verified", running])
+                with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                    fixture.application_probe()
+                results = {call.args[0]: call for call in fixture.record.call_args_list}
+                self.assertEqual(results["compose-stop"].args[1], expected)
+                self.assertEqual(results["compose-stop"].kwargs["engine_running"], running)
+
+    def test_compose_up_requires_running_container(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (Path(directory) / "trust-evidence.json").write_text(json.dumps({"bootstrap": self.identity(1)}))
+            fixture.api = Mock(side_effect=[
+                (201, {"data": {"application_id": "app-fixture", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 1}})])
+            fixture.wait_task = Mock(return_value={"status": "success"})
+            fixture.record.side_effect = [None, RuntimeError("up evidence recorded")]
+            fixture.engine = Mock(side_effect=["graft-compose-probe-test-app", "false"])
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                with self.assertRaisesRegex(RuntimeError, "up evidence recorded"):
+                    fixture.application_probe()
+            results = {call.args[0]: call for call in fixture.record.call_args_list}
+            self.assertEqual(results["compose-up"].args[1], "failed")
+            self.assertNotIn("compose-stop", results)
+
+    def test_container_restart_requires_started_at_change(self):
+        for after, expected in (("original", "failed"), ("new-start", "passed")):
+            with self.subTest(after=after), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                fixture.api = Mock(return_value=(202, {"data": {"task_id": 1}}))
+                fixture.wait_task = Mock(return_value={"status": "success"})
+                fixture.engine = Mock(side_effect=["original", "true", after])
+                fixture.container_action_probe("fixture", "restart", "true")
+                self.assertEqual(fixture.record.call_args.args, ("container-restart", expected))
+                self.assertEqual(fixture.record.call_args.kwargs["engine_started_at_changed"], after != "original")
+
+    def test_persisted_readback_rejects_noncanonical_application_identifier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            with self.assertRaisesRegex(RuntimeError, "invalid application identity"):
+                fixture.persisted_application("app_'; DELETE FROM applications")
+            fixture.compose.assert_not_called()
 
 
 if __name__ == "__main__":

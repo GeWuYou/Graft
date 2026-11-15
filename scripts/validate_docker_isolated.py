@@ -37,9 +37,9 @@ class Fixture:
         self.token = ""
         self.results: list[dict] = []
 
-    def compose(self, *arguments: str, check: bool = True) -> str:
+    def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
         result = subprocess.run(self.prefix + list(arguments), cwd=ROOT,
-                                env=self.environment, capture_output=True, text=True, timeout=600)
+                                env=self.environment, capture_output=True, text=True, timeout=timeout)
         self.last_command_returncode = result.returncode
         if check and result.returncode:
             # Command diagnostics are restricted local evidence, separate from the shareable report.
@@ -257,15 +257,19 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
         task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
         containers = self.engine("ps", "-a", "--format", "{{.Names}}").splitlines()
-        passed = task.get("status") == "success" and container in containers
+        running = self.engine("inspect", "--format", "{{.State.Running}}", container).strip() if container in containers else "missing"
+        passed = task.get("status") == "success" and running == "true"
         self.record("compose-up", "passed" if passed else "failed", http_status=status, task=task,
-                    engine_container_present=container in containers)
+                    engine_container_present=container in containers, engine_running=running)
         if passed:
             content = self.engine("exec", container, "cat", "/probe.txt").strip()
             self.record("compose-relative-bind", "passed" if content == "graft-relative-mount-verified" else "failed")
             status, response = self.api("POST", f"/api/ops/applications/{application}/stop", {})
             task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
-            self.record("compose-stop", "passed" if task.get("status") == "success" else "failed", http_status=status, task=task)
+            running = self.engine("inspect", "--format", "{{.State.Running}}", container).strip()
+            stopped = task.get("status") == "success" and running == "false"
+            self.record("compose-stop", "passed" if stopped else "failed", http_status=status, task=task,
+                        engine_running=running)
         workspace = created["workspace_path"]
         self.compose("exec", "-T", "backend", "mv", workspace + "/compose.yml", workspace + "/compose.missing")
         try:
@@ -275,28 +279,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         error_code=response.get("code"))
         finally:
             self.compose("exec", "-T", "backend", "mv", workspace + "/compose.missing", workspace + "/compose.yml")
-        imported_name = "graft-import-probe-" + secrets.token_hex(3)
-        imported_path = "/opt/graft/apps/" + imported_name
-        self.compose("exec", "-T", "backend", "mkdir", "-p", imported_path)
-        encoded = base64.b64encode(definition.replace(container, imported_name + "-app").encode()).decode()
-        self.compose("exec", "-T", "backend", "sh", "-ec", f"printf %s {encoded} | base64 -d > {imported_path}/compose.yml")
-        self.compose("exec", "-T", "backend", "cp", workspace + "/probe.txt", imported_path + "/probe.txt")
-        status, response = self.api("GET", "/api/ops/applications/import/directory-sources")
-        sources = (response.get("data") or {}).get("items", [])
-        source = next((item for item in sources if item.get("managed")), None)
-        if status != 200 or source is None:
-            self.record("compose-import", "failed", http_status=status, scope="Managed import root unavailable")
-            return
-        reference = {"provider": source["provider"], "root_id": source["root_id"], "path": imported_name}
-        status, response = self.api("POST", "/api/ops/applications/import/inspect", {"directory_ref": reference})
-        if status != 200:
-            self.record("compose-import-inspect", "failed", http_status=status, error_code=response.get("code"))
-            return
-        status, response = self.api("POST", "/api/ops/applications/import", {
-            "inspection_id": response["data"]["inspection_id"], "display_name": imported_name,
-            "lifecycle_configuration": policy})
-        self.record("compose-import", "passed" if status in (200, 201) else "failed", http_status=status,
-                    error_code=response.get("code"))
+        self.import_probe(workspace, definition, container, target, policy)
 
         interrupted_name = "graft-interruption-probe-" + secrets.token_hex(3)
         interrupted_container = interrupted_name + "-app"
@@ -337,8 +320,108 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                     same_container_and_started_at=before == after,
                     scope="Observed Task settlement and container identity after killing the executing Agent")
 
+    def persisted_application(self, identifier: str) -> dict:
+        if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
+            raise RuntimeError("Import returned an invalid application identity")
+        query = ("SELECT json_build_object('display_name', display_name, "
+                 "'runtime_target_id', runtime_target_id, 'compose_project_name', compose_project_name, "
+                 "'compose_project_name_source', compose_project_name_source) "
+                 f"FROM applications WHERE application_id = '{identifier}' AND deleted_at = 0")
+        result = self.compose("exec", "-T", "postgres", "psql", "-U", "graft", "-d", "graft", "-Atc", query)
+        return json.loads(result)
+
+    def import_probe(self, workspace: str, definition: str, container: str, target: int, policy: dict) -> None:
+        name = "graft-import-probe-" + secrets.token_hex(3)
+        display_name = "Imported " + name
+        imported_path = "/opt/graft/apps/" + name
+        self.compose("exec", "-T", "backend", "mkdir", "-p", imported_path)
+        encoded = base64.b64encode(definition.replace(container, name + "-app").encode()).decode()
+        self.compose("exec", "-T", "backend", "sh", "-ec", f"printf %s {encoded} | base64 -d > {imported_path}/compose.yml")
+        self.compose("exec", "-T", "backend", "cp", workspace + "/probe.txt", imported_path + "/probe.txt")
+        status, response = self.api("GET", "/api/ops/applications/import/directory-sources")
+        sources = (response.get("data") or {}).get("items", [])
+        source = next((item for item in sources if item.get("managed")), None)
+        if status != 200 or source is None:
+            self.record("compose-import", "failed", http_status=status, scope="Managed import root unavailable")
+            return
+        inspect_body = {"directory_ref": {"provider": source["provider"], "root_id": source["root_id"], "path": name}}
+        status, response = self.api("POST", "/api/ops/applications/import/inspect", inspect_body)
+        if status != 200:
+            self.record("compose-import-inspect", "failed", http_status=status, error_code=response.get("code"))
+            return
+        inspected = response["data"]
+        expected = {"display_name": display_name, "runtime_target_id": target,
+                    "compose_project_name": inspected["compose_project_name"],
+                    "compose_project_name_source": inspected["compose_project_name_source"]}
+        status, response = self.api("POST", "/api/ops/applications/import", {
+            "inspection_id": inspected["inspection_id"], "display_name": display_name,
+            "lifecycle_configuration": policy})
+        self.record("compose-import", "passed" if status in (200, 201) else "failed", http_status=status,
+                    error_code=response.get("code"))
+        if status not in (200, 201):
+            return
+        identifier = response["data"]["application"]["application_id"]
+        status, response = self.api("GET", f"/api/ops/applications/{identifier}")
+        detail = response.get("data") or {}
+        actual = {key: detail.get(key) for key in expected}
+        actual["runtime_target_id"] = (detail.get("runtime_target") or {}).get("id")
+        persisted = self.persisted_application(identifier)
+        self.record("compose-import-readback", "passed" if status == 200 and actual == expected and persisted == expected else "failed",
+                    http_status=status, expected=expected, api_fields=actual, persisted_fields=persisted)
+        status, response = self.api("POST", "/api/ops/applications/import/inspect", inspect_body)
+        if status != 200:
+            self.record("compose-reimport-conflict", "failed", http_status=status, scope="Second inspection failed")
+            return
+        status, _ = self.api("POST", "/api/ops/applications/import", {
+            "inspection_id": response["data"]["inspection_id"], "display_name": display_name + " changed",
+            "lifecycle_configuration": policy})
+        unchanged = self.persisted_application(identifier) == persisted
+        self.record("compose-reimport-conflict", "passed" if status == 409 and unchanged else "failed",
+                    http_status=status, persisted_fields_unchanged=unchanged,
+                    scope="Public import rejects registered workspace, store upsert updates require direct repository regression")
+
+    def once_probe(self) -> None:
+        saved = json.loads((self.directory / "trust-evidence.json").read_text())["restart"]
+        name = self.state["project"] + "-once-probe"
+        self.compose("stop", "docker-runtime-agent")
+        try:
+            before = self.wait_driver("--phase", "verify-bootstrap", "--agent-id", saved["agent_id"])
+            started = time.monotonic()
+            try:
+                self.compose("run", "--rm", "--no-deps", "--name", name, "docker-runtime-agent", "--once", timeout=60)
+            except (RuntimeError, subprocess.TimeoutExpired) as exc:
+                self.record("agent-once-exit", "failed", error_type=type(exc).__name__,
+                            elapsed_seconds=round(time.monotonic() - started, 2))
+                return
+            elapsed = round(time.monotonic() - started, 2)
+            after = self.wait_driver("--phase", "verify-restart", "--agent-id", before["agent_id"])
+            identity_fields = ("target_id", "agent_id", "identity_id", "generation")
+            same_identity = all(after[field] == before[field] for field in identity_fields)
+            advanced = after["ledger_receipt_count"] > before["ledger_receipt_count"]
+            self.record("agent-once-exit", "passed" if same_identity and advanced else "failed",
+                        exit_code=0, elapsed_seconds=elapsed, same_identity=same_identity,
+                        ledger_receipt_advanced=advanced)
+        finally:
+            try:
+                subprocess.run(["docker", "rm", "-f", name], cwd=ROOT, env=self.environment,
+                               capture_output=True, text=True, timeout=30, check=False)
+            finally:
+                self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
+
+    def container_action_probe(self, name: str, action: str, expected_running: str) -> None:
+        before = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
+        status, response = self.api("POST", f"/api/ops/containers/{name}/{action}", {})
+        task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
+        running = self.engine("inspect", "--format", "{{.State.Running}}", name).strip()
+        after = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
+        restarted = action != "restart" or before != after
+        passed = status == 202 and task.get("status") == "success" and running == expected_running and restarted
+        self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task,
+                    engine_running=running, engine_started_at_changed=before != after)
+
     def probe(self) -> None:
         self.authenticate()
+        self.once_probe()
         for key in ("ops.container.runtime.enabled", "ops.container.actions.dangerous_enabled", "ops.container.shell.enabled"):
             status, _ = self.api("PUT", "/api/system-configs/" + key, {"value": True})
             if status != 200:
@@ -356,11 +439,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         status, response = self.api("GET", f"/api/ops/containers/{name}/logs?tail=20")
         self.record("container-logs", "passed" if status == 200 and "graft-probe-ready" in json.dumps(response) else "failed", http_status=status)
         for action, expected in (("stop", "false"), ("start", "true"), ("restart", "true")):
-            status, response = self.api("POST", f"/api/ops/containers/{name}/{action}", {})
-            task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
-            running = self.engine("inspect", "--format", "{{.State.Running}}", name).strip()
-            passed = status == 202 and task.get("status") == "success" and running == expected
-            self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task, engine_running=running)
+            self.container_action_probe(name, action, expected)
         status, response = self.api("POST", f"/api/ops/containers/{name}/shell/sessions", {"command": "sh", "cols": 80, "rows": 24})
         self.record("shell-ticket", "passed" if status == 200 else "failed", http_status=status)
         if status == 200:

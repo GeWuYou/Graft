@@ -121,11 +121,7 @@ $compose run --rm --no-deps docker-runtime-agent
 echo "[8/8] verify restored identity, no second enrollment, and a fresh receipt"
 run_driver \
   --phase verify-restart \
-  --agent-id "$(jq -r '.agent_id' "$bootstrap_evidence")" \
-  --target-id "$(jq -r '.target_id' "$bootstrap_evidence")" \
-  --identity-id "$(jq -r '.identity_id' "$bootstrap_evidence")" \
-  --generation "$(jq -r '.generation' "$bootstrap_evidence")" \
-  --receipt-count "$(jq -r '.ledger_receipt_count' "$bootstrap_evidence")" | jq -e --slurpfile bootstrap "$bootstrap_evidence" '
+  --agent-id "$(jq -r '.agent_id' "$bootstrap_evidence")" | jq -e --slurpfile bootstrap "$bootstrap_evidence" '
     (.target_id | type == "number" and . > 0) and
     (.identity_id | type == "string" and length > 0) and
     (.generation | type == "number" and . > 0) and
