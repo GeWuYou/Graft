@@ -1,0 +1,99 @@
+# Local Task execution against a task-owned Docker Engine and disposable database.
+services:
+  docker-daemon:
+    image: ${GRAFT_CONFORMANCE_DOCKER_IMAGE:-docker:29.9.3-dind}
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["dockerd", "--host=unix:///run/graft-docker/docker.sock", "--storage-driver=overlay2", "--group=root"]
+    volumes:
+      - daemon-socket:/run/graft-docker
+      - daemon-data:/var/lib/docker
+      - application-workspaces:/opt/graft/apps
+    healthcheck:
+      test: ["CMD", "docker", "--host=unix:///run/graft-docker/docker.sock", "info"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  postgres:
+    image: postgres:17.12-alpine
+    environment:
+      POSTGRES_DB: graft
+      POSTGRES_USER: graft
+      POSTGRES_PASSWORD: ${GRAFT_CONFORMANCE_POSTGRES_PASSWORD:?GRAFT_CONFORMANCE_POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graft -d graft"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4.12-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  workspace-init:
+    image: alpine:3.24.4
+    command: ["sh", "-ec", "chown 10001:10001 /opt/graft/apps; chmod 0750 /opt/graft/apps"]
+    volumes:
+      - application-workspaces:/opt/graft/apps
+
+  migrate:
+    image: ${GRAFT_BACKEND_IMAGE:?GRAFT_BACKEND_IMAGE is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["/app/graft migrate up && exec /app/graft runtime mode preflight --mode local --format json"]
+    environment: &local-environment
+      GRAFT_APP_ENV: conformance
+      GRAFT_EXECUTION_MODE: local
+      GRAFT_DATABASE_URL: postgres://graft:${GRAFT_CONFORMANCE_POSTGRES_PASSWORD:?GRAFT_CONFORMANCE_POSTGRES_PASSWORD is required}@postgres:5432/graft?sslmode=disable
+      GRAFT_REDIS_ADDR: redis:6379
+      GRAFT_AUTH_JWT_SECRET: conformance-fixture-signing-secret
+      GRAFT_CONFIG_SCHEMA_VERSION: "1"
+      GRAFT_HTTP_ADDR: 0.0.0.0:8080
+      GRAFT_CREDENTIAL_VAULT_ENABLED: "false"
+      GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_ENABLED: "false"
+      GRAFT_HTTPX_AGENT_TLS_ENABLED: "false"
+      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: http://127.0.0.1:${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}
+    restart: "no"
+
+  backend:
+    image: ${GRAFT_BACKEND_IMAGE:?GRAFT_BACKEND_IMAGE is required}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      workspace-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      docker-daemon:
+        condition: service_healthy
+    environment:
+      <<: *local-environment
+    group_add: ["0"]
+    volumes:
+      - daemon-socket:/run
+      - application-workspaces:/opt/graft/apps
+      - build-snapshots:/tmp/graft-build-snapshots
+    ports:
+      - "127.0.0.1:${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  daemon-socket:
+  daemon-data:
+  postgres-data:
+  application-workspaces:
+  build-snapshots:

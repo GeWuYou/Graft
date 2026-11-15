@@ -257,6 +257,13 @@ def sync_instance_compose(root: Path, instance: str) -> str:
     env_path = directory / ".env"
     compose_path = directory / "compose.yml"
     env_values = parse_env(env_path)
+    # 旧安装缺少模式键时保持 Agent 执行归属，不能被新模板的 local 默认值悄悄切换。
+    if "GRAFT_EXECUTION_MODE" not in env_values:
+        env_values["GRAFT_EXECUTION_MODE"] = "agent"
+        profiles = [value for value in env_values.get("COMPOSE_PROFILES", "").split(",") if value]
+        if "agent" not in profiles:
+            profiles.append("agent")
+        env_values["COMPOSE_PROFILES"] = ",".join(profiles)
     tag = env_values["GRAFT_IMAGE_TAG"]
     revision = published_server_revision(tag)
     release_compose = download_release_file(revision, "compose.yml")

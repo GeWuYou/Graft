@@ -12,7 +12,8 @@ services:
       - |
         # Keep the one-time legacy-state cutover ahead of forward-only migrations.
         /app/graft update cutover-v1
-        exec /app/graft migrate up --allow-dirty
+        /app/graft migrate up --allow-dirty
+        exec /app/graft runtime mode preflight --mode "$${GRAFT_EXECUTION_MODE}" --format json
   application-root-init:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never

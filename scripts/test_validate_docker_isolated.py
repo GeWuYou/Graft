@@ -48,8 +48,37 @@ class PrivateDockerTopologyTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "nested secret mountpoints"):
             validate_topology(self.configuration)
 
+    def test_local_fixture_uses_private_backend_without_agent_or_vault(self):
+        services = self.configuration["services"]
+        del services["conformance-driver"]
+        del services["docker-runtime-agent"]
+        validate_topology(self.configuration, "local")
+        services["vault"] = {}
+        with self.assertRaisesRegex(RuntimeError, "without Vault or Agent"):
+            validate_topology(self.configuration, "local")
+
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_local_startup_needs_only_backend_image_and_no_trust_delivery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "instance.json").write_text(json.dumps({
+                "project": "graft-isolated-local-test", "execution_mode": "local", "environment": {}}))
+            fixture = Fixture(directory)
+            self.assertIn("compose.local.yml", fixture.prefix[-1])
+            topology = PrivateDockerTopologyTests()
+            topology.setUp()
+            del topology.configuration["services"]["conformance-driver"]
+            del topology.configuration["services"]["docker-runtime-agent"]
+            fixture.compose = Mock(side_effect=lambda *args: json.dumps(topology.configuration) if args[0] == "config" else "")
+            fixture.engine = Mock(return_value="local-engine")
+            fixture.up()
+            calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertIn(("up", "-d", "--wait", "docker-daemon", "postgres", "redis"), calls)
+            self.assertIn(("wait", "workspace-init"), calls)
+            self.assertFalse(any("vault" in args or "docker-runtime-agent" in args for args in calls))
+            self.assertTrue((directory / "local-readiness-evidence.json").exists())
+
     def test_waits_for_successful_one_shot_jobs_separately(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture.__new__(Fixture)
@@ -180,6 +209,29 @@ class FixtureAPIContractTests(unittest.TestCase):
 
 
 class RuntimeRepairEvidenceTests(unittest.TestCase):
+    def test_local_target_discovery_requires_unique_canonical_wire_target(self):
+        fixture = Fixture.__new__(Fixture)
+        fixture.api = Mock(return_value=(200, {"data": {"items": [{
+            "id": 7, "runtime": {"provider": "docker"}, "connection": {"kind": "unix_socket"}}]}}))
+        self.assertEqual(fixture.local_target_id(), 7)
+        fixture.api.return_value = (200, {"data": {"items": []}})
+        with self.assertRaisesRegex(RuntimeError, "uniquely discovered"):
+            fixture.local_target_id()
+
+    def test_local_interruption_requires_unknown_task_and_preserved_engine_effect(self):
+        for status, expected in (("needs_attention", "passed"), ("success", "failed")):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                fixture.state["execution_mode"] = "local"
+                fixture.api = Mock(side_effect=[(201, {"data": {"application_id": "app-fixture"}}),
+                    (202, {"data": {"task_id": 1}})])
+                fixture.wait_task = Mock(return_value={"status": status})
+                fixture.engine = Mock(side_effect=["graft-interruption-probe-test-app", "id started", "id started"])
+                with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                    fixture.interruption_probe({}, "services: {}", "original", {})
+                self.assertEqual(fixture.record.call_args.args, ("local-execution-interruption", expected))
+                self.assertIn(unittest.mock.call("kill", "--signal", "SIGKILL", "backend"), fixture.compose.call_args_list)
+
     def test_original_runner_reuses_complete_restart_evidence(self):
         runner = Path(__file__).resolve().parents[1] / "tests/conformance/docker-runtime-agent/run.sh"
         script = runner.read_text()

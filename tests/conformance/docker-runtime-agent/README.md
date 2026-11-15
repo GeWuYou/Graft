@@ -97,6 +97,29 @@ Agent Vault credentials or a database connection.
 
 ## Dedicated Docker daemon verification
 
+### Local Task execution
+
+`compose.local.yml` is a standalone private-engine fixture for local execution. It runs PostgreSQL, Redis, a private Docker daemon, workspace initialization, migrations and the backend. Its server image is the sole application image required for registration, with an exact source-revision label verified by the same runner.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --execution-mode local \
+  --directory .local/docker-isolated/local \
+  --project graft-isolated-local \
+  --source-revision <full-commit> \
+  --backend-image <backend-image> \
+  --port 28080
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/local
+python3 scripts/validate_docker_isolated.py probe --directory .local/docker-isolated/local
+python3 scripts/validate_docker_isolated.py stop --directory .local/docker-isolated/local
+```
+
+The local probe discovers the canonical Docker target through the public API, exercises the same container and Compose operations, checks import persistence, and kills the backend after an observable application side effect. It requires the restarted Task to enter `needs_attention` while preserving the container identity and start time. It also verifies read-only mode preflight and a failed image pull against a closed loopback registry port. Failed required assertions return a nonzero exit code and retain scoped evidence for diagnosis.
+
+Local fixture stop pauses all registered services. Guarded destroy removes only that instance's project and named volumes. Agent-mode registrations keep the existing Vault-retention lifecycle described below. Build publication and full platform self-update have separate acceptance boundaries, because this API fixture's backend runs outside its private daemon's managed topology. A full self-update exercise must install the official Compose topology inside that daemon and provide verified release images and controller artifacts from the tested commit.
+
+### Agent execution
+
 `compose.isolated.yml` overlays this fixture with a private Docker Engine. The Backend, Agent and fixture driver share only its named socket volume mounted at canonical `/run`. Alpine resolves `/var/run` through a symlink, so mounting `/run` lets the runtime order the parent volume before nested secret mounts. This private parent volume remains writable so the OCI runtime can create nested mountpoints, while the nested certificate and bootstrap volumes remain read-only. The daemon and application consumers use the same `/opt/graft/apps` volume path, so relative Compose bind mounts resolve against the daemon's actual filesystem. The Backend receives the private socket group explicitly.
 
 `python3 scripts/validate_docker_isolated.py --help` exposes `init`, `up`, `probe`, `status`, `stop` and guarded `destroy`. Run orchestration from the stable checkout with Docker available. Build the three fixture images from the same exact commit and label each image with `org.opencontainers.image.revision=<commit>`. `init` verifies that label and saves immutable local image IDs. Supply an ignored task evidence directory, a unique `graft-isolated-<task>` project, and three unused loopback ports starting at `--port`.
