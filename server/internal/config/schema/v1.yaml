@@ -1,5 +1,11 @@
 schema_version: 1
 environment:
+  - name: GRAFT_EXECUTION_MODE
+    type: string
+    default: agent
+    enum: [local, agent]
+    description: Finite Docker operation execution owner. New local installations explicitly select local.
+    introduced: v1.0.0
   - name: GRAFT_CONFIG_SCHEMA_VERSION
     type: integer
     required: true

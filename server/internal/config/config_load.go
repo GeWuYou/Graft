@@ -111,6 +111,7 @@ func readConfig(reader *viper.Viper) *Config {
 			MaxSessions:           reader.GetInt("mcp.max_sessions"),
 			MaxConcurrentRequests: reader.GetInt("mcp.max_concurrent_requests"),
 		},
+		Execution: ExecutionConfig{Mode: reader.GetString("execution.mode")},
 		Container: ContainerConfig{
 			Runtime:        reader.GetString("ops.container.runtime"),
 			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),
