@@ -4,7 +4,7 @@
 
 <h1 align="center">Graft</h1>
 
-<p align="center"><strong>一个自托管的应用平台。</strong></p>
+<p align="center"><strong>一个自托管的容器化应用运维平台。</strong></p>
 
 <p align="center">在一个界面中管理 Compose 应用、Docker 运行时，以及围绕它们的运维信号。</p>
 
@@ -21,7 +21,7 @@
 
 ## Graft 是什么？
 
-Graft 是面向 Docker 上 Compose 应用的自托管应用平台。它将应用记录、运行目标、容器资源与运维视图收敛到同一个管理界面，避免这些信息分散在多个工具中。
+Graft 是面向个人与小团队的自托管容器化应用运维平台，以 Docker 上的 Compose 应用为管理单位。它将应用记录、运行目标、容器资源与运维视图收敛到同一个管理界面，避免这些信息分散在多个工具中。
 
 当前可执行的部署适配器是 Compose，当前运行目标是本机 Docker。这个边界是有意保持清晰的，Graft 不会把尚未交付的提供方写成已支持的集成。
 
@@ -54,12 +54,15 @@ git clone https://github.com/GeWuYou/Graft.git
 cd Graft
 cp compose.env.example .env
 # 在 .env 中为 POSTGRES_PASSWORD 和 GRAFT_AUTH_JWT_SECRET 设置强密码。
+# 新安装使用 GRAFT_EXECUTION_MODE=local。
 # GRAFT_IMAGE_TAG 选择 server/web 共用的官方镜像版本：latest、beta 或固定发行版本（例如 v1.2.3）。
 docker compose pull
 docker compose up -d
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)。Compose 会启动 PostgreSQL 与 Redis，通过一次性 bootstrap 服务执行数据库迁移，再启动 server 和 web 服务。
+
+本机模式由 server 内的 Task Runtime 调度 Docker/Compose 执行。既有 Agent 安装显式设置 `GRAFT_EXECUTION_MODE=agent` 和 `COMPOSE_PROFILES=agent`，切换前遵循[迁移指南](docs/official-compose-migration.zh-CN.md)。
 
 首次登录使用默认管理员凭据 `graft` / `graft-admin`。Graft 会要求先修改这组初始化密码，之后才能进入管理后台。
 
@@ -106,6 +109,8 @@ bun run dev
 ## 路线图
 
 Graft 当前专注于完善并稳固已有的应用、运行时、可观测性和平台闭环。后续工作记录在 [MVP 实施计划](ai-plan/roadmap/MVP实施计划.md) 中；本 README 只介绍仓库中已经具备的能力。
+
+开发验证阶段、定向检查与 workspace 任务图见[开发验证](docs/development/validation.md)。
 
 ## 参与贡献
 

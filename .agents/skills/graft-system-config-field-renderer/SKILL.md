@@ -49,11 +49,7 @@ When changing a renderer, resolve new or uncertain TDesign API/DOM/version behav
 
 ## 5. Validation
 
-Use `graft-validation-runner` to select the smallest correct completion scope:
-
-- schema or server definition changes: focused Go tests for iteration, then `graft validate backend` for completion.
-- web renderer changes: focused directly affected tests for iteration, then `cd web && bun run check` for completion.
-- i18n governance changes: `cd web && bun run test:run scripts/check-i18n-governance.test.ts` and
-  `cd web && bun run lint:i18n` as supplemental checks before the applicable full entrypoint.
+Use `graft-validation-runner` under root validation phases. Commit preparation covers changed server definitions,
+web renderer consumers and affected i18n tests. Full CI runs the corresponding domain checks.
 
 Report any skipped validation command and the exact reason.

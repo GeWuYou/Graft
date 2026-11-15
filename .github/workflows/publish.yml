@@ -46,8 +46,7 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      - name: Install web dependencies for OpenAPI generation
-        working-directory: web
+      - name: Install workspace dependencies for OpenAPI generation
         run: bun install --frozen-lockfile
 
       - name: Generate OpenAPI bundle
@@ -107,12 +106,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             bun-${{ runner.os }}-
 
-      - name: Install web dependencies
-        working-directory: web
+      - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
       - name: Run web release validation
@@ -196,8 +194,7 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      - name: Install web dependencies for release binary validation
-        working-directory: web
+      - name: Install workspace dependencies for release binary validation
         run: bun install --frozen-lockfile
 
       - name: Generate OpenAPI bundle for release binary validation

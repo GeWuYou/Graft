@@ -26,3 +26,5 @@ execution lease, server no-socket and independent Update Controller boundary bef
 - Put repository-wide baseline prose in sibling `design/` directories rather than duplicating it inside ADRs.
 
 - [ADR-028: Risk-Based Agent Guidance](ADR-028-risk-based-agent-guidance.md)
+
+[ADR-029](ADR-029-local-application-operations.md) defines local application operations and phased engineering governance.

@@ -65,15 +65,12 @@ core/app/module/migration 需单一 owner。共享变更串行协调，不手写
 
 ## 后端验证与完成
 
-完成入口是 `cd server && go run ./cmd/graft validate backend`（已构建时同一入口 `graft validate backend`）。
-顺序：live migration 全局版本唯一检查 -> `graft validate backend --stage lint` -> 最小直接 go test ->
-`go build ./cmd/graft` -> 仅需要 runtime 证明且获授权时 `graft validate smoke`。
+完整领域入口为 `cd server && go run ./cmd/graft validate backend`，CI 执行默认迁移版本、OpenAPI、
+blocking lint、测试与构建。阶段和参数仍由同一 CLI 持有。
 
-唯一 blocking lint 为上述 stage，固定 golangci-lint v2.15.0，changed-file scoped
-`--new-from-rev=<merge-base> --whole-files`；不扩大 backlog，不把 untouched backlog 当当前阻塞。
-core 改动覆盖相关 internal 测试；schema/store/public contract 不用单包 smoke 替代行为覆盖。暂存 live SQL 的
-pre-commit 全局版本检查继续有效。仅跑 go test 或遗漏 lint/生成/migration 不能声明后端完成。
+迭代只做必要编译与有明确诊断目的的检查。提交准备按根验证阶段使用 `just check-local-plan` /
+`just check-local`，覆盖直接 Go 包和显式消费者测试；schema、迁移与生成契约变更继续完成对应生成和新鲜度检查。
+唯一 blocking lint 为 `graft validate backend --stage lint`，固定 golangci-lint v2.15.0，
+changed-file scoped `--new-from-rev=<merge-base> --whole-files`。完整 CI 结果是合并验收依据。
 
-复用未变输入的有效验证；治理文档切片做相应 docs/automation 检查，不伪造 server runtime 证据。最终报告 task class、
-owned scope、boundary decision、schema/migration owner、命令/结果/跳过原因、风险/回滚和文档同步；手写 Go 做
-graft-comment-governance 审查，注释实际改变时输出对应回执。
+复用未变输入的有效验证。报告执行命令、范围、失败和缺口，手写 Go 注释按 graft-comment-governance 审查。

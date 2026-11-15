@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `containerized-platform-governance`
+  - Recovery entry: `ai-plan/public/containerized-platform-governance/README.md`
+
 - `build-domain-v2`
   - Recovery entry: `ai-plan/public/build-domain-v2/README.md`
 
