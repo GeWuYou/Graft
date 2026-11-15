@@ -8120,7 +8120,7 @@ export interface components {
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
       /**
-       * @description Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
+       * @description Authority that produced this projection. task_recovery is Task Runtime's terminal or recovery projection and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
        * @enum {string}
        */
       state_source:
