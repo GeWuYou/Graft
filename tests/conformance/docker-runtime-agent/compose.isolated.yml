@@ -17,9 +17,19 @@ services:
       timeout: 3s
       retries: 30
 
+  workspace-init:
+    image: alpine:3.24.4
+    command: ["sh", "-ec", "chown 10001:10001 /opt/graft/apps; chmod 0750 /opt/graft/apps"]
+    volumes:
+      - application-workspaces:/opt/graft/apps
+
   backend:
+    environment:
+      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: http://127.0.0.1:${GRAFT_CONFORMANCE_BACKEND_PORT:-18080}
     group_add: ["0"]
     depends_on:
+      workspace-init:
+        condition: service_completed_successfully
       docker-daemon:
         condition: service_healthy
     volumes: !override
