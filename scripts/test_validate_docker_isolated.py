@@ -180,6 +180,17 @@ class FixtureAPIContractTests(unittest.TestCase):
 
 
 class RuntimeRepairEvidenceTests(unittest.TestCase):
+    def test_original_runner_reuses_complete_restart_evidence(self):
+        runner = Path(__file__).resolve().parents[1] / "tests/conformance/docker-runtime-agent/run.sh"
+        script = runner.read_text()
+        self.assertEqual(script.count("$compose run --rm --no-deps docker-runtime-agent"), 2)
+        self.assertIn("--phase verify-bootstrap", script)
+        command = script.split('echo "[8/8]', 1)[1].split("| jq", 1)[0]
+        self.assertIn("--phase verify-restart", command)
+        self.assertIn("--agent-id", command)
+        for partial_flag in ("--target-id", "--identity-id", "--generation", "--receipt-count"):
+            self.assertNotIn(partial_flag, command)
+
     def fixture(self, directory):
         fixture = Fixture.__new__(Fixture)
         fixture.directory = Path(directory)
