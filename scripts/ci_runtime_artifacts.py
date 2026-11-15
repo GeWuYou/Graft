@@ -298,9 +298,11 @@ def compose_failure_summary(prefix: list[str], root: Path, environment: dict, se
     services = [row.get("Service", "") for row in states
                 if row.get("State") in ("dead", "restarting") or row.get("Health") == "unhealthy"
                 or (row.get("State") == "exited" and row.get("ExitCode") not in (0, "0", None))]
+    services.sort()
+    services.extend(row["Service"] for row in states if row.get("Service") in ("backend", "server", "postgres"))
     if not services:
-        services = [row["Service"] for row in states if row.get("Service") in ("backend", "server", "migrate", "bootstrap", "config-validate")]
-    services = sorted({name for name in services if isinstance(name, str) and re.fullmatch(r"[a-zA-Z0-9_.-]+", name)})[:6]
+        services = [row["Service"] for row in states if row.get("Service") in ("migrate", "bootstrap", "config-validate")]
+    services = list(dict.fromkeys(name for name in services if isinstance(name, str) and re.fullmatch(r"[a-zA-Z0-9_.-]+", name)))[:6]
     log_code, logs = (0, "")
     if services:
         log_code, logs = diagnostic_command(prefix, ["logs", "--no-color", "--tail", "40", *services], root, environment)
