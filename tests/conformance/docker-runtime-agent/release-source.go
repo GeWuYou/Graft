@@ -103,7 +103,7 @@ func createFixtureCertificates(root string) error {
 		return err
 	}
 	leaf := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "Graft acceptance release source"},
-		DNSNames:  []string{"api.github.com", "github.com", "ghcr.io"},
+		DNSNames:  []string{"api.github.com", "github.com", "ghcr.io", "build-registry"},
 		NotBefore: now.Add(-5 * time.Minute), NotAfter: ca.NotAfter,
 		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, ca, &serverKey.PublicKey, caKey)

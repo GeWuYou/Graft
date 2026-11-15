@@ -128,6 +128,16 @@ For the real Controller restart boundary, also register a same-source `--runner-
 python3 scripts/validate_docker_isolated.py controller-smoke --directory .local/docker-isolated/local
 ```
 
+### Authenticated Build API publication
+
+`build-api` runs after a successful `official-install`. Build `Dockerfile.build-registry` using the repository root as its context and the same source-revision label. Its bcrypt helper compiles against the existing locked server module. Register that image with `--build-registry-image` together with the web and release-fixture images.
+
+The action starts a separate task-private TLS Registry with bcrypt-backed Basic authentication, requiring anonymous HTTP 401 and authenticated HTTP 200. A restricted synthetic credential file is mounted read-only through the existing `GRAFT_REGISTRY_CREDENTIALS_FILE` boundary. It then authorizes the runtime target and repository through public APIs, verifies the Registry connection, uploads a scratch Dockerfile archive, submits a real Build Task and checks the resulting artifact, publication, Docker image ID and remote manifest digest. Task, job, publication and log responses must exclude the synthetic password. Inspect `build-api/build-api-evidence.json` before guarded teardown.
+
+```sh
+python3 scripts/validate_docker_isolated.py build-api --directory .local/docker-isolated/local
+```
+
 ### Public Update API through server replacement
 
 `update-api` uses a separate fresh local registration. Build source and target server images from the same frozen commit with build versions `0.0.0-beta.1` and `0.0.0-beta.2`, and record both binary hashes. Build `Dockerfile.release-source` from this directory with the same revision label as the server, web and Controller images. Register the source server, target server, web, Controller and release-fixture image IDs, then run `up`, `official-install` and `update-api`.

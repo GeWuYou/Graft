@@ -235,10 +235,12 @@ class FixtureAPIContractTests(unittest.TestCase):
                 fixture.api("POST", "/api/ops/containers/probe/start", {}, idempotency_key="same-operation")
                 fixture.api("POST", "/api/ops/containers/probe/start", {}, idempotency_key="same-operation")
                 fixture.api("POST", "/api/ops/docker/images/pull", {"reference": "alpine"})
+                fixture.api("POST", "/api/build/jobs", {"input_snapshot_id": "fixture"}, idempotency_key="build-operation")
             headers = [dict(call.args[0].header_items()) for call in transport.call_args_list]
             self.assertEqual(headers[0]["Idempotency-key"], "same-operation")
             self.assertEqual(headers[1]["Idempotency-key"], "same-operation")
             self.assertEqual(len(headers[2]["Idempotency-key"]), 32)
+            self.assertEqual(headers[3]["Idempotency-key"], "build-operation")
 
     def test_nonblocking_command_preserves_failure_exit_code(self):
         with tempfile.TemporaryDirectory() as directory:

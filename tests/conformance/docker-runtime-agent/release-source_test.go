@@ -29,7 +29,7 @@ func TestFixtureTrustIsScopedToDeclaredHostsAndKeptOnResume(t *testing.T) {
 	}
 	roots := x509.NewCertPool()
 	roots.AppendCertsFromPEM(caPEM)
-	for _, hostname := range []string{"api.github.com", "github.com", "ghcr.io"} {
+	for _, hostname := range []string{"api.github.com", "github.com", "ghcr.io", "build-registry"} {
 		if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, DNSName: hostname}); err != nil {
 			t.Fatal(err)
 		}
