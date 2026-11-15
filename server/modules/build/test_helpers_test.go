@@ -47,6 +47,10 @@ func (r *recordingBuildRepository) ListBuildInputSnapshots(_ context.Context, _ 
 	return r.inputSnapshots, nil
 }
 
+func (*recordingBuildRepository) ListArtifactPublications(context.Context, string, int, int) (buildstore.ArtifactPublicationListResult, error) {
+	return buildstore.ArtifactPublicationListResult{}, nil
+}
+
 func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {
 	r.platformArtifacts = append(r.platformArtifacts, artifact)
 	return nil

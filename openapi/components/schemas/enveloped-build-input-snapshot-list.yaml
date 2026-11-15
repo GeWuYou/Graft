@@ -1,5 +1,6 @@
-type: object
-required: [data]
-properties:
-  data: { $ref: ./build-input-snapshot-list.yaml }
-additionalProperties: false
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    required: [data]
+    properties:
+      data: { $ref: ./build-input-snapshot-list.yaml }

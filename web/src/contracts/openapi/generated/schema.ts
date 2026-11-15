@@ -9568,7 +9568,7 @@ export interface components {
       limit: number;
       offset: number;
     };
-    'enveloped-build-input-snapshot-list': {
+    'enveloped-build-input-snapshot-list': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-input-snapshot-list'];
     };
     'build-input-snapshot-upload-request': {
@@ -9578,7 +9578,7 @@ export interface components {
        */
       archive: string;
     };
-    'enveloped-build-input-snapshot': {
+    'enveloped-build-input-snapshot': components['schemas']['api-envelope'] & {
       data: components['schemas']['build-input-snapshot'];
     };
     'build-workspace': {
