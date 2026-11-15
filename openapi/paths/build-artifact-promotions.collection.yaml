@@ -24,4 +24,5 @@ post:
     '403': { $ref: ../components/responses/forbidden.yaml }
     '404': { $ref: ../components/responses/not-found.yaml }
     '409': { description: Idempotency-Key was previously used with different Promotion input. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

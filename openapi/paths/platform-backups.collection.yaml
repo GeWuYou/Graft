@@ -50,4 +50,5 @@ post:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '409': { description: Idempotency-Key was previously used with a different submission input. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

@@ -109,7 +109,7 @@ func executeBuildOperation(ctx context.Context, c Environment, lease Request) Re
 	}
 	material, err := c.ResolveMaterial(ctx, lease)
 	if err != nil || material.Protocol != buildExecutionMaterialProtocol {
-		return failedExecution(failureProviderOperation)
+		return failedExecutionAt(failureProviderOperation, "material_resolve")
 	}
 	var resolved buildExecutionMaterial
 	if strictDecode(material.Payload, &resolved) != nil || !validBuildMaterial(lease.OperationID, resolved) {
@@ -117,7 +117,7 @@ func executeBuildOperation(ctx context.Context, c Environment, lease Request) Re
 	}
 	payload, failureCode := dispatchBuildOperation(ctx, c, lease.OperationID, resolved)
 	if failureCode != "" {
-		return failedExecution(failureCode)
+		return failedExecutionAt(failureCode, "build_execute")
 	}
 	if !validBuildResult(lease.OperationID, payload) {
 		return failedExecution(failureProviderOperation)

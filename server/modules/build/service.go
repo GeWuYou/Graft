@@ -409,7 +409,8 @@ func (s *Service) activatedSubmissionReceipt(ctx context.Context, taskID uint64)
 
 func buildExternalExecution(targetID int64, operation string, input json.RawMessage) *moduleapi.ExternalExecutionExpectation {
 	digest := sha256.Sum256(input)
-	return &moduleapi.ExternalExecutionExpectation{RuntimeTargetID: targetID, ProviderID: buildExecutionProvider, Capability: buildExecutionCapability, CapabilityVersion: buildExecutionVersion, Protocol: buildExecutionProtocol, OperationID: operation, PayloadSHA256: hex.EncodeToString(digest[:]), LeaseTTL: buildExternalLeaseTTL, AbsoluteDeadline: buildExternalDeadline}
+	keys := buildExecutionResourceKeys(input)
+	return &moduleapi.ExternalExecutionExpectation{ResourceKeys: keys, RuntimeTargetID: targetID, ProviderID: buildExecutionProvider, Capability: buildExecutionCapability, CapabilityVersion: buildExecutionVersion, Protocol: buildExecutionProtocol, OperationID: operation, PayloadSHA256: hex.EncodeToString(digest[:]), LeaseTTL: buildExternalLeaseTTL, AbsoluteDeadline: buildExternalDeadline}
 }
 
 func newBuildID() (string, error) {
@@ -418,4 +419,17 @@ func newBuildID() (string, error) {
 		return "", fmt.Errorf("generate build id: %w", err)
 	}
 	return fmt.Sprintf("build_%x", value), nil
+}
+
+// buildExecutionResourceKeys 冻结旧构建与产物复制的非秘密发布目标身份。
+func buildExecutionResourceKeys(input json.RawMessage) []string {
+	var promotion moduleapi.ArtifactPromotionTaskInput
+	if json.Unmarshal(input, &promotion) == nil && promotion.Destination.RepositoryRef != "" {
+		return []string{"registry:" + promotion.Destination.ConnectionRef + ":" + promotion.Destination.RepositoryRef + ":" + promotion.Destination.Reference}
+	}
+	var legacy moduleapi.BuildTaskInput
+	if json.Unmarshal(input, &legacy) == nil && legacy.ImageRepository != "" {
+		return []string{"image:" + legacy.ImageRepository + ":" + legacy.ImageTag}
+	}
+	return nil
 }

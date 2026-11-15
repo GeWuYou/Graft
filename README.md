@@ -4,7 +4,7 @@
 
 <h1 align="center">Graft</h1>
 
-<p align="center"><strong>A self-hosted application platform.</strong></p>
+<p align="center"><strong>A self-hosted containerized application operations platform.</strong></p>
 
 <p align="center">Manage Compose applications, their Docker runtime, and the operational signals around them from one place.</p>
 
@@ -21,7 +21,7 @@
 
 ## What is Graft?
 
-Graft is a self-hosted application platform for teams that run Compose applications on Docker. It keeps application records, runtime targets, container resources, and operational views in a single admin surface instead of scattering them across separate tools.
+Graft is a self-hosted containerized application operations platform for individuals and small teams that run Compose applications on Docker. It keeps application records, runtime targets, container resources, and operational views in a single admin surface instead of scattering them across separate tools.
 
 Its current deployment adapter is Compose and its current runtime target is Local Docker. Those boundaries are deliberate: Graft does not present unfinished providers as supported integrations.
 
@@ -54,12 +54,15 @@ git clone https://github.com/GeWuYou/Graft.git
 cd Graft
 cp compose.env.example .env
 # Set strong values for POSTGRES_PASSWORD and GRAFT_AUTH_JWT_SECRET in .env.
+# Fresh installations use GRAFT_EXECUTION_MODE=local.
 # GRAFT_IMAGE_TAG selects the shared official server/web version: latest, beta, or a fixed release tag such as v1.2.3.
 docker compose pull
 docker compose up -d
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The Compose stack brings up PostgreSQL and Redis, runs database migrations through the one-shot bootstrap service, then starts the server and web services.
+
+Local mode connects the server Task Runtime directly to Docker/Compose execution. Existing Agent installations use explicit `GRAFT_EXECUTION_MODE=agent` and `COMPOSE_PROFILES=agent`. Follow the [migration guide](docs/official-compose-migration.md) before switching execution modes.
 
 On the first sign-in, use the default administrator credentials `graft` / `graft-admin`. Graft requires this initial password to be changed before the admin shell can be used.
 
@@ -101,11 +104,12 @@ See the [deployment configuration template](compose.env.example) and [Compose to
 - [Frontend architecture](ai-plan/design/architecture/前端架构设计.md) documents the Vue admin shell and module ownership.
 - [OpenAPI contract](openapi/openapi.yaml) is the canonical HTTP API description.
 - [Official Compose migration](docs/official-compose-migration.md) explains the deployment requirements for controlled upgrades.
+- [Development validation](docs/development/validation.md) describes scoped preparation, full CI and the workspace task graph.
 - [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md) records the currently approved platform scope.
 
 ## Roadmap
 
-Graft is focused on completing and hardening its existing application, runtime, observability, and platform loops. Planned work is tracked in the [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md); this README only describes capabilities that are present in the repository.
+Graft first completes single-host Docker/Compose operations, Build and controlled platform updates. Subsequent work strengthens recovery, application data backups, domain/HTTPS setup and everyday diagnostics. The [implementation plan](ai-plan/roadmap/MVP实施计划.md) records delivery and acceptance stages.
 
 ## Contributing
 

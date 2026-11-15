@@ -1,0 +1,63 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": [
+    "scripts/turbo.mjs",
+    "package.json",
+    "bun.lock"
+  ],
+  "tasks": {
+    "build": {
+      "cache": false
+    },
+    "test": {
+      "cache": false
+    },
+    "check:source": {
+      "cache": false
+    },
+    "check:tests": {
+      "cache": false,
+      "dependsOn": [
+        "check:source"
+      ]
+    },
+    "graft-web#build": {
+      "cache": true,
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/openapi/**",
+        "$TURBO_ROOT$/scripts/ensure-openapi-bundle.mjs",
+        "$TURBO_ROOT$/web/.env*"
+      ],
+      "outputs": [
+        "dist/**"
+      ],
+      "env": [
+        "GRAFT_BUILD_CONTEXT",
+        "VITE_*",
+        "NODE_ENV",
+        "NODE_OPTIONS",
+        "BUN_OPTIONS",
+        "BROWSERSLIST_ENV",
+        "SOURCE_DATE_EPOCH",
+        "TZ"
+      ]
+    },
+    "graft-web#check:tests": {
+      "cache": false,
+      "dependsOn": [
+        "check:source"
+      ]
+    },
+    "graft-web#check:build": {
+      "cache": false,
+      "dependsOn": [
+        "check:source",
+        "build"
+      ]
+    },
+    "check:code": {
+      "cache": false
+    }
+  }
+}

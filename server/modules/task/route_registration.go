@@ -279,20 +279,25 @@ func taskSummaryResponses(tasks []moduleapi.TaskView) []map[string]any {
 // taskStageResponse 将任务阶段视图转换为 API 响应对象。
 // 返回包含阶段标识、执行信息、状态、时间信息及失败详情的字段映射。
 func taskStageResponse(stage moduleapi.TaskStageView) map[string]any {
+	if stage.ExecutionMode == "" {
+		stage.ExecutionMode = "server"
+	}
 	return map[string]any{
-		"id":              stage.ID,
-		"key":             stage.Key,
-		"sequence":        stage.Sequence,
-		"executor_type":   stage.ExecutorType,
-		"status":          stage.Status,
-		"attempt":         stage.Attempt,
-		"max_attempts":    stage.MaxAttempts,
-		"recovery_policy": stage.RecoveryPolicy,
-		"started_at":      stage.StartedAt,
-		"finished_at":     stage.FinishedAt,
-		"duration_ms":     stage.DurationMS,
-		"failure_code":    stage.FailureCode,
-		"failure_message": stage.FailureMessage,
+		"id":                stage.ID,
+		"key":               stage.Key,
+		"sequence":          stage.Sequence,
+		"executor_type":     stage.ExecutorType,
+		"execution_mode":    stage.ExecutionMode,
+		"execution_version": stage.ExecutionVersion,
+		"status":            stage.Status,
+		"attempt":           stage.Attempt,
+		"max_attempts":      stage.MaxAttempts,
+		"recovery_policy":   stage.RecoveryPolicy,
+		"started_at":        stage.StartedAt,
+		"finished_at":       stage.FinishedAt,
+		"duration_ms":       stage.DurationMS,
+		"failure_code":      stage.FailureCode,
+		"failure_message":   stage.FailureMessage,
 	}
 }
 

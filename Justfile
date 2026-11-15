@@ -15,7 +15,9 @@ help:
       '  just check             Run completion-state server + web checks' \
       '  just check-server      Run the authoritative backend completion check' \
       '  just check-web         Run the authoritative frontend completion check' \
-      '  just check-changed     Run the smallest local check for current changes' \
+      '  just check-changed     Run worktree-scoped commit-preparation checks' \
+      '  just check-local-plan  Inspect scoped checks and coverage gaps' \
+      '  just check-local       Execute scoped checks and explicit consumer tests' \
       '  just lint              Run the highest-value local lint slices' \
       '  just lint-server       Run the authoritative backend lint stage' \
       '  just buildtest-server  Run the authoritative backend build/test stage' \
@@ -34,7 +36,6 @@ help:
 
 setup:
     bun install --frozen-lockfile
-    cd web && bun install --frozen-lockfile
     cd server && go mod download
 
 dev:
@@ -51,8 +52,8 @@ web:
 
 check:
     just ensure-openapi-bundle
-    cd server && go run ./cmd/graft validate backend
-    cd web && bun run check
+    just check-governance
+    bun run check:code
 
 check-server:
     just ensure-openapi-bundle
@@ -61,29 +62,25 @@ check-server:
 check-web:
     cd web && bun run check
 
-check-changed:
-    changed="$$(git diff --cached --name-only --diff-filter=ACMR || true)"; \
-    if [ -z "$$changed" ]; then changed="$$(git diff HEAD --name-only --diff-filter=ACMR || true)"; fi; \
-    if [ -z "$$changed" ]; then echo 'No changed files detected; running just check.'; just check; exit 0; fi; \
-    if printf '%s\n' "$$changed" | rg -q '^(AGENTS\.md|README\.md|Justfile|\.github/|\.vscode/|\.ai/|ai-plan/|scripts/|openapi/)'; then \
-      echo 'Shared governance or contract changes detected; running just check.'; \
-      just check; \
-    elif printf '%s\n' "$$changed" | rg -q '^server/'; then \
-      if printf '%s\n' "$$changed" | rg -q '^web/'; then \
-        echo 'Both server and web changes detected; running just check.'; \
-        just check; \
-      else \
-        echo 'Server-only changes detected; running backend lint and build/test stages.'; \
-        just lint-server; \
-        just buildtest-server; \
-      fi; \
-    elif printf '%s\n' "$$changed" | rg -q '^web/'; then \
-      echo 'Web-only changes detected; running just check-web.'; \
-      just check-web; \
-    else \
-      echo 'Non-runtime changes detected; running git diff --check.'; \
-      git diff --check; \
-    fi
+# Worktree checks select paths and explicit consumers. Full checks remain explicit.
+[positional-arguments]
+check-local-plan *args:
+    python3 -B scripts/local_validation.py --plan "$@"
+
+[positional-arguments]
+check-local *args:
+    python3 -B scripts/local_validation.py --execute "$@"
+
+[positional-arguments]
+check-changed *args:
+    python3 -B scripts/local_validation.py --execute "$@"
+
+check-governance:
+    python3 -B scripts/validate_ai_governance.py
+    python3 -B scripts/validate_ai_plan_structure.py
+    python3 -B scripts/validate_shared_asset_registries.py
+    python3 -B -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py
+    node --test scripts/test-turbo.mjs
 
 lint:
     just lint-server

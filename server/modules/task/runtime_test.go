@@ -590,7 +590,7 @@ func assertExternalReceiptSettlement(t *testing.T, outcome moduleapi.ExternalRec
 	if task := mustTask(t, repository, receipt.TaskID); task.Status != wantTask {
 		t.Fatalf("task status = %q, want %q", task.Status, wantTask)
 	}
-	assertExternalReceiptStageAndEvent(t, repository, receipt.TaskID, wantStage, 3)
+	assertExternalReceiptStageAndEvent(t, repository, receipt.TaskID, wantStage, 2)
 }
 
 func TestRuntimeRejectsMismatchedOrConflictingExternalReceiptAndReplaysExactReceipt(t *testing.T) {
@@ -1009,6 +1009,10 @@ func recoveredExternalReceiptTask(t *testing.T) (*Runtime, *taskstore.SQLReposit
 	runtime, repository, receipt := claimedExternalReceiptTask(t)
 	if _, err := repository.RecoverInterruptedStages(context.Background(), time.Now().UTC()); err != nil {
 		t.Fatalf("recover interrupted stage: %v", err)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusRunning {
+		t.Fatalf("independent receipt must survive server recovery: %#v %v", stages, err)
 	}
 	return runtime, repository, receipt
 }

@@ -51,5 +51,6 @@ post:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

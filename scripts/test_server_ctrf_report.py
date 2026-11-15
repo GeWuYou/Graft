@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import io
+import json
+import os
+import shutil
+import subprocess
 import importlib.util
 from pathlib import Path
 import sys
@@ -120,6 +124,43 @@ class MainTests(unittest.TestCase):
             run_pipeline.assert_called_once()
             self.assertNotEqual(exit_code, 0)
             self.assertIn("expected CTRF report at", stderr.getvalue())
+
+
+class FixturePipelineTests(unittest.TestCase):
+    def test_real_helper_pipeline_writes_relative_report_at_repository_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            helper = root / "scripts" / "test-reporting" / SCRIPT_PATH.name
+            helper.parent.mkdir(parents=True)
+            shutil.copyfile(SCRIPT_PATH, helper)
+            (root / "server").mkdir()
+            binary_directory = root / "bin"
+            binary_directory.mkdir()
+            fake_go = binary_directory / "go"
+            fake_go.write_text(
+                "#!" + sys.executable + "\n"
+                "import json, os, pathlib, sys\n"
+                "if sys.argv[1] == 'test':\n"
+                "    print(json.dumps({'Action': 'pass', 'Package': 'fixture'}))\n"
+                "elif sys.argv[1] == 'run':\n"
+                "    output = pathlib.Path(sys.argv[sys.argv.index('-output') + 1])\n"
+                "    output.write_text(json.dumps({'cwd': os.getcwd(), 'events': [json.loads(line) for line in sys.stdin]}))\n"
+                "else:\n"
+                "    raise SystemExit(99)\n"
+            )
+            fake_go.chmod(0o755)
+            result = subprocess.run(
+                [sys.executable, str(helper), "--output", ".tmp/test-results/server.json"],
+                cwd=root / "server", capture_output=True, text=True,
+                env={**os.environ, "PATH": str(binary_directory) + os.pathsep + os.environ["PATH"]},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = root / ".tmp/test-results/server.json"
+            self.assertTrue(report.is_file())
+            self.assertFalse((root / "server/.tmp/test-results/server.json").exists())
+            content = json.loads(report.read_text())
+            self.assertEqual(content["cwd"], str(root))
+            self.assertEqual(content["events"], [{"Action": "pass", "Package": "fixture"}])
 
 
 if __name__ == "__main__":

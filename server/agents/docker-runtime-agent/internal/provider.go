@@ -31,11 +31,6 @@ func executeProviderOperation(ctx context.Context, client *http.Client, c config
 	}, dockerexecution.Request{Capability: lease.Capability, Protocol: lease.Protocol, OperationID: lease.OperationID, Input: lease.Input})
 }
 
-func executeContainerOperation(ctx context.Context, c config, lease executionLease) executionResult {
-	lease.Capability = "container_execution"
-	return dockerexecution.Execute(ctx, dockerexecution.Environment{DockerSocket: c.DockerSocket}, dockerexecution.Request{Capability: lease.Capability, Protocol: lease.Protocol, OperationID: lease.OperationID, Input: lease.Input})
-}
-
 func strictDecode(payload []byte, destination any) error {
 	return dockerexecution.Decode(payload, destination)
 }

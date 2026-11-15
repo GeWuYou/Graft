@@ -20,3 +20,19 @@ func TestExecutionModePreservesLegacyDefaultAndExplicitLocal(t *testing.T) {
 		t.Fatal("unknown mode accepted")
 	}
 }
+
+func TestConfigurationPreflightEnforcesDeclaredExecutionModeEnum(t *testing.T) {
+	report, err := ResolveAndValidate(ResolveOptions{Set: []string{"GRAFT_CONFIG_SCHEMA_VERSION=1", "GRAFT_AUTH_JWT_SECRET=synthetic-test-secret", "GRAFT_EXECUTION_MODE=invalid"}})
+	if err == nil {
+		t.Fatal("preflight accepted an unsupported execution mode")
+	}
+	found := false
+	for _, item := range report.Findings {
+		if item.Key == "GRAFT_EXECUTION_MODE" && item.Code == "invalid_value" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("mode finding missing: %#v", report.Findings)
+	}
+}

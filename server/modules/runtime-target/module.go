@@ -37,20 +37,22 @@ const runtimeTargetListKeywordMaxLength = 128
 
 // Module 暴露 runtime-target API 路由，并提供有界的 Docker Target 发现与 provider 能力。
 type Module struct {
-	repository      *store.SQLRepository
-	pepper          *config.EnrollmentPepperProvider
-	summaries       *summaryCache
-	authorizer      moduleapi.Authorizer
-	realtimeTickets realtimeauth.Service
-	topicIssuers    realtime.TopicIssuerRegistry
-	collector       *runtimeTargetSummaryCollector
-	runtimeLogger   *zap.Logger
-	i18n            *i18n.Service
-	events          event.TransactionalPublisher
-	savedViews      moduleapi.SavedViewService
-	users           moduleapi.UserIdentityProvider
-	candidates      moduleapi.UserCandidateReader
-	userSummaries   moduleapi.UserSummaryBatchReader
+	executionMode      string
+	executionAdmission moduleapi.TaskExecutionAdmissionReader
+	repository         *store.SQLRepository
+	pepper             *config.EnrollmentPepperProvider
+	summaries          *summaryCache
+	authorizer         moduleapi.Authorizer
+	realtimeTickets    realtimeauth.Service
+	topicIssuers       realtime.TopicIssuerRegistry
+	collector          *runtimeTargetSummaryCollector
+	runtimeLogger      *zap.Logger
+	i18n               *i18n.Service
+	events             event.TransactionalPublisher
+	savedViews         moduleapi.SavedViewService
+	users              moduleapi.UserIdentityProvider
+	candidates         moduleapi.UserCandidateReader
+	userSummaries      moduleapi.UserSummaryBatchReader
 }
 
 // NewModule 构造 runtime-target 模块实例。省略 pepper 时，Agent Bootstrap authority 保持未配置并拒绝引导请求。
@@ -75,7 +77,14 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerRuntimeTargetDashboardWidget(ctx, m.repository); err != nil {
 		return err
 	}
+	if admission, err := module.ResolveService[moduleapi.TaskExecutionAdmissionReader](ctx.Services, (*moduleapi.TaskExecutionAdmissionReader)(nil)); err == nil {
+		m.executionAdmission = admission
+	}
 	m.runtimeLogger = ctx.Logger
+	m.executionMode = config.ExecutionModeAgent
+	if ctx.Config != nil && ctx.Config.Execution.Mode != "" {
+		m.executionMode = ctx.Config.Execution.Mode
+	}
 	m.i18n = ctx.I18n
 	if ctx.EventTxPublisher == nil {
 		return errors.New("runtime target event transaction publisher is unavailable")
@@ -851,6 +860,7 @@ func (m *Module) toHTTPSummary(ctx context.Context, target store.Target) generat
 	snapshot := m.snapshot(ctx, target)
 	checkedAt := snapshot.CheckedAt
 	response := generated.RuntimeTargetSummary{Id: int64(target.ID), DisplayName: target.DisplayName}
+	response.Execution = m.executionReadiness(ctx, target)
 	response.Runtime.Provider = generated.RuntimeTargetSummaryRuntimeProviderDocker
 	response.Runtime.Type = generated.RuntimeTargetSummaryRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
@@ -879,6 +889,7 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	snapshot := m.snapshot(ctx, target)
 	checkedAt := snapshot.CheckedAt
 	response := generated.RuntimeTarget{Id: int64(target.ID), DisplayName: target.DisplayName}
+	response.Execution = m.executionReadiness(ctx, target)
 	response.Runtime.Provider = generated.RuntimeTargetRuntimeProviderDocker
 	response.Runtime.Type = generated.RuntimeTargetRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
@@ -1023,4 +1034,54 @@ func (m *Module) publishRefreshAuditTx(ctx context.Context, tx *sql.Tx, target s
 	}
 	_, err = m.events.PublishTx(ctx, tx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
 	return err
+}
+
+// executionReadiness 将本机 SDK 执行与 Agent 身份投影分开，列表读取成功只证明连接可读。
+func (m *Module) executionReadiness(ctx context.Context, target store.Target) *generated.RuntimeTargetExecution {
+	mode := m.executionMode
+	if mode == "" {
+		mode = config.ExecutionModeAgent
+	}
+	result := &generated.RuntimeTargetExecution{Mode: generated.RuntimeTargetExecutionMode(mode), Capabilities: []generated.RuntimeTargetExecutionCapabilities{}}
+	if m.executionAdmission == nil {
+		result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_runtime_stopped")
+		return result
+	}
+	admission := m.executionAdmission.ExecutionAdmission()
+	if !admission.Ready {
+		result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode(admission.DiagnosticCode)
+		return result
+	}
+	if admission.Mode != mode {
+		result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_mode_mismatch")
+		return result
+	}
+
+	result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("docker_unavailable")
+	if !target.Availability {
+		return result
+	}
+	if mode == config.ExecutionModeLocal {
+		if !isLocalDockerExecutionTarget(target) {
+			result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_mode_mismatch")
+			return result
+		}
+		result.Ready = true
+	} else {
+		agent := m.toHTTPAgent(ctx, target)
+		result.Ready = agent.Status == generated.RuntimeTargetAgentStatusReady
+		if !result.Ready {
+			result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("agent_unavailable")
+			return result
+		}
+	}
+	result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_ready")
+	for _, capability := range localDockerRuntimeAgentCapabilities {
+		result.Capabilities = append(result.Capabilities, generated.RuntimeTargetExecutionCapabilities(capability))
+	}
+	return result
+}
+
+func isLocalDockerExecutionTarget(target store.Target) bool {
+	return target.Provider == "docker" && target.ConnectionKind == "unix_socket" && target.EndpointLabel == localDockerEndpoint
 }

@@ -5,7 +5,7 @@ description: "Select the smallest correct Graft validation scope and report comp
 
 # Graft Validation Runner
 
-Use this skill to choose the correct validation scope for `Graft` without inventing a second validation truth.
+Use this skill to choose the correct phase and validation scope for `Graft` without inventing a second validation truth.
 
 ## Preconditions
 
@@ -19,7 +19,7 @@ README files, tracking docs, skills, and CI workflows may point to these entrypo
 but they must not redefine acceptance criteria, command order, or local-vs-CI environment rules.
 
 Reuse passing results for unchanged code and unchanged relevant dependencies. Skill transitions alone do not justify
-rerunning checks; hooks, CI, and task-class completion entrypoints remain effective.
+rerunning checks; hooks, CI, and phase-specific preparation and full CI entrypoints remain effective.
 
 ## Validation Workflow
 
@@ -34,16 +34,18 @@ rerunning checks; hooks, CI, and task-class completion entrypoints remain effect
    - `cross-boundary`
    - `docs or automation`
 3. For `server` work:
-   - for completion-state work, prefer `cd server && go run ./cmd/graft validate backend`
+   - for commit preparation, use `just check-local-plan` / `just check-local` with explicit consumer tests
+   - for full CI or explicit full validation, use `cd server && go run ./cmd/graft validate backend`
    - for intermediate iteration, prefer the smallest `go test` or `go build` scope that covers the touched code
    - widen to `go test ./...` or `go build ./...` when shared abstractions, lifecycle code, plugin wiring, or dependency resolution changed
    - if you use `graft validate backend --stage ...`, report it as an execution-layer slice of the unified backend entrypoint, not as a second validation contract
 4. For `web` work:
-   - for completion-state work, prefer `cd web && bun run check`
+   - for commit preparation, select changed files and consumer tests through the same local planner
+   - for full CI or explicit full validation, use `cd web && bun run check`
    - for intermediate iteration, prefer the smallest direct command that proves the changed TypeScript, route, page, style, or test surface
    - use .ai/environment/tools.ai.yaml to confirm the repository current Bun toolchain instead of inventing a second local rule
 5. For `cross-boundary` work:
-   - validate both sides when contracts, menus, routes, permissions, lifecycle semantics, or shared validation entrypoints changed
+   - select consumers on both sides when contracts, menus, routes, permissions, lifecycle semantics, or shared validation entrypoints changed; full CI covers both domains
 6. For docs or automation work:
    - validate the referenced entrypoints, environment rules, and workflow/doc wording instead of pretending the slice has runtime coverage
    - prefer structural checks such as `rg`, `sed`, `git diff`, CLI help output, or YAML parsing
@@ -63,3 +65,5 @@ rerunning checks; hooks, CI, and task-class completion entrypoints remain effect
 * keep validation claims proportional to the repository's current maturity
 * when human judgment remains, report `human_acceptance: awaiting_human_acceptance` and provide the concise acceptance
   contract defined by `AI代码生成与Review规范.md`; do not substitute browser artifacts for that contract
+
+Phase timing and worktree/index evidence are defined in [development validation](../../../docs/development/validation.md).

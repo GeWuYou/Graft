@@ -169,6 +169,9 @@ jobs:
       - name: Run AI governance validator tests
         run: python3 -m unittest scripts/test_validate_ai_governance.py
 
+      - name: Verify scoped validation and runtime artifact tooling
+        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_server_ctrf_report.py
+
       - name: Run repository skill-local tests
         run: python3 scripts/run_skill_tests.py
 
@@ -199,17 +202,29 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             bun-${{ runner.os }}-
 
-      - name: Install web dependencies
-        working-directory: web
+      - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
       - name: Run unified web validation entrypoint
         working-directory: web
         run: bun run check
+
+
+      - name: Package validated web runtime artifact
+        run: python3 scripts/ci_runtime_artifacts.py prepare --kind web --directory .tmp/runtime-web
+
+      - name: Upload validated web runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-web
+          path: .tmp/runtime-web
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload web test results
         if: always()
@@ -274,8 +289,7 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      - name: Install web dependencies
-        working-directory: web
+      - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
       - name: Generate OpenAPI bundle
@@ -419,6 +433,10 @@ jobs:
 
   server-build-test:
     name: Server Build/Test Stage
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -446,8 +464,7 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      - name: Install web dependencies
-        working-directory: web
+      - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
       - name: Generate OpenAPI bundle
@@ -455,49 +472,24 @@ jobs:
 
       - name: Run repository backend build/test stage
         working-directory: server
-        run: go run ./cmd/graft validate backend --stage buildtest
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: go run ./cmd/graft validate backend --stage buildtest --test-report .tmp/test-results/server-go-test-ctrf.json
 
-  server-test-report:
-    name: Server Test Report
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      checks: write
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      - name: Package validated server runtime artifact
+        run: python3 scripts/ci_runtime_artifacts.py prepare --kind server --directory .tmp/runtime-server
+
+      - name: Upload validated server runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          go-version-file: server/go.mod
-          cache: true
-          cache-dependency-path: |
-            server/go.mod
-            server/go.sum
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: 26.13.1
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with:
-          bun-version: 1.4.4
-
-      - name: Install web dependencies
-        working-directory: web
-        run: bun install --frozen-lockfile
-
-      - name: Generate OpenAPI bundle
-        run: node scripts/ensure-openapi-bundle.mjs
-
-      - name: Run server tests with CTRF report
-        shell: bash
-        run: python3 scripts/test-reporting/run_server_ctrf_report.py --output .tmp/test-results/server-go-test-ctrf.json
+          name: runtime-server
+          path: .tmp/runtime-server
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload server test results
         if: always()
@@ -532,3 +524,106 @@ jobs:
           exit-on-fail: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  local-runtime-acceptance:
+    name: Local runtime acceptance
+    needs: [server-build-test, web-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      GRAFT_CI_DIRECTORY: .local/docker-isolated/ci
+      GRAFT_CI_PROJECT: graft-isolated-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout exact acceptance source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Download validated server binary
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-server
+          path: .tmp/runtime-server
+
+      - name: Download validated web distribution
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-web
+          path: .tmp/runtime-web
+
+      - name: Verify runtime artifact source and bytes
+        run: |
+          python3 scripts/ci_runtime_artifacts.py verify --kind server --directory .tmp/runtime-server
+          python3 scripts/ci_runtime_artifacts.py verify --kind web --directory .tmp/runtime-web
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      - name: Build immutable runtime images from validated artifacts
+        run: |
+          source_revision="$(git rev-parse HEAD)"
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "release-binary=$PWD/.tmp/runtime-server" -f server/Dockerfile -t "graft-local-ci-server:$source_revision" server
+          cp -a .tmp/runtime-web/dist web/dist
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" -f web/Dockerfile -t "graft-local-ci-web:$source_revision" web
+
+      - name: Verify private-engine operations and frozen official installation
+        run: |
+          source_revision="$(git rev-parse HEAD)"
+          python3 scripts/validate_docker_isolated.py init --execution-mode local --directory "$GRAFT_CI_DIRECTORY" --project "$GRAFT_CI_PROJECT" --source-revision "$source_revision" --backend-image "graft-local-ci-server:$source_revision" --web-image "graft-local-ci-web:$source_revision" --port 28080
+          python3 scripts/validate_docker_isolated.py up --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/validate_docker_isolated.py probe --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/validate_docker_isolated.py official-install --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/ci_runtime_artifacts.py acceptance --directory "$GRAFT_CI_DIRECTORY"
+
+      - name: Destroy only the registered acceptance project
+        if: always()
+        run: |
+          if [ -f "$GRAFT_CI_DIRECTORY/instance.json" ]; then
+            python3 scripts/validate_docker_isolated.py destroy --directory "$GRAFT_CI_DIRECTORY" --confirm-project "$GRAFT_CI_PROJECT"
+          fi
+
+      - name: Upload sanitized runtime acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: local-runtime-acceptance-evidence
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            .local/docker-isolated/ci/api-evidence.json
+            .local/docker-isolated/ci/source-assets.json
+            .local/docker-isolated/ci/cleanup.json
+            .local/docker-isolated/ci/official/api-evidence.json
+            .local/docker-isolated/ci/official/installation-evidence.json
+            .tmp/runtime-server/provenance.json
+            .tmp/runtime-web/provenance.json
+
+  required-checks:
+    name: Required checks passed
+    if: always()
+    needs: [line-ending-check, secret-scan, contract-governance-check, ai-governance-check, web-check, cross-boundary-contract-freshness, migration-bootstrap, server-lint, server-build-test, local-runtime-acceptance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Summarize independent required results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ["NEEDS_JSON"])
+          failed = []
+          for name, value in results.items():
+              result = value["result"]
+              allowed = result == "success" or (name == "secret-scan" and result == "skipped" and os.environ["EVENT_NAME"] == "push")
+              print(f"{name}: {result}")
+              if not allowed:
+                  failed.append(name)
+          if failed:
+              raise SystemExit("Required checks failed: " + ", ".join(failed))
+          PY

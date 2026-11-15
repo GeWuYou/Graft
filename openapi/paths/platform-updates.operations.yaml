@@ -47,6 +47,8 @@ post:
       content:
         application/json:
           schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
+    '409': { $ref: ../components/responses/conflict.yaml }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       description: Update preparation, persistence, or runner launch failed.
       headers:

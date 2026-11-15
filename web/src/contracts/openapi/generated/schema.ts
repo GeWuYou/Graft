@@ -2810,7 +2810,7 @@ export interface paths {
     put?: never;
     /**
      * Execute container actions in batch
-     * @description Submits one Task with ordered per-container external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
+     * @description Submits one Task with ordered per-container execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
      */
     post: operations['postContainerBatchActions'];
     delete?: never;
@@ -3349,7 +3349,7 @@ export interface paths {
     put?: never;
     /**
      * Remove Docker images in batch
-     * @description Submits one Task with ordered per-image external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
+     * @description Submits one Task with ordered per-image execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
      */
     post: operations['postDockerImageBatchRemove'];
     delete?: never;
@@ -3494,7 +3494,7 @@ export interface paths {
     put?: never;
     /**
      * Remove Docker volumes in batch
-     * @description Submits one Task with ordered per-volume external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
+     * @description Submits one Task with ordered per-volume execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
      */
     post: operations['postDockerVolumeBatchRemove'];
     delete?: never;
@@ -4721,7 +4721,7 @@ export interface paths {
     put?: never;
     /**
      * Start a registered application
-     * @description Submits the saved application bring-up policy for external execution.
+     * @description Submits the saved application bring-up policy for configured execution.
      */
     post: operations['postApplicationUp'];
     delete?: never;
@@ -4741,7 +4741,7 @@ export interface paths {
     put?: never;
     /**
      * Stop a registered application
-     * @description Submits the saved application stop policy for external execution.
+     * @description Submits the saved application stop policy for configured execution.
      */
     post: operations['postApplicationStop'];
     delete?: never;
@@ -4761,7 +4761,7 @@ export interface paths {
     put?: never;
     /**
      * Restart a registered application
-     * @description Submits the saved application restart policy for external execution.
+     * @description Submits the saved application restart policy for configured execution.
      */
     post: operations['postApplicationRestart'];
     delete?: never;
@@ -7336,6 +7336,13 @@ export interface components {
       sequence: number;
       /** @description Consumer-owned StageExecutor type, such as project.compose.pull. */
       executor_type: string;
+      /**
+       * @description Execution owner frozen in the task plan.
+       * @enum {string}
+       */
+      execution_mode?: 'local' | 'agent' | 'controller' | 'server';
+      /** @description Frozen SDK, capability, or Controller protocol version. */
+      execution_version?: string;
       status: components['schemas']['task-stage-status'];
       attempt: number;
       max_attempts: number;
@@ -9972,6 +9979,20 @@ export interface components {
     'enveloped-application-saved-view': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-saved-view'];
     };
+    'runtime-target-execution': {
+      /** @enum {string} */
+      mode: 'local' | 'agent';
+      ready: boolean;
+      /** @enum {string} */
+      diagnostic_code:
+        | 'execution_ready'
+        | 'docker_unavailable'
+        | 'agent_unavailable'
+        | 'execution_mode_mismatch'
+        | 'execution_runtime_stopped'
+        | 'execution_ownership_lost';
+      capabilities: ('container_execution' | 'compose_execution' | 'oci-build' | 'update_controller')[];
+    };
     'runtime-target-count-metric': {
       available: boolean;
       /** Format: int64 */
@@ -10002,6 +10023,7 @@ export interface components {
       unavailableReason: string;
     };
     'runtime-target-summary': {
+      execution?: components['schemas']['runtime-target-execution'];
       /** Format: int64 */
       id: number;
       displayName: string;
@@ -11660,6 +11682,16 @@ export interface components {
     };
     /** @description A strong If-Match header is required for Module Config mutations. */
     'precondition-required': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description Task execution is temporarily unavailable. Inspect runtime execution readiness before retrying. */
+    'service-unavailable': {
       headers: {
         'X-Request-Id': components['headers']['request-id'];
         [name: string]: unknown;
@@ -17544,6 +17576,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      409: components['responses']['conflict'];
       /** @description The verified release catalog or installation preflight rejected execution. */
       412: {
         headers: {
@@ -17563,6 +17596,7 @@ export interface operations {
           'application/json': components['schemas']['platform-update-rollout-error-response'];
         };
       };
+      503: components['responses']['service-unavailable'];
     };
   };
   getPlatformUpdateActiveOperation: {
@@ -17963,6 +17997,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getPlatformBackup: {
@@ -20068,7 +20103,9 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      409: components['responses']['conflict'];
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getContainer: {
@@ -20575,6 +20612,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postContainerStop: {
@@ -20651,6 +20689,7 @@ export interface operations {
           'application/json': components['schemas']['container-stop-error-response'];
         };
       };
+      503: components['responses']['service-unavailable'];
     };
   };
   postContainerRestart: {
@@ -20718,6 +20757,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postContainerRemove: {
@@ -20789,6 +20829,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerImages: {
@@ -21094,6 +21135,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getBuildArtifacts: {
@@ -21209,6 +21251,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getBuildInputSnapshots: {
@@ -21443,6 +21486,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerImage: {
@@ -21530,6 +21574,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postDockerImageUntag: {
@@ -21584,6 +21629,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postDockerImageRemove: {
@@ -21638,6 +21684,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postDockerImageBatchRemove: {
@@ -21693,6 +21740,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerNetworks: {
@@ -21794,6 +21842,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerNetworkSavedViews: {
@@ -22055,6 +22104,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerVolumes: {
@@ -22357,6 +22407,7 @@ export interface operations {
         content?: never;
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerVolume: {
@@ -22483,6 +22534,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   getDockerSystem: {
@@ -26120,6 +26172,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postApplicationStop: {
@@ -26185,6 +26238,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postApplicationRestart: {
@@ -26250,6 +26304,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postApplicationRedeploy: {
@@ -26315,6 +26370,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+      503: components['responses']['service-unavailable'];
     };
   };
   postApplicationBatchActions: {
