@@ -95,6 +95,7 @@ See the [deployment configuration template](compose.env.example) and [Compose to
 
 ## Documentation
 
+- [Positioning and Docker reliability assessment](docs/graft-positioning-assessment.zh-CN.md) records the Arcane comparison, verification scope and proposed simplification roadmap in Chinese.
 - [Project design](ai-plan/design/architecture/项目设计.md) explains the platform boundary and module-oriented architecture.
 - [Module and dependency injection design](ai-plan/design/architecture/模块与依赖注入设计.md) describes runtime composition.
 - [Frontend architecture](ai-plan/design/architecture/前端架构设计.md) documents the Vue admin shell and module ownership.

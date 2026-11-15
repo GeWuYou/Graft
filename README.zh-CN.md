@@ -95,6 +95,7 @@ bun run dev
 
 ## 文档
 
+- [定位与 Docker 可靠性评估](docs/graft-positioning-assessment.zh-CN.md) 记录 Arcane 对照、实际验证范围和功能收拢建议。
 - [项目设计](ai-plan/design/architecture/项目设计.md)：平台边界与模块化架构。
 - [模块与依赖注入设计](ai-plan/design/architecture/模块与依赖注入设计.md)：运行时组合方式。
 - [前端架构](ai-plan/design/architecture/前端架构设计.md)：Vue 管理壳和模块归属。

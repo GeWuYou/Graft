@@ -15,9 +15,6 @@ Overlay note:
 
 ## Active Topics
 
-- `dependency-modernization-assessment`
-  - Recovery entry: `ai-plan/public/dependency-modernization-assessment/README.md`
-
 - `build-domain-v2`
   - Recovery entry: `ai-plan/public/build-domain-v2/README.md`
 
