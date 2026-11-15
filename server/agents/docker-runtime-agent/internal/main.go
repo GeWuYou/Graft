@@ -102,7 +102,6 @@ func RunCLI() {
 	if err != nil {
 		fatal(err)
 	}
-	<-sigCtx.Done()
 }
 
 func runUntilDelivery(ctx context.Context, configPath string) error {
