@@ -18,6 +18,7 @@ import (
 type recordingComposeService struct {
 	composeapi.Compose
 	upOptions      composeapi.UpOptions
+	upProject      *composetypes.Project
 	stopOptions    composeapi.StopOptions
 	restartOptions composeapi.RestartOptions
 	pullProject    *composetypes.Project
@@ -64,7 +65,8 @@ func TestRecoveryControllerMaterialUsesStateVolumeOnlyAndFixedIsolation(t *testi
 	}
 }
 
-func (s *recordingComposeService) Up(_ context.Context, _ *composetypes.Project, options composeapi.UpOptions) error {
+func (s *recordingComposeService) Up(_ context.Context, project *composetypes.Project, options composeapi.UpOptions) error {
+	s.upProject = project
 	s.upOptions = options
 	return nil
 }
