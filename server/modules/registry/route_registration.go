@@ -12,6 +12,7 @@ import (
 
 	openapigen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	buildcontract "graft/server/modules/build/contract"
@@ -458,6 +459,7 @@ func writeRegistryError(c *gin.Context, ctx *module.Context, err error) {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
+	_ = logger.ReportError(c, ctx.AppLogger, "registry operation failed", err)
 	httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 }
 func connectionInputFromCreate(request openapigen.PostRegistryJSONRequestBody) registrystore.ConnectionInput {
