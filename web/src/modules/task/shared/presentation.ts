@@ -1,4 +1,14 @@
-import type { TaskStatus } from '../types/task';
+import type { TaskStage, TaskStatus } from '../types/task';
+
+export function taskStageExecutionLabel(
+  stage: Pick<TaskStage, 'execution_mode' | 'execution_version'>,
+  translate: (key: string) => string,
+) {
+  if (!stage.execution_mode) return '';
+  return [translate(`task.executionModes.${stage.execution_mode}`), stage.execution_version]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function taskStatusTheme(status: TaskStatus) {
   if (status === 'success') return 'success';

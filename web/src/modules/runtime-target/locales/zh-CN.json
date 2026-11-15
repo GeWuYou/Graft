@@ -59,6 +59,9 @@
       "resourceOverview": "资源概览",
       "providerDetails": "提供方详情",
       "agentStatus": "运行时 Agent",
+      "execution": "执行通道",
+      "executionMode": "执行模式",
+      "executionReadiness": "执行状态",
       "agentState": "Agent 状态",
       "agentId": "Agent 标识",
       "agentVersion": "Agent 版本",
@@ -111,6 +114,23 @@
       "apiVersion": "API 版本",
       "health": "健康状态",
       "lastCheckedAt": "最后检查时间"
+    },
+    "executionModes": { "local": "本机执行", "agent": "Agent 执行" },
+    "executionReady": "已就绪",
+    "executionUnavailable": "暂不可执行",
+    "executionDiagnostics": {
+      "execution_ready": "执行通道已就绪。",
+      "docker_unavailable": "Docker 不可用，请检查 Socket 挂载与运行用户权限。",
+      "agent_unavailable": "Agent 尚未就绪，请检查交付、证书和连接状态。",
+      "execution_mode_mismatch": "运行目标与执行模式不匹配，请检查部署模式配置。",
+      "execution_runtime_stopped": "执行服务尚未运行，启动完成后重试。",
+      "execution_ownership_lost": "执行归属已变更，请检查运行实例和模式配置后重试。"
+    },
+    "executionCapabilities": {
+      "container_execution": "Docker 资源操作",
+      "compose_execution": "Compose 应用操作",
+      "oci-build": "镜像构建与推送",
+      "update_controller": "平台更新"
     },
     "columns": { "name": "名称", "provider": "提供方", "health": "健康状态" },
     "filters": { "provider": "提供方", "connectionKind": "连接方式" },

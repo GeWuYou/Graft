@@ -40,10 +40,10 @@ describe('TaskDetailDrawer', () => {
   it('maps Runtime Agent failure codes to stable product copy without exposing provider text', () => {
     const translate = (key: string) => key;
     expect(resolveTaskFailureMessage('docker_runtime_unavailable', 'raw sdk error', translate)).toBe(
-      'task.failureCodes.runtimeUnavailable',
+      'task.detail.failureCodes.runtimeUnavailable',
     );
     expect(resolveTaskFailureMessage('unrecognized_provider_code', 'raw sdk error', translate)).toBe(
-      'task.failureCodes.unknown',
+      'task.detail.failureCodes.unknown',
     );
   });
 
