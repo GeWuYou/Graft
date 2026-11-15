@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import secrets
+import socket
+import struct
 import subprocess
 import time
 from urllib import error, request
@@ -73,7 +77,7 @@ class Fixture:
     def up(self) -> None:
         rendered = json.loads(self.compose("config", "--format", "json"))
         validate_topology(rendered)
-        self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault", "vault-init")
+        self.compose("up", "-d", "--wait", "docker-daemon", "workspace-init", "postgres", "redis", "vault", "vault-init")
         self.compose("up", "-d", "--wait", "migrate", "backend")
         args = ["--phase", "prepare", "--agent-id", "docker-runtime-agent",
                 "--image-digest", self.environment["GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST"],
@@ -113,6 +117,11 @@ class Fixture:
                                          {"new_password": self.environment["GRAFT_FIXTURE_ADMIN_PASSWORD"]})
             if status != 200:
                 raise RuntimeError(f"Fixture password bootstrap failed with HTTP {status}")
+            self.token = ""
+            status, response = self.api("POST", "/api/auth/login", {
+                "username": "graft", "password": self.environment["GRAFT_FIXTURE_ADMIN_PASSWORD"]})
+            if status != 200:
+                raise RuntimeError(f"Fixture login after password change failed with HTTP {status}")
             self.token = response["data"]["access_token"]
 
     def wait_task(self, identifier: int, timeout: int = 90) -> dict:
@@ -125,6 +134,154 @@ class Fixture:
             time.sleep(1)
         return {"id": identifier, "status": "timeout"}
 
+    def shell_output(self, relative_url: str) -> bool:
+        port = int(self.environment["GRAFT_CONFORMANCE_BACKEND_PORT"])
+        key = base64.b64encode(secrets.token_bytes(16)).decode()
+        headers = (f"GET {relative_url} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n"
+                   f"Origin: http://127.0.0.1:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+                   f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
+        with socket.create_connection(("127.0.0.1", port), timeout=10) as connection:
+            connection.sendall(headers.encode())
+            stream = connection.makefile("rb")
+            response = stream.readline()
+            response_headers = {}
+            while line := stream.readline().strip():
+                name, value = line.decode().split(":", 1)
+                response_headers[name.lower()] = value.strip()
+            accepted = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+            if b" 101 " not in response or response_headers.get("sec-websocket-accept") != accepted:
+                return False
+            data = json.dumps({"type": "input", "data": "printf 'graft-shell-%s\\n' verified\nexit\n"}).encode()
+            mask = secrets.token_bytes(4)
+            masked = bytes(value ^ mask[index % 4] for index, value in enumerate(data))
+            connection.sendall(bytes((0x81, 0x80 | len(data))) + mask + masked)
+            deadline = time.monotonic() + 10
+            output = ""
+            while time.monotonic() < deadline:
+                frame = stream.read(2)
+                if len(frame) != 2 or frame[0] & 0x0f == 8:
+                    return False
+                length = frame[1] & 0x7f
+                if length == 126:
+                    length = struct.unpack("!H", stream.read(2))[0]
+                elif length == 127:
+                    length = struct.unpack("!Q", stream.read(8))[0]
+                if length > 1024 * 1024:
+                    raise RuntimeError("Shell output frame exceeded fixture bound")
+                payload = stream.read(length)
+                if frame[0] & 0x0f == 1:
+                    message = json.loads(payload)
+                    if message.get("type") == "output":
+                        output += message.get("data", "")
+                        if "graft-shell-verified" in output:
+                            return True
+            return False
+
+    def application_probe(self) -> None:
+        name = "graft-compose-probe-" + secrets.token_hex(3)
+        container = name + "-app"
+        definition = ("services:\n  app:\n    image: alpine:3.24.4\n    container_name: " + container +
+                      "\n    command: [sh, -c, 'echo compose-probe-ready; sleep 86400']\n"
+                      "    volumes:\n      - ./probe.txt:/probe.txt:ro\n")
+        policy = {"strategy_kind": "standard", "profiles": [], "down_before_redeploy": False,
+                  "pull_before_redeploy": False, "build_before_up": False, "force_recreate": False,
+                  "remove_orphans": True, "wait_after_up": False, "wait_timeout_seconds": 60,
+                  "renew_anon_volumes": False, "prune_images_after_redeploy": False, "managed_service_names": []}
+        target = json.loads((self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
+        body = {"display_name": name, "runtime_target_id": target, "application_name": name,
+                "compose_file_path": "compose.yml", "lifecycle_configuration": policy,
+                "workspace_entries": [{"path": "compose.yml", "node_type": "file", "content": definition},
+                                      {"path": "probe.txt", "node_type": "file", "content": "graft-relative-mount-verified"}]}
+        status, response = self.api("POST", "/api/ops/applications/create/managed", body)
+        self.record("compose-managed-create", "passed" if status in (200, 201) else "failed", http_status=status,
+                    error_code=response.get("code"))
+        if status not in (200, 201):
+            return
+        created = response["data"]
+        application = created["application_id"]
+        status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
+        task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
+        containers = self.engine("ps", "-a", "--format", "{{.Names}}").splitlines()
+        passed = task.get("status") == "success" and container in containers
+        self.record("compose-up", "passed" if passed else "failed", http_status=status, task=task,
+                    engine_container_present=container in containers)
+        if passed:
+            content = self.engine("exec", container, "cat", "/probe.txt").strip()
+            self.record("compose-relative-bind", "passed" if content == "graft-relative-mount-verified" else "failed")
+            status, response = self.api("POST", f"/api/ops/applications/{application}/stop", {})
+            task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
+            self.record("compose-stop", "passed" if task.get("status") == "success" else "failed", http_status=status, task=task)
+        workspace = created["workspace_path"]
+        self.compose("exec", "-T", "backend", "mv", workspace + "/compose.yml", workspace + "/compose.missing")
+        try:
+            status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
+            task = self.wait_task(response["data"]["task_id"], timeout=30) if status == 202 else {}
+            self.record("compose-material-missing", "observed", http_status=status, task=task,
+                        error_code=response.get("code"))
+        finally:
+            self.compose("exec", "-T", "backend", "mv", workspace + "/compose.missing", workspace + "/compose.yml")
+        imported_name = "graft-import-probe-" + secrets.token_hex(3)
+        imported_path = "/opt/graft/apps/" + imported_name
+        self.compose("exec", "-T", "backend", "mkdir", "-p", imported_path)
+        encoded = base64.b64encode(definition.replace(container, imported_name + "-app").encode()).decode()
+        self.compose("exec", "-T", "backend", "sh", "-ec", f"printf %s {encoded} | base64 -d > {imported_path}/compose.yml")
+        self.compose("exec", "-T", "backend", "cp", workspace + "/probe.txt", imported_path + "/probe.txt")
+        status, response = self.api("GET", "/api/ops/applications/import/directory-sources")
+        sources = (response.get("data") or {}).get("items", [])
+        source = next((item for item in sources if item.get("managed")), None)
+        if status != 200 or source is None:
+            self.record("compose-import", "failed", http_status=status, scope="Managed import root unavailable")
+            return
+        reference = {"provider": source["provider"], "root_id": source["root_id"], "path": imported_name}
+        status, response = self.api("POST", "/api/ops/applications/import/inspect", {"directory_ref": reference})
+        if status != 200:
+            self.record("compose-import-inspect", "failed", http_status=status, error_code=response.get("code"))
+            return
+        status, response = self.api("POST", "/api/ops/applications/import", {
+            "inspection_id": response["data"]["inspection_id"], "display_name": imported_name,
+            "lifecycle_configuration": policy})
+        self.record("compose-import", "passed" if status in (200, 201) else "failed", http_status=status,
+                    error_code=response.get("code"))
+
+        interrupted_name = "graft-interruption-probe-" + secrets.token_hex(3)
+        interrupted_container = interrupted_name + "-app"
+        interrupted_definition = definition.replace(container, interrupted_container) + (
+            "    healthcheck:\n      test: [CMD-SHELL, 'sleep 20; exit 0']\n"
+            "      interval: 1s\n      timeout: 30s\n      retries: 3\n")
+        interrupted_body = {**body, "display_name": interrupted_name, "application_name": interrupted_name,
+            "lifecycle_configuration": {**policy, "wait_after_up": True, "wait_timeout_seconds": 90},
+            "workspace_entries": [{"path": "compose.yml", "node_type": "file", "content": interrupted_definition},
+                                  {"path": "probe.txt", "node_type": "file", "content": "interruption-probe"}]}
+        status, response = self.api("POST", "/api/ops/applications/create/managed", interrupted_body)
+        if status not in (200, 201):
+            self.record("agent-execution-interruption", "failed", http_status=status, scope="Scenario creation failed")
+            return
+        interrupted_application = response["data"]["application_id"]
+        status, response = self.api("POST", f"/api/ops/applications/{interrupted_application}/up", {})
+        if status != 202:
+            self.record("agent-execution-interruption", "failed", http_status=status, scope="Task admission failed")
+            return
+        task_id = response["data"]["task_id"]
+        deadline = time.monotonic() + 30
+        started = False
+        while time.monotonic() < deadline:
+            if interrupted_container in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
+                started = True
+                break
+            time.sleep(1)
+        if not started:
+            self.record("agent-execution-interruption", "unverified", task=self.wait_task(task_id, timeout=5),
+                        scope="Provider did not reach an observable side effect before the bounded deadline")
+            return
+        before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", interrupted_container).strip()
+        self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
+        self.compose("up", "-d", "docker-runtime-agent")
+        task = self.wait_task(task_id, timeout=120)
+        after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", interrupted_container).strip()
+        self.record("agent-execution-interruption", "observed", task=task,
+                    same_container_and_started_at=before == after,
+                    scope="Observed Task settlement and container identity after killing the executing Agent")
+
     def probe(self) -> None:
         self.authenticate()
         for key in ("ops.container.runtime.enabled", "ops.container.actions.dangerous_enabled", "ops.container.shell.enabled"):
@@ -132,6 +289,9 @@ class Fixture:
             if status != 200:
                 self.record("enable-" + key, "failed", http_status=status)
         name = "graft-isolated-api-probe"
+        status, response = self.api("POST", "/api/ops/docker/images/pull", {"reference": "alpine:3.24.4"})
+        task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
+        self.record("image-pull", "passed" if task.get("status") == "success" else "failed", http_status=status, task=task)
         self.engine("pull", "alpine:3.24.4")
         if name in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
             self.engine("rm", "-f", name)
@@ -147,8 +307,14 @@ class Fixture:
             passed = status == 202 and task.get("status") == "success" and running == expected
             self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task, engine_running=running)
         status, response = self.api("POST", f"/api/ops/containers/{name}/shell/sessions", {"command": "sh", "cols": 80, "rows": 24})
-        self.record("shell-ticket", "passed" if status == 200 else "failed", http_status=status,
-                    scope="Ticket issuance only, interactive transport requires a WebSocket probe")
+        self.record("shell-ticket", "passed" if status == 200 else "failed", http_status=status)
+        if status == 200:
+            try:
+                shell_passed = self.shell_output(response["data"]["websocket_url"])
+                self.record("shell-command-output", "passed" if shell_passed else "failed")
+            except (OSError, ValueError) as exc:
+                self.record("shell-command-output", "failed", error_type=type(exc).__name__)
+        self.application_probe()
         self.compose("exec", "-T", "docker-daemon", "chmod", "000", "/run/graft-docker/docker.sock")
         try:
             status, _ = self.api("GET", f"/api/ops/containers/{name}")
@@ -156,6 +322,7 @@ class Fixture:
                         scope="Non-root Backend read boundary, fixture Agent runs as root")
         finally:
             self.compose("exec", "-T", "docker-daemon", "chmod", "660", "/run/graft-docker/docker.sock")
+        offline_before = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
         self.compose("stop", "docker-runtime-agent")
         try:
             status, response = self.api("POST", f"/api/ops/containers/{name}/restart", {})
@@ -164,7 +331,8 @@ class Fixture:
                 self.api("POST", f"/api/tasks/{task['id']}/cancel", {})
                 task = self.wait_task(task["id"], timeout=15)
             self.record("agent-offline", "observed", http_status=status, task=task,
-                        engine_running=self.engine("inspect", "--format", "{{.State.Running}}", name).strip())
+                        engine_running=self.engine("inspect", "--format", "{{.State.Running}}", name).strip(),
+                        engine_started_at_unchanged=offline_before == self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip())
         finally:
             self.compose("up", "-d", "docker-runtime-agent")
         print("API evidence saved, repeat-safe task cleanup is available through stop/destroy", flush=True)
@@ -200,6 +368,14 @@ def main() -> None:
             parser.error("--project must use the task-specific graft-isolated- prefix")
         if not all((args.source_revision, args.backend_image, args.agent_image, args.driver_image)):
             parser.error("init requires source revision and all three immutable fixture images")
+        if not 1024 <= args.port <= 65533:
+            parser.error("--port must leave room for three unprivileged consecutive ports")
+        for port in range(args.port, args.port + 3):
+            try:
+                with socket.socket() as probe:
+                    probe.bind(("127.0.0.1", port))
+            except OSError:
+                parser.error(f"loopback port {port} is already in use")
         directory.mkdir(parents=True, mode=0o700, exist_ok=True)
         if (directory / "instance.json").exists():
             parser.error("instance already registered, reuse its existing directory")
