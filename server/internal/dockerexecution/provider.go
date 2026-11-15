@@ -145,12 +145,8 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 	if err != nil {
 		return failedExecution(failureRuntimeUnavailable)
 	}
-	if _, copyErr := io.Copy(io.Discard, pull); copyErr != nil {
-		_ = pull.Close()
-		return failedExecution(failureRuntimeUnavailable)
-	}
-	if closeErr := pull.Close(); closeErr != nil {
-		return failedExecution(failureRuntimeUnavailable)
+	if err := consumeDockerProgress(pull); err != nil {
+		return failedExecutionAt(failureRuntimeUnavailable, "controller_pull")
 	}
 	configuration, host := updateControllerContainerConfig(material)
 	name := materialContainerName(material.OperationID)
@@ -339,8 +335,7 @@ func dispatchContainerImage(ctx context.Context, docker *mobyclient.Client, oper
 		if err != nil {
 			return err
 		}
-		_, copyErr := io.Copy(io.Discard, response)
-		return errors.Join(copyErr, response.Close())
+		return consumeDockerProgress(response)
 	case "container.image.tag.v1":
 		_, err := docker.ImageTag(ctx, mobyclient.ImageTagOptions{Source: intent.ImageRef, Target: intent.TargetRef})
 		return err

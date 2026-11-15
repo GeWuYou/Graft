@@ -187,7 +187,7 @@ func executeBuildImage(ctx context.Context, c Environment, operation string, mat
 	if err != nil {
 		return buildExecutionResultPayload{}, mapProviderFailure(err)
 	}
-	if err := consumeBuildResponse(response.Body); err != nil {
+	if err := consumeDockerProgress(response.Body); err != nil {
 		return buildExecutionResultPayload{}, failureProviderOperation
 	}
 	inspect, err := docker.ImageInspect(ctx, localReference)
@@ -237,21 +237,29 @@ func executeBuildImage(ctx context.Context, c Environment, operation string, mat
 	return result, ""
 }
 
-func consumeBuildResponse(body io.ReadCloser) error {
+// consumeDockerProgress 同时消费构建与拉取的 JSON 进度流，HTTP 成功不能覆盖流内失败。
+func consumeDockerProgress(body io.ReadCloser) (result error) {
 	if body == nil {
-		return errors.New("provider build response is unavailable")
+		return errors.New("provider progress stream is unavailable")
 	}
-	defer func() { _ = body.Close() }()
+	defer func() {
+		if err := body.Close(); err != nil {
+			result = errors.Join(result, errors.New("close provider progress stream"))
+		}
+	}()
 	decoder := json.NewDecoder(body)
 	for {
-		var message jsonstream.Message
+		var message struct {
+			jsonstream.Message
+			LegacyError string `json:"error"`
+		}
 		if err := decoder.Decode(&message); errors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
-			return errors.New("decode provider build response")
+			return errors.New("decode provider progress stream")
 		}
-		if message.Error != nil {
-			return errors.New("provider build failed")
+		if message.Error != nil || message.LegacyError != "" {
+			return errors.New("provider operation failed")
 		}
 	}
 }
