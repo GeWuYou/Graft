@@ -130,7 +130,7 @@ runner：
   保守判定只能基于经过时间、可见 transcript、worker 最近一次响应，以及 checkpoint 内容
 - 每个 round 默认 `checkpoint_budget=1`
 - 高风险或长运行 round 可显式提升到 `2` 或 `3`，但必须写进 round budget
-- checkpoint request 使用 `interrupt=true`，且只能用于健康检查：
+- checkpoint request 使用宿主实际支持的健康检查交互（具体参数见 loop skill reference），且只能用于健康检查：
   - 不允许改变任务目标
   - 不允许扩大 scope
   - 不允许追加新的实现需求
@@ -156,7 +156,7 @@ runner：
     - checkpoint 或其后的可见证据表明仍有 recent meaningful progress，且 `can_continue=true`
     - 只是 final closeout 尚未返回
   - `blocked`
-    - worker 明确报告 blocker、unsafe continuation、out-of-scope repair 或 `can_continue=false`
+    - worker 明确报告 blocker、unsafe continuation 或 `can_continue=false`；仅新增必要相关文件应先由协调者重分配，不自动认定 blocked
 - recent meaningful progress 至少包括以下任一项：
   - explicit diagnosis
   - owned-scope file edits
@@ -203,6 +203,16 @@ runner：
   window 等待最终 closeout
 - 如果 worker closeout 缺失、畸形或自相矛盾，先用新的 worker 重试同一 bounded slice 一次
 - 第二次仍失败时，该 slice 必须显式进入 `blocked` 或由 batch wave 显式停止；不能由主 agent 静默本地接手补完
+
+### 3.1.1 当前授权与恢复引用
+
+本节 loop 的状态/预算/JSON 协议继续有效，但授权与选型只引用根 [AGENTS.md](../../../../AGENTS.md)。普通相关
+validation repair 属于已授权目标；worker 越过分配范围时请求 coordinator 重分配，不默认向用户申请 execute_repair。
+未知子模型等级继承父模型继续；不得因旧恢复文本或旧参数名触发停顿。新 turn 仍重新 preflight，同一 turn 切换
+skill 复用回执/已读材料/有效验证，不重新读完整启动链。
+
+活跃 topic 只同步与现行政策冲突的当前通用指令；历史 trace、已完成批次证据和独立任务的用户明确选型保持。
+短修复不因 recovery 机制建 topic；已有 tracking 批次表足够时不复制 roadmap。
 
 ### 3.2 主题级恢复材料
 

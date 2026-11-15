@@ -1,6 +1,6 @@
 ---
 name: graft-worktree-interactive-cleanup
-description: Inspect numbered Graft worktrees, compare task branches with the integration checkout, obtain explicit confirmation, and safely release and rebuild only stale or already-integrated slots. Use when cleaning abandoned agent worktrees, resolving unreleased feature slots, or deciding whether a numbered worktree can return to its main-XX pool marker.
+description: "Inspect selected Graft worktrees and release confirmed integrated or equivalent task branches safely."
 ---
 
 # Graft Worktree Interactive Cleanup
@@ -9,9 +9,11 @@ Use this skill for cleanup decisions involving `.worktrees/<slot>` directories. 
 `graft-worktree-manager` as the lifecycle authority; this skill adds evidence gathering,
 interactive confirmation, and the non-ancestor-but-equivalent patch check.
 
+Read [delivery details](../../../ai-plan/design/governance/ai/仓库协作与交付细则.md) for the relevant worktree, integration, or ownership operation.
+
 ## Inspect
 
-1. Establish the repository startup receipt from root `AGENTS.md`. Treat the task as
+1. Reuse or restore the repository startup receipt from root [AGENTS.md](../../../AGENTS.md). Treat the task as
    `docs/automation`, with recovery source `none` unless the user names a topic.
 2. Run the manager status command and inspect only the user-named numbered slots.
 3. Record each slot's current branch, HEAD, upstream, clean/dirty state, conflict state,

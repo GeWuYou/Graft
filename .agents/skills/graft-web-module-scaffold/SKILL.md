@@ -1,9 +1,11 @@
 ---
 name: graft-web-module-scaffold
-description: Scaffold or shape a new Graft web module before implementation. Use when adding a Vue 3 admin feature under web/src/modules and Codex needs to align menu, route, page, API, and permission boundaries with the server module contract and the repository's TDesign-based frontend conventions.
+description: "Shape a new Graft Vue module around its server capability, routes, API, permissions, and TDesign conventions."
 ---
 
 # Graft Web Module Scaffold
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill when adding a new `web` feature module.
 
@@ -30,10 +32,7 @@ Use this skill when adding a new `web` feature module.
 8. Do not ask whether a new menu needs a separate homepage quick action or quick link registration:
    - homepage quick actions are derived from the currently visible sidebar / bootstrap menus
    - only evaluate whether this module needs a homepage dashboard widget or component contribution
-9. At closeout, do not skip reusable-lesson evaluation:
-   - prefer routing the slice through `graft-task-closeout`
-   - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
-     to `graft-lessons-learned`
+10. Capture reusable corrections through normal closeout when this task actually exposes one.
 
 ## Guardrails
 

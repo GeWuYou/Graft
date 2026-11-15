@@ -30,8 +30,8 @@ codex mcp list
 codex mcp get tdesign
 ```
 
-配置完成后，重启 Codex 会话，让新的 MCP Server 进入可用工具列表。之后处理 `web` 的 TDesign 代码时，
-应先通过 TDesign MCP 查询 `vue-next` 组件资料，再生成或修改代码。
+配置完成后，重启 Codex 会话，让新的 MCP Server 进入可用工具列表。之后处理新增或不确定的 TDesign API/DOM/版本行为时，
+按第 4 节查询 `vue-next` 资料；已验证用法可以复用证据。
 
 这个配置属于开发者本机 Codex 用户级配置，不提交到仓库。多个本机 `Graft` worktree 可以共享同一份 Codex MCP 配置，
 仓库只记录规范和推荐命令，不记录个人私有安装状态。
@@ -89,64 +89,24 @@ npx -y tdesign-mcp-server@latest
 Rider 也内置了 MCP Server，可以让外部 AI 客户端访问 IDE 工具。那是另一个方向，不是 TDesign 接入的必需步骤。
 本项目需要的是让 Rider AI Assistant 连接 TDesign MCP Server。
 
-## 4. 默认使用流程
+## 4. 按风险查询与证据复用
 
-AI 处理 `web` 的 TDesign 页面、模块或组件时，应按下面顺序使用 MCP：
+`web/AGENTS.md` 决定前端规则，根 `AGENTS.md` 决定启动与授权。本节是组件知识查询指导，不是每次修改都执行的
+固定调用序列。新页面/重构/复杂布局先读 DESIGN 和相关视觉规则；简单文案、主题 token 或已验证局部修复不全读。
 
-1. 先读取仓库根 `DESIGN.md`，确认当前页的视觉语气、页面类型和禁止项。
-2. 用 `get-component-list` 查找可用组件，并显式选择 `vue-next` 框架。
-3. 用 `get-component-docs` 查询目标组件的 props、events、slots、示例和使用约束。
-4. 涉及自定义样式、选择器、布局覆盖时，用 `get-component-dom` 查询组件 DOM 结构。
-5. 升级 `tdesign-vue-next` 或修改受版本影响的组件时，用 `get-component-changelog` 查询变更日志。
+| 实际未知或风险 | 查询 |
+| --- | --- |
+| 不确定组件名称/存在性/框架 | get_component_list，指定 vue-next |
+| 新增或不确定 props/events/slots/用法 | get_component_docs |
+| 实际依赖组件内部 DOM/选择器/插槽布局 | get_component_dom |
+| 升级、受版本影响行为或兼容疑问 | get_component_changelog |
 
-向 AI 发起任务时，应明确说明本项目使用 `TDesign Vue Next` / `vue-next`，避免生成 React、Vue 2 或移动端组件写法。
+只查询本轮受影响组件；不为文案修改重新查询完整组件列表。当前任务已有有效证据且版本/用法没有变化时直接复用，
+不得凭经验猜未验证的 API 或 DOM。优先 TDesign MCP；不可用时采用官方文档并记录原因/受影响组件。MCP 不成为
+CI、hook、package 或运行时依赖，查询成功本身也不等于验证通过。
 
-### 4.1 MCP 能力矩阵
-
-当前 `web` 前端流程默认围绕这 4 类 TDesign MCP 能力展开，任何涉及 `TDesign Vue Next` 组件用法的任务都应至少判断这些能力是否适用：
-
-| 能力                      | 主要用途                                    | 编码前至少确认                                           |
-| ------------------------- | ------------------------------------------- | -------------------------------------------------------- |
-| `get_component_list`      | 确认组件存在、名称、分类、`vue-next` 可用性 | 目标组件是否存在，是否属于当前框架，是否选对组件         |
-| `get_component_docs`      | 查询组件 API、用法、示例、推荐实践          | props、events、slots、示例、推荐写法、常见使用约束       |
-| `get_component_dom`       | 查询 DOM 结构与插槽布局                     | 是否需要样式覆盖，是否依赖内部结构，自定义选择器是否安全 |
-| `get_component_changelog` | 查询升级与版本差异                          | 是否存在版本行为变化、兼容性风险、升级注意事项           |
-
-其中“组件用法和最佳实践”默认归入 `get_component_docs` 的查询目标，而不是由前端 Agent 凭经验补全。
-
-## 4.2 前端 Agent 使用流程
-
-前端 Agent 在处理 `web` 任务时，默认把 TDesign MCP preflight 放在编码前，而不是验证后：
-
-1. 任务识别
-   - 先判断本轮是否新增、修改或评审 `TDesign Vue Next` 组件用法。
-   - 如果不涉及 TDesign 组件，在实现说明或 closeout 中记录 `TDesign MCP preflight: not applicable`。
-2. MCP 查询
-   - 如果涉及 TDesign 组件，先用 MCP 查询，默认框架固定为 `vue-next`。
-   - 至少按场景查询：
-     - `get_component_list`
-       - 确认组件名、组件分类、`vue-next` 可用范围。
-     - `get_component_docs`
-       - 确认 props、events、slots、示例、推荐写法和最佳实践。
-     - `get_component_dom`
-       - 涉及样式覆盖、DOM 结构判断、插槽布局、自定义选择器时必须查询。
-     - `get_component_changelog`
-       - 涉及升级、行为变化、兼容性判断或疑似版本差异时必须查询。
-3. 代码修改
-   - 只根据本轮涉及组件的查询结果实现代码，不凭经验猜测 `TDesign Vue Next` API、事件名、插槽名或内部 DOM。
-4. closeout 记录
-   - 在实现说明或 closeout 中记录：
-     - `ui_component_change: yes | no`
-     - `mcp_queried: yes | no | fallback_to_official_docs`
-     - `framework: vue-next | not-applicable`
-     - `components: <本轮查询的组件>`
-     - `queries: <get_component_list / get_component_docs / get_component_dom / get_component_changelog>`
-     - `adoption: adopted | partially_adopted | not_adopted`
-     - `reason: <采用原因 / 未采用原因 / fallback 原因>`
-
-这里的强制性属于前端治理与 closeout 审计要求，不要求在 CI、hooks 或仓库脚本中实时验证 MCP 是否被调用。MCP 继续只作为开发时知识源，不升级为仓库运行时或校验时依赖。
-
-如果 MCP 当前不可用，才允许退回官方文档；closeout 必须记录 fallback 原因和受影响组件。
+closeout 用简短证据说明 queried/reused/not-needed/fallback、组件、查询种类及采用判断；可引用已有证据，不要求
+重复空模板。仅复用时写清对应证据与版本未变，MCP 不可用时说明 official docs fallback。没有组件风险时无需查询。
 
 ## 5. 推荐场景
 
@@ -177,7 +137,7 @@ MCP 查询结果必须服从本仓库的前端架构规则：
 - 组件实现必须落到 Vue SFC + TypeScript 和 `TDesign Vue Next` 组件；不得复制 React / shadcn / Tailwind 运行写法。
 - 只允许参考交互意图、信息层级或动效节奏；不得复制 raw DOM widget、全局样式重置或新增 package。
 - 样式覆盖必须以 TDesign MCP DOM / docs 为依据，并保持 token、theme、i18n 和可访问 label 边界。
-- 验证继续回到仓库命令和可复现浏览器 QA；不得把 MCP 查询、外部示例截图或隐藏脚本当作第二套 validation truth。
+- 验证继续回到 web 完成入口；仅获授权且需要浏览器时补对应证据。不得把 MCP 查询、外部示例截图或隐藏脚本当作第二套 validation truth。
 
 ## 7. 验证方式
 
@@ -195,7 +155,7 @@ codex mcp get tdesign
 - `get-component-docs` 能查询 `Button`、`Table`、`Form`、`Dialog`、`Menu`。
 - `get-component-dom` 能返回至少一个常用组件的 DOM 结构。
 
-实际修改 `web` 代码时，仍按仓库规则运行前端验证命令，例如 `bun run typecheck` 或 `bun run build`。
+实际修改 web 时，中间迭代使用最小直接检查，完成入口仍是 web/AGENTS.md 的 `bun run check`，可复用未变输入的有效证据。
 
 ### 7.1 closeout 记录示例
 

@@ -1,22 +1,24 @@
 ---
 name: graft-frontend-skill-intake
-description: Normalize external frontend website-building, vibe-coding, UI generation, design-system, animation, screenshot, Playwright, Figma, accessibility, or asset-generation skill requests against Graft repository governance. Use before applying article-derived frontend skills, third-party frontend advice, or generic website-builder workflows to Graft web work.
+description: "Route external frontend skills or advice into Graft-compatible page, browser, asset, or Figma workflows."
 ---
 
 # Graft Frontend Skill Intake
+
+Apply [root governance](../../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Classify incoming frontend skill requests before implementation. Preserve Graft's Vue 3, TDesign Vue Next, module, route, menu, i18n, and validation authority; reject workflows that would create a second frontend baseline.
 
 ## Intake
 
-1. Run the normal repository startup preflight first. For frontend work, read `web/AGENTS.md` and the relevant `ai-plan/design/` frontend governance docs before edits.
+1. Reuse the current task startup receipt; restore it through root governance if missing or lost. For frontend work, read [web/AGENTS.md](../../../../web/AGENTS.md) and the relevant `ai-plan/design/` frontend governance docs before edits.
 2. Identify the request category:
    - **direct**: Graft admin page, shell surface, TDesign component composition, route/menu/page/module work.
    - **conditional**: browser QA, screenshots, Figma intake, image generation, animation, accessibility review.
    - **rejected**: React, shadcn, Tailwind runtime baseline, marketing landing-page builders, standalone apps, Figma SDK setup, Playwright test dependency, package changes without authority.
    - **future-only**: broad design-system generation, reusable animation libraries, automated visual regression infrastructure, or shared asset registries outside the allowed task scope.
 3. Route direct page work to `$graft-frontend-page-builder`.
-4. Route browser verification and accessibility-oriented review to `$graft-frontend-browser-qa`.
+4. Route accessibility review and explicitly approved browser verification to `$graft-frontend-browser-qa`; routing alone grants no browser authorization.
 5. Route image or motion decisions to `$graft-frontend-asset-motion`.
 6. Route Figma references to `$graft-frontend-figma-intake`.
 

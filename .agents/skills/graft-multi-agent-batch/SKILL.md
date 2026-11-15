@@ -1,11 +1,11 @@
 ---
 name: graft-multi-agent-batch
-description: Repository-specific hybrid-DAG multi-agent coordination workflow for Graft. Use when the user explicitly wants subagent delegation, or when the current task cleanly splits into two or more dependency-aware, reviewable slices across server, web, docs, or automation, and the main agent should keep ownership of review, validation, recovery, and final integration. `graft-boot` should assess whether this skill is justified before delegation starts.
+description: "Coordinate a ready wave of disjoint Graft subagent slices while retaining review, validation, and lifecycle ownership."
 ---
 
 # Graft Multi-Agent Batch
 
-Use this skill for one execution wave of bounded, reviewable subagent slices. Treat root `AGENTS.md` as authority; this
+Use this skill for one execution wave of bounded, reviewable subagent slices. Treat root [AGENTS.md](../../../AGENTS.md) as authority; this
 skill coordinates a wave and never replaces startup, validation, commit, recovery, or closeout.
 
 ## Hierarchy
@@ -62,9 +62,8 @@ delegate small, overlapping, authority-unclear, or validation-strategy-changing 
 3. Give every dispatched worker the inherited governance source, task class, recovery source, topology revision,
    `node_id`, dependencies, objective, owned and forbidden scope, validation, expected output, commit authority, and
    verified `model_relation` with comparison evidence.
-4. Require the worker model to be the same level as or lower than its direct parent. With inherited context, inherit the
-   parent model/reasoning; with an explicit override, record comparison evidence. Never infer rank from names,
-   availability, or reasoning effort; pause when the relation is unknown or higher-model approval is absent.
+4. Choose a verified same/lower model autonomously under root policy. When comparison is unavailable, inherit the
+   direct parent and continue. Read [host delegation mapping](references/host-delegation.md) for actual tool parameters.
 5. Once a write slice is delegated, keep ownership with that worker until final closeout, explicit block, owned-scope
    conflict, unsafe state, or actual retry exhaustion. Do not reclaim it after a quiet wait or missing visible diff.
 6. While workers run, perform only non-overlapping coordination, review preparation, or validation planning.

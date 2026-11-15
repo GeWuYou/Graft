@@ -13,8 +13,6 @@ from unittest import mock
 
 SCRIPT_PATH = Path(__file__).with_name("validate_ai_governance.py")
 MODULE_SPEC = importlib.util.spec_from_file_location("validate_ai_governance", SCRIPT_PATH)
-if MODULE_SPEC is None or MODULE_SPEC.loader is None:
-    raise RuntimeError(f"Unable to load module from {SCRIPT_PATH}.")
 
 MODULE = importlib.util.module_from_spec(MODULE_SPEC)
 sys.modules[MODULE_SPEC.name] = MODULE
@@ -217,174 +215,10 @@ class FindingTests(unittest.TestCase):
         self.assertEqual(finding.format(), "AGENTS.md: example issue")
 
 
-class SkillMcpGuidanceTests(unittest.TestCase):
-    def test_skill_mcp_guidance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_skill_mcp_guidance(), [])
 
 
-class BootReceiptTests(unittest.TestCase):
-    def test_boot_receipt_requires_authority_summary(self) -> None:
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(MODULE.BOOT_SKILL)
-        mutated_text = current_text.replace("authority summary", "authority result")
-        self.assertNotEqual(current_text, mutated_text)
-
-        with mock.patch.object(MODULE, "read_text", return_value=mutated_text):
-            findings = MODULE.validate_boot_startup_receipt()
-
-        self.assertTrue(any("authority summary" in finding.message for finding in findings))
 
 
-class SubagentModelGovernanceTests(unittest.TestCase):
-    def test_subagent_model_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_subagent_model_governance(), [])
-
-    def test_subagent_model_governance_rejects_fixed_worker_model(self) -> None:
-        comment_skill = MODULE.SUBAGENT_DELEGATION_SKILLS[-1]
-        current_text = MODULE.read_text(comment_skill)
-        mutated_text = current_text + "\nThe target worker configuration is model=gpt-5.6-luna.\n"
-        original_read_text = MODULE.read_text
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == comment_skill:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_subagent_model_governance()
-
-        self.assertTrue(any("must not hard-code" in finding.message for finding in findings))
-
-
-class WorkIntakeGovernanceTests(unittest.TestCase):
-    def test_work_intake_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_work_intake_skill(), [])
-
-
-class WorktreeManagerGovernanceTests(unittest.TestCase):
-    def test_worktree_manager_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_worktree_manager_skill(), [])
-
-    def test_worktree_manager_governance_rejects_missing_integration_authorization_terms(self) -> None:
-        original_read_text = MODULE.read_text
-        target = MODULE.WORKTREE_MANAGER_SKILL
-        current_text = original_read_text(target)
-        mutated_text = current_text.replace("source ref/commit", "source reference", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == target:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_worktree_manager_skill()
-
-        self.assertTrue(any("source ref/commit" in finding.message for finding in findings))
-
-    def test_worktree_manager_governance_rejects_missing_fail_closed_receipt_rule(self) -> None:
-        original_read_text = MODULE.read_text
-        target = MODULE.AGENTS
-        current_text = original_read_text(target)
-        mutated_text = current_text.replace("complete integration authorization evidence", "integration evidence", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == target:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_worktree_manager_skill()
-
-        self.assertTrue(any("complete integration authorization evidence" in finding.message for finding in findings))
-
-    def test_worktree_manager_governance_rejects_command_authorization_mismatch(self) -> None:
-        original_read_text = MODULE.read_text
-        target = MODULE.AGENTS
-        current_text = original_read_text(target)
-        mutated_text = current_text.replace(
-            "actual merge or cherry-pick command differs from the authorized operation record",
-            "actual integration command is checked",
-            1,
-        )
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == target:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_worktree_manager_skill()
-
-        self.assertTrue(
-            any(
-                "actual merge or cherry-pick command differs from the authorized operation record" in finding.message
-                for finding in findings
-            )
-        )
-
-    def test_worktree_manager_governance_checks_root_authority_source(self) -> None:
-        original_read_text = MODULE.read_text
-        target = MODULE.AGENTS
-        current_text = original_read_text(target)
-        required_term = "complete integration authorization evidence"
-        mutated_text = current_text.replace(required_term, "integration evidence", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            return mutated_text if path == target else original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_worktree_manager_skill()
-
-        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
-
-    def test_worktree_manager_governance_checks_tracking_authority_source(self) -> None:
-        original_read_text = MODULE.read_text
-        target = MODULE.AI_TASK_TRACKING_DOC
-        current_text = original_read_text(target)
-        required_term = "最终仓库状态 authority"
-        mutated_text = current_text.replace(required_term, "仓库状态", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            return mutated_text if path == target else original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_worktree_manager_skill()
-
-        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
-
-
-class OpenApiWorktreeGovernanceTests(unittest.TestCase):
-    def test_openapi_worktree_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_openapi_worktree_governance(), [])
-
-    def test_openapi_worktree_governance_rejects_deferred_generated_artifacts(self) -> None:
-        original_read_text = MODULE.read_text
-        targets = (
-            (MODULE.AGENTS, "agents must generate, validate, and commit"),
-            (MODULE.AI_CODE_REVIEW_DOC, "同步生成、验证并提交"),
-            (MODULE.WORKTREE_MANAGER_SKILL, "validate, and commit the affected source"),
-        )
-
-        for target, required_term in targets:
-            with self.subTest(target=target):
-                current_text = original_read_text(target)
-                mutated_text = current_text.replace(required_term, "defer generated artifacts", 1)
-                self.assertNotEqual(current_text, mutated_text)
-
-                def read_mutated(path: MODULE.Path) -> str:
-                    if path == target:
-                        return mutated_text
-                    return original_read_text(path)
-
-                with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-                    findings = MODULE.validate_openapi_worktree_governance()
-
-                self.assertTrue(any(finding.path == target for finding in findings))
 
 
 class EnvironmentInventoryTests(unittest.TestCase):
@@ -485,206 +319,10 @@ class AiToolingDocTests(unittest.TestCase):
         self.assertTrue(any("must not hard-code a WSL distro" in finding.message for finding in findings))
 
 
-class PushBranchGovernanceTests(unittest.TestCase):
-    def test_push_branch_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_push_branch_governance(), [])
 
 
-class PRReplyPublicationGovernanceTests(unittest.TestCase):
-    def test_pr_reply_publication_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_pr_reply_publication_governance(), [])
-
-    def test_pr_reply_publication_governance_rejects_local_commit_as_reply_proof(self) -> None:
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(MODULE.PR_REVIEW_SKILL)
-        mutated_text = current_text.replace("require its SHA to equal `git rev-parse HEAD`", "accept a local commit", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.PR_REVIEW_SKILL:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_pr_reply_publication_governance()
-
-        self.assertTrue(any(finding.path == MODULE.PR_REVIEW_SKILL for finding in findings))
 
 
-class PRRemediationGovernanceTests(unittest.TestCase):
-    def test_pr_remediation_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_pr_remediation_governance(), [])
-
-    def test_pr_remediation_governance_rejects_missing_resolution_gate(self) -> None:
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(MODULE.PR_REMEDIATION_SKILL)
-        mutated_text = current_text.replace("--resolve-expected-head <full-sha>", "resolve current thread", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.PR_REMEDIATION_SKILL:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_pr_remediation_governance()
-
-        self.assertTrue(any(finding.path == MODULE.PR_REMEDIATION_SKILL for finding in findings))
-
-    def test_pr_remediation_governance_rejects_missing_ledger_gate(self) -> None:
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(MODULE.PR_REMEDIATION_SKILL)
-        mutated_text = current_text.replace("--ledger-expected-head <full-sha>", "append ledger", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.PR_REMEDIATION_SKILL:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_pr_remediation_governance()
-
-        self.assertTrue(any(finding.path == MODULE.PR_REMEDIATION_SKILL for finding in findings))
-
-
-class CommitCompletionGovernanceTests(unittest.TestCase):
-    def test_bare_graft_commit_requires_clean_worktree(self) -> None:
-        self.assertEqual(MODULE.validate_commit_completion_governance(), [])
-
-    def test_bare_graft_commit_rejects_missing_clean_worktree_rule(self) -> None:
-        current_text = MODULE.read_text(MODULE.AGENTS)
-        mutated_text = current_text.replace("must finish with an empty `git status --short`", "may stop early", 1)
-        self.assertNotEqual(current_text, mutated_text)
-        original_read_text = MODULE.read_text
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.AGENTS:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_commit_completion_governance()
-
-        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
-
-
-class RepairConfirmationInteractionTests(unittest.TestCase):
-    def test_repair_confirmation_interaction_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_repair_confirmation_interaction_contract(), [])
-
-    def test_repair_confirmation_rejects_missing_fallback_option_descriptions(self) -> None:
-        current_text = MODULE.read_text(MODULE.AGENTS)
-        mutated_text = current_text.replace("Fallback choices:", "manual reply", 1)
-        self.assertNotEqual(current_text, mutated_text)
-        original_read_text = MODULE.read_text
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.AGENTS:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_repair_confirmation_interaction_contract()
-
-        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
-
-    def test_repair_confirmation_rejects_native_approval_bypass(self) -> None:
-        current_text = MODULE.read_text(MODULE.AGENTS)
-        mutated_text = current_text.replace(
-            "numeric fallback is unavailable while native structured approval is available",
-            "numeric fallback may replace the native choice control",
-            1,
-        )
-        self.assertNotEqual(current_text, mutated_text)
-        original_read_text = MODULE.read_text
-
-        def read_mutated(path: MODULE.Path) -> str:
-            if path == MODULE.AGENTS:
-                return mutated_text
-            return original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_repair_confirmation_interaction_contract()
-
-        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
-
-
-class BackendGuardrailGovernanceTests(unittest.TestCase):
-    def test_backend_guardrail_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_backend_guardrail_governance(), [])
-
-
-class VerificationResponsibilityGovernanceTests(unittest.TestCase):
-    def test_verification_responsibility_governance_is_currently_satisfied(self) -> None:
-        self.assertEqual(MODULE.validate_verification_responsibility_governance(), [])
-
-    def test_verification_responsibility_rejects_default_browser_gate(self) -> None:
-        target = MODULE.WEB_AGENTS
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(target)
-        mutated_text = current_text.replace(
-            "本地 Agent 默认不启动服务、不操作浏览器、不截图",
-            "本地 Agent 默认启动服务并执行浏览器截图",
-            1,
-        )
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            return mutated_text if path == target else original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_verification_responsibility_governance()
-
-        self.assertTrue(any(finding.path == target for finding in findings))
-
-    def test_verification_responsibility_allows_explicit_conditional_browser_gate(self) -> None:
-        target = MODULE.REPO_ROOT / "ai-plan" / "public" / "docker-resource-context-ia" / "README.md"
-        original_read_text = MODULE.read_text
-
-        def read_conditional(path: MODULE.Path) -> str:
-            text = original_read_text(path)
-            if path == target:
-                return text.replace(
-                    "Browser inspection is not a default closeout gate.",
-                    "Browser inspection is conditional; browser evidence is not a default closeout gate.",
-                )
-            return text
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_conditional):
-            findings = MODULE.validate_verification_responsibility_governance()
-
-        self.assertFalse(any(finding.path == target for finding in findings))
-
-    def test_verification_responsibility_rejects_recovery_without_conditional_authorization(self) -> None:
-        target = MODULE.REPO_ROOT / "ai-plan" / "public" / "docker-resource-context-ia" / "README.md"
-        original_read_text = MODULE.read_text
-
-        def read_unconditional(path: MODULE.Path) -> str:
-            text = original_read_text(path)
-            if path == target:
-                return text.replace("conditional browser inspection only when authorized", "browser inspection before closeout")
-            return text
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_unconditional):
-            findings = MODULE.validate_verification_responsibility_governance()
-
-        self.assertTrue(any(finding.path == target for finding in findings))
-
-    def test_verification_responsibility_rejects_missing_human_acceptance_status(self) -> None:
-        target = MODULE.AI_CODE_REVIEW_DOC
-        original_read_text = MODULE.read_text
-        current_text = original_read_text(target)
-        mutated_text = current_text.replace("`awaiting_human_acceptance`", "`accepted`", 1)
-        self.assertNotEqual(current_text, mutated_text)
-
-        def read_mutated(path: MODULE.Path) -> str:
-            return mutated_text if path == target else original_read_text(path)
-
-        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
-            findings = MODULE.validate_verification_responsibility_governance()
-
-        self.assertTrue(any(finding.path == target for finding in findings))
 
 
 class HeadroomGovernanceTests(unittest.TestCase):
@@ -707,5 +345,204 @@ class HeadroomGovernanceTests(unittest.TestCase):
         self.assertFalse(MODULE.contains_project_rtk_prefix_rule(text))
 
 
-if __name__ == "__main__":
+class GuidanceStructureTests(unittest.TestCase):
+    def test_short_description_is_valid_but_empty_and_oversized_are_not(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            skill = Path(directory) / 'graft-example' / 'SKILL.md'
+            skill.parent.mkdir()
+            for description, valid in [('Review API contracts.', True), ('   ', False), ('a' * 1025, False)]:
+                import json
+                skill.write_text('---\nname: graft-example\ndescription: ' + json.dumps(description) + '\n---\n# Example\n')
+                with self.subTest(description=description[:30]):
+                    self.assertEqual(not MODULE.validate_skill_frontmatter(skill), valid)
+
+    def test_utf8_bytes_are_measured_instead_of_character_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'AGENTS.md').write_text('中' * 4, encoding='utf-8')
+            findings = MODULE.validate_guidance_budgets(root, budgets={'AGENTS.md': 10}, chains={'root': ('AGENTS.md',)})
+            self.assertTrue(any('12 bytes > 10 bytes' in item.message for item in findings))
+
+    def test_combined_explicit_chain_can_overflow_with_valid_individual_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            budgets = {'AGENTS.md': 20000, 'web/AGENTS.md': 20000}
+            for relative in budgets:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('a' * 17000)
+            findings = MODULE.validate_guidance_budgets(root, budgets=budgets, chains={'explicit-web': tuple(budgets)})
+            self.assertEqual(len(findings), 1)
+            self.assertIn('34002 bytes', findings[0].message)
+            self.assertIn('web/AGENTS.md=17000 bytes', findings[0].message)
+
+    def test_instruction_chain_boundary_includes_blank_line_separators(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            budgets = {"AGENTS.md": 20000, "web/AGENTS.md": 20000}
+            for relative in budgets:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("x" * 16383)
+            self.assertEqual(MODULE.validate_guidance_budgets(root, budgets=budgets, chains={"web": tuple(budgets)}), [])
+            (root / "AGENTS.md").write_text("x" * 16384)
+            findings = MODULE.validate_guidance_budgets(root, budgets=budgets, chains={"web": tuple(budgets)})
+            self.assertTrue(any("32769 bytes" in item.message for item in findings))
+
+    def test_canonical_section_requires_content_beyond_heading(self) -> None:
+        original = MODULE.read_text
+        def heading_only(path: Path) -> str:
+            if path == MODULE.AGENTS:
+                return "# AGENTS\n\n" + "\n\n".join("## " + heading for heading in MODULE.ROOT_HEADINGS)
+            return original(path)
+        with mock.patch.object(MODULE, "read_text", side_effect=heading_only):
+            findings = MODULE.validate_guidance_owners()
+        self.assertEqual(sum("has no content" in item.message for item in findings), len(MODULE.ROOT_HEADINGS))
+
+    def test_missing_instruction_file_is_reported_with_incomplete_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            findings = MODULE.validate_guidance_budgets(root, budgets={'AGENTS.md': 8192}, chains={'root': ('AGENTS.md',)})
+            self.assertTrue(any('file is missing' in item.message for item in findings))
+            self.assertTrue(any('incomplete' in item.message for item in findings))
+
+    def test_instruction_budget_accepts_exact_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'AGENTS.md').write_text('a' * 8192)
+            self.assertEqual(MODULE.validate_guidance_budgets(root, budgets={'AGENTS.md': 8192}, chains={'root': ('AGENTS.md',)}), [])
+
+    def test_owner_routes_follow_conditional_references_without_prose_duplication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = root / '.agents/skills/example/SKILL.md'
+            detail = skill.parent / 'references/details.md'
+            detail.parent.mkdir(parents=True)
+            (root / 'AGENTS.md').write_text('# Root\n')
+            skill.write_text('[When needed](references/details.md)\n')
+            detail.write_text('[Authority](/AGENTS.md)\n')
+            with mock.patch.object(MODULE, 'REPO_ROOT', root):
+                self.assertEqual(MODULE.require_owner_reference(skill, root / 'AGENTS.md', skill_references=True), [])
+                detail.write_text('Root rules are important.\n')
+                self.assertTrue(MODULE.require_owner_reference(skill, root / 'AGENTS.md', skill_references=True))
+
+    def test_missing_owner_is_reported_even_when_link_is_present(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'SKILL.md'
+            source.write_text('[Owner](missing.md)\n')
+            with mock.patch.object(MODULE, 'REPO_ROOT', root):
+                findings = MODULE.require_owner_reference(source, root / 'missing.md')
+            self.assertIn('owner is missing', findings[0].message)
+
+    def test_links_check_explicit_ids_heading_anchors_and_missing_anchors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'SKILL.md'
+            (root / 'owner.md').write_text('# Owner\n\n## Repeated\n\n## Repeated\n\n<a id="custom"></a>\n')
+            source.write_text('[one](owner.md#repeated-1) [two](owner.md#custom)\n')
+            with mock.patch.object(MODULE, 'REPO_ROOT', root):
+                self.assertEqual(MODULE.validate_markdown_references(source), [])
+                source.write_text('[missing](owner.md#deleted)\n')
+                self.assertIn('anchor does not exist', MODULE.validate_markdown_references(source)[0].message)
+
+    def test_conditional_reference_cycles_are_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = root / 'SKILL.md'
+            detail = root / 'reference.md'
+            skill.write_text('[details](reference.md)\n')
+            detail.write_text('[back](SKILL.md)\n')
+            with mock.patch.object(MODULE, 'REPO_ROOT', root):
+                self.assertEqual(MODULE.linked_skill_documents(skill), {skill, detail})
+
+    def test_size_report_includes_all_cross_domain_instruction_files(self) -> None:
+        report = MODULE.guidance_size_report()
+        chain = next(item for item in report['chains'] if item['name'] == 'cross-boundary+docs')
+        self.assertEqual(set(chain['paths']), set(MODULE.GUIDANCE_BUDGETS))
+        self.assertEqual(chain['bytes'], sum(item['bytes'] for item in report['files']) + 6)
+
+
+class PluginDiscoveryTests(unittest.TestCase):
+    def _fixture(self, root: Path, skill_path: str = './skills/') -> Path:
+        import json
+        repo_skill = root / '.agents/skills/repository-example/SKILL.md'
+        repo_skill.parent.mkdir(parents=True)
+        repo_skill.write_text('# Repository\n')
+        manifest = root / MODULE.REPOSITORY_PLUGIN_MANIFESTS[0]
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({'name': 'graft-frontend-vibe-toolchain', 'skills': skill_path}))
+        plugin_skill = manifest.parent.parent / 'skills/plugin-example/SKILL.md'
+        plugin_skill.parent.mkdir(parents=True)
+        plugin_skill.write_text('# Plugin\n')
+        return manifest
+
+    def test_discovers_only_manifest_declared_repository_plugin_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._fixture(root)
+            ignored = root / 'plugins/unregistered/skills/unregistered/SKILL.md'
+            ignored.parent.mkdir(parents=True)
+            ignored.write_text('# Not registered\n')
+            skills, findings = MODULE.discover_skill_files(root)
+            self.assertEqual(findings, [])
+            self.assertEqual({skill.parent.name for skill in skills}, {'repository-example', 'plugin-example'})
+
+    def test_rejects_escaping_absolute_and_external_plugin_skill_paths(self) -> None:
+        for skill_path in ('../../outside', '/tmp/personal-skills', 'https://example.com/skills', 'C:\\Users\\someone\\skills'):
+            with self.subTest(skill_path=skill_path), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self._fixture(root, skill_path)
+                _, findings = MODULE.discover_skill_files(root)
+                self.assertTrue(findings)
+
+    def test_rejects_plugin_skill_symlink_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'repo'
+            manifest = self._fixture(root, './external')
+            outside = Path(directory) / 'personal-skills'
+            outside.mkdir()
+            (manifest.parent.parent / 'external').symlink_to(outside, target_is_directory=True)
+            _, findings = MODULE.discover_skill_files(root)
+            self.assertTrue(any('escapes' in item.message for item in findings))
+
+    def test_repository_skill_root_cannot_point_at_personal_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "repo"
+            root.mkdir()
+            (root / ".agents").mkdir()
+            outside = Path(directory) / "personal-skills"
+            outside.mkdir()
+            (root / ".agents/skills").symlink_to(outside, target_is_directory=True)
+            roots, findings = MODULE.discover_skill_roots(root)
+            self.assertNotIn(root / ".agents/skills", roots)
+            self.assertTrue(any("escapes repository root" in item.message for item in findings))
+
+    def test_rejects_missing_skill_frontmatter_entrypoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._fixture(root)
+            (manifest.parent.parent / 'skills/plugin-example/SKILL.md').unlink()
+            _, findings = MODULE.discover_skill_files(root)
+            self.assertTrue(any('missing SKILL.md' in item.message for item in findings))
+
+    def test_current_repository_preserves_48_repository_and_5_plugin_entries(self) -> None:
+        skills, findings = MODULE.discover_skill_files()
+        self.assertEqual(findings, [])
+        self.assertGreaterEqual(sum(skill.is_relative_to(MODULE.SKILLS_DIR) for skill in skills), 48)
+        self.assertGreaterEqual(len(skills), 53)
+
+
+class PRMachineContractTests(unittest.TestCase):
+    def test_missing_publication_and_revision_guards_are_reported(self) -> None:
+        original_read_text = MODULE.read_text
+        def without_safety_flag(path: Path) -> str:
+            text = original_read_text(path)
+            return text.replace('--resolve-expected-head', '--unguarded-resolve') if path == MODULE.PR_REVIEW_HELPER else text
+        with mock.patch.object(MODULE, 'read_text', side_effect=without_safety_flag):
+            findings = MODULE.validate_pr_machine_contracts()
+        self.assertTrue(any(item.path == MODULE.PR_REVIEW_HELPER and '--resolve-expected-head' in item.message for item in findings))
+
+
+if __name__ == '__main__':
     unittest.main()

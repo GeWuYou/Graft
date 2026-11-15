@@ -1,6 +1,6 @@
 ---
 name: graft-local-validation-maintenance
-description: Safely update, inspect, or refresh an existing local Graft three-version validation deployment. Use for a selected instance's image tag, Compose/config refresh, port change, status, logs, health checks, or `.local/README.md` access record while retaining its data by default.
+description: "Update or inspect a selected existing Graft local validation instance while preserving its data."
 ---
 
 # Graft Local Validation Maintenance
@@ -17,8 +17,7 @@ creation or explicitly requested full recreation.
 
 ## Preconditions
 
-1. Establish the root `AGENTS.md` startup receipt and read
-   `.ai/environment/tools.ai.yaml` before selecting local tools.
+1. Reuse or restore the root [AGENTS.md](../../../AGENTS.md) receipt and environment inventory evidence before selecting tools.
 2. Treat official `compose.yml` and `compose.env.example` as the deployment
    contract. This skill may refresh local generated files but must not define a
    second startup or validation path.

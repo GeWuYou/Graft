@@ -1,27 +1,29 @@
 ---
 name: graft-typescript-dx-audit
-description: Default semantic review of Graft TypeScript public and module-facing APIs for caller-first inference, literal preservation, satisfies, unions, generic design, utility types, and limited branded boundaries. Use when changing handwritten TypeScript contracts, composables, API adapters, query helpers, stores, or shared frontend APIs.
+description: "Review inference, literal types, generics, and caller safety when changing Graft public TypeScript contracts or shared APIs."
 ---
 
 # Graft TypeScript DX Audit
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as Graft's default semantic review layer for TypeScript developer experience. It complements generated
 OpenAPI contracts, frontend module ownership, contract governance, and existing validation; it does not create a
 second type authority, utility-type library, frontend architecture, type-test framework, or completion gate.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `web/AGENTS.md`, `ai-plan/design/architecture/前端架构设计.md`, and
-   `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`.
-3. Read the owning module contract, generated OpenAPI type, platform contract, composable/store/query helper, and its
-   real callers. Read the API boundary governance when the type represents an HTTP contract.
-4. Read the relevant Graft semantic review skill when the type changes a query key, permission, domain lifecycle,
-   cross-boundary mapping, or API contract.
+Reuse startup, web guidance, and prior contract evidence. Inspect the changed public type and actual callers first.
+
+- Wire types or shared semantic changes: inspect the canonical OpenAPI/module contract and the affected [contract governance](../../../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md).
+- Module ownership or layering changes: consult [frontend architecture](../../../ai-plan/design/architecture/前端架构设计.md).
+- Query, permission, lifecycle, or API concerns: cover the changed concern in the integrated review and load its specialized skill only for missing detail.
+
+An internal TypeScript edit without public-contract or caller impact does not require this complete workflow.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - adds or changes a handwritten TypeScript public API, module contract, composable, store, query helper, or API adapter;
 - adds casts, `any`, `unknown` narrowing, generic wrappers, utility types, literal objects, discriminated unions, or
@@ -29,8 +31,7 @@ Run before implementation during design and again during review when a change:
 - duplicates, maps, or projects generated OpenAPI types across a module boundary; or
 - makes callers supply explicit type arguments, repeat annotations, or work around unclear autocomplete/errors.
 
-Boot and design workflows should actively match this skill for these triggers. It runs by default for matching work,
-not only when a user explicitly asks for a TypeScript review.
+Use the changed semantics to select checks; a file extension or incidental keyword alone does not require a full review.
 
 ## Workflow
 
@@ -104,18 +105,8 @@ advanced type construction.
 
 ## Review Output
 
-```text
-TypeScript DX audit:
-- authority_and_callers: <canonical type paths and concrete callers>
-- caller_experience: <inference, autocomplete, annotations/casts required>
-- literal_and_union_design: <as const/satisfies/unions/discriminants or not-applicable>
-- generic_and_utility_design: <inference path, utility projections, rejected complexity>
-- boundary_safety: <unknown narrowing, assertions, brands, runtime validation>
-- representations: <OpenAPI/adapter/query/store/composable/view alignment>
-- evolution: additive | behavior-changing | deprecated | breaking | exception-with-expiry
-- findings: <severity, evidence, recommendation>
-- validation: <commands and results>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 
@@ -127,5 +118,4 @@ TypeScript DX audit:
 - Do not use branded IDs, discriminated unions, generic abstractions, or type-level tests unless they prevent a proven
   boundary mistake or materially improve repeated caller ergonomics.
 - Static typing does not authorize trust in frontend input, replace server validation, or weaken permission checks.
-- When the audit finds a contract, query key, domain, API, permission, event, or cross-boundary concern, invoke the
-  specialized Graft semantic review skill rather than duplicating its rules here.
+- When the audit finds a contract, query key, domain, API, permission, event, or cross-boundary concern, cover that concern in the integrated review; load its specialized skill only for needed detail.

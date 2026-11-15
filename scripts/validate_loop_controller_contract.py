@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -327,6 +328,17 @@ def validate_outer_controller_closeout(closeout: Mapping[str, Any], scenario: st
     return findings
 
 
+def linked_contract_text(path: Path) -> str:
+    """Read the entrypoint and its linked local contracts after progressive disclosure."""
+    spec = importlib.util.spec_from_file_location("loop_guidance", Path(__file__).with_name("validate_ai_governance.py"))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load guidance reference discovery")
+    guidance = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = guidance
+    spec.loader.exec_module(guidance)
+    return "\n".join(read_text(document) for document in sorted(guidance.linked_skill_documents(path)))
+
+
 def validate_skill_contracts() -> list[Finding]:
     findings: list[Finding] = []
     checks = (
@@ -374,11 +386,11 @@ def validate_skill_contracts() -> list[Finding]:
             "task-skill",
             (
                 (r"round\s+evidence", r"suggested_follow_up"),
-                (r"topology_revision", r"node_id", r"ready\s+node"),
-                (r"must\s+not.*mutate.*topology|outer\s+controller.*wave\s+boundary",),
+                (r"topology_revision", r"node_id", r"ready[-\s]+node"),
+                (r"must\s+not.*mutate.*topology|outer\s+controller.*wave\s+boundary|worker\s+cannot\s+change\s+the\s+DAG",),
                 (r"only\s+the\s+outer\s+(main\s+agent|controller)", r"next\s+batch"),
-                (r"must\s+not\s+decide\s+topic\s+completion",),
-                (r"must\s+not\s+resume\s+the\s+current\s+batch",),
+                (r"must\s+not\s+decide\s+topic\s+completion|worker\s+completion.*never\s+completes\s+the\s+topic\s+loop",),
+                (r"must\s+not\s+resume\s+the\s+current\s+batch|only\s+the\s+outer\s+controller.*only\s+it\s+can\s+select\s+recovery\s+transitions",),
                 (r"retry exhaustion", r"wave evidence", r"outer controller"),
             ),
         ),
@@ -388,7 +400,7 @@ def validate_skill_contracts() -> list[Finding]:
         if not path.is_file():
             findings.append(Finding(scenario, f"required skill is missing: {path.relative_to(REPO_ROOT)}"))
             continue
-        if not has_concepts(read_text(path), concepts):
+        if not has_concepts(linked_contract_text(path), concepts):
             findings.append(Finding(scenario, "missing controller/worker contract concepts"))
     return findings
 

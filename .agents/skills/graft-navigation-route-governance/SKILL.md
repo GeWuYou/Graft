@@ -1,11 +1,13 @@
 ---
 name: graft-navigation-route-governance
-description: Classify Graft navigation, UI routes, object capabilities, and global pages before changing menus, route metadata, bootstrap navigation, or page entry points. Use for new or moved menu items, UI route migrations, global pages, and navigation design review.
+description: "Classify Graft menus, UI routes, global pages, and object-detail entry points before changing their ownership or placement."
 ---
 
 # Graft Navigation Route Governance
 
-Use this skill before changing a Graft menu item, UI route, route-registration metadata, global entry point, or object-detail action. The canonical authority is `ai-plan/design/architecture/导航与资源路由信息架构规范.md`; this skill applies it and does not create a second navigation taxonomy.
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
+
+Use this skill before changing a Graft menu item, UI route, route-registration metadata, global entry point, or object-detail action. The canonical authority is [ai-plan/design/architecture/导航与资源路由信息架构规范.md](../../../ai-plan/design/architecture/导航与资源路由信息架构规范.md); this skill applies it and does not create a second navigation taxonomy.
 
 ## Required Classification
 
@@ -44,7 +46,7 @@ Stop before adding a menu item, UI route, alias, redirect, compatibility node, o
 - the canonical domain or menu parent; or
 - the stable resource boundary for the UI URL.
 
-Report the blocker in this form and request a decision before continuing:
+First resolve placement from the canonical design and current code. Only when the decision remains genuinely ambiguous, report the blocker and request the missing product/architecture decision:
 
 ```text
 Navigation placement blocked: <feature> has no resolved <object/domain/resource boundary>.

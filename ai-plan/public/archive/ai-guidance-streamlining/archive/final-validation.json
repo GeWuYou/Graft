@@ -1,0 +1,76 @@
+{
+  "date": "2026-09-13",
+  "platform": "intended WSL/Linux runtime",
+  "scope": "frozen implementation before archive-only evidence changes",
+  "source": "coordinator observed successful command exits",
+  "checks": [
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "python3 scripts/validate_ai_governance.py",
+      "result": "passed",
+      "skills": 53,
+      "agents_bytes": {
+        "AGENTS.md": 8160,
+        "server/AGENTS.md": 7685,
+        "web/AGENTS.md": 7427,
+        "ai-plan/AGENTS.md": 4079
+      },
+      "all_agents_chain_bytes": 27357
+    },
+    {
+      "command": "python3 scripts/validate_ai_plan_structure.py",
+      "result": "passed"
+    },
+    {
+      "command": "python3 scripts/validate_loop_controller_contract.py",
+      "result": "passed"
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts -p 'test_*.py'",
+      "result": "passed",
+      "tests": 161
+    },
+    {
+      "command": "python3 scripts/run_skill_tests.py",
+      "result": "passed",
+      "files": 6,
+      "tests": 124,
+      "per_file_counts": [
+        13,
+        1,
+        62,
+        7,
+        17,
+        24
+      ],
+      "failed_files": 0
+    }
+  ],
+  "environment_recovery": "User authorized distribution restart and subsequently broader WslService restart. Service restart restored Linux process execution. Earlier cancelled/native fallback runs remain historical partial evidence, not the final pass.",
+  "transient_launch": "The skill-suite first parallel WSL launch exited Wsl/Service/0x8007274c before Python started; sequential Linux retry passed.",
+  "commit_status": "Validated archive prepared for coordinator atomic scoped local commit; no commit SHA claimed here. Completion is verified by the containing local commit and coordinator closeout.",
+  "followup": "Coordinator rechecks archive/evidence structure, then exact staging and canonical commit. No push, publishing or integration authorized.",
+  "final_formatting": {
+    "path": "web/AGENTS.md",
+    "evaluated_frozen_bytes": 7427,
+    "first_prettier_bytes": 8209,
+    "final_bytes": 7401,
+    "delta_from_evaluated_bytes": -26,
+    "reason": "Equivalent seven-row risk-routing table rendered as compact bullets to avoid Prettier padding exceeding the 8192-byte budget. Labels, links and policy content unchanged.",
+    "command": "cd web && ./node_modules/.bin/prettier AGENTS.md --write && ./node_modules/.bin/prettier AGENTS.md --check",
+    "result": "passed; formatter idempotent",
+    "final_agents_bytes": {
+      "AGENTS.md": 8160,
+      "server/AGENTS.md": 7685,
+      "web/AGENTS.md": 7401,
+      "ai-plan/AGENTS.md": 4079
+    },
+    "raw_file_sum_bytes": 27325,
+    "all_agents_chain_bytes": 27331,
+    "chain_separator_bytes": 6,
+    "evaluation_history": "Frozen scenario estimates/read counts retain the actual 7427-byte web version; no retrospective measurement edits."
+  }
+}

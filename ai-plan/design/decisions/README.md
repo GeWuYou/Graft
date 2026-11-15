@@ -24,3 +24,5 @@ execution lease, server no-socket and independent Update Controller boundary bef
 - Keep ADRs as bounded decision records, not general design-doc catch-alls.
 - Use the repository ADR naming pattern `ADR-XXX-short-title.md`.
 - Put repository-wide baseline prose in sibling `design/` directories rather than duplicating it inside ADRs.
+
+- [ADR-028: Risk-Based Agent Guidance](ADR-028-risk-based-agent-guidance.md)

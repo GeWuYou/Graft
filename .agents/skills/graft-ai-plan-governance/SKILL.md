@@ -1,36 +1,35 @@
 ---
 name: graft-ai-plan-governance
-description: Repository-specific workflow for Graft ai-plan governance. Use when a docs/automation task changes ai-plan router documents, active-topic recovery materials, templates, catalog coverage, or bounded ai-plan validators without creating a second startup, validation, or recovery path.
+description: "Maintain Graft ai-plan routing, recovery materials, templates, catalog coverage, and their bounded validators."
 ---
 
 # Graft AI Plan Governance
 
 Use this skill when a `docs/automation` task changes the governance shape of `ai-plan/**`.
 
-Treat root `AGENTS.md` and `ai-plan/AGENTS.md` as the governance sources. This skill does not replace startup,
+Treat root [AGENTS.md](../../../AGENTS.md) and [ai-plan/AGENTS.md](../../../ai-plan/AGENTS.md) as the governance sources. This skill does not replace startup,
 validation, commit, closeout, or runtime authority.
 
-## Read First
+## Read by Changed Authority
 
-1. Complete the root `AGENTS.md` startup preflight.
-2. Read `ai-plan/AGENTS.md`.
-3. Read `.ai/environment/tools.ai.yaml`.
-4. Read `ai-plan/README.md`.
-5. Read `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`.
-6. Read `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
-7. Read `ai-plan/public/README.md` after startup preflight.
-8. Read the touched topic's `README.md`, `startup-prompt.md`, tracking, and trace files.
-9. If the same slice also changes `.agents/skills/**` or `scripts/**`, pair this skill with `graft-ai-governance-audit`.
+Reuse this task’s root receipt, environment inventory, and [ai-plan local rules](../../../ai-plan/AGENTS.md). Read missing evidence only:
+
+- Directory/router/catalog changes: the affected section of [ai-plan README](../../../ai-plan/README.md) and the actual index entries or validator contract.
+- Topic recovery or lifecycle changes: [tracking/recovery design](../../../ai-plan/design/governance/ai/AI任务追踪与恢复设计.md) plus that topic’s entry, current tracking point, and relevant trace. Use [the active router](../../../ai-plan/public/README.md) only to discover an unknown mapping or edit the router.
+- Work Intake or bootstrap changes: [ADR-003](../../../ai-plan/design/decisions/ADR-003-work-intake-and-bootstrap-model.md) and the current contract; templates need only the affected template contract, not unrelated topic histories.
+- Skill, tool, or helper governance: [AI tooling governance](../../../ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md); use `graft-ai-governance-audit` for its additional relevant detail.
+
+A router/template/catalog edit without a topic does not require reading active-topic files.
 
 ## When To Use
 
 Use this skill when the task changes any of:
 
-- `ai-plan/AGENTS.md`
-- `ai-plan/README.md`
+- [ai-plan/AGENTS.md](../../../ai-plan/AGENTS.md)
+- [ai-plan/README.md](../../../ai-plan/README.md)
 - `ai-plan/catalog.json`
 - `ai-plan/design/**` documents that define `ai-plan` governance or ADR convergence
-- `ai-plan/public/README.md`
+- [ai-plan/public/README.md](../../../ai-plan/public/README.md)
 - `ai-plan/public/<topic>/**` recovery materials
 - `ai-plan/templates/**`
 - `Work Intake`, `Work Contract`, or contract-driven bootstrap governance under `ai-plan/**`
@@ -51,7 +50,7 @@ Do not use this skill for:
 
 ### 1. Authority And Router
 
-- keep root `AGENTS.md` as the only startup-governance source
+- keep root [AGENTS.md](../../../AGENTS.md) as the only startup-governance source
 - choose the narrowest `ai-plan` owner: `design/`, `design/decisions/`, `roadmap/`, `public/`, `public/archive/`,
   `lessons/`, or `templates/`
 - treat `ai-plan/catalog.json` as supplementary, single-file, and bounded
@@ -61,7 +60,7 @@ Do not use this skill for:
 
 ### 2. Topic Safety
 
-- preserve concurrent active topics in `ai-plan/public/README.md`
+- preserve concurrent active topics in [ai-plan/public/README.md](../../../ai-plan/public/README.md)
 - do not break another topic's startup entry while updating shared router docs
 - keep `startup-prompt.md` aligned with root startup governance; do not invent a second receipt format
 - when substantive work changes an active topic, update its tracking and trace files in the same change
@@ -89,7 +88,7 @@ Add:
 python3 scripts/validate_ai_plan_structure.py
 ```
 
-when the slice touches `ai-plan/catalog.json`, `ai-plan/public/README.md`, `ai-plan/templates/**`, active-topic
+when the slice touches `ai-plan/catalog.json`, [ai-plan/public/README.md](../../../ai-plan/public/README.md), `ai-plan/templates/**`, active-topic
 recovery structure, or the `ai-plan` structure guard itself.
 
 Add:
@@ -99,7 +98,7 @@ python3 scripts/validate_ai_governance.py
 ```
 
 when the slice touches `.agents/skills/**`, `scripts/**`, or
-`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
+[ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md](../../../ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md).
 
 Run:
 
@@ -112,7 +111,7 @@ only when `scripts/validate_ai_plan_structure.py` or its tests change.
 ## Guardrails
 
 - do not create a second startup path, second validation truth, or hidden recovery store
-- do not let `graft-work-intake` own independent intake rules outside root `AGENTS.md`, `ai-plan/AGENTS.md`, and
+- do not let `graft-work-intake` own independent intake rules outside root [AGENTS.md](../../../AGENTS.md), [ai-plan/AGENTS.md](../../../ai-plan/AGENTS.md), and
   the approved ADRs
 - do not start `compose-project-management` implementation from `ai-plan` governance work
 - do not mass-retrofit existing topics to match template wording

@@ -1,6 +1,6 @@
 ---
 name: graft-validation-runner
-description: Choose and run the smallest correct validation for Graft work. Use when the task touches server, web, automation, or cross-boundary contracts and Codex needs to decide which current validation commands are justified, which ones are not yet possible, and how to report validation gaps honestly.
+description: "Select the smallest correct Graft validation scope and report completion evidence or concrete gaps."
 ---
 
 # Graft Validation Runner
@@ -9,14 +9,17 @@ Use this skill to choose the correct validation scope for `Graft` without invent
 
 ## Preconditions
 
-1. Ensure the current turn already has the startup receipt required by the root `AGENTS.md`.
-2. Read `.ai/environment/tools.ai.yaml` before choosing runtimes or package managers.
-3. Treat root `AGENTS.md` plus repository entrypoints as validation truth:
+1. Ensure the current turn already has the startup receipt required by the root [AGENTS.md](../../../AGENTS.md).
+2. Use the already-read `.ai/environment/tools.ai.yaml` before choosing runtimes or package managers; refresh only when capabilities may have changed.
+3. Treat root [AGENTS.md](../../../AGENTS.md) plus repository entrypoints as validation truth:
    - `cd server && go run ./cmd/graft validate backend`
    - `cd web && bun run check`
 
 README files, tracking docs, skills, and CI workflows may point to these entrypoints or to narrower execution slices,
 but they must not redefine acceptance criteria, command order, or local-vs-CI environment rules.
+
+Reuse passing results for unchanged code and unchanged relevant dependencies. Skill transitions alone do not justify
+rerunning checks; hooks, CI, and task-class completion entrypoints remain effective.
 
 ## Validation Workflow
 
@@ -24,7 +27,7 @@ but they must not redefine acceptance criteria, command order, or local-vs-CI en
    - `agent-only`, `human-acceptance-required`, `browser-automation-required`, or `mixed`
    - record `browser_status` as `not-needed`, `authorized-local`, or `ci-contract`
    - do not select local browser interaction unless the task has explicit user/developer authorization and the
-     `web/AGENTS.md` conditions are met
+     [web/AGENTS.md](../../../web/AGENTS.md) conditions are met
 2. Classify the touched area:
    - `server`
    - `web`
@@ -47,7 +50,7 @@ but they must not redefine acceptance criteria, command order, or local-vs-CI en
    - if a workflow keeps split jobs or stage flags, verify the wording makes them execution-layer decomposition rather than a second truth
    - if no stronger real validation exists, report the exact limitation instead of pretending the area was fully validated
 7. When the touched slice includes live server schema or migration files:
-   - run `python3 scripts/validate_sql_migrations.py` to check live migration SQL comments and versions
+   - run `python3 scripts/validate_sql_migrations.py --changed --base-ref <merge-base>` to check live migration SQL comments and versions
    - apply the same check to core-owned handwritten migration directories such as `server/internal/httpx/migrations/**`,
      not only plugin Ent paths
    - keep the removed historical Ent/manual replay chain non-authoritative; do not recreate it as validation fallback

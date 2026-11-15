@@ -1,9 +1,11 @@
 ---
 name: graft-frontend-figma-intake
-description: Intake Figma links, screenshots, design exports, or design notes as reference material for Graft frontend work. Use when a user provides Figma-derived input, but keep repository docs, existing code, Graft page-type governance, and TDesign Vue Next authority above Figma. Do not add Figma SDKs or make Figma the source of truth.
+description: "Translate supplied Figma references into Graft page patterns while retaining repository design and TDesign authority."
 ---
 
 # Graft Frontend Figma Intake
+
+Apply [root governance](../../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Treat Figma as reference evidence, not authority. Translate useful intent into Graft admin patterns and reject incompatible framework, styling, routing, or dependency assumptions.
 
@@ -12,7 +14,7 @@ Treat Figma as reference evidence, not authority. Translate useful intent into G
 1. Capture what the Figma input is meant to convey: information architecture, density, component state, spacing, copy, interaction, or asset direction.
 2. Map it to existing Graft page type, route/menu/module ownership, TDesign components, theme tokens, and i18n rules.
 3. Preserve product semantics over pixel matching when the design conflicts with repository governance.
-4. Use `$graft-frontend-page-builder` for implementation and `$graft-frontend-browser-qa` for visual/browser verification.
+4. Use `$graft-frontend-page-builder` for implementation and use static/focused checks first; route approved browser verification to `$graft-frontend-browser-qa` when needed.
 5. If the Figma reference implies new shared assets or governance changes, stop at a scoped recommendation unless the active task permits those files.
 
 ## Accepted Inputs

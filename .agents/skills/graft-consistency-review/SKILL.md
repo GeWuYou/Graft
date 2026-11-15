@@ -1,9 +1,11 @@
 ---
 name: graft-consistency-review
-description: Review Graft naming, state, contract, module, and UI patterns for meaningful consistency without forcing mechanical uniformity. Use when adding a repeated capability or changing shared vocabulary.
+description: "Compare Graft naming and behavior conventions when adding repeated capabilities or changing shared vocabulary."
 ---
 
 # Graft Consistency Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this when a new capability resembles existing modules, routes, dialogs, query helpers, states, errors, or registries.
 Consistency means one domain meaning and one authority, not identical files or arbitrary style. It complements contract,

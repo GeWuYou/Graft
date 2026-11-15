@@ -1,6 +1,6 @@
 ---
 name: graft-ai-governance-audit
-description: Repository-specific audit workflow for Graft AI governance. Use when evaluating or changing AI tooling, MCP adoption, repository skills, ai-plan governance, Python helper scripts, environment inventory, or drift between AGENTS.md and AI workflow documents.
+description: "Audit Graft AI tooling, skills, helper scripts, environment inventory, and drift between their governing documents."
 ---
 
 # Graft AI Governance Audit
@@ -8,19 +8,19 @@ description: Repository-specific audit workflow for Graft AI governance. Use whe
 Use this skill to evaluate or maintain `Graft` AI governance across MCP, skills, `ai-plan`, Python helpers, and
 environment inventory.
 
-Treat root `AGENTS.md` as the startup and execution-governance source of truth. This skill is a docs/automation audit
+Treat root [AGENTS.md](../../../AGENTS.md) as the startup and execution-governance source of truth. This skill is a docs/automation audit
 workflow; it does not replace repository startup, validation, closeout, or commit rules.
 
 ## Workflow
 
-1. Complete the startup preflight from root `AGENTS.md`.
+1. Reuse the current task startup receipt; recover it from root startup governance only when missing or lost.
 2. Classify the task as `docs/automation` unless the requested change also modifies `server`, `web`, OpenAPI, or shared
    runtime contracts.
-3. Read:
-   - `.ai/environment/tools.ai.yaml`
-   - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
-   - `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md` when CodeGraph is involved
-   - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
+3. Reuse already-read evidence; consult only changed authority:
+   - `.ai/environment/tools.ai.yaml` when tool capability or inventory is affected
+   - [ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md](../../../ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md)
+   - [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](../../../ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md) when CodeGraph is involved
+   - [ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md](../../../ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md) when TDesign or frontend component generation is involved
 4. Inspect concurrent work before edits:
    - `git status --short`
    - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, `scripts/**` audit helpers,

@@ -1,6 +1,6 @@
 ---
 name: graft-system-config-field-renderer
-description: Use when adding or modifying system config definitions, system config schemas, or system config edit/render UI in Graft.
+description: "Choose schema-driven editors and locale keys when changing Graft system-config definitions, schemas, or rendering UI."
 ---
 
 # Graft System Config Field Renderer
@@ -8,7 +8,7 @@ description: Use when adding or modifying system config definitions, system conf
 Use this skill for changes that touch `server` system config definitions, `config_schema` JSON, OpenAPI/system-config
 contracts, or `web` UI that edits or renders system config values.
 
-Follow root `AGENTS.md` first. For cross-boundary work, read both `server/AGENTS.md` and `web/AGENTS.md` before
+Follow root [AGENTS.md](../../../AGENTS.md) first. For cross-boundary work, read both [server/AGENTS.md](../../../server/AGENTS.md) and [web/AGENTS.md](../../../web/AGENTS.md) before
 implementation.
 
 ## 1. Resolve Authority First
@@ -43,19 +43,9 @@ If the schema is absent, malformed, or does not provide a usable type, apply the
 - Run `web/scripts/check-i18n-governance.ts` through the documented validation entrypoint after changing schema copy or
   locale keys.
 
-## 4. TDesign Preflight
+## 4. TDesign Evidence
 
-When changing `web` render or edit UI, query TDesign MCP with `framework=vue-next` before coding for every touched
-component from the decision table: `Select`, `Switch`, `InputNumber`, `Textarea`, or `Input`.
-
-Use only the needed MCP calls:
-
-- `get_component_docs` for props, events, slots, and supported usage.
-- `get_component_dom` when style overrides, DOM assumptions, or selector work are involved.
-- `get_component_changelog` only for upgrade or version-drift risk.
-
-Record the queried components and adoption decision in closeout. If the slice only changes server definitions,
-schemas, docs, or validation scripts, record TDesign MCP as not applicable.
+When changing a renderer, resolve new or uncertain TDesign API/DOM/version behavior using [the TDesign guidance](../../../ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md), with `framework=vue-next`. Reuse existing task evidence for unchanged known components. Query docs for API details, DOM for uncertain selectors or overrides, and changelog for version risk. Record material adoption decisions or missing evidence.
 
 ## 5. Validation
 

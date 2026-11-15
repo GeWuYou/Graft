@@ -1,9 +1,11 @@
 ---
 name: graft-delete-review
-description: Review whether a Graft change can remove code, mappings, abstractions, compatibility paths, or duplicate authority instead of adding another layer. Use during design and before implementation.
+description: "Review removable Graft abstractions, duplicate authority, and compatibility paths before introducing another layer."
 ---
 
 # Graft Delete Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this as a default deletion-first semantic review. It complements architecture, contract, domain, and change review;
 it does not authorize destructive filesystem, database, migration, or Git operations.

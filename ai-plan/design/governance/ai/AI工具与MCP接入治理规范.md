@@ -74,11 +74,9 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 
 不要只补设计文档却不更新 `AGENTS.md`、校验脚本或 review 口径；否则多人协作和多 agent 场景下这些规则很快会失效。
 
-多 agent 委派还必须遵守模型等级护栏：子 agent 的模型最高只能与直接委派者同级，或低于直接委派者。使用
-`fork_context=true` 时继承父模型与推理强度；使用 `fork_context=false` 时必须显式提供并验证模型、推理强度和
-模型等级关系。更高模型必须暂停委派并向用户申请针对该模型、任务范围和风险理由的明确授权；无法验证等级时
-同样 fail-closed，不得根据模型名称、可用性或 reasoning effort 推断。该规则由根 `AGENTS.md` 统一定义，实际
-委派 skill 只能引用并落实，不得创建第二套模型等级表。
+模型选型政策归根 [AGENTS.md](../../../../AGENTS.md) 的 Delegation。技能复用可信继承/比较证据，无法验证其它模型
+等级时继承父模型继续；不维护静态排行榜，不要求用户为普通委派选模型，也不创建“注释恰好低一级”的附加限制。
+宿主实际参数见委派技能 reference，不能把某个宿主 API 拼写当作通用治理。
 
 ## 3. 开发者 MCP 风险等级
 
@@ -231,8 +229,9 @@ transport adapter；产品 runtime 仍不得把开发者客户端配置、AI ski
 
 ### 5.1 Semantic Review Layer
 
-仓库 Review Skill 是设计阶段的默认语义审查层，不是仅在用户显式点名时运行的可选工具。Boot 必须主动匹配
-适用 Skill，设计或 Work Contract 必须记录选择、证据、skill gap 和未决决策。当前矩阵包括：
+仓库 Review Skill 按实际变更风险匹配，高风险语义关注点仍须覆盖。不要按关键词全量加载；一份审查证据可以覆盖
+多个关注点，复用本轮 startup receipt 和已读内容。局部修复不必新建设计/Work Contract。需要时记录选择、证据、
+skill gap 和未决决策。当前矩阵包括：
 `graft-openapi-contract-review`、`graft-cross-boundary-review`、`graft-platform-architecture-review`、
 `graft-api-dx-review`、`graft-domain-model-review`、`graft-event-contract-review`、`graft-typescript-dx-audit`、
 `graft-query-key-consistency`、`graft-permission-model-review`、`graft-module-architecture-review`、
@@ -249,7 +248,13 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
 新增或修改仓库 skill 时：
 
 - 先确认是否已有 skill 可以扩展，避免重复工作流。
-- `SKILL.md` 只放触发条件、关键流程、拒绝条件和必要命令。
+- description 用一至两句说明用途和精准触发条件；没有最少 80 字符要求。保留非空、合法 YAML、命名和格式上限。
+- `SKILL.md` 正文保留共同约束与必要决策；复杂模式、JSON 契约、长命令、模板和例子放按触发加载的 references。
+  短技能可以独立，不要求统一拆目录；不按正文长度推断质量。
+- 删除重复预检/报告模板；保留 48 个仓库和 5 个 plugin skill 的名称与入口，不改变隐式调用策略。已有 UI metadata
+  的 display_name/short_description/default_prompt 要与描述和实际调用一致。
+- 根/server/web AGENTS 每份不超过 8192 UTF-8 bytes，ai-plan 不超过 4096；项目实际 root+domain 加载链也受检查。
+  这是项目预算，不是官方建议值。不要靠提高个人客户端 project instruction 上限替代分层。
 - 复杂、可重复、易错的步骤优先放到 `scripts/**`。
 - 若新增 `agents/openai.yaml`，必须以顶层 `interface` 包裹 `display_name`、`short_description`、
   `default_prompt`，默认不增加其它 metadata 字段。
@@ -270,7 +275,7 @@ validation、commit、closeout、issue 或 recovery truth。新增 Skill 必须�
   当前任务明确覆盖生成的 `.ai/environment/**` inventory，以及 `.github/workflows/**` 中运行仓库 AI governance
   guard 的窄 CI workflow；前者必须通过生成脚本刷新，后者不得变成 runtime validation authority。
 - 自动验证、浏览器检查与人工验收的责任边界由根 `AGENTS.md` 与 `AI代码生成与Review规范.md` 定义；
-  `scripts/validate_ai_governance.py` 只检查这些 authority、相关 skills 和 active recovery wording 是否漂移，
+  `scripts/validate_ai_governance.py` 检查权威文件/引用、AGENTS 字节预算和加载链、48 个仓库及 5 个 plugin 技能结构，
   不成为 `server` / `web` 的第二套完成态或产品验收入口。
 - `graft-comment-governance` 是手写 Go、TypeScript、Vue 注释的专项 skill；它必须回到
   `代码注释与模块文档规范.md` 判断注释价值。仅当实际 diff 发生注释变更时，代码任务 closeout 才要求输出
@@ -368,4 +373,11 @@ AI tooling evidence:
 - 是否把可机检规则收口进现有 validation script、lint 或测试，而不是只靠人工记忆。
 - 是否避免使用注释覆盖率、文档覆盖率这类 AI 易作弊指标。
 - 是否为多 agent closeout 规定最小证据字段，例如修改范围、影响模块、风险点、验证步骤和回滚方案。
-- 是否验证每个实际委派入口都记录父模型、子模型、模型等级关系和比较证据，并对更高或未知等级 fail-closed。
+- 是否记录委派继承或可信比较证据，拒绝高于父模型，未知关系回到父模型继承继续。
+
+## 9. 指令评估与结构校验边界
+
+结构检查保留 YAML、名称、引用、私密信息、实际机器契约，不要求多个文件复制相同政策句子；描述/正文规模只作
+可见统计。loop 状态机、DAG、worker/controller 权限和 JSON 契约继续由原测试保护，移动文档不删除行为断言。
+语义由独立场景审查：记录加载量、技能选择、确认/继续决策及风险遗漏，不用长度或单次场景声称模型性能改善。
+评估材料不向评估者透露预期答案，旧版/新版使用相同配置、隔离上下文。工具采纳状态没变时不刷新生成 inventory。

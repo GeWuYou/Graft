@@ -1,9 +1,11 @@
 ---
 name: graft-frontend-asset-motion
-description: Decide when Graft frontend work may use generated bitmap assets, existing visual assets, icons, or motion/animation guidance. Use for conditional Imagegen, UI Animation, asset, hero, illustration, empty-state, icon, transition, or motion requests in Graft web tasks while preserving admin-product restraint and repository asset governance.
+description: "Choose existing assets, bitmap generation, icons, or restrained motion when a Graft UI task needs them."
 ---
 
 # Graft Frontend Asset Motion
+
+Apply [root governance](../../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use assets and motion only when they serve the admin workflow. Graft is a composable admin platform; most surfaces should be quiet, dense, and operational rather than marketing-oriented.
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft PR Review"
   short_description: "Inspect the current PR and AI review findings"
-  default_prompt: "Use $graft-pr-review in read-only inventory/review mode by default: inspect the current branch PR with GitHub MCP or the deterministic helper, reconcile all folded and pre-merge findings, and request explicit authorization before any local remediation or GitHub write."
+  default_prompt: "Use $graft-pr-review to inventory and verify every current-PR finding, then report evidence and next steps without writes."

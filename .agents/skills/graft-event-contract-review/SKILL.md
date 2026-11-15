@@ -1,35 +1,37 @@
 ---
 name: graft-event-contract-review
-description: Default semantic review of Graft fact-event contracts, delivery guarantees, transaction boundaries, idempotent consumers, retries, and operational observability. Use when adding or changing server/internal/event, eventbus, event handlers, durable delivery, or event-driven module behavior.
+description: "Review Graft event payloads, transaction boundaries, delivery, retries, and consumer idempotency when event behavior changes."
 ---
 
 # Graft Event Contract Review
+
+Apply [root governance](../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill as Graft's default semantic review layer for event-driven behavior. It complements the owning module,
 `server/internal/event`, the Task Runtime, contract governance, and existing validation entrypoints; it does not create
 a second event authority, queue, worker, retry policy, delivery store, CI gate, or closeout format.
 
-## Read First
+## Relevant Evidence
 
-1. Complete the root `AGENTS.md` startup preflight and record the startup receipt.
-2. Read `server/AGENTS.md`, `ai-plan/design/architecture/项目设计.md`, and
-   `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`.
-3. Read `ai-plan/design/governance/backend/队列采用与任务异步化治理规范.md` and the owning domain design. Read
-   the task lifecycle design when the event is emitted by or affects a Task.
-4. Inspect the canonical event type/owner, publisher transaction, handler registration, durable-delivery store, and
-   concrete consumers. Read `web/AGENTS.md` when a consumer changes realtime, query cache, or caller-visible state.
+Reuse startup and server guidance. Inspect the changed event owner, payload, transaction, registration, and affected consumers first.
+
+- Envelope/version or shared fact changes: consult the affected [contract rules](../../../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md).
+- Delivery, queue, or managed execution changes: consult [queue/task governance](../../../ai-plan/design/governance/backend/队列采用与任务异步化治理规范.md) and the owning task/domain lifecycle section.
+- New runtime/module boundaries: consult the relevant [architecture section](../../../ai-plan/design/architecture/项目设计.md).
+- Web consumer semantics: use [web guidance](../../../web/AGENTS.md) and inspect only affected realtime/query/caller paths.
+
+Reuse shared evidence in one integrated review rather than rerunning another review’s checks.
 
 ## When To Use
 
-Run before implementation during design and again during review when a change:
+Apply the relevant checks during design; review the resulting diff and new evidence without repeating unchanged work when a change:
 
 - adds, removes, renames, versions, publishes, subscribes to, or changes the payload/meaning of an event;
 - changes `server/internal/event`, `server/internal/eventbus`, an Outbox/durable-delivery path, or consumer handler;
 - makes a business fact asynchronously observable to audit, notification, logging, realtime, or another module; or
 - adds or changes retry, idempotency, delivery receipt, external side effect, failure recovery, or event metrics.
 
-Boot and design workflows should actively match this skill for these triggers. It runs by default for matching work,
-not only when a user explicitly asks for an event review.
+Use the changed semantics to select checks; a file extension or incidental keyword alone does not require a full review.
 
 ## Workflow
 
@@ -103,19 +105,8 @@ these commands but do not form a second completion path.
 
 ## Review Output
 
-```text
-Event contract review:
-- event_and_authority: <event type/version, domain owner, canonical contract path>
-- boundary_choice: internal/event | eventbus | task, with reason
-- fact_and_transaction: <when true, publisher, durable/best-effort, transaction evidence>
-- contract: <source, correlation, payload classification, sensitive-data decision>
-- consumers: <handler IDs, ownership, deduplication and side effects>
-- delivery_and_recovery: <receipt, retry, lease, failure, manual recovery semantics>
-- observability: <logs, metrics, audit, realtime/recovery authority>
-- evolution: additive | behavior-changing | deprecated | breaking | exception-with-expiry
-- findings: <severity, evidence, recommendation>
-- validation: <commands and results>
-```
+Include findings, authority/caller evidence, material decisions, and validation gaps in the task’s integrated review.
+Use domain-specific fields only when they clarify a decision; do not repeat a separate full report for each skill.
 
 ## Guardrails
 
@@ -125,7 +116,5 @@ Event contract review:
 - Do not turn a receipt, realtime signal, notification, or successful publish into evidence that a consumer completed.
 - Do not put credentials, unrestricted inputs, Ent entities, mutable plans, or unbounded external work in an event.
 - Do not infer idempotency from a retry loop. Demonstrate the persisted or provider-backed deduplication boundary.
-- When API, domain, permission, or cross-boundary representation changes too, invoke the corresponding Graft semantic
-  review skill rather than duplicating its rules here. When an event changes a TypeScript caller, contract, adapter,
-  composable, store, or public helper, invoke `graft-typescript-dx-audit`; when it invalidates, refreshes, polls, or
-  otherwise changes query-cache behavior, invoke `graft-query-key-consistency`.
+- Cover affected API, domain, permission, query-cache, TypeScript, and cross-boundary concerns in the integrated review.
+  Load the corresponding specialized skill only for needed detail; reuse evidence already established by the task.

@@ -1,6 +1,6 @@
 ---
 name: graft-shared-asset-reuse
-description: Use before adding, moving, renaming, removing, or replacing reusable Graft frontend/backend/cross-boundary assets so agents discover existing shared assets and maintain the curated shared asset registries without turning them into source inventories.
+description: "Discover reusable Graft assets and maintain curated registries when shared capabilities are added, moved, replaced, or removed."
 ---
 
 # Graft Shared Asset Reuse
@@ -8,7 +8,7 @@ description: Use before adding, moving, renaming, removing, or replacing reusabl
 Use this skill when a task may add, move, rename, remove, replace, or duplicate reusable assets in `web`, `server`,
 OpenAPI, validation scripts, or repository skills.
 
-Treat root `AGENTS.md` and `ai-plan/design/governance/platform/共享资产复用治理规范.md` as the governance sources. This skill does not replace
+Treat root [AGENTS.md](../../../AGENTS.md) and [ai-plan/design/governance/platform/共享资产复用治理规范.md](../../../ai-plan/design/governance/platform/共享资产复用治理规范.md) as the governance sources. This skill does not replace
 startup, validation, commit, closeout, OpenAPI, web, server, or lessons-learned governance.
 
 ## 1. Purpose
@@ -52,23 +52,22 @@ Do not use this skill for:
 - generated artifact refreshes where the authority source did not change
 - unrelated runtime bugfixes that do not add or alter shared-capability surfaces
 
-If not applicable, closeout still reports `shared_asset_preflight.status: not_applicable` with a short reason.
+For changes without reusable-asset impact, no separate preflight report is needed.
 
 ## 4. Required Reads
 
 After normal startup preflight, read:
 
-- `ai-plan/design/governance/platform/共享资产复用治理规范.md`
+- [ai-plan/design/governance/platform/共享资产复用治理规范.md](../../../ai-plan/design/governance/platform/共享资产复用治理规范.md)
 - the relevant registry files:
   - `.ai/registries/web-shared-assets.yaml`
   - `.ai/registries/server-shared-assets.yaml`
   - `.ai/registries/cross-boundary-assets.yaml`
-- `web/AGENTS.md` for frontend work
-- `server/AGENTS.md` for backend work
-- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` for stable contracts or cross-boundary values
+- [web/AGENTS.md](../../../web/AGENTS.md) for frontend work
+- [server/AGENTS.md](../../../server/AGENTS.md) for backend work
+- [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](../../../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) for stable contracts or cross-boundary values
 
-Read only the registries relevant to the current class when scope is narrow; read all three for cross-boundary or
-governance changes.
+Read only registries whose owned reusable capabilities change; a governance filename alone does not require all three.
 
 ## 5. Reuse Preflight
 

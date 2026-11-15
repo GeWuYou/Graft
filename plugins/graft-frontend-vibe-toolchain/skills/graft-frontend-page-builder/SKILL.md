@@ -1,16 +1,18 @@
 ---
 name: graft-frontend-page-builder
-description: Build or reshape Graft admin frontend pages using Vue 3, TypeScript, TDesign Vue Next, Pinia, Vue Router, Axios, UnoCSS, Graft page-type governance, and TDesign MCP. Use instead of generic Frontend App Builder, Frontend Design, Impeccable UI, Theme Factory, landing-page, or React/Tailwind/shadcn builder skills for Graft web work.
+description: "Build or reshape Graft admin pages using Vue and TDesign within existing module, theme, and contract boundaries."
 ---
 
 # Graft Frontend Page Builder
+
+Apply [root governance](../../../../AGENTS.md) and reuse this task’s startup and validation evidence.
 
 Use this skill for real Graft admin UI work, not standalone websites. The output must fit `web/src/modules/<name>` or shell-owned frontend boundaries and preserve existing route, menu, permission, i18n, and theme conventions.
 
 ## Workflow
 
-1. Complete repository startup preflight and read `web/AGENTS.md`, root `DESIGN.md`, `ai-plan/design/architecture/前端架构设计.md`, `ai-plan/design/governance/frontend/前端视觉设计规范.md`, `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`, and `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` before implementation.
-2. Classify the page type through existing Graft frontend governance, especially `$graft-web-vibe-coding` when page, shell, visual, copy, or prompt shaping is involved.
+1. Reuse the current receipt and [web guidance](../../../../web/AGENTS.md). Read design/page-master guidance for a new or restructured page, contract guidance when semantics change, and only affected rules for a small fix.
+2. Reuse the existing page type for small fixes; use `$graft-web-vibe-coding` to select a master when creating or restructuring a page.
 3. For new pages, page redesigns, or complex page changes, consume the bounded design brief produced by `$graft-web-vibe-coding` before coding. The brief must state:
    - page type and the primary operator/workflow
    - information density and hierarchy (what must be scannable first)

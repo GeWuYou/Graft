@@ -1,0 +1,95 @@
+{
+  "evaluated_version": "frozen revised worktree before final integration commit",
+  "evaluator": "independent revised agent",
+  "context": "fork_turns=none; no explicit model/reasoning override; inherited same parent configuration as baseline; no baseline/diff/ADR-028/topic/approved plan/expected answers supplied",
+  "input_authority": "neutral-inputs.json; evaluators received equivalent English renderings",
+  "method": "Read-only policy research; eight simulated task decisions, not task execution.",
+  "observed_research_reads": {
+    "complete_unique_files": 34,
+    "complete_file_bytes": 192547,
+    "selected_section_bytes": 30088,
+    "total_bytes": 222635,
+    "scope": "Entire eight-scenario research session, not per-case runtime."
+  },
+  "measurement": "Per-case unique whole-policy-file footprint estimates, not tool-read bytes, token counts or latency. Additional context exclusions apply.",
+  "scenarios": [
+    {
+      "id": "S1",
+      "footprint_files": 13,
+      "footprint_bytes": 94209,
+      "footprint_lower_bound": false,
+      "decision": "Direct copy/local-style edit; no new page design, topic, TDesign lookup or browser. Web check; comment guidance conditional, no comment change needed.",
+      "footprint_caveat": ""
+    },
+    {
+      "id": "S2",
+      "footprint_files": 14,
+      "footprint_bytes": 90130,
+      "footprint_lower_bound": false,
+      "decision": "Service-seam regression and backend completion. Pagination keyword alone does not load broad API/platform/cache reviews.",
+      "footprint_caveat": ""
+    },
+    {
+      "id": "S3",
+      "footprint_files": 23,
+      "footprint_bytes": 175379,
+      "footprint_lower_bound": false,
+      "decision": "Check module intent and repair highest wrong owner, then descriptor/OpenAPI/generated closure/web. just generate/openapi-check and both completion gates. Remove redundant mapping only; preserve genuine display-label policy.",
+      "footprint_caveat": ""
+    },
+    {
+      "id": "S4",
+      "footprint_files": 6,
+      "footprint_bytes": 44128,
+      "footprint_lower_bound": true,
+      "decision": "Read-only inventory completes with open/reported plus evidence/risk/next step; prove stale against current HEAD and investigate test failure. No repair/commit/push/reply/resolve/ledger.",
+      "footprint_caveat": "Additional unknown PR/domain context excluded."
+    },
+    {
+      "id": "S5",
+      "footprint_files": 18,
+      "footprint_bytes": 103577,
+      "footprint_lower_bound": false,
+      "decision": "Necessary clear-owner comparator and regression changes proceed without execute_repair approval. Other active worker file goes to coordinator for reassignment.",
+      "footprint_caveat": ""
+    },
+    {
+      "id": "S6",
+      "footprint_files": 11,
+      "footprint_bytes": 64508,
+      "footprint_lower_bound": true,
+      "decision": "Diagnose and seek concrete confirmation for inseparable user edits; continue related isolated fixture repair. No unauthorized DDL/push/reply; external action blocks only when actually required.",
+      "footprint_caveat": "Additional domain context excluded."
+    },
+    {
+      "id": "S7",
+      "footprint_files": 8,
+      "footprint_bytes": 54248,
+      "footprint_lower_bound": false,
+      "decision": "Inherit P or choose known lower L autonomously; H forbidden; unknown U falls back to inheritance without pause. Comment work has no special tier. Every nested edge obeys direct-parent ceiling; max 4 includes main.",
+      "footprint_caveat": "Worker domain context excluded."
+    },
+    {
+      "id": "S8",
+      "footprint_files": 16,
+      "footprint_bytes": 96965,
+      "footprint_lower_bound": true,
+      "decision": "VERIFY→SETTLE→ADVANCE→DISPATCH_NEXT after success. Recoverable context uses RESUME_CURRENT_BATCH→DISPATCH. Required unapproved external action blocks while preserving state; workers cannot mutate controller.",
+      "footprint_caveat": "Topic/domain context and ai-plan guidance for edits excluded."
+    }
+  ],
+  "coordinator_acceptance": "No missing key risk, unauthorized action or needless pause found in these eight revised decisions.",
+  "limitation": "Qualitative scenario-only conclusion; no statistical performance claim.",
+  "quotes": [
+    "Load changed-behavior/material-risk guidance only. Small fixes need no complete design reading.",
+    "File/hunk lists aid ownership, not absolute scope.",
+    "Ask only for mixed/unknown ownership, changed goals or new external side effects.",
+    "简单文案/token 修复无须重查。",
+    "valid actionable findings may remain `open/reported`.",
+    "Comment generation has no special model tier.",
+    "Comment review creates no separate commit requirement.",
+    "If the relative rank cannot be verified, inherit the parent and continue.",
+    "A worker return enters `VERIFY`, never a terminal state.",
+    "RECOVERY_COMPLETE -> RESUME_CURRENT_BATCH -> DISPATCH is mandatory."
+  ]
+}

@@ -33,6 +33,7 @@
 | LESSON-WEB-UI-ROUTE-LOADING-001        | 路由切换不能让主内容区短暂卸载为空             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-SELECTOR-AUTHORITY-001   | 多来源选择器必须保留用户意图并独立表达可用性   | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-TAB-INDICATOR-001       | TDesign Tab 指示条必须定位在完整激活导航项边缘 | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
+| LESSON-GOVERNANCE-GIT-ENV-ISOLATION-001 | Git fixture 测试不能继承真实工作树定位变量 | governance | L1 | active | `ai-plan/lessons/governance.md` | - |
 
 ## Promoted Rules
 

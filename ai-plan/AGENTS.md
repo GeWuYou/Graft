@@ -1,208 +1,50 @@
 # ai-plan/AGENTS.md
 
-This document is the local execution-truth for `ai-plan/**` governance. Root `AGENTS.md` remains the only
-repository-level startup-governance, validation, commit, and closeout authority.
+本文件只拥有 `ai-plan/**` 结构与恢复材料执行规则。根 [AGENTS.md](../AGENTS.md) 是唯一启动、授权、验证归属、
+提交和 closeout authority；复用本轮回执，不重新启动。修改治理使用 graft-ai-plan-governance；同时影响 AI 工具、
+skills、脚本时配合 graft-ai-governance-audit，仅覆盖必要 owner。
 
-After root startup preflight, prefer `graft-ai-plan-governance` when a `docs/automation` task changes `ai-plan`
-router documents, active-topic recovery materials, templates, catalog coverage, or bounded `ai-plan` validators.
-Pair `graft-ai-governance-audit` only when the same slice also changes `.agents/skills/**`, `scripts/**`, or
-`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
+## Authority and Router
 
-## 1. Scope
+- `design/**`：跨主题长期设计真相；`design/decisions/ADR-XXX-*.md`：需要约束后续批次的已收敛决策。
+- `roadmap/**`：独立分阶段交付计划，不能复制 tracking 批次表。
+- `public/README.md`：只列 active topics，每项一个恢复入口；完成 root preflight 后才用于恢复。
+- `public/<topic>/**`：当前恢复和批次状态；`public/<topic>/archive/**`：active topic 已完成阶段历史。
+- `public/archive/<topic>/**`：已完成主题历史，不覆盖当前治理，不作为默认启动上下文。
+- `lessons/**`：可复用纠错与稳定经验；`templates/**`：最小起始材料，不是活跃主题 authority。
+- `README.md`：目录导航；`catalog.json`：单文件、显式有限覆盖的辅助机器索引，不是第二真相。
 
-Apply this document when a `docs/automation` task changes:
+按变更风险选语义审查，证据可合并，局部文档修复不强制全量设计读取。规则冲突先修最高错误 owner，并同步下游。
 
-- `ai-plan/AGENTS.md`
-- `ai-plan/README.md`
-- `ai-plan/catalog.json`
-- `ai-plan/design/**`
-- `ai-plan/design/decisions/**`
-- `ai-plan/roadmap/**`
-- `ai-plan/public/**`
-- `ai-plan/public/archive/**`
-- `ai-plan/lessons/**`
-- `ai-plan/templates/**`
+## Work Intake and Active Topic
 
-This document does not authorize edits outside `ai-plan/**`. If the real authority sits in root `AGENTS.md`,
-`.agents/skills/**`, `scripts/**`, `server/**`, or `web/**`, escalate only to the minimum required owner.
+新 long-running 工作先走 graft-work-intake；short-lived 工作不建 topic/Work Contract。详见
+[ADR-003](design/decisions/ADR-003-work-intake-and-bootstrap-model.md) 和
+[追踪与恢复设计](design/governance/ai/AI任务追踪与恢复设计.md)。只创建 contract 选中的 design/topic/roadmap/ADR。
 
-## 2. Authority Layers
+每个 active topic 必须包含 README.md、startup-prompt.md、todos/<topic>-tracking.md、traces/<topic>-trace.md。
+README 提供目标、恢复回执、authority、owned scope 和待办方向；tracking 持有恢复点、checklist、acceptance、batch
+状态和 Work Contract（专用标题下一个 YAML block）；trace 记录日期、决策、验证、下一步。禁止独立 work-contract.yaml、
+在 README/catalog 复制完整 contract，或要求所有文档新增 frontmatter。
 
-- root `AGENTS.md`
-  - startup governance, authority-first rules, validation ownership, commit flow, and closeout rules
-- `ai-plan/AGENTS.md`
-  - local execution rules for `ai-plan/**` structure, routing, topic materials, and ADR usage
-- `ai-plan/README.md`
-  - directory semantics and recovery-path overview for `ai-plan/**`
-- `ai-plan/catalog.json`
-  - bounded machine index for the currently approved governance coverage only
-  - supplementary to router and topic documents; never a second source of truth
-- `ai-plan/design/**`
-  - repository-wide design truth
-- `ai-plan/design/decisions/**`
-  - convergence-gated ADRs that must land before wider router, catalog, validator, or skill rollout
-- `ai-plan/roadmap/**`
-  - repository-wide staged implementation plans
-- `ai-plan/public/README.md`
-  - active-topic recovery index only
-- `ai-plan/public/<topic>/**`
-  - topic-local recovery materials and topic-local archives
-- `ai-plan/templates/**`
-  - starter artifacts for new recovery or ADR documents; templates never override live topic truth
-- `ai-plan/lessons/**`
-  - reusable lessons captured after work completes; lessons do not replace active recovery materials
+startup-prompt 引用 root preflight，携带 governance source/task class/recovery source/owned scope；父主题先于
+子主题恢复。修改 tracked topic 同步 tracking/trace；子主题只写本范围，父主题保留共享里程碑/风险/下一步。
 
-When these layers diverge, follow the higher layer and update the lower layer in the same change.
+## Editing and Archive
 
-## 3. Router
+- ADR 先记录 context/decision/status/consequences，再铺开相关 router/skill/validator 批次。模板必须去占位并适配。
+- 不批量回写旧主题只为模板一致。仅修正 active recovery 中覆盖新治理的当前通用指令，保留用户明确选型和历史 trace。
+- 保留并发 topic 状态；新建/归档同时更新 public/README。完成时整体移到 public/archive 并移除 active 索引。
+- active 入口保持简短，阶段详细历史移入 topic archive。无秘密、绝对文件系统路径、用户名、私有地址或本地恢复库；
+  使用相对路径、commit、branch、PR 编号和命令。
+- 不另建 startup、validation、commit、recovery 或 intake 流程；catalog 不扩成全库清单；批次范围未到不添加工具。
 
-Every design-stage task must select the applicable Semantic Review Layer Skill before implementation and record the
-selection, evidence, and any unavailable-skill gap in the design or Work Contract. Semantic Review is a default
-semantic layer; it does not replace this router, the owning design authority, repository validation, or closeout rules.
+## Validation and Closeout
 
-Choose the narrowest `ai-plan/**` path that matches the authority you are changing:
+纯文档运行 `git diff --check`。修改 router/catalog/templates/active recovery 或 structure guard 时运行
+`python3 scripts/validate_ai_plan_structure.py`；该检查保持现有 bounded coverage，不是全库 ai-plan lint。
+guard 逻辑变更加 `python3 -m unittest scripts/test_validate_ai_plan_structure.py`。
+影响 skills/AI 工具规范或相关脚本时运行 `python3 scripts/validate_ai_governance.py`，脚本测试按受影响行为选择。
 
-- `design/`
-  - use when the content is repository-wide design truth that should outlive one topic or one worktree
-- `design/decisions/`
-  - use when one explicit ADR must converge later batches before wider router, catalog, validator, or skill rollout
-- `roadmap/`
-  - use when the content is a phased implementation plan or delivery order rather than live recovery state
-- `public/README.md`
-  - use after startup preflight to discover active topics and their default recovery entry
-- `public/<topic>/`
-  - use for one active topic's live recovery materials, batch state, and bounded execution history
-- `public/<topic>/archive/**`
-  - use when an active topic needs compaction of completed stage history without leaving the `active` lifecycle state
-- `public/archive/<topic>/`
-  - use only after a topic reaches `archive-ready`, moves out of the active index, and becomes historical evidence
-- `lessons/`
-  - use only when a corrected mistake, durable anti-pattern, or reusable implementation lesson should outlive one topic
-- `templates/`
-  - use only to seed new active-topic or ADR documents
-  - copy from the template, then adapt the new document to the live topic
-  - do not treat template wording as a retrofit mandate for every existing active topic
-  - do not let templates become a second authority layer
-
-## 4. Active Topic Contract
-
-Every active topic under `ai-plan/public/<topic>/` must include:
-
-- `README.md`
-- `startup-prompt.md`
-- `todos/<topic>-tracking.md`
-- `traces/<topic>-trace.md`
-
-Minimum expectations:
-
-- `README.md`
-  - states the topic objective, recovery receipt, authority summary, owned scope, and pending batch direction
-- tracking file
-  - records the current recovery point, checklist, acceptance conditions, loop batch state, and persisted
-    `Work Contract` when the topic came through `Work Intake`
-- trace file
-  - records dated decisions, validation milestones, and batch transitions
-- `startup-prompt.md`
-  - is a reusable loop or future-turn entry artifact and must not invent a second startup receipt format beyond root
-    `AGENTS.md`
-
-Machine-readable metadata rules:
-
-- the required topic files above remain the metadata authority; do not require per-document frontmatter to feed
-  automation
-- when a machine-readable index is needed, use one `ai-plan/catalog.json`
-- keep the catalog single-file, explicit-coverage, and no broader than the current approved governance slice requires
-- `ai-plan/public/README.md` remains the active-topic router even when `ai-plan/catalog.json` exists
-
-`ai-plan/public/README.md` must list only active topics and point at one recovery entry per topic. Add or remove the
-index entry in the same change that creates or archives the topic.
-
-When creating new active-topic materials, prefer the minimal starters under `ai-plan/templates/active-topic/`, then
-adapt them to the live topic instead of copying placeholders forward unchanged.
-
-## 4.1 Work Intake Contract
-
-For new long-running work:
-
-- `Work Intake` is the only allowed workflow entry before creating a new `topic`, `design`, `roadmap`, or `ADR`
-- `design`, `roadmap`, `topic`, and `ADR` are derived artifacts, not peer intake paths
-- `Work Contract` is the authority decision payload for that intake
-- persist `Work Contract` only when the work actually becomes an active topic
-- persist it in the topic tracking file, not as a standalone `work-contract.yaml`, not in topic `README.md`, and not
-  in `ai-plan/catalog.json`
-- use contract-driven minimal bootstrap: create only the minimal skeleton explicitly required by the contract
-
-## 5. ADR, Template, And Archive Rules
-
-Use `ai-plan/design/decisions/ADR-XXX-*.md` when one governance decision must converge multiple later batches. ADRs
-should record context, decision, status, and consequences before downstream retrofits, validators, or skill updates
-begin.
-
-Template rules:
-
-- keep templates minimal and copy-ready
-- copied files become live topic truth and must be edited for the real authority, scope, and validation path
-- do not mass-edit older active topics only to match new template wording
-- if a template change would force broad retrofits, keep the template narrower instead of broadening the current batch
-
-Archive rules:
-
-- keep active topic entry files concise
-- move stage history into `ai-plan/public/<topic>/archive/**` when the topic stays active but the default recovery path
-  needs compaction
-- move completed topics to `ai-plan/public/archive/<topic>/` and remove them from `ai-plan/public/README.md` in the
-  same change
-- do not let archive wording override current root `AGENTS.md`, this file, or current design truth
-
-## 6. Editing Rules
-
-- preserve concurrent topic state; do not rewrite unrelated active topics while updating the shared index
-- keep repository-safe content only; no secrets, absolute paths, machine usernames, or local-only recovery stores
-- when changing `ai-plan` governance, update the affected topic tracking and trace files in the same change
-- when adding templates, keep them non-authoritative and scoped to the minimum files the current governance batch needs
-- if `ai-plan/catalog.json` is introduced or updated, keep it single-file, bounded, and non-authoritative
-- do not add validator scripts or new skills until the batch plan explicitly reaches those steps
-- do not retrofit frontmatter across existing `ai-plan/**` documents just to satisfy machine-readable indexing
-- do not treat topic `owned scope` as permission to ignore upstream authority drift
-- do not let a thin workflow skill such as `graft-work-intake` invent independent intake rules outside the documented
-  authority chain
-
-## 7. Validation
-
-Minimum validation for pure `ai-plan/**` documentation changes:
-
-```bash
-git diff --check
-```
-
-When a change touches the adopted Phase 1 governance slice under `ai-plan/catalog.json`,
-`ai-plan/public/README.md`, `ai-plan/public/archive/ai-plan-ia-governance/**`, `ai-plan/templates/**`, or the
-structure guard itself, also run:
-
-```bash
-python3 scripts/validate_ai_plan_structure.py
-```
-
-This structure guard is intentionally bounded to the current governance rollout. It validates the approved archived
-`ai-plan-ia-governance` catalog slice, the shared active-topic router expectations still needed by
-`compose-project-management`, the minimal starter templates, and the archived governance topic evidence retained by this
-slice. It is not a whole-repository `ai-plan` linter.
-
-If the same change also touches `.agents/skills/**` or `scripts/**`, run the smallest relevant structure or unit
-validation required by root `AGENTS.md` and the governing skill.
-
-If the structure guard logic changes, run the focused regression test:
-
-```bash
-python3 -m unittest scripts/test_validate_ai_plan_structure.py
-```
-
-## 8. Closeout
-
-Closeout for `ai-plan/**` governance work should report:
-
-- which topic or ADR authority changed
-- whether routing changed across `design/`, `roadmap/`, `public/`, `public/archive/`, `lessons/`, or `templates/`
-- which validation ran and why stronger checks were skipped
-- whether `graft-task-closeout` or `graft-commit` were blocked by mixed ownership, validation gaps, or safe staging
-  limits
+复用有效检查，root 提交门槛与 hooks 保持。closeout 说明 authority/topic/ADR、路由影响、验证和缺口、所有权/暂存阻塞；
+不能把历史归档当当前执行权限。规模预算 4096 UTF-8 bytes；详细契约保持在对应设计/skill reference 中。

@@ -1,137 +1,24 @@
 ---
 name: graft-push
-description: Repository-specific push workflow for Graft. Use when the user explicitly wants the current branch pushed, or when a local push path is blocked and the agent needs to diagnose hook failures, upstream ambiguity, or remote rejection without inventing a second commit workflow.
+description: "Publish an explicitly requested Graft branch or diagnose push failures using the existing commit and validation workflows."
 ---
 
 # Graft Push
 
-Use this skill when the user explicitly asks to push the current `Graft` branch, for example with
-`$graft-push`, `push this branch`, `推送当前分支`, or when the current local push path is blocked and the agent needs to
-diagnose the blocker before the user retries.
+Follow [root governance](../../../AGENTS.md) and [delivery details](../../../ai-plan/design/governance/ai/仓库协作与交付细则.md). Reuse this task's receipt and validation evidence. A diagnosis request is read-only; an explicit push request authorizes completing its necessary local commit/validation path and publishing the confirmed branch.
 
-Treat root `AGENTS.md` as the push-governance source of truth. This skill does not bypass commit, ownership, or
-validation rules.
+## Prepare the Branch
 
-## Preconditions
+1. Inspect status, branch, upstream, and current local commit range. Resolve any detached HEAD destination before publishing; never push a `main-XX` pool marker.
+2. In the primary checkout, an upstream with an open PR is an incremental push: use `@{upstream}..HEAD` and retain its branch name. Otherwise fetch `origin/main`, use all of `origin/main..HEAD` to derive the repository-compliant branch name, and rename locally when required. An empty range means no new publication.
+3. Confirm the intended upstream and branch-name fit under delivery rules. Do not remove an old remote branch after a rename, push unrelated refs, amend history, or force-push without explicit authorization.
+4. Route missing commits through `graft-commit`. Diagnose local hook, generated-artifact, snapshot, or validation failures and repair related task-owned causes continuously, including needed files and regression tests. Revalidate the changed scope. New files alone do not require confirmation; ambiguous ownership, changed goals, or new external actions do.
+5. Preserve complete PR finding dispositions throughout remediation. Folded outside-diff/nitpick findings are not optional.
 
-1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
-2. Read `AGENTS.md` `11. Git Workflow Rules` before pushing or diagnosing a push failure.
-3. Confirm the push trigger is valid:
-   - either the user explicitly requested a push
-   - or the current task is blocked on a local push failure that the user asked to diagnose
-4. If the current slice is not yet safely committed, route through `graft-commit` first instead of pushing mixed or
-   uncommitted work.
-5. If the push follows an active `$graft-pr-review` remediation run, confirm the latest PR finding inventory was built
-   exhaustively and still includes `Outside diff range comments (N)`, `Nitpick comments (N)`, and other folded
-   latest-review sections in scope; do not treat push as permission to leave those findings informal or unclassified.
-6. When the user explicitly triggers `$graft-push`, treat it as permission to finish the local push path end to end:
-   - if the branch is blocked on a bounded local issue, such as missing commit, generated-artifact drift, stale
-     snapshots, local validation failure, or hook failure, repair it continuously only when its root cause is diagnosed
-     and directly addressed, ownership is unambiguous, every file and hunk remains inside the confirmed scope, and
-     authority and behavior are unchanged
-   - invoke the root `AGENTS.md` `Repair Confirmation Interaction Contract` whenever a repair misses any
-     continuous-repair condition. Present its `Repair required` proposal through native structured approval when available; otherwise stop and use its next-turn `1 / 2 / 3 / 4` fallback with all four visible option descriptions. Only `execute_repair` authorizes that proposed repair and its subsequent commit or push
-   - report when the branch or destination is ambiguous, the failure has no concrete repair proposal, or the required
-     validation is infeasible
-7. When the push follows PR-review remediation, do not reply to a PR thread or update the managed review ledger before
-   the remote branch ref has been verified to resolve to the exact local `HEAD`. A local commit, successful pre-push
-   hook, or accepted `git push` process is not publication proof.
+## Publish and Verify
 
-## Workflow
+Push only the confirmed current branch, using its existing upstream for incremental publication or `git push --set-upstream origin <branch>` for a new upstream. Never bypass hooks or branch protection.
 
-1. Inspect repository state before pushing:
-   - `git status --short`
-   - current branch or detached HEAD state
-   - current upstream mapping when it exists
-   - in the developer-owned primary workspace, decide whether this is an incremental push to an existing PR:
-     - confirm the current branch has a remote upstream and its remote branch has an open PR
-     - when it does, use `git log --oneline @{upstream}..HEAD` as the incremental push scope and preserve the current
-       branch name
-     - otherwise fetch `origin/main` and use `git log --oneline origin/main..HEAD`; this complete range is the sole
-       branch-naming input, even when the current branch has an existing upstream
-     - when `origin/main..HEAD` is empty for a new publication, report that there is no local commit range to publish;
-       do not rename or push a new branch
-   - retain the appropriate local range/upstream inspection for a legal task branch; never push a `main-XX` pool marker
-2. Validate branch-name fit before pushing:
-   - branch names must follow `<type>/<topic-or-scope>`
-   - `type` should use an established repository prefix such as `feature`, `fix`, `refactor`, `docs`, `chore`, `build`,
-     or `ci`
-   - `topic-or-scope` must be lowercase kebab-case and summarize all commits in the selected branch-naming range
-   - reject the push when the branch type is outside the established prefixes, the topic is not lowercase kebab-case,
-     or the topic does not describe the local commit range being pushed
-   - reject `feat/*`, `wt-*`, stale names, and unrelated names; generic `wt-*` placeholders are naming or scope
-     failures, not advisory style suggestions
-   - for a new primary-workspace publication, compare the current branch name with all commits in `origin/main..HEAD`;
-     derive a concise matching name and rename before pushing when they differ, regardless of an existing upstream
-   - for an incremental push to an existing open PR, keep the established branch name; do not rename it solely because
-     the incremental commits have a narrower intent
-   - reject local-only worktree pool marker branches such as `main-01`; push must run from the primary integration
-     checkout or a legal task branch, never from a reusable pool marker
-   - do not use a prior upstream as proof that a primary-workspace branch name is current; only its associated open PR
-     permits the incremental-push exception
-3. Classify the blocker or next action:
-   - uncommitted or unstaged local scope
-   - local Husky / hook failure
-   - missing or wrong upstream branch
-   - remote rejection, branch protection, or non-fast-forward
-   - network or authentication failure
-4. Keep push scope explicit:
-   - push the current confirmed branch only
-   - do not create extra commits, amend history, or push unrelated refs unless the user explicitly asks
-   - if detached HEAD is intentional, require an explicit destination ref before pushing
-5. Reuse repository truth before diagnosing remote issues:
-   - if a commit is missing, use `graft-commit`
-   - if local validation is the real blocker, use `graft-validation-runner`
-   - if the failure is a local hook, reproduce the exact hook and diagnose its repair. Repair it continuously only
-     when every continuous-repair condition holds; otherwise present the required structured proposal
-   - use the root `Repair Confirmation Interaction Contract` for any bounded local blocker that does not meet every
-     continuous-repair condition. `show_detailed_diff` shows the patch and repeats the native choice control;
-     `continue_current_scope` and `cancel_workflow` stop repair work, and `execute_repair` resumes this push workflow
-     only for the declared scope
-   - if the branch contains `$graft-pr-review` fixes, preserve the review run's exhaustive finding-disposition
-     requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
-     optional
-6. Push safely:
-   - for an incremental push to an existing open PR, push the existing upstream branch
-   - for a new primary-workspace publication, push only the derived branch with
-     `git push --set-upstream origin <derived-branch>`
-   - if a legal task branch needs a new upstream, use `git push --set-upstream origin <branch>`
-   - do not auto-delete the old remote branch after a rename unless the user explicitly asks
-   - do not use force push unless the user explicitly asks and the repository state justifies it
-7. Verify remote publication before any PR-review write:
-   - run `git ls-remote --exit-code origin refs/heads/<current-branch>` and compare the returned SHA with `git rev-parse HEAD`
-   - only an exact match proves that the fixing commit is visible to reviewers; a mismatch, missing ref, or transport
-     failure leaves PR threads and the managed ledger untouched
-   - after exact-match confirmation, return to `$graft-pr-review` to reply to fixed findings and append the disposition
-     ledger; never reverse this order
-8. Report:
-   - what blocked the push or what was pushed
-   - whether a branch-name check ran, what commit range it used, and whether a rename happened
-   - the branch and upstream involved
-   - the remote ref and SHA used to prove publication before any PR-review write
-   - any hook or remote command that was reproduced
-   - the exact next retry command when the push is not completed
+Before any separately authorized PR reply or managed-ledger write, compare `git ls-remote --exit-code origin refs/heads/<current-branch>` with `git rev-parse HEAD`. Only an exact SHA match proves publication; a successful push process or hook does not. Missing or mismatched proof leaves remote review content untouched. Return to `graft-pr-review` or the explicitly requested `graft-pr-remediation` workflow for those writes.
 
-## Refusal Cases
-
-Do not push when any of these are true:
-
-* the current slice is still uncommitted and the user did not explicitly authorize the needed commit step
-* ownership is mixed and the push would depend on an unsafe commit
-* the branch fails the established type, lowercase kebab-case topic, or commit-range relevance check, including
-  `feat/*`, `wt-*`, stale, or unrelated branch names
-* the branch rename target or destination ref is ambiguous
-* the only available path would require force push without explicit user approval
-* the push would be used to imply closure of a `$graft-pr-review` run whose latest finding inventory still leaves
-  `Outside diff range comments`, `Nitpick comments`, or other folded latest-review findings unclassified
-* a PR-review reply or ledger write would occur before `git ls-remote --exit-code origin refs/heads/<current-branch>`
-  proves the remote ref resolves exactly to `HEAD`
-
-In these cases, explain the blocker and stop at the smallest safe next step.
-
-## Example Triggers
-
-* `$graft-push`
-* `Push the current branch`
-* `排查这次 push 失败`
-* `推送这次已提交的改动`
+Report branch/upstream, commit range and any rename, publication SHA evidence, or the concrete blocker and retry action. Preserve non-fast-forward history until an authorized safe resolution exists.
