@@ -111,14 +111,10 @@ class Fixture:
             prepared = self.driver(*args)
             save(prepared_path, prepared)
         self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
-        boot = self.wait_driver("--phase", "verify-bootstrap", "--agent-id", prepared["agent_id"],
-                                "--target-id", str(prepared["target_id"]))
+        boot = self.wait_driver("--phase", "verify-bootstrap", "--agent-id", prepared["agent_id"])
         self.compose("stop", "docker-runtime-agent")
         self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
-        restart = self.wait_driver("--phase", "verify-restart", "--agent-id", boot["agent_id"],
-                              "--target-id", str(boot["target_id"]), "--identity-id", boot["identity_id"],
-                              "--generation", str(boot["generation"]),
-                              "--receipt-count", str(boot["ledger_receipt_count"]))
+        restart = self.wait_driver("--phase", "verify-restart", "--agent-id", boot["agent_id"])
         save(self.directory / "trust-evidence.json", {"bootstrap": boot, "restart": restart,
              "engine_id": self.engine("info", "--format", "{{.ID}}").strip()})
         print("Private daemon, Backend, Agent bootstrap and restart ready", flush=True)

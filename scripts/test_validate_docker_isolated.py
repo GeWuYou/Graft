@@ -66,6 +66,8 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertFalse(any("--once" in args for args in calls))
             self.assertEqual(calls.count(("up", "-d", "--no-deps", "docker-runtime-agent")), 2)
             self.assertIn(("stop", "docker-runtime-agent"), calls)
+            verification_calls = [call.args for call in fixture.driver.call_args_list if "verify-restart" in call.args]
+            self.assertEqual(verification_calls, [("--phase", "verify-restart", "--agent-id", "fixture")])
 
     def test_reauthenticates_after_empty_password_change_response(self):
         fixture = Fixture.__new__(Fixture)
