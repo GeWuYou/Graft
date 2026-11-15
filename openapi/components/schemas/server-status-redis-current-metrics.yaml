@@ -95,10 +95,19 @@ properties:
     type: [boolean, "null"]
     description: Whether an AOF rewrite is currently running. Gauge.
   replication_role:
-    type: [string, "null"]
-    enum: [master, replica, unknown]
+    anyOf:
+      - type: string
+        enum:
+          - master
+          - replica
+          - unknown
+      - type: 'null'
     description: Current Redis replication role. Gauge.
   master_link_status:
-    type: [string, "null"]
-    enum: [up, down]
+    anyOf:
+      - type: string
+        enum:
+          - up
+          - down
+      - type: 'null'
     description: Current upstream master-link status when this Redis node is a replica. Gauge.

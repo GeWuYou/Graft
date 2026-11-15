@@ -6719,16 +6719,10 @@ export interface components {
       aof_enabled?: boolean | null;
       /** @description Whether an AOF rewrite is currently running. Gauge. */
       aof_rewrite_in_progress?: boolean | null;
-      /**
-       * @description Current Redis replication role. Gauge.
-       * @enum {string|null}
-       */
-      replication_role?: 'master' | 'replica' | 'unknown' | null;
-      /**
-       * @description Current upstream master-link status when this Redis node is a replica. Gauge.
-       * @enum {string|null}
-       */
-      master_link_status?: 'up' | 'down' | null;
+      /** @description Current Redis replication role. Gauge. */
+      replication_role?: ('master' | 'replica' | 'unknown') | null;
+      /** @description Current upstream master-link status when this Redis node is a replica. Gauge. */
+      master_link_status?: ('up' | 'down') | null;
     };
     /** @description One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is never a synthetic zero. */
     'server-status-dependency-history-point': {
@@ -6776,11 +6770,8 @@ export interface components {
        * @enum {string}
        */
       status: 'available' | 'partial' | 'unavailable';
-      /**
-       * @description Stable reason when status is unavailable; absent when status is available.
-       * @enum {string|null}
-       */
-      unavailable_reason?: 'redis_not_configured' | 'read_failed' | null;
+      /** @description Stable reason when status is unavailable; absent when status is available. */
+      unavailable_reason?: ('redis_not_configured' | 'read_failed') | null;
       /** @description Ordered aggregate points for the selected range; no point is fabricated for unavailable data. */
       points: components['schemas']['server-status-dependency-history-point'][];
     };
@@ -8925,11 +8916,8 @@ export interface components {
       status: string;
       /** @enum {string} */
       state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
-      /**
-       * @description Nullable when the runtime cannot determine health on the list path without row-level inspect.
-       * @enum {string|null}
-       */
-      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
+      /** @description Nullable when the runtime cannot determine health on the list path without row-level inspect. */
+      health?: ('healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable') | null;
       /** @description Container runtime adapter key. */
       runtime: string;
       /** Format: date-time */
@@ -9010,8 +8998,7 @@ export interface components {
       image: string;
       /** @enum {string} */
       state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
-      /** @enum {string|null} */
-      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
+      health?: ('healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable') | null;
       restart_count?: number | null;
       resource: components['schemas']['container-resource-summary'];
     };
@@ -9026,12 +9013,10 @@ export interface components {
       image: string;
       /** @enum {string} */
       state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
-      /** @enum {string|null} */
-      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
+      health?: ('healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable') | null;
       restart_count?: number | null;
       status?: string | null;
-      /** @enum {string|null} */
-      reason_code?: 'health.unhealthy' | 'state.restarting' | 'state.exited' | 'state.dead' | 'state.unknown' | null;
+      reason_code?: ('health.unhealthy' | 'state.restarting' | 'state.exited' | 'state.dead' | 'state.unknown') | null;
       reason_label?: string | null;
       resource: components['schemas']['container-resource-summary'];
     };
@@ -11252,8 +11237,7 @@ export interface components {
       hidden_by_default: boolean;
       has_children: boolean;
       tooltip?: string | null;
-      /** @enum {string|null} */
-      tooltip_source?: 'application-note' | 'default-rule' | null;
+      tooltip_source?: ('application-note' | 'default-rule') | null;
       application_note?: string | null;
     };
     'application-files-response': {

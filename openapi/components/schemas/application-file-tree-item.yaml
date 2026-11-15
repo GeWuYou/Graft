@@ -39,9 +39,11 @@ properties:
   tooltip:
     type: [string, "null"]
   tooltip_source:
-    type: [string, "null"]
-    enum:
-      - application-note
-      - default-rule
+    anyOf:
+      - type: string
+        enum:
+          - application-note
+          - default-rule
+      - type: 'null'
   application_note:
     type: [string, "null"]
