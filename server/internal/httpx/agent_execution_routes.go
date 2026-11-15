@@ -31,7 +31,7 @@ const (
 )
 
 // ConfigureExecutionRoutes 将 Task Runtime 的外部执行 capability 接入 Agent 专用 listener。
-// Runtime Target binding reader 只用于把请求中的 capability 限定在证书身份已登记的能力集合内。
+// Runtime Target binding reader 将证书绑定到当前持久化身份，并限定其可领取的 capability。
 func (s *AgentServer) ConfigureExecutionRoutes(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader) error {
 	if s == nil || s.engine == nil {
 		return errors.New("agent mTLS server is unavailable")
@@ -47,12 +47,13 @@ func (s *AgentServer) ConfigureExecutionRoutes(gateway moduleapi.RuntimeAgentExe
 	if s.executionRoutesConfigured {
 		return errors.New("agent execution routes are already configured")
 	}
-	s.engine.POST(agentExecutionClaimPath, agentExecutionClaimHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionRenewPath, agentExecutionRenewHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionLogsPath, agentExecutionLogsHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionMaterialPath, agentExecutionMaterialHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionResultPath, agentExecutionResultHandler(gateway, bindings, s.logger))
-	s.engine.POST(agentExecutionReceiptPath, agentExecutionReceiptHandler(gateway, bindings, s.logger))
+	routes := s.engine.Group("", resolveAgentExecutionIdentity(bindings, s.logger))
+	routes.POST(agentExecutionClaimPath, agentExecutionClaimHandler(gateway, bindings, s.logger))
+	routes.POST(agentExecutionRenewPath, agentExecutionRenewHandler(gateway, bindings, s.logger))
+	routes.POST(agentExecutionLogsPath, agentExecutionLogsHandler(gateway, bindings, s.logger))
+	routes.POST(agentExecutionMaterialPath, agentExecutionMaterialHandler(gateway, bindings, s.logger))
+	routes.POST(agentExecutionResultPath, agentExecutionResultHandler(gateway, bindings, s.logger))
+	routes.POST(agentExecutionReceiptPath, agentExecutionReceiptHandler(gateway, bindings, s.logger))
 	s.executionRoutesConfigured = true
 	return nil
 }
@@ -97,7 +98,13 @@ func agentExecutionClaimHandler(gateway moduleapi.RuntimeAgentExecutionGateway, 
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		lease, err := longPollAgentExecution(ctx.Request.Context(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: identity.TargetID, ProviderID: strings.TrimSpace(request.ProviderID), Capability: strings.TrimSpace(request.Capability), CapabilityVersion: strings.TrimSpace(request.CapabilityVersion)})
+		lease, err := longPollAgentExecution(ctx.Request.Context(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: identity.TargetID, ProviderID: strings.TrimSpace(request.ProviderID), Capability: strings.TrimSpace(request.Capability), CapabilityVersion: strings.TrimSpace(request.CapabilityVersion)}, func() bool {
+			return agentCapabilityAllowed(ctx, bindings, identity, request.ProviderID, request.Capability, request.CapabilityVersion)
+		})
+		if errors.Is(err, errAgentExecutionIdentityRejected) {
+			abortAgentLedgerIdentity(ctx, logger)
+			return
+		}
 		if errors.Is(err, moduleapi.ErrExternalExecutionNotFound) {
 			ctx.Status(http.StatusNoContent)
 			return
@@ -110,10 +117,13 @@ func agentExecutionClaimHandler(gateway moduleapi.RuntimeAgentExecutionGateway, 
 	}
 }
 
-func longPollAgentExecution(ctx context.Context, gateway moduleapi.RuntimeAgentExecutionGateway, request moduleapi.ExternalExecutionClaimRequest) (moduleapi.ExternalExecutionLease, error) {
+func longPollAgentExecution(ctx context.Context, gateway moduleapi.RuntimeAgentExecutionGateway, request moduleapi.ExternalExecutionClaimRequest, authorized func() bool) (moduleapi.ExternalExecutionLease, error) {
 	deadline := time.NewTimer(agentExecutionLongPollWindow)
 	defer deadline.Stop()
 	for {
+		if !authorized() {
+			return moduleapi.ExternalExecutionLease{}, errAgentExecutionIdentityRejected
+		}
 		lease, err := gateway.ClaimExternalExecution(ctx, request)
 		if !errors.Is(err, moduleapi.ErrExternalExecutionNotFound) {
 			return lease, err
@@ -325,9 +335,8 @@ func agentIdentityBindingActive(ctx *gin.Context, bindings moduleapi.RuntimeTarg
 }
 
 func agentIdentityMatchesBinding(identity AgentMTLSIdentity, binding moduleapi.RuntimeTargetAgentBinding) bool {
-	return binding.Status == moduleapi.RuntimeTargetAgentStatusActive && binding.IdentityID == identity.IdentityID &&
-		binding.TargetID == identity.TargetID && binding.AgentID == identity.AgentID && binding.Generation == identity.Generation &&
-		binding.CertificateSerial == identity.CertificateSerial && binding.PublicKeyFingerprint == identity.PublicKeyFingerprint
+	return agentCertificateMatchesBinding(identity, binding) && binding.IdentityID == identity.IdentityID &&
+		binding.Generation == identity.Generation
 }
 
 func agentExecutionHandleAllowed(ctx *gin.Context, gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, identity AgentMTLSIdentity, handle moduleapi.ExternalExecutionLeaseHandle) bool {
