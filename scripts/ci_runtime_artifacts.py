@@ -295,7 +295,9 @@ def compose_failure_summary(prefix: list[str], root: Path, environment: dict, se
                 code = 65
     states = [{key: row[key] for key in ("Service", "State", "Health", "ExitCode") if key in row}
               for row in rows if isinstance(row, dict)]
-    services = [row.get("Service", "") for row in states if row.get("State") in ("exited", "dead", "restarting") or row.get("Health") == "unhealthy"]
+    services = [row.get("Service", "") for row in states
+                if row.get("State") in ("dead", "restarting") or row.get("Health") == "unhealthy"
+                or (row.get("State") == "exited" and row.get("ExitCode") not in (0, "0", None))]
     if not services:
         services = [row["Service"] for row in states if row.get("Service") in ("backend", "server", "migrate", "bootstrap", "config-validate")]
     services = sorted({name for name in services if isinstance(name, str) and re.fullmatch(r"[a-zA-Z0-9_.-]+", name)})[:6]
