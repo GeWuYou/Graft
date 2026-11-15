@@ -176,6 +176,9 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
     failed_receipt = evidence.get("failed_backup_receipt") or {}
     migration = evidence.get("migration_invocation") or {}
     operation = evidence.get("operation") or {}
+    backup_detail = evidence.get("backup") or {}
+    config_snapshot = backup_detail.get("config_snapshot") or {}
+    database_dump = backup_detail.get("database_dump") or {}
     valid = (
         evidence.get("source_revision") == source_revision(root)
         and evidence.get("synthetic_release_source") is True
@@ -185,9 +188,9 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
         and evidence.get("target_binary_sha256") == target_hash
         and evidence.get("task_status") == "success"
         and evidence.get("server_container_replaced") is True
-        and operation.get("status") == "SUCCESS"
-        and failed.get("status") == "FAILED"
-        and failed.get("failure_code") == "backup_failed"
+        and operation.get("phase") == "SUCCESS"
+        and failed.get("phase") == "FAILED"
+        and failed.get("error") == "backup_failed"
         and bool(failed.get("operation_id"))
         and failed_receipt.get("operation_id") == failed.get("operation_id")
         and failed_receipt.get("failure_code") == "backup_failed"
@@ -204,6 +207,14 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
         and receipt.get("operation_id") == operation.get("operation_id")
         and backup.get("OperationID") == operation.get("operation_id")
         and backup.get("TaskID") == evidence.get("task_id")
+        and int(backup_detail.get("id", 0)) > 0
+        and int(evidence.get("task_id", 0)) > 0
+        and backup_detail.get("task_id") == evidence.get("task_id")
+        and backup_detail.get("status") == "AVAILABLE"
+        and config_snapshot.get("size_bytes") == backup.get("ConfigSnapshotBytes")
+        and config_snapshot.get("sha256") == backup.get("ConfigSnapshotSHA256")
+        and database_dump.get("size_bytes") == backup.get("DatabaseDumpBytes")
+        and database_dump.get("sha256") == backup.get("DatabaseDumpSHA256")
         and int(receipt.get("launch_stage_id", 0)) > 0
         and int(receipt.get("launch_attempt", 0)) > 0
         and int(backup.get("ConfigSnapshotBytes", 0)) > 0

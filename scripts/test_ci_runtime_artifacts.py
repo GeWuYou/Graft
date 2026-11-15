@@ -121,8 +121,11 @@ class RuntimeArtifactTests(unittest.TestCase):
             "source_version": "0.0.0-beta.1", "target_version": "0.0.0-beta.2",
             "source_binary_sha256": "1" * 64, "target_binary_sha256": "2" * 64,
             "task_status": "success", "task_id": 7, "server_container_replaced": True,
-            "operation": {"operation_id": "update-test", "status": "SUCCESS"},
-            "failed_backup_operation": {"operation_id": "update-failed", "status": "FAILED", "failure_code": "backup_failed"},
+            "operation": {"operation_id": "update-test", "phase": "SUCCESS"},
+            "failed_backup_operation": {"operation_id": "update-failed", "phase": "FAILED", "error": "backup_failed"},
+            "backup": {"id": 4, "task_id": 7, "status": "AVAILABLE",
+                       "config_snapshot": {"size_bytes": 10, "sha256": "3" * 64},
+                       "database_dump": {"size_bytes": 20, "sha256": "4" * 64}},
             "failed_backup_receipt": {"operation_id": "update-failed", "failure_code": "backup_failed",
                                       "failure_stage": "env_snapshot", "migration_started": False, "succeeded": False},
             "migration_invocation": {"bootstrap_invoked": True, "source_revision": "a" * 40,
@@ -146,11 +149,24 @@ class RuntimeArtifactTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "incomplete"):
                     verify_update_acceptance(self.root, self.root / "fixture")
             broken = deepcopy(evidence)
+            broken["operation"] = {"operation_id": "update-test", "status": "SUCCESS"}
+            path.write_text(json.dumps(broken))
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                verify_update_acceptance(self.root, self.root / "fixture")
+            broken = deepcopy(evidence)
             broken["receipt"]["backup_completion"]["TaskID"] = 999
             path.write_text(json.dumps(broken))
             with self.assertRaisesRegex(ValueError, "incomplete"):
                 verify_update_acceptance(self.root, self.root / "fixture")
             for section, field, value in [
+                ("operation", "phase", "FAILED"),
+                ("failed_backup_operation", "phase", "SUCCESS"),
+                ("failed_backup_operation", "error", "different_failure"),
+                ("backup", "task_id", 999),
+                ("backup", "id", 0),
+                ("backup", "status", "EXPIRED"),
+                ("backup", "config_snapshot", {"size_bytes": 10, "sha256": "9" * 64}),
+                ("backup", "database_dump", {"size_bytes": 999, "sha256": "4" * 64}),
                 ("receipt", "migration_started", False),
                 ("failed_backup_receipt", "failure_stage", "config_snapshot"),
                 ("failed_backup_receipt", "migration_started", True),
