@@ -25,3 +25,5 @@
 - Clean task dependency install, direct bundle generation and full Web check passed all source gates, production build and 312 files / 2175 tests. Combined diagnostic UI verification remains separately scoped.
 
 - Extended required CI to authenticated Build API publication before Update API, with locked bcrypt helper provenance, Task/artifact/publication/engine checks and explicit secret-exclusion evidence. Runtime results await integrated execution.
+
+- Aligned CI proof validation with completed-install markers, published manifest config-to-image binding and uploaded-context probe hashes. Success and backup-failure migration boundaries are explicit; same-source versioned update covers the existing migration graph invocation.

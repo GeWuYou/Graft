@@ -56,3 +56,5 @@ Versioned Update API CI is wired with 0.0.0-beta.1/.2 source-bound binaries, Con
 Tool dependency ownership repair passed a clean frozen install and full Web check with 312 files / 2175 tests on the governance slice. Exact source and lock hashes are retained in task-local evidence.
 
 Authenticated Build CI wiring requires full source/effect evidence before versioned Update acceptance. Combined runtime execution remains pending.
+
+Strict CI verifiers now require completed official installation, actual image/config/content proof and explicit migration boundaries. Integrated runtime evidence is still tracked by the lead.

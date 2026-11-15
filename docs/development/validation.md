@@ -108,3 +108,13 @@ Docker Image ID 和远端 manifest digest 一致，并要求任务与日志中�
 
 新增上传文件限定为 build-api/build-api-evidence.json 与辅助二进制 provenance。
 私有 TLS、认证文件及其生成秘密受 fixture 本地生命周期管理，CI 消费正常 Registry/Build API 与 SDK 执行入口。
+
+## 完整安装与镜像内容证明
+
+官方安装记录仅在所有必需场景通过后设置 complete=true，后续 CI 验收要求该完成标记。
+Build 证明还要求远端 manifest 的 config digest 指向实际 Engine Image ID，
+并从未启动的私有镜像容器提取 /probe，核对上传 context 的预期 SHA-256 和实际内容摘要。
+
+更新成功必须有 migration_started=true 及 bootstrap 调用证明，配置快照失败场景则要求
+migration_started=false 和绑定操作的失败回执。同一源码的 beta.1/beta.2 验收覆盖现有迁移图的调用，
+具体范围为相同 Git revision 的迁移图，新增 DDL 的升级路径需要独立迁移证据。

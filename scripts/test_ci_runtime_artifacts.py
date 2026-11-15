@@ -77,8 +77,18 @@ class RuntimeArtifactTests(unittest.TestCase):
         self.write("fixture/official/api-evidence.json", json.dumps(evidence))
         self.write("fixture/source-assets.json", json.dumps({"source_revision": "a" * 40}))
         self.write("fixture/official/installation-evidence.json", json.dumps({
-            "source_revision": "a" * 40, "execution_mode": "local", "official_compose": True}))
+            "source_revision": "a" * 40, "execution_mode": "local", "official_compose": True, "complete": True}))
         verify_acceptance(self.root, self.root / "fixture")
+        installation_path = self.root / "fixture/official/installation-evidence.json"
+        completed = json.loads(installation_path.read_text())
+        for incomplete in [None, False, "true"]:
+            proof = {**completed, "complete": incomplete}
+            if incomplete is None:
+                del proof["complete"]
+            installation_path.write_text(json.dumps(proof))
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                verify_acceptance(self.root, self.root / "fixture")
+        installation_path.write_text(json.dumps(completed))
         for results in [[], [{"scenario": "required", "status": "unverified"}]]:
             self.write("fixture/api-evidence.json", json.dumps({**evidence, "results": results}))
             with self.assertRaisesRegex(RuntimeError, "incomplete"):
@@ -112,7 +122,11 @@ class RuntimeArtifactTests(unittest.TestCase):
             "source_binary_sha256": "1" * 64, "target_binary_sha256": "2" * 64,
             "task_status": "success", "task_id": 7, "server_container_replaced": True,
             "operation": {"operation_id": "update-test", "status": "SUCCESS"},
-            "failed_backup_operation": {"status": "FAILED", "failure_code": "backup_failed"},
+            "failed_backup_operation": {"operation_id": "update-failed", "status": "FAILED", "failure_code": "backup_failed"},
+            "failed_backup_receipt": {"operation_id": "update-failed", "failure_code": "backup_failed",
+                                      "failure_stage": "config_snapshot", "migration_started": False, "succeeded": False},
+            "migration_invocation": {"bootstrap_invoked": True, "source_revision": "a" * 40,
+                                     "target_revision": "a" * 40, "scope": "same-source migration graph with no new pending DDL"},
             "receipt": {"execution_mode": "local", "succeeded": True, "operation_id": "update-test",
                         "protocol_version": 2, "migration_started": True,
                         "launch_stage_id": 9, "launch_attempt": 1,
@@ -136,6 +150,19 @@ class RuntimeArtifactTests(unittest.TestCase):
             path.write_text(json.dumps(broken))
             with self.assertRaisesRegex(ValueError, "incomplete"):
                 verify_update_acceptance(self.root, self.root / "fixture")
+            for section, field, value in [
+                ("receipt", "migration_started", False),
+                ("failed_backup_receipt", "migration_started", True),
+                ("failed_backup_receipt", "succeeded", True),
+                ("failed_backup_receipt", "operation_id", "different"),
+                ("migration_invocation", "bootstrap_invoked", False),
+                ("migration_invocation", "target_revision", "b" * 40),
+            ]:
+                broken = deepcopy(evidence)
+                broken[section][field] = value
+                path.write_text(json.dumps(broken))
+                with self.assertRaisesRegex(ValueError, "incomplete"):
+                    verify_update_acceptance(self.root, self.root / "fixture")
 
     def test_build_proof_binds_authentication_publication_engine_and_secret_checks(self):
         from scripts.ci_runtime_artifacts import verify_build_acceptance
@@ -147,6 +174,8 @@ class RuntimeArtifactTests(unittest.TestCase):
             "registry_verified": True, "credential_absent_from_task_and_logs": True,
             "artifact": {"artifact_id": "artifact-fixture", "digest": digest, "image_id": image, "tag": "probe"},
             "engine_image_id": image, "remote_manifest_digest": digest,
+            "manifest_config_digest": image, "probe_verified": True,
+            "probe_sha256": "5" * 64, "expected_probe_sha256": "5" * 64, "probe_size_bytes": 20,
             "publications": [{"publication_id": "publication-fixture", "artifact_id": "artifact-fixture",
                               "digest": digest, "destination": {"kind": "oci_registry", "reference": "probe"}}],
         }
@@ -157,6 +186,9 @@ class RuntimeArtifactTests(unittest.TestCase):
             ("credential_absent_from_task_and_logs", False), ("publications", []),
             ("engine_image_id", "sha256:" + "3" * 64), ("remote_manifest_digest", "sha256:" + "3" * 64),
             ("source_revision", "b" * 40), ("task_status", "needs_attention"),
+            ("manifest_config_digest", "sha256:" + "4" * 64), ("probe_verified", False),
+            ("probe_sha256", "6" * 64), ("probe_sha256", ""), ("expected_probe_sha256", "invalid"),
+            ("probe_size_bytes", 0),
         ]:
             with self.subTest(field=field):
                 path.write_text(json.dumps({**evidence, field: value}))
