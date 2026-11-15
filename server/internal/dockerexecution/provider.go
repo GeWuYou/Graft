@@ -33,6 +33,7 @@ const (
 	containerExecutionProtocol         = "container-execution/v1"
 	updateControllerProtocol           = "platform-update-controller/v1"
 	updateControllerMaterialProtocol   = "platform-update-controller-material/v1"
+	updateControllerReceiptProtocol    = "compose-runner/v2"
 	updateControllerCapability         = "update_controller"
 	updateControllerOperation          = "platform.update.controller.launch.v1"
 	maxProviderReferenceLength         = 512
@@ -250,7 +251,7 @@ func updateControllerContainerConfig(material updateControllerMaterial) (contain
 		binds = []string{material.StateVolume + ":/var/lib/graft/update-state:rw"}
 	}
 	labels := map[string]string{
-		"io.graft.update.protocol":  updateControllerProtocol,
+		"io.graft.update.protocol":  updateControllerReceiptProtocol,
 		"io.graft.update.operation": material.OperationID,
 	}
 	if material.Recovery {
@@ -266,8 +267,9 @@ func updateControllerContainerConfig(material updateControllerMaterial) (contain
 			NetworkMode:    "none",
 			ReadonlyRootfs: true,
 			CapDrop:        []string{"ALL"},
-			CapAdd:         []string{"CHOWN"},
-			SecurityOpt:    []string{"no-new-privileges:true"},
+			// 状态和安装材料由 server 用户持有；短生命周期 Controller 跨 UID 读写需要绕过属主权限。
+			CapAdd:      []string{"CHOWN", "DAC_OVERRIDE"},
+			SecurityOpt: []string{"no-new-privileges:true"},
 		}
 }
 

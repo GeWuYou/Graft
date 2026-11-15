@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -79,8 +80,17 @@ func TestUpdateControllerContainerConfigUsesOnlyFixedMountsAndNoNetwork(t *testi
 	if configuration.Image != material.ControllerReference || configuration.User != "0:0" || len(configuration.Env) != 1 || host.NetworkMode != "none" || !host.ReadonlyRootfs {
 		t.Fatalf("unexpected controller Environment: %#v %#v", configuration, host)
 	}
-	if len(host.Binds) != 3 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
+	if len(host.Binds) != 3 || host.CapDrop[0] != "ALL" || !slices.Equal(host.CapAdd, []string{"CHOWN", "DAC_OVERRIDE"}) || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" || host.Privileged {
 		t.Fatalf("unexpected controller host Environment: %#v", host)
+	}
+}
+
+func TestUpdateControllerAdvertisesRunnerReceiptProtocol(t *testing.T) {
+	for _, recovery := range []bool{false, true} {
+		configuration, _ := updateControllerContainerConfig(updateControllerMaterial{Recovery: recovery})
+		if configuration.Labels["io.graft.update.protocol"] != "compose-runner/v2" {
+			t.Fatalf("controller receipt label = %q, recovery=%v", configuration.Labels["io.graft.update.protocol"], recovery)
+		}
 	}
 }
 
@@ -88,6 +98,9 @@ func TestRecoveryControllerMaterialUsesStateVolumeOnlyAndFixedIsolation(t *testi
 	encoded := base64.RawStdEncoding.EncodeToString([]byte(`{"operation_id":"update-42","runner_id":"runner-recovery-42","source_version":"1.0.0","target_version":"1.1.0","deployment_strategy":"beta_tracking"}`))
 	material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), RecoveryStateBase64: encoded, RecoveryClaimID: "recovery-42", Recovery: true, StateVolume: "graft-update-state", OperationID: "update-42"}
 	configuration, host := updateControllerContainerConfig(material)
+	if configuration.User != "0:0" || !slices.Equal(host.CapDrop, []string{"ALL"}) || !slices.Equal(host.CapAdd, []string{"CHOWN", "DAC_OVERRIDE"}) || host.Privileged {
+		t.Fatalf("unexpected recovery controller filesystem authority: %#v %#v", configuration, host)
+	}
 	if configuration.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64="+encoded || host.NetworkMode != "none" || !host.ReadonlyRootfs {
 		t.Fatalf("unexpected recovery isolation: %#v %#v", configuration, host)
 	}
