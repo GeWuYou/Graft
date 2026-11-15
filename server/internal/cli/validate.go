@@ -230,13 +230,9 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	if strings.TrimSpace(opts.openapiSpec) == "" {
 		opts.openapiSpec = defaultOpenAPIRootSpec
 	}
-	if err := validateBackendStageOptions(stage, opts.smoke); err != nil {
+	if err := validateBackendStageOptions(stage, opts.smoke, opts.testReport); err != nil {
 		return err
 	}
-	if strings.TrimSpace(opts.testReport) != "" && stage != "full" && stage != "buildtest" {
-		return errors.New("--test-report requires full or buildtest stage")
-	}
-
 	switch stage {
 	case defaultOpenAPIStage:
 		return backendOpenAPIRunner(cmd, opts.openapiSpec)
@@ -295,12 +291,14 @@ func runBackendLintGuards(cmd *cobra.Command) error {
 	return nil
 }
 
-func validateBackendStageOptions(stage string, smoke bool) error {
-	if !smoke || stage == "full" {
-		return nil
+func validateBackendStageOptions(stage string, smoke bool, testReport string) error {
+	if smoke && stage != "full" {
+		return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
 	}
-
-	return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
+	if strings.TrimSpace(testReport) != "" && stage != "full" && stage != "buildtest" {
+		return errors.New("--test-report requires full or buildtest stage")
+	}
+	return nil
 }
 
 // runFullBackendValidation 按顺序执行完整的后端校验链。
