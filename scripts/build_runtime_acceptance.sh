@@ -12,7 +12,8 @@ if [ -n "$(git -C "$repository_root" status --porcelain --untracked-files=normal
   exit 1
 fi
 mkdir -p "$repository_root/.tmp/compiled/server" "$repository_root/.tmp/compiled/target-server" \
-  "$repository_root/.tmp/compiled/runner" "$repository_root/.tmp/compiled/release-source"
+  "$repository_root/.tmp/compiled/runner" "$repository_root/.tmp/compiled/release-source" \
+  "$repository_root/.tmp/compiled/build-registry"
 
 for version in 0.0.0-beta.1 0.0.0-beta.2; do
   output=server
@@ -26,3 +27,6 @@ done
 go -C "$repository_root/server" build -trimpath -ldflags="-s -w" -o "$repository_root/.tmp/compiled/runner/graft-compose-runner" ./cmd/graft-compose-runner
 go build -trimpath -ldflags="-s -w" -o "$repository_root/.tmp/compiled/release-source/graft-release-fixture" \
   "$repository_root/tests/conformance/docker-runtime-agent/release-source.go"
+go -C "$repository_root/server" build -mod=readonly -trimpath -ldflags="-s -w" \
+  -o "$repository_root/.tmp/compiled/build-registry/graft-fixture-htpasswd" \
+  "$repository_root/tests/conformance/docker-runtime-agent/registry-auth/main.go"

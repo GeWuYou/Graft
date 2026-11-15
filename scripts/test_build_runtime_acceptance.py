@@ -34,7 +34,7 @@ class RuntimeCompileCommandTests(unittest.TestCase):
                            env={**os.environ, "PATH": str(binary.parent) + os.pathsep + os.environ["PATH"],
                                 "GRAFT_GO_RECORD_FILE": str(record)})
             calls = [json.loads(line) for line in record.read_text().splitlines()]
-            self.assertEqual(len(calls), 4)
+            self.assertEqual(len(calls), 5)
             self.assertIn("version=0.0.0-beta.1", " ".join(calls[0]["args"]))
             self.assertIn("version=0.0.0-beta.2", " ".join(calls[1]["args"]))
             for call in calls[:2]:
@@ -42,6 +42,8 @@ class RuntimeCompileCommandTests(unittest.TestCase):
                 self.assertIn("gitTreeState=clean", " ".join(call["args"]))
             self.assertEqual(calls[2]["args"][-1], "./cmd/graft-compose-runner")
             self.assertTrue(calls[3]["args"][-1].endswith("/release-source.go"))
+            self.assertTrue(calls[4]["args"][-1].endswith("/registry-auth/main.go"))
+            self.assertIn("-mod=readonly", calls[4]["args"])
             self.assertTrue(all(call["cgo"] == "0" and call["os"] == "linux" and call["arch"] == "amd64" for call in calls))
             self.assertFalse(any("test" in call["args"] for call in calls))
             (root / "server").mkdir()
@@ -52,4 +54,4 @@ class RuntimeCompileCommandTests(unittest.TestCase):
                                            "GRAFT_GO_RECORD_FILE": str(record)})
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("clean tracked source", rejected.stderr)
-            self.assertEqual(len(record.read_text().splitlines()), 4)
+            self.assertEqual(len(record.read_text().splitlines()), 5)
