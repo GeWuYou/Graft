@@ -83,6 +83,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         job = self.jobs["local-runtime-acceptance"]
         cleanup = next(step for step in job["steps"] if step.get("name") == "Destroy only the registered acceptance project")
         self.assertEqual(cleanup["if"], "always()")
+        diagnostic = next(step for step in job["steps"] if step.get("name") == "Collect sanitized failure diagnostics before cleanup")
+        self.assertEqual(diagnostic["if"], "failure()")
+        self.assertLess(job["steps"].index(diagnostic), job["steps"].index(cleanup))
+        self.assertIn("failure-diagnostics", diagnostic["run"])
         self.assertIn('--confirm-project "$GRAFT_CI_PROJECT"', cleanup["run"])
         upload = next(step for step in job["steps"] if step.get("name") == "Upload sanitized runtime acceptance evidence")
         self.assertEqual(upload["if"], "always()")
@@ -90,6 +94,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
             ".local/docker-isolated/ci/api-evidence.json",
             ".local/docker-isolated/ci/source-assets.json",
             ".local/docker-isolated/ci/cleanup.json",
+            ".local/docker-isolated/ci/failure-evidence.json",
             ".local/docker-isolated/ci/official/api-evidence.json",
             ".local/docker-isolated/ci/official/installation-evidence.json",
             ".tmp/runtime-server/provenance.json",

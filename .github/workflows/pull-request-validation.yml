@@ -170,7 +170,7 @@ jobs:
         run: python3 -m unittest scripts/test_validate_ai_governance.py
 
       - name: Verify scoped validation and runtime artifact tooling
-        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_server_ctrf_report.py
+        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_server_ctrf_report.py scripts/test_runtime_failure_diagnostics.py
 
       - name: Run repository skill-local tests
         run: python3 scripts/run_skill_tests.py
@@ -662,6 +662,10 @@ jobs:
           python3 scripts/validate_docker_isolated.py update-api --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/ci_runtime_artifacts.py update-acceptance --directory "$GRAFT_CI_DIRECTORY"
 
+      - name: Collect sanitized failure diagnostics before cleanup
+        if: failure()
+        run: python3 scripts/ci_runtime_artifacts.py failure-diagnostics --directory "$GRAFT_CI_DIRECTORY"
+
       - name: Destroy only the registered acceptance project
         if: always()
         run: |
@@ -681,6 +685,7 @@ jobs:
             .local/docker-isolated/ci/api-evidence.json
             .local/docker-isolated/ci/source-assets.json
             .local/docker-isolated/ci/cleanup.json
+            .local/docker-isolated/ci/failure-evidence.json
             .local/docker-isolated/ci/official/api-evidence.json
             .local/docker-isolated/ci/official/installation-evidence.json
             .tmp/runtime-server/provenance.json

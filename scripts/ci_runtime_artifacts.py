@@ -215,16 +215,135 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
         raise ValueError("Public Update API acceptance evidence is incomplete or has mismatched binary provenance")
 
 
+SECRET_NAME = re.compile(r"password|secret|token|pepper|private.?key", re.IGNORECASE)
+DIAGNOSTIC_LIMIT = 8192
+
+
+def diagnostic_secrets(directory: Path, state: dict) -> set[str]:
+    values = set()
+
+    def collect(value, key=""):
+        if isinstance(value, dict):
+            for name, child in value.items():
+                collect(child, name)
+        elif isinstance(value, list):
+            for child in value:
+                collect(child, key)
+        elif isinstance(value, str) and SECRET_NAME.search(key) and value:
+            values.add(value)
+
+    collect(state)
+    for path in directory.rglob("*"):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 262144:
+            continue
+        if path.name == "password":
+            values.add(path.read_text().strip())
+        elif path.name == "credentials.json":
+            collect(json.loads(path.read_text()))
+        elif path.name == ".env":
+            for line in path.read_text().splitlines():
+                name, separator, value = line.partition("=")
+                if separator and SECRET_NAME.search(name):
+                    values.add(value.strip().strip("\""))
+        elif path.name == "netrc":
+            values.update(re.findall(r"\bpassword\s+(\S+)", path.read_text()))
+    return values - {""}
+
+
+def redact_diagnostic(text: str, secrets: set[str]) -> str:
+    for value in sorted(secrets, key=len, reverse=True):
+        text = text.replace(value, "[REDACTED]")
+    text = re.sub(r"-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----", "[REDACTED PRIVATE KEY]", text, flags=re.DOTALL)
+    text = re.sub(r"(?i)([a-z][a-z0-9+.-]*://)[^\s/@]+(?::[^\s/@]*)?@", r"\1[REDACTED]@", text)
+    text = re.sub(r"(?i)((?:bearer|basic)\s+)[A-Za-z0-9._~+/-]+=*", r"\1[REDACTED]", text)
+    text = re.sub(r"(?i)((?:password|secret|token|pepper|private_key)[\w.-]*[\"\x27]?\s*[:=]\s*[\"\x27]?)[^\s,\"\x27}]+", r"\1[REDACTED]", text)
+    return text[-DIAGNOSTIC_LIMIT:]
+
+
+def diagnostic_command(prefix: list[str], args: list[str], root: Path, environment: dict) -> tuple[int, str]:
+    try:
+        result = subprocess.run(prefix + args, cwd=root, env=environment, capture_output=True, text=True, timeout=15)
+        return result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        return 124, "Diagnostic command timed out"
+    except OSError as error:
+        return 127, type(error).__name__
+
+
+def compose_failure_summary(prefix: list[str], root: Path, environment: dict, secrets: set[str]) -> dict:
+    code, output = diagnostic_command(prefix, ["ps", "--all", "--format", "json"], root, environment)
+    rows = []
+    if code == 0 and output.strip():
+        try:
+            decoded = json.loads(output)
+            rows = decoded if isinstance(decoded, list) else [decoded]
+        except json.JSONDecodeError:
+            try:
+                rows = [json.loads(line) for line in output.splitlines() if line.strip()]
+            except json.JSONDecodeError:
+                code = 65
+    states = [{key: row[key] for key in ("Service", "State", "Health", "ExitCode") if key in row}
+              for row in rows if isinstance(row, dict)]
+    services = [row.get("Service", "") for row in states if row.get("State") in ("exited", "dead", "restarting") or row.get("Health") == "unhealthy"]
+    if not services:
+        services = [row["Service"] for row in states if row.get("Service") in ("backend", "server", "migrate", "bootstrap", "config-validate")]
+    services = sorted({name for name in services if isinstance(name, str) and re.fullmatch(r"[a-zA-Z0-9_.-]+", name)})[:6]
+    log_code, logs = (0, "")
+    if services:
+        log_code, logs = diagnostic_command(prefix, ["logs", "--no-color", "--tail", "40", *services], root, environment)
+    return {"status_exit_code": code, "services": states, "status_error": redact_diagnostic(output, secrets) if code else "",
+            "logs_exit_code": log_code, "logs": redact_diagnostic(logs, secrets)}
+
+
+def failure_diagnostics(root: Path, directory: Path) -> None:
+    state_path = directory / "instance.json"
+    if not state_path.is_file():
+        print("Runtime failure diagnostics unavailable: acceptance instance was not registered")
+        return
+    state = json.loads(state_path.read_text())
+    if not re.fullmatch(r"graft-isolated-[a-z0-9-]+", state.get("project", "")):
+        raise ValueError("Runtime diagnostics require a registered isolated project")
+    secrets = diagnostic_secrets(directory, state)
+    namespace = runpy.run_path(str(root / "scripts/validate_docker_isolated.py"))
+    fixture = namespace["Fixture"](directory)
+    prefixes = {"private": fixture.prefix}
+    if (directory / "official/.env").is_file():
+        prefixes["official"] = fixture.prefix + ["exec", "-T", "docker-daemon", "docker", "--host=unix:///run/graft-docker/docker.sock",
+            "compose", "--project-name", state["project"] + "-official", "--project-directory", "/opt/graft-official",
+            "--env-file", "/opt/graft-official/.env", "-f", "/opt/graft-official/compose.yml"]
+    command_error = directory / "command-error.log"
+    error_text = ""
+    if command_error.is_file() and not command_error.is_symlink():
+        with command_error.open("rb") as stream:
+            stream.seek(max(0, command_error.stat().st_size - 262144))
+            error_text = stream.read(262144).decode("utf-8", errors="replace")
+    summary = {"project": state["project"], "source_revision": state.get("source_revision"), "acceptance_passed": False,
+               "command_error": redact_diagnostic(error_text, secrets),
+               "topologies": {name: compose_failure_summary(prefix, root, fixture.environment, secrets) for name, prefix in prefixes.items()}}
+    path = directory / "failure-evidence.json"
+    path.write_text(json.dumps(summary, indent=2) + "\n")
+    path.chmod(0o600)
+    reason = summary["command_error"].strip().splitlines()
+    print("Runtime acceptance failed. Sanitized diagnostics saved to failure-evidence.json")
+    if reason:
+        print("\n".join(reason[-3:])[-1200:])
+    for name, topology in summary["topologies"].items():
+        for service in topology["services"]:
+            print(name, service.get("Service"), service.get("State"), "exit=" + str(service.get("ExitCode", "unknown")), "health=" + str(service.get("Health", "unknown")))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "verify", "acceptance", "build-acceptance", "update-acceptance"))
+    parser.add_argument("action", choices=("prepare", "verify", "acceptance", "build-acceptance", "update-acceptance", "failure-diagnostics"))
     parser.add_argument("--kind", choices=(*BINARY_ARTIFACTS, "web"))
     parser.add_argument("--directory", type=Path, required=True)
     args = parser.parse_args()
     if args.action in ("prepare", "verify") and args.kind is None:
         parser.error("--kind is required when packaging or verifying build artifacts")
     try:
-        if args.action == "acceptance":
+        if args.action == "failure-diagnostics":
+            failure_diagnostics(ROOT, args.directory.resolve())
+        elif args.action == "acceptance":
             verify_acceptance(ROOT, args.directory.resolve())
         elif args.action == "build-acceptance":
             verify_build_acceptance(ROOT, args.directory.resolve())
