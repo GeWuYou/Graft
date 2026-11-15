@@ -42,3 +42,41 @@ func TestImageResourceKeysNormalizeTagAliases(t *testing.T) {
 		t.Fatal("equivalent tag aliases escaped coordination")
 	}
 }
+
+func TestImageUntagAcceptsSourceAliasAndRejectsReboundTag(t *testing.T) {
+	for _, testCase := range []struct {
+		name     string
+		targetID string
+		wantCode string
+	}{
+		{"same-image", "sha256:source", ""},
+		{"changed-tag", "sha256:changed", failureResourceConflict},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			removed := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.HasSuffix(r.URL.Path, "/_ping") {
+					w.Header().Set("API-Version", "1.55")
+					return
+				}
+				switch {
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/images/source-alias/json"):
+					_, _ = w.Write([]byte(`{"Id":"sha256:source"}`))
+				case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/json"):
+					_ = json.NewEncoder(w).Encode(map[string]string{"Id": testCase.targetID})
+				case r.Method == http.MethodDelete:
+					removed = true
+					_, _ = w.Write([]byte(`[]`))
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			result := Execute(context.Background(), Environment{DockerSocket: server.URL}, Request{Capability: "container_execution", Protocol: containerExecutionProtocol, OperationID: "container.image.untag.v1", Input: json.RawMessage(`{"image_ref":"source-alias","tag_ref":"target:latest"}`)})
+			if result.FailureCode != testCase.wantCode || removed != (testCase.wantCode == "") {
+				t.Fatalf("result=%#v removed=%v", result, removed)
+			}
+		})
+	}
+}

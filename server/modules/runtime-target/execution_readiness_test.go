@@ -2,10 +2,11 @@ package runtimetarget
 
 import (
 	"context"
+	"testing"
+
 	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/runtime-target/store"
-	"testing"
 )
 
 func TestLocalExecutionReadinessIsIndependentOfAgentEnrollment(t *testing.T) {
