@@ -630,6 +630,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         env_path = directory / ".env"
         if not env_path.exists():
             values = {"GRAFT_IMAGE_TAG": tag, "GRAFT_EXECUTION_MODE": "local", "COMPOSE_PROFILES": "",
+                "COMPOSE_PROJECT_NAME": self.state["project"] + "-official",
                 "POSTGRES_PASSWORD": secrets.token_urlsafe(24), "GRAFT_AUTH_JWT_SECRET": secrets.token_urlsafe(32),
                 "GRAFT_REDIS_PASSWORD": secrets.token_urlsafe(24), "GRAFT_APPLICATION_ROOT_HOST_PATH": "/opt/graft/apps",
                 "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": "/opt/graft/apps", "GRAFT_WEB_HOST_PORT": "3000",

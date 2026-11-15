@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"graft/server/internal/moduleapi"
 )
+
+var composeProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 const (
 	runnerProtocolVersion       = 2
@@ -40,6 +43,7 @@ type ComposePreflight struct {
 	ImageTag            string             `json:"image_tag"`
 	DetectedMode        string             `json:"detected_mode"`
 	ComposeRoot         string             `json:"compose_root"`
+	ProjectName         string             `json:"project_name,omitempty"`
 	Platform            string             `json:"platform"`
 	DockerSocket        string             `json:"docker_socket"`
 	ComposeFiles        []string           `json:"compose_files"`
@@ -196,6 +200,9 @@ func validateComposeHost(value ComposePreflight) error {
 }
 
 func validateComposeTopology(value ComposePreflight) error {
+	if value.ProjectName != "" && !composeProjectNamePattern.MatchString(value.ProjectName) {
+		return errors.New("frozen compose project name is invalid")
+	}
 	if err := validateComposeFiles(value.ComposeRoot, value.ComposeFiles); err != nil {
 		return err
 	}
