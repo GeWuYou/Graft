@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"graft/server/internal/dockerexecution"
 	"io"
 	"net/http"
 	"strings"
@@ -70,17 +71,8 @@ type executionSettlement struct {
 	Idempotent bool   `json:"Idempotent"`
 }
 
-type executionMaterial struct {
-	Protocol string          `json:"protocol"`
-	Payload  json.RawMessage `json:"payload"`
-}
-
-type executionResult struct {
-	Outcome     string
-	FailureCode string
-	Protocol    string
-	Payload     json.RawMessage
-}
+type executionMaterial = dockerexecution.Material
+type executionResult = dockerexecution.Result
 
 type executionOperation func(context.Context, executionLease) executionResult
 
