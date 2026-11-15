@@ -119,9 +119,9 @@ func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Re
 		s.start(topic)
 	}, func(_ string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn(
+			logsafe.Warn(s.logger,
 				"stop container log stream failed",
-				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.String("topic", topic),
 				zap.Error(err),
 			)
 		}
@@ -187,9 +187,9 @@ func (s *logTopicStreamer) start(topic string) {
 		defer close(done)
 		runtime, err := s.runtimeLoader()
 		if err != nil {
-			s.logger.Warn(
+			logsafe.Warn(s.logger,
 				"start container log stream failed",
-				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.String("topic", topic),
 				zap.Error(err),
 			)
 			s.clearRun(topic, runID)
@@ -204,9 +204,9 @@ func (s *logTopicStreamer) start(topic string) {
 			return nil
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
-			s.logger.Warn(
+			logsafe.Warn(s.logger,
 				"container log stream stopped with error",
-				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.String("topic", topic),
 				zap.Error(err),
 			)
 		}
