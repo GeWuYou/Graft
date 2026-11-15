@@ -67,3 +67,23 @@ Required checks passed 将该 job 纳入结果汇总，跳过结果保持失败�
 收尾始终按已注册 project 身份销毁任务资源。上传范围采用精确文件白名单，包含 API 场景、
 源码指纹、官方安装、清理与构建来源证明。instance.json、环境文件和原始错误日志保留在 runner 的本地目录。
 镜像构建与平台自更新的完整运行场景由各自验收驱动提供证据，核心操作 CI 与它们分别记录。
+
+## 版本化平台更新验收
+
+`bash scripts/build_runtime_acceptance.sh` 在干净源码上链接同一 Git commit 的两个 server，
+版本分别为 0.0.0-beta.1 和 0.0.0-beta.2，同时构建生产 Controller 与标准 Go TLS release fixture。
+构建身份通过既有 buildinfo 链接字段注入，源码 commit 与提交时间冻结，CGO_ENABLED=0、linux/amd64。
+产物目录位于忽略的 .tmp/compiled，测试继续使用统一 backend 入口的一次执行。
+
+运行时 job 先核对二进制内版本与 commit，再核对文件摘要，消费既有 server、web、Controller 和 release fixture
+Dockerfile。Controller 与 fixture 的 build 命名上下文指向已验证的 out 产物，从而复用这些二进制。
+[Docker 命名上下文](https://docs.docker.com/reference/cli/docker/buildx/build/#additional-build-contexts---build-context)
+
+全新注册包含 source server、target server、web、runner 与 release fixture 的同源码镜像身份。
+顺序为 up、probe、official-install、update-api。最后一项通过生产发布解析、摘要验证与 Update API
+完成备份失败注入、正常更新、server 替换以及 Task/Backup/Controller 回执结算。
+独立校验器再比对 source/target 二进制摘要、版本、迁移和备份证据。缺失或不一致的证明使门禁失败。
+
+同源镜像重标记的 controller-smoke 仍是独立协议探针，运行时使用另一全新注册，避免改动 Update API
+验收要求的初始版本与 tag。CI 的版本化更新路径直接执行生产 Controller。
+仅将 release-api/update-api-evidence.json 作为新增证明文件上传，私有 CA 密钥、证书材料、环境和原始日志保留在 runner。

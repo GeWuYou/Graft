@@ -16,3 +16,5 @@
 - Independent review corrected local consumer-family validation and deleted-source selection. A real helper subprocess fixture verified repository-root test report output.
 
 - Added required private-daemon and frozen official-install CI wiring using source-bound server/web artifacts and strict required-scenario evidence. Runtime results await integrated CI.
+
+- Extended runtime CI to same-commit versioned server binaries, production Controller and standard-Go TLS release helper. Required Update API evidence binds binary hashes, backup bytes and migrated replacement Task receipts; runtime execution awaits integrated source.

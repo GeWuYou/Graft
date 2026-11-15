@@ -176,8 +176,15 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
         checks.append(Check("workflow-yaml", [sys.executable, "-c",
             "import pathlib,yaml; [yaml.safe_load(pathlib.Path(p).read_text()) for p in __import__('sys').argv[1:]]",
             *[name for name in names if name.startswith(".github/") and name.endswith((".yml", ".yaml")) and (root / name).is_file()]]))
+    unique_checks: list[Check] = []
+    seen_commands: set[tuple[str, tuple[str, ...]]] = set()
+    for check in checks:
+        command = (check.cwd, tuple(check.argv))
+        if command not in seen_commands:
+            seen_commands.add(command)
+            unique_checks.append(check)
     return {"source": "worktree", "files": names, "tests": sorted(tests | python_tests | node_tests),
-            "checks": [asdict(check) for check in checks], "gaps": gaps}
+            "checks": [asdict(check) for check in unique_checks], "gaps": gaps}
 
 
 def execute(plan: dict, root: Path) -> int:
