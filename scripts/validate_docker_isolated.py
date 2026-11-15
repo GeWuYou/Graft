@@ -115,7 +115,7 @@ class Fixture:
     def api(self, method: str, path: str, payload: dict | None = None,
             *, idempotency_key: str | None = None) -> tuple[int, dict]:
         headers = {"Content-Type": "application/json"}
-        if method == "POST" and path.startswith("/api/ops/"):
+        if method == "POST" and (path.startswith("/api/ops/") or idempotency_key is not None):
             headers["Idempotency-Key"] = idempotency_key or secrets.token_hex(16)
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
@@ -225,6 +225,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         if status != 200:
             raise RuntimeError(f"Fixture login failed with HTTP {status}")
         data = response["data"]
+        self.user_id = int((data.get("user") or {}).get("id", 0))
         self.token = data["access_token"]
         if data["must_change_password"]:
             status, response = self.api("POST", "/api/auth/complete-required-password-change",
@@ -237,6 +238,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             if status != 200:
                 raise RuntimeError(f"Fixture login after password change failed with HTTP {status}")
             self.token = response["data"]["access_token"]
+            self.user_id = int((response["data"].get("user") or {}).get("id", 0))
 
     def wait_task(self, identifier: int, timeout: int = 90) -> dict:
         deadline = time.monotonic() + timeout
@@ -751,6 +753,18 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         nested = OfficialFixture(self, self.directory / "official", "/opt/graft-official")
         module.run_release_api(self, nested)
 
+    def build_api(self) -> None:
+        if self.execution_mode != "local" or not (self.directory / "official" / "installation-evidence.json").exists():
+            raise RuntimeError("build-api requires a successful local official-install first")
+        source = self.directory / "source-assets" / "fixture" / "build_api.py"
+        specification = importlib.util.spec_from_file_location("graft_build_acceptance", source)
+        if not source.is_file() or specification is None or specification.loader is None:
+            raise RuntimeError("Build acceptance driver was not frozen at registration")
+        module = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(module)
+        nested = OfficialFixture(self, self.directory / "official", "/opt/graft-official")
+        module.run_build_api(self, nested)
+
 
 class OfficialFixture(Fixture):
     def __init__(self, parent: Fixture, directory: Path, root: str):
@@ -806,7 +820,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, epilog=(
         "stop pauses fixture workloads and retains the running development Vault authority. "
         "destroy removes every registered fixture service and volume."))
-    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "update-api", "status", "stop", "destroy"))
+    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "update-api", "build-api", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
     parser.add_argument("--source-revision")
@@ -817,6 +831,7 @@ def main() -> None:
     parser.add_argument("--runner-image", help="Same-source Controller image required for controller-smoke")
     parser.add_argument("--target-backend-image", help="Same-source server built as 0.0.0-beta.2 for Update API acceptance")
     parser.add_argument("--release-fixture-image", help="Same-source task-private TLS release fixture image")
+    parser.add_argument("--build-registry-image", help="Same-source authenticated Registry fixture image")
     parser.add_argument("--execution-mode", choices=("local", "agent"), default="agent")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--confirm-project")
@@ -834,6 +849,8 @@ def main() -> None:
             required_images["target-backend"] = args.target_backend_image
         if args.release_fixture_image:
             required_images["release-fixture"] = args.release_fixture_image
+        if args.build_registry_image:
+            required_images["build-registry"] = args.build_registry_image
         if args.execution_mode == "agent":
             required_images.update(agent=args.agent_image, driver=args.driver_image)
         if not args.source_revision or not all(required_images.values()):
@@ -872,11 +889,13 @@ def main() -> None:
             env["GRAFT_TARGET_BACKEND_IMAGE"] = images["target-backend"]
         if args.release_fixture_image:
             env["GRAFT_RELEASE_FIXTURE_IMAGE"] = images["release-fixture"]
+        if args.build_registry_image:
+            env["GRAFT_BUILD_REGISTRY_IMAGE"] = images["build-registry"]
         if args.execution_mode == "agent":
             env.update(GRAFT_AGENT_IMAGE=images["agent"], GRAFT_CONFORMANCE_DRIVER_IMAGE=images["driver"],
                        GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST=images["agent"])
         assets = {"root/compose.yml": "compose.yml", "root/compose.env.example": "compose.env.example"}
-        fixture_files = ("compose.local.yml", "release_api.py") if args.execution_mode == "local" else (
+        fixture_files = ("compose.local.yml", "release_api.py", "build_api.py") if args.execution_mode == "local" else (
             "compose.yml", "compose.isolated.yml", "vault-init.sh")
         assets.update({"fixture/" + name: "tests/conformance/docker-runtime-agent/" + name for name in fixture_files})
         fingerprints = {}
@@ -907,6 +926,8 @@ def main() -> None:
         fixture.controller_smoke()
     elif args.action == "update-api":
         fixture.update_api()
+    elif args.action == "build-api":
+        fixture.build_api()
     else:
         getattr(fixture, args.action)()
         if args.action == "probe":

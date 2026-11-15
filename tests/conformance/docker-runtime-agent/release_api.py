@@ -125,9 +125,13 @@ def start_trusted_source(fixture, nested, directory: Path) -> dict:
     path = directory / "compose.release-fixture.yml"
     path.write_bytes(overlay_bytes)
     fixture.compose("cp", str(path), "docker-daemon:" + ROOT + "/compose.release-fixture.yml")
-    docker(fixture, "compose", "--project-name", nested.state["project"], "--project-directory", ROOT,
-        "--env-file", ROOT + "/.env", "-f", ROOT + "/compose.yml", "-f", ROOT + "/compose.release-fixture.yml",
-        "up", "-d", "--no-deps", "--force-recreate", "--wait", "server")
+    compose = ["compose", "--project-name", nested.state["project"], "--project-directory", ROOT,
+        "--env-file", ROOT + "/.env", "-f", ROOT + "/compose.yml"]
+    build_overlay = fixture.directory / "build-api" / "compose.build-fixture.yml"
+    if build_overlay.is_file():
+        compose.extend(["-f", ROOT + "/compose.build-fixture.yml"])
+    compose.extend(["-f", ROOT + "/compose.release-fixture.yml", "up", "-d", "--no-deps", "--force-recreate", "--wait", "server"])
+    docker(fixture, *compose)
     return {"images": images, "manifest_sha256": manifest_sha,
         "overlay_sha256": hashlib.sha256(overlay_bytes).hexdigest(),
         "target_binary_sha256": daemon(fixture, "sha256sum", RELEASE_ROOT + "/artifacts/server/graft").split()[0],
@@ -192,7 +196,11 @@ def run_release_api(fixture, nested):
     try:
         failed_operation = submit_update(nested)
         failure, failed_task = wait_operation(nested, failed_operation, "FAILED")
-        if failed_task.get("status") != "failed" or failure.get("failure_code") != "backup_failed":
+        failed_state = json.loads(docker(fixture, "exec", "--user", "graft", before, "cat", "/var/lib/graft/update-state/current.json"))
+        failed_receipt = failed_state.get("receipt") or {}
+        if (failed_task.get("status") != "failed" or failure.get("failure_code") != "backup_failed"
+            or failed_receipt.get("operation_id") != failed_operation or failed_receipt.get("failure_stage") != "config_snapshot"
+            or failed_receipt.get("migration_started") is not False or failed_receipt.get("succeeded") is not False):
             raise RuntimeError("Missing deployment environment did not produce the expected failed Backup/Task")
     finally:
         daemon(fixture, "mv", ROOT + "/.env.fixture-held", ROOT + "/.env")
@@ -228,6 +236,7 @@ def run_release_api(fixture, nested):
         "trust_scope": "Registered private daemon and nested server containers only", **source,
         "source_version": SOURCE_VERSION, "target_version": TARGET_VERSION, "source_binary_sha256": source_binary,
         "failed_backup_operation": failure, "failed_backup_task_id": failed_task.get("id"),
+        "failed_backup_receipt": failed_receipt,
         "operation": history, "task_id": task["id"], "task_status": task["status"],
         "server_container_replaced": True, "target_image": actual_image, "receipt": receipt}
     path = directory / "update-api-evidence.json"

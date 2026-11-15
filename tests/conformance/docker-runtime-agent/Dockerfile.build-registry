@@ -1,0 +1,9 @@
+FROM golang:1.27.4-alpine AS build
+WORKDIR /src/server
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+COPY tests/conformance/docker-runtime-agent/registry-auth/main.go /src/fixture/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -o /out/graft-fixture-htpasswd /src/fixture/main.go
+
+FROM registry:3.0.0
+COPY --from=build /out/graft-fixture-htpasswd /usr/local/bin/graft-fixture-htpasswd
