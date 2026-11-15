@@ -9,4 +9,4 @@ properties:
     minimum: 0
     description: Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors.
   reference_unknown: { type: integer, minimum: 0 }
-  size_bytes: { type: integer, format: int64, minimum: 0, nullable: true }
+  size_bytes: { type: [integer, "null"], format: int64, minimum: 0 }

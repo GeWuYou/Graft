@@ -17,17 +17,14 @@ properties:
     type: boolean
     description: True when Docker runtime CPU or memory stats were collected for this row.
   stats_error_key:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
   stats_error_message:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
   collected_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: >
       RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to
       compare HTTP seed snapshots with realtime updates and preserve newer stats authority.

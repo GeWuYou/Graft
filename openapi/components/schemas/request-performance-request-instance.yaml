@@ -30,12 +30,10 @@ properties:
     format: int64
     minimum: 0
   request_size_bytes:
-    type: integer
-    nullable: true
+    type: [integer, "null"]
     format: int64
     minimum: 0
   response_size_bytes:
-    type: integer
-    nullable: true
+    type: [integer, "null"]
     format: int64
     minimum: 0

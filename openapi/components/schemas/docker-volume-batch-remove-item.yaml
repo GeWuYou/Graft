@@ -3,7 +3,7 @@ required: [name, success]
 properties:
   name: { type: string }
   success: { type: boolean }
-  error_code: { type: string, nullable: true }
-  message_key: { type: string, nullable: true }
-  message: { type: string, nullable: true }
+  error_code: { type: [string, "null"] }
+  message_key: { type: [string, "null"] }
+  message: { type: [string, "null"] }
 additionalProperties: false

@@ -45,8 +45,7 @@ properties:
       - ApplicationDiscoveryCandidateActionReview
       - ApplicationDiscoveryCandidateActionImport
   status_reason:
-    type: string
-    nullable: true
+    type: [string, "null"]
   compose_files:
     type: array
     items:

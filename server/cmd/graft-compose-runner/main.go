@@ -23,9 +23,9 @@ import (
 	composetypes "github.com/compose-spec/compose-go/v2/types"
 	dockercommand "github.com/docker/cli/cli/command"
 	dockerflags "github.com/docker/cli/cli/flags"
-	composeapi "github.com/docker/compose/v2/pkg/api"
-	compose "github.com/docker/compose/v2/pkg/compose"
-	dockerclient "github.com/docker/docker/client"
+	composeapi "github.com/docker/compose/v5/pkg/api"
+	compose "github.com/docker/compose/v5/pkg/compose"
+	dockerclient "github.com/moby/moby/client"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
@@ -607,7 +607,12 @@ func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stder
 		_ = cli.Client().Close()
 		return nil, err
 	}
-	return &composeRuntime{project: project, service: compose.NewComposeService(cli), cli: cli}, nil
+	service, err := compose.NewComposeService(cli)
+	if err != nil {
+		_ = cli.Client().Close()
+		return nil, err
+	}
+	return &composeRuntime{project: project, service: service, cli: cli}, nil
 }
 
 func (r *composeRuntime) Close() error {
@@ -778,7 +783,7 @@ func verifyImageDigest(ctx context.Context, dockerSocket, reference, wantDigest 
 	if !referenceHasExplicitTag(reference) || !immutableDigest(wantDigest) {
 		return errors.New("image verification input is invalid")
 	}
-	client, err := dockerclient.NewClientWithOpts(dockerclient.WithHost("unix://"+strings.TrimPrefix(dockerSocket, "unix://")), dockerclient.WithAPIVersionNegotiation())
+	client, err := dockerclient.New(dockerclient.WithHost("unix://" + strings.TrimPrefix(dockerSocket, "unix://")))
 	if err != nil {
 		return fmt.Errorf("create image inspection client: %w", err)
 	}

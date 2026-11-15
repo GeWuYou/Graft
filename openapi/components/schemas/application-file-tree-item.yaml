@@ -37,14 +37,11 @@ properties:
   has_children:
     type: boolean
   tooltip:
-    type: string
-    nullable: true
+    type: [string, "null"]
   tooltip_source:
-    type: string
+    type: [string, "null"]
     enum:
       - application-note
       - default-rule
-    nullable: true
   application_note:
-    type: string
-    nullable: true
+    type: [string, "null"]

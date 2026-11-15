@@ -21,8 +21,7 @@ properties:
   service_name:
     type: string
   image:
-    type: string
-    nullable: true
+    type: [string, "null"]
   status:
     type: string
     enum: [running, degraded, stopped]

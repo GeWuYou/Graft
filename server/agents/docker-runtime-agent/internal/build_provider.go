@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,9 +15,9 @@ import (
 
 	containerdplatforms "github.com/containerd/platforms"
 	distributionref "github.com/distribution/reference"
-	dockerregistry "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/api/types/jsonstream"
+	dockerregistry "github.com/moby/moby/api/types/registry"
 	mobyclient "github.com/moby/moby/client"
 	"github.com/moby/patternmatcher/ignorefile"
 	digest "github.com/opencontainers/go-digest"
@@ -205,11 +206,12 @@ func executeBuildImage(ctx context.Context, c config, operation string, material
 	if _, err := docker.ImageTag(ctx, mobyclient.ImageTagOptions{Source: localReference, Target: remoteReference}); err != nil {
 		return buildExecutionResultPayload{}, mapProviderFailure(err)
 	}
-	registryAuth, err := dockerregistry.EncodeAuthConfig(dockerregistry.AuthConfig{Username: material.Destination.Username, Password: material.Destination.Password, ServerAddress: material.Destination.Endpoint})
+	// #nosec G117 -- Docker Registry Auth 头要求编码短期凭据，数据仅用于本次 SDK 请求，不进入日志、Task 或 journal。
+	registryAuthJSON, err := json.Marshal(dockerregistry.AuthConfig{Username: material.Destination.Username, Password: material.Destination.Password, ServerAddress: material.Destination.Endpoint})
 	if err != nil {
 		return buildExecutionResultPayload{}, failureProviderOperation
 	}
-	push, err := docker.ImagePush(ctx, remoteReference, mobyclient.ImagePushOptions{RegistryAuth: registryAuth})
+	push, err := docker.ImagePush(ctx, remoteReference, mobyclient.ImagePushOptions{RegistryAuth: base64.URLEncoding.EncodeToString(registryAuthJSON)})
 	if err != nil {
 		return buildExecutionResultPayload{}, mapProviderFailure(err)
 	}
@@ -243,13 +245,13 @@ func consumeBuildResponse(body io.ReadCloser) error {
 	defer func() { _ = body.Close() }()
 	decoder := json.NewDecoder(body)
 	for {
-		var message jsonmessage.JSONMessage
+		var message jsonstream.Message
 		if err := decoder.Decode(&message); errors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
 			return errors.New("decode provider build response")
 		}
-		if message.Error != nil || (message.Error != nil && message.Error.Message != "") {
+		if message.Error != nil {
 			return errors.New("provider build failed")
 		}
 	}

@@ -14,8 +14,7 @@ properties:
   config_key:
     type: string
   configured_root_directory:
-    type: string
-    nullable: true
+    type: [string, "null"]
   ownership_mode:
     $ref: ./application-ownership-mode.yaml
   create_permission:
@@ -23,5 +22,4 @@ properties:
   supports_managed_create:
     type: boolean
   status_reason:
-    type: string
-    nullable: true
+    type: [string, "null"]

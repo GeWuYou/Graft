@@ -19,14 +19,12 @@ properties:
     type: string
     format: date-time
   finished_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   duration_ms:
-    type: integer
+    type: [integer, "null"]
     format: int64
     minimum: 0
-    nullable: true
   error_message:
     type: string
   result_summary:

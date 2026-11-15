@@ -3,5 +3,4 @@ allOf:
   - type: object
     properties:
       data:
-        nullable: true
-        enum: [null]
+        type: 'null'

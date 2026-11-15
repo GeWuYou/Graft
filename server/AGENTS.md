@@ -69,7 +69,7 @@ core/app/module/migration 需单一 owner。共享变更串行协调，不手写
 顺序：live migration 全局版本唯一检查 -> `graft validate backend --stage lint` -> 最小直接 go test ->
 `go build ./cmd/graft` -> 仅需要 runtime 证明且获授权时 `graft validate smoke`。
 
-唯一 blocking lint 为上述 stage，固定 golangci-lint v2.12.2，changed-file scoped
+唯一 blocking lint 为上述 stage，固定 golangci-lint v2.15.0，changed-file scoped
 `--new-from-rev=<merge-base> --whole-files`；不扩大 backlog，不把 untouched backlog 当当前阻塞。
 core 改动覆盖相关 internal 测试；schema/store/public contract 不用单包 smoke 替代行为覆盖。暂存 live SQL 的
 pre-commit 全局版本检查继续有效。仅跑 go test 或遗漏 lint/生成/migration 不能声明后端完成。

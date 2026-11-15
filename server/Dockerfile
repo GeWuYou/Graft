@@ -1,6 +1,6 @@
-FROM alpine:3.22 AS runtime
+FROM alpine:3.24.4 AS runtime
 
-RUN apk add --no-cache ca-certificates curl postgresql-client \
+RUN apk add --no-cache ca-certificates curl postgresql17-client \
     && addgroup -S -g 10001 graft \
     && adduser -S -D -H -u 10001 -G graft graft
 

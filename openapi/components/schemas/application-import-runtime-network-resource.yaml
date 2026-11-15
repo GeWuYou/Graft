@@ -12,14 +12,11 @@ properties:
   name:
     type: string
   driver:
-    type: string
-    nullable: true
+    type: [string, "null"]
   scope:
-    type: string
-    nullable: true
+    type: [string, "null"]
   internal:
-    type: boolean
-    nullable: true
+    type: [boolean, "null"]
   containers:
     type: array
     items:

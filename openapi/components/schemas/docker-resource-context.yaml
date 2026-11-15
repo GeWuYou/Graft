@@ -6,21 +6,17 @@ properties:
     type: string
     description: Stable runtime provider identifier, such as docker. Clients localize known values.
   runtime_target:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable runtime target identifier when the resource is scoped to a known target.
   source:
     $ref: ./docker-resource-source.yaml
   compose_project:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Compose project identity when the resource is Compose-owned.
   compose_resource:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Compose network or volume name when supplied by trusted Compose runtime metadata.
   managed_by:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Control-plane identity when a managed resource has a known owner.
 additionalProperties: false

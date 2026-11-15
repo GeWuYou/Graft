@@ -319,9 +319,9 @@ func writeStableIDBatchResult(
 ) {
 	results := make([]generated.DestructiveBatchResultItem, 0, len(requestedIDs))
 	for _, id := range requestedIDs {
-		results = append(results, map[string]any{
-			"id":     strconv.FormatUint(id, 10),
-			"status": status,
+		results = append(results, generated.DestructiveBatchResultItem{
+			Id:     strconv.FormatUint(id, 10),
+			Status: generated.DestructiveBatchResultItemStatus(status),
 		})
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.DestructiveBatchResult{

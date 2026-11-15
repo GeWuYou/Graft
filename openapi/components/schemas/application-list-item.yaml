@@ -21,15 +21,15 @@ properties:
   deployment_adapter_kind:
     $ref: ./application-type.yaml
   runtime_target:
-    $ref: ./application-runtime-target-summary.yaml
-    nullable: true
+    anyOf:
+    - $ref: ./application-runtime-target-summary.yaml
+    - type: 'null'
   compose_project_name:
     type: string
   compose_project_name_source:
     $ref: ./application-compose-project-name-source.yaml
   application_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
   lifecycle_review_status:
     $ref: ./application-lifecycle-review-status.yaml
   source_type:
@@ -43,11 +43,13 @@ properties:
   workspace_path:
     type: string
   runtime_status:
-    $ref: ./application-runtime-status.yaml
-    nullable: true
-    description: >
-      Aggregated application status for overview consumption only. It must not become a replacement for
-      container runtime detail authority.
+    anyOf:
+    - $ref: ./application-runtime-status.yaml
+    - type: 'null'
+    description: 'Aggregated application status for overview consumption only. It must not become a replacement for container
+      runtime detail authority.
+
+      '
   service_count:
     type: integer
     minimum: 0
