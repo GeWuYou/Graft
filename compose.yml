@@ -242,6 +242,25 @@ services:
       config-validate:
         condition: service_completed_successfully
 
+  build-snapshot-root-init:
+    image: *graft-server-image
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        set -eu
+        mkdir -p /tmp/graft-build-snapshots
+        chown 10001:10001 /tmp/graft-build-snapshots
+        chmod 0750 /tmp/graft-build-snapshots
+        test "$$(stat -c '%u:%g' /tmp/graft-build-snapshots)" = "10001:10001"
+        test "$$(stat -c '%a' /tmp/graft-build-snapshots)" = "750"
+    volumes:
+      - graft-build-snapshots:/tmp/graft-build-snapshots
+    depends_on:
+      config-validate:
+        condition: service_completed_successfully
+
   server:
     image: *graft-server-image
     restart: unless-stopped
@@ -268,6 +287,8 @@ services:
       application-root-init:
         condition: service_completed_successfully
       backup-root-init:
+        condition: service_completed_successfully
+      build-snapshot-root-init:
         condition: service_completed_successfully
     environment:
       <<: *graft-server-runtime-env
@@ -328,6 +349,6 @@ services:
 
 volumes:
   graft-build-snapshots:
-    name: graft-build-snapshots
+    name: ${GRAFT_BUILD_SNAPSHOT_VOLUME:-graft-build-snapshots}
   graft-update-state:
     name: ${GRAFT_UPDATE_STATE_VOLUME:-graft-update-state}

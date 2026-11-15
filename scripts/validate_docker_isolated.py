@@ -617,6 +617,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 "GRAFT_REDIS_PASSWORD": secrets.token_urlsafe(24), "GRAFT_APPLICATION_ROOT_HOST_PATH": "/opt/graft/apps",
                 "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": "/opt/graft/apps", "GRAFT_WEB_HOST_PORT": "3000",
                 "GRAFT_UPDATE_STATE_VOLUME": self.state["project"] + "-official-update-state",
+                "GRAFT_BUILD_SNAPSHOT_VOLUME": self.state["project"] + "-official-build-snapshots",
                 "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS": "http://127.0.0.1:" + self.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
             template = (source / "compose.env.example").read_text()
             lines = []
@@ -683,7 +684,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         root = "/opt/graft-official"
         overlay = directory / "compose.registry.yml"
         server_services = ("server", "bootstrap", "config-validate", "application-root-init",
-                           "backup-root-init", "migration-preflight", "runtime-mode-preflight")
+                           "backup-root-init", "build-snapshot-root-init", "migration-preflight", "runtime-mode-preflight")
         services = {name: {"image": images["server"]["repository"] + ":${GRAFT_IMAGE_TAG}"} for name in server_services}
         services["web"] = {"image": images["web"]["repository"] + ":${GRAFT_IMAGE_TAG}"}
         overlay.write_text(json.dumps({"services": services}, indent=2) + "\n")

@@ -20,6 +20,9 @@ services:
   backup-root-init:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never
+  build-snapshot-root-init:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
   server:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never

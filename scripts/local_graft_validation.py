@@ -106,6 +106,7 @@ def desired_env(local_root: Path, instance: str, existing: dict[str, str] | None
         "GRAFT_DEPLOYMENT_RUNTIME": "compose",
         "GRAFT_DEPLOYMENT_COMPOSE_ROOT": str(root),
         "GRAFT_UPDATE_STATE_VOLUME": update_volume_name(instance),
+        "GRAFT_BUILD_SNAPSHOT_VOLUME": f"{compose_project_name(instance)}-build-snapshots",
         "POSTGRES_DB": prior.get("POSTGRES_DB", f"graft_{instance}"),
         "POSTGRES_USER": prior.get("POSTGRES_USER", f"graft_{instance}"),
         "POSTGRES_PASSWORD": prior.get("POSTGRES_PASSWORD", random_secret()),
