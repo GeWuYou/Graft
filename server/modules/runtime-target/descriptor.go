@@ -17,7 +17,7 @@ const moduleID = "runtime-target"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "auth", "rbac", "saved-view", credentialvaultcontract.ModuleID},
+		Dependencies:  []string{"user", "auth", "rbac", "saved-view", "task", credentialvaultcontract.ModuleID},
 		MigrationPath: []string{"modules/runtime-target/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

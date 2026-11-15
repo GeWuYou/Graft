@@ -9,6 +9,13 @@ properties:
   executor_type:
     type: string
     description: Consumer-owned StageExecutor type, such as project.compose.pull.
+  execution_mode:
+    type: string
+    enum: [local, agent, controller, server]
+    description: Execution owner frozen in the task plan.
+  execution_version:
+    type: string
+    description: Frozen SDK, capability, or Controller protocol version.
   status: { $ref: ./task-stage-status.yaml }
   attempt: { type: integer, minimum: 0 }
   max_attempts: { type: integer, minimum: 1 }

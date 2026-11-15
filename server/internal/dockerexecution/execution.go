@@ -28,10 +28,11 @@ type Material struct {
 
 // Result 只返回受限终态、稳定失败码和经领域 owner 校验的临时结果。
 type Result struct {
-	Outcome     string
-	FailureCode string
-	Protocol    string
-	Payload     json.RawMessage
+	Outcome      string
+	FailureCode  string
+	FailureStage string
+	Protocol     string
+	Payload      json.RawMessage
 }
 
 // Execute 执行固定协议中的单次 SDK 操作，错误以稳定代码返回。

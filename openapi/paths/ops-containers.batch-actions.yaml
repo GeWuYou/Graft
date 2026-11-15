@@ -2,7 +2,7 @@ post:
   tags: [container]
   summary: Execute container actions in batch
   operationId: postContainerBatchActions
-  description: Submits one Task with ordered per-container external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
+  description: Submits one Task with ordered per-container execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
   parameters:
     - $ref: ../components/parameters/idempotency-key.yaml
     - $ref: ../components/parameters/locale-header.yaml
@@ -38,5 +38,7 @@ post:
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
+    '409': { $ref: ../components/responses/conflict.yaml }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

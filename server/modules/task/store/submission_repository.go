@@ -28,6 +28,9 @@ func (r *SQLRepository) CreateSubmission(ctx context.Context, input CreateSubmis
 		return taskmodel.Submission{}, false, fmt.Errorf("begin create submission: %w", err)
 	}
 	defer rollback(tx)
+	if err := r.guardSubmissionExecutionMode(ctx, tx, input.ExecutionMode); err != nil {
+		return taskmodel.Submission{}, false, err
+	}
 	if err := r.lockOwner(ctx, tx, submission.Owner); err != nil {
 		return taskmodel.Submission{}, false, err
 	}
@@ -313,6 +316,9 @@ func (r *SQLRepository) findIdempotentSubmission(ctx context.Context, queryer ta
 }
 
 func (r *SQLRepository) insertTaskWithTx(ctx context.Context, tx *sql.Tx, task taskmodel.Task, stages []taskmodel.Stage, submissionID string) (taskmodel.Task, error) {
+	if err := r.guardExecutionResources(ctx, tx, task); err != nil {
+		return taskmodel.Task{}, err
+	}
 	now := time.Now().UTC()
 	err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO tasks (task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required, current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), task.Type, task.Owner.Type, task.Owner.ID, task.Status, task.Input, task.Metadata, task.Plan, task.State, false, task.CurrentStageKey, task.CreatedBy, task.IdempotencyKeyHash, task.SubmissionFingerprint, task.ScheduledAt, now, now).Scan(&task.ID)
 	if err != nil {

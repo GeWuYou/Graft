@@ -38,4 +38,5 @@ post:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '409': { description: Docker network name already exists. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

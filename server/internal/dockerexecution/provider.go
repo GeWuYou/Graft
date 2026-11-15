@@ -292,7 +292,7 @@ func executeContainerOperation(ctx context.Context, c Environment, lease Request
 	}
 	defer func() { _ = docker.Close() }()
 	if err := dispatchContainerOperation(ctx, docker, lease.OperationID, intent); err != nil {
-		return failedExecution(mapProviderFailure(err))
+		return failedExecutionAt(mapProviderFailure(err), "container_apply")
 	}
 	return Result{Outcome: "success"}
 }
@@ -345,7 +345,14 @@ func dispatchContainerImage(ctx context.Context, docker *mobyclient.Client, oper
 		_, err := docker.ImageTag(ctx, mobyclient.ImageTagOptions{Source: intent.ImageRef, Target: intent.TargetRef})
 		return err
 	case "container.image.untag.v1":
-		_, err := docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
+		inspected, err := docker.ImageInspect(ctx, intent.TagRef)
+		if err != nil {
+			return err
+		}
+		if inspected.ID != intent.ImageRef {
+			return errContainerReferenceChanged
+		}
+		_, err = docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
 		return err
 	case "container.image.remove.v1":
 		_, err := docker.ImageRemove(ctx, intent.ImageRef, mobyclient.ImageRemoveOptions{Force: intent.Force})
@@ -369,6 +376,7 @@ func dispatchContainerNetwork(ctx context.Context, docker *mobyclient.Client, op
 }
 
 var errUnsupportedProviderOperation = errors.New("unsupported provider operation")
+var errContainerReferenceChanged = errors.New("container image reference changed")
 
 func validContainerIntent(operation string, intent containerExecutionIntent) bool {
 	switch {
@@ -512,16 +520,16 @@ func executeApplicationComposeOperation(ctx context.Context, c Environment, leas
 	}
 	resolved, failureCode := resolveApplicationComposeMaterial(ctx, c, lease)
 	if failureCode != "" {
-		return failedExecution(failureCode)
+		return failedExecutionAt(failureCode, "material_resolve")
 	}
 	runtime, err := loadComposeProject(ctx, c.DockerSocket, resolved)
 	if err != nil {
-		return failedExecution(mapProviderFailure(err))
+		return failedExecutionAt(mapProviderFailure(err), "compose_load")
 	}
 	defer func() { _ = runtime.dockerCLI.Client().Close() }()
 	request := composeDispatchRequest{runtime: runtime, managedServices: resolved.ManagedServiceNames, action: action, policy: intent.Policy}
 	if err := dispatchComposeOperation(ctx, request); err != nil {
-		return failedExecution(mapProviderFailure(err))
+		return failedExecutionAt(mapProviderFailure(err), "compose_apply")
 	}
 	return Result{Outcome: "success"}
 }
@@ -777,6 +785,9 @@ func failedExecution(code string) Result {
 }
 
 func mapProviderFailure(err error) string {
+	if errors.Is(err, errContainerReferenceChanged) {
+		return failureResourceConflict
+	}
 	if errors.Is(err, errUnsupportedProviderOperation) {
 		return failureUnsupportedAction
 	}
@@ -810,4 +821,10 @@ func PrepareComposeProjectLabels(project *composetypes.Project, envFiles []strin
 		}
 		project.Services[name] = service
 	}
+}
+
+func failedExecutionAt(code, stage string) Result {
+	result := failedExecution(code)
+	result.FailureStage = stage
+	return result
 }

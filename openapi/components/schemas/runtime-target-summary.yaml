@@ -1,6 +1,8 @@
 type: object
 required: [id, displayName, runtime, connection, health, resources]
 properties:
+  execution:
+    $ref: ./runtime-target-execution.yaml
   id:
     type: integer
     format: int64

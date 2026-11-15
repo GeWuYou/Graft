@@ -632,6 +632,9 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		stages = append(stages, moduleapi.StagePlan{Key: "build-platforms", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildManifestOperation, input)})
 		taskPlan.Stages = stages
 	}
+	for index := range taskPlan.Stages {
+		taskPlan.Stages[index].ExternalExecution.ResourceKeys = []string{"registry:" + plan.Destination.ConnectionRef + ":" + plan.Destination.RepositoryRef + ":" + plan.Destination.Reference}
+	}
 	task := moduleapi.SubmitTaskInput{
 		Type:           v2BuildTaskType,
 		Owner:          moduleapi.TaskOwner{Type: buildTaskOwnerType, ID: plan.ID},

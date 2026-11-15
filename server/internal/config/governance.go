@@ -38,17 +38,19 @@ const (
 
 // EnvironmentRule 描述一个版本化环境配置契约。
 type EnvironmentRule struct {
-	Name        string   `yaml:"name" json:"name"`
-	Type        string   `yaml:"type" json:"type"`
-	Required    bool     `yaml:"required" json:"required"`
-	Default     *string  `yaml:"default" json:"default,omitempty"`
-	Description string   `yaml:"description" json:"description"`
-	Introduced  string   `yaml:"introduced" json:"introduced"`
-	Deprecated  bool     `yaml:"deprecated" json:"deprecated"`
-	Removed     bool     `yaml:"removed" json:"removed"`
-	Replacement *string  `yaml:"replacement" json:"replacement,omitempty"`
-	Severity    Severity `yaml:"severity" json:"severity,omitempty"`
-	Sensitive   bool     `yaml:"sensitive" json:"sensitive"`
+	// AllowedValues 声明受控枚举值，与运行时配置校验使用同一配置契约。
+	AllowedValues []string `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Name          string   `yaml:"name" json:"name"`
+	Type          string   `yaml:"type" json:"type"`
+	Required      bool     `yaml:"required" json:"required"`
+	Default       *string  `yaml:"default" json:"default,omitempty"`
+	Description   string   `yaml:"description" json:"description"`
+	Introduced    string   `yaml:"introduced" json:"introduced"`
+	Deprecated    bool     `yaml:"deprecated" json:"deprecated"`
+	Removed       bool     `yaml:"removed" json:"removed"`
+	Replacement   *string  `yaml:"replacement" json:"replacement,omitempty"`
+	Severity      Severity `yaml:"severity" json:"severity,omitempty"`
+	Sensitive     bool     `yaml:"sensitive" json:"sensitive"`
 
 	defaultDeclared     bool
 	replacementDeclared bool

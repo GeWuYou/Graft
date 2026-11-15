@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -133,6 +134,9 @@ func validateRuleFindings(rule EnvironmentRule, value string, source Source, pre
 	if present && strings.TrimSpace(value) != "" && !validType(rule.Type, value) {
 		findings = append(findings, finding("invalid_type", SeverityError, rule, source))
 	}
+	if !validDeclaredEnum(rule, value, present) {
+		findings = append(findings, finding("invalid_value", SeverityError, rule, source))
+	}
 	return findings
 }
 
@@ -255,4 +259,8 @@ var osEnviron = os.Environ
 func IsValidationError(err error) bool {
 	var validationError *ValidationError
 	return errors.As(err, &validationError)
+}
+
+func validDeclaredEnum(rule EnvironmentRule, value string, present bool) bool {
+	return !present || len(rule.AllowedValues) == 0 || slices.Contains(rule.AllowedValues, strings.TrimSpace(value))
 }
