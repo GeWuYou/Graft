@@ -12,7 +12,7 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, controller_receipt, require_local_acceptance, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, completed_official_install, controller_receipt, require_local_acceptance, validate_topology
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -60,6 +60,53 @@ class PrivateDockerTopologyTests(unittest.TestCase):
 
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_failed_official_probe_never_leaves_an_accepted_installation_marker(self):
+        for previous_complete in (False, True):
+            for failure in ("probe", "gate"):
+                with self.subTest(previous_complete=previous_complete, failure=failure), tempfile.TemporaryDirectory() as temporary:
+                    fixture = Fixture.__new__(Fixture)
+                    fixture.directory = Path(temporary)
+                    fixture.state = {"project": "graft-isolated-install-proof", "source_revision": "a" * 40,
+                                     "execution_mode": "local"}
+                    fixture.environment = {"GRAFT_BACKEND_IMAGE": "sha256:" + "b" * 64,
+                        "GRAFT_WEB_IMAGE": "sha256:" + "c" * 64, "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081"}
+                    source = fixture.directory / "source-assets" / "root"
+                    source.mkdir(parents=True)
+                    (source / "compose.yml").write_text("services: {}\n")
+                    (source / "compose.env.example").write_text("GRAFT_IMAGE_TAG=latest\n")
+                    if previous_complete:
+                        official = fixture.directory / "official"
+                        official.mkdir()
+                        (official / "installation-evidence.json").write_text('{"complete":true}')
+                    fixture.import_image = Mock()
+                    fixture.last_command_returncode = 0
+                    fixture.compose = Mock(return_value="")
+                    fixture.engine = Mock(side_effect=lambda *args: fixture.environment["GRAFT_BACKEND_IMAGE"]
+                        if args[-1] == "container-server" else fixture.environment["GRAFT_WEB_IMAGE"])
+                    nested = Mock()
+                    nested.compose.side_effect = lambda *args, **kwargs: "container-" + args[-1] if args[0] == "ps" else ""
+                    nested.results = []
+                    if failure == "probe":
+                        nested.probe.side_effect = RuntimeError("probe failed")
+                    with patch("validate_docker_isolated.OfficialFixture", return_value=nested):
+                        with self.assertRaises(RuntimeError):
+                            fixture.official_install()
+                    self.assertFalse(completed_official_install(fixture.directory))
+                    with self.assertRaisesRegex(RuntimeError, "successful local official-install"):
+                        fixture.build_api()
+                    with self.assertRaisesRegex(RuntimeError, "successful local official-install"):
+                        fixture.update_api()
+
+    def test_completed_installation_proof_requires_an_explicit_true_completion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            official = directory / "official"
+            official.mkdir()
+            marker = official / "installation-evidence.json"
+            for data, accepted in (({}, False), ({"complete": False}, False), ({"complete": True}, True)):
+                marker.write_text(json.dumps(data))
+                self.assertEqual(completed_official_install(directory), accepted)
+
     def test_operation_setup_records_success_only_after_actual_effective_value_readback(self):
         for effective, expected in (("true", "passed"), ("false", "failed")):
             with self.subTest(effective=effective), tempfile.TemporaryDirectory() as temporary:

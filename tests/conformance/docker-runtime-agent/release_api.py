@@ -168,6 +168,13 @@ def submit_update(nested) -> str:
     return response["data"]["operation_id"]
 
 
+def migration_invocation_scope(receipt: dict, source_revision: str) -> dict:
+    if receipt.get("migration_started") is not True:
+        raise RuntimeError("Successful Update acceptance requires the actual bootstrap migration invocation")
+    return {"bootstrap_invoked": True, "source_revision": source_revision,
+            "target_revision": source_revision, "scope": "same-source migration graph with no new pending DDL"}
+
+
 def run_release_api(fixture, nested):
     directory = fixture.directory / "release-api"
     directory.mkdir(mode=0o700, exist_ok=True)
@@ -213,6 +220,7 @@ def run_release_api(fixture, nested):
     actual_image = docker(fixture, "inspect", "--format", "{{.Image}}", after).strip()
     state = json.loads(nested.compose("exec", "-T", "backend", "cat", "/var/lib/graft/update-state/current.json"))
     receipt = state.get("receipt") or {}
+    migration = migration_invocation_scope(receipt, fixture.state["source_revision"])
     stages = task.get("stages") or []
     launch = next((item for item in stages if item.get("key") == "controller_launch"), {})
     final = next((item for item in stages if item.get("key") == "controller_result"), {})
@@ -235,6 +243,7 @@ def run_release_api(fixture, nested):
     evidence = {"source_revision": fixture.state["source_revision"], "synthetic_release_source": True,
         "trust_scope": "Registered private daemon and nested server containers only", **source,
         "source_version": SOURCE_VERSION, "target_version": TARGET_VERSION, "source_binary_sha256": source_binary,
+        "migration_invocation": migration,
         "failed_backup_operation": failure, "failed_backup_task_id": failed_task.get("id"),
         "failed_backup_receipt": failed_receipt,
         "operation": history, "task_id": task["id"], "task_status": task["status"],

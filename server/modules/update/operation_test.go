@@ -201,17 +201,19 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 		t.Fatalf("unexpected rollout operation: %#v", operation)
 	}
 	queued := rollout.externalLaunches[operation.OperationID].input
-	if queued.ExecutionMode != "local" {
-		t.Fatalf("local execution mode was not frozen: %#v", queued)
-	}
-	if queued.Preflight.ProjectName != "graft" {
-		t.Fatalf("deployment-owned project identity was not frozen: %#v", queued.Preflight)
-	}
+	assertFrozenLocalControllerTarget(t, queued)
 	if queued.Preflight.ComposeRoot != root || queued.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
 		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}
 	if queued.BackupArtifactRoot != "/var/lib/graft/backups/update-77" || backups.plan.ArtifactRoot != queued.BackupArtifactRoot {
 		t.Fatalf("backup handoff did not use the server artifact root: input=%q plan=%q", queued.BackupArtifactRoot, backups.plan.ArtifactRoot)
+	}
+}
+
+func assertFrozenLocalControllerTarget(t *testing.T, input RunnerInput) {
+	t.Helper()
+	if input.ExecutionMode != "local" || input.Preflight.ProjectName != "graft" {
+		t.Fatalf("local deployment identity was not frozen: %#v", input)
 	}
 }
 
