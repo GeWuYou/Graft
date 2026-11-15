@@ -23,3 +23,12 @@ func TestBoundStateWriteFailureSettlesTaskAsAttentionWithoutClaimingMigration(t 
 		}
 	}
 }
+
+func TestStateFailureVocabularyKeepsTheNewCodeBounded(t *testing.T) {
+	if !validRunnerStateFailure(RunnerFailureCodeStateWriteFailed) {
+		t.Fatal("the canonical state write failure cannot be persisted")
+	}
+	if validRunnerStateFailure("arbitrary_unapproved_failure") {
+		t.Fatal("unrecognized failure text was accepted into the state journal")
+	}
+}

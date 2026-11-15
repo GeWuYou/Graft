@@ -108,6 +108,55 @@ func TestStateWriteFailurePreservesMigrationAndBackupFacts(t *testing.T) {
 	}
 }
 
+func TestRecoveredStateWriterPersistsTheNormalizedFailureReceipt(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "state")
+	store, err := update.NewFileRunnerStateStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := stateFailureInput()
+	reporter := &stateReporter{store: store, input: input, runnerID: input.RunnerID}
+	if err := reporter.Initialize(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(root, root+"-retained"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root, []byte("temporary state blockage"), privateFilePermission); err != nil {
+		t.Fatal(err)
+	}
+	receipt, executionErr := update.ExecuteComposeRunner(t.Context(), input, &actions{reporter: reporter})
+	if executionErr == nil {
+		t.Fatal("temporary state blockage did not fail the phase report")
+	}
+	receipt = withRunnerStateFailure(input, receipt, executionErr)
+	if err := os.Remove(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(root+"-retained", root); err != nil {
+		t.Fatal(err)
+	}
+	if err := reporter.Finalize(receipt); err != nil {
+		t.Fatal(err)
+	}
+	assertNormalizedFailureJournal(t, store, input.OperationID)
+}
+
+func assertNormalizedFailureJournal(t *testing.T, store *update.FileRunnerStateStore, operationID string) {
+	t.Helper()
+	persisted, err := store.Read()
+	if err != nil || persisted.Phase != update.RunnerPhaseFailed || persisted.Receipt == nil || persisted.Error != update.RunnerFailureCodeStateWriteFailed {
+		t.Fatalf("terminal failure journal=%#v err=%v", persisted, err)
+	}
+	if update.ClassifyRunnerReceipt(*persisted.Receipt) != update.ExecutionOutcomeNeedsAttention || persisted.Receipt.MigrationStarted {
+		t.Fatalf("persisted receipt changed the migration boundary: %#v", persisted.Receipt)
+	}
+	events, err := store.ReadEvents(operationID, 0, 10)
+	if err != nil || len(events) != 2 || events[1].Phase != update.RunnerPhaseFailed {
+		t.Fatalf("terminal failure event=%#v err=%v", events, err)
+	}
+}
+
 func TestFinalStateWriteFailurePreservesCompletedAndAlreadyClassifiedResults(t *testing.T) {
 	for _, receipt := range []update.RunnerReceipt{{Succeeded: true, MigrationStarted: true},
 		{FailureCode: "backup_failed", FailureStage: "env_snapshot"}} {
