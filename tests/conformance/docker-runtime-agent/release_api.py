@@ -146,19 +146,60 @@ def wait_operation(nested, operation: str, expected: str, timeout: int = 240) ->
         try:
             status, response = nested.api("GET", "/api/platform/updates/operations")
             history = next((item for item in response.get("data", []) if item.get("operation_id") == operation), None)
-            if status == 200 and history is not None:
-                task_id = int(history["task_id"])
-                status, response = nested.api("GET", f"/api/tasks/{task_id}")
-                task = response.get("data") or {}
-                if status == 200 and task.get("status") in {"success", "failed", "cancelled", "needs_attention"}:
-                    if history.get("status") != expected:
-                        raise RuntimeError("Update operation reached an unexpected terminal outcome")
-                    return history, task
+            if status == 200:
+                task = owned_update_task(nested, operation)
+                if task and task.get("status") in {"success", "failed", "cancelled", "needs_attention"}:
+                    if history is None:
+                        status, response = nested.api("GET", "/api/platform/updates/operations/" + operation)
+                        history = response.get("data") if status == 200 else None
+                    if history is not None:
+                        if history.get("operation_id") != operation or history.get("phase") != expected:
+                            raise RuntimeError("Update operation reached an unexpected terminal phase")
+                        return history, task
         except (OSError, URLError, ValueError):
             # 预期的 server 替换窗口只影响有界只读轮询，提交操作始终只发送一次。
             pass
         time.sleep(1)
     raise RuntimeError("Update API did not settle its operation and Task before the acceptance deadline")
+
+
+def owned_update_task(nested, operation: str) -> dict | None:
+    status, response = nested.api("GET", "/api/tasks?owner_type=platform_update&owner_id=" + operation)
+    if status != 200:
+        return None
+    tasks = (response.get("data") or {}).get("items", [])
+    matching = [item for item in tasks if item.get("owner_type") == "platform_update" and item.get("owner_id") == operation
+                and item.get("type") == "platform.update.compose"]
+    if not matching:
+        return None
+    if len(matching) != 1:
+        raise RuntimeError("Update operation has an ambiguous Task owner binding")
+    status, response = nested.api("GET", "/api/tasks/" + str(matching[0]["id"]))
+    task = response.get("data") or {}
+    if status != 200:
+        return None
+    if task.get("id") != matching[0]["id"] or task.get("owner_type") != "platform_update" or task.get("owner_id") != operation:
+        raise RuntimeError("Update Task detail differs from its public owner binding")
+    return task
+
+
+def backup_for_task(nested, task_id: int, receipt: dict) -> dict:
+    status, response = nested.api("GET", "/api/platform/backups?limit=100&offset=0")
+    if status != 200:
+        raise RuntimeError("Backup history API was unavailable after Update settlement")
+    for summary in (response.get("data") or {}).get("items", []):
+        status, response = nested.api("GET", "/api/platform/backups/" + str(summary["id"]))
+        detail = response.get("data") or {}
+        if status != 200 or detail.get("task_id") != task_id:
+            continue
+        if (detail.get("id") != summary["id"] or detail.get("status") != "AVAILABLE" or int(detail.get("id", 0)) < 1
+            or detail.get("config_snapshot", {}).get("sha256") != receipt.get("ConfigSnapshotSHA256")
+            or detail.get("config_snapshot", {}).get("size_bytes") != receipt.get("ConfigSnapshotBytes")
+            or detail.get("database_dump", {}).get("sha256") != receipt.get("DatabaseDumpSHA256")
+            or detail.get("database_dump", {}).get("size_bytes") != receipt.get("DatabaseDumpBytes")):
+            raise RuntimeError("Backup API integrity metadata differs from the settled Controller proof")
+        return detail
+    raise RuntimeError("Backup API has no asset bound to the successful Update Task")
 
 
 def submit_update(nested) -> str:
@@ -205,7 +246,7 @@ def run_release_api(fixture, nested):
         failure, failed_task = wait_operation(nested, failed_operation, "FAILED")
         failed_state = json.loads(docker(fixture, "exec", "--user", "graft", before, "cat", "/var/lib/graft/update-state/current.json"))
         failed_receipt = failed_state.get("receipt") or {}
-        if (failed_task.get("status") != "failed" or failure.get("failure_code") != "backup_failed"
+        if (failed_task.get("status") != "failed" or failure.get("error") != "backup_failed"
             or failed_receipt.get("operation_id") != failed_operation or failed_receipt.get("failure_stage") != "env_snapshot"
             or failed_receipt.get("migration_started") is not False or failed_receipt.get("succeeded") is not False):
             raise RuntimeError("Missing deployment environment did not produce the expected failed Backup/Task")
@@ -225,11 +266,12 @@ def run_release_api(fixture, nested):
     launch = next((item for item in stages if item.get("key") == "controller_launch"), {})
     final = next((item for item in stages if item.get("key") == "controller_result"), {})
     backup = receipt.get("backup_completion") or {}
+    backup_detail = backup_for_task(nested, task["id"], backup)
     valid = (task.get("status") == "success" and before != after and actual_image == source["target_private_image"]
         and status == 200 and response.get("data", {}).get("current_version") == TARGET_VERSION
         and receipt.get("operation_id") == operation and receipt.get("execution_mode") == "local"
         and receipt.get("succeeded") is True and backup.get("OperationID") == operation
-        and backup.get("TaskID") == task.get("id") and int(history.get("backup_id", 0)) > 0
+        and backup.get("TaskID") == task.get("id")
         and launch.get("status") == "success" and final.get("status") == "success"
         and receipt.get("launch_stage_id") == launch.get("id") and receipt.get("launch_attempt") == launch.get("attempt"))
     if not valid:
@@ -246,7 +288,7 @@ def run_release_api(fixture, nested):
         "migration_invocation": migration,
         "failed_backup_operation": failure, "failed_backup_task_id": failed_task.get("id"),
         "failed_backup_receipt": failed_receipt,
-        "operation": history, "task_id": task["id"], "task_status": task["status"],
+        "operation": history, "backup": backup_detail, "task_id": task["id"], "task_status": task["status"],
         "server_container_replaced": True, "target_image": actual_image, "receipt": receipt}
     path = directory / "update-api-evidence.json"
     path.write_text(json.dumps(evidence, indent=2) + "\n")
