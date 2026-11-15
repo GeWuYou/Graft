@@ -25,7 +25,7 @@ export default mergeConfig(
         optimizer: {
           client: {
             enabled: true,
-            include: ['@material/material-color-utilities', 'tvision-color'],
+            include: ['tvision-color'],
           },
         },
       },

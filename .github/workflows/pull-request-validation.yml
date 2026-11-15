@@ -68,13 +68,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc
-        with:
-          path: .
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --exclude-paths=.trufflehog-exclude-paths.txt
+      - name: TruffleHog OSS with exact synthetic fixture policy
+        env:
+          SCAN_BASE: ${{ github.event.pull_request.base.sha }}
+          SCAN_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/scan_secrets.py --base "$SCAN_BASE" --head "$SCAN_HEAD"
 
   contract-governance-check:
     name: Contract Governance Check
@@ -170,7 +168,7 @@ jobs:
         run: python3 -m unittest scripts/test_validate_ai_governance.py
 
       - name: Verify scoped validation and runtime artifact tooling
-        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_server_ctrf_report.py
+        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_server_ctrf_report.py scripts/test_runtime_failure_diagnostics.py scripts/test_scan_secrets.py
 
       - name: Run repository skill-local tests
         run: python3 scripts/run_skill_tests.py
@@ -438,7 +436,8 @@ jobs:
       contents: read
       pull-requests: write
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Cold toolchain download can consume ten minutes before tests and versioned linking.
+    timeout-minutes: 25
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -473,20 +472,68 @@ jobs:
       - name: Run repository backend build/test stage
         working-directory: server
         env:
-          CGO_ENABLED: "0"
-          GOOS: linux
-          GOARCH: amd64
+          CGO_ENABLED: "1"
         run: go run ./cmd/graft validate backend --stage buildtest --test-report .tmp/test-results/server-go-test-ctrf.json
 
 
+      - name: Test standard-library TLS release fixture
+        run: go test tests/conformance/docker-runtime-agent/release-source.go tests/conformance/docker-runtime-agent/release-source_test.go
+
+      - name: Test authenticated Registry fixture helper
+        run: go -C server test -mod=readonly ../tests/conformance/docker-runtime-agent/registry-auth/main.go ../tests/conformance/docker-runtime-agent/registry-auth/main_test.go
+
+      - name: Link versioned runtime acceptance binaries
+        run: bash scripts/build_runtime_acceptance.sh
+
       - name: Package validated server runtime artifact
-        run: python3 scripts/ci_runtime_artifacts.py prepare --kind server --directory .tmp/runtime-server
+        run: |
+          python3 scripts/ci_runtime_artifacts.py prepare --kind server --directory .tmp/runtime-server
+          python3 scripts/ci_runtime_artifacts.py prepare --kind target-server --directory .tmp/runtime-target-server
+          python3 scripts/ci_runtime_artifacts.py prepare --kind runner --directory .tmp/runtime-runner
+          python3 scripts/ci_runtime_artifacts.py prepare --kind release-source --directory .tmp/runtime-release-source
+          python3 scripts/ci_runtime_artifacts.py prepare --kind build-registry --directory .tmp/runtime-build-registry
 
       - name: Upload validated server runtime artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: runtime-server
           path: .tmp/runtime-server
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload validated target-server runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-target-server
+          path: .tmp/runtime-target-server
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload validated runner runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-runner
+          path: .tmp/runtime-runner
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload validated release-source runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-release-source
+          path: .tmp/runtime-release-source
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload validated build-registry runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-build-registry
+          path: .tmp/runtime-build-registry
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -554,10 +601,38 @@ jobs:
           name: runtime-web
           path: .tmp/runtime-web
 
+      - name: Download validated target-server runtime artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-target-server
+          path: .tmp/runtime-target-server
+
+      - name: Download validated runner runtime artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-runner
+          path: .tmp/runtime-runner
+
+      - name: Download validated release-source runtime artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-release-source
+          path: .tmp/runtime-release-source
+
+      - name: Download validated build-registry runtime artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime-build-registry
+          path: .tmp/runtime-build-registry
+
       - name: Verify runtime artifact source and bytes
         run: |
           python3 scripts/ci_runtime_artifacts.py verify --kind server --directory .tmp/runtime-server
           python3 scripts/ci_runtime_artifacts.py verify --kind web --directory .tmp/runtime-web
+          python3 scripts/ci_runtime_artifacts.py verify --kind target-server --directory .tmp/runtime-target-server
+          python3 scripts/ci_runtime_artifacts.py verify --kind runner --directory .tmp/runtime-runner
+          python3 scripts/ci_runtime_artifacts.py verify --kind release-source --directory .tmp/runtime-release-source
+          python3 scripts/ci_runtime_artifacts.py verify --kind build-registry --directory .tmp/runtime-build-registry
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
@@ -566,17 +641,29 @@ jobs:
         run: |
           source_revision="$(git rev-parse HEAD)"
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "release-binary=$PWD/.tmp/runtime-server" -f server/Dockerfile -t "graft-local-ci-server:$source_revision" server
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "release-binary=$PWD/.tmp/runtime-target-server" -f server/Dockerfile -t "graft-local-ci-target-server:$source_revision" server
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-runner" -f server/runner/compose/Dockerfile -t "graft-local-ci-runner:$source_revision" server
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-release-source" -f tests/conformance/docker-runtime-agent/Dockerfile.release-source -t "graft-local-ci-release-source:$source_revision" tests/conformance/docker-runtime-agent
+          docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" --build-context "build=$PWD/.tmp/runtime-build-registry" -f tests/conformance/docker-runtime-agent/Dockerfile.build-registry -t "graft-local-ci-build-registry:$source_revision" .
           cp -a .tmp/runtime-web/dist web/dist
           docker buildx build --load --platform linux/amd64 --label "org.opencontainers.image.revision=$source_revision" -f web/Dockerfile -t "graft-local-ci-web:$source_revision" web
 
       - name: Verify private-engine operations and frozen official installation
         run: |
           source_revision="$(git rev-parse HEAD)"
-          python3 scripts/validate_docker_isolated.py init --execution-mode local --directory "$GRAFT_CI_DIRECTORY" --project "$GRAFT_CI_PROJECT" --source-revision "$source_revision" --backend-image "graft-local-ci-server:$source_revision" --web-image "graft-local-ci-web:$source_revision" --port 28080
+          python3 scripts/validate_docker_isolated.py init --execution-mode local --directory "$GRAFT_CI_DIRECTORY" --project "$GRAFT_CI_PROJECT" --source-revision "$source_revision" --backend-image "graft-local-ci-server:$source_revision" --target-backend-image "graft-local-ci-target-server:$source_revision" --web-image "graft-local-ci-web:$source_revision" --runner-image "graft-local-ci-runner:$source_revision" --release-fixture-image "graft-local-ci-release-source:$source_revision" --build-registry-image "graft-local-ci-build-registry:$source_revision" --port 28080
           python3 scripts/validate_docker_isolated.py up --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/validate_docker_isolated.py probe --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/validate_docker_isolated.py official-install --directory "$GRAFT_CI_DIRECTORY"
           python3 scripts/ci_runtime_artifacts.py acceptance --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/validate_docker_isolated.py build-api --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/ci_runtime_artifacts.py build-acceptance --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/validate_docker_isolated.py update-api --directory "$GRAFT_CI_DIRECTORY"
+          python3 scripts/ci_runtime_artifacts.py update-acceptance --directory "$GRAFT_CI_DIRECTORY"
+
+      - name: Collect sanitized failure diagnostics before cleanup
+        if: failure()
+        run: python3 scripts/ci_runtime_artifacts.py failure-diagnostics --directory "$GRAFT_CI_DIRECTORY"
 
       - name: Destroy only the registered acceptance project
         if: always()
@@ -597,10 +684,17 @@ jobs:
             .local/docker-isolated/ci/api-evidence.json
             .local/docker-isolated/ci/source-assets.json
             .local/docker-isolated/ci/cleanup.json
+            .local/docker-isolated/ci/failure-evidence.json
             .local/docker-isolated/ci/official/api-evidence.json
             .local/docker-isolated/ci/official/installation-evidence.json
             .tmp/runtime-server/provenance.json
             .tmp/runtime-web/provenance.json
+            .tmp/runtime-target-server/provenance.json
+            .tmp/runtime-runner/provenance.json
+            .tmp/runtime-release-source/provenance.json
+            .local/docker-isolated/ci/release-api/update-api-evidence.json
+            .tmp/runtime-build-registry/provenance.json
+            .local/docker-isolated/ci/build-api/build-api-evidence.json
 
   required-checks:
     name: Required checks passed

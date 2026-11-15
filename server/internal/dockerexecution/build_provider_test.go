@@ -281,7 +281,7 @@ func newBuildDockerTestServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-func TestConsumeBuildResponsePreservesSDKStreamErrors(t *testing.T) {
+func TestConsumeDockerProgressPreservesSDKStreamErrors(t *testing.T) {
 	tests := []struct {
 		name      string
 		body      string
@@ -293,9 +293,9 @@ func TestConsumeBuildResponsePreservesSDKStreamErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := consumeBuildResponse(io.NopCloser(strings.NewReader(test.body)))
+			err := consumeDockerProgress(io.NopCloser(strings.NewReader(test.body)))
 			if (err != nil) != test.wantError {
-				t.Fatalf("consumeBuildResponse() error=%v wantError=%v", err, test.wantError)
+				t.Fatalf("consumeDockerProgress() error=%v wantError=%v", err, test.wantError)
 			}
 		})
 	}

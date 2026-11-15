@@ -427,6 +427,12 @@ func reverseLogs(logs []taskmodel.Log) {
 
 // TransitionTask 应用已校验的 compare-and-swap Task 状态迁移，状态冲突时不修改任何记录。
 func (r *SQLRepository) TransitionTask(ctx context.Context, input TaskTransitionInput) error {
+	return r.transitionTaskWith(ctx, r.db, input)
+}
+
+func (r *SQLRepository) transitionTaskWith(ctx context.Context, executor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, input TaskTransitionInput) error {
 	if input.TaskID == 0 {
 		return ErrInvalidInput
 	}
@@ -434,7 +440,7 @@ func (r *SQLRepository) TransitionTask(ctx context.Context, input TaskTransition
 		return err
 	}
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+	result, err := executor.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET status = ?, current_stage_key = ?, failure_code = ?, failure_message = ?,
 			started_at = COALESCE(?, started_at), finished_at = ?, duration_ms = ?, updated_at = ?
 		WHERE id = ? AND status = ?`),
@@ -787,37 +793,49 @@ func (r *SQLRepository) CancelUntrackedRunningStages(ctx context.Context, taskID
 	return int(count), nil
 }
 
-// RetryStage 将操作员批准的 failed 或 unknown Stage 恢复为 pending。
-// 运行时只在父 Task 为 needs_attention 时接受重试，防止绕过父任务生命周期。
+// RetryStage 在同一事务内恢复 failed 或 needs_attention 父 Task 与获准重试的 failed/unknown Stage。
+// 阶段状态冲突会回滚父任务恢复，保留终态证据与已有尝试计数。
 func (r *SQLRepository) RetryStage(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) (taskmodel.Stage, error) {
 	if taskID == 0 || stageID == 0 || retryAt.IsZero() {
 		return taskmodel.Stage{}, ErrInvalidInput
 	}
-	if err := r.resumeRetryableTask(ctx, taskID); err != nil {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return taskmodel.Stage{}, fmt.Errorf("begin task stage retry: %w", err)
+	}
+	defer rollback(tx)
+	if err := r.resumeRetryableTask(ctx, tx, taskID); err != nil {
 		return taskmodel.Stage{}, err
 	}
-	if err := r.markStagePendingForRetry(ctx, taskID, stageID, retryAt); err != nil {
+	if err := r.markStagePendingForRetry(ctx, tx, taskID, stageID, retryAt); err != nil {
 		return taskmodel.Stage{}, err
 	}
-	return r.getStage(ctx, taskID, stageID)
+	stage, err := r.getStage(ctx, tx, taskID, stageID)
+	if err != nil {
+		return taskmodel.Stage{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return taskmodel.Stage{}, fmt.Errorf("commit task stage retry: %w", err)
+	}
+	return stage, nil
 }
 
-func (r *SQLRepository) resumeRetryableTask(ctx context.Context, taskID uint64) error {
-	task, err := r.Get(ctx, taskID)
+func (r *SQLRepository) resumeRetryableTask(ctx context.Context, tx *sql.Tx, taskID uint64) error {
+	task, err := r.getTaskWith(ctx, tx, taskID)
 	if err != nil {
 		return err
 	}
 	if task.Status != moduleapi.TaskStatusNeedsAttention && task.Status != moduleapi.TaskStatusFailed {
 		return ErrStateConflict
 	}
-	if err := r.TransitionTask(ctx, TaskTransitionInput{TaskID: taskID, From: task.Status, To: moduleapi.TaskStatusRunning}); err != nil {
+	if err := r.transitionTaskWith(ctx, tx, TaskTransitionInput{TaskID: taskID, From: task.Status, To: moduleapi.TaskStatusRunning}); err != nil {
 		return fmt.Errorf("resume task for stage retry: %w", err)
 	}
 	return nil
 }
 
-func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) error {
-	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, tx *sql.Tx, taskID uint64, stageID uint64, retryAt time.Time) error {
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
 			finished_at = NULL, duration_ms = NULL, updated_at = ?
 		WHERE id = ? AND task_id = ? AND status IN (?, ?)`),
@@ -829,17 +847,12 @@ func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, taskID uin
 	return expectOneAffected(result)
 }
 
-func (r *SQLRepository) getStage(ctx context.Context, taskID uint64, stageID uint64) (taskmodel.Stage, error) {
-	stages, err := r.ListStages(ctx, taskID)
-	if err != nil {
-		return taskmodel.Stage{}, err
+func (r *SQLRepository) getStage(ctx context.Context, queryer taskQueryer, taskID uint64, stageID uint64) (taskmodel.Stage, error) {
+	stage, err := scanStage(queryer.QueryRowContext(ctx, r.placeholder.rebind(`SELECT `+stageColumns()+` FROM task_stages WHERE task_id = ? AND id = ?`), taskID, stageID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return taskmodel.Stage{}, ErrNotFound
 	}
-	for _, stage := range stages {
-		if stage.ID == stageID {
-			return stage, nil
-		}
-	}
-	return taskmodel.Stage{}, ErrNotFound
+	return stage, err
 }
 
 // RescheduleStage 将可重试的 failed 阶段安排为下一次 pending 尝试，不改写尝试计数或终态历史详情。

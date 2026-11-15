@@ -67,3 +67,54 @@ Required checks passed 将该 job 纳入结果汇总，跳过结果保持失败�
 收尾始终按已注册 project 身份销毁任务资源。上传范围采用精确文件白名单，包含 API 场景、
 源码指纹、官方安装、清理与构建来源证明。instance.json、环境文件和原始错误日志保留在 runner 的本地目录。
 镜像构建与平台自更新的完整运行场景由各自验收驱动提供证据，核心操作 CI 与它们分别记录。
+
+## 版本化平台更新验收
+
+`bash scripts/build_runtime_acceptance.sh` 在干净源码上链接同一 Git commit 的两个 server，
+版本分别为 0.0.0-beta.1 和 0.0.0-beta.2，同时构建生产 Controller 与标准 Go TLS release fixture。
+构建身份通过既有 buildinfo 链接字段注入，源码 commit 与提交时间冻结，CGO_ENABLED=0、linux/amd64。
+产物目录位于忽略的 .tmp/compiled，测试继续使用统一 backend 入口的一次执行。
+
+运行时 job 先核对二进制内版本与 commit，再核对文件摘要，消费既有 server、web、Controller 和 release fixture
+Dockerfile。Controller 与 fixture 的 build 命名上下文指向已验证的 out 产物，从而复用这些二进制。
+[Docker 命名上下文](https://docs.docker.com/reference/cli/docker/buildx/build/#additional-build-contexts---build-context)
+
+全新注册包含 source server、target server、web、runner 与 release fixture 的同源码镜像身份。
+顺序为 up、probe、official-install、update-api。最后一项通过生产发布解析、摘要验证与 Update API
+完成备份失败注入、正常更新、server 替换以及 Task/Backup/Controller 回执结算。
+独立校验器再比对 source/target 二进制摘要、版本、迁移和备份证据。缺失或不一致的证明使门禁失败。
+
+同源镜像重标记的 controller-smoke 仍是独立协议探针，运行时使用另一全新注册，避免改动 Update API
+验收要求的初始版本与 tag。CI 的版本化更新路径直接执行生产 Controller。
+仅将 release-api/update-api-evidence.json 作为新增证明文件上传，私有 CA 密钥、证书材料、环境和原始日志保留在 runner。
+
+## 工具依赖归属复验
+
+OpenAPI bundle 的实际消费者位于根 scripts，@redocly/openapi-core 1.34.17 由根工具包显式声明，
+bundler 从根 package.json 解析它。Web i18n 检查直接导入 yaml，由 Web 工具依赖显式声明既有 2.9.1。
+两者经过完整锁版本集合核对，声明调整没有新增或移除上游包版本。
+
+2026-11-16 在隔离任务检出中重新创建依赖链接并执行根 frozen install，随后直接生成 OpenAPI bundle，
+运行完整 Web check。源码检查、生产构建与 312 个测试文件的 2175 项测试通过。
+本轮 Web 源码为治理切片，运行时诊断 UI 的独立切片由其 scoped 测试和后续组合 CI 提供证据。
+
+## 认证 Registry 的 Build 验收
+
+同一构建脚本追加构建既有 Go module 锁定的 bcrypt fixture helper，产物与运行镜像继续绑定源码和文件摘要。
+CI 注册传入 build-registry-image，在 official-install 后执行 build-api，再执行 update-api。
+独立 Build 证明要求真实匿名 401、认证 200、Registry 验证、成功 Task、artifact/publication 关联、
+Docker Image ID 和远端 manifest digest 一致，并要求任务与日志中的秘密检查通过。
+更新证明同时要求前序 Build 证明存在且完整。
+
+新增上传文件限定为 build-api/build-api-evidence.json 与辅助二进制 provenance。
+私有 TLS、认证文件及其生成秘密受 fixture 本地生命周期管理，CI 消费正常 Registry/Build API 与 SDK 执行入口。
+
+## 完整安装与镜像内容证明
+
+官方安装记录仅在所有必需场景通过后设置 complete=true，后续 CI 验收要求该完成标记。
+Build 证明还要求远端 manifest 的 config digest 指向实际 Engine Image ID，
+并从未启动的私有镜像容器提取 /probe，核对上传 context 的预期 SHA-256 和实际内容摘要。
+
+更新成功必须有 migration_started=true 及 bootstrap 调用证明，配置快照失败场景则要求
+migration_started=false 和绑定操作的失败回执。同一源码的 beta.1/beta.2 验收覆盖现有迁移图的调用，
+具体范围为相同 Git revision 的迁移图，新增 DDL 的升级路径需要独立迁移证据。

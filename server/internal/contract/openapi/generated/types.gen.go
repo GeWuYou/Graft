@@ -11087,12 +11087,42 @@ type EnvelopedBuildArtifactPublicationList struct {
 
 // EnvelopedBuildInputSnapshot defines model for enveloped-build-input-snapshot.
 type EnvelopedBuildInputSnapshot struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
 	Data BuildInputSnapshot `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedBuildInputSnapshotList defines model for enveloped-build-input-snapshot-list.
 type EnvelopedBuildInputSnapshotList struct {
+	// Code Existing canonical response code.
+	Code string                 `json:"code"`
 	Data BuildInputSnapshotList `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
@@ -13657,7 +13687,7 @@ type PlatformUpdateOperation struct {
 	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_state_corrupt and runner_lost are explicitly unavailable.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
+	// StateSource Authority that produced this projection. task_recovery is Task Runtime's terminal or recovery projection and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -13669,7 +13699,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
+// PlatformUpdateOperationStateSource Authority that produced this projection. task_recovery is Task Runtime's terminal or recovery projection and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.

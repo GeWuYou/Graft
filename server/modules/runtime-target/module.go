@@ -196,6 +196,9 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AgentBootstrapAuthority)(nil), func(resolver containerdi.Resolver) (any, error) {
+		if m.executionMode == config.ExecutionModeLocal {
+			return newRuntimeTargetAgentBootstrapAuthority(m.repository, nil, nil), nil
+		}
 		issuer, err := module.ResolveService[moduleapi.AgentCertificateIssuer](resolver, (*moduleapi.AgentCertificateIssuer)(nil))
 		if err != nil {
 			return nil, fmt.Errorf("resolve agent certificate issuer: %w", err)

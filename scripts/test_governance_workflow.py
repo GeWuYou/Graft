@@ -16,11 +16,37 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
     def test_server_tests_and_report_share_authoritative_job(self):
         self.assertNotIn("server-test-report", self.jobs)
+        self.assertEqual(self.jobs["server-build-test"]["timeout-minutes"], 25)
         steps = self.jobs["server-build-test"]["steps"]
         commands = [step.get("run", "") for step in steps]
         self.assertEqual(sum("validate backend --stage buildtest --test-report" in command for command in commands), 1)
         self.assertFalse(any("run_server_ctrf_report.py" in command for command in commands))
         self.assertTrue(any("Upload server test results" == step.get("name") for step in steps))
+
+    def test_backend_validation_keeps_sqlite_cgo_and_static_builds_are_isolated(self):
+        steps = self.jobs["server-build-test"]["steps"]
+        validation = next(step for step in steps if step.get("name") == "Run repository backend build/test stage")
+        self.assertEqual(validation["env"]["CGO_ENABLED"], "1")
+        self.assertNotIn("GOOS", validation["env"])
+        self.assertNotIn("GOARCH", validation["env"])
+        static_build = next(step for step in steps if step.get("name") == "Link versioned runtime acceptance binaries")
+        self.assertEqual(static_build["run"], "bash scripts/build_runtime_acceptance.sh")
+        self.assertIn("export CGO_ENABLED=0 GOOS=linux GOARCH=amd64", (ROOT / "scripts/build_runtime_acceptance.sh").read_text())
+
+    def test_secret_scan_preserves_complete_history_and_exact_result_policy(self):
+        steps = self.jobs["secret-scan"]["steps"]
+        checkout = next(step for step in steps if step.get("name") == "Checkout repository")
+        self.assertEqual(checkout["with"]["fetch-depth"], 0)
+        scanner = next(step for step in steps if "scripts/scan_secrets.py" in step.get("run", ""))
+        self.assertIn("github.event.pull_request.base.sha", scanner["env"]["SCAN_BASE"])
+        self.assertIn("github.event.pull_request.head.sha", scanner["env"]["SCAN_HEAD"])
+        self.assertNotIn("continue-on-error", scanner)
+        source = (ROOT / "scripts/scan_secrets.py").read_text()
+        self.assertIn("--since-commit", source)
+        self.assertIn("--branch", source)
+        self.assertIn("--fail-on-scan-errors", source)
+        self.assertIn("--exclude-paths=/tmp/exclude-paths.txt", source)
+        self.assertIn("trufflehog@sha256:2ec535840f860aa27f11fee20222fb790326ecd66325c96bd49d02ec6af46eca", source)
 
     def aggregate(self, results, event="pull_request"):
         script = self.jobs["required-checks"]["steps"][0]["run"].splitlines()
@@ -73,6 +99,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         job = self.jobs["local-runtime-acceptance"]
         cleanup = next(step for step in job["steps"] if step.get("name") == "Destroy only the registered acceptance project")
         self.assertEqual(cleanup["if"], "always()")
+        diagnostic = next(step for step in job["steps"] if step.get("name") == "Collect sanitized failure diagnostics before cleanup")
+        self.assertEqual(diagnostic["if"], "failure()")
+        self.assertLess(job["steps"].index(diagnostic), job["steps"].index(cleanup))
+        self.assertIn("failure-diagnostics", diagnostic["run"])
         self.assertIn('--confirm-project "$GRAFT_CI_PROJECT"', cleanup["run"])
         upload = next(step for step in job["steps"] if step.get("name") == "Upload sanitized runtime acceptance evidence")
         self.assertEqual(upload["if"], "always()")
@@ -80,9 +110,54 @@ class GovernanceWorkflowTests(unittest.TestCase):
             ".local/docker-isolated/ci/api-evidence.json",
             ".local/docker-isolated/ci/source-assets.json",
             ".local/docker-isolated/ci/cleanup.json",
+            ".local/docker-isolated/ci/failure-evidence.json",
             ".local/docker-isolated/ci/official/api-evidence.json",
             ".local/docker-isolated/ci/official/installation-evidence.json",
             ".tmp/runtime-server/provenance.json",
             ".tmp/runtime-web/provenance.json",
+            ".tmp/runtime-target-server/provenance.json",
+            ".tmp/runtime-runner/provenance.json",
+            ".tmp/runtime-release-source/provenance.json",
+            ".local/docker-isolated/ci/release-api/update-api-evidence.json",
+            ".tmp/runtime-build-registry/provenance.json",
+            ".local/docker-isolated/ci/build-api/build-api-evidence.json",
         })
         self.assertTrue(upload["with"]["include-hidden-files"])
+
+    def test_public_update_job_uses_versioned_artifacts_and_production_controller(self):
+        job = self.jobs["local-runtime-acceptance"]
+        commands = "\n".join(step.get("run", "") for step in job["steps"])
+        for kind in ("target-server", "runner", "release-source"):
+            self.assertIn("verify --kind " + kind, commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-runner"', commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-release-source"', commands)
+        self.assertIn("--target-backend-image", commands)
+        self.assertIn("--release-fixture-image", commands)
+        self.assertIn("--runner-image", commands)
+        self.assertLess(commands.index("official-install"), commands.index("update-api"))
+        self.assertIn("ci_runtime_artifacts.py update-acceptance", commands)
+        self.assertNotIn("controller-smoke", commands)
+        backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
+        self.assertIn("bash scripts/build_runtime_acceptance.sh", backend)
+        self.assertEqual(backend.count("validate backend --stage buildtest --test-report"), 1)
+
+    def test_tool_dependencies_are_declared_at_their_actual_consumers(self):
+        package = json.loads((ROOT / "package.json").read_text())
+        web = json.loads((ROOT / "web/package.json").read_text())
+        self.assertEqual(package["devDependencies"]["@redocly/openapi-core"], "1.34.17")
+        self.assertNotIn("@redocly/openapi-core", web["devDependencies"])
+        self.assertEqual(web["devDependencies"]["yaml"], "2.9.1")
+        bundler = (ROOT / "scripts/openapi-bundle.mjs").read_text()
+        self.assertIn("requireFromRoot('@redocly/openapi-core')", bundler)
+
+    def test_build_acceptance_precedes_update_and_reuses_authenticated_fixture_binary(self):
+        commands = "\n".join(step.get("run", "") for step in self.jobs["local-runtime-acceptance"]["steps"])
+        self.assertIn("verify --kind build-registry", commands)
+        self.assertIn('--build-context "build=$PWD/.tmp/runtime-build-registry"', commands)
+        self.assertIn("Dockerfile.build-registry", commands)
+        self.assertIn("--build-registry-image", commands)
+        self.assertLess(commands.index("official-install"), commands.index("build-api"))
+        self.assertLess(commands.index("build-api"), commands.index("update-api"))
+        self.assertIn("ci_runtime_artifacts.py build-acceptance", commands)
+        backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
+        self.assertIn("registry-auth/main_test.go", backend)

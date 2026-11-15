@@ -50,3 +50,11 @@ Local planner regressions cover matching consumer families, deleted packages/tes
 The reporting helper pipeline writes its relative artifact beneath the repository root when invoked from server.
 
 Runtime CI wiring now consumes verified build artifacts, validates required private/official scenarios and performs identity-guarded cleanup. Integrated execution remains pending.
+
+Versioned Update API CI is wired with 0.0.0-beta.1/.2 source-bound binaries, Controller and TLS release fixture artifacts. Full runtime evidence remains pending integrated execution.
+
+Tool dependency ownership repair passed a clean frozen install and full Web check with 312 files / 2175 tests on the governance slice. Exact source and lock hashes are retained in task-local evidence.
+
+Authenticated Build CI wiring requires full source/effect evidence before versioned Update acceptance. Combined runtime execution remains pending.
+
+Strict CI verifiers now require completed official installation, actual image/config/content proof and explicit migration boundaries. Integrated runtime evidence is still tracked by the lead.

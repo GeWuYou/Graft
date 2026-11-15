@@ -16,3 +16,14 @@
 - Independent review corrected local consumer-family validation and deleted-source selection. A real helper subprocess fixture verified repository-root test report output.
 
 - Added required private-daemon and frozen official-install CI wiring using source-bound server/web artifacts and strict required-scenario evidence. Runtime results await integrated CI.
+
+- Extended runtime CI to same-commit versioned server binaries, production Controller and standard-Go TLS release helper. Required Update API evidence binds binary hashes, backup bytes and migrated replacement Task receipts; runtime execution awaits integrated source.
+
+## 2026-11-16
+
+- Full integration validation exposed two previously hoisted tooling imports. Root Redocly and Web yaml declarations now match their actual consumers at existing locked versions.
+- Clean task dependency install, direct bundle generation and full Web check passed all source gates, production build and 312 files / 2175 tests. Combined diagnostic UI verification remains separately scoped.
+
+- Extended required CI to authenticated Build API publication before Update API, with locked bcrypt helper provenance, Task/artifact/publication/engine checks and explicit secret-exclusion evidence. Runtime results await integrated execution.
+
+- Aligned CI proof validation with completed-install markers, published manifest config-to-image binding and uploaded-context probe hashes. Success and backup-failure migration boundaries are explicit; same-source versioned update covers the existing migration graph invocation.

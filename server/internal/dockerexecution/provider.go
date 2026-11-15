@@ -108,6 +108,12 @@ func executeProviderOperation(ctx context.Context, c Environment, lease Request)
 	}
 }
 
+type updateControllerIntent struct {
+	OperationID   string `json:"operation_id"`
+	SourceVersion string `json:"source_version"`
+	TargetVersion string `json:"target_version"`
+}
+
 type updateControllerMaterial struct {
 	ControllerReference string `json:"controller_reference"`
 	InputBase64         string `json:"input_b64"`
@@ -145,12 +151,8 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 	if err != nil {
 		return failedExecution(failureRuntimeUnavailable)
 	}
-	if _, copyErr := io.Copy(io.Discard, pull); copyErr != nil {
-		_ = pull.Close()
-		return failedExecution(failureRuntimeUnavailable)
-	}
-	if closeErr := pull.Close(); closeErr != nil {
-		return failedExecution(failureRuntimeUnavailable)
+	if err := consumeDockerProgress(pull); err != nil {
+		return failedExecutionAt(failureRuntimeUnavailable, "controller_pull")
 	}
 	configuration, host := updateControllerContainerConfig(material)
 	name := materialContainerName(material.OperationID)
@@ -164,11 +166,12 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 		return failedExecution(failureProviderOperation)
 	}
 	if _, err := docker.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
+		// 启动响应丢失时 Controller 可能已执行替换；后续删除也无法撤销它的副作用。
+		if !containerderrdefs.IsConflict(err) && !containerderrdefs.IsInvalidArgument(err) && !containerderrdefs.IsPermissionDenied(err) {
+			return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
+		}
 		if cleanupErr := removeUnstartedController(ctx, docker, created.ID); cleanupErr != nil {
-			if material.Recovery {
-				return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
-			}
-			return failedExecution(failureProviderOperation)
+			return Result{Outcome: "needs_attention", FailureCode: failureInterrupted}
 		}
 		return failedExecution(failureProviderOperation)
 	}
@@ -177,10 +180,8 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 
 //nolint:gocyclo,cyclop // 严格材料校验必须显式保留每个信任边界拒绝分支。
 func validUpdateControllerMaterial(material updateControllerMaterial, lease Request) bool {
-	var intent struct {
-		OperationID string `json:"operation_id"`
-	}
-	if strictDecode(lease.Input, &intent) != nil {
+	var intent updateControllerIntent
+	if strictDecode(lease.Input, &intent) != nil || strings.TrimSpace(intent.SourceVersion) == "" || strings.TrimSpace(intent.TargetVersion) == "" || strings.TrimSpace(intent.SourceVersion) == strings.TrimSpace(intent.TargetVersion) {
 		return false
 	}
 	if !validDigestPinnedReference(material.ControllerReference) || !validRuntimeStateVolume(material.StateVolume) || material.OperationID != intent.OperationID || !validUpdateOperationID(material.OperationID) {
@@ -201,7 +202,7 @@ func validUpdateControllerMaterial(material updateControllerMaterial, lease Requ
 			Target      string `json:"target_version"`
 			Strategy    string `json:"deployment_strategy"`
 		}
-		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || strings.TrimSpace(recovery.Source) == "" || strings.TrimSpace(recovery.Target) == "" || recovery.Source == recovery.Target || strings.TrimSpace(recovery.Strategy) == "" {
+		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || recovery.Source != intent.SourceVersion || recovery.Target != intent.TargetVersion || strings.TrimSpace(recovery.Strategy) == "" {
 			return false
 		}
 		return true
@@ -274,8 +275,16 @@ func materialContainerName(operationID string) string { return "graft-update-" +
 
 func removeUnstartedController(ctx context.Context, docker *mobyclient.Client, id string) error {
 	inspected, err := docker.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
-	if err != nil || inspected.Container.State == nil || inspected.Container.State.Running {
+	if err != nil {
 		return err
+	}
+	state := inspected.Container.State
+	if state == nil || state.Running || state.Status != containertypes.StateCreated {
+		return errors.New("controller has no unstarted state confirmation")
+	}
+	startedAt, err := time.Parse(time.RFC3339Nano, state.StartedAt)
+	if err != nil || !startedAt.IsZero() {
+		return errors.New("controller has no unstarted timestamp confirmation")
 	}
 	_, err = docker.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
 	return err
@@ -339,27 +348,36 @@ func dispatchContainerImage(ctx context.Context, docker *mobyclient.Client, oper
 		if err != nil {
 			return err
 		}
-		_, copyErr := io.Copy(io.Discard, response)
-		return errors.Join(copyErr, response.Close())
+		return consumeDockerProgress(response)
 	case "container.image.tag.v1":
 		_, err := docker.ImageTag(ctx, mobyclient.ImageTagOptions{Source: intent.ImageRef, Target: intent.TargetRef})
 		return err
 	case "container.image.untag.v1":
-		inspected, err := docker.ImageInspect(ctx, intent.TagRef)
-		if err != nil {
-			return err
-		}
-		if inspected.ID != intent.ImageRef {
-			return errContainerReferenceChanged
-		}
-		_, err = docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
-		return err
+		return removeBoundImageTag(ctx, docker, intent)
+
 	case "container.image.remove.v1":
 		_, err := docker.ImageRemove(ctx, intent.ImageRef, mobyclient.ImageRemoveOptions{Force: intent.Force})
 		return err
 	default:
 		return errUnsupportedProviderOperation
 	}
+}
+
+// removeBoundImageTag 同时核对来源和待移除标签的真实镜像身份，保留已有别名调用语义。
+func removeBoundImageTag(ctx context.Context, docker *mobyclient.Client, intent containerExecutionIntent) error {
+	expected, err := docker.ImageInspect(ctx, intent.ImageRef)
+	if err != nil {
+		return err
+	}
+	tagged, err := docker.ImageInspect(ctx, intent.TagRef)
+	if err != nil {
+		return err
+	}
+	if tagged.ID != expected.ID {
+		return errContainerReferenceChanged
+	}
+	_, err = docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
+	return err
 }
 
 func dispatchContainerNetwork(ctx context.Context, docker *mobyclient.Client, operation string, intent containerExecutionIntent) error {
