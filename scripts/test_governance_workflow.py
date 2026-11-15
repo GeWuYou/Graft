@@ -16,6 +16,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
     def test_server_tests_and_report_share_authoritative_job(self):
         self.assertNotIn("server-test-report", self.jobs)
+        self.assertEqual(self.jobs["server-build-test"]["timeout-minutes"], 25)
         steps = self.jobs["server-build-test"]["steps"]
         commands = [step.get("run", "") for step in steps]
         self.assertEqual(sum("validate backend --stage buildtest --test-report" in command for command in commands), 1)

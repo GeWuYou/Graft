@@ -436,7 +436,8 @@ jobs:
       contents: read
       pull-requests: write
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Cold toolchain download can consume ten minutes before tests and versioned linking.
+    timeout-minutes: 25
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
