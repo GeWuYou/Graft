@@ -61,6 +61,42 @@ class FailureDiagnosticsTests(unittest.TestCase):
         self.assertFalse(any("down" in command or "rm" in command for command in calls))
         self.assertEqual((self.directory / "command-error.log").read_text(), message)
 
+    def test_successful_one_shots_do_not_hide_live_server_api_failures(self):
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            if "ps" in command:
+                rows = [{"Service": "workspace-init", "State": "exited", "ExitCode": 0},
+                        {"Service": "backend", "State": "running", "Health": "healthy", "ExitCode": 0}]
+                return SimpleNamespace(returncode=0, stdout=json.dumps(rows), stderr="")
+            return SimpleNamespace(returncode=0, stdout="backend: database transaction failed password=generated-db-password", stderr="")
+
+        with patch("scripts.ci_runtime_artifacts.subprocess.run", side_effect=run), redirect_stdout(io.StringIO()):
+            failure_diagnostics(self.directory, self.directory)
+        logs = next(command for command in calls if "logs" in command)
+        self.assertEqual(logs[-1], "backend")
+        proof = json.loads((self.directory / "failure-evidence.json").read_text())
+        self.assertIn("database transaction failed", proof["topologies"]["private"]["logs"])
+        self.assertNotIn("generated-db-password", json.dumps(proof))
+
+    def test_failed_setup_keeps_server_and_database_logs_in_the_bounded_selection(self):
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            if "ps" in command:
+                rows = [{"Service": "migrate", "State": "exited", "ExitCode": 1},
+                        {"Service": "backend", "State": "running", "Health": "healthy", "ExitCode": 0},
+                        {"Service": "postgres", "State": "running", "Health": "healthy", "ExitCode": 0}]
+                return SimpleNamespace(returncode=0, stdout=json.dumps(rows), stderr="")
+            return SimpleNamespace(returncode=0, stdout="migration failed", stderr="")
+
+        with patch("scripts.ci_runtime_artifacts.subprocess.run", side_effect=run), redirect_stdout(io.StringIO()):
+            failure_diagnostics(self.directory, self.directory)
+        logs = next(command for command in calls if "logs" in command)
+        self.assertEqual(logs[-3:], ["migrate", "backend", "postgres"])
+
     def test_permission_diagnostics_remain_bounded_and_private_keys_are_masked(self):
         message = "x" * 20000 + " permission denied\n-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----\npassword=unknown-password token=unknown-token Authorization: Basic c2VjcmV0OnBhc3N3b3Jk"
         redacted = redact_diagnostic(message, set())
