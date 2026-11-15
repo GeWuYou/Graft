@@ -60,7 +60,36 @@ func (r runtime) explicitComposeContext(ctx context.Context, mode, root string) 
 	if !hasRunnerStateVolume(facts) {
 		return runnerStateVolumeMissingContext(mode)
 	}
+	configured := context.ComposeCandidates()[0]
+	for _, candidate := range composeCandidates(facts) {
+		if candidate.Root() != configured.Root() || candidate.Confidence() != "high" {
+			continue
+		}
+		files, err := explicitComposeFiles(configured.Root(), facts.Labels[composeConfigFilesLabel])
+		if err != nil {
+			return unavailableContext(mode, "configured_compose_files_invalid", "deployment.diagnostics.configured_compose_files_invalid", err.Error())
+		}
+		selected := newCandidate(configured.Root(), files, candidate.ProjectName(), "explicit", nil)
+		return moduleapi.NewDeploymentContext(mode, "explicit_config", false, []moduleapi.DeploymentComposeCandidate{selected}, nil)
+	}
 	return context
+}
+
+// explicitComposeFiles 保留匹配显式根目录的完整配置序列，拒绝会被筛选后改变含义的路径。
+func explicitComposeFiles(root, raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	files := strings.Split(raw, ",")
+	for _, name := range files {
+		if name != strings.TrimSpace(name) || cleanAbsolute(name) != name {
+			return nil, errors.New("matching Compose configuration files must be normalized absolute host paths")
+		}
+	}
+	if len(filesWithin(root, files)) != len(files) {
+		return nil, errors.New("matching Compose configuration files must remain under the configured host root")
+	}
+	return files, nil
 }
 
 func (r runtime) discoveredComposeContext(ctx context.Context, mode string) moduleapi.DeploymentContext {
@@ -189,7 +218,7 @@ func composeCandidates(facts moduleapi.DockerContainerFacts) []moduleapi.Deploym
 }
 
 func newCandidate(root string, files []string, project, confidence string, warnings []string) moduleapi.DeploymentComposeCandidate {
-	if confidence == "high" && len(files) == 0 {
+	if (confidence == "high" || confidence == "explicit") && len(files) == 0 {
 		files = []string{filepath.Join(root, "compose.yml")}
 	}
 	digest := sha256.Sum256([]byte(root + "\x00" + strings.Join(files, "\x00")))
