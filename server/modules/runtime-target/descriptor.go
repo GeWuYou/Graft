@@ -28,6 +28,10 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve runtime config: %w", err)
 			}
+			// 本机执行不激活 Agent enrollment，也不读取可选 Agent 部署留下的 secret 路径。
+			if runtimeConfig.Execution.Mode == config.ExecutionModeLocal {
+				return NewModule(store.NewSQLRepository(db)), nil
+			}
 			enrollmentSecurity := runtimeConfig.EnrollmentSecurity
 			pepper, err := config.NewEnrollmentPepperProvider(enrollmentSecurity)
 			if err != nil {
