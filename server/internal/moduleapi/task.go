@@ -294,8 +294,10 @@ func ValidateCoordinatedTaskPlan(plan *CoordinatedTaskPlan) error {
 
 // ExternalReceiptExpectation 冻结短生命周期外部执行器结算最终 Stage 时必须匹配的身份；它不包含凭据，认证由部署侧文件与进程边界承担。
 type ExternalReceiptExpectation struct {
-	Protocol    string
-	OperationID string
+	// LaunchStageKey 允许可信终态回执核对同一 Task 内已开始的启动阶段。
+	LaunchStageKey string
+	Protocol       string
+	OperationID    string
 }
 
 // ExternalExecutionExpectation 冻结一个可由 Runtime Agent 领取的 Stage 执行身份；它不包含 endpoint、凭据或命令。
@@ -448,6 +450,9 @@ const (
 
 // ExternalTaskReceipt 是通过 Task Runtime capability 提交的版本化、无秘密外部执行事实；它刻意排除命令、环境、日志和任意结果载荷。
 type ExternalTaskReceipt struct {
+	// LaunchStageID 与 LaunchAttempt 将 Controller 证明绑定到真实启动 attempt。
+	LaunchStageID   uint64
+	LaunchAttempt   int
 	TaskID          uint64
 	ExecutorType    StageExecutorType
 	Protocol        string
