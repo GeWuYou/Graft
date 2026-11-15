@@ -168,6 +168,9 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	launcher := &recordingLauncher{}
 	backups := &stubBackupService{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, backups, launcher)
+	if err := rollout.SetExecutionMode("local"); err != nil {
+		t.Fatal(err)
+	}
 	rollout.SetRuntimeTargetReader(composeRuntimeTargetStub{})
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "manual_guidance_blocked"}
@@ -198,6 +201,9 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 		t.Fatalf("unexpected rollout operation: %#v", operation)
 	}
 	queued := rollout.externalLaunches[operation.OperationID].input
+	if queued.ExecutionMode != "local" {
+		t.Fatalf("local execution mode was not frozen: %#v", queued)
+	}
 	if queued.Preflight.ComposeRoot != root || queued.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
 		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}

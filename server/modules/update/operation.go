@@ -150,6 +150,7 @@ func validReceiptSettlementDependencies(c *ComposeExecutionCoordinator, operatio
 
 func validReceiptIdentity(operation ComposeUpdateOperation, receipt RunnerReceipt, verifiedRunnerID string) bool {
 	return supportedRunnerProtocolVersion(receipt.ProtocolVersion) &&
+		validRunnerExecutionMode(receipt.ExecutionMode) &&
 		receipt.OperationID == operation.OperationID &&
 		(verifiedRunnerID == "" || runnerOperationID.MatchString(verifiedRunnerID)) &&
 		(operation.RunnerID == "" || receipt.RunnerID == "" || operation.RunnerID == receipt.RunnerID)

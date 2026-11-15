@@ -39,6 +39,7 @@ type RolloutService struct {
 	appLogger          logger.AppLogger
 	realtime           realtime.Publisher
 	backupArtifactRoot string
+	executionMode      string
 	stateStore         RunnerStateStore
 	startMu            sync.Mutex
 	statePollMu        sync.Mutex
@@ -118,7 +119,16 @@ func newOperationID() string { return fmt.Sprintf("update-%d", time.Now().UTC().
 // NewRolloutService 组合 Update 领域 capability、Task/Backup 能力与终态观察边界。
 func NewRolloutService(discovery *Service, operations OperationStore, tasks moduleapi.TaskService, backups moduleapi.BackupService, launcher ComposeRunnerLauncher) *RolloutService {
 	stateStore, _ := NewFileRunnerStateStore(RunnerStateRoot)
-	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore, externalLaunches: make(map[string]*updateControllerLaunchSlot)}
+	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore, executionMode: "agent", externalLaunches: make(map[string]*updateControllerLaunchSlot)}
+}
+
+// SetExecutionMode 注入启动时确定的执行归属，随后冻结到独立 Controller 输入。
+func (s *RolloutService) SetExecutionMode(mode string) error {
+	if s == nil || !validRunnerExecutionMode(mode) {
+		return errors.New("platform update execution mode is invalid")
+	}
+	s.executionMode = effectiveRunnerExecutionMode(mode)
+	return nil
 }
 
 // SetRuntimeTargetReader 注入 Runtime Target authority，在提交外部启动 Stage 前冻结 generation-scoped target identity。
@@ -212,6 +222,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	}
 	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePlanning
 	runnerInput.Preflight = preflight
+	runnerInput.ExecutionMode = s.executionMode
 	if !filepath.IsAbs(runnerInput.BackupArtifactRoot) {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("prepared backup artifact root is unavailable"))
 	}
@@ -881,8 +892,7 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 	if err := s.operations.Create(ctx, operation); err != nil {
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "operation_persist", operation.OperationID, fmt.Errorf("persist update operation: %w", err))
 	}
-	// Runtime Agent 负责领取启动 Stage；宿主机路径、socket、镜像与编码输入只在
-	// 有效 fenced material 请求到达前保留于当前进程，不进入 Task 或 Agent journal。
+	// 启动 Stage 由冻结的本机或 Agent 执行器领取；瞬时材料只在有效执行 attempt 内解析。
 	if err := s.completeExternalLaunch(operation.OperationID, targetID, input); err != nil {
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, err)
 	}

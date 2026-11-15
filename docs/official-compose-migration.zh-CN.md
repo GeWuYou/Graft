@@ -92,7 +92,7 @@ docker compose ps
 
 确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。官方 Compose bootstrap 是保留的 cutover authority：它在 `graft migrate up` 前一次性运行 `graft update cutover-v1`；该命令只清理旧的更新状态，不是第二条运行时执行路径。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
 
-确认升级必须保持 Controller 的顺序。先更新 `server`/`web` 并验证新 server 健康，本机模式继续验证本机执行就绪，Agent 模式随后替换 Docker Runtime Agent 并验证其 mTLS 身份、活动 generation 和 capability readiness。独立 Controller 在 server 替换期间保留备份证据和 durable receipt。
+确认升级必须保持 Controller 的顺序。先更新 `server`/`web` 并验证新 server 健康，本机模式继续验证执行归属和 Docker 访问。独立 Controller 在 server 替换期间保留备份证据和 durable receipt。既有 Agent 路径升级 server/web，Agent delivery 和能力兼容由单独的维护流程保证，Agent 镜像替换与 mTLS 就绪仍需要独立的发布验收证据。
 
 在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 server 镜像和生产配置运行目标数据预检。官方 Compose 提供了带 profile 的一次性 `migration-preflight` 服务，它与 `bootstrap` 共享同一个 `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` 镜像引用和运行时环境；随后 `bootstrap` 会使用同一个 server binary 内嵌的 migration registry 执行实际迁移。
 

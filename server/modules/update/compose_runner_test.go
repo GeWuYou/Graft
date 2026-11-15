@@ -185,6 +185,9 @@ func (runnerActionsWithoutReporter) BootstrapMigrate(context.Context, RunnerInpu
 func (runnerActionsWithoutReporter) Recreate(context.Context, RunnerInput) error         { return nil }
 func (runnerActionsWithoutReporter) DockerHealth(context.Context, RunnerInput) error     { return nil }
 func (runnerActionsWithoutReporter) Healthz(context.Context, RunnerInput) error          { return nil }
+func (runnerActionsWithoutReporter) LocalExecutionReadiness(context.Context, RunnerInput) error {
+	return nil
+}
 
 func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
 	if !actions.recover {
@@ -250,6 +253,10 @@ func (actions *tracingRunnerActions) DockerHealth(context.Context, RunnerInput) 
 
 func (actions *tracingRunnerActions) Healthz(context.Context, RunnerInput) error {
 	return actions.run("healthz")
+}
+
+func (actions *tracingRunnerActions) LocalExecutionReadiness(context.Context, RunnerInput) error {
+	return actions.run("local execution readiness")
 }
 
 func (actions *tracingRunnerActions) run(stage string) error {
