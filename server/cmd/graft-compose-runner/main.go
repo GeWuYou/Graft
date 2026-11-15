@@ -140,16 +140,26 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 	if input.State == nil {
 		persisted = update.RunnerState{}
 	}
+	mode := input.ExecutionMode
+	if input.State != nil {
+		if mode != "" && (update.RunnerInput{ExecutionMode: mode}).EffectiveExecutionMode() != (update.RunnerInput{ExecutionMode: persisted.ExecutionMode}).EffectiveExecutionMode() {
+			return errors.New("recovery runner execution mode binding changed")
+		}
+		mode = persisted.ExecutionMode
+	}
+	if mode != "" && mode != "agent" && mode != "local" {
+		return errors.New("recovery runner execution mode is invalid")
+	}
 	recoveryRunnerID, err := newRunnerID()
 	if err != nil {
 		return err
 	}
-	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: persisted.ExecutionMode, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
+	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: mode, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
 	failureCode, failureDetail := update.RunnerFailureCodeInvalidInput, "interrupted_before_migration"
 	if input.Corrupt {
 		failureCode, failureDetail = update.RunnerFailureCodeStateCorrupt, "state_snapshot_quarantined"
 	}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}
@@ -651,6 +661,8 @@ func validateProjectExecutionMode(project *composetypes.Project, in update.Runne
 		if _, active := project.Services["docker-runtime-agent"]; active {
 			return errors.New("local update topology includes an active Agent service")
 		}
+	} else if _, active := project.Services["docker-runtime-agent"]; !active {
+		return errors.New("Agent update topology requires an active docker-runtime-agent service and its configured profile")
 	}
 	return nil
 }

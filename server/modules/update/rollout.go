@@ -500,9 +500,10 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 			}
 		}
 	}()
-	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy)}
+	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy), ExecutionMode: s.executionMode}
 	if stateErr == nil {
 		recoveryInput.State = &state
+		recoveryInput.ExecutionMode = state.ExecutionMode
 	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
 		recoveryInput.Corrupt = true
 	}

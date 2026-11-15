@@ -86,6 +86,7 @@ type RunnerRecoveryInput struct {
 	SourceVersion string       `json:"source_version"`
 	TargetVersion string       `json:"target_version"`
 	Strategy      string       `json:"deployment_strategy"`
+	ExecutionMode string       `json:"execution_mode,omitempty"`
 	State         *RunnerState `json:"state,omitempty"`
 	Corrupt       bool         `json:"corrupt,omitempty"`
 }
