@@ -802,7 +802,10 @@ func validExecutionPlan(plan moduleapi.BuildExecutionPlan) bool {
 			seen[placement.Platform] = struct{}{}
 		}
 	}
-	return (plan.BuilderPoolID == "" && plan.BuilderInstanceID == "") || (plan.BuilderPoolID != "" && plan.BuilderInstanceID != "")
+	if plan.BuilderPoolID != "" {
+		return plan.BuilderInstanceID != ""
+	}
+	return plan.BuilderInstanceID == "" || plan.BuilderInstanceID == fmt.Sprintf("runtime-target:%d", plan.RuntimeTargetID)
 }
 
 // GetExecutionPlanByTaskID 仅返回 Task executor 所需的 immutable input；endpoint
