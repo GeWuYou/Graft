@@ -55,7 +55,7 @@ import type { ContainerOverviewInfoSection } from './overview';
 withDefaults(
   defineProps<{
     copyLabel: string;
-    sections: ContainerOverviewInfoSection[];
+    sections?: ContainerOverviewInfoSection[];
   }>(),
   {
     sections: () => [],

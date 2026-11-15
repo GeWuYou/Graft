@@ -644,7 +644,7 @@ const errorMessage = computed(() =>
 );
 const activeGroupKey = ref('');
 const selectedConfigKey = ref('');
-const expandedDomainKeys = ref<TreeNodeValue[]>([]);
+const expandedDomainKeys = ref<string[]>([]);
 let hasInitializedDomainExpansion = false;
 const groupSearchKeyword = ref('');
 const editorVisible = ref(false);
@@ -868,11 +868,11 @@ function handleTreeActive(value: TreeNodeValue[]) {
 }
 
 function handleTreeExpand(value: TreeNodeValue[]) {
-  expandedDomainKeys.value = value;
+  expandedDomainKeys.value = value.map(String);
 }
 
 function handleMobileDomainExpand(value: Array<string | number>) {
-  expandedDomainKeys.value = value;
+  expandedDomainKeys.value = value.map(String);
 }
 
 function handleDetailVisibility(visible: boolean) {
@@ -1290,7 +1290,7 @@ function shouldUseDrawerEditor(item: SystemConfigItem) {
 }
 
 async function copyConfigKey(key: string) {
-  let copied = false;
+  let copied: boolean;
   try {
     copied = await copyText(key);
   } catch {

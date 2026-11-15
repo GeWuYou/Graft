@@ -1,9 +1,10 @@
 import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
-  entry: ['src/**/*.vue'],
+  // Less 变量由 Vite 读取并注入各组件，因此作为构建入口登记。
+  entry: ['src/**/*.vue', 'src/style/variables.less'],
   project: [
-    'src/**/*.{ts,tsx,js,jsx,vue}',
+    'src/**/*.{ts,tsx,js,jsx,vue,less}',
     // 测试文件不属于首轮运行面死代码治理范围，直接从扫描集合排除，避免留下配置提示噪音。
     '!src/**/*.test.*',
     '*.config.{ts,js,mjs,cjs}',
@@ -13,10 +14,6 @@ const config: KnipConfig = {
     '@commitlint/cli',
     // pre-commit 直接通过 node_modules/.bin/lint-staged 调用，Knip 无法从 shell hook 静态追踪到该依赖。
     'lint-staged',
-  ],
-  ignore: [
-    // 该路由只由 Vite development alias 装配；release alias 故意替换为空模块，Knip 无法解析该构建期分支。
-    'src/router/development-routes.development.ts',
   ],
 };
 

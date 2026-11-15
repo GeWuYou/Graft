@@ -34,12 +34,10 @@
     </dl>
     <section class="container-card__metrics" :aria-label="t('container.list.columns.resource')">
       <div>
-        <span>{{ t('container.list.columns.cpu') }}</span
-        ><strong>{{ cpuValue }}</strong>
+        <span>{{ t('container.list.columns.cpu') }}</span><strong>{{ cpuValue }}</strong>
       </div>
       <div>
-        <span>{{ t('container.list.columns.memory') }}</span
-        ><strong>{{ memoryValue }}</strong>
+        <span>{{ t('container.list.columns.memory') }}</span><strong>{{ memoryValue }}</strong>
       </div>
     </section>
     <docker-resource-card-actions

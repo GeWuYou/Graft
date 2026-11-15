@@ -277,7 +277,7 @@
           <t-input v-model="customTargetForm.display_name" />
         </t-form-item>
         <t-form-item :label="t('network.outbound.connectivity.url')" name="endpoint">
-          <t-input v-model="customTargetForm.endpoint" placeholder="https://example.com/health" />
+          <t-input v-model="customTargetForm.endpoint" :placeholder="customTargetEndpointPlaceholder" />
         </t-form-item>
       </t-form>
       <template #footer>
@@ -335,6 +335,7 @@ const error = ref('');
 const sortBy = ref<SortMode>('latency');
 const sortDrawerVisible = ref(false);
 const customTargetForm = reactive({ target_id: '', display_name: '', endpoint: '' });
+const customTargetEndpointPlaceholder = 'https://example.com/health';
 let autoRefreshTimer: ReturnType<typeof setInterval> | undefined;
 const viewportVariant = useViewportResponsiveVariant({ presentation: 'entity' });
 const isWideLayout = computed(() => viewportVariant.value.density === 'spacious');

@@ -20,7 +20,7 @@
 }
 
 .log-card-surface(@border-color: var(--graft-card-border-color)) {
-  border: 1px solid @border-color;
+  border: ~'1px solid @{border-color}';
   border-radius: var(--td-radius-medium);
   cursor: pointer;
   display: grid;

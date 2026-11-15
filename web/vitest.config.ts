@@ -1,7 +1,7 @@
 import { mergeConfig } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-import { createViteConfig } from './vite.config';
+import { createViteConfig } from './vite.config.ts';
 
 const tdesignComponentStylePattern = /tdesign-vue-next\/es\/.+\/style\/index\.css$/u;
 

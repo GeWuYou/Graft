@@ -27,9 +27,8 @@ const defaultLinkOpen =
 
 markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
-  const hrefIndex = token.attrIndex('href');
-  const href = hrefIndex >= 0 ? token.attrs?.[hrefIndex]?.[1] : '';
-  const isExternal = href ? /^(https?:)?\/\//iu.test(href) : false;
+  const href = token.attrGet('href');
+  const isExternal = typeof href === 'string' && /^(https?:)?\/\//iu.test(href);
 
   if (isExternal && token.attrIndex('target') < 0) {
     token.attrPush(['target', '_blank']);

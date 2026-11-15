@@ -172,7 +172,7 @@ import {
   SaveIcon,
 } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, nextTick, onActivated, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, reactive, ref, useId, watch } from 'vue';
 
 import { useKeyboardShortcut } from '@/shared/composables';
 import { copyText } from '@/shared/observability';
@@ -204,13 +204,12 @@ type WorkspaceEditorHandle = {
 };
 
 const MONACO_MARKER_ERROR_SEVERITY = 8;
-let workspaceSessionSeed = 0;
 
 const files = defineModel<ApplicationWorkspaceDraftEntry[]>('files', { required: true });
 const props = withDefaults(defineProps<{ disabled?: boolean }>(), { disabled: false });
 const { t } = useApplicationPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
-const workspaceSessionKey = `project-create-workspace:${++workspaceSessionSeed}`;
+const workspaceSessionKey = `project-create-workspace:${useId()}`;
 const fullscreen = ref(false);
 const inlineEdit = ref<ApplicationWorkspaceInlineEdit | null>(null);
 const pendingCreatedFilePath = ref('');
@@ -700,7 +699,7 @@ function confirmDelete() {
 
 .project-create-workspace__sr-only {
   block-size: 1px;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   inline-size: 1px;
   overflow: hidden;
   position: absolute;

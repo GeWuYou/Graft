@@ -37,8 +37,11 @@
         <section v-else-if="step === 1">
           <project-create-workspace-editor v-model:files="workspaceFiles" />
           <div class="project-create-page__actions">
-            <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" @click="nextFromWorkspace">{{ t('project.create.actions.next') }}</t-button>
+            <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button><t-button
+              theme="primary"
+              @click="nextFromWorkspace"
+              >{{ t('project.create.actions.next') }}</t-button
+            >
           </div>
         </section>
         <section v-else-if="step === 2">
@@ -70,10 +73,12 @@
             </t-descriptions-item></t-descriptions
           >
           <div class="project-create-page__actions">
-            <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" :loading="creating" @click="() => createApplication()">{{
-              t('project.create.actions.create')
-            }}</t-button>
+            <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button><t-button
+              theme="primary"
+              :loading="creating"
+              @click="() => createApplication()"
+              >{{ t('project.create.actions.create') }}</t-button
+            >
           </div>
         </section>
       </t-card>
