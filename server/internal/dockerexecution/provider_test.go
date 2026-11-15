@@ -1,4 +1,4 @@
-package agent
+package dockerexecution
 
 import (
 	"context"
@@ -25,7 +25,7 @@ type recordingComposeService struct {
 }
 
 func TestUpdateControllerMaterialIsStrictlyBoundToLeaseIntent(t *testing.T) {
-	lease := executionLease{Input: json.RawMessage(`{"operation_id":"update-42"}`)}
+	lease := Request{Input: json.RawMessage(`{"operation_id":"update-42"}`)}
 	valid := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock", StateVolume: "graft-update-state", OperationID: "update-42"}
 	if !validUpdateControllerMaterial(valid, lease) {
 		t.Fatal("valid update controller material rejected")
@@ -40,10 +40,10 @@ func TestUpdateControllerContainerConfigUsesOnlyFixedMountsAndNoNetwork(t *testi
 	material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", StateVolume: "graft-update-state", OperationID: "update-42"}
 	configuration, host := updateControllerContainerConfig(material)
 	if configuration.Image != material.ControllerReference || configuration.User != "0:0" || len(configuration.Env) != 1 || host.NetworkMode != "none" || !host.ReadonlyRootfs {
-		t.Fatalf("unexpected controller config: %#v %#v", configuration, host)
+		t.Fatalf("unexpected controller Environment: %#v %#v", configuration, host)
 	}
 	if len(host.Binds) != 3 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
-		t.Fatalf("unexpected controller host config: %#v", host)
+		t.Fatalf("unexpected controller host Environment: %#v", host)
 	}
 }
 

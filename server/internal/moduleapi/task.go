@@ -10,6 +10,8 @@ import (
 )
 
 var (
+	// ErrTaskExecutionUnavailable 表示当前 server 没有可用的 Task 执行所有权。
+	ErrTaskExecutionUnavailable = errors.New("task execution is unavailable")
 	// ErrTaskSubmissionConflict 表示同一幂等键被用于内容不同的 Task 提交。
 	ErrTaskSubmissionConflict = errors.New("task submission conflict")
 	// ErrTaskOwnerBusy 表示同一业务资源已有 pending、scheduled、running 或 needs_attention Task 占用执行权。
@@ -239,6 +241,8 @@ type StagePlan struct {
 	RetryPolicy       StageRetryPolicy
 	RecoveryPolicy    StageRecoveryPolicy
 	ExternalExecution *ExternalExecutionExpectation
+	// LocalExecution 冻结本机 SDK 执行版本与资源协调键，历史 ExternalExecution 继续由 Agent 消费。
+	LocalExecution *LocalExecutionExpectation
 	// ExternalReceipt 是 Update Controller 终态状态卷仍需使用的 final-stage handshake；新的启动动作必须使用 ExternalExecution。
 	ExternalReceipt *ExternalReceiptExpectation
 }
@@ -290,8 +294,10 @@ func ValidateCoordinatedTaskPlan(plan *CoordinatedTaskPlan) error {
 
 // ExternalReceiptExpectation 冻结短生命周期外部执行器结算最终 Stage 时必须匹配的身份；它不包含凭据，认证由部署侧文件与进程边界承担。
 type ExternalReceiptExpectation struct {
-	Protocol    string
-	OperationID string
+	// LaunchStageKey 允许可信终态回执核对同一 Task 内已开始的启动阶段。
+	LaunchStageKey string
+	Protocol       string
+	OperationID    string
 }
 
 // ExternalExecutionExpectation 冻结一个可由 Runtime Agent 领取的 Stage 执行身份；它不包含 endpoint、凭据或命令。
@@ -305,6 +311,14 @@ type ExternalExecutionExpectation struct {
 	PayloadSHA256     string
 	LeaseTTL          time.Duration
 	AbsoluteDeadline  time.Duration
+	// ResourceKeys 由领域 owner 冻结，用于跨 Task 协调相同资源的副作用。
+	ResourceKeys []string
+}
+
+// LocalExecutionExpectation 是只由 Task Runtime 生成的本机执行绑定。
+type LocalExecutionExpectation struct {
+	Version   string
+	Operation ExternalExecutionExpectation
 }
 
 // ExternalExecutionLeaseState 标识 Task Runtime 持有的外部 Stage attempt 租约状态。
@@ -436,6 +450,9 @@ const (
 
 // ExternalTaskReceipt 是通过 Task Runtime capability 提交的版本化、无秘密外部执行事实；它刻意排除命令、环境、日志和任意结果载荷。
 type ExternalTaskReceipt struct {
+	// LaunchStageID 与 LaunchAttempt 将 Controller 证明绑定到真实启动 attempt。
+	LaunchStageID   uint64
+	LaunchAttempt   int
 	TaskID          uint64
 	ExecutorType    StageExecutorType
 	Protocol        string
@@ -554,6 +571,9 @@ type TaskStageView struct {
 	DurationMS     *int64
 	FailureCode    *string
 	FailureMessage *string
+	// ExecutionMode 与版本来自冻结计划，用于追溯实际副作用归属。
+	ExecutionMode    string
+	ExecutionVersion string
 }
 
 // TaskEventView 是一条不可由其它数据推导的持久化 Task 事实。
@@ -632,4 +652,16 @@ type TaskCapabilities struct {
 	Cancel      bool
 	Retry       bool
 	DownloadLog bool
+}
+
+// TaskExecutionAdmission 是 Task owner 当前能够领取和执行工作的生命周期事实。
+type TaskExecutionAdmission struct {
+	Mode           string
+	Ready          bool
+	DiagnosticCode string
+}
+
+// TaskExecutionAdmissionReader 让运行目标和诊断读取执行准入，连接存活不能替代 worker 所有权。
+type TaskExecutionAdmissionReader interface {
+	ExecutionAdmission() TaskExecutionAdmission
 }
