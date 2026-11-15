@@ -102,7 +102,7 @@ func (s *projectLogTopicStreamer) EnsureTopic(topic string, projectID uint64, qu
 		s.start(topic)
 	}, func(string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn("stop project log stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+			logsafe.Warn(s.logger, "stop project log stream failed", zap.String("topic", topic), zap.Error(err))
 		}
 	})
 	if err != nil {
@@ -178,7 +178,7 @@ func (s *projectLogTopicStreamer) start(topic string) {
 	go func() {
 		defer markProjectLogTopicStreamDone(done)
 		if err := s.service.streamProjectLogs(runCtx, topic, projectID, query); err != nil && !errors.Is(err, context.Canceled) {
-			s.logger.Warn("project log stream stopped with error", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+			logsafe.Warn(s.logger, "project log stream stopped with error", zap.String("topic", topic), zap.Error(err))
 		}
 		s.clearRun(topic, runID)
 	}()
