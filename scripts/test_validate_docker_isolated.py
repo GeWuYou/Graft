@@ -6,7 +6,10 @@ import io
 from urllib.error import HTTPError
 from pathlib import Path
 import tempfile
+import sys
 from unittest.mock import Mock, patch
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from validate_docker_isolated import Fixture, validate_topology
 
 
