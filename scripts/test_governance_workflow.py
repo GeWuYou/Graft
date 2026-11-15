@@ -32,6 +32,21 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(static_build["run"], "bash scripts/build_runtime_acceptance.sh")
         self.assertIn("export CGO_ENABLED=0 GOOS=linux GOARCH=amd64", (ROOT / "scripts/build_runtime_acceptance.sh").read_text())
 
+    def test_secret_scan_preserves_complete_history_and_exact_result_policy(self):
+        steps = self.jobs["secret-scan"]["steps"]
+        checkout = next(step for step in steps if step.get("name") == "Checkout repository")
+        self.assertEqual(checkout["with"]["fetch-depth"], 0)
+        scanner = next(step for step in steps if "scripts/scan_secrets.py" in step.get("run", ""))
+        self.assertIn("github.event.pull_request.base.sha", scanner["env"]["SCAN_BASE"])
+        self.assertIn("github.event.pull_request.head.sha", scanner["env"]["SCAN_HEAD"])
+        self.assertNotIn("continue-on-error", scanner)
+        source = (ROOT / "scripts/scan_secrets.py").read_text()
+        self.assertIn("--since-commit", source)
+        self.assertIn("--branch", source)
+        self.assertIn("--fail-on-scan-errors", source)
+        self.assertIn("--exclude-paths=/tmp/exclude-paths.txt", source)
+        self.assertIn("trufflehog@sha256:2ec535840f860aa27f11fee20222fb790326ecd66325c96bd49d02ec6af46eca", source)
+
     def aggregate(self, results, event="pull_request"):
         script = self.jobs["required-checks"]["steps"][0]["run"].splitlines()
         program = "\n".join(script[1:-1])
