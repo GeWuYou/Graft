@@ -121,3 +121,18 @@ class LocalValidationTests(unittest.TestCase):
                 plan = make_plan(self.root, [name], [])
                 self.assertTrue(plan["gaps"])
                 self.assertEqual(len(plan["checks"]), 1)
+
+    def test_multiple_locale_files_share_one_typecheck_and_keep_other_checks(self):
+        self.write("web/src/widget.ts")
+        self.write("web/src/widget.test.ts")
+        files = [f"web/src/locales/locale{index}.json" for index in range(4)] + ["web/src/widget.ts"]
+        plan = make_plan(self.root, files, [])
+        self.assertEqual(plan["gaps"], [])
+        typechecks = [check for check in plan["checks"] if check["name"] == "web-typecheck"]
+        self.assertEqual(len(typechecks), 1)
+        self.assertEqual(typechecks[0]["argv"], ["bun", "run", "typecheck"])
+        names = [check["name"] for check in plan["checks"]]
+        self.assertIn("web-format", names)
+        self.assertIn("web-lint", names)
+        self.assertIn("web-tests", names)
+        self.assertEqual(len({(check["cwd"], tuple(check["argv"])) for check in plan["checks"]}), len(plan["checks"]))
