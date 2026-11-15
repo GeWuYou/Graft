@@ -65,6 +65,8 @@ type RunnerInput struct {
 	TargetVersion      string           `json:"target_version"`
 	TaskID             uint64           `json:"task_id"`
 	ExecutionMode      string           `json:"execution_mode,omitempty"`
+	LaunchStageID      uint64           `json:"launch_stage_id,omitempty"`
+	LaunchAttempt      int              `json:"launch_attempt,omitempty"`
 	BackupArtifactRoot string           `json:"backup_artifact_root"`
 	Preflight          ComposePreflight `json:"preflight"`
 }
@@ -92,6 +94,8 @@ type RunnerReceipt struct {
 	OperationID       string                                      `json:"operation_id"`
 	RunnerID          string                                      `json:"runner_id"`
 	ExecutionMode     string                                      `json:"execution_mode,omitempty"`
+	LaunchStageID     uint64                                      `json:"launch_stage_id,omitempty"`
+	LaunchAttempt     int                                         `json:"launch_attempt,omitempty"`
 	MigrationStarted  bool                                        `json:"migration_started"`
 	Succeeded         bool                                        `json:"succeeded"`
 	FailureCode       string                                      `json:"failure_code,omitempty"`
@@ -302,6 +306,9 @@ func ValidateRunnerInput(value RunnerInput) error {
 	}
 	if !validRunnerExecutionMode(value.ExecutionMode) {
 		return errors.New("runner input execution mode is invalid")
+	}
+	if value.LaunchAttempt < 0 || (value.LaunchStageID == 0) != (value.LaunchAttempt == 0) {
+		return errors.New("runner input launch attempt binding is invalid")
 	}
 	if !filepath.IsAbs(value.BackupArtifactRoot) || filepath.Base(filepath.Clean(value.BackupArtifactRoot)) != value.OperationID {
 		return errors.New("runner input backup artifact root must be an absolute server path")

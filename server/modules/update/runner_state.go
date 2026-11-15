@@ -87,6 +87,8 @@ type RunnerRecoveryInput struct {
 	TargetVersion string       `json:"target_version"`
 	Strategy      string       `json:"deployment_strategy"`
 	ExecutionMode string       `json:"execution_mode,omitempty"`
+	LaunchStageID uint64       `json:"launch_stage_id,omitempty"`
+	LaunchAttempt int          `json:"launch_attempt,omitempty"`
 	State         *RunnerState `json:"state,omitempty"`
 	Corrupt       bool         `json:"corrupt,omitempty"`
 }

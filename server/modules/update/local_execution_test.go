@@ -37,10 +37,14 @@ func TestLocalControllerRequiresExecutionReadinessAfterServerHealth(t *testing.T
 		t.Run(failure, func(t *testing.T) {
 			input := fixtureRunnerInput(t.TempDir())
 			input.ExecutionMode = "local"
+			input.LaunchStageID, input.LaunchAttempt = 20, 2
 			actions := &tracingRunnerActions{failAt: failure}
 			receipt, err := ExecuteComposeRunner(context.Background(), input, actions)
 			if receipt.ExecutionMode != "local" || actions.trace[len(actions.trace)-1] != "local execution readiness" {
 				t.Fatalf("local mode or readiness sequence lost: %#v / %#v", receipt, actions.trace)
+			}
+			if receipt.LaunchStageID != 20 || receipt.LaunchAttempt != 2 {
+				t.Fatalf("receipt lost its launch attempt: %#v", receipt)
 			}
 			if failure == "" && (err != nil || !receipt.Succeeded) {
 				t.Fatalf("local controller failed: %#v / %v", receipt, err)
