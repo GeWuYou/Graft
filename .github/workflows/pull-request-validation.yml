@@ -68,13 +68,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc
-        with:
-          path: .
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --exclude-paths=.trufflehog-exclude-paths.txt
+      - name: TruffleHog OSS with exact synthetic fixture policy
+        env:
+          SCAN_BASE: ${{ github.event.pull_request.base.sha }}
+          SCAN_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/scan_secrets.py --base "$SCAN_BASE" --head "$SCAN_HEAD"
 
   contract-governance-check:
     name: Contract Governance Check
@@ -170,7 +168,7 @@ jobs:
         run: python3 -m unittest scripts/test_validate_ai_governance.py
 
       - name: Verify scoped validation and runtime artifact tooling
-        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_server_ctrf_report.py scripts/test_runtime_failure_diagnostics.py
+        run: python3 -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_server_ctrf_report.py scripts/test_runtime_failure_diagnostics.py scripts/test_scan_secrets.py
 
       - name: Run repository skill-local tests
         run: python3 scripts/run_skill_tests.py
