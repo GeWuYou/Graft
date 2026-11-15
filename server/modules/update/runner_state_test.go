@@ -411,7 +411,7 @@ func TestRolloutUsesTaskReceiptSuccessBeforeStaleOperationStatus(t *testing.T) {
 	}
 
 	view, err := rollout.GetOperation(t.Context(), operation.OperationID)
-	if err != nil || view.Phase != RunnerPhaseSuccess || view.StateSource != "terminal_history" {
+	if err != nil || view.Phase != RunnerPhaseSuccess || view.StateSource != "task_recovery" {
 		t.Fatalf("settled task receipt must project success before stale operation status: %#v, %v", view, err)
 	}
 }
