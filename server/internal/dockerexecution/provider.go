@@ -345,21 +345,31 @@ func dispatchContainerImage(ctx context.Context, docker *mobyclient.Client, oper
 		_, err := docker.ImageTag(ctx, mobyclient.ImageTagOptions{Source: intent.ImageRef, Target: intent.TargetRef})
 		return err
 	case "container.image.untag.v1":
-		inspected, err := docker.ImageInspect(ctx, intent.TagRef)
-		if err != nil {
-			return err
-		}
-		if inspected.ID != intent.ImageRef {
-			return errContainerReferenceChanged
-		}
-		_, err = docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
-		return err
+		return removeBoundImageTag(ctx, docker, intent)
+
 	case "container.image.remove.v1":
 		_, err := docker.ImageRemove(ctx, intent.ImageRef, mobyclient.ImageRemoveOptions{Force: intent.Force})
 		return err
 	default:
 		return errUnsupportedProviderOperation
 	}
+}
+
+// removeBoundImageTag 同时核对来源和待移除标签的真实镜像身份，保留已有别名调用语义。
+func removeBoundImageTag(ctx context.Context, docker *mobyclient.Client, intent containerExecutionIntent) error {
+	expected, err := docker.ImageInspect(ctx, intent.ImageRef)
+	if err != nil {
+		return err
+	}
+	tagged, err := docker.ImageInspect(ctx, intent.TagRef)
+	if err != nil {
+		return err
+	}
+	if tagged.ID != expected.ID {
+		return errContainerReferenceChanged
+	}
+	_, err = docker.ImageRemove(ctx, intent.TagRef, mobyclient.ImageRemoveOptions{})
+	return err
 }
 
 func dispatchContainerNetwork(ctx context.Context, docker *mobyclient.Client, operation string, intent containerExecutionIntent) error {
