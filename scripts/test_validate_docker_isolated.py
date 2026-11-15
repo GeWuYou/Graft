@@ -208,6 +208,8 @@ class RuntimeRepairEvidenceTests(unittest.TestCase):
             self.assertEqual(calls[-1].args, ("up", "-d", "--no-deps", "docker-runtime-agent"))
             self.assertEqual(cleanup.call_args.args[0], ["docker", "rm", "-f", "graft-isolated-test-once-probe"])
             self.assertTrue(fixture.record.call_args.kwargs["ledger_receipt_advanced"])
+            restart = fixture.wait_driver.call_args_list[-1]
+            self.assertEqual(restart.args, ("--phase", "verify-restart", "--agent-id", "fixture"))
 
     def test_once_timeout_fails_and_restores_regular_agent(self):
         with tempfile.TemporaryDirectory() as directory:

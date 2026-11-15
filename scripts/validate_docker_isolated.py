@@ -390,9 +390,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                             elapsed_seconds=round(time.monotonic() - started, 2))
                 return
             elapsed = round(time.monotonic() - started, 2)
-            after = self.wait_driver("--phase", "verify-restart", "--agent-id", before["agent_id"],
-                "--target-id", str(before["target_id"]), "--identity-id", before["identity_id"],
-                "--generation", str(before["generation"]), "--receipt-count", str(before["ledger_receipt_count"]))
+            after = self.wait_driver("--phase", "verify-restart", "--agent-id", before["agent_id"])
             identity_fields = ("target_id", "agent_id", "identity_id", "generation")
             same_identity = all(after[field] == before[field] for field in identity_fields)
             advanced = after["ledger_receipt_count"] > before["ledger_receipt_count"]
