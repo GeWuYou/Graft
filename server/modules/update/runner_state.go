@@ -550,7 +550,7 @@ func validRunnerStateMessage(message string) bool {
 
 func validRunnerStateFailure(failure string) bool {
 	switch failure {
-	case "", RunnerFailureCodeInvalidInput, RunnerFailureCodeStateCorrupt, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz, runnerFailureExecutionReady:
+	case "", RunnerFailureCodeInvalidInput, RunnerFailureCodeStateCorrupt, RunnerFailureCodeStateWriteFailed, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz, runnerFailureExecutionReady:
 		return true
 	default:
 		return false
