@@ -36,6 +36,25 @@ def require_local_acceptance(results: list[dict]) -> None:
         raise RuntimeError("Required local acceptance scenarios incomplete: " + ", ".join(incomplete))
 
 
+def controller_receipt(output: str, operation: str, runner: str) -> dict:
+    marker = "GRAFT_UPDATE_RECEIPT:"
+    encoded = next((line[len(marker):] for line in reversed(output.splitlines()) if line.startswith(marker)), "")
+    if not encoded or len(encoded) > 65536:
+        raise RuntimeError("Controller did not produce a bounded receipt")
+    receipt = json.loads(base64.b64decode(encoded + "=" * (-len(encoded) % 4), validate=True))
+    backup = receipt.get("backup_completion") or {}
+    valid = (receipt.get("protocol_version") == 2 and receipt.get("operation_id") == operation
+             and receipt.get("runner_id") == runner and receipt.get("execution_mode") == "local"
+             and receipt.get("succeeded") is True and receipt.get("migration_started") is True
+             and backup.get("OperationID") == operation and backup.get("TaskID") == 1)
+    for prefix in ("ConfigSnapshot", "DatabaseDump"):
+        valid = valid and bool(re.fullmatch(r"[a-f0-9]{64}", str(backup.get(prefix + "SHA256", ""))))
+        valid = valid and isinstance(backup.get(prefix + "Bytes"), int) and backup[prefix + "Bytes"] > 0
+    if not valid:
+        raise RuntimeError("Controller receipt failed identity, local mode, success or backup evidence checks")
+    return receipt
+
+
 def save(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     path.chmod(0o600)
@@ -626,6 +645,82 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         nested.probe()
         require_local_acceptance(nested.results)
 
+    def controller_smoke(self) -> None:
+        if not self.environment.get("GRAFT_RUNNER_IMAGE"):
+            raise RuntimeError("controller-smoke requires registration with --runner-image from the same source")
+        directory = self.directory / "official"
+        if not (directory / "installation-evidence.json").exists():
+            raise RuntimeError("controller-smoke requires a successful official-install first")
+        self.import_image(self.environment["GRAFT_RUNNER_IMAGE"])
+        registry_name = self.state["project"] + "-controller-registry"
+        if registry_name in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
+            self.engine("start", registry_name)
+        else:
+            self.engine("run", "-d", "--name", registry_name, "--network", "host", "registry:3.0.0")
+        deadline = time.monotonic() + 30
+        while True:
+            self.compose("exec", "-T", "docker-daemon", "wget", "-q", "-O", "/dev/null",
+                         "http://127.0.0.1:5000/v2/", check=False)
+            if self.last_command_returncode == 0:
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Private Controller registry did not become ready")
+            time.sleep(1)
+        registry = "127.0.0.1:5000"
+        tag = "v0.0.0-beta.2"
+        images = {}
+        for service, role in (("server", "BACKEND"), ("web", "WEB"), ("compose-runner", "RUNNER")):
+            repository = registry + "/graft-" + service
+            reference = repository + ":" + tag
+            self.engine("tag", self.environment[f"GRAFT_{role}_IMAGE"], reference)
+            self.engine("push", reference)
+            digests = json.loads(self.engine("image", "inspect", "--format", "{{json .RepoDigests}}", reference))
+            digest_reference = next((value for value in digests if value.startswith(repository + "@sha256:")), "")
+            if not re.fullmatch(re.escape(repository) + r"@sha256:[a-f0-9]{64}", digest_reference):
+                raise RuntimeError("Private registry returned no verified image digest")
+            images[service] = {"repository": repository, "reference": reference,
+                               "digest": digest_reference.split("@", 1)[1], "immutable": digest_reference}
+        root = "/opt/graft-official"
+        overlay = directory / "compose.registry.yml"
+        server_services = ("server", "bootstrap", "config-validate", "application-root-init",
+                           "backup-root-init", "migration-preflight", "runtime-mode-preflight")
+        services = {name: {"image": images["server"]["repository"] + ":${GRAFT_IMAGE_TAG}"} for name in server_services}
+        services["web"] = {"image": images["web"]["repository"] + ":${GRAFT_IMAGE_TAG}"}
+        overlay.write_text(json.dumps({"services": services}, indent=2) + "\n")
+        self.compose("cp", str(overlay), "docker-daemon:" + root + "/compose.registry.yml")
+        nested = OfficialFixture(self, directory, root)
+        before = nested.compose("ps", "-q", "server").strip()
+        operation = "controller-fixture-" + secrets.token_hex(6)
+        runner = "runner-" + secrets.token_hex(6)
+        payload = {"protocol_version": 2, "operation_id": operation, "runner_id": runner,
+            "source_version": "0.0.0-beta.1", "target_version": "0.0.0-beta.2", "task_id": 1,
+            "execution_mode": "local", "backup_artifact_root": "/var/lib/graft/backups/" + operation,
+            "preflight": {"declared_mode": "compose", "detected_mode": "compose", "deployment_strategy": "pinned_beta",
+                "image_tag": "v0.0.0-beta.1", "compose_root": root, "platform": "linux/amd64",
+                "docker_socket": "/var/run/docker.sock", "compose_files": [root + "/compose.yml", root + "/compose.registry.yml"],
+                "bundled_postgres": True, "server_reference": images["server"]["reference"],
+                "web_reference": images["web"]["reference"], "runner_reference": images["compose-runner"]["immutable"],
+                "server_digest": images["server"]["digest"], "web_digest": images["web"]["digest"],
+                "runner_digest": images["compose-runner"]["digest"], "official_server_image": images["server"]["repository"],
+                "official_web_image": images["web"]["repository"], "official_runner_image": images["compose-runner"]["repository"]}}
+        encoded = base64.b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+        state_volume = self.state["project"] + "-official-update-state"
+        output = self.engine("run", "--name", runner, "--user", "0:0", "--network", "none", "--read-only",
+            "--cap-drop", "ALL", "--cap-add", "CHOWN", "--security-opt", "no-new-privileges:true",
+            "--label", "io.graft.update.protocol=compose-runner/v2", "--label", "io.graft.update.operation=" + operation,
+            "-e", "GRAFT_UPDATE_RUNNER_INPUT_B64=" + encoded, "-v", root + ":" + root + ":rw",
+            "-v", "/var/run/docker.sock:/var/run/docker.sock:rw",
+            "-v", state_volume + ":/var/lib/graft/update-state:rw", images["compose-runner"]["immutable"])
+        receipt = controller_receipt(output, operation, runner)
+        after = nested.compose("ps", "-q", "server").strip()
+        state = json.loads(nested.compose("exec", "-T", "backend", "cat", "/var/lib/graft/update-state/current.json"))
+        if not before or not after or before == after or state.get("phase") != "SUCCESS" or state.get("receipt") != receipt:
+            raise RuntimeError("Controller did not preserve successful durable evidence across server replacement")
+        save(directory / "controller-evidence.json", {"source_revision": self.state["source_revision"],
+            "server_container_replaced": True, "execution_mode": "local", "receipt": receipt,
+            "scope": "Production Controller protocol with same-source image retags; public Update API and Task settlement are separate acceptance"})
+        print("Production local Controller replaced the server and persisted verified backup/receipt evidence", flush=True)
+
 
 class OfficialFixture(Fixture):
     def __init__(self, parent: Fixture, directory: Path, root: str):
@@ -681,7 +776,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, epilog=(
         "stop pauses fixture workloads and retains the running development Vault authority. "
         "destroy removes every registered fixture service and volume."))
-    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "status", "stop", "destroy"))
+    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
     parser.add_argument("--source-revision")
@@ -689,6 +784,7 @@ def main() -> None:
     parser.add_argument("--agent-image")
     parser.add_argument("--driver-image")
     parser.add_argument("--web-image", help="Same-source web image required for official-install")
+    parser.add_argument("--runner-image", help="Same-source Controller image required for controller-smoke")
     parser.add_argument("--execution-mode", choices=("local", "agent"), default="agent")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--confirm-project")
@@ -700,6 +796,8 @@ def main() -> None:
         required_images = {"backend": args.backend_image}
         if args.web_image:
             required_images["web"] = args.web_image
+        if args.runner_image:
+            required_images["runner"] = args.runner_image
         if args.execution_mode == "agent":
             required_images.update(agent=args.agent_image, driver=args.driver_image)
         if not args.source_revision or not all(required_images.values()):
@@ -732,6 +830,8 @@ def main() -> None:
                "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": str(args.port + 1), "GRAFT_CONFORMANCE_AGENT_PORT": str(args.port + 2)}
         if args.web_image:
             env["GRAFT_WEB_IMAGE"] = images["web"]
+        if args.runner_image:
+            env["GRAFT_RUNNER_IMAGE"] = images["runner"]
         if args.execution_mode == "agent":
             env.update(GRAFT_AGENT_IMAGE=images["agent"], GRAFT_CONFORMANCE_DRIVER_IMAGE=images["driver"],
                        GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST=images["agent"])
@@ -763,6 +863,8 @@ def main() -> None:
         fixture.stop()
     elif args.action == "official-install":
         fixture.official_install()
+    elif args.action == "controller-smoke":
+        fixture.controller_smoke()
     else:
         getattr(fixture, args.action)()
         if args.action == "probe":

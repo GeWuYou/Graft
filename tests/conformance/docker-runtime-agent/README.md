@@ -122,6 +122,12 @@ For the full fresh-install path, supply `--web-image <same-source-web-image>` du
 python3 scripts/validate_docker_isolated.py official-install --directory .local/docker-isolated/local
 ```
 
+For the real Controller restart boundary, also register a same-source `--runner-image` and run `controller-smoke` after `official-install`. This action imports the Controller into the private daemon, publishes the actual image bytes to its task-private registry, obtains real repository digests and runs the production Controller with a test-only image-reference overlay. It requires a successful local-mode receipt bound to the operation and runner, backup hashes and nonempty dumps, a changed server container identity and matching durable state after replacement. Its evidence explicitly covers the Controller protocol with same-source image retags. Public Update API submission, release discovery and Task settlement have a separate end-to-end acceptance boundary.
+
+```sh
+python3 scripts/validate_docker_isolated.py controller-smoke --directory .local/docker-isolated/local
+```
+
 Local fixture stop pauses all registered services. Guarded destroy removes only that instance's project and named volumes. Agent-mode registrations keep the existing Vault-retention lifecycle described below. Build publication and full platform self-update have separate acceptance boundaries, because this API fixture's backend runs outside its private daemon's managed topology. A full self-update exercise must install the official Compose topology inside that daemon and provide verified release images and controller artifacts from the tested commit.
 
 ### Agent execution

@@ -1,5 +1,6 @@
 """Regression checks for the private Docker boundary in the conformance overlay."""
 import copy
+import base64
 import unittest
 import json
 import io
@@ -11,7 +12,7 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, require_local_acceptance, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, controller_receipt, require_local_acceptance, validate_topology
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -59,6 +60,22 @@ class PrivateDockerTopologyTests(unittest.TestCase):
 
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_controller_receipt_requires_actual_bound_success_and_backup_digests(self):
+        receipt = {"protocol_version": 2, "operation_id": "controller-test", "runner_id": "runner-test",
+            "execution_mode": "local", "succeeded": True, "migration_started": True,
+            "backup_completion": {"OperationID": "controller-test", "TaskID": 1,
+                "ConfigSnapshotSHA256": "a" * 64, "ConfigSnapshotBytes": 12,
+                "DatabaseDumpSHA256": "b" * 64, "DatabaseDumpBytes": 200}}
+        def output(value):
+            return "GRAFT_UPDATE_RECEIPT:" + base64.b64encode(json.dumps(value).encode()).decode().rstrip("=")
+        self.assertEqual(controller_receipt(output(receipt), "controller-test", "runner-test"), receipt)
+        for field, value in (("succeeded", False), ("execution_mode", "agent"), ("runner_id", "other")):
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "evidence checks"):
+                controller_receipt(output({**receipt, field: value}), "controller-test", "runner-test")
+        receipt["backup_completion"]["OperationID"] = "other-operation"
+        with self.assertRaisesRegex(RuntimeError, "evidence checks"):
+            controller_receipt(output(receipt), "controller-test", "runner-test")
+
     def test_every_required_local_scenario_must_have_passing_evidence(self):
         complete = [{"scenario": name, "status": "passed"} for name in LOCAL_REQUIRED_SCENARIOS]
         require_local_acceptance(complete)
