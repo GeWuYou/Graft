@@ -94,3 +94,29 @@ The one-shot Agent remains root in this fixture because it must read the
 driver-created `0600` bootstrap token. The conformance driver runs as a
 dedicated non-root user and owns its writable fixture mounts. Neither grants the
 Agent Vault credentials or a database connection.
+
+## Dedicated Docker daemon verification
+
+`compose.isolated.yml` overlays this fixture with a private Docker Engine. The Backend, Agent and fixture driver share only its named socket volume. The daemon and application consumers use the same `/opt/graft/apps` volume path, so relative Compose bind mounts resolve against the daemon's actual filesystem. The Backend receives the private socket group explicitly.
+
+`python3 scripts/validate_docker_isolated.py --help` exposes `init`, `up`, `probe`, `status`, `stop` and guarded `destroy`. Run orchestration from the stable checkout with Docker available. Build the three fixture images from the same exact commit and label each image with `org.opencontainers.image.revision=<commit>`. `init` verifies that label and saves immutable local image IDs. Supply an ignored task evidence directory, a unique `graft-isolated-<task>` project, and three unused loopback ports starting at `--port`.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --directory .local/docker-isolated/baseline \
+  --project graft-isolated-baseline \
+  --source-revision <full-commit> \
+  --backend-image <backend-image> \
+  --agent-image <agent-image> \
+  --driver-image <fixture-driver-image> \
+  --port 28080
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/baseline
+python3 scripts/validate_docker_isolated.py probe --directory .local/docker-isolated/baseline
+python3 scripts/validate_docker_isolated.py stop --directory .local/docker-isolated/baseline
+```
+
+The runner verifies the rendered socket boundary before startup, performs normal migrations and Backend-owned enrollment, verifies the persisted Agent identity across restart, then starts the regular polling Agent. The API probe changes the disposable administrator password, enables the fixture's container actions, checks list/logs and start/stop/restart Tasks against actual engine state, issues a Shell ticket, and records Backend socket permission denial and Agent-offline behavior. An interactive Shell session and Compose/import/material/interruption scenarios require additional probes recorded with their own evidence.
+
+`instance.json` and command diagnostics contain synthetic secrets and remain restricted local files. Share `trust-evidence.json` and `api-evidence.json` after inspecting them. Each API scenario carries its actual verification scope. The fixture Agent runs as root for the existing bootstrap-secret contract, so the socket permission test proves the non-root Backend read boundary.
+
+After verified delivery, remove only the registered fixture resources with `destroy --confirm-project <same-project>`. Its named volumes contain disposable data. The command never invokes global Docker pruning. The Backend's deployment/self-update discovery sees the private engine, while the Backend container itself runs in the fixture's outer project. Self-update acceptance therefore needs a separate full deployment inside the private engine.

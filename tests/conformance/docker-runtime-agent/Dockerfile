@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS build
+FROM golang:1.27.4-alpine3.24 AS build
 
 WORKDIR /src
 
@@ -6,7 +6,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags conformance -trimpath -ldflags='-s -w' -o /out/graft-docker-runtime-conformance ./cmd/graft-docker-runtime-conformance
 
-FROM alpine:3.22
+FROM alpine:3.24.4
 
 COPY --from=build /out/graft-docker-runtime-conformance /app/graft-docker-runtime-conformance
 
