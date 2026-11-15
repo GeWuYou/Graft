@@ -123,9 +123,9 @@ If the validator script or tests changed, also run:
 python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-When the task changes runtime, contract, or validation semantics, use `graft-validation-runner` and complete the
-corresponding full entrypoint: `cd web && bun run check`, `graft validate backend`, or both. Focused tests and
-`graft validate backend --stage lint` remain supplemental iteration checks only.
+When runtime, contract, or validation semantics change, use `graft-validation-runner` under root validation phases.
+Commit preparation selects direct and consumer checks. Full CI runs `cd web && bun run check`,
+`graft validate backend`, or both according to the affected domains.
 
 ## 9. Closeout
 

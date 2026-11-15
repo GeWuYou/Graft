@@ -59,11 +59,12 @@
 1. format:check、typecheck、openapi:frontend-governance:check、lint:i18n、lint、stylelint、hygiene:check。
 2. 第一阶段全部通过后 test:run 与生产构建；check 内 Vite 构建复用 typecheck，独立 build 仍含 typecheck。
 
-中间可用最小直接测试；功能/任务/合并完成必须完整 check。typecheck/lint/stylelint/test/build 零 warning，
+迭代按需做必要编译和定向反馈；提交准备用根验证阶段的定向检查并选择消费者测试，完整 check 由 CI 承担。
+typecheck/lint/stylelint/test/build 零 warning，
 hygiene 的 deadcode、约定 dupcode、非白名单固定字号为零。Vitest 是正式基线；不得 any/as any/关闭 strict
 绕过类型问题。不安全边界收口到真实 adapter/client/schema，而非新增无依据兼容层。
 
-已有 hooks/CI 不变：pre-push 命中 web 跑 hygiene；i18n 相关 staged/branch paths 分别触发 pre-commit/pre-push
+已有 hooks/CI 继续生效：pre-push 命中 web 跑 hygiene；i18n 相关 staged/branch paths 分别触发 pre-commit/pre-push
 strict lint:i18n，check 包含同一脚本。配置检查细则见条件文档；不因进入另一个 skill 重跑未变输入的有效全套检查。
 手写 TS/Vue closeout 做 graft-comment-governance 审查；仅实际注释 diff 输出相应回执，不新建注释 lint。
 

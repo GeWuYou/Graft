@@ -387,8 +387,8 @@ repository:
     path: "web/package.json"
     purpose: "Primary signal that the web runtime has been scaffolded."
   web_bun_lock:
-    present: $(repo_file_present web/bun.lock)
-    path: "web/bun.lock"
+    present: $(repo_file_present bun.lock)
+    path: "bun.lock"
     purpose: "Signal that bun is the preferred locked web package manager."
 
 required_runtimes:
@@ -416,7 +416,7 @@ required_runtimes:
     installed: $(command_installed bun)
     version: "$(command_version bun)"
     path: "$(command_path bun)"
-    purpose: "Preferred package manager when web/bun.lock is present."
+    purpose: "Preferred package manager for the root Bun workspace."
 
 required_tools:
   git:

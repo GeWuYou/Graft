@@ -1,9 +1,9 @@
 # AGENTS.md
 
-This is Graft's sole repository startup, authorization, validation ownership and closeout policy.
-Child AGENTS own domain execution; skills/design provide conditional detail.
+This file owns startup, authorization, validation and closeout. Child AGENTS own domain execution; skills/design supply detail.
 
-Graft is a composable admin platform, a modular monolith with compile-time modules and explicit lightweight DI.
+Graft is a self-hosted containerized application operations platform for individuals and small teams.
+Its architecture uses compile-time modules and lightweight explicit DI.
 Keep the locked server/web stacks in their AGENTS; no dynamic plugins, marketplace, hidden initialization or heavyweight
 IoC. `server`/`web` name the projects, `core` means runtime infrastructure, `module` the business unit. Historical backend
 `plugin` wording does not change `server/modules/*` and `server/internal/moduleapi/**` authority.
@@ -23,9 +23,8 @@ Every task turn starts `unbooted`. Before edits, validation conclusions, delegat
 5. For recovery/long-running ownership, use [public index](ai-plan/public/README.md) after preflight. New long-running
    work uses `graft-work-intake` before topic/design/roadmap/ADR; local repairs need no tracking. Match risks below.
 
-Reuse this turn's receipt/context. New turns/resume/restart rerun preflight; context loss/topic switching is
-`governance-lost`. Recovery is not startup; lightweight discovery may precede the receipt. Handoff carries a startup
-prompt with governance source, task class, recovery source, owned scope and relevant topic/subtopic.
+Reuse this turn's receipt. New turns/resume/restart rerun preflight; lost context/topic switching is `governance-lost`.
+Handoff carries governance source, task class, recovery source, scope and topic/subtopic; recovery follows preflight.
 
 ## Authority and Risk Routing
 
@@ -33,9 +32,8 @@ Fix the highest incorrect authority: module intent -> server descriptor/permissi
 contract -> generated artifacts -> web bootstrap -> UI. Owned scope limits unrelated expansion, not authority repair.
 Inspect descriptor, module/platform contract, OpenAPI and registration owners; shared semantics are cross-boundary.
 
-Compatibility requires owner, why direct repair is infeasible, consumers, cleanup trigger and bridge/cleanup validation.
-Generated artifacts do not justify drift. Update conflicting design with the change; architecture/lifecycle/governance
-changes require their owning design aligned before completion.
+Compatibility records owner, consumers, why direct repair is infeasible, cleanup trigger and validation.
+Align architecture/lifecycle/governance designs with changes; generated artifacts do not justify upstream drift.
 
 Load changed-behavior/material-risk guidance only. Small fixes need no complete design reading. Cover applicable
 reviews once, combining evidence across concerns; record missing skill gaps and use the nearest checklist.
@@ -49,10 +47,9 @@ Skills live in `.agents/skills/`; invoke only relevant triggers, reusing evidenc
 
 ## Authorized Work
 
-Complete the authorized goal, including necessary related files/tests, diagnosed validation/hook repairs and rechecks.
-File/hunk lists aid ownership, not absolute scope. Explain necessary expansion and continue with clear ownership.
-No unrelated refactors/upgrades. Ask only for mixed/unknown ownership, changed goals or new external side effects;
-identify failure/root cause, proposed changes, impact and checks before required repair authorization.
+Complete authorized work including related tests and diagnosed validation/hook repairs. File/hunk lists protect
+ownership. Explain necessary expansion; preserve unrelated work. Ask for mixed ownership, changed goals or new external
+effects, giving the failure, proposed change, impact and checks.
 
 Read-only PR/security review authorizes inventory and diagnosis, not repair or external writes. It may finish with
 `open/reported` findings carrying evidence, risk and next step. Explicit remediation requires final dispositions
@@ -62,9 +59,12 @@ resolve chain only; never infer force-push, merge, human-thread resolution or ar
 
 ## Validation and Completion
 
-Use `graft-validation-runner` for direct checks. Server completion: `graft validate backend` (`--stage lint` sole blocking
-lint). Web: `cd web && bun run check`. Shared semantics validate both. Focused checks cannot replace completion gates.
-Reuse results for unchanged inputs/environment; changes require affected rechecks. Hooks/CI remain active.
+Use `graft-validation-runner` and [validation phases](docs/development/validation.md). Iterations use necessary
+compilation and bounded feedback. Commit preparation reviews owned changes and consumers, adds needed regressions,
+and runs `just check-local-plan` / `just check-local` with consumer tests. Reuse unchanged-input evidence.
+Local checks inspect the worktree and reject selected staged/worktree divergence. Empty scope, prerequisites and
+coverage gaps remain explicit. CI owns full acceptance through `graft validate backend` and `cd web && bun run check`;
+shared semantics cover both domains. Hooks remain active. Distinguish preparation, CI and runtime acceptance.
 
 Distinguish `agent-only`, `human-acceptance-required`, `browser-automation-required`, or `mixed` verification. Local
 browser use needs task authorization and primary-checkout/runtime-identity proof; UI edits alone do not authorize it.
