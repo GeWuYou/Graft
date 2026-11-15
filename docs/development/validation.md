@@ -87,3 +87,13 @@ Dockerfile。Controller 与 fixture 的 build 命名上下文指向已验证的 
 同源镜像重标记的 controller-smoke 仍是独立协议探针，运行时使用另一全新注册，避免改动 Update API
 验收要求的初始版本与 tag。CI 的版本化更新路径直接执行生产 Controller。
 仅将 release-api/update-api-evidence.json 作为新增证明文件上传，私有 CA 密钥、证书材料、环境和原始日志保留在 runner。
+
+## 工具依赖归属复验
+
+OpenAPI bundle 的实际消费者位于根 scripts，@redocly/openapi-core 1.34.17 由根工具包显式声明，
+bundler 从根 package.json 解析它。Web i18n 检查直接导入 yaml，由 Web 工具依赖显式声明既有 2.9.1。
+两者经过完整锁版本集合核对，声明调整没有新增或移除上游包版本。
+
+2026-11-16 在隔离任务检出中重新创建依赖链接并执行根 frozen install，随后直接生成 OpenAPI bundle，
+运行完整 Web check。源码检查、生产构建与 312 个测试文件的 2175 项测试通过。
+本轮 Web 源码为治理切片，运行时诊断 UI 的独立切片由其 scoped 测试和后续组合 CI 提供证据。

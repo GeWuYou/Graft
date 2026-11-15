@@ -107,3 +107,12 @@ class GovernanceWorkflowTests(unittest.TestCase):
         backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
         self.assertIn("bash scripts/build_runtime_acceptance.sh", backend)
         self.assertEqual(backend.count("validate backend --stage buildtest --test-report"), 1)
+
+    def test_tool_dependencies_are_declared_at_their_actual_consumers(self):
+        package = json.loads((ROOT / "package.json").read_text())
+        web = json.loads((ROOT / "web/package.json").read_text())
+        self.assertEqual(package["devDependencies"]["@redocly/openapi-core"], "1.34.17")
+        self.assertNotIn("@redocly/openapi-core", web["devDependencies"])
+        self.assertEqual(web["devDependencies"]["yaml"], "2.9.1")
+        bundler = (ROOT / "scripts/openapi-bundle.mjs").read_text()
+        self.assertIn("requireFromRoot('@redocly/openapi-core')", bundler)
