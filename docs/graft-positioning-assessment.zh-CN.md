@@ -109,11 +109,11 @@ Agent 的 `loadComposeProject` 将 SDK stdout/stderr 设为 `io.Discard`，多�
 
 ## 隔离运行验证
 
-运行环境采用 task-owned Compose project、独立 PostgreSQL/Redis/Vault 数据和证书、Docker 29.9.3 的专用 daemon。只有私有 socket 卷交付给 Graft 组件，应用工作区在 daemon、Backend 和 Agent 内使用同一绝对路径。原本的本地发布验证脚本会共享宿主 socket，本轮增加了渲染后拓扑校验与十个针对性回归检查。[原本地验证脚本](../scripts/local_graft_validation.py)、[本轮验证入口](../scripts/validate_docker_isolated.py)、[隔离边界回归](../scripts/test_validate_docker_isolated.py)
+运行环境采用 task-owned Compose project、独立 PostgreSQL/Redis/Vault 数据和证书、Docker 29.9.3 的专用 daemon。只有私有 socket 卷交付给 Graft 组件，应用工作区在 daemon、Backend 和 Agent 内使用同一绝对路径。原本的本地发布验证脚本会共享宿主 socket，本轮增加了渲染后拓扑校验与十三个针对性回归检查。[原本地验证脚本](../scripts/local_graft_validation.py)、[本轮验证入口](../scripts/validate_docker_isolated.py)、[隔离边界回归](../scripts/test_validate_docker_isolated.py)
 
 基线与升级后的镜像需要记录准确源码 SHA 和不可变镜像 ID。真实 API 探针覆盖镜像拉取、容器启停与重启、日志、WebSocket Shell 命令、Compose 创建部署和相对 bind mount、目录导入，以及材料缺失、权限拒绝、Agent 离线和执行中断。
 
-本轮已观察基线 Agent 的 enrollment、mTLS、相同身份重启与 ledger receipt 推进，容器清单、日志和真实 WebSocket Shell 命令已有通过记录。镜像拉取和生命周期的首次请求因探针缺少必需的 Idempotency-Key 返回 400，该项归入探针修复。补齐请求契约后，基线镜像拉取获 202，但 90 秒后 Task 仍停在 ready。真实 mTLS 无任务 claim 的 400 及身份解析源码构成上文 P0 发现的证据。基线和升级版本的同场景结果见下表。两版的真实 mTLS 无任务 claim 均返回 400，表现与同一身份解析缺陷一致。当前已经通过 Python 编译、十个隔离、生命周期和 API 契约回归、实际 Compose 渲染与 host socket 排除检查。以上结果证明测试边界和脚本结构，真实业务场景的通过情况由 `api-evidence.json` 和 `trust-evidence.json` 的实际记录决定。
+本轮已观察基线 Agent 的 enrollment、mTLS、相同身份重启与 ledger receipt 推进，容器清单、日志和真实 WebSocket Shell 命令已有通过记录。镜像拉取和生命周期的首次请求因探针缺少必需的 Idempotency-Key 返回 400，该项归入探针修复。补齐请求契约后，基线镜像拉取获 202，但 90 秒后 Task 仍停在 ready。真实 mTLS 无任务 claim 的 400 及身份解析源码构成上文 P0 发现的证据。基线和升级版本的同场景结果见下表。两版的真实 mTLS 无任务 claim 均返回 400，表现与同一身份解析缺陷一致。当前已经通过 Python 编译、十三个隔离、生命周期和 API 契约回归、实际 Compose 渲染与 host socket 排除检查。以上结果证明测试边界和脚本结构，真实业务场景的通过情况由 `api-evidence.json` 和 `trust-evidence.json` 的实际记录决定。
 
 | 场景 | 基线观察 | 升级后同场景 |
 | --- | --- | --- |
@@ -129,6 +129,14 @@ Agent 的 `loadComposeProject` 将 SDK stdout/stderr 设为 `io.Discard`，多�
 | Agent 离线 | 操作返回 500，容器 StartedAt 保持一致 | 相同操作返回 500，StartedAt 保持一致 |
 
 fixture 的 Agent 依照既有 bootstrap-secret 契约以 root 运行。权限探针使用 Backend 的实际 UID 10001，新的 curl Unix socket 连接在 chmod 前返回 OK，chmod 000 后退出码为 7。同一时刻已建立连接的 API 读取仍返回 200，记录了既有连接的继续可用性。探针最后将 socket 权限恢复为 660。Agent 的非 root/GID 拒绝应单独证明。Backend 自身运行在外层 fixture，而其 Docker 观察对象位于私有 daemon，平台自更新需要另建整套部署位于私有引擎内的验收。
+
+## PR 审查后的验证工具修复
+
+PR #344 审查发现，隔离工具最初的 `stop` 会停止 Vault dev。Vault dev 的 PKI 和 AppRole 保存于进程内存，具名卷上的 `.initialized` 与旧证书继续存在，再次启动的开发实例与保留材料脱节。当前 Vault authority 的完整性需要实际登录和 PKI 端点验证。[隔离工具](../scripts/validate_docker_isolated.py)、[Vault fixture 初始化](../tests/conformance/docker-runtime-agent/vault-init.sh)
+
+修复后的逻辑停止保留运行中的任务专用 Vault，停止其余声明的 fixture 服务。`up` 在迁移和 Backend 启动前使用已交付 AppRole 发起真实登录，读取当前 PKI CA 并与交付 CA 比对。`destroy` 统一删除全部注册服务与卷。帮助信息与 fixture 指南明确了保留依赖的生命周期。[停止与销毁指南](../tests/conformance/docker-runtime-agent/README.md)
+
+真实复验使用源码为 `c274ac9236a240cf209638434fd370692e204a2d` 的既有 Graft 镜像与修订后的工具。初次启动证明 AppRole 登录与 CA 一致，逻辑停止后只保留 Vault，恢复后重新登录通过且 CA 指纹一致。随后明确停止 Vault 造成状态丢失，工具在 Backend、Agent 启动前拒绝旧材料。该复验项目随后已经销毁。工具 SHA-256 为 `2f9194dcee7126ceb7d25103c74a160f2988a3e7a1fb655d56bb08c2c085de4b`，安全汇总记录在版本清单的 `stop_resume_authority_verification` 字段中。此次复验覆盖隔离工具的停止、恢复与 authority 检查。
 
 ## 三条路线的取舍
 
@@ -159,13 +167,15 @@ P0 修复应先证明当前 Agent 能完成真实操作。本机直连方案随�
 
 ## 验证范围与已完成检查
 
-服务端切片已经通过仓库 backend 验证入口。Web 切片在 Node 26.13.1、Bun 1.4.4 下完成 `bun run check`，312 个测试文件、2175 个测试通过，生产构建零 warning，frozen lockfile 安装通过。隔离 harness 的十个针对性回归、Compose 渲染和 AI 治理检查通过。真实 Docker 写路径的运行结论以上文隔离证据为准，P0 身份拒绝仍限制了 provider 操作的验收。远端 CI、合并和原依赖 PR 的实际处理结果由负责会话在交付回执中记录。
+服务端切片与后续可空枚举修复分别通过仓库 backend 验证入口。Web 切片在 Node 26.13.1、Bun 1.4.4 下完成 `bun run check`，312 个测试文件、2175 个测试通过，生产构建零 warning，frozen lockfile 安装通过。隔离 harness 的十三个针对性回归、Compose 渲染和 AI 治理检查通过。真实 Docker 写路径的运行结论以上文隔离证据为准，P0 身份拒绝仍限制了 provider 操作的验收。远端 CI、合并和原依赖 PR 的实际处理结果由负责会话在交付回执中记录。
 
 ## 依赖升级与交付记录
 
 完整版本记录包含服务端模块变更、前端声明版本、Actions 的旧新 SHA、基础镜像与兼容性例外，可查阅 [依赖版本清单](dependency-upgrade-2026-11-15.json)。版本清单已与服务端和 Web 完成态 manifest 复核。当前已确定 Go 1.27.4、Compose 5.7.1、Node 26.13.1、Bun 1.4.4、golangci-lint 2.15.0、Alpine 3.24.4。基础服务保留已有大版本，根部署 PostgreSQL 16.16、fixture PostgreSQL 17.12、Redis 7.4.12、Vault 1.21.4。
 
 服务端同时将 98 个 OpenAPI 源文件中的 266 处可空声明迁到 OpenAPI 3.1 的类型联合或对应组合表达，补齐新版 kin-openapi 的校验要求，并同步 bundle、服务端绑定、嵌入式契约与前端派生消费面。
+
+PR 审查还发现，初轮 nullable 结构比对遗漏了 enum 对 null 的额外约束。针对七个源文件中的十个可空枚举字段，行为回归先复现新版校验拒绝 null，再将表示修正为受约束字符串枚举与 null 的 `anyOf`。全部十个字段的 null、已声明字符串及非法字符串/布尔值均有校验，修正后的 98 文件基线结构比对与服务端生成、backend 验证和 OpenAPI freshness 检查通过。修复提交为 `3944f0e5a4b86ac76729cd292251fd632c65e108`，具体字段及对照证据见版本清单的 `nullable_enum_repair`。
 
 前端升级已经识别 TDesign TreeNodeValue 的 bigint 扩展、DropdownItem 的事件参数变化、markdown-it 15 原生 Token 类型、vue-i18n 11 消息类型变化及 Volar URL 字面量解析问题。相关修复与验证由 Web 切片记录。TypeScript 主编译器保留 6.0.3，同时保留独立 7.0.2 别名检查，原因是现行 vue-tsc 和 ESLint parser 仍依赖 JavaScript compiler API。jscpd 保留 4.3.0。用相同的 715 个源文件和相同阈值比较后，5.4.3 的分词与跨格式分析报告了 25 处新克隆，4.3.0 报告零克隆。两个版本都支持现有忽略标记，差异需要独立审查扫描基线并完成迁移。`@babel/runtime-corejs3` 保留 Babel 7 兼容线并提升到 7.29.14。tvision-color 1.6.0 产物导入的 Babel 7 路径在 Babel 8.1.2 中已移除，完整构建已复现失败。移除 override 会恢复上游固定的 7.18.9，因此继续使用已提升补丁版本的原有覆盖机制，待上游更新运行时或重建产物后清理。服务端保留上游稳定 Compose/BuildKit/containerd 依赖图要求的 `containerd/platforms v1.0.0-rc.5` 和既有 gorilla/websocket 伪版本，具体 owner、版本与原因记录在清单中。
 
