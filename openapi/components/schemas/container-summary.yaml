@@ -43,14 +43,21 @@ properties:
       - ContainerSummaryStateDead
       - ContainerSummaryStateUnknown
   health:
-    type: [string, "null"]
-    enum: [healthy, unhealthy, starting, none, unavailable]
-    x-enum-varnames:
-      - ContainerSummaryHealthHealthy
-      - ContainerSummaryHealthUnhealthy
-      - ContainerSummaryHealthStarting
-      - ContainerSummaryHealthNone
-      - ContainerSummaryHealthUnavailable
+    anyOf:
+      - type: string
+        enum:
+          - healthy
+          - unhealthy
+          - starting
+          - none
+          - unavailable
+        x-enum-varnames:
+          - ContainerSummaryHealthHealthy
+          - ContainerSummaryHealthUnhealthy
+          - ContainerSummaryHealthStarting
+          - ContainerSummaryHealthNone
+          - ContainerSummaryHealthUnavailable
+      - type: 'null'
     description: Nullable when the runtime cannot determine health on the list path without row-level inspect.
   runtime:
     type: string

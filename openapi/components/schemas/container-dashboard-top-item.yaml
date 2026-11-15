@@ -28,14 +28,21 @@ properties:
       - ContainerDashboardTopItemStateDead
       - ContainerDashboardTopItemStateUnknown
   health:
-    type: [string, "null"]
-    enum: [healthy, unhealthy, starting, none, unavailable]
-    x-enum-varnames:
-      - ContainerDashboardTopItemHealthHealthy
-      - ContainerDashboardTopItemHealthUnhealthy
-      - ContainerDashboardTopItemHealthStarting
-      - ContainerDashboardTopItemHealthNone
-      - ContainerDashboardTopItemHealthUnavailable
+    anyOf:
+      - type: string
+        enum:
+          - healthy
+          - unhealthy
+          - starting
+          - none
+          - unavailable
+        x-enum-varnames:
+          - ContainerDashboardTopItemHealthHealthy
+          - ContainerDashboardTopItemHealthUnhealthy
+          - ContainerDashboardTopItemHealthStarting
+          - ContainerDashboardTopItemHealthNone
+          - ContainerDashboardTopItemHealthUnavailable
+      - type: 'null'
   restart_count:
     type: [integer, "null"]
     minimum: 0

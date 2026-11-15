@@ -9076,7 +9076,7 @@ type ContainerDetail struct {
 // ContainerDetailEnvironmentPolicy Effective container environment variable display policy applied to this detail response.
 type ContainerDetailEnvironmentPolicy string
 
-// ContainerDetailHealth Nullable when the runtime cannot determine health on the list path without row-level inspect.
+// ContainerDetailHealth defines model for ContainerDetail.Health.
 type ContainerDetailHealth string
 
 // ContainerDetailState defines model for ContainerDetail.State.
@@ -9535,7 +9535,7 @@ type ContainerSummary struct {
 	Status string `json:"status"`
 }
 
-// ContainerSummaryHealth Nullable when the runtime cannot determine health on the list path without row-level inspect.
+// ContainerSummaryHealth defines model for ContainerSummary.Health.
 type ContainerSummaryHealth string
 
 // ContainerSummaryState defines model for ContainerSummary.State.
@@ -14999,7 +14999,7 @@ type ServerStatusDependencyHistoryRange string
 // ServerStatusDependencyHistoryStatus Whether Redis history could be read. Available history may contain zero points.
 type ServerStatusDependencyHistoryStatus string
 
-// ServerStatusDependencyHistoryUnavailableReason Stable reason when status is unavailable; absent when status is available.
+// ServerStatusDependencyHistoryUnavailableReason defines model for ServerStatusDependencyHistory.UnavailableReason.
 type ServerStatusDependencyHistoryUnavailableReason string
 
 // ServerStatusDependencyHistoryPoint One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is never a synthetic zero.
@@ -15221,10 +15221,10 @@ type ServerStatusRedisCurrentMetrics struct {
 	UsedMemoryPeakBytes *int64 `json:"used_memory_peak_bytes,omitempty"`
 }
 
-// ServerStatusRedisCurrentMetricsMasterLinkStatus Current upstream master-link status when this Redis node is a replica. Gauge.
+// ServerStatusRedisCurrentMetricsMasterLinkStatus defines model for ServerStatusRedisCurrentMetrics.MasterLinkStatus.
 type ServerStatusRedisCurrentMetricsMasterLinkStatus string
 
-// ServerStatusRedisCurrentMetricsReplicationRole Current Redis replication role. Gauge.
+// ServerStatusRedisCurrentMetricsReplicationRole defines model for ServerStatusRedisCurrentMetrics.ReplicationRole.
 type ServerStatusRedisCurrentMetricsReplicationRole string
 
 // ServerStatusRedisKeyspaceMetrics Current Redis keyspace counters for one logical database; key names and values are never exposed.
