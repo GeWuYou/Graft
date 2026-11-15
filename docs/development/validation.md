@@ -53,3 +53,17 @@ CI 分别执行治理、契约、迁移、server 和 web 检查，并在汇总 j
 workspace 合并时，相同包版本节点的原传递依赖发生去重，fast-uri 从原根工具链的 3.1.2 统一到前端已有
 3.1.3，brace-expansion 从原根工具链的 5.0.6 统一到前端已有 5.0.7，其余既有版本集合保留。
 OpenAPI bundler 使用的 @redocly/openapi-core 显式声明为既有锁定版本 1.34.17。
+
+## 本机运行时 CI
+
+独立的 Local runtime acceptance job 消费 server-build-test 的已验证 Linux/amd64 二进制及 web-check 的生产 dist。
+产物携带实际 checkout commit 与文件 SHA-256，消费端先核对来源和字节，再构建带同一 revision 标签的运行时镜像。
+后端与 Web 测试各执行一次，运行验收复用其构建产物。
+
+验收在任务私有 Docker daemon 中执行核心 API 与实际引擎核对，再用冻结的官方根 Compose 从空目录安装并执行同组操作。
+两组证据都必须覆盖 canonical 必需场景集合且状态为 passed，未验证和缺失场景使 job 失败。
+Required checks passed 将该 job 纳入结果汇总，跳过结果保持失败。
+
+收尾始终按已注册 project 身份销毁任务资源。上传范围采用精确文件白名单，包含 API 场景、
+源码指纹、官方安装、清理与构建来源证明。instance.json、环境文件和原始错误日志保留在 runner 的本地目录。
+镜像构建与平台自更新的完整运行场景由各自验收驱动提供证据，核心操作 CI 与它们分别记录。
