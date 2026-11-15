@@ -77,8 +77,11 @@ class Fixture:
     def up(self) -> None:
         rendered = json.loads(self.compose("config", "--format", "json"))
         validate_topology(rendered)
-        self.compose("up", "-d", "--wait", "docker-daemon", "workspace-init", "postgres", "redis", "vault", "vault-init")
-        self.compose("up", "-d", "--wait", "migrate", "backend")
+        self.compose("up", "-d", "docker-daemon", "workspace-init", "postgres", "redis", "vault", "vault-init")
+        self.compose("wait", "workspace-init", "vault-init")
+        self.compose("up", "-d", "migrate")
+        self.compose("wait", "migrate")
+        self.compose("up", "-d", "--wait", "backend")
         args = ["--phase", "prepare", "--agent-id", "docker-runtime-agent",
                 "--image-digest", self.environment["GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST"],
                 "--agent-version", "isolated-fixture", "--enrollment-ref", "isolated-fixture",
@@ -90,7 +93,12 @@ class Fixture:
                 "--bootstrap-ca-file", "/run/graft-agent-trust/ca.pem",
                 "--trust-bundle-file", "/run/graft-agent-trust/ca.pem",
                 "--agent-secret-file", "/run/graft-bootstrap/bootstrap-token"]
-        prepared = self.driver(*args)
+        prepared_path = self.directory / "prepared-evidence.json"
+        if prepared_path.exists():
+            prepared = json.loads(prepared_path.read_text())
+        else:
+            prepared = self.driver(*args)
+            save(prepared_path, prepared)
         self.compose("run", "--rm", "--no-deps", "docker-runtime-agent", "--once")
         boot = self.driver("--phase", "verify-bootstrap", "--agent-id", prepared["agent_id"],
                            "--target-id", str(prepared["target_id"]))

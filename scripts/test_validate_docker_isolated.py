@@ -1,7 +1,11 @@
 """Regression checks for the private Docker boundary in the conformance overlay."""
 import copy
 import unittest
-from validate_docker_isolated import validate_topology
+import json
+from pathlib import Path
+import tempfile
+from unittest.mock import Mock
+from validate_docker_isolated import Fixture, validate_topology
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -32,6 +36,35 @@ class PrivateDockerTopologyTests(unittest.TestCase):
         self.configuration["services"]["docker-runtime-agent"]["volumes"][1]["target"] = "/workspace"
         with self.assertRaisesRegex(RuntimeError, "workspace mapping"):
             validate_topology(self.configuration)
+
+
+class FixtureLifecycleTests(unittest.TestCase):
+    def test_waits_for_successful_one_shot_jobs_separately(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture.__new__(Fixture)
+            fixture.directory = Path(temporary)
+            fixture.environment = {"GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST": "sha256:" + "a" * 64}
+            topology = PrivateDockerTopologyTests()
+            topology.setUp()
+            fixture.compose = Mock(side_effect=lambda *args: json.dumps(topology.configuration) if args[0] == "config" else "")
+            fixture.driver = Mock(return_value={"agent_id": "fixture", "target_id": 1,
+                "identity_id": "identity", "generation": 1, "ledger_receipt_count": 2})
+            fixture.engine = Mock(return_value="private-engine")
+            fixture.up()
+            calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertIn(("wait", "workspace-init", "vault-init"), calls)
+            self.assertIn(("wait", "migrate"), calls)
+            self.assertEqual([args for args in calls if "--wait" in args], [("up", "-d", "--wait", "backend")])
+            self.assertTrue((fixture.directory / "prepared-evidence.json").exists())
+
+    def test_reauthenticates_after_empty_password_change_response(self):
+        fixture = Fixture.__new__(Fixture)
+        fixture.environment = {"GRAFT_FIXTURE_ADMIN_PASSWORD": "synthetic-password"}
+        fixture.api = Mock(side_effect=[(401, {}),
+            (200, {"data": {"access_token": "restricted", "must_change_password": True}}),
+            (200, {"data": None}), (200, {"data": {"access_token": "normal"}})])
+        fixture.authenticate()
+        self.assertEqual(fixture.token, "normal")
 
 
 if __name__ == "__main__":
