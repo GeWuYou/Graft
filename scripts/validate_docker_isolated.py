@@ -65,8 +65,11 @@ class Fixture:
                     raise
                 time.sleep(2)
 
-    def api(self, method: str, path: str, payload: dict | None = None) -> tuple[int, dict]:
+    def api(self, method: str, path: str, payload: dict | None = None,
+            *, idempotency_key: str | None = None) -> tuple[int, dict]:
         headers = {"Content-Type": "application/json"}
+        if method == "POST" and path.startswith("/api/ops/"):
+            headers["Idempotency-Key"] = idempotency_key or secrets.token_hex(16)
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         body = json.dumps(payload).encode() if payload is not None else None
@@ -74,7 +77,13 @@ class Fixture:
         try:
             response = request.urlopen(request.Request(url, body, headers, method=method), timeout=20)
         except error.HTTPError as response:
-            return response.code, json.loads(response.read())
+            data = json.loads(response.read())
+            self.api_errors = getattr(self, "api_errors", [])
+            self.api_errors.append({"method": method, "path": path, "http_status": response.code,
+                                    "error_code": data.get("code"),
+                                    "trace_id": data.get("traceId") or data.get("trace_id")})
+            save(self.directory / "api-errors.json", {"requests": self.api_errors})
+            return response.code, data
         with response:
             return response.status, json.loads(response.read())
 

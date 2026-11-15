@@ -2,9 +2,11 @@
 import copy
 import unittest
 import json
+import io
+from urllib.error import HTTPError
 from pathlib import Path
 import tempfile
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from validate_docker_isolated import Fixture, validate_topology
 
 
@@ -77,6 +79,44 @@ class FixtureLifecycleTests(unittest.TestCase):
             (200, {"data": None}), (200, {"data": {"access_token": "normal"}})])
         fixture.authenticate()
         self.assertEqual(fixture.token, "normal")
+
+
+class FixtureAPIContractTests(unittest.TestCase):
+    def fixture(self, directory):
+        fixture = Fixture.__new__(Fixture)
+        fixture.directory = Path(directory)
+        fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080"}
+        fixture.token = "synthetic-fixture-token"
+        return fixture
+
+    def test_operation_posts_supply_and_reuse_caller_idempotency_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            response = Mock()
+            response.status = 202
+            response.read.return_value = b'{"data":{"task_id":1}}'
+            response.__enter__ = Mock(return_value=response)
+            response.__exit__ = Mock(return_value=False)
+            with patch("validate_docker_isolated.request.urlopen", return_value=response) as transport:
+                fixture.api("POST", "/api/ops/containers/probe/start", {}, idempotency_key="same-operation")
+                fixture.api("POST", "/api/ops/containers/probe/start", {}, idempotency_key="same-operation")
+                fixture.api("POST", "/api/ops/docker/images/pull", {"reference": "alpine"})
+            headers = [dict(call.args[0].header_items()) for call in transport.call_args_list]
+            self.assertEqual(headers[0]["Idempotency-key"], "same-operation")
+            self.assertEqual(headers[1]["Idempotency-key"], "same-operation")
+            self.assertEqual(len(headers[2]["Idempotency-key"]), 32)
+
+    def test_failed_http_evidence_excludes_request_payload_and_response_details(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            failure = HTTPError("http://fixture", 400, "Bad Request", {},
+                io.BytesIO(b'{"code":"INVALID","traceId":"safe-trace","message":"sensitive provider detail"}'))
+            with patch("validate_docker_isolated.request.urlopen", side_effect=failure):
+                fixture.api("POST", "/api/ops/containers/probe/start", {"secret": "sensitive payload"})
+            evidence = (Path(directory) / "api-errors.json").read_text()
+            self.assertIn("safe-trace", evidence)
+            self.assertIn("INVALID", evidence)
+            self.assertNotIn("sensitive", evidence)
 
 
 if __name__ == "__main__":
