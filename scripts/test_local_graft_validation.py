@@ -272,6 +272,18 @@ class OfficialComposeExecutionTests(unittest.TestCase):
         self.assertEqual(self.run_preflight("local").returncode, 0)
         self.assertEqual(self.compose["services"]["docker-runtime-agent"]["profiles"], ["agent"])
 
+    def test_generated_helper_instances_pass_topology_preflight_with_isolated_roots(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            roots = set()
+            for instance in MODULE.INSTANCES:
+                env = MODULE.desired_env(Path(temporary), instance)
+                root = env["GRAFT_APPLICATION_ROOT_HOST_PATH"]
+                self.assertEqual(root, env["GRAFT_APPLICATION_ROOT_CONTAINER_PATH"])
+                self.assertTrue(Path(root).is_absolute())
+                self.assertEqual(self.run_preflight(env["GRAFT_EXECUTION_MODE"], env["COMPOSE_PROFILES"], root, root).returncode, 0)
+                roots.add(root)
+            self.assertEqual(len(roots), len(MODULE.INSTANCES))
+
     def test_mode_profile_mismatch_reports_actionable_error(self):
         agent = self.run_preflight("agent")
         self.assertNotEqual(agent.returncode, 0)

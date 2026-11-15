@@ -19,6 +19,21 @@ from urllib import error, request
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/conformance/docker-runtime-agent"
 TERMINAL = {"success", "failed", "cancelled", "needs_attention"}
+LOCAL_REQUIRED_SCENARIOS = frozenset({
+    "enable-ops.container.runtime.enabled", "enable-ops.container.actions.dangerous_enabled",
+    "enable-ops.container.shell.enabled", "image-pull", "container-list", "container-logs",
+    "container-stop", "container-start", "container-restart", "shell-ticket", "shell-command-output",
+    "compose-managed-create", "compose-up", "compose-relative-bind", "compose-stop", "compose-material-missing",
+    "compose-import", "compose-import-readback", "compose-reimport-conflict", "local-execution-interruption",
+    "backend-socket-permission-denied", "local-mode-preflight", "image-pull-unreachable",
+})
+
+
+def require_local_acceptance(results: list[dict]) -> None:
+    observed = {item["scenario"]: item["status"] for item in results}
+    incomplete = sorted(scenario for scenario in LOCAL_REQUIRED_SCENARIOS if observed.get(scenario) != "passed")
+    if incomplete:
+        raise RuntimeError("Required local acceptance scenarios incomplete: " + ", ".join(incomplete))
 
 
 def save(path: Path, value: dict) -> None:
@@ -32,11 +47,14 @@ class Fixture:
         self.state = json.loads((directory / "instance.json").read_text())
         self.environment = {**os.environ, **self.state["environment"]}
         self.prefix = ["docker", "compose", "--project-name", self.state["project"]]
+        fixture_source = self.directory / "source-assets" / "fixture"
+        if not fixture_source.is_dir():
+            fixture_source = FIXTURE
         if self.execution_mode == "local":
-            self.prefix.extend(["-f", str(FIXTURE / "compose.local.yml")])
+            self.prefix.extend(["-f", str(fixture_source / "compose.local.yml")])
         else:
-            self.prefix.extend(["--profile", "conformance", "-f", str(FIXTURE / "compose.yml"),
-                                "-f", str(FIXTURE / "compose.isolated.yml")])
+            self.prefix.extend(["--profile", "conformance", "-f", str(fixture_source / "compose.yml"),
+                                "-f", str(fixture_source / "compose.isolated.yml")])
         self.token = ""
         self.results: list[dict] = []
 
@@ -540,6 +558,104 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         passed = task.get("status") == "failed" and bool(task.get("failure_code"))
         self.record("image-pull-unreachable", "passed" if passed else "failed", http_status=status, task=task)
 
+    def import_image(self, image: str) -> None:
+        # 镜像字节只流入任务私有 daemon，避免把主机标签或全局 Docker 资源变成验收目标。
+        with subprocess.Popen(["docker", "image", "save", image], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, cwd=ROOT, env=self.environment) as exporter:
+            try:
+                loaded = subprocess.run(self.prefix + ["exec", "-T", "docker-daemon", "docker",
+                    "--host=unix:///run/graft-docker/docker.sock", "image", "load"], stdin=exporter.stdout,
+                    capture_output=True, cwd=ROOT, env=self.environment, timeout=600)
+            finally:
+                exporter.stdout.close()
+                exporter.stdout = None
+            _, diagnostics = exporter.communicate(timeout=30)
+            if exporter.returncode != 0 or loaded.returncode != 0:
+                (self.directory / "image-import-error.log").write_bytes(diagnostics + loaded.stderr)
+                (self.directory / "image-import-error.log").chmod(0o600)
+                raise RuntimeError("Private daemon image import failed; restricted diagnostics retained")
+
+    def official_install(self) -> None:
+        if self.execution_mode != "local" or not self.environment.get("GRAFT_WEB_IMAGE"):
+            raise RuntimeError("official-install requires a local registration with --web-image from the same source")
+        source = self.directory / "source-assets" / "root"
+        if not (source / "compose.yml").is_file():
+            raise RuntimeError("Official Compose source was not frozen at registration; initialize a new task")
+        for role in ("BACKEND", "WEB"):
+            self.import_image(self.environment[f"GRAFT_{role}_IMAGE"])
+        tag = "v0.0.0-beta.1"
+        self.engine("tag", self.environment["GRAFT_BACKEND_IMAGE"], "ghcr.io/gewuyou/graft-server:" + tag)
+        self.engine("tag", self.environment["GRAFT_WEB_IMAGE"], "ghcr.io/gewuyou/graft-web:" + tag)
+        root = "/opt/graft-official"
+        self.compose("exec", "-T", "docker-daemon", "sh", "-ec",
+                     "mkdir -p /opt/graft-official; ln -sf /run/graft-docker/docker.sock /var/run/docker.sock")
+        directory = self.directory / "official"
+        directory.mkdir(mode=0o700, exist_ok=True)
+        env_path = directory / ".env"
+        if not env_path.exists():
+            values = {"GRAFT_IMAGE_TAG": tag, "GRAFT_EXECUTION_MODE": "local", "COMPOSE_PROFILES": "",
+                "POSTGRES_PASSWORD": secrets.token_urlsafe(24), "GRAFT_AUTH_JWT_SECRET": secrets.token_urlsafe(32),
+                "GRAFT_REDIS_PASSWORD": secrets.token_urlsafe(24), "GRAFT_APPLICATION_ROOT_HOST_PATH": "/opt/graft/apps",
+                "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": "/opt/graft/apps", "GRAFT_WEB_HOST_PORT": "3000",
+                "GRAFT_UPDATE_STATE_VOLUME": self.state["project"] + "-official-update-state",
+                "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS": "http://127.0.0.1:" + self.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
+            template = (source / "compose.env.example").read_text()
+            lines = []
+            for line in template.splitlines():
+                key = line.split("=", 1)[0]
+                lines.append(key + "=" + values.pop(key) if key in values else line)
+            lines.extend(key + "=" + value for key, value in values.items())
+            env_path.write_text("\n".join(lines) + "\n")
+            env_path.chmod(0o600)
+        self.compose("cp", str(source / "compose.yml"), "docker-daemon:" + root + "/compose.yml")
+        self.compose("exec", "-T", "docker-daemon", "test", "-f", root + "/.env", check=False)
+        if self.last_command_returncode != 0:
+            if (directory / "installation-evidence.json").exists():
+                raise RuntimeError("Registered official root was lost; preserve evidence and initialize a fresh fixture")
+            self.compose("cp", str(env_path), "docker-daemon:" + root + "/.env")
+        nested = OfficialFixture(self, directory, root)
+        nested.compose("up", "-d", "--wait", timeout=600)
+        for service, role in (("server", "BACKEND"), ("web", "WEB")):
+            identifier = nested.compose("ps", "-q", service).strip()
+            actual = self.engine("inspect", "--format", "{{.Image}}", identifier).strip()
+            if actual != self.environment[f"GRAFT_{role}_IMAGE"]:
+                raise RuntimeError("Official installation image no longer matches its registered source")
+        save(directory / "installation-evidence.json", {"source_revision": self.state["source_revision"],
+            "execution_mode": "local", "official_compose": True,
+            "backend_image": self.environment["GRAFT_BACKEND_IMAGE"], "web_image": self.environment["GRAFT_WEB_IMAGE"]})
+        nested.probe()
+        require_local_acceptance(nested.results)
+
+
+class OfficialFixture(Fixture):
+    def __init__(self, parent: Fixture, directory: Path, root: str):
+        self.parent = parent
+        self.directory = directory
+        self.root = root
+        self.state = {**parent.state, "project": parent.state["project"] + "-official"}
+        self.environment = {**parent.environment,
+            "GRAFT_CONFORMANCE_BACKEND_PORT": parent.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
+        self.token = ""
+        self.results = []
+
+    def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
+        if arguments[:3] == ("exec", "-T", "docker-daemon"):
+            output = self.parent.compose(*arguments, check=check, timeout=timeout)
+            self.last_command_returncode = self.parent.last_command_returncode
+            return output
+        if arguments[:3] == ("exec", "-T", "backend"):
+            arguments = ("exec", "-T", "--user", "graft", "server", *arguments[3:])
+        arguments = tuple("server" if value == "backend" else value for value in arguments)
+        output = self.parent.compose("exec", "-T", "docker-daemon", "docker",
+            "--host=unix:///run/graft-docker/docker.sock", "compose", "--project-name", self.state["project"],
+            "--project-directory", self.root, "--env-file", self.root + "/.env", "-f", self.root + "/compose.yml",
+            *arguments, check=check, timeout=timeout)
+        self.last_command_returncode = self.parent.last_command_returncode
+        return output
+
+    def engine(self, *arguments: str) -> str:
+        return self.parent.engine(*arguments)
+
 
 def validate_topology(configuration: dict, execution_mode: str = "agent") -> None:
     consumers = ("backend",) if execution_mode == "local" else ("backend", "conformance-driver", "docker-runtime-agent")
@@ -565,13 +681,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, epilog=(
         "stop pauses fixture workloads and retains the running development Vault authority. "
         "destroy removes every registered fixture service and volume."))
-    parser.add_argument("action", choices=("init", "up", "probe", "status", "stop", "destroy"))
+    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
     parser.add_argument("--source-revision")
     parser.add_argument("--backend-image")
     parser.add_argument("--agent-image")
     parser.add_argument("--driver-image")
+    parser.add_argument("--web-image", help="Same-source web image required for official-install")
     parser.add_argument("--execution-mode", choices=("local", "agent"), default="agent")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--confirm-project")
@@ -581,11 +698,13 @@ def main() -> None:
         if not args.project or not re.fullmatch(r"graft-isolated-[a-z0-9-]+", args.project):
             parser.error("--project must use the task-specific graft-isolated- prefix")
         required_images = {"backend": args.backend_image}
+        if args.web_image:
+            required_images["web"] = args.web_image
         if args.execution_mode == "agent":
             required_images.update(agent=args.agent_image, driver=args.driver_image)
         if not args.source_revision or not all(required_images.values()):
             parser.error("init requires source revision and every image used by the selected execution mode")
-        port_count = 1 if args.execution_mode == "local" else 3
+        port_count = 2 if args.execution_mode == "local" else 3
         if not 1024 <= args.port <= 65536 - port_count:
             parser.error("--port must leave room for the selected mode's unprivileged loopback listeners")
         for port in range(args.port, args.port + port_count):
@@ -609,10 +728,25 @@ def main() -> None:
         env = {"GRAFT_BACKEND_IMAGE": images["backend"],
                "GRAFT_CONFORMANCE_POSTGRES_PASSWORD": secrets.token_urlsafe(24), "VAULT_DEV_ROOT_TOKEN": secrets.token_urlsafe(24),
                "GRAFT_FIXTURE_ADMIN_PASSWORD": secrets.token_urlsafe(24), "GRAFT_CONFORMANCE_BACKEND_PORT": str(args.port),
+               "GRAFT_CONFORMANCE_OFFICIAL_PORT": str(args.port + 1),
                "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": str(args.port + 1), "GRAFT_CONFORMANCE_AGENT_PORT": str(args.port + 2)}
+        if args.web_image:
+            env["GRAFT_WEB_IMAGE"] = images["web"]
         if args.execution_mode == "agent":
             env.update(GRAFT_AGENT_IMAGE=images["agent"], GRAFT_CONFORMANCE_DRIVER_IMAGE=images["driver"],
                        GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST=images["agent"])
+        assets = {"root/compose.yml": "compose.yml", "root/compose.env.example": "compose.env.example"}
+        fixture_files = ("compose.local.yml",) if args.execution_mode == "local" else (
+            "compose.yml", "compose.isolated.yml", "vault-init.sh")
+        assets.update({"fixture/" + name: "tests/conformance/docker-runtime-agent/" + name for name in fixture_files})
+        fingerprints = {}
+        for destination, repository_path in assets.items():
+            content = subprocess.check_output(["git", "show", args.source_revision + ":" + repository_path], cwd=ROOT)
+            target = directory / "source-assets" / destination
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+            fingerprints[repository_path] = hashlib.sha256(content).hexdigest()
+        save(directory / "source-assets.json", {"source_revision": args.source_revision, "sha256": fingerprints})
         save(directory / "instance.json", {"project": args.project, "source_revision": args.source_revision,
              "execution_mode": args.execution_mode, "environment": env})
         print("Isolated task registered", flush=True)
@@ -627,10 +761,15 @@ def main() -> None:
         save(directory / "cleanup.json", {"project": fixture.state["project"], "resources_removed": True})
     elif args.action == "stop":
         fixture.stop()
+    elif args.action == "official-install":
+        fixture.official_install()
     else:
         getattr(fixture, args.action)()
-        if args.action == "probe" and any(item["status"] == "failed" for item in fixture.results):
-            raise RuntimeError("Runtime acceptance failed; inspect the registered api-evidence.json")
+        if args.action == "probe":
+            if fixture.execution_mode == "local":
+                require_local_acceptance(fixture.results)
+            if any(item["status"] == "failed" for item in fixture.results):
+                raise RuntimeError("Runtime acceptance failed; inspect the registered api-evidence.json")
 
 
 if __name__ == "__main__":

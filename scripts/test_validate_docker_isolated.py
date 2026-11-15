@@ -11,7 +11,7 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, require_local_acceptance, validate_topology
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -59,6 +59,33 @@ class PrivateDockerTopologyTests(unittest.TestCase):
 
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_every_required_local_scenario_must_have_passing_evidence(self):
+        complete = [{"scenario": name, "status": "passed"} for name in LOCAL_REQUIRED_SCENARIOS]
+        require_local_acceptance(complete)
+        for status in ("unverified", "skipped", "failed", "observed"):
+            with self.subTest(status=status):
+                incomplete = [item for item in complete if item["scenario"] != "local-execution-interruption"]
+                incomplete.append({"scenario": "local-execution-interruption", "status": status})
+                with self.assertRaisesRegex(RuntimeError, "local-execution-interruption"):
+                    require_local_acceptance(incomplete)
+        with self.assertRaisesRegex(RuntimeError, "local-execution-interruption"):
+            require_local_acceptance([item for item in complete if item["scenario"] != "local-execution-interruption"])
+
+    def test_official_probe_commands_stay_inside_registered_private_daemon(self):
+        parent = Fixture.__new__(Fixture)
+        parent.state = {"project": "graft-isolated-official-test", "execution_mode": "local"}
+        parent.environment = {"GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081"}
+        parent.last_command_returncode = 0
+        parent.compose = Mock(return_value="10001")
+        fixture = OfficialFixture(parent, Path("/evidence/official"), "/opt/graft-official")
+        fixture.compose("exec", "-T", "backend", "id", "-u")
+        command = parent.compose.call_args.args
+        self.assertEqual(command[:5], ("exec", "-T", "docker-daemon", "docker", "--host=unix:///run/graft-docker/docker.sock"))
+        self.assertIn("graft-isolated-official-test-official", command)
+        self.assertEqual(command[-7:], ("exec", "-T", "--user", "graft", "server", "id", "-u"))
+        fixture.compose("exec", "-T", "docker-daemon", "chmod", "660", "/run/graft-docker/docker.sock")
+        self.assertEqual(parent.compose.call_args.args[:3], ("exec", "-T", "docker-daemon"))
+
     def test_local_startup_needs_only_backend_image_and_no_trust_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

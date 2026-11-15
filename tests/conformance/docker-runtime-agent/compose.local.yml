@@ -10,6 +10,8 @@ services:
       - daemon-socket:/run/graft-docker
       - daemon-data:/var/lib/docker
       - application-workspaces:/opt/graft/apps
+    ports:
+      - "127.0.0.1:${GRAFT_CONFORMANCE_OFFICIAL_PORT:-18081}:3000"
     healthcheck:
       test: ["CMD", "docker", "--host=unix:///run/graft-docker/docker.sock", "info"]
       interval: 3s

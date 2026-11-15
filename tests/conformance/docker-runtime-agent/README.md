@@ -116,6 +116,12 @@ python3 scripts/validate_docker_isolated.py stop --directory .local/docker-isola
 
 The local probe discovers the canonical Docker target through the public API, exercises the same container and Compose operations, checks import persistence, and kills the backend after an observable application side effect. It requires the restarted Task to enter `needs_attention` while preserving the container identity and start time. It also verifies read-only mode preflight and a failed image pull against a closed loopback registry port. Failed required assertions return a nonzero exit code and retain scoped evidence for diagnosis.
 
+For the full fresh-install path, supply `--web-image <same-source-web-image>` during registration and run `official-install` after `up`. Registration freezes the official Compose file, environment template and fixture files directly from the declared Git commit, recording their SHA-256. The action imports the verified immutable server/web images into the private daemon, stages the official root there and runs its configuration check, migrations, root initialization and complete server/web topology. It then repeats the API and engine probes through the nested web service on `--port + 1`. Restricted synthetic environment files stay under the registered evidence directory. Repeated execution preserves the fixture's existing environment and data.
+
+```sh
+python3 scripts/validate_docker_isolated.py official-install --directory .local/docker-isolated/local
+```
+
 Local fixture stop pauses all registered services. Guarded destroy removes only that instance's project and named volumes. Agent-mode registrations keep the existing Vault-retention lifecycle described below. Build publication and full platform self-update have separate acceptance boundaries, because this API fixture's backend runs outside its private daemon's managed topology. A full self-update exercise must install the official Compose topology inside that daemon and provide verified release images and controller artifacts from the tested commit.
 
 ### Agent execution
