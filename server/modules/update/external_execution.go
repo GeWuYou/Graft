@@ -208,12 +208,6 @@ func (s *RolloutService) failExternalLaunch(operationID string) {
 	delete(s.externalLaunches, operationID)
 }
 
-func (s *RolloutService) clearExternalLaunch(operationID string) {
-	s.externalInputMu.Lock()
-	delete(s.externalLaunches, operationID)
-	s.externalInputMu.Unlock()
-}
-
 func updateControllerExecutionExpectation(targetID int64, payloadSHA string) *moduleapi.ExternalExecutionExpectation {
 	return &moduleapi.ExternalExecutionExpectation{
 		RuntimeTargetID: targetID, ProviderID: "docker", Capability: composeUpdateCapability,
