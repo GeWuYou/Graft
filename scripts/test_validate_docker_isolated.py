@@ -13,7 +13,7 @@ class PrivateDockerTopologyTests(unittest.TestCase):
         self.configuration = {"services": {}}
         for name in ("docker-daemon", "backend", "conformance-driver", "docker-runtime-agent"):
             self.configuration["services"][name] = {"volumes": [
-                {"type": "volume", "source": "daemon-socket", "target": "/var/run"},
+                {"type": "volume", "source": "daemon-socket", "target": "/run"},
                 {"type": "volume", "source": "application-workspaces", "target": "/opt/graft/apps"},
             ]}
 

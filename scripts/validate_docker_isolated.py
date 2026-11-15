@@ -352,7 +352,7 @@ def validate_topology(configuration: dict) -> None:
         volumes = configuration["services"][service]["volumes"]
         if any(v.get("type") == "bind" and "docker.sock" in v.get("source", "") for v in volumes):
             raise RuntimeError(f"{service} inherited a host Docker socket")
-        if not any(v.get("type") == "volume" and v.get("source") == "daemon-socket" and v["target"] == "/var/run" for v in volumes):
+        if not any(v.get("type") == "volume" and v.get("source") == "daemon-socket" and v["target"] == "/run" for v in volumes):
             raise RuntimeError(f"{service} has no private daemon socket")
     for service in ("docker-daemon", "backend", "docker-runtime-agent"):
         if not any(v.get("source") == "application-workspaces" and v["target"] == "/opt/graft/apps" for v in configuration["services"][service]["volumes"]):
