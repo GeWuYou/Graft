@@ -108,6 +108,12 @@ func executeProviderOperation(ctx context.Context, c Environment, lease Request)
 	}
 }
 
+type updateControllerIntent struct {
+	OperationID   string `json:"operation_id"`
+	SourceVersion string `json:"source_version"`
+	TargetVersion string `json:"target_version"`
+}
+
 type updateControllerMaterial struct {
 	ControllerReference string `json:"controller_reference"`
 	InputBase64         string `json:"input_b64"`
@@ -173,10 +179,8 @@ func executeUpdateControllerOperation(ctx context.Context, c Environment, lease 
 
 //nolint:gocyclo,cyclop // 严格材料校验必须显式保留每个信任边界拒绝分支。
 func validUpdateControllerMaterial(material updateControllerMaterial, lease Request) bool {
-	var intent struct {
-		OperationID string `json:"operation_id"`
-	}
-	if strictDecode(lease.Input, &intent) != nil {
+	var intent updateControllerIntent
+	if strictDecode(lease.Input, &intent) != nil || strings.TrimSpace(intent.SourceVersion) == "" || strings.TrimSpace(intent.TargetVersion) == "" || strings.TrimSpace(intent.SourceVersion) == strings.TrimSpace(intent.TargetVersion) {
 		return false
 	}
 	if !validDigestPinnedReference(material.ControllerReference) || !validRuntimeStateVolume(material.StateVolume) || material.OperationID != intent.OperationID || !validUpdateOperationID(material.OperationID) {
@@ -197,7 +201,7 @@ func validUpdateControllerMaterial(material updateControllerMaterial, lease Requ
 			Target      string `json:"target_version"`
 			Strategy    string `json:"deployment_strategy"`
 		}
-		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || strings.TrimSpace(recovery.Source) == "" || strings.TrimSpace(recovery.Target) == "" || recovery.Source == recovery.Target || strings.TrimSpace(recovery.Strategy) == "" {
+		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || recovery.Source != intent.SourceVersion || recovery.Target != intent.TargetVersion || strings.TrimSpace(recovery.Strategy) == "" {
 			return false
 		}
 		return true

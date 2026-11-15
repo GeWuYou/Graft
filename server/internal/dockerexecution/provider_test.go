@@ -25,7 +25,7 @@ type recordingComposeService struct {
 }
 
 func TestUpdateControllerMaterialIsStrictlyBoundToLeaseIntent(t *testing.T) {
-	lease := Request{Input: json.RawMessage(`{"operation_id":"update-42"}`)}
+	lease := Request{Input: json.RawMessage(`{"operation_id":"update-42","source_version":"1.0.0","target_version":"1.1.0"}`)}
 	valid := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock", StateVolume: "graft-update-state", OperationID: "update-42"}
 	if !validUpdateControllerMaterial(valid, lease) {
 		t.Fatal("valid update controller material rejected")
@@ -33,6 +33,43 @@ func TestUpdateControllerMaterialIsStrictlyBoundToLeaseIntent(t *testing.T) {
 	valid.OperationID = "update-43"
 	if validUpdateControllerMaterial(valid, lease) {
 		t.Fatal("material accepted for a different operation")
+	}
+}
+
+func TestUpdateControllerMaterialRejectsIncompleteOrUnknownIntent(t *testing.T) {
+	material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), InputBase64: "encoded", ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock", StateVolume: "graft-update-state", OperationID: "update-42"}
+	for _, input := range []string{
+		`{"operation_id":"update-42"}`,
+		`{"operation_id":"update-42","source_version":" ","target_version":"1.1.0"}`,
+		`{"operation_id":"update-42","source_version":"1.0.0","target_version":" "}`,
+		`{"operation_id":"update-42","source_version":"1.0.0","target_version":"1.0.0"}`,
+		`{"operation_id":"update-42","source_version":"1.0.0","target_version":"1.1.0","unexpected":true}`,
+	} {
+		if validUpdateControllerMaterial(material, Request{Input: json.RawMessage(input)}) {
+			t.Fatalf("invalid controller intent accepted: %s", input)
+		}
+	}
+}
+
+func TestRecoveryControllerMaterialMatchesFrozenIntentVersions(t *testing.T) {
+	lease := Request{Input: json.RawMessage(`{"operation_id":"update-42","source_version":"1.0.0","target_version":"1.1.0"}`)}
+	for _, testCase := range []struct {
+		name    string
+		source  string
+		target  string
+		allowed bool
+	}{
+		{name: "same frozen versions", source: "1.0.0", target: "1.1.0", allowed: true},
+		{name: "different source", source: "0.9.0", target: "1.1.0"},
+		{name: "different target", source: "1.0.0", target: "1.2.0"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			encoded := base64.RawStdEncoding.EncodeToString([]byte(`{"operation_id":"update-42","runner_id":"runner-recovery-42","source_version":"` + testCase.source + `","target_version":"` + testCase.target + `","deployment_strategy":"beta_tracking"}`))
+			material := updateControllerMaterial{ControllerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:" + strings.Repeat("a", 64), RecoveryStateBase64: encoded, RecoveryClaimID: "recovery-42", Recovery: true, StateVolume: "graft-update-state", OperationID: "update-42"}
+			if validUpdateControllerMaterial(material, lease) != testCase.allowed {
+				t.Fatalf("recovery material version binding did not match allowed=%v", testCase.allowed)
+			}
+		})
 	}
 }
 
