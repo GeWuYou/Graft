@@ -275,6 +275,53 @@ class RuntimeRepairEvidenceTests(unittest.TestCase):
             self.assertEqual(fixture.persisted_application.call_count, 2)
             self.assertEqual(fixture.api.call_args_list[-1].args[2]["inspection_id"], "second")
 
+    def test_compose_stop_requires_engine_to_be_stopped(self):
+        for running, expected in (("true", "failed"), ("false", "passed")):
+            with self.subTest(running=running), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                (Path(directory) / "trust-evidence.json").write_text(json.dumps({"bootstrap": self.identity(1)}))
+                fixture.api = Mock(side_effect=[
+                    (201, {"data": {"application_id": "app-fixture", "workspace_path": "/workspace"}}),
+                    (202, {"data": {"task_id": 1}}), (202, {"data": {"task_id": 2}}),
+                    (409, {}), (500, {})])
+                fixture.wait_task = Mock(return_value={"status": "success"})
+                fixture.import_probe = Mock()
+                fixture.engine = Mock(side_effect=["graft-compose-probe-test-app", "true",
+                    "graft-relative-mount-verified", running])
+                with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                    fixture.application_probe()
+                results = {call.args[0]: call for call in fixture.record.call_args_list}
+                self.assertEqual(results["compose-stop"].args[1], expected)
+                self.assertEqual(results["compose-stop"].kwargs["engine_running"], running)
+
+    def test_compose_up_requires_running_container(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (Path(directory) / "trust-evidence.json").write_text(json.dumps({"bootstrap": self.identity(1)}))
+            fixture.api = Mock(side_effect=[
+                (201, {"data": {"application_id": "app-fixture", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 1}})])
+            fixture.wait_task = Mock(return_value={"status": "success"})
+            fixture.record.side_effect = [None, RuntimeError("up evidence recorded")]
+            fixture.engine = Mock(side_effect=["graft-compose-probe-test-app", "false"])
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                with self.assertRaisesRegex(RuntimeError, "up evidence recorded"):
+                    fixture.application_probe()
+            results = {call.args[0]: call for call in fixture.record.call_args_list}
+            self.assertEqual(results["compose-up"].args[1], "failed")
+            self.assertNotIn("compose-stop", results)
+
+    def test_container_restart_requires_started_at_change(self):
+        for after, expected in (("original", "failed"), ("new-start", "passed")):
+            with self.subTest(after=after), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                fixture.api = Mock(return_value=(202, {"data": {"task_id": 1}}))
+                fixture.wait_task = Mock(return_value={"status": "success"})
+                fixture.engine = Mock(side_effect=["original", "true", after])
+                fixture.container_action_probe("fixture", "restart", "true")
+                self.assertEqual(fixture.record.call_args.args, ("container-restart", expected))
+                self.assertEqual(fixture.record.call_args.kwargs["engine_started_at_changed"], after != "original")
+
     def test_persisted_readback_rejects_noncanonical_application_identifier(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)

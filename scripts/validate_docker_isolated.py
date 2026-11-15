@@ -257,15 +257,19 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
         task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
         containers = self.engine("ps", "-a", "--format", "{{.Names}}").splitlines()
-        passed = task.get("status") == "success" and container in containers
+        running = self.engine("inspect", "--format", "{{.State.Running}}", container).strip() if container in containers else "missing"
+        passed = task.get("status") == "success" and running == "true"
         self.record("compose-up", "passed" if passed else "failed", http_status=status, task=task,
-                    engine_container_present=container in containers)
+                    engine_container_present=container in containers, engine_running=running)
         if passed:
             content = self.engine("exec", container, "cat", "/probe.txt").strip()
             self.record("compose-relative-bind", "passed" if content == "graft-relative-mount-verified" else "failed")
             status, response = self.api("POST", f"/api/ops/applications/{application}/stop", {})
             task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
-            self.record("compose-stop", "passed" if task.get("status") == "success" else "failed", http_status=status, task=task)
+            running = self.engine("inspect", "--format", "{{.State.Running}}", container).strip()
+            stopped = task.get("status") == "success" and running == "false"
+            self.record("compose-stop", "passed" if stopped else "failed", http_status=status, task=task,
+                        engine_running=running)
         workspace = created["workspace_path"]
         self.compose("exec", "-T", "backend", "mv", workspace + "/compose.yml", workspace + "/compose.missing")
         try:
@@ -404,6 +408,17 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             finally:
                 self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
 
+    def container_action_probe(self, name: str, action: str, expected_running: str) -> None:
+        before = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
+        status, response = self.api("POST", f"/api/ops/containers/{name}/{action}", {})
+        task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
+        running = self.engine("inspect", "--format", "{{.State.Running}}", name).strip()
+        after = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
+        restarted = action != "restart" or before != after
+        passed = status == 202 and task.get("status") == "success" and running == expected_running and restarted
+        self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task,
+                    engine_running=running, engine_started_at_changed=before != after)
+
     def probe(self) -> None:
         self.authenticate()
         self.once_probe()
@@ -424,11 +439,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         status, response = self.api("GET", f"/api/ops/containers/{name}/logs?tail=20")
         self.record("container-logs", "passed" if status == 200 and "graft-probe-ready" in json.dumps(response) else "failed", http_status=status)
         for action, expected in (("stop", "false"), ("start", "true"), ("restart", "true")):
-            status, response = self.api("POST", f"/api/ops/containers/{name}/{action}", {})
-            task = self.wait_task(response["data"]["task_id"]) if status == 202 else {}
-            running = self.engine("inspect", "--format", "{{.State.Running}}", name).strip()
-            passed = status == 202 and task.get("status") == "success" and running == expected
-            self.record("container-" + action, "passed" if passed else "failed", http_status=status, task=task, engine_running=running)
+            self.container_action_probe(name, action, expected)
         status, response = self.api("POST", f"/api/ops/containers/{name}/shell/sessions", {"command": "sh", "cols": 80, "rows": 24})
         self.record("shell-ticket", "passed" if status == 200 else "failed", http_status=status)
         if status == 200:
