@@ -26,6 +26,7 @@ type Material struct {
 	Payload  json.RawMessage `json:"payload"`
 }
 
+// Result 只返回受限终态、稳定失败码和经领域 owner 校验的临时结果。
 type Result struct {
 	Outcome     string
 	FailureCode string

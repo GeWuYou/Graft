@@ -597,22 +597,7 @@ func loadComposeDefinition(ctx context.Context, material applicationComposeMater
 	if err != nil {
 		return nil, err
 	}
-	// Compose 的服务归属标签由 CLI 加载阶段准备，直接调用 SDK 时必须在受控加载边界补齐。
-	// CustomLabels 在 SDK 合并标签时优先于用户标签，避免归属和 one-off 标识被应用配置覆盖。
-	for name, service := range project.Services {
-		service.CustomLabels = composetypes.Labels{
-			composeapi.ProjectLabel:     project.Name,
-			composeapi.ServiceLabel:     name,
-			composeapi.VersionLabel:     composeapi.ComposeVersion,
-			composeapi.WorkingDirLabel:  project.WorkingDir,
-			composeapi.ConfigFilesLabel: strings.Join(project.ComposeFiles, ","),
-			composeapi.OneoffLabel:      "False",
-		}
-		if len(material.EnvFiles) > 0 {
-			service.CustomLabels[composeapi.EnvironmentFileLabel] = strings.Join(material.EnvFiles, ",")
-		}
-		project.Services[name] = service
-	}
+	PrepareComposeProjectLabels(project, material.EnvFiles)
 	return project, nil
 }
 
@@ -805,4 +790,24 @@ func mapProviderFailure(err error) string {
 		return failureResourceConflict
 	}
 	return failureProviderOperation
+}
+
+// PrepareComposeProjectLabels 为直接调用 Compose SDK 的执行器准备受控资源归属标签。
+func PrepareComposeProjectLabels(project *composetypes.Project, envFiles []string) {
+	// Compose 的服务归属标签由 CLI 加载阶段准备，直接调用 SDK 时必须在受控加载边界补齐。
+	// CustomLabels 在 SDK 合并标签时优先于用户标签，避免归属和 one-off 标识被应用配置覆盖。
+	for name, service := range project.Services {
+		service.CustomLabels = composetypes.Labels{
+			composeapi.ProjectLabel:     project.Name,
+			composeapi.ServiceLabel:     name,
+			composeapi.VersionLabel:     composeapi.ComposeVersion,
+			composeapi.WorkingDirLabel:  project.WorkingDir,
+			composeapi.ConfigFilesLabel: strings.Join(project.ComposeFiles, ","),
+			composeapi.OneoffLabel:      "False",
+		}
+		if len(envFiles) > 0 {
+			service.CustomLabels[composeapi.EnvironmentFileLabel] = strings.Join(envFiles, ",")
+		}
+		project.Services[name] = service
+	}
 }
