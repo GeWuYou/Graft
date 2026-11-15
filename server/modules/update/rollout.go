@@ -418,14 +418,17 @@ func (s *RolloutService) taskTerminalOperationView(ctx context.Context, operatio
 		return OperationView{}, false, nil
 	case moduleapi.TaskStatusNeedsAttention:
 		return updateOperationViewFromTaskRecovery(operation), true, nil
-	case moduleapi.TaskStatusSuccess:
-		s.clearExternalLaunch(operation.OperationID)
-		operation.Outcome = ExecutionOutcomeSuccess
-		return updateOperationViewFromHistory(operation), true, nil
-	case moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
-		s.clearExternalLaunch(operation.OperationID)
+	case moduleapi.TaskStatusSuccess, moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
 		operation.Outcome = ExecutionOutcomeFailed
-		return updateOperationViewFromHistory(operation), true, nil
+		if task.Status == moduleapi.TaskStatusSuccess {
+			operation.Outcome = ExecutionOutcomeSuccess
+		}
+		if task.FailureCode != nil {
+			operation.FailureCode = *task.FailureCode
+		}
+		view := updateOperationViewFromHistory(operation)
+		view.StateSource = "task_recovery"
+		return view, true, nil
 	default:
 		return OperationView{}, false, fmt.Errorf("update operation task has unsupported status %q", task.Status)
 	}
@@ -592,7 +595,7 @@ func (s *RolloutService) GetOperationEvents(ctx context.Context, operationID str
 	return reader.ReadEvents(operationID, afterRevision, limit)
 }
 
-// ListOperations 返回数据库中的终态业务历史，活动操作只能通过 GetOperation 读取状态卷快照。
+// ListOperations 返回已结算历史及 Task 确认的启动前失败；未结算操作仍保留其恢复归属。
 func (s *RolloutService) ListOperations(ctx context.Context, limit int) ([]OperationView, error) {
 	if s == nil || s.operations == nil {
 		return nil, errors.New("update operation store is unavailable")
@@ -605,6 +608,14 @@ func (s *RolloutService) ListOperations(ctx context.Context, limit int) ([]Opera
 	for _, item := range items {
 		if isTerminalOutcome(item.Outcome) {
 			views = append(views, updateOperationViewFromHistory(item))
+			continue
+		}
+		view, visible, err := s.failedLaunchOperationView(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			views = append(views, view)
 		}
 	}
 	return views, nil
