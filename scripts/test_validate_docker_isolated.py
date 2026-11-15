@@ -63,6 +63,9 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertEqual(readiness, [("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault"),
                                          ("up", "-d", "--no-deps", "--wait", "backend")])
             self.assertTrue((fixture.directory / "prepared-evidence.json").exists())
+            self.assertFalse(any("--once" in args for args in calls))
+            self.assertEqual(calls.count(("up", "-d", "--no-deps", "docker-runtime-agent")), 2)
+            self.assertIn(("stop", "docker-runtime-agent"), calls)
 
     def test_reauthenticates_after_empty_password_change_response(self):
         fixture = Fixture.__new__(Fixture)

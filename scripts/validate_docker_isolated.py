@@ -55,6 +55,16 @@ class Fixture:
     def driver(self, *arguments: str) -> dict:
         return json.loads(self.compose("run", "--rm", "--no-deps", "conformance-driver", *arguments))
 
+    def wait_driver(self, *arguments: str, timeout: int = 90) -> dict:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                return self.driver(*arguments)
+            except RuntimeError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(2)
+
     def api(self, method: str, path: str, payload: dict | None = None) -> tuple[int, dict]:
         headers = {"Content-Type": "application/json"}
         if self.token:
@@ -100,15 +110,15 @@ class Fixture:
         else:
             prepared = self.driver(*args)
             save(prepared_path, prepared)
-        self.compose("run", "--rm", "--no-deps", "docker-runtime-agent", "--once")
-        boot = self.driver("--phase", "verify-bootstrap", "--agent-id", prepared["agent_id"],
-                           "--target-id", str(prepared["target_id"]))
-        self.compose("run", "--rm", "--no-deps", "docker-runtime-agent", "--once")
-        restart = self.driver("--phase", "verify-restart", "--agent-id", boot["agent_id"],
+        self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
+        boot = self.wait_driver("--phase", "verify-bootstrap", "--agent-id", prepared["agent_id"],
+                                "--target-id", str(prepared["target_id"]))
+        self.compose("stop", "docker-runtime-agent")
+        self.compose("up", "-d", "--no-deps", "docker-runtime-agent")
+        restart = self.wait_driver("--phase", "verify-restart", "--agent-id", boot["agent_id"],
                               "--target-id", str(boot["target_id"]), "--identity-id", boot["identity_id"],
                               "--generation", str(boot["generation"]),
                               "--receipt-count", str(boot["ledger_receipt_count"]))
-        self.compose("up", "-d", "docker-runtime-agent")
         save(self.directory / "trust-evidence.json", {"bootstrap": boot, "restart": restart,
              "engine_id": self.engine("info", "--format", "{{.ID}}").strip()})
         print("Private daemon, Backend, Agent bootstrap and restart ready", flush=True)
