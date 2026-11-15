@@ -48,3 +48,5 @@ Governance tracks direct/cold/hot build measurements and cache invalidation. Run
 
 Local planner regressions cover matching consumer families, deleted packages/tests and partially staged consumers.
 The reporting helper pipeline writes its relative artifact beneath the repository root when invoked from server.
+
+Runtime CI wiring now consumes verified build artifacts, validates required private/official scenarios and performs identity-guarded cleanup. Integrated execution remains pending.

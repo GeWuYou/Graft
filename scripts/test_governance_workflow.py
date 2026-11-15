@@ -49,3 +49,40 @@ class GovernanceWorkflowTests(unittest.TestCase):
                     if "bun install --frozen-lockfile" in step.get("run", ""):
                         self.assertNotIn("working-directory", step)
         self.assertFalse((ROOT / "web/bun.lock").exists())
+
+    def test_runtime_job_reuses_validated_outputs_and_checks_actual_checkout(self):
+        job = self.jobs["local-runtime-acceptance"]
+        self.assertEqual(set(job["needs"]), {"server-build-test", "web-check"})
+        commands = "\n".join(step.get("run", "") for step in job["steps"])
+        self.assertIn('source_revision="$(git rev-parse HEAD)"', commands)
+        self.assertIn('verify --kind server', commands)
+        self.assertIn('verify --kind web', commands)
+        self.assertIn('--build-context "release-binary=', commands)
+        self.assertIn("--source-revision", commands)
+        self.assertIn("--execution-mode local", commands)
+        self.assertIn("--web-image", commands)
+        self.assertIn("official-install", commands)
+        self.assertIn("ci_runtime_artifacts.py acceptance", commands)
+        self.assertNotIn("bun run build", commands)
+        self.assertNotIn("go test", commands)
+
+    def test_runtime_gate_rejects_skips_and_evidence_upload_is_an_exact_allowlist(self):
+        self.assertIn("local-runtime-acceptance", self.jobs["required-checks"]["needs"])
+        result = self.aggregate({"local-runtime-acceptance": "skipped"}, "push")
+        self.assertNotEqual(result.returncode, 0)
+        job = self.jobs["local-runtime-acceptance"]
+        cleanup = next(step for step in job["steps"] if step.get("name") == "Destroy only the registered acceptance project")
+        self.assertEqual(cleanup["if"], "always()")
+        self.assertIn('--confirm-project "$GRAFT_CI_PROJECT"', cleanup["run"])
+        upload = next(step for step in job["steps"] if step.get("name") == "Upload sanitized runtime acceptance evidence")
+        self.assertEqual(upload["if"], "always()")
+        self.assertEqual(set(upload["with"]["path"].splitlines()), {
+            ".local/docker-isolated/ci/api-evidence.json",
+            ".local/docker-isolated/ci/source-assets.json",
+            ".local/docker-isolated/ci/cleanup.json",
+            ".local/docker-isolated/ci/official/api-evidence.json",
+            ".local/docker-isolated/ci/official/installation-evidence.json",
+            ".tmp/runtime-server/provenance.json",
+            ".tmp/runtime-web/provenance.json",
+        })
+        self.assertTrue(upload["with"]["include-hidden-files"])

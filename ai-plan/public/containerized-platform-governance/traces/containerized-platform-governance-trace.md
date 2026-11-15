@@ -14,3 +14,5 @@
 - Four validation skill routes now consume root phase timing; product commands remain independently usable. Integrated CI and runtime acceptance remain pending.
 
 - Independent review corrected local consumer-family validation and deleted-source selection. A real helper subprocess fixture verified repository-root test report output.
+
+- Added required private-daemon and frozen official-install CI wiring using source-bound server/web artifacts and strict required-scenario evidence. Runtime results await integrated CI.
