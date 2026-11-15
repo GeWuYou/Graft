@@ -22,6 +22,16 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertFalse(any("run_server_ctrf_report.py" in command for command in commands))
         self.assertTrue(any("Upload server test results" == step.get("name") for step in steps))
 
+    def test_backend_validation_keeps_sqlite_cgo_and_static_builds_are_isolated(self):
+        steps = self.jobs["server-build-test"]["steps"]
+        validation = next(step for step in steps if step.get("name") == "Run repository backend build/test stage")
+        self.assertEqual(validation["env"]["CGO_ENABLED"], "1")
+        self.assertNotIn("GOOS", validation["env"])
+        self.assertNotIn("GOARCH", validation["env"])
+        static_build = next(step for step in steps if step.get("name") == "Link versioned runtime acceptance binaries")
+        self.assertEqual(static_build["run"], "bash scripts/build_runtime_acceptance.sh")
+        self.assertIn("export CGO_ENABLED=0 GOOS=linux GOARCH=amd64", (ROOT / "scripts/build_runtime_acceptance.sh").read_text())
+
     def aggregate(self, results, event="pull_request"):
         script = self.jobs["required-checks"]["steps"][0]["run"].splitlines()
         program = "\n".join(script[1:-1])
