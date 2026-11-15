@@ -111,7 +111,7 @@ def verify_acceptance(root: Path, directory: Path) -> None:
     assets = json.loads((directory / "source-assets.json").read_text())
     if assets.get("source_revision") != revision or installation.get("source_revision") != revision:
         raise ValueError("Official installation source provenance is incomplete")
-    if installation.get("official_compose") is not True or installation.get("execution_mode") != "local":
+    if installation.get("official_compose") is not True or installation.get("execution_mode") != "local" or installation.get("complete") is not True:
         raise ValueError("Official local installation proof is incomplete")
 
 
@@ -143,6 +143,11 @@ def verify_build_acceptance(root: Path, directory: Path) -> None:
         and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", image))
         and artifact.get("image_id") == image
         and evidence.get("remote_manifest_digest") == digest
+        and evidence.get("manifest_config_digest") == image
+        and evidence.get("probe_verified") is True
+        and bool(re.fullmatch(r"[a-f0-9]{64}", evidence.get("probe_sha256", "")))
+        and evidence.get("probe_sha256") == evidence.get("expected_probe_sha256")
+        and int(evidence.get("probe_size_bytes", 0)) > 0
         and matching_publication
     )
     if not valid:
@@ -168,6 +173,8 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
     receipt = evidence.get("receipt") or {}
     backup = receipt.get("backup_completion") or {}
     failed = evidence.get("failed_backup_operation") or {}
+    failed_receipt = evidence.get("failed_backup_receipt") or {}
+    migration = evidence.get("migration_invocation") or {}
     operation = evidence.get("operation") or {}
     valid = (
         evidence.get("source_revision") == source_revision(root)
@@ -181,6 +188,15 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
         and operation.get("status") == "SUCCESS"
         and failed.get("status") == "FAILED"
         and failed.get("failure_code") == "backup_failed"
+        and bool(failed.get("operation_id"))
+        and failed_receipt.get("operation_id") == failed.get("operation_id")
+        and failed_receipt.get("failure_code") == "backup_failed"
+        and failed_receipt.get("failure_stage") == "config_snapshot"
+        and failed_receipt.get("migration_started") is False
+        and failed_receipt.get("succeeded") is False
+        and migration.get("bootstrap_invoked") is True
+        and migration.get("source_revision") == revision
+        and migration.get("target_revision") == revision
         and receipt.get("protocol_version") == 2
         and receipt.get("migration_started") is True
         and receipt.get("execution_mode") == "local"
