@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-18T00:27:18Z"
+generated_at_utc: "2026-11-15T09:31:01Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -27,18 +27,18 @@ capabilities:
   mcp_github: true
   mcp_playwright: true
   mcp_headroom: false
-  fast_search: false
+  fast_search: true
   json_cli: true
   ai_browser: false
   ai_headroom_mcp: false
-  playwright_python: true
-  playwright_browsers: true
+  playwright_python: false
+  playwright_browsers: false
   playwright_system_deps: false
   server_scaffolded: true
   web_scaffolded: true
 tool_selection:
   search:
-    preferred: "grep"
+    preferred: "rg"
     fallback: "grep"
     use_for: "Repository text search."
   json:
@@ -131,8 +131,8 @@ mcp_servers:
 python:
   available: true
   venv_available: true
-  project_venv_present: true
-  playwright_browsers_present: true
+  project_venv_present: false
+  playwright_browsers_present: false
   playwright_system_deps_available: false
   helper_packages:
     requests: true
@@ -142,7 +142,7 @@ python:
     pydantic: false
     pytest: false
     pyyaml: true
-    playwright: true
+    playwright: false
 preferences:
   prefer_project_listed_tools: true
   prefer_python_for_non_trivial_automation: true
