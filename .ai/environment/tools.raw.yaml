@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-08-18T00:11:44Z"
+generated_at_utc: "2026-11-15T09:30:53Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -8,7 +8,7 @@ platform:
   version: "24.04"
   kernel: "6.18.33.2-microsoft-standard-WSL2"
   wsl: true
-  wsl_version: "2.7.11.0"
+  wsl_version: "2.7.12.0"
   shell: "bash"
 
 repository:
@@ -28,7 +28,7 @@ repository:
 required_runtimes:
   go:
     installed: true
-    version: "go version go1.26.4 linux/amd64"
+    version: "go version go1.26.11 linux/amd64"
     path: "/usr/local/go/bin/go"
     purpose: "Builds and tests the Graft server once server/go.mod exists."
   python3:
@@ -64,9 +64,9 @@ required_tools:
     path: "/usr/bin/bash"
     purpose: "Executes repository scripts and shell automation."
   rg:
-    installed: false
-    version: "not-installed"
-    path: ""
+    installed: true
+    version: "ripgrep 14.1.0"
+    path: "/usr/bin/rg"
     purpose: "Fast text search across the repository."
   jq:
     installed: true
@@ -83,7 +83,7 @@ project_tools:
   gh:
     installed: true
     authenticated: true
-    version: "gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)"
+    version: "gh version 2.103.0 (2026-10-21)"
     path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
@@ -156,8 +156,8 @@ python_packages:
     version: "6.0.1"
     purpose: "Optional YAML validation for local verification commands."
   playwright:
-    installed: true
-    version: "1.60.0"
+    installed: false
+    version: "not-installed"
     purpose: "Project-local browser automation for AI-assisted web UI inspection."
 
 python_environment:
@@ -168,11 +168,11 @@ python_environment:
     available: true
     purpose: "Creates the project-local .ai/venv Python environment."
   project_venv:
-    present: true
+    present: false
     path: ".ai/venv"
     purpose: "Project-local Python helper environment for AI tooling."
   playwright_browsers:
-    present: true
+    present: false
     path: ".ai/ms-playwright"
     purpose: "Project-local Playwright browser cache used by graft-web-browser-agent."
   playwright_system_deps:
