@@ -18,3 +18,8 @@
 - Added required private-daemon and frozen official-install CI wiring using source-bound server/web artifacts and strict required-scenario evidence. Runtime results await integrated CI.
 
 - Extended runtime CI to same-commit versioned server binaries, production Controller and standard-Go TLS release helper. Required Update API evidence binds binary hashes, backup bytes and migrated replacement Task receipts; runtime execution awaits integrated source.
+
+## 2026-11-16
+
+- Full integration validation exposed two previously hoisted tooling imports. Root Redocly and Web yaml declarations now match their actual consumers at existing locked versions.
+- Clean task dependency install, direct bundle generation and full Web check passed all source gates, production build and 312 files / 2175 tests. Combined diagnostic UI verification remains separately scoped.
