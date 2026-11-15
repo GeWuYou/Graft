@@ -191,7 +191,7 @@ def verify_update_acceptance(root: Path, directory: Path) -> None:
         and bool(failed.get("operation_id"))
         and failed_receipt.get("operation_id") == failed.get("operation_id")
         and failed_receipt.get("failure_code") == "backup_failed"
-        and failed_receipt.get("failure_stage") == "config_snapshot"
+        and failed_receipt.get("failure_stage") == "env_snapshot"
         and failed_receipt.get("migration_started") is False
         and failed_receipt.get("succeeded") is False
         and migration.get("bootstrap_invoked") is True

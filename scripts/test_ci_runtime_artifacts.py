@@ -124,7 +124,7 @@ class RuntimeArtifactTests(unittest.TestCase):
             "operation": {"operation_id": "update-test", "status": "SUCCESS"},
             "failed_backup_operation": {"operation_id": "update-failed", "status": "FAILED", "failure_code": "backup_failed"},
             "failed_backup_receipt": {"operation_id": "update-failed", "failure_code": "backup_failed",
-                                      "failure_stage": "config_snapshot", "migration_started": False, "succeeded": False},
+                                      "failure_stage": "env_snapshot", "migration_started": False, "succeeded": False},
             "migration_invocation": {"bootstrap_invoked": True, "source_revision": "a" * 40,
                                      "target_revision": "a" * 40, "scope": "same-source migration graph with no new pending DDL"},
             "receipt": {"execution_mode": "local", "succeeded": True, "operation_id": "update-test",
@@ -152,6 +152,7 @@ class RuntimeArtifactTests(unittest.TestCase):
                 verify_update_acceptance(self.root, self.root / "fixture")
             for section, field, value in [
                 ("receipt", "migration_started", False),
+                ("failed_backup_receipt", "failure_stage", "config_snapshot"),
                 ("failed_backup_receipt", "migration_started", True),
                 ("failed_backup_receipt", "succeeded", True),
                 ("failed_backup_receipt", "operation_id", "different"),
