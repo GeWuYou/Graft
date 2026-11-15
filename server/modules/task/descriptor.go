@@ -23,6 +23,7 @@ func NewModuleSpec() module.Spec {
 		MigrationPath: []string{"modules/task/migrations"},
 		ExposedCapabilities: []module.CapabilityDeclaration{
 			{Key: module.TypedCapability[moduleapi.RuntimeAgentExecutionGateway]()},
+			{Key: module.TypedCapability[moduleapi.TaskExecutionAdmissionReader]()},
 		},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

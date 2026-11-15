@@ -32,6 +32,9 @@ func (m *Module) Register(ctx *module.Context) error {
 		return errors.New("task module register context is unavailable")
 	}
 	m.runtime.SetAppLogger(ctx.AppLogger)
+	if ctx.Config != nil {
+		m.runtime.configureLocalExecution(ctx.Config)
+	}
 	if err := m.registerServices(ctx); err != nil {
 		return err
 	}
@@ -55,6 +58,9 @@ func (m *Module) registerServices(ctx *module.Context) error {
 		return err
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeAgentExecutionGateway)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskExecutionAdmissionReader)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
 		return err
 	}
 	return ctx.Services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil })
@@ -81,6 +87,13 @@ func (m *Module) configureRealtime(ctx *module.Context) error {
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.runtime == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return errors.New("task module boot context is unavailable")
+	}
+	if m.runtime.localExecution != nil && m.runtime.localExecution.mode == "local" {
+		reader, err := module.ResolveService[moduleapi.RuntimeTargetProviderConnectionReader](ctx.Services, (*moduleapi.RuntimeTargetProviderConnectionReader)(nil))
+		if err != nil {
+			return err
+		}
+		m.runtime.localExecution.connections = reader
 	}
 	return m.runtime.Start(ctx.LifecycleContext)
 }

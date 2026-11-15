@@ -107,6 +107,9 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		return taskmodel.Task{}, nil, false, moduleapi.ErrTaskOwnerBusy
 	}
 
+	if err := r.guardExecutionResources(ctx, tx, input.Task); err != nil {
+		return taskmodel.Task{}, nil, false, err
+	}
 	now := time.Now().UTC()
 	input.Task.CreatedAt = now
 	input.Task.UpdatedAt = now
@@ -942,6 +945,9 @@ func (r *SQLRepository) SettleExternalReceipt(ctx context.Context, input Externa
 func (r *SQLRepository) persistExternalReceiptSettlement(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error) {
 	status, stageStatus := settlementStatuses(input.Outcome)
 	now := time.Now().UTC()
+	if err := r.reconcileReceiptLaunch(ctx, tx, input, now); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
 	if err := r.updateSettlementStage(ctx, tx, input, stageStatus, now); err != nil {
 		return ExternalReceiptSettlement{}, err
 	}
@@ -1039,8 +1045,8 @@ func (r *SQLRepository) updateSettlementStage(ctx context.Context, tx *sql.Tx, i
 	}
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, failure_code = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
-		WHERE id = ? AND task_id = ? AND executor_type = ? AND status IN (?, ?)`),
-		status, failureCode, now, now, input.StageID, input.TaskID, input.ExecutorType, moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown)
+		WHERE id = ? AND task_id = ? AND executor_type = ? AND (status IN (?, ?) OR (status = ? AND ? > 0))`),
+		status, failureCode, now, now, input.StageID, input.TaskID, input.ExecutorType, moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown, moduleapi.StageStatusPending, input.LaunchStageID)
 	if err != nil {
 		return fmt.Errorf("settle external receipt stage: %w", err)
 	}
@@ -1101,7 +1107,7 @@ func (r *SQLRepository) cancelInterruptedRequestedStages(ctx context.Context, tx
 			WHERE lease.task_id = task_stages.task_id AND lease.stage_id = task_stages.id
 				AND lease.attempt = task_stages.attempt AND lease.state = ?
 				AND lease.lease_expires_at > ? AND lease.absolute_deadline_at > ?
-		)`), moduleapi.StageStatusCancelled, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.TaskStatusRunning,
+		)`+r.externalReceiptRecoveryExclusion()), moduleapi.StageStatusCancelled, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.TaskStatusRunning,
 		moduleapi.ExternalExecutionLeaseStateClaimed, now.UTC(), now.UTC())
 	if err != nil {
 		return 0, fmt.Errorf("cancel interrupted requested stages: %w", err)
@@ -1180,7 +1186,7 @@ func (r *SQLRepository) markManualRecoveryUnknown(ctx context.Context, tx *sql.T
 				WHERE lease.task_id = task_stages.task_id AND lease.stage_id = task_stages.id
 					AND lease.attempt = task_stages.attempt AND lease.state = ?
 					AND lease.lease_expires_at > ? AND lease.absolute_deadline_at > ?
-			)`), moduleapi.StageStatusUnknown, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(),
+			)`+r.externalReceiptRecoveryExclusion()), moduleapi.StageStatusUnknown, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(),
 		moduleapi.StageStatusRunning, moduleapi.StageRecoveryManualReconcile,
 		moduleapi.ExternalExecutionLeaseStateClaimed, now.UTC(), now.UTC())
 	if err != nil {
@@ -1448,4 +1454,54 @@ func validLogStream(value string) bool {
 // validLogLevel 判断 value 是否属于受支持的日志级别。
 func validLogLevel(value string) bool {
 	return value == "info" || value == "warn" || value == "error"
+}
+
+// externalReceiptRecoveryExclusion 保留独立 Controller 的冻结终态回执阶段，server 重启不能改判其结果。
+func (r *SQLRepository) externalReceiptRecoveryExclusion() string {
+	if r.placeholder == placeholderQuestion {
+		return ` AND NOT EXISTS (
+ SELECT 1 FROM tasks receipt_task, json_each(receipt_task.plan_json, '$.Stages') frozen_stage
+ WHERE receipt_task.id=task_stages.task_id
+ AND json_extract(frozen_stage.value, '$.Key')=task_stages.stage_key
+ AND json_extract(frozen_stage.value, '$.ExternalReceipt') IS NOT NULL
+ )`
+	}
+	return ` AND NOT EXISTS (
+ SELECT 1 FROM tasks receipt_task, jsonb_array_elements(receipt_task.plan_json->'Stages') frozen_stage
+ WHERE receipt_task.id=task_stages.task_id
+ AND frozen_stage->>'Key'=task_stages.stage_key
+ AND frozen_stage->'ExternalReceipt' IS NOT NULL
+ AND frozen_stage->'ExternalReceipt'<>'null'::jsonb
+ )`
+}
+
+// reconcileReceiptLaunch 以可信 Controller 终态证明收敛启动后的崩溃窗口，尚未开始的启动阶段仍拒绝结算。
+func (r *SQLRepository) reconcileReceiptLaunch(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput, now time.Time) error {
+	if input.LaunchStageID == 0 {
+		return nil
+	}
+	var status moduleapi.StageStatus
+	err := tx.QueryRowContext(ctx, r.placeholder.rebind("SELECT status FROM task_stages WHERE id = ? AND task_id = ? AND attempt = ?"), input.LaunchStageID, input.TaskID, input.LaunchAttempt).Scan(&status)
+	if err != nil {
+		return err
+	}
+	if status == moduleapi.StageStatusSuccess {
+		return nil
+	}
+	if status != moduleapi.StageStatusRunning && status != moduleapi.StageStatusUnknown {
+		return ErrStateConflict
+	}
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind("UPDATE task_stages SET status = ?, failure_code = NULL, failure_message = NULL, finished_at = ?, updated_at = ? WHERE id = ? AND task_id = ? AND attempt = ? AND status = ?"), moduleapi.StageStatusSuccess, now, now, input.LaunchStageID, input.TaskID, input.LaunchAttempt, status)
+	if err != nil {
+		return err
+	}
+	if err := expectOneAffected(result); err != nil {
+		return err
+	}
+	payload, err := json.Marshal(map[string]any{"launch_stage_id": input.LaunchStageID, "launch_attempt": input.LaunchAttempt})
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, r.placeholder.rebind("INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at) SELECT ?, COALESCE(MAX(sequence), 0) + 1, ?, ?, ? FROM task_events WHERE task_id = ?"), input.TaskID, taskmodel.EventTypeRecoveryResolved, payload, now, input.TaskID)
+	return err
 }

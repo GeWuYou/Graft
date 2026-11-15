@@ -24,5 +24,6 @@ post:
       $ref: ../components/responses/forbidden.yaml
     '409':
       description: Idempotency-Key was previously used with different Docker image pull input.
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

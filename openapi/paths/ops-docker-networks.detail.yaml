@@ -30,4 +30,5 @@ delete:
     '403': { $ref: ../components/responses/forbidden.yaml }
     '404': { description: Network not found }
     '409': { description: Default and in-use Docker networks cannot be removed. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

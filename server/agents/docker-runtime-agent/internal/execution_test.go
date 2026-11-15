@@ -346,7 +346,7 @@ func TestContainerProviderRejectsUnknownAndCrossOperationFields(t *testing.T) {
 		json.RawMessage(`{"container_ref":"container-1","image_ref":"image-1"}`),
 	}
 	for _, payload := range tests {
-		result := executeContainerOperation(context.Background(), config{DockerSocket: "unix:///missing"}, executionLease{Protocol: containerExecutionProtocol, OperationID: "container.lifecycle.start.v1", Input: payload})
+		result := executeProviderOperation(context.Background(), nil, config{DockerSocket: "unix:///missing"}, executionLease{Capability: "container_execution", Protocol: containerExecutionProtocol, OperationID: "container.lifecycle.start.v1", Input: payload})
 		if result.Outcome != "failed" || result.FailureCode != failureInvalidIntent {
 			t.Fatalf("result=%#v", result)
 		}

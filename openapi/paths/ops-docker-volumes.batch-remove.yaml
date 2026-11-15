@@ -2,7 +2,7 @@ post:
   tags: [container]
   summary: Remove Docker volumes in batch
   operationId: postDockerVolumeBatchRemove
-  description: Submits one Task with ordered per-volume external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
+  description: Submits one Task with ordered per-volume execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -20,4 +20,5 @@ post:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '409': { description: Idempotency-Key conflicts with a different submission. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

@@ -439,31 +439,44 @@ func TestDockerImagePullRouteRequiresIdempotencyKey(t *testing.T) {
 	}
 }
 
-func TestDockerImagePullRouteReturnsConflictForReusedIdempotencyKey(t *testing.T) {
+func TestDockerImagePullRouteMapsTaskAdmission(t *testing.T) {
 	t.Parallel()
+	for _, testCase := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"idempotency", moduleapi.ErrTaskSubmissionConflict, http.StatusConflict},
+		{"resource", moduleapi.ErrTaskOwnerBusy, http.StatusConflict},
+		{"admission", moduleapi.ErrTaskExecutionUnavailable, http.StatusServiceUnavailable},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
 
-	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
-	service, err := newRouteTestService(containerServiceOptions{
-		runtime:                 fakeRuntime{},
-		enabled:                 true,
-		dangerousActionsEnabled: true,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
-		tasks:                   &containerTaskRuntimeStub{err: moduleapi.ErrTaskSubmissionConflict},
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-	if err := registerRoutes(ctx, moduleID, service); err != nil {
-		t.Fatalf("register routes: %v", err)
-	}
+			ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+			service, err := newRouteTestService(containerServiceOptions{
+				runtime:                 fakeRuntime{},
+				enabled:                 true,
+				dangerousActionsEnabled: true,
+				defaultTail:             defaultContainerLogsDefaultTail,
+				maxTail:                 defaultContainerLogsMaxTail,
+				tasks:                   &containerTaskRuntimeStub{err: testCase.err},
+			})
+			if err != nil {
+				t.Fatalf("new service: %v", err)
+			}
+			if err := registerRoutes(ctx, moduleID, service); err != nil {
+				t.Fatalf("register routes: %v", err)
+			}
 
-	response := httptest.NewRecorder()
-	request := authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"alpine:3.20"}`)
-	request.Header.Set("Idempotency-Key", "reused-key")
-	engine.ServeHTTP(response, request)
-	if response.Code != http.StatusConflict {
-		t.Fatalf("expected 409, got %d: %s", response.Code, response.Body.String())
+			response := httptest.NewRecorder()
+			request := authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"alpine:3.20"}`)
+			request.Header.Set("Idempotency-Key", "reused-key")
+			engine.ServeHTTP(response, request)
+			if response.Code != testCase.status {
+				t.Fatalf("expected 409, got %d: %s", response.Code, response.Body.String())
+			}
+
+		})
 	}
 }
 

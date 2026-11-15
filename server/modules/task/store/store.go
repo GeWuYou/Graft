@@ -66,7 +66,11 @@ type Repository interface {
 }
 
 // CreateSubmissionInput 描述待物化 Task 的冻结身份与租约。
-type CreateSubmissionInput struct{ Submission taskmodel.Submission }
+type CreateSubmissionInput struct {
+	Submission taskmodel.Submission
+	// ExecutionMode 在预留事务内拒绝已经失效的运行时归属。
+	ExecutionMode string
+}
 
 // RenewSubmissionInput 描述带 version fencing 的租约续期。
 type RenewSubmissionInput struct {
@@ -155,6 +159,8 @@ type AppendLogInput struct {
 
 // ExternalReceiptSettlementInput 是 Task Runtime 公共 capability 接受的完整绑定、无秘密回执。
 type ExternalReceiptSettlementInput struct {
+	LaunchStageID   uint64
+	LaunchAttempt   int
 	TaskID          uint64
 	StageID         uint64
 	ExecutorType    moduleapi.StageExecutorType

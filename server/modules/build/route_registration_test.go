@@ -305,15 +305,28 @@ func TestBuildArtifactPromotionRouteRejectsMalformedInput(t *testing.T) {
 }
 
 func TestBuildArtifactPromotionRouteMapsTaskConflict(t *testing.T) {
-	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	tasks := &recordingBuildTasks{err: moduleapi.ErrTaskSubmissionConflict}
-	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
-	engine := newBuildRouteTestEngine(t, tasks, repository)
+	for _, testCase := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"idempotency", moduleapi.ErrTaskSubmissionConflict, http.StatusConflict},
+		{"resource", moduleapi.ErrTaskOwnerBusy, http.StatusConflict},
+		{"admission", moduleapi.ErrTaskExecutionUnavailable, http.StatusServiceUnavailable},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+			tasks := &recordingBuildTasks{err: testCase.err}
+			repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
+			engine := newBuildRouteTestEngine(t, tasks, repository)
 
-	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
-	if response.Code != http.StatusConflict {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
+			if response.Code != testCase.status {
+				t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			}
+
+		})
 	}
 }
 
