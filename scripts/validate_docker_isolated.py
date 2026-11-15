@@ -40,6 +40,7 @@ class Fixture:
     def compose(self, *arguments: str, check: bool = True) -> str:
         result = subprocess.run(self.prefix + list(arguments), cwd=ROOT,
                                 env=self.environment, capture_output=True, text=True, timeout=600)
+        self.last_command_returncode = result.returncode
         if check and result.returncode:
             # Command diagnostics are restricted local evidence, separate from the shareable report.
             log = self.directory / "command-error.log"
@@ -339,11 +340,21 @@ class Fixture:
             except (OSError, ValueError) as exc:
                 self.record("shell-command-output", "failed", error_type=type(exc).__name__)
         self.application_probe()
+        backend_uid = self.compose("exec", "-T", "backend", "id", "-u").strip()
+        ping = ("exec", "-T", "backend", "curl", "--fail", "--silent", "--show-error", "--max-time", "5",
+                "--unix-socket", "/var/run/docker.sock", "http://localhost/_ping")
+        ping_before = self.compose(*ping, check=False)
+        connection_worked = self.last_command_returncode == 0 and ping_before.strip() == "OK"
         self.compose("exec", "-T", "docker-daemon", "chmod", "000", "/run/graft-docker/docker.sock")
         try:
+            self.compose(*ping, check=False)
+            denied_exit_code = self.last_command_returncode
             status, _ = self.api("GET", f"/api/ops/containers/{name}")
-            self.record("backend-socket-permission-denied", "passed" if status >= 400 else "failed", http_status=status,
-                        scope="Non-root Backend read boundary, fixture Agent runs as root")
+            passed = backend_uid == "10001" and connection_worked and denied_exit_code != 0
+            self.record("backend-socket-permission-denied", "passed" if passed else "failed",
+                        http_status=status, backend_uid=backend_uid, fresh_ping_before=connection_worked,
+                        denied_fresh_connection_exit_code=denied_exit_code,
+                        scope="Fresh non-root Backend socket connection, existing API keepalive may remain usable")
         finally:
             self.compose("exec", "-T", "docker-daemon", "chmod", "660", "/run/graft-docker/docker.sock")
         offline_before = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()

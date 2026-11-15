@@ -106,6 +106,16 @@ class FixtureAPIContractTests(unittest.TestCase):
             self.assertEqual(headers[1]["Idempotency-key"], "same-operation")
             self.assertEqual(len(headers[2]["Idempotency-key"]), 32)
 
+    def test_nonblocking_command_preserves_failure_exit_code(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.prefix = ["docker", "compose"]
+            fixture.environment = {}
+            result = Mock(returncode=7, stdout="", stderr="socket connection denied")
+            with patch("validate_docker_isolated.subprocess.run", return_value=result):
+                self.assertEqual(fixture.compose("exec", "backend", "curl", check=False), "")
+            self.assertEqual(fixture.last_command_returncode, 7)
+
     def test_failed_http_evidence_excludes_request_payload_and_response_details(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
