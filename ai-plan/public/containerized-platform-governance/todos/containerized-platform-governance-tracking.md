@@ -43,3 +43,8 @@ Shared Task contracts precede domain migration; delivery acceptance follows inte
 
 Full CI and real operation evidence are required per delivery batch. Empty selections and missing runtime proof remain visible.
 Governance tracks direct/cold/hot build measurements and cache invalidation. Runtime tracks actual Docker effects and recovery.
+
+## Preparation Evidence
+
+Local planner regressions cover matching consumer families, deleted packages/tests and partially staged consumers.
+The reporting helper pipeline writes its relative artifact beneath the repository root when invoked from server.

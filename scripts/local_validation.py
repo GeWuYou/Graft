@@ -52,11 +52,35 @@ def staged_divergence(root: Path, names: list[str]) -> list[str]:
     return sorted(set(names) & staged & unstaged)
 
 
+def test_family(name: str) -> str | None:
+    path = PurePosixPath(name)
+    if name.startswith("server/") and name.endswith("_test.go"):
+        return "go"
+    if name.startswith("web/") and any(marker in name for marker in (".test.", ".spec.")):
+        return "web"
+    if path.suffix == ".py" and path.name.startswith("test_"):
+        return "python"
+    if path.suffix == ".mjs" and (path.name.startswith("test-") or ".test." in name or ".spec." in name):
+        return "node"
+    return None
+
+
 def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
     names = sorted({relative_path(root, name) for name in names})
-    tests = {relative_path(root, name) for name in explicit_tests}
+    requested_tests = {relative_path(root, name) for name in explicit_tests}
+    tests: set[str] = set()
     checks: list[Check] = []
     gaps: list[str] = []
+    consumer_families: set[str] = set()
+    for name in sorted(requested_tests):
+        family = test_family(name)
+        if not (root / name).is_file():
+            gaps.append(f"Selected test does not exist: {name}")
+        elif family is None:
+            gaps.append(f"Unsupported selected test: {name}")
+        else:
+            tests.add(name)
+            consumer_families.add(family)
     if not names:
         return {"source": "worktree", "files": [], "checks": [], "gaps": ["Empty selection; no checks executed."]}
     checks.append(Check("whitespace", ["git", "diff", "--check", "HEAD", "--", *names]))
@@ -70,18 +94,19 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
         pure = PurePosixPath(name)
         suffix = path.suffix
         if name.startswith("server/") and suffix == ".go":
-            go_packages.add("./" + pure.parent.relative_to("server").as_posix())
-            if not list(path.parent.glob("*_test.go")) and not explicit_tests:
+            if list(path.parent.glob("*.go")):
+                go_packages.add("./" + pure.parent.relative_to("server").as_posix())
+            if not list(path.parent.glob("*_test.go")) and "go" not in consumer_families:
                 gaps.append(f"Select Go consumer tests for {name} with --test.")
         elif name.startswith("web/") and suffix in WEB_SOURCE:
             if path.is_file():
                 web_files.append(pure.relative_to("web").as_posix())
             companions = [str(pure.with_suffix("")) + ending for ending in (".test.ts", ".spec.ts")]
             found = [item for item in companions if (root / item).is_file()]
-            if ".test." in name or ".spec." in name:
+            if test_family(name) == "web" and path.is_file():
                 found.append(name)
             tests.update(found)
-            if not found and not explicit_tests:
+            if not found and "web" not in consumer_families:
                 gaps.append(f"Select consumer tests for {name} with --test.")
         elif suffix == ".py":
             candidate = str(pure.with_name("test_" + pure.name))
@@ -89,7 +114,7 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
                 candidate = name
             if (root / candidate).is_file():
                 python_tests.add(candidate)
-            elif not explicit_tests:
+            elif "python" not in consumer_families:
                 gaps.append(f"Select Python consumer tests for {name} with --test.")
         elif suffix == ".mjs":
             candidate = str(pure.with_name("test-" + pure.name))
@@ -97,7 +122,7 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
                 candidate = name
             if (root / candidate).is_file():
                 node_tests.add(candidate)
-            elif not explicit_tests:
+            elif "node" not in consumer_families:
                 gaps.append(f"Select Node consumer tests for {name} with --test.")
         elif name in ("package.json", "bun.lock", "turbo.json", "server/package.json", "web/package.json"):
             node_tests.add("scripts/test-turbo.mjs")
@@ -118,9 +143,9 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
             go_packages.add("./" + PurePosixPath(name).parent.relative_to("server").as_posix())
         elif name.startswith("web/") and (".test." in name or ".spec." in name):
             continue
-        elif name.endswith(".py"):
+        elif test_family(name) == "python":
             python_tests.add(name)
-        elif name.endswith(".mjs"):
+        elif test_family(name) == "node":
             node_tests.add(name)
         else:
             gaps.append(f"Unsupported selected test: {name}")
@@ -151,7 +176,8 @@ def make_plan(root: Path, names: list[str], explicit_tests: list[str]) -> dict:
         checks.append(Check("workflow-yaml", [sys.executable, "-c",
             "import pathlib,yaml; [yaml.safe_load(pathlib.Path(p).read_text()) for p in __import__('sys').argv[1:]]",
             *[name for name in names if name.startswith(".github/") and name.endswith((".yml", ".yaml")) and (root / name).is_file()]]))
-    return {"source": "worktree", "files": names, "checks": [asdict(check) for check in checks], "gaps": gaps}
+    return {"source": "worktree", "files": names, "tests": sorted(tests | python_tests | node_tests),
+            "checks": [asdict(check) for check in checks], "gaps": gaps}
 
 
 def execute(plan: dict, root: Path) -> int:
@@ -182,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         plan = make_plan(ROOT, args.file or changed_files(ROOT), args.test)
-        divergence = staged_divergence(ROOT, plan["files"])
+        divergence = staged_divergence(ROOT, plan["files"] + plan.get("tests", []))
         if divergence:
             plan["gaps"].append("Partially staged content differs from the worktree: " + ", ".join(divergence))
         print(json.dumps(plan, indent=2))

@@ -12,3 +12,5 @@
 - Shared dependency reconciliation retained existing version sets except two old root-tool patch nodes unified to existing frontend patches. Exact decisions are in development validation.
 
 - Four validation skill routes now consume root phase timing; product commands remain independently usable. Integrated CI and runtime acceptance remain pending.
+
+- Independent review corrected local consumer-family validation and deleted-source selection. A real helper subprocess fixture verified repository-root test report output.

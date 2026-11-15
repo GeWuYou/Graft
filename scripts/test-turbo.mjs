@@ -89,3 +89,16 @@ test('real task hashes cover production inputs and cache restores outputs', () =
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+
+test('code graph retains one full backend gate and independent web checks', () => {
+  const server = JSON.parse(readFileSync(new URL('../server/package.json', import.meta.url), 'utf8'));
+  const web = JSON.parse(readFileSync(new URL('../web/package.json', import.meta.url), 'utf8'));
+  assert.equal(server.scripts['check:code'], 'go run ./cmd/graft validate backend');
+  assert.equal(server.scripts['check:tests'], undefined);
+  assert.equal(server.scripts['check:source'], undefined);
+  assert.ok(web.scripts['check:source']);
+  const args = taskArguments(['check:code']);
+  assert.deepEqual(args.slice(0, 4), ['run', 'check:code', 'check:tests', 'check:build']);
+  assert.ok(args.includes('--continue=dependencies-successful'));
+});
