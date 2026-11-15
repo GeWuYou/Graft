@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS build
+FROM golang:1.27.4-alpine AS build
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
 WORKDIR /src
@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/graft-compose-runner ./cmd/graft-compose-runner
 
-FROM alpine:3.22
+FROM alpine:3.24.4
 RUN apk add --no-cache ca-certificates \
     && addgroup -S -g 65532 graft-runner \
     && adduser -S -D -H -u 65532 -G graft-runner graft-runner

@@ -21,10 +21,8 @@ import (
 	containerderrdefs "github.com/containerd/errdefs"
 	dockercommand "github.com/docker/cli/cli/command"
 	dockerflags "github.com/docker/cli/cli/flags"
-	composeapi "github.com/docker/compose/v2/pkg/api"
-	compose "github.com/docker/compose/v2/pkg/compose"
-	dockerfilters "github.com/docker/docker/api/types/filters"
-	dockerimage "github.com/docker/docker/api/types/image"
+	composeapi "github.com/docker/compose/v5/pkg/api"
+	compose "github.com/docker/compose/v5/pkg/compose"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
@@ -576,7 +574,12 @@ func loadComposeProject(ctx context.Context, dockerSocket string, material appli
 		_ = dockerCLI.Client().Close()
 		return nil, err
 	}
-	return &composeRuntime{project: project, service: compose.NewComposeService(dockerCLI), dockerCLI: dockerCLI, pruner: dockerCLI.Client()}, nil
+	service, err := compose.NewComposeService(dockerCLI)
+	if err != nil {
+		_ = dockerCLI.Client().Close()
+		return nil, err
+	}
+	return &composeRuntime{project: project, service: service, dockerCLI: dockerCLI, pruner: dockerCLI.Client()}, nil
 }
 
 func loadComposeDefinition(ctx context.Context, material applicationComposeMaterial) (*composetypes.Project, error) {
@@ -655,12 +658,12 @@ func dispatchComposeImagePrune(ctx context.Context, pruner dockerImagePruner) er
 	if pruner == nil {
 		return errUnsupportedProviderOperation
 	}
-	_, err := pruner.ImagesPrune(ctx, dockerfilters.NewArgs(dockerfilters.Arg("dangling", "true")))
+	_, err := pruner.ImagePrune(ctx, mobyclient.ImagePruneOptions{Filters: make(mobyclient.Filters).Add("dangling", "true")})
 	return err
 }
 
 type dockerImagePruner interface {
-	ImagesPrune(context.Context, dockerfilters.Args) (dockerimage.PruneReport, error)
+	ImagePrune(context.Context, mobyclient.ImagePruneOptions) (mobyclient.ImagePruneResult, error)
 }
 
 func composeTimeout(seconds int) *time.Duration {

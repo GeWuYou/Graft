@@ -13,10 +13,9 @@ properties:
     maxLength: 512
     description: Generic OCI endpoint without userinfo, query, fragment, or embedded credentials.
   credential_ref:
-    type: string
+    type: [string, "null"]
     minLength: 1
     maxLength: 255
-    nullable: true
     writeOnly: true
     description: Replaces or clears the opaque managed credential reference. It is never returned.
   enabled:
@@ -24,7 +23,6 @@ properties:
   insecure:
     type: boolean
   description:
-    type: string
+    type: [string, "null"]
     maxLength: 500
-    nullable: true
 additionalProperties: false

@@ -12,11 +12,9 @@ properties:
     type: boolean
     description: Whether Graft application lifecycle actions include this Compose service.
   image:
-    type: string
-    nullable: true
+    type: [string, "null"]
   build_context:
-    type: string
-    nullable: true
+    type: [string, "null"]
   declared_ports:
     type: array
     items:

@@ -36,13 +36,11 @@ properties:
     enum: [unknown, verified, failed]
     x-go-name: ConnectionVerificationStatus
   last_verified_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   description:
-    type: string
+    type: [string, "null"]
     maxLength: 500
-    nullable: true
   system_managed:
     type: boolean
     description: System-managed connections cannot be modified or deleted through this API.

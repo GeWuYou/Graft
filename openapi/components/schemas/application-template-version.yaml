@@ -9,18 +9,14 @@ properties:
     type: object
     additionalProperties: true
   published_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   published_by:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
   withdrawn_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   withdrawn_by:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true

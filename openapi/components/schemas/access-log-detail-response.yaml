@@ -37,19 +37,16 @@ properties:
   user_agent:
     type: string
   user_id:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
   username:
     type: string
   request_size:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
   response_size:
-    type: integer
+    type: [integer, "null"]
     format: int64
-    nullable: true
   started_at:
     type: string
     format: date-time

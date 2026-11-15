@@ -18,5 +18,4 @@ properties:
     type: integer
     minimum: 0
   last_observed_hash:
-    type: string
-    nullable: true
+    type: [string, "null"]

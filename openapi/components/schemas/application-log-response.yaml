@@ -21,8 +21,7 @@ properties:
     type: integer
     minimum: 1
   since:
-    type: string
-    nullable: true
+    type: [string, "null"]
   timestamps:
     type: boolean
   stdout:

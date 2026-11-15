@@ -9,15 +9,13 @@ properties:
   source_type:
     $ref: ./application-source-type.yaml
   authority_root:
-    type: string
-    nullable: true
+    type: [string, "null"]
   supports_scan:
     type: boolean
   supports_auto_discovery:
     type: boolean
   status_reason:
-    type: string
-    nullable: true
+    type: [string, "null"]
   items:
     type: array
     items:

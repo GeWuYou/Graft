@@ -11,9 +11,8 @@ import (
 	"time"
 
 	composetypes "github.com/compose-spec/compose-go/v2/types"
-	composeapi "github.com/docker/compose/v2/pkg/api"
-	dockerfilters "github.com/docker/docker/api/types/filters"
-	dockerimage "github.com/docker/docker/api/types/image"
+	composeapi "github.com/docker/compose/v5/pkg/api"
+	mobyclient "github.com/moby/moby/client"
 )
 
 type recordingComposeService struct {
@@ -86,7 +85,7 @@ func (s *recordingComposeService) Pull(_ context.Context, project *composetypes.
 }
 
 type recordingImagePruner struct {
-	filters dockerfilters.Args
+	filters mobyclient.Filters
 	calls   int
 }
 
@@ -94,10 +93,10 @@ func composeRequest(service composeapi.Compose, pruner dockerImagePruner, projec
 	return composeDispatchRequest{runtime: &composeRuntime{project: project, service: service, pruner: pruner}, managedServices: managed, action: action, policy: policy}
 }
 
-func (p *recordingImagePruner) ImagesPrune(_ context.Context, filters dockerfilters.Args) (dockerimage.PruneReport, error) {
+func (p *recordingImagePruner) ImagePrune(_ context.Context, options mobyclient.ImagePruneOptions) (mobyclient.ImagePruneResult, error) {
 	p.calls++
-	p.filters = filters
-	return dockerimage.PruneReport{}, nil
+	p.filters = options.Filters
+	return mobyclient.ImagePruneResult{}, nil
 }
 
 func TestComposeUpHonorsDomainWaitPolicy(t *testing.T) {
@@ -186,8 +185,8 @@ func TestComposeImagePruneUsesDaemonDanglingPrune(t *testing.T) {
 	if err := dispatchComposeOperation(context.Background(), composeRequest(&recordingComposeService{}, pruner, project, nil, "image-prune", applicationComposePolicy{})); err != nil {
 		t.Fatal(err)
 	}
-	values := pruner.filters.Get("dangling")
-	if pruner.calls != 1 || len(values) != 1 || values[0] != "true" {
+	values := pruner.filters["dangling"]
+	if pruner.calls != 1 || len(values) != 1 || !values["true"] {
 		t.Fatalf("calls=%d filters=%v", pruner.calls, pruner.filters)
 	}
 }

@@ -11,6 +11,5 @@ properties:
     type: string
     enum: [file, directory]
   content:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Required UTF-8 text content for file entries and omitted for directory entries.

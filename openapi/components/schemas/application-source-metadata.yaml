@@ -11,8 +11,7 @@ properties:
     type: string
     description: Canonical managed compose file name tracked by application authority.
   managed_env_file_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Optional managed env file name tracked by application authority.
   template_id:
     type: string

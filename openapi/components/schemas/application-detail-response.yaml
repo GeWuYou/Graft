@@ -13,9 +13,8 @@ allOf:
       last_observed_config_hash:
         type: string
       last_drift_checked_at:
-        type: string
+        type: [string, "null"]
         format: date-time
-        nullable: true
       compose_files:
         type: array
         items:

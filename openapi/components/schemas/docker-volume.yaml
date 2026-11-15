@@ -9,8 +9,8 @@ properties:
     type: boolean
     description: Server-owned classification of Docker-generated anonymous volume names.
   labels: { type: object, additionalProperties: { type: string } }
-  reference_count: { type: integer, format: int64, nullable: true }
-  size_bytes: { type: integer, format: int64, nullable: true }
+  reference_count: { type: [integer, "null"], format: int64 }
+  size_bytes: { type: [integer, "null"], format: int64 }
   container_references:
     type: array
     description: Containers currently referencing this volume, represented as sanitized display references.
