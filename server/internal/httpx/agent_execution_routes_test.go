@@ -74,7 +74,7 @@ func TestConfigureExecutionRoutesRejectsCapabilityOutsideBinding(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	gateway := &recordingRuntimeAgentGateway{}
 	server := newExecutionAgentTestServer()
-	if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "runtime/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}}); err != nil {
+	if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", Generation: 2, CertificateSerial: "serial-7", PublicKeyFingerprint: "fingerprint-7", ExpiresAt: time.Now().Add(time.Hour), TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "runtime/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}}); err != nil {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, agentExecutionClaimPath, strings.NewReader(`{"provider_id":"docker","capability":"build_execution","capability_version":"runtime/v1"}`))
@@ -90,7 +90,7 @@ func TestConfigureExecutionRoutesRejectsCapabilityVersionMismatch(t *testing.T) 
 	gin.SetMode(gin.TestMode)
 	gateway := &recordingRuntimeAgentGateway{}
 	server := newExecutionAgentTestServer()
-	binding := moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
+	binding := moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", Generation: 2, CertificateSerial: "serial-7", PublicKeyFingerprint: "fingerprint-7", ExpiresAt: time.Now().Add(time.Hour), TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
 	if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: binding}); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestConfigureExecutionRoutesRejectsRetiredCertificateGeneration(t *testing.
 	gateway := &recordingRuntimeAgentGateway{}
 	identity := AgentMTLSIdentity{AgentIdentity: moduleapi.AgentIdentity{IdentityID: "identity-7", TargetID: 7, AgentID: "agent-7", Generation: 1, CertificateSerial: "serial-old", PublicKeyFingerprint: "fingerprint-old"}}
 	server := newExecutionAgentTestServerWithIdentity(identity)
-	binding := moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", TargetID: 7, AgentID: "agent-7", Generation: 2, CertificateSerial: "serial-new", PublicKeyFingerprint: "fingerprint-new", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
+	binding := moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", TargetID: 7, AgentID: "agent-7", Generation: 2, ExpiresAt: time.Now().Add(time.Hour), CertificateSerial: "serial-new", PublicKeyFingerprint: "fingerprint-new", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
 	if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: binding}); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestConfigureExecutionRoutesRejectsRetiredCertificateGeneration(t *testing.
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	server.engine.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusBadRequest || gateway.claims != 0 {
+	if recorder.Code != http.StatusUnauthorized || gateway.claims != 0 {
 		t.Fatalf("claim status=%d claims=%d", recorder.Code, gateway.claims)
 	}
 	renewRequest := httptest.NewRequest(http.MethodPost, "/agent/v1/execution-leases/lease-old/renew", strings.NewReader(`{"fence_token":"fence-old"}`))
@@ -146,7 +146,7 @@ func TestExecutionRoutesRejectLeaseCapabilityRemovedFromCurrentGeneration(t *tes
 				CapabilityVersion: "docker/v1", LeaseExpiresAt: now.Add(time.Minute), AbsoluteDeadlineAt: now.Add(time.Hour),
 			}}
 			server := newExecutionAgentTestServer()
-			binding := moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"container_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
+			binding := moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", Generation: 2, CertificateSerial: "serial-7", PublicKeyFingerprint: "fingerprint-7", ExpiresAt: time.Now().Add(time.Hour), TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"container_execution"}, CapabilityVersion: "docker/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}
 			if err := server.ConfigureExecutionRoutes(gateway, recordingAgentBindingReader{binding: binding}); err != nil {
 				t.Fatal(err)
 			}
@@ -166,7 +166,7 @@ func TestExecutionRoutesForwardFencedLifecycle(t *testing.T) {
 	now := time.Now().UTC()
 	gateway := &recordingRuntimeAgentGateway{lease: moduleapi.ExternalExecutionLease{ID: "lease-1", TaskID: 11, StageID: 12, RuntimeTargetID: 7, ProviderID: "docker", Capability: "compose_execution", FenceToken: "fence-1", CapabilityVersion: "runtime/v1", LeaseTTL: time.Minute, LeaseExpiresAt: now.Add(time.Minute), AbsoluteDeadlineAt: now.Add(time.Hour)}}
 	server := newExecutionAgentTestServer()
-	bindings := recordingAgentBindingReader{binding: moduleapi.RuntimeTargetAgentBinding{TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "runtime/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}}
+	bindings := recordingAgentBindingReader{binding: moduleapi.RuntimeTargetAgentBinding{IdentityID: "identity-7", Generation: 2, CertificateSerial: "serial-7", PublicKeyFingerprint: "fingerprint-7", ExpiresAt: time.Now().Add(time.Hour), TargetID: 7, AgentID: "agent-7", ProviderID: "docker", Capabilities: []string{"compose_execution"}, CapabilityVersion: "runtime/v1", Status: moduleapi.RuntimeTargetAgentStatusActive}}
 	if err := server.ConfigureExecutionRoutes(gateway, bindings); err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestExecutionRoutesForwardFencedLifecycle(t *testing.T) {
 
 func TestLongPollAgentExecutionRetriesUntilWorkArrives(t *testing.T) {
 	gateway := &recordingRuntimeAgentGateway{misses: 2, lease: moduleapi.ExternalExecutionLease{ID: "lease-delayed"}}
-	lease, err := longPollAgentExecution(context.Background(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: 7, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "runtime/v1"})
+	lease, err := longPollAgentExecution(context.Background(), gateway, moduleapi.ExternalExecutionClaimRequest{RuntimeTargetID: 7, ProviderID: "docker", Capability: "compose_execution", CapabilityVersion: "runtime/v1"}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestLongPollAgentExecutionRetriesUntilWorkArrives(t *testing.T) {
 }
 
 func newExecutionAgentTestServer() *AgentServer {
-	return newExecutionAgentTestServerWithIdentity(AgentMTLSIdentity{AgentIdentity: moduleapi.AgentIdentity{TargetID: 7, AgentID: "agent-7"}})
+	return newExecutionAgentTestServerWithIdentity(AgentMTLSIdentity{AgentIdentity: moduleapi.AgentIdentity{IdentityID: "identity-7", Generation: 2, CertificateSerial: "serial-7", PublicKeyFingerprint: "fingerprint-7", TargetID: 7, AgentID: "agent-7"}})
 }
 
 func newExecutionAgentTestServerWithIdentity(identity AgentMTLSIdentity) *AgentServer {
