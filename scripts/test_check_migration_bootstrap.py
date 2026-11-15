@@ -121,7 +121,7 @@ class ImagePullTests(unittest.TestCase):
         with mock.patch.object(MODULE, "run_command", return_value=failed) as run_command, mock.patch.object(
             MODULE.time, "sleep"
         ) as sleep:
-            with self.assertRaisesRegex(MODULE.CommandError, "docker pull postgres:16-alpine"):
+            with self.assertRaisesRegex(MODULE.CommandError, "docker pull postgres:16.16-alpine"):
                 MODULE.pull_postgres_image()
 
         self.assertEqual(run_command.call_count, MODULE.IMAGE_PULL_ATTEMPTS)

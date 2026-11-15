@@ -13,7 +13,7 @@ x-graft-server-runtime-env: &graft-server-runtime-env
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -28,7 +28,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine
     restart: unless-stopped
     environment:
       GRAFT_REDIS_PASSWORD: ${GRAFT_REDIS_PASSWORD:-}

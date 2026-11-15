@@ -1,7 +1,7 @@
 services:
   postgres:
     profiles: ["isolated"]
-    image: postgres:16-alpine
+    image: postgres:16.16-alpine
     environment:
       POSTGRES_DB: graft
       POSTGRES_USER: graft
@@ -17,7 +17,7 @@ services:
       retries: 30
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine
     ports:
       - "127.0.0.1:16379:6379"
     healthcheck:
@@ -27,7 +27,7 @@ services:
       retries: 30
 
   vault:
-    image: hashicorp/vault:1.18
+    image: hashicorp/vault:1.21.4
     cap_add: ["IPC_LOCK"]
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: graft-docker-runtime-agent-dev
@@ -42,7 +42,7 @@ services:
       retries: 30
 
   vault-init:
-    image: hashicorp/vault:1.18
+    image: hashicorp/vault:1.21.4
     restart: "no"
     user: "${GRAFT_DOCKER_RUNTIME_DEV_UID:?GRAFT_DOCKER_RUNTIME_DEV_UID is required}:${GRAFT_DOCKER_RUNTIME_DEV_GID:?GRAFT_DOCKER_RUNTIME_DEV_GID is required}"
     environment:
