@@ -65,17 +65,18 @@ func main() {
 	defer cancel()
 	reporter, err := newStateReporter(input)
 	if err != nil {
-		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
+		_ = writeRunnerStateFailureLogs(os.Stdout, input, err)
 		fatal(err)
 	}
 	if err := reporter.Initialize(); err != nil {
-		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
+		_ = writeRunnerStateFailureLogs(os.Stdout, input, err)
 		fatal(err)
 	}
 	reporter.cancelOnHeartbeatFailure = cancel
 	reporter.StartHeartbeat()
 	defer reporter.StopHeartbeat()
 	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{reporter: reporter})
+	receipt = withRunnerStateFailure(input, receipt, executionErr)
 	finalizeErr := reporter.Finalize(receipt)
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
 		// 回执不能泄露宿主路径或备份内容，保留原终态以便 server 结算。
@@ -241,6 +242,28 @@ func runnerStateFailureEvidence(input update.RunnerInput, err error) update.Runn
 		stage = update.RunnerFailureStagePermissionDenied
 	}
 	return update.RunnerFailureEvidence{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID, FailureCode: update.RunnerFailureCodeStateWriteFailed, FailureStage: stage}
+}
+
+// withRunnerStateFailure 为未分类的状态写入错误补全同一回执，不改写已验证的业务结果和迁移事实。
+func withRunnerStateFailure(input update.RunnerInput, receipt update.RunnerReceipt, err error) update.RunnerReceipt {
+	if err == nil || receipt.Succeeded || receipt.FailureCode != "" {
+		return receipt
+	}
+	evidence := runnerStateFailureEvidence(input, err)
+	receipt.ProtocolVersion = input.ProtocolVersion
+	receipt.OperationID, receipt.RunnerID = input.OperationID, input.RunnerID
+	receipt.ExecutionMode = input.ExecutionMode
+	receipt.LaunchStageID, receipt.LaunchAttempt = input.LaunchStageID, input.LaunchAttempt
+	receipt.FailureCode, receipt.FailureStage = evidence.FailureCode, evidence.FailureStage
+	return receipt
+}
+
+func writeRunnerStateFailureLogs(writer io.Writer, input update.RunnerInput, err error) error {
+	receipt := withRunnerStateFailure(input, update.RunnerReceipt{}, err)
+	if logErr := writeRunnerReceiptLog(writer, receipt); logErr != nil {
+		return logErr
+	}
+	return writeRunnerFailureLog(writer, runnerStateFailureEvidence(input, err))
 }
 
 func fatal(err error) { _, _ = fmt.Fprintln(os.Stderr, err); os.Exit(1) }

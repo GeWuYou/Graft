@@ -333,7 +333,7 @@ func ClassifyRunnerReceipt(value RunnerReceipt) ExecutionOutcome {
 	if value.Succeeded {
 		return ExecutionOutcomeSuccess
 	}
-	if value.MigrationStarted {
+	if value.MigrationStarted || value.FailureCode == RunnerFailureCodeStateWriteFailed {
 		return ExecutionOutcomeNeedsAttention
 	}
 	if value.RecoveryCompleted {
