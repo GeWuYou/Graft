@@ -594,7 +594,27 @@ func loadComposeDefinition(ctx context.Context, material applicationComposeMater
 	if err != nil {
 		return nil, err
 	}
-	return projectOptions.LoadProject(ctx)
+	project, err := projectOptions.LoadProject(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Compose 的服务归属标签由 CLI 加载阶段准备，直接调用 SDK 时必须在受控加载边界补齐。
+	// CustomLabels 在 SDK 合并标签时优先于用户标签，避免归属和 one-off 标识被应用配置覆盖。
+	for name, service := range project.Services {
+		service.CustomLabels = composetypes.Labels{
+			composeapi.ProjectLabel:     project.Name,
+			composeapi.ServiceLabel:     name,
+			composeapi.VersionLabel:     composeapi.ComposeVersion,
+			composeapi.WorkingDirLabel:  project.WorkingDir,
+			composeapi.ConfigFilesLabel: strings.Join(project.ComposeFiles, ","),
+			composeapi.OneoffLabel:      "False",
+		}
+		if len(material.EnvFiles) > 0 {
+			service.CustomLabels[composeapi.EnvironmentFileLabel] = strings.Join(material.EnvFiles, ",")
+		}
+		project.Services[name] = service
+	}
+	return project, nil
 }
 
 type composeDispatchRequest struct {
