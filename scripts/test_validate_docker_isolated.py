@@ -255,16 +255,24 @@ class FixtureLifecycleTests(unittest.TestCase):
             topology.setUp()
             del topology.configuration["services"]["conformance-driver"]
             del topology.configuration["services"]["docker-runtime-agent"]
-            fixture.compose = Mock(side_effect=lambda *args: json.dumps(topology.configuration) if args[0] == "config" else "")
+            def compose_result(*args):
+                if args[0] == "config":
+                    return json.dumps(topology.configuration)
+                if args[0] == "wait":
+                    raise RuntimeError("no containers for project after the one-shot already exited")
+                return ""
+            fixture.compose = Mock(side_effect=compose_result)
             fixture.engine = Mock(return_value="local-engine")
             fixture.up()
             calls = [call.args for call in fixture.compose.call_args_list]
             self.assertIn(("up", "-d", "--wait", "docker-daemon", "postgres", "redis"), calls)
-            self.assertIn(("wait", "workspace-init"), calls)
+            self.assertIn(("run", "--rm", "--no-deps", "-T", "workspace-init"), calls)
+            self.assertIn(("run", "--rm", "--no-deps", "-T", "migrate"), calls)
+            self.assertFalse(any(args[0] == "wait" for args in calls))
             self.assertFalse(any("vault" in args or "docker-runtime-agent" in args for args in calls))
             self.assertTrue((directory / "local-readiness-evidence.json").exists())
 
-    def test_waits_for_successful_one_shot_jobs_separately(self):
+    def test_agent_initialization_uses_foreground_exit_codes_and_preserves_vault_order(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture.__new__(Fixture)
             fixture.directory = Path(temporary)
@@ -276,6 +284,8 @@ class FixtureLifecycleTests(unittest.TestCase):
                     return json.dumps(topology.configuration)
                 if args[:4] == ("exec", "-T", "vault", "sh"):
                     return '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"proof"}'
+                if args[0] == "wait":
+                    raise RuntimeError("no containers for project after the one-shot already exited")
                 return ""
             fixture.compose = Mock(side_effect=compose_result)
             fixture.driver = Mock(return_value={"agent_id": "fixture", "target_id": 1,
@@ -283,12 +293,14 @@ class FixtureLifecycleTests(unittest.TestCase):
             fixture.engine = Mock(return_value="private-engine")
             fixture.up()
             calls = [call.args for call in fixture.compose.call_args_list]
-            self.assertIn(("wait", "workspace-init", "vault-init"), calls)
-            self.assertIn(("wait", "migrate"), calls)
+            for service in ("workspace-init", "vault-init", "migrate"):
+                self.assertIn(("run", "--rm", "--no-deps", "-T", service), calls)
+            self.assertFalse(any(args[0] == "wait" for args in calls))
             vault_check = next(args for args in calls if args[:4] == ("exec", "-T", "vault", "sh"))
             self.assertIn("auth/approle/login", vault_check[-1])
             self.assertIn("pki/cert/ca", vault_check[-1])
-            self.assertLess(calls.index(vault_check), calls.index(("up", "-d", "--no-deps", "migrate")))
+            self.assertLess(calls.index(("run", "--rm", "--no-deps", "-T", "vault-init")), calls.index(vault_check))
+            self.assertLess(calls.index(vault_check), calls.index(("run", "--rm", "--no-deps", "-T", "migrate")))
             readiness = [args for args in calls if "--wait" in args]
             self.assertEqual(readiness, [("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault"),
                                          ("up", "-d", "--no-deps", "--wait", "backend")])
@@ -298,6 +310,29 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertIn(("stop", "docker-runtime-agent"), calls)
             verification_calls = [call.args for call in fixture.driver.call_args_list if "verify-restart" in call.args]
             self.assertEqual(verification_calls, [("--phase", "verify-restart", "--agent-id", "fixture")])
+
+    def test_foreground_migration_failure_preserves_exit_code_and_blocks_backend(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "instance.json").write_text(json.dumps({
+                "project": "graft-isolated-migrate-failure", "execution_mode": "local", "environment": {}}))
+            fixture = Fixture(directory)
+            topology = PrivateDockerTopologyTests()
+            topology.setUp()
+            del topology.configuration["services"]["conformance-driver"]
+            del topology.configuration["services"]["docker-runtime-agent"]
+            def command(arguments, **kwargs):
+                if arguments[-3:] == ["config", "--format", "json"]:
+                    return subprocess.CompletedProcess(arguments, 0, stdout=json.dumps(topology.configuration), stderr="")
+                code = 7 if arguments[-5:] == ["run", "--rm", "--no-deps", "-T", "migrate"] else 0
+                return subprocess.CompletedProcess(arguments, code, stdout="", stderr="synthetic migration failure" if code else "")
+            with patch("validate_docker_isolated.subprocess.run", side_effect=command) as runner:
+                with self.assertRaisesRegex(RuntimeError, "Compose command failed"):
+                    fixture.up()
+            self.assertEqual(fixture.last_command_returncode, 7)
+            self.assertFalse(any(call.args[0][-1] == "backend" for call in runner.call_args_list))
+            self.assertFalse((directory / "local-readiness-evidence.json").exists())
+            self.assertIn("synthetic migration failure", (directory / "command-error.log").read_text())
 
     def test_stop_preserves_vault_and_stops_all_other_declared_services(self):
         fixture = Fixture.__new__(Fixture)

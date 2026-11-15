@@ -231,10 +231,9 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         validate_topology(rendered, self.execution_mode)
         if self.execution_mode == "local":
             self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis")
-            self.compose("up", "-d", "--no-deps", "workspace-init")
-            self.compose("wait", "workspace-init")
-            self.compose("up", "-d", "--no-deps", "migrate")
-            self.compose("wait", "migrate")
+            # 前台 one-shot 直接返回退出码，避免快速结束后再查询容器的竞态。
+            self.compose("run", "--rm", "--no-deps", "-T", "workspace-init")
+            self.compose("run", "--rm", "--no-deps", "-T", "migrate")
             self.compose("up", "-d", "--no-deps", "--wait", "backend")
             save(self.directory / "local-readiness-evidence.json", {
                 "execution_mode": "local", "engine_id": self.engine("info", "--format", "{{.ID}}").strip(),
@@ -242,11 +241,10 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             print("Private daemon and local Backend ready", flush=True)
             return
         self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault")
-        self.compose("up", "-d", "--no-deps", "workspace-init", "vault-init")
-        self.compose("wait", "workspace-init", "vault-init")
+        self.compose("run", "--rm", "--no-deps", "-T", "workspace-init")
+        self.compose("run", "--rm", "--no-deps", "-T", "vault-init")
         self.verify_vault_authority()
-        self.compose("up", "-d", "--no-deps", "migrate")
-        self.compose("wait", "migrate")
+        self.compose("run", "--rm", "--no-deps", "-T", "migrate")
         self.compose("up", "-d", "--no-deps", "--wait", "backend")
         args = ["--phase", "prepare", "--agent-id", "docker-runtime-agent",
                 "--image-digest", self.environment["GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST"],
