@@ -206,7 +206,7 @@ def run_release_api(fixture, nested):
         failed_state = json.loads(docker(fixture, "exec", "--user", "graft", before, "cat", "/var/lib/graft/update-state/current.json"))
         failed_receipt = failed_state.get("receipt") or {}
         if (failed_task.get("status") != "failed" or failure.get("failure_code") != "backup_failed"
-            or failed_receipt.get("operation_id") != failed_operation or failed_receipt.get("failure_stage") != "config_snapshot"
+            or failed_receipt.get("operation_id") != failed_operation or failed_receipt.get("failure_stage") != "env_snapshot"
             or failed_receipt.get("migration_started") is not False or failed_receipt.get("succeeded") is not False):
             raise RuntimeError("Missing deployment environment did not produce the expected failed Backup/Task")
     finally:
