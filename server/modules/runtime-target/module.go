@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -863,7 +864,7 @@ func (m *Module) toHTTPSummary(ctx context.Context, target store.Target) generat
 	snapshot := m.snapshot(ctx, target)
 	checkedAt := snapshot.CheckedAt
 	response := generated.RuntimeTargetSummary{Id: int64(target.ID), DisplayName: target.DisplayName}
-	response.Execution = m.executionReadiness(ctx, target)
+	response.Execution = m.executionReadiness(ctx, target, snapshot.Healthy)
 	response.Runtime.Provider = generated.RuntimeTargetSummaryRuntimeProviderDocker
 	response.Runtime.Type = generated.RuntimeTargetSummaryRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
@@ -892,7 +893,7 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	snapshot := m.snapshot(ctx, target)
 	checkedAt := snapshot.CheckedAt
 	response := generated.RuntimeTarget{Id: int64(target.ID), DisplayName: target.DisplayName}
-	response.Execution = m.executionReadiness(ctx, target)
+	response.Execution = m.executionReadiness(ctx, target, snapshot.Healthy)
 	response.Runtime.Provider = generated.RuntimeTargetRuntimeProviderDocker
 	response.Runtime.Type = generated.RuntimeTargetRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
@@ -1040,7 +1041,7 @@ func (m *Module) publishRefreshAuditTx(ctx context.Context, tx *sql.Tx, target s
 }
 
 // executionReadiness 将本机 SDK 执行与 Agent 身份投影分开，列表读取成功只证明连接可读。
-func (m *Module) executionReadiness(ctx context.Context, target store.Target) *generated.RuntimeTargetExecution {
+func (m *Module) executionReadiness(ctx context.Context, target store.Target, dockerHealthy bool) *generated.RuntimeTargetExecution {
 	mode := m.executionMode
 	if mode == "" {
 		mode = config.ExecutionModeAgent
@@ -1061,26 +1062,41 @@ func (m *Module) executionReadiness(ctx context.Context, target store.Target) *g
 	}
 
 	result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("docker_unavailable")
-	if !target.Availability {
+	if mode != config.ExecutionModeLocal {
+		return m.agentExecutionReadiness(ctx, target, result)
+	}
+	if !isLocalDockerExecutionTarget(target) {
+		result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_mode_mismatch")
 		return result
 	}
-	if mode == config.ExecutionModeLocal {
-		if !isLocalDockerExecutionTarget(target) {
-			result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_mode_mismatch")
-			return result
-		}
-		result.Ready = true
-	} else {
-		agent := m.toHTTPAgent(ctx, target)
-		result.Ready = agent.Status == generated.RuntimeTargetAgentStatusReady
-		if !result.Ready {
-			result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("agent_unavailable")
-			return result
-		}
+	if !dockerHealthy {
+		return result
 	}
+	result.Ready = true
 	result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_ready")
 	for _, capability := range localDockerRuntimeAgentCapabilities {
 		result.Capabilities = append(result.Capabilities, generated.RuntimeTargetExecutionCapabilities(capability))
+	}
+	return result
+}
+
+func (m *Module) agentExecutionReadiness(ctx context.Context, target store.Target, result *generated.RuntimeTargetExecution) *generated.RuntimeTargetExecution {
+	if !target.Availability {
+		return result
+	}
+	result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("agent_unavailable")
+	agent := m.toHTTPAgent(ctx, target)
+	if agent.Status != generated.RuntimeTargetAgentStatusReady {
+		return result
+	}
+	for _, capability := range agent.Capabilities {
+		if capability.Status == generated.RuntimeTargetAgentCapabilityStatusReady && slices.Contains(localDockerRuntimeAgentCapabilities, capability.Name) {
+			result.Capabilities = append(result.Capabilities, generated.RuntimeTargetExecutionCapabilities(capability.Name))
+		}
+	}
+	if len(result.Capabilities) != 0 {
+		result.Ready = true
+		result.DiagnosticCode = generated.RuntimeTargetExecutionDiagnosticCode("execution_ready")
 	}
 	return result
 }
