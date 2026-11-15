@@ -83,7 +83,7 @@ func assertPullProgressOutcome(t *testing.T, body string, failed, controller boo
 	request := Request{Capability: "container_execution", Protocol: containerExecutionProtocol, OperationID: "container.image.pull.v1", Input: json.RawMessage(`{"image_ref":"example/image:latest"}`)}
 	if controller {
 		environment = controllerProgressEnvironment(t, server.URL)
-		request = Request{Capability: updateControllerCapability, Protocol: updateControllerProtocol, OperationID: updateControllerOperation, Input: json.RawMessage(`{"operation_id":"update-progress"}`)}
+		request = Request{Capability: updateControllerCapability, Protocol: updateControllerProtocol, OperationID: updateControllerOperation, Input: json.RawMessage(`{"operation_id":"update-progress","source_version":"1.0.0","target_version":"1.1.0"}`)}
 	}
 	result := Execute(context.Background(), environment, request)
 	if (result.Outcome != "success") != failed {
