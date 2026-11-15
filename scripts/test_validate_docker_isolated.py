@@ -54,7 +54,9 @@ class FixtureLifecycleTests(unittest.TestCase):
             calls = [call.args for call in fixture.compose.call_args_list]
             self.assertIn(("wait", "workspace-init", "vault-init"), calls)
             self.assertIn(("wait", "migrate"), calls)
-            self.assertEqual([args for args in calls if "--wait" in args], [("up", "-d", "--wait", "backend")])
+            readiness = [args for args in calls if "--wait" in args]
+            self.assertEqual(readiness, [("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault"),
+                                         ("up", "-d", "--no-deps", "--wait", "backend")])
             self.assertTrue((fixture.directory / "prepared-evidence.json").exists())
 
     def test_reauthenticates_after_empty_password_change_response(self):

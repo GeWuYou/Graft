@@ -77,11 +77,12 @@ class Fixture:
     def up(self) -> None:
         rendered = json.loads(self.compose("config", "--format", "json"))
         validate_topology(rendered)
-        self.compose("up", "-d", "docker-daemon", "workspace-init", "postgres", "redis", "vault", "vault-init")
+        self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault")
+        self.compose("up", "-d", "--no-deps", "workspace-init", "vault-init")
         self.compose("wait", "workspace-init", "vault-init")
-        self.compose("up", "-d", "migrate")
+        self.compose("up", "-d", "--no-deps", "migrate")
         self.compose("wait", "migrate")
-        self.compose("up", "-d", "--wait", "backend")
+        self.compose("up", "-d", "--no-deps", "--wait", "backend")
         args = ["--phase", "prepare", "--agent-id", "docker-runtime-agent",
                 "--image-digest", self.environment["GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST"],
                 "--agent-version", "isolated-fixture", "--enrollment-ref", "isolated-fixture",
