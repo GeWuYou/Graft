@@ -20,6 +20,7 @@ describe('Task execution diagnostics', () => {
       'local_execution_result_unconfirmed',
       'runner_interrupted',
       'local_execution_not_ready',
+      'local_controller_pull_failed',
     ]) {
       const message = resolveTaskFailureMessage(code, 'sensitive provider output', translate);
       expect(message).not.toMatch(/^task\./);

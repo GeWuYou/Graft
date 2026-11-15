@@ -41,6 +41,7 @@
         "localExecutionResultUnconfirmed": "执行结果尚未确认，请核对实际资源后再决定重试。",
         "localExecutionInterrupted": "执行已中断，请核对实际资源后处理该任务。",
         "localExecutionNotReady": "更新后的本机执行通道尚未就绪，请检查执行模式和 Docker 权限。",
+        "localControllerPullFailed": "更新执行镜像拉取失败，请检查镜像仓库和网络连接。",
         "unknown": "任务执行失败，请查看任务日志中的脱敏诊断信息。"
       },
       "identifier": "任务 #{id}",
