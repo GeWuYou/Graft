@@ -16,6 +16,7 @@ const taskFailureCopy: Record<string, string> = {
   local_execution_result_unconfirmed: 'task.detail.failureCodes.localExecutionResultUnconfirmed',
   runner_interrupted: 'task.detail.failureCodes.localExecutionInterrupted',
   local_execution_not_ready: 'task.detail.failureCodes.localExecutionNotReady',
+  local_controller_pull_failed: 'task.detail.failureCodes.localControllerPullFailed',
 };
 
 export function resolveTaskFailureMessage(
