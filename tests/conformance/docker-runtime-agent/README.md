@@ -118,6 +118,8 @@ The local probe discovers the canonical Docker target through the public API, ex
 
 For the full fresh-install path, supply `--web-image <same-source-web-image>` during registration and run `official-install` after `up`. Registration freezes the official Compose file, environment template and fixture files directly from the declared Git commit, recording their SHA-256. The action imports the verified immutable server/web images into the private daemon, stages the official root there and runs its configuration check, migrations, root initialization and complete server/web topology. It then repeats the API and engine probes through the nested web service on `--port + 1`. Restricted synthetic environment files stay under the registered evidence directory. Repeated execution preserves the fixture's existing environment and data.
 
+Image import verifies the exported content-addressed graph, selects its Linux/amd64 runtime configuration and checks the loaded configuration digest, source revision and filesystem layer identities. `image-import-evidence.json` records the outer registered image, archive hash and canonical private-engine configuration ID. This supports Docker image stores that identify an OCI index and stores that identify its runtime configuration.
+
 The installation proof records `complete=true` only after every required probe passes. Failed startup, probe or strict-gate attempts retain incomplete evidence. Build, Controller and Update API actions require the completed proof.
 
 ```sh
