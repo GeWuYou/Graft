@@ -94,12 +94,42 @@ class Fixture:
              "source_revision": self.state["source_revision"], "results": self.results})
         print(f"{scenario}: {status}", flush=True)
 
+    def verify_vault_authority(self) -> dict:
+        # 既有证书仍可通过 mTLS，必须另行证明当前 Vault 接受已交付 AppRole 并持有同一 PKI。
+        script = r'''role_id=$(cat /conformance/secrets/role_id)
+secret_id=$(cat /conformance/secrets/secret_id)
+VAULT_TOKEN=$(vault write -format=json auth/approle/login role_id="$role_id" secret_id="$secret_id" |
+  sed -n 's/^[[:space:]]*"client_token": "\([^" ]*\)".*/\1/p')
+test -n "$VAULT_TOKEN"
+export VAULT_TOKEN
+live_certificate=$(vault read -field=certificate pki/cert/ca)
+delivered_certificate=$(cat /conformance/agent-trust/ca.pem)
+test -n "$live_certificate"
+test -n "$delivered_certificate"
+live_ca=$(printf %s "$live_certificate" | sha256sum | awk '{print $1}')
+delivered_ca=$(printf %s "$delivered_certificate" | sha256sum | awk '{print $1}')
+test "$live_ca" = "$delivered_ca"
+printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n' "$live_ca"
+'''
+        proof = json.loads(self.compose("exec", "-T", "vault", "sh", "-ec", script))
+        save(self.directory / "vault-authority-evidence.json", proof)
+        return proof
+
+    def stop(self) -> None:
+        services = json.loads(self.compose("config", "--format", "json"))["services"]
+        # Vault dev 的 PKI 保存在进程内存中，逻辑停止保留该 authority，最终 destroy 统一释放。
+        workloads = [service for service in services if service != "vault"]
+        if workloads:
+            self.compose("stop", *workloads)
+        print("Fixture workloads stopped, Vault authority retained until destroy", flush=True)
+
     def up(self) -> None:
         rendered = json.loads(self.compose("config", "--format", "json"))
         validate_topology(rendered)
         self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault")
         self.compose("up", "-d", "--no-deps", "workspace-init", "vault-init")
         self.compose("wait", "workspace-init", "vault-init")
+        self.verify_vault_authority()
         self.compose("up", "-d", "--no-deps", "migrate")
         self.compose("wait", "migrate")
         self.compose("up", "-d", "--no-deps", "--wait", "backend")
@@ -390,7 +420,9 @@ def validate_topology(configuration: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, epilog=(
+        "stop pauses fixture workloads and retains the running development Vault authority. "
+        "destroy removes every registered fixture service and volume."))
     parser.add_argument("action", choices=("init", "up", "probe", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
@@ -445,7 +477,7 @@ def main() -> None:
         fixture.compose("down", "--volumes", "--remove-orphans")
         save(directory / "cleanup.json", {"project": fixture.state["project"], "resources_removed": True})
     elif args.action == "stop":
-        fixture.compose("stop")
+        fixture.stop()
     else:
         getattr(fixture, args.action)()
 

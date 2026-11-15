@@ -56,7 +56,13 @@ class FixtureLifecycleTests(unittest.TestCase):
             fixture.environment = {"GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST": "sha256:" + "a" * 64}
             topology = PrivateDockerTopologyTests()
             topology.setUp()
-            fixture.compose = Mock(side_effect=lambda *args: json.dumps(topology.configuration) if args[0] == "config" else "")
+            def compose_result(*args):
+                if args[0] == "config":
+                    return json.dumps(topology.configuration)
+                if args[:4] == ("exec", "-T", "vault", "sh"):
+                    return '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"proof"}'
+                return ""
+            fixture.compose = Mock(side_effect=compose_result)
             fixture.driver = Mock(return_value={"agent_id": "fixture", "target_id": 1,
                 "identity_id": "identity", "generation": 1, "ledger_receipt_count": 2})
             fixture.engine = Mock(return_value="private-engine")
@@ -64,6 +70,10 @@ class FixtureLifecycleTests(unittest.TestCase):
             calls = [call.args for call in fixture.compose.call_args_list]
             self.assertIn(("wait", "workspace-init", "vault-init"), calls)
             self.assertIn(("wait", "migrate"), calls)
+            vault_check = next(args for args in calls if args[:4] == ("exec", "-T", "vault", "sh"))
+            self.assertIn("auth/approle/login", vault_check[-1])
+            self.assertIn("pki/cert/ca", vault_check[-1])
+            self.assertLess(calls.index(vault_check), calls.index(("up", "-d", "--no-deps", "migrate")))
             readiness = [args for args in calls if "--wait" in args]
             self.assertEqual(readiness, [("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault"),
                                          ("up", "-d", "--no-deps", "--wait", "backend")])
@@ -73,6 +83,42 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertIn(("stop", "docker-runtime-agent"), calls)
             verification_calls = [call.args for call in fixture.driver.call_args_list if "verify-restart" in call.args]
             self.assertEqual(verification_calls, [("--phase", "verify-restart", "--agent-id", "fixture")])
+
+    def test_stop_preserves_vault_and_stops_all_other_declared_services(self):
+        fixture = Fixture.__new__(Fixture)
+        services = {name: {} for name in ("vault", "backend", "docker-runtime-agent", "postgres", "redis", "docker-daemon", "vault-init")}
+        fixture.compose = Mock(side_effect=[json.dumps({"services": services}), ""])
+        fixture.stop()
+        command = fixture.compose.call_args_list[-1].args
+        self.assertEqual(command[0], "stop")
+        self.assertEqual(set(command[1:]), set(services) - {"vault"})
+
+    def test_stop_with_only_vault_never_expands_to_stop_all(self):
+        fixture = Fixture.__new__(Fixture)
+        fixture.compose = Mock(return_value='{"services":{"vault":{}}}')
+        fixture.stop()
+        self.assertEqual(fixture.compose.call_count, 1)
+
+    def test_lost_vault_authority_aborts_before_migrations_or_backend(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture.__new__(Fixture)
+            fixture.directory = Path(temporary)
+            topology = PrivateDockerTopologyTests()
+            topology.setUp()
+            def compose_result(*args):
+                if args[0] == "config":
+                    return json.dumps(topology.configuration)
+                if args[:4] == ("exec", "-T", "vault", "sh"):
+                    raise RuntimeError("current Vault rejected stored AppRole")
+                return ""
+            fixture.compose = Mock(side_effect=compose_result)
+            fixture.driver = Mock()
+            with self.assertRaisesRegex(RuntimeError, "Vault rejected"):
+                fixture.up()
+            calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertNotIn(("up", "-d", "--no-deps", "migrate"), calls)
+            self.assertFalse(any("backend" in args for args in calls))
+            fixture.driver.assert_not_called()
 
     def test_reauthenticates_after_empty_password_change_response(self):
         fixture = Fixture.__new__(Fixture)

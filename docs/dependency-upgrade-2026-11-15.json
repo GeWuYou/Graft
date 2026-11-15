@@ -1057,7 +1057,196 @@
         "reason": "Required by containerd v2.4.2 and already selected by baseline graph"
       }
     ],
-    "validation_status": "passed"
+    "validation_status": "passed",
+    "nullable_enum_repair": {
+      "inventory": [
+        {
+          "file": "openapi/components/schemas/container-dashboard-top-item.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerDashboardTopItemHealthHealthy",
+            "ContainerDashboardTopItemHealthUnhealthy",
+            "ContainerDashboardTopItemHealthStarting",
+            "ContainerDashboardTopItemHealthNone",
+            "ContainerDashboardTopItemHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-dashboard-anomaly-item.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerDashboardAnomalyItemHealthHealthy",
+            "ContainerDashboardAnomalyItemHealthUnhealthy",
+            "ContainerDashboardAnomalyItemHealthStarting",
+            "ContainerDashboardAnomalyItemHealthNone",
+            "ContainerDashboardAnomalyItemHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-dashboard-anomaly-item.yaml",
+          "property": "properties.reason_code",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "health.unhealthy",
+            "state.restarting",
+            "state.exited",
+            "state.dead",
+            "state.unknown"
+          ],
+          "varnames": [
+            "ContainerDashboardAnomalyReasonCodeHealthUnhealthy",
+            "ContainerDashboardAnomalyReasonCodeStateRestarting",
+            "ContainerDashboardAnomalyReasonCodeStateExited",
+            "ContainerDashboardAnomalyReasonCodeStateDead",
+            "ContainerDashboardAnomalyReasonCodeStateUnknown"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/application-file-tree-item.yaml",
+          "property": "properties.tooltip_source",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "application-note",
+            "default-rule"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/container-summary.yaml",
+          "property": "properties.health",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "varnames": [
+            "ContainerSummaryHealthHealthy",
+            "ContainerSummaryHealthUnhealthy",
+            "ContainerSummaryHealthStarting",
+            "ContainerSummaryHealthNone",
+            "ContainerSummaryHealthUnavailable"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-orchestrator-info.yaml",
+          "property": "properties.group_scope_kind",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "compose_project",
+            "swarm_stack",
+            "kubernetes_namespace"
+          ],
+          "varnames": [
+            "ContainerOrchestratorInfoGroupScopeKindComposeProject",
+            "ContainerOrchestratorInfoGroupScopeKindSwarmStack",
+            "ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/container-orchestrator-info.yaml",
+          "property": "properties.member_scope_kind",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "compose_service",
+            "swarm_task",
+            "kubernetes_pod"
+          ],
+          "varnames": [
+            "ContainerOrchestratorInfoMemberScopeKindComposeService",
+            "ContainerOrchestratorInfoMemberScopeKindSwarmTask",
+            "ContainerOrchestratorInfoMemberScopeKindKubernetesPod"
+          ]
+        },
+        {
+          "file": "openapi/components/schemas/server-status-dependency-history.yaml",
+          "property": "properties.unavailable_reason",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "redis_not_configured",
+            "read_failed"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/server-status-redis-current-metrics.yaml",
+          "property": "properties.replication_role",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "master",
+            "replica",
+            "unknown"
+          ],
+          "varnames": null
+        },
+        {
+          "file": "openapi/components/schemas/server-status-redis-current-metrics.yaml",
+          "property": "properties.master_link_status",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "up",
+            "down"
+          ],
+          "varnames": null
+        }
+      ],
+      "before": "All10 fields rejected null under EnableJSONSchema2020, reproduced by bounded regression before schema edits",
+      "after": "all10 accept null and representative declared string values and reject invalid string/bool values",
+      "schema_representation": "anyOf constrained string enum with original named-constant metadata, or bare null",
+      "generated_go_contract": "Go type declarations and constants identical after generated comments stripped",
+      "baseline_behavior_evidence": "kin-openapi v0.147.0 openapi3/schema.go visitJSON returns early for nullable nil before enum validation",
+      "normalization_audit": "98/98 canonical source files match intended legacy nullable structure after corrected enum handling",
+      "validation_status": "passed just generate, direct before/after regression, full go run ./cmd/graft validate backend (both lint configurations0issues, full tests/build), just openapi-check",
+      "commit": "3944f0e5a4b86ac76729cd292251fd632c65e108"
+    }
   },
   "web": {
     "dependencies": [
@@ -2107,6 +2296,15 @@
       "https://github.com/GeWuYou/Graft/issues/342",
       "https://github.com/GeWuYou/Graft/issues/343"
     ],
-    "delivery_tracking": "https://github.com/GeWuYou/Graft/issues/341"
+    "delivery_tracking": "https://github.com/GeWuYou/Graft/issues/341",
+    "stop_resume_authority_verification": {
+      "helper_sha256": "2f9194dcee7126ceb7d25103c74a160f2988a3e7a1fb655d56bb08c2c085de4b",
+      "image_source_revision": "c274ac9236a240cf209638434fd370692e204a2d",
+      "only_vault_retained_on_stop": true,
+      "live_stop_resume_authority_verified": true,
+      "pki_fingerprint_unchanged": true,
+      "lost_vault_state_rejected_before_workloads": true
+    },
+    "harness_regression_tests": 13
   }
 }
