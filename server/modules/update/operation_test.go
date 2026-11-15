@@ -204,6 +204,9 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	if queued.ExecutionMode != "local" {
 		t.Fatalf("local execution mode was not frozen: %#v", queued)
 	}
+	if queued.Preflight.ProjectName != "graft" {
+		t.Fatalf("deployment-owned project identity was not frozen: %#v", queued.Preflight)
+	}
 	if queued.Preflight.ComposeRoot != root || queued.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
 		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}

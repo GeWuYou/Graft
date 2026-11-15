@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 import io
 import json
 import re
@@ -14,6 +15,8 @@ ROOT = "/opt/graft-official"
 TRUST_ROOT = ROOT + "/.fixture-release"
 ENDPOINT = "https://build-registry:5443"
 REPOSITORY = "probe/build"
+PROBE_BYTES = b"graft-build-publication-verified\n"
+MANIFEST_ACCEPT = "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json"
 
 
 def daemon(fixture, *arguments):
@@ -23,7 +26,7 @@ def daemon(fixture, *arguments):
 def context_archive() -> bytes:
     content = io.BytesIO()
     with tarfile.open(fileobj=content, mode="w:gz") as archive:
-        for name, value in {"Dockerfile": b"FROM scratch\nCOPY probe /probe\n", "probe": b"graft-build-publication-verified\n"}.items():
+        for name, value in {"Dockerfile": b"FROM scratch\nCOPY probe /probe\n", "probe": PROBE_BYTES}.items():
             member = tarfile.TarInfo(name)
             member.size, member.mode = len(value), 0o644
             archive.addfile(member, io.BytesIO(value))
@@ -46,6 +49,43 @@ def upload_snapshot(nested) -> str:
 def require_response(status: int, allowed: tuple[int, ...], stage: str):
     if status not in allowed:
         raise RuntimeError("Build fixture " + stage + " failed with HTTP " + str(status))
+
+
+def manifest_config_digest(nested, curl: tuple, reference: str, expected_digest: str) -> str:
+    def fetch(selected: str, digest: str) -> dict:
+        payload = nested.compose(*curl, "--fail", "--netrc-file", "/run/graft/registry.netrc", "-H", MANIFEST_ACCEPT,
+            ENDPOINT + "/v2/" + REPOSITORY + "/manifests/" + selected)
+        if "sha256:" + hashlib.sha256(payload.encode()).hexdigest() != digest:
+            raise RuntimeError("Published manifest bytes do not match their immutable digest")
+        return json.loads(payload)
+    manifest = fetch(reference, expected_digest)
+    if "manifests" in manifest:
+        descriptors = [item for item in manifest["manifests"] if (item.get("platform") or {}).get("os") == "linux"
+                       and (item.get("platform") or {}).get("architecture") == "amd64"]
+        if len(descriptors) != 1:
+            raise RuntimeError("Published index does not uniquely identify the requested linux/amd64 image")
+        manifest = fetch(descriptors[0]["digest"], descriptors[0]["digest"])
+    digest = (manifest.get("config") or {}).get("digest", "")
+    if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):
+        raise RuntimeError("Published image manifest has no valid config digest")
+    return digest
+
+
+def verify_image_probe(fixture, image_id: str) -> dict:
+    container = fixture.engine("create", "--name", fixture.state["project"] + "-image-proof-" + secrets.token_hex(3),
+                               image_id, "/fixture-proof-not-started").strip()
+    proof = TRUST_ROOT + "/build/proof-" + secrets.token_hex(4)
+    try:
+        daemon(fixture, "mkdir", "-p", proof)
+        fixture.engine("cp", container + ":/probe", proof + "/probe")
+        actual = daemon(fixture, "sha256sum", proof + "/probe").split()[0]
+        size = int(daemon(fixture, "wc", "-c", proof + "/probe").split()[0])
+    finally:
+        fixture.engine("rm", container)
+    expected = hashlib.sha256(PROBE_BYTES).hexdigest()
+    if actual != expected or size != len(PROBE_BYTES):
+        raise RuntimeError("Built image content does not match the uploaded context")
+    return {"probe_sha256": actual, "expected_probe_sha256": expected, "probe_size_bytes": size, "probe_verified": True}
 
 
 def prepare_registry(fixture, nested, directory):
@@ -155,12 +195,16 @@ def run_build_api(fixture, nested):
         raise RuntimeError("Artifact publication does not match the successful Build")
     image_id = fixture.engine("image", "inspect", "--format", "{{.Id}}", artifact["image_id"]).strip()
     headers = nested.compose(*curl, "--fail", "--head", "--netrc-file", "/run/graft/registry.netrc", "-H",
-        "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json",
+        MANIFEST_ACCEPT,
         ENDPOINT + "/v2/" + REPOSITORY + "/manifests/" + reference)
     remote_digest = next((line.split(":", 1)[1].strip() for line in headers.splitlines()
                           if line.lower().startswith("docker-content-digest:")), "")
     if remote_digest != artifact["digest"] or not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
         raise RuntimeError("Actual Docker image or registry manifest does not match the Build artifact")
+    config_digest = manifest_config_digest(nested, curl, reference, artifact["digest"])
+    if config_digest != image_id:
+        raise RuntimeError("Published manifest config does not identify the actual built Docker image")
+    probe = verify_image_probe(fixture, image_id)
     status, logs = nested.api("GET", f"/api/tasks/{task_id}/logs")
     require_response(status, (200,), "Task log readback")
     if password in json.dumps({"task": task, "job": job, "publications": publications, "logs": logs}):
@@ -168,7 +212,8 @@ def run_build_api(fixture, nested):
     evidence = {"source_revision": fixture.state["source_revision"], "task_id": task_id, "task_status": "success",
         "registry_anonymous_status": 401, "registry_authenticated_status": 200, "registry_verified": True,
         "artifact": artifact, "publications": publications, "engine_image_id": image_id,
-        "remote_manifest_digest": remote_digest, "credential_absent_from_task_and_logs": True}
+        "remote_manifest_digest": remote_digest, "manifest_config_digest": config_digest, **probe,
+        "credential_absent_from_task_and_logs": True}
     path = directory / "build-api-evidence.json"
     path.write_text(json.dumps(evidence, indent=2) + "\n")
     path.chmod(0o600)

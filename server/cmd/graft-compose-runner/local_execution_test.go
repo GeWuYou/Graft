@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -13,6 +14,28 @@ import (
 
 	"graft/server/modules/update"
 )
+
+func TestControllerLoadsTheFrozenDeploymentProjectName(t *testing.T) {
+	root := t.TempDir()
+	composeFile := filepath.Join(root, "compose.yml")
+	definition := "services:\n  server:\n    image: alpine:3.24.4\n  web:\n    image: alpine:3.24.4\n"
+	if err := os.WriteFile(composeFile, []byte(definition), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("GRAFT_EXECUTION_MODE=local\nCOMPOSE_PROJECT_NAME=legacy-project\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	input := update.RunnerInput{ExecutionMode: "local", Preflight: update.ComposePreflight{ComposeRoot: root, ProjectName: "frozen-project", ComposeFiles: []string{composeFile}}}
+	project, err := loadRunnerComposeProject(context.Background(), input, "v1.0.0")
+	if err != nil || project.Name != "frozen-project" {
+		t.Fatalf("frozen project identity lost: %#v / %v", project, err)
+	}
+	input.Preflight.ProjectName = ""
+	project, err = loadRunnerComposeProject(context.Background(), input, "v1.0.0")
+	if err != nil || project.Name != "legacy-project" {
+		t.Fatalf("legacy project environment changed: %#v / %v", project, err)
+	}
+}
 
 func TestControllerRejectsExecutionModeDrift(t *testing.T) {
 	for _, scenario := range []struct {

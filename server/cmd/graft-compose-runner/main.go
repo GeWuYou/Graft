@@ -620,6 +620,10 @@ func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stder
 	if err != nil {
 		return nil, err
 	}
+	project, err := loadRunnerComposeProject(ctx, in, tag)
+	if err != nil {
+		return nil, err
+	}
 	cli, err := dockercommand.NewDockerCli(dockercommand.WithInputStream(io.NopCloser(bytes.NewReader(nil))), dockercommand.WithOutputStream(stdout), dockercommand.WithErrorStream(stderr))
 	if err != nil {
 		return nil, err
@@ -629,27 +633,31 @@ func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stder
 	if err := cli.Initialize(options); err != nil {
 		return nil, err
 	}
-	projectOptions, err := composecli.NewProjectOptions(in.Preflight.ComposeFiles, composecli.WithWorkingDirectory(in.Preflight.ComposeRoot), composecli.WithEnv([]string{"GRAFT_IMAGE_TAG=" + tag}), composecli.WithEnvFiles(filepath.Join(in.Preflight.ComposeRoot, ".env")), composecli.WithDotEnv, composecli.WithDefaultProfiles())
-	if err != nil {
-		_ = cli.Client().Close()
-		return nil, err
-	}
-	project, err := projectOptions.LoadProject(ctx)
-	if err != nil {
-		_ = cli.Client().Close()
-		return nil, err
-	}
-	if err := validateProjectExecutionMode(project, in); err != nil {
-		_ = cli.Client().Close()
-		return nil, err
-	}
-	dockerexecution.PrepareComposeProjectLabels(project, []string{filepath.Join(in.Preflight.ComposeRoot, ".env")})
 	service, err := compose.NewComposeService(cli)
 	if err != nil {
 		_ = cli.Client().Close()
 		return nil, err
 	}
 	return &composeRuntime{project: project, service: service, cli: cli}, nil
+}
+
+// loadRunnerComposeProject 只消费 Deployment Runtime 冻结的项目身份，避免 SDK 按根目录名误选其他部署。
+func loadRunnerComposeProject(ctx context.Context, in update.RunnerInput, tag string) (*composetypes.Project, error) {
+	options, err := composecli.NewProjectOptions(in.Preflight.ComposeFiles, composecli.WithName(in.Preflight.ProjectName),
+		composecli.WithWorkingDirectory(in.Preflight.ComposeRoot), composecli.WithEnv([]string{"GRAFT_IMAGE_TAG=" + tag}),
+		composecli.WithEnvFiles(filepath.Join(in.Preflight.ComposeRoot, ".env")), composecli.WithDotEnv, composecli.WithDefaultProfiles())
+	if err != nil {
+		return nil, err
+	}
+	project, err := options.LoadProject(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateProjectExecutionMode(project, in); err != nil {
+		return nil, err
+	}
+	dockerexecution.PrepareComposeProjectLabels(project, []string{filepath.Join(in.Preflight.ComposeRoot, ".env")})
+	return project, nil
 }
 
 func validateProjectExecutionMode(project *composetypes.Project, in update.RunnerInput) error {

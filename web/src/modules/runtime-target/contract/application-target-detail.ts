@@ -10,6 +10,7 @@ export type ApplicationRuntimeTargetDetail = {
   runtimeType: string;
   version: string;
   agent: RuntimeTargetDetail['agent'];
+  execution?: RuntimeTargetDetail['execution'];
 };
 
 /**
@@ -29,6 +30,7 @@ export async function getApplicationRuntimeTargetDetail(id: number): Promise<App
     runtimeType: readText(runtime.type),
     version: readText(runtime.version),
     agent: target.agent,
+    execution: target.execution,
   };
 }
 
