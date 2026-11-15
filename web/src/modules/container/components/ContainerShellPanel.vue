@@ -199,7 +199,7 @@ const connector: TerminalSessionConnector = {
     } catch (error) {
       const message = resolveShellErrorMessage(error);
       terminalError.value = message;
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     } finally {
       sessionLoading.value = false;
     }

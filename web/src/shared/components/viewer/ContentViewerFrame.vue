@@ -229,7 +229,7 @@ function readStoredHeight() {
   if (typeof window === 'undefined') {
     return null;
   }
-  let raw: string | null = null;
+  let raw: string | null;
   try {
     raw = window.localStorage.getItem(props.storageKey);
   } catch {

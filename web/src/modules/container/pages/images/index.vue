@@ -458,12 +458,12 @@
       <template v-else>
         <div class="docker-images-result-summary">
           <div>
-            <span>{{ t('container.images.batch.resultSuccess') }}</span
-            ><strong>{{ batchResultSuccessCount }}</strong>
+            <span>{{ t('container.images.batch.resultSuccess') }}</span><strong>{{ batchResultSuccessCount }}</strong>
           </div>
           <div>
-            <span>{{ t('container.images.batch.resultFailure') }}</span
-            ><strong>{{ batchFailureDetails.length }}</strong>
+            <span>{{ t('container.images.batch.resultFailure') }}</span><strong>{{
+              batchFailureDetails.length
+            }}</strong>
           </div>
         </div>
         <div class="docker-images-failure-list">

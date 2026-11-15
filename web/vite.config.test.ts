@@ -92,17 +92,22 @@ describe('createViteConfig', () => {
 
   it('splits monaco dependencies into a dedicated vendor chunk', () => {
     const config = createViteConfig('development');
-    const manualChunks = config.build?.rollupOptions?.output;
+    const output = config.build?.rolldownOptions?.output;
 
-    expect(manualChunks).toBeDefined();
-    if (!manualChunks || Array.isArray(manualChunks) || typeof manualChunks.manualChunks !== 'function') {
-      throw new Error('expected manualChunks function to be configured');
+    expect(output).toBeDefined();
+    if (!output || Array.isArray(output) || typeof output.codeSplitting !== 'object') {
+      throw new Error('expected code splitting groups to be configured');
     }
 
-    expect(manualChunks.manualChunks('/tmp/node_modules/monaco-editor/esm/vs/editor/editor.api.js')).toBe(
-      'vendor-monaco',
-    );
-    expect(manualChunks.manualChunks('/tmp/node_modules/monaco-yaml/lib/esm/index.js')).toBe('vendor-monaco');
+    const monacoGroup = output.codeSplitting.groups?.find((group) => group.name === 'vendor-monaco');
+    expect(monacoGroup?.test).toBeInstanceOf(RegExp);
+    if (!(monacoGroup?.test instanceof RegExp)) {
+      throw new Error('expected a Monaco module path pattern');
+    }
+
+    expect(monacoGroup.test.test('/tmp/node_modules/monaco-editor/esm/vs/editor/editor.api.js')).toBe(true);
+    expect(monacoGroup.test.test('/tmp/node_modules/monaco-yaml/lib/esm/index.js')).toBe(true);
+    expect(monacoGroup.test.test('/tmp/src/modules/project/editor.ts')).toBe(false);
   });
 
   it('keeps Monaco worker entrypoints out of dependency optimization', () => {

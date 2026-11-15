@@ -261,15 +261,15 @@ onBeforeUnmount(() => {
   .header-search {
     opacity: 1;
     transition:
-      opacity @anim-duration-base @anim-time-fn-easing,
-      width @anim-duration-base @anim-time-fn-easing;
+      ~'opacity @{anim-duration-base} @{anim-time-fn-easing}',
+      ~'width @{anim-duration-base} @{anim-time-fn-easing}';
     width: 200px;
 
     :deep(.t-input) {
       transition:
-        background @anim-duration-base linear,
-        border-color @anim-duration-base linear,
-        box-shadow @anim-duration-base linear;
+        ~'background @{anim-duration-base} linear',
+        ~'border-color @{anim-duration-base} linear',
+        ~'box-shadow @{anim-duration-base} linear';
     }
 
     &.width-zero {
@@ -281,7 +281,7 @@ onBeforeUnmount(() => {
 
 .header-menu-search-left__button {
   margin: 0;
-  transition: opacity @anim-duration-base @anim-time-fn-easing;
+  transition: ~'opacity @{anim-duration-base} @{anim-time-fn-easing}';
 
   :deep(.t-icon) {
     font-size: var(--td-font-size-title-medium);

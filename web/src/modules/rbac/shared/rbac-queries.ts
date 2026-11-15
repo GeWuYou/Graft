@@ -95,7 +95,7 @@ export function usePermissionCatalogQuery(enabled: MaybeRef<boolean>) {
 async function getCompletePermissionCatalog() {
   const limit = 100;
   let offset = 0;
-  let total = 0;
+  let total: number;
   const items: PermissionListItem[] = [];
 
   do {

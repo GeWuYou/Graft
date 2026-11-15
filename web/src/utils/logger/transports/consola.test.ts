@@ -24,7 +24,9 @@ vi.mock('consola', () => ({
 import { createConsolaTransport } from './consola';
 
 describe('consola transport', () => {
-  it('delegates level filtering to the application logger', () => {
+  it('delegates level filtering to the application logger', async () => {
+    vi.resetModules();
+    await import('./consola');
     expect(createConsolaMock).toHaveBeenCalledWith({ level: Number.POSITIVE_INFINITY });
   });
 

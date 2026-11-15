@@ -26,10 +26,7 @@
 }
 
 // 主表面仅在壳层亚克力开关下使用；默认声明保留可读的实色降级。
-.graft-acrylic-primary-surface(
-  @fallback-background: var(--td-bg-color-container),
-  @radius: var(--td-radius-large)
-) {
+.graft-acrylic-primary-surface(@fallback-background: var(--td-bg-color-container), @radius: var(--td-radius-large)) {
   background: @fallback-background;
   border: 1px solid var(--td-border-level-1-color);
   border-radius: @radius;

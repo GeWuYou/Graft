@@ -72,7 +72,6 @@ function calcHeight() {
   if (!iframe) {
     return;
   }
-  let clientHeight = 0;
   const { showFooter, isUseTabsRouter, showBreadcrumb } = settingStore;
   const rootStyle = window.getComputedStyle(document.documentElement);
   const headerHeight = resolveCssLength(rootStyle.getPropertyValue('--td-comp-size-xxxl'));
@@ -86,7 +85,7 @@ function calcHeight() {
   const bottomSafeSpace = resolveCssLength(rootStyle.getPropertyValue('--graft-page-bottom-safe-area'));
   const top = headerHeight + navHeight + breadcrumbHeight + contentPadding + footerHeight + bottomSafeSpace + 2;
   heightRef.value = window.innerHeight - top;
-  clientHeight = document.documentElement.clientHeight - top;
+  const clientHeight = document.documentElement.clientHeight - top;
   iframe.style.height = `${clientHeight}px`;
 }
 

@@ -173,7 +173,7 @@ const handleSubmit = async (ctx: SubmitContext) => {
 .force-password-change-dialog {
   &__username-hint {
     block-size: 1px;
-    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
     inline-size: 1px;
     overflow: hidden;
     position: absolute;

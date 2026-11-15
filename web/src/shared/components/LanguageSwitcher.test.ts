@@ -12,8 +12,10 @@ vi.mock('@/locales', () => ({
   t: (key: string) => key,
 }));
 
+const changeLocale = vi.hoisted(() => vi.fn());
+
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({ changeLocale: vi.fn(), locale: ref('zh-CN') }),
+  useLocale: () => ({ changeLocale, locale: ref('zh-CN') }),
 }));
 
 const tooltipStub = defineComponent({
@@ -45,6 +47,28 @@ describe('LanguageSwitcher', () => {
 
     expect(wrapper.get('[data-tooltip-content]').attributes('data-tooltip-content')).toBe('layout.header.language');
     expect(wrapper.get('button').attributes('aria-label')).toBe('layout.header.language');
+  });
+
+  it('uses the dropdown item value when changing the locale', async () => {
+    changeLocale.mockClear();
+    const wrapper = mount(LanguageSwitcher, {
+      global: {
+        stubs: {
+          't-button': buttonStub,
+          't-dropdown': { template: '<div><slot /></div>' },
+          't-dropdown-item': {
+            props: ['value'],
+            emits: ['click'],
+            template: '<button @click="$emit(\'click\', value, { e: $event })"><slot /></button>',
+          },
+          't-dropdown-menu': { template: '<div><slot /></div>' },
+          't-tooltip': tooltipStub,
+        },
+      },
+    });
+
+    await wrapper.findAll('button')[1].trigger('click');
+    expect(changeLocale).toHaveBeenCalledExactlyOnceWith('en-US');
   });
 
   it('opens the dialog presentation from its trigger', async () => {

@@ -16,13 +16,13 @@ import type {
   AdvancedQueryFilterTag,
   AdvancedQueryTimeRangeField,
 } from '@/shared/components/query-list';
+import * as BuilderHelpers from '@/shared/components/query-list';
 import {
   AdvancedQueryFilterBuilderFrame,
   SavedQueryViewControl,
   type SavedQueryViewController,
   type SavedQueryViewId,
 } from '@/shared/components/query-list';
-import * as BuilderHelpers from '@/shared/components/query-list';
 
 import type { AppLogFilterState, AppLogSeverity, AppLogSortBy } from '../types/app-log';
 

@@ -101,7 +101,8 @@ export default tseslint.config(
         },
       ],
       'vue/component-name-in-template-casing': ['error', 'kebab-case'],
-      'vue/custom-event-name-casing': ['error', 'kebab-case'],
+      // 保留旧版规则对 Vue v-model 更新事件的豁免，避免改动组件既有事件契约。
+      'vue/custom-event-name-casing': ['error', 'kebab-case', { ignores: ['/^update:/'] }],
       'vue/multi-word-component-names': 'off',
       'vue/no-reserved-props': 'off',
       'vue/no-v-html': 'off',
