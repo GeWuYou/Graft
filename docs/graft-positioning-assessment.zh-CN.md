@@ -93,7 +93,7 @@ Agent 的 `loadComposeProject` 将 SDK stdout/stderr 设为 `io.Discard`，多�
 
 `loadComposeDefinition` 原先直接返回 `LoadProject` 结果。Compose CLI 在其加载阶段准备的服务 CustomLabels 没有由嵌入式调用者补齐，SDK 按项目标签查找停止对象时得到空集合，因而 stop 可以成功返回而没有停止容器。升级前的 v2 调用路径也存在这一加载缺口。修复在受控加载边界补齐项目、服务、工作区、配置文件与普通容器标识，归属标签优先于用户声明的冲突值。最小回归先复现 Task 成功与引擎状态不一致，再要求 up 的 Running=true、stop 的 Running=false，以及容器 restart 的 StartedAt 实际变化。[标签回归](../server/agents/docker-runtime-agent/internal/provider_compose_labels_test.go)、[问题 #347](https://github.com/GeWuYou/Graft/issues/347)
 
-最终快照验证了新建 Compose 资源的核心归属标签、实际启停和最终引擎状态。嵌入式 SDK 的 ComposeVersion 当前为空字符串，版本标签沿用上游字段，运行源码身份由构建记录和镜像源码标签证明。标签修复对新建或经过受控重建的资源生效。旧版创建的无归属标签容器需要先核对应用归属、工作区和持久卷，再安排受控重建。本轮交付涉及源码修复与隔离验证，现场旧实例的迁移尚待核对归属与数据后执行，已有用户实例的自动收养、自动迁移和删除均未执行。
+最终快照验证了新建 Compose 资源的核心归属标签、实际启停和最终引擎状态。嵌入式 SDK 的 ComposeVersion 当前为空字符串，版本标签沿用上游字段，运行源码身份由构建记录和镜像源码标签证明。标签修复对新建或经过受控重建的资源生效。现场旧版创建的无归属标签实例需要在核对应用归属、工作区和持久卷后，由操作人安排受控重建。
 
 首次快照的中断场景曾观察到 `provider_operation_failed`，最终快照则得到 `needs_attention` 与 `agent_execution_interrupted`。这两次观察分别属于其冻结源码，前一次失败码的具体机制仍缺少独立归因证据。最终中断结论以下文最新运行记录为准。
 
@@ -200,7 +200,7 @@ PR #344 审查发现，隔离工具最初的 `stop` 会停止 Vault dev。Vault 
 
 ## 验证范围与已完成检查
 
-服务端切片与后续可空枚举修复分别通过仓库 backend 验证入口。Web 切片在 Node 26.13.1、Bun 1.4.4 下完成 `bun run check`，312 个测试文件、2175 个测试通过，生产构建零 warning，frozen lockfile 安装通过。隔离 harness 的十三个针对性回归、Compose 渲染和 AI 治理检查通过。后续断点修复在 Go 1.27.4 下再次通过完整 `go run ./cmd/graft validate backend`，二十三个隔离工具回归通过。真实 Docker 写路径已通过上文列出的成功场景，执行中断的完整自动恢复、默认安装闭环和其他未列出的能力仍待验收。此次修复未涉及 schema、migration 或前端契约。远端 CI、合并和原依赖 PR 的实际处理结果由负责会话在交付回执中记录。
+服务端切片与后续可空枚举修复分别通过仓库 backend 验证入口。Web 切片在 Node 26.13.1、Bun 1.4.4 下完成 `bun run check`，312 个测试文件、2175 个测试通过，生产构建零 warning，frozen lockfile 安装通过。隔离 harness 的十三个针对性回归、Compose 渲染和 AI 治理检查通过。后续断点修复在 Go 1.27.4 下再次通过完整 `go run ./cmd/graft validate backend`，二十三个隔离工具回归通过。真实 Docker 写路径已通过上文列出的成功场景，执行中断的完整自动恢复、默认安装闭环和其他未列出的能力仍待验收。此次修复覆盖服务端身份、存储、Agent 生命周期与隔离验证工具，沿用现有数据模型和公共 API。远端 CI、合并和原依赖 PR 的实际处理结果由负责会话在交付回执中记录。
 
 ## 依赖升级与交付记录
 
