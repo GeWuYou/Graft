@@ -20,12 +20,10 @@ properties:
     type: boolean
     description: Whether the container belongs to an upper-level orchestrator or control plane.
   display_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Optional fallback source label. Visible UI should still localize by type first.
   group_scope_kind:
-    type: string
-    nullable: true
+    type: [string, "null"]
     enum: [compose_project, swarm_stack, kubernetes_namespace]
     x-enum-varnames:
       - ContainerOrchestratorInfoGroupScopeKindComposeProject
@@ -33,16 +31,13 @@ properties:
       - ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace
     description: Stable normalized group scope kind for list/detail consumers.
   group_value:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Canonical group scope value for exact filtering and grouping.
   group_display_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Human-readable group scope label derived from runtime metadata.
   member_scope_kind:
-    type: string
-    nullable: true
+    type: [string, "null"]
     enum: [compose_service, swarm_task, kubernetes_pod]
     x-enum-varnames:
       - ContainerOrchestratorInfoMemberScopeKindComposeService
@@ -50,12 +45,10 @@ properties:
       - ContainerOrchestratorInfoMemberScopeKindKubernetesPod
     description: Stable normalized member scope kind for list/detail consumers.
   member_value:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Canonical member scope value for exact filtering and grouping.
   member_display_name:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Human-readable member scope label derived from runtime metadata.
   confidence:
     type: string
@@ -65,11 +58,9 @@ properties:
       - ContainerOrchestratorInfoConfidenceMedium
       - ContainerOrchestratorInfoConfidenceLow
   container:
-    type: string
-    nullable: true
+    type: [string, "null"]
   working_dir:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Compose project working directory metadata, not the runtime container working_dir field.
   config_files:
     type: array
@@ -81,8 +72,7 @@ properties:
     items:
       type: string
   recommended_action:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable recommended action code without embedded visible copy.
   action_level:
     type: string

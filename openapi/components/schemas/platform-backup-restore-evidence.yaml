@@ -8,11 +8,9 @@ properties:
     enum: [NOT_VERIFIED, RECORDED]
     description: NOT_VERIFIED means no restore result has been recorded for this Backup.
   result_code:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Controlled restore result code when evidence is recorded.
   recorded_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
     description: Time the latest controlled restore result was recorded.

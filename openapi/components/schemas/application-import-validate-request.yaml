@@ -21,7 +21,6 @@ properties:
     minLength: 1
     maxLength: 120
   compose_project_name_override:
-    type: string
+    type: [string, "null"]
     maxLength: 120
     minLength: 1
-    nullable: true

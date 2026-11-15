@@ -8,6 +8,5 @@ properties:
   availability:
     $ref: ./application-creation-method-availability.yaml
   blocked_reason:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Stable reason code when the creation method is blocked.

@@ -29,8 +29,7 @@ properties:
     type: string
     description: Future-extensible runtime type resolved by the container runtime authority.
   runtime_version:
-    type: string
-    nullable: true
+    type: [string, "null"]
   workspace_path:
     type: string
   workspace_path_source:

@@ -11,8 +11,7 @@ properties:
     type: string
     format: date-time
   archived_at:
-    type: string
+    type: [string, "null"]
     format: date-time
-    nullable: true
   version:
     $ref: ./application-template-version.yaml

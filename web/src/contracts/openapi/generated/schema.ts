@@ -5363,7 +5363,7 @@ export interface components {
       locale?: string;
       /** @description Mirrors the request id contract used by the current runtime. */
       traceId: string;
-      data: unknown;
+      data: unknown | null;
     };
     /** @enum {string} */
     'capability-category':
@@ -5439,7 +5439,6 @@ export interface components {
       data?: components['schemas']['login-response'];
     };
     'enveloped-empty-response': components['schemas']['api-envelope'] & {
-      /** @enum {unknown|null} */
       data?: null;
     };
     'bootstrap-menu': {
@@ -6811,13 +6810,13 @@ export interface components {
       detail: string;
       /** @description Most recent successful monitor-probe latency in milliseconds. Current gauge; null when no successful probe produced a latency. */
       latency_ms: number | null;
-      pool?: components['schemas']['server-status-connection-pool'];
+      pool?: components['schemas']['server-status-connection-pool'] | null;
       /** @description PostgreSQL-only current diagnostics. Null until collection is unavailable or does not apply to this dependency. */
-      postgresql_metrics?: components['schemas']['server-status-postgresql-current-metrics'];
+      postgresql_metrics?: components['schemas']['server-status-postgresql-current-metrics'] | null;
       /** @description Redis-only current diagnostics. Null until collection is unavailable or does not apply to this dependency. */
-      redis_metrics?: components['schemas']['server-status-redis-current-metrics'];
+      redis_metrics?: components['schemas']['server-status-redis-current-metrics'] | null;
       /** @description Redis-backed short history for this dependency. Its unavailability never invalidates the current dependency snapshot. */
-      history?: components['schemas']['server-status-dependency-history'];
+      history?: components['schemas']['server-status-dependency-history'] | null;
     };
     /**
      * @example {
@@ -9453,7 +9452,7 @@ export interface components {
       input_snapshot_id: string;
       input_snapshot_digest: string;
       source_kind: string;
-      application_id?: components['schemas']['application-id'];
+      application_id?: components['schemas']['application-id'] | null;
       application_name?: string | null;
       context_path?: string;
       dockerfile_path?: string;
@@ -9883,7 +9882,7 @@ export interface components {
       application_id: components['schemas']['application-id'];
       display_name: string;
       deployment_adapter_kind: components['schemas']['application-type'];
-      runtime_target?: components['schemas']['application-runtime-target-summary'];
+      runtime_target?: components['schemas']['application-runtime-target-summary'] | null;
       compose_project_name: string;
       compose_project_name_source: components['schemas']['application-compose-project-name-source'];
       application_name?: string | null;
@@ -9894,7 +9893,7 @@ export interface components {
       ownership_mode: components['schemas']['application-ownership-mode'];
       workspace_path: string;
       /** @description Aggregated application status for overview consumption only. It must not become a replacement for container runtime detail authority. */
-      runtime_status?: components['schemas']['application-runtime-status'];
+      runtime_status?: components['schemas']['application-runtime-status'] | null;
       service_count: number;
       container_counts: components['schemas']['application-container-counts'];
       drift_status: components['schemas']['application-drift-status'];

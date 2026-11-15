@@ -6,5 +6,4 @@ properties:
     type: string
     minLength: 1
   env_file_content:
-    type: string
-    nullable: true
+    type: [string, "null"]

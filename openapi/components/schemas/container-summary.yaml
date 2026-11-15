@@ -43,8 +43,7 @@ properties:
       - ContainerSummaryStateDead
       - ContainerSummaryStateUnknown
   health:
-    type: string
-    nullable: true
+    type: [string, "null"]
     enum: [healthy, unhealthy, starting, none, unavailable]
     x-enum-varnames:
       - ContainerSummaryHealthHealthy
@@ -71,8 +70,7 @@ properties:
     items:
       $ref: ./container-port.yaml
   primary_ip:
-    type: string
-    nullable: true
+    type: [string, "null"]
     description: Primary IP address when the runtime list summary exposes one without raw inspect.
   networks:
     type: array
@@ -80,17 +78,15 @@ properties:
     items:
       $ref: ./container-network.yaml
   network_summary:
-    type: string
-    nullable: true
+    type: [string, "null"]
   resource:
     $ref: ./container-resource-summary.yaml
     description: >
       Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be
       treated as a seed snapshot for container stats state rather than the final frontend authority.
   restart_count:
-    type: integer
+    type: [integer, "null"]
     minimum: 0
-    nullable: true
     description: Nullable when the runtime list path does not expose restart count without inspect.
   restart_policy:
     type: string

@@ -49,9 +49,8 @@ properties:
       required: [event_count]
       properties:
         actor_user_id:
-          type: integer
+          type: [integer, "null"]
           format: int64
-          nullable: true
         actor_username:
           type: string
         actor_display_name:

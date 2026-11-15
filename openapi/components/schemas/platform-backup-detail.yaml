@@ -4,7 +4,7 @@ description: Safe Backup asset detail. It exposes asset metadata, integrity reco
 required: [id, purpose, status, retain_until, created_at, config_snapshot, database_dump, restore_evidence]
 properties:
   id: { type: integer, format: int64, minimum: 1 }
-  task_id: { type: integer, format: int64, minimum: 1, nullable: true }
+  task_id: { type: [integer, "null"], format: int64, minimum: 1 }
   purpose: { type: string }
   status: { type: string, enum: [AVAILABLE, EXPIRED, RESTORED] }
   retain_until: { type: string, format: date-time }

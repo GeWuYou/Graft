@@ -1,10 +1,10 @@
-FROM golang:1.26-alpine AS build
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/graft-docker-runtime-agent ./agents/docker-runtime-agent/cmd
 
-FROM alpine:3.22
+FROM alpine:3.24.4
 RUN apk add --no-cache ca-certificates \
     && addgroup -S -g 10001 graft \
     && adduser -S -D -H -u 10001 -G graft graft \

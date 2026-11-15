@@ -8,14 +8,11 @@ properties:
   managed:
     type: boolean
   project:
-    type: string
-    nullable: true
+    type: [string, "null"]
   service:
-    type: string
-    nullable: true
+    type: [string, "null"]
   working_dir:
-    type: string
-    nullable: true
+    type: [string, "null"]
   config_files:
     type: array
     items: { type: string }
@@ -26,8 +23,7 @@ properties:
     type: array
     items: { type: string }
   recommended_action:
-    type: string
-    nullable: true
+    type: [string, "null"]
   action_level:
     type: string
     enum: [readonly, warn, allow]

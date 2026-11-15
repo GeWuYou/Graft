@@ -6,8 +6,8 @@ properties:
   input_snapshot_id: { type: string }
   input_snapshot_digest: { type: string }
   source_kind: { type: string }
-  application_id: { $ref: ./application-id.yaml, nullable: true }
-  application_name: { type: string, nullable: true }
+  application_id: {anyOf: [{$ref: ./application-id.yaml}, {type: 'null'}]}
+  application_name: { type: [string, "null"] }
   context_path: { type: string }
   dockerfile_path: { type: string }
   image_repository: { type: string }

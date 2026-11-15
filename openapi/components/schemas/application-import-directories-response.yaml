@@ -17,8 +17,7 @@ properties:
   current_path:
     type: string
   parent_path:
-    type: string
-    nullable: true
+    type: [string, "null"]
   limit:
     type: integer
     minimum: 1

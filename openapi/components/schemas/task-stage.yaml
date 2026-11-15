@@ -15,8 +15,8 @@ properties:
   recovery_policy:
     type: string
     enum: [manual_reconcile, retry_if_idempotent]
-  started_at: { type: string, format: date-time, nullable: true }
-  finished_at: { type: string, format: date-time, nullable: true }
-  duration_ms: { type: integer, format: int64, minimum: 0, nullable: true }
-  failure_code: { type: string, nullable: true }
-  failure_message: { type: string, nullable: true }
+  started_at: { type: [string, "null"], format: date-time }
+  finished_at: { type: [string, "null"], format: date-time }
+  duration_ms: { type: [integer, "null"], format: int64, minimum: 0 }
+  failure_code: { type: [string, "null"] }
+  failure_message: { type: [string, "null"] }

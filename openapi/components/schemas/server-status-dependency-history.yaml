@@ -27,8 +27,7 @@ properties:
       - RedisHistoryUnavailable
     description: Whether Redis history could be read. Available history may contain zero points.
   unavailable_reason:
-    type: string
-    nullable: true
+    type: [string, "null"]
     enum: [redis_not_configured, read_failed]
     description: Stable reason when status is unavailable; absent when status is available.
   points:

@@ -16,9 +16,8 @@ allOf:
               - RuntimeTargetHealthStatusHealthy
               - RuntimeTargetHealthStatusUnavailable
           lastCheckedAt:
-            type: string
+            type: [string, "null"]
             format: date-time
-            nullable: true
           diagnostic:
             type: string
             description: Sanitized connection diagnostic; empty when healthy.
