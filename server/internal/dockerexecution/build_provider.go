@@ -1,4 +1,4 @@
-package agent
+package dockerexecution
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -104,11 +103,11 @@ type buildPaths struct {
 	dockerfileInContext string
 }
 
-func executeBuildOperation(ctx context.Context, transport *http.Client, c config, lease executionLease) executionResult {
+func executeBuildOperation(ctx context.Context, c Environment, lease Request) Result {
 	if lease.Protocol != buildExecutionProtocol || !validBuildLeaseInput(lease.Input) {
 		return failedExecution(failureInvalidIntent)
 	}
-	material, err := resolveExecutionMaterial(ctx, transport, c.AgentURL, lease)
+	material, err := c.ResolveMaterial(ctx, lease)
 	if err != nil || material.Protocol != buildExecutionMaterialProtocol {
 		return failedExecution(failureProviderOperation)
 	}
@@ -127,10 +126,10 @@ func executeBuildOperation(ctx context.Context, transport *http.Client, c config
 	if err != nil {
 		return failedExecution(failureProviderOperation)
 	}
-	return executionResult{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: encoded}
+	return Result{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: encoded}
 }
 
-func dispatchBuildOperation(ctx context.Context, c config, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
+func dispatchBuildOperation(ctx context.Context, c Environment, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
 	switch operation {
 	case buildImageLocalOperation, buildImagePublishOperation:
 		return executeBuildImage(ctx, c, operation, material)
@@ -152,7 +151,7 @@ func dispatchBuildOperation(ctx context.Context, c config, operation string, mat
 }
 
 //nolint:gocognit,gocyclo,cyclop,funlen // Build SDK orchestration keeps build, inspect, publish and digest verification in one fenced operation.
-func executeBuildImage(ctx context.Context, c config, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
+func executeBuildImage(ctx context.Context, c Environment, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
 	paths, err := normalizeBuildPaths(*material.Context)
 	if err != nil {
 		return buildExecutionResultPayload{}, failureInvalidIntent

@@ -1,7 +1,8 @@
-package agent
+package dockerexecution
 
 import (
 	"archive/tar"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -208,7 +209,7 @@ func TestBuildImageLocalUsesMobySDKAndReturnsProviderNeutralResult(t *testing.T)
 	material := buildExecutionMaterial{Context: &buildContextMaterial{
 		Root: root, ContextPath: "context", DockerfilePath: "context/Dockerfile", Repository: "team/app", Reference: "latest", BuildArgs: []buildArgument{{Name: "VERSION", Value: "1"}},
 	}}
-	result, failureCode := executeBuildImage(t.Context(), config{DockerSocket: server.URL}, buildImageLocalOperation, material)
+	result, failureCode := executeBuildImage(t.Context(), Environment{DockerSocket: server.URL}, buildImageLocalOperation, material)
 	if failureCode != "" {
 		t.Fatalf("failureCode=%q", failureCode)
 	}
@@ -233,18 +234,22 @@ func TestBuildExecutionResolvesFenceBoundMaterialBeforeMobySDK(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lease := executionLease{
-		ID: "lease-build-material", FenceToken: "fence-build-material", OperationID: buildImageLocalOperation,
-		Protocol: buildExecutionProtocol, Capability: buildExecutionCapability, PayloadSHA256: "payload", Input: json.RawMessage(`{"build_id":"build-material"}`),
+	lease := Request{
+		OperationID: buildImageLocalOperation,
+		Protocol:    buildExecutionProtocol, Capability: buildExecutionCapability, Input: json.RawMessage(`{"build_id":"build-material"}`),
 	}
 	materialObserved := false
-	materialServer := newBuildMaterialTestServer(t, lease, materialPayload, &materialObserved)
-	defer materialServer.Close()
 
 	dockerServer := newBuildDockerTestServer(t)
 	defer dockerServer.Close()
-
-	result := executeBuildOperation(t.Context(), materialServer.Client(), config{AgentURL: materialServer.URL, DockerSocket: dockerServer.URL}, lease)
+	environment := Environment{DockerSocket: dockerServer.URL, ResolveMaterial: func(_ context.Context, request Request) (Material, error) {
+		if request.OperationID != lease.OperationID {
+			t.Fatal("material request changed execution identity")
+		}
+		materialObserved = true
+		return Material{Protocol: buildExecutionMaterialProtocol, Payload: materialPayload}, nil
+	}}
+	result := executeBuildOperation(t.Context(), environment, lease)
 	if result.Outcome != "success" || result.Protocol != buildExecutionResultProtocol || !materialObserved {
 		t.Fatalf("result=%#v materialObserved=%v", result, materialObserved)
 	}
@@ -255,25 +260,6 @@ func TestBuildExecutionResolvesFenceBoundMaterialBeforeMobySDK(t *testing.T) {
 	if payload.Repository != "team/app" || payload.Reference != "latest" || payload.ImageID == "" {
 		t.Fatalf("provider-neutral payload=%#v", payload)
 	}
-}
-
-func newBuildMaterialTestServer(t *testing.T, lease executionLease, payload []byte, observed *bool) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/agent/v1/execution-leases/lease-build-material/material" {
-			t.Fatalf("unexpected material request %s %s", r.Method, r.URL.Path)
-		}
-		var request executionHandleRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			t.Fatal(err)
-		}
-		if request.FenceToken != lease.FenceToken {
-			t.Fatalf("material request fence token=%q want=%q", request.FenceToken, lease.FenceToken)
-		}
-		*observed = true
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(executionMaterial{Protocol: buildExecutionMaterialProtocol, Payload: payload})
-	}))
 }
 
 func newBuildDockerTestServer(t *testing.T) *httptest.Server {
