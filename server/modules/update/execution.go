@@ -64,8 +64,26 @@ type RunnerInput struct {
 	SourceVersion      string           `json:"source_version"`
 	TargetVersion      string           `json:"target_version"`
 	TaskID             uint64           `json:"task_id"`
+	ExecutionMode      string           `json:"execution_mode,omitempty"`
 	BackupArtifactRoot string           `json:"backup_artifact_root"`
 	Preflight          ComposePreflight `json:"preflight"`
+}
+
+// EffectiveExecutionMode 将历史输入缺少的模式解释为既有 Agent 执行，保持已冻结更新的归属。
+func (in RunnerInput) EffectiveExecutionMode() string {
+	return effectiveRunnerExecutionMode(in.ExecutionMode)
+}
+
+func effectiveRunnerExecutionMode(mode string) string {
+	if mode == "" {
+		return "agent"
+	}
+	return mode
+}
+
+func validRunnerExecutionMode(mode string) bool {
+	mode = effectiveRunnerExecutionMode(mode)
+	return mode == "local" || mode == "agent"
 }
 
 // RunnerReceipt 是 runner 输出到带 operation label 的容器日志的无秘密结算证据。
@@ -73,6 +91,7 @@ type RunnerReceipt struct {
 	ProtocolVersion   int                                         `json:"protocol_version"`
 	OperationID       string                                      `json:"operation_id"`
 	RunnerID          string                                      `json:"runner_id"`
+	ExecutionMode     string                                      `json:"execution_mode,omitempty"`
 	MigrationStarted  bool                                        `json:"migration_started"`
 	Succeeded         bool                                        `json:"succeeded"`
 	FailureCode       string                                      `json:"failure_code,omitempty"`
@@ -280,6 +299,9 @@ func validTaggedReference(reference, officialImage string) bool {
 func ValidateRunnerInput(value RunnerInput) error {
 	if value.ProtocolVersion != runnerProtocolVersion || strings.TrimSpace(value.OperationID) == "" || value.TaskID == 0 {
 		return errors.New("runner input has an unsupported protocol or missing operation identity")
+	}
+	if !validRunnerExecutionMode(value.ExecutionMode) {
+		return errors.New("runner input execution mode is invalid")
 	}
 	if !filepath.IsAbs(value.BackupArtifactRoot) || filepath.Base(filepath.Clean(value.BackupArtifactRoot)) != value.OperationID {
 		return errors.New("runner input backup artifact root must be an absolute server path")

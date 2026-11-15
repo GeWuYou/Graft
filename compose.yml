@@ -2,6 +2,7 @@ x-graft-server-image: &graft-server-image ghcr.io/gewuyou/graft-server:${GRAFT_I
 
 x-graft-server-runtime-env: &graft-server-runtime-env
   GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
+  GRAFT_EXECUTION_MODE: ${GRAFT_EXECUTION_MODE:-agent}
   GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
   GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
   GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
@@ -58,12 +59,56 @@ services:
     restart: "no"
     # The deployment .env may be root-owned, so this short-lived read-only check runs as root.
     user: "0:0"
-    command: ["config", "validate", "--env-file", "/opt/graft/deployment/.env", "--compose-file", "/opt/graft/deployment/compose.yml"]
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        case "$${GRAFT_EXECUTION_MODE}" in
+          local)
+            case ",$${COMPOSE_PROFILES}," in
+              *,agent,*) echo "Local execution requires removing agent from COMPOSE_PROFILES" >&2; exit 64 ;;
+            esac
+            case "$${GRAFT_APPLICATION_ROOT_HOST_PATH}" in
+              /|*/../*|*/..|*/./*|*/.|*//*) echo "Local application root must be a normalized non-root absolute path" >&2; exit 64 ;;
+              /*) ;;
+              *) echo "Local execution requires an absolute GRAFT_APPLICATION_ROOT_HOST_PATH" >&2; exit 64 ;;
+            esac
+            if [ "$${GRAFT_APPLICATION_ROOT_HOST_PATH}" != "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}" ]; then
+              echo "Local execution requires matching host/container application roots; follow the execution mode migration guide" >&2
+              exit 64
+            fi
+            ;;
+          agent)
+            case ",$${COMPOSE_PROFILES}," in
+              *,agent,*) ;;
+              *) echo "Agent execution requires COMPOSE_PROFILES=agent and completed Agent delivery" >&2; exit 64 ;;
+            esac
+            ;;
+          *) echo "GRAFT_EXECUTION_MODE must be local or agent" >&2; exit 64 ;;
+        esac
+        exec /app/graft config validate --env-file /opt/graft/deployment/.env --compose-file /opt/graft/deployment/compose.yml
+    environment:
+      GRAFT_EXECUTION_MODE: ${GRAFT_EXECUTION_MODE:-agent}
+      COMPOSE_PROFILES: ${COMPOSE_PROFILES:-}
+      GRAFT_APPLICATION_ROOT_HOST_PATH: ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}
+      GRAFT_APPLICATION_ROOT_CONTAINER_PATH: ${GRAFT_APPLICATION_ROOT_CONTAINER_PATH:-/opt/graft/apps}
     volumes:
       - ${COMPOSE_FILE_DIR:-.}/compose.yml:/opt/graft/deployment/compose.yml:ro
       - ${COMPOSE_FILE_DIR:-.}/.env:/opt/graft/deployment/.env:ro
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
+
+  runtime-mode-preflight:
+    image: *graft-server-image
+    restart: "no"
+    profiles: ["runtime-mode-preflight"]
+    env_file:
+      - .env
+    command: ["runtime", "mode", "preflight", "--mode", "local", "--format", "json"]
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+      <<: *graft-server-runtime-env
 
   bootstrap:
     image: *graft-server-image
@@ -76,7 +121,8 @@ services:
         # cutover-v1 is the one-time bootstrap authority for legacy update state;
         # it must complete before the forward-only migration registry runs.
         /app/graft update cutover-v1
-        exec /app/graft migrate up
+        /app/graft migrate up
+        exec /app/graft runtime mode preflight --mode "$${GRAFT_EXECUTION_MODE}" --format json
     depends_on:
       config-validate:
         condition: service_completed_successfully
@@ -165,14 +211,16 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        set -eux
-        mkdir -p /opt/graft/apps
-        chown 10001:10001 /opt/graft/apps
-        chmod 0750 /opt/graft/apps
-        test "$(stat -c '%u:%g' /opt/graft/apps)" = "10001:10001"
-        test "$(stat -c '%a' /opt/graft/apps)" = "750"
+        set -eu
+        mkdir -p "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}"
+        chown 10001:10001 "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}"
+        chmod 0750 "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}"
+        test "$$(stat -c '%u:%g' "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}")" = "10001:10001"
+        test "$$(stat -c '%a' "$${GRAFT_APPLICATION_ROOT_CONTAINER_PATH}")" = "750"
+    environment:
+      GRAFT_APPLICATION_ROOT_CONTAINER_PATH: ${GRAFT_APPLICATION_ROOT_CONTAINER_PATH:-/opt/graft/apps}
     volumes:
-      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:${GRAFT_APPLICATION_ROOT_CONTAINER_PATH:-/opt/graft/apps}
     depends_on:
       config-validate:
         condition: service_completed_successfully
@@ -231,13 +279,11 @@ services:
       - "${GRAFT_HTTPX_AGENT_BOOTSTRAP_TLS_PORT:-8443}"
       - "${GRAFT_HTTPX_AGENT_TLS_PORT:-8444}"
     volumes:
-      # Retained only for Runtime Target discovery/summary, Container
-      # snapshot/resource/log/stream/event/stats/interactive reads,
-      # Deployment Runtime's current-server Docker facts, and bounded
-      # Update observation/recovery. Update Controller launch is Agent-owned.
+      # Local execution and observation share the declared Docker target.
+      # Agent mode keeps its explicit external execution boundary.
       - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
-      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:${GRAFT_APPLICATION_ROOT_CONTAINER_PATH:-/opt/graft/apps}
       - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
       - ${GRAFT_AGENT_SERVER_TLS_HOST_PATH:-./.data/agent-server-tls}:/run/graft/agent-server-tls:ro
       - ${GRAFT_CREDENTIAL_VAULT_HOST_PATH:-./.data/credential-vault}:/run/graft/credential-vault:ro
@@ -247,6 +293,7 @@ services:
 
   docker-runtime-agent:
     image: ghcr.io/gewuyou/graft-docker-runtime-agent:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    profiles: ["agent"]
     restart: unless-stopped
     depends_on:
       server:
@@ -259,7 +306,7 @@ services:
       - ${GRAFT_DOCKER_RUNTIME_AGENT_TRUST_HOST_PATH:-./.data/docker-runtime-agent/trust}:/run/graft-agent-trust:ro
       - ${GRAFT_DOCKER_RUNTIME_AGENT_STATE_HOST_PATH:-./.data/docker-runtime-agent/state}:/var/lib/graft-runtime-agent/state
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:${GRAFT_APPLICATION_ROOT_CONTAINER_PATH:-/opt/graft/apps}
       - graft-build-snapshots:/tmp/graft-build-snapshots:ro
     healthcheck:
       test: ["CMD", "/app/graft-docker-runtime-agent", "--healthcheck"]

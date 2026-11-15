@@ -25,6 +25,7 @@ type ComposeRunnerActions interface {
 	Recreate(context.Context, RunnerInput) error
 	DockerHealth(context.Context, RunnerInput) error
 	Healthz(context.Context, RunnerInput) error
+	LocalExecutionReadiness(context.Context, RunnerInput) error
 }
 
 // RunnerStateReporter 由 runner 入口实现；执行核心只报告受控生命周期阶段，不直接持有状态卷写入能力。
@@ -43,6 +44,7 @@ const (
 	runnerFailureRecreate         = "recreate_failed"
 	runnerFailureDockerHealth     = "docker_health_failed"
 	runnerFailureHealthz          = "healthz_failed"
+	runnerFailureExecutionReady   = "local_execution_not_ready"
 	runnerProgressPreflight       = 5
 	runnerProgressBackup          = 15
 	runnerProgressPullImages      = 30
@@ -109,7 +111,7 @@ func NewRunnerBackupFailure(stage RunnerBackupFailureStage, detail RunnerBackupF
 //
 //nolint:cyclop,funlen // 每一个失败分支都对应不可折叠的升级安全边界和受控终态。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
-	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID}
+	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID, ExecutionMode: input.ExecutionMode}
 	reporter, ok := actions.(RunnerStateReporter)
 	if !ok || reporter == nil {
 		return receipt, errors.New("compose runner state reporter is required")
@@ -219,6 +221,12 @@ func runRunnerMigrationAndHealth(ctx context.Context, input RunnerInput, actions
 	if err := actions.Healthz(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureHealthz
 		return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
+	}
+	if input.EffectiveExecutionMode() == "local" {
+		if err := actions.LocalExecutionReadiness(ctx, input); err != nil {
+			receipt.FailureCode = runnerFailureExecutionReady
+			return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
+		}
 	}
 	return nil
 }

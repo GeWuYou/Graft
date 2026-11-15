@@ -1,5 +1,6 @@
 """Regression checks for the private Docker boundary in the conformance overlay."""
 import copy
+import base64
 import unittest
 import json
 import io
@@ -11,7 +12,7 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, controller_receipt, require_local_acceptance, validate_topology
 
 
 class PrivateDockerTopologyTests(unittest.TestCase):
@@ -48,8 +49,80 @@ class PrivateDockerTopologyTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "nested secret mountpoints"):
             validate_topology(self.configuration)
 
+    def test_local_fixture_uses_private_backend_without_agent_or_vault(self):
+        services = self.configuration["services"]
+        del services["conformance-driver"]
+        del services["docker-runtime-agent"]
+        validate_topology(self.configuration, "local")
+        services["vault"] = {}
+        with self.assertRaisesRegex(RuntimeError, "without Vault or Agent"):
+            validate_topology(self.configuration, "local")
+
 
 class FixtureLifecycleTests(unittest.TestCase):
+    def test_controller_receipt_requires_actual_bound_success_and_backup_digests(self):
+        receipt = {"protocol_version": 2, "operation_id": "controller-test", "runner_id": "runner-test",
+            "execution_mode": "local", "succeeded": True, "migration_started": True,
+            "backup_completion": {"OperationID": "controller-test", "TaskID": 1,
+                "ConfigSnapshotSHA256": "a" * 64, "ConfigSnapshotBytes": 12,
+                "DatabaseDumpSHA256": "b" * 64, "DatabaseDumpBytes": 200}}
+        def output(value):
+            return "GRAFT_UPDATE_RECEIPT:" + base64.b64encode(json.dumps(value).encode()).decode().rstrip("=")
+        self.assertEqual(controller_receipt(output(receipt), "controller-test", "runner-test"), receipt)
+        for field, value in (("succeeded", False), ("execution_mode", "agent"), ("runner_id", "other")):
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "evidence checks"):
+                controller_receipt(output({**receipt, field: value}), "controller-test", "runner-test")
+        receipt["backup_completion"]["OperationID"] = "other-operation"
+        with self.assertRaisesRegex(RuntimeError, "evidence checks"):
+            controller_receipt(output(receipt), "controller-test", "runner-test")
+
+    def test_every_required_local_scenario_must_have_passing_evidence(self):
+        complete = [{"scenario": name, "status": "passed"} for name in LOCAL_REQUIRED_SCENARIOS]
+        require_local_acceptance(complete)
+        for status in ("unverified", "skipped", "failed", "observed"):
+            with self.subTest(status=status):
+                incomplete = [item for item in complete if item["scenario"] != "local-execution-interruption"]
+                incomplete.append({"scenario": "local-execution-interruption", "status": status})
+                with self.assertRaisesRegex(RuntimeError, "local-execution-interruption"):
+                    require_local_acceptance(incomplete)
+        with self.assertRaisesRegex(RuntimeError, "local-execution-interruption"):
+            require_local_acceptance([item for item in complete if item["scenario"] != "local-execution-interruption"])
+
+    def test_official_probe_commands_stay_inside_registered_private_daemon(self):
+        parent = Fixture.__new__(Fixture)
+        parent.state = {"project": "graft-isolated-official-test", "execution_mode": "local"}
+        parent.environment = {"GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081"}
+        parent.last_command_returncode = 0
+        parent.compose = Mock(return_value="10001")
+        fixture = OfficialFixture(parent, Path("/evidence/official"), "/opt/graft-official")
+        fixture.compose("exec", "-T", "backend", "id", "-u")
+        command = parent.compose.call_args.args
+        self.assertEqual(command[:5], ("exec", "-T", "docker-daemon", "docker", "--host=unix:///run/graft-docker/docker.sock"))
+        self.assertIn("graft-isolated-official-test-official", command)
+        self.assertEqual(command[-7:], ("exec", "-T", "--user", "graft", "server", "id", "-u"))
+        fixture.compose("exec", "-T", "docker-daemon", "chmod", "660", "/run/graft-docker/docker.sock")
+        self.assertEqual(parent.compose.call_args.args[:3], ("exec", "-T", "docker-daemon"))
+
+    def test_local_startup_needs_only_backend_image_and_no_trust_delivery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "instance.json").write_text(json.dumps({
+                "project": "graft-isolated-local-test", "execution_mode": "local", "environment": {}}))
+            fixture = Fixture(directory)
+            self.assertIn("compose.local.yml", fixture.prefix[-1])
+            topology = PrivateDockerTopologyTests()
+            topology.setUp()
+            del topology.configuration["services"]["conformance-driver"]
+            del topology.configuration["services"]["docker-runtime-agent"]
+            fixture.compose = Mock(side_effect=lambda *args: json.dumps(topology.configuration) if args[0] == "config" else "")
+            fixture.engine = Mock(return_value="local-engine")
+            fixture.up()
+            calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertIn(("up", "-d", "--wait", "docker-daemon", "postgres", "redis"), calls)
+            self.assertIn(("wait", "workspace-init"), calls)
+            self.assertFalse(any("vault" in args or "docker-runtime-agent" in args for args in calls))
+            self.assertTrue((directory / "local-readiness-evidence.json").exists())
+
     def test_waits_for_successful_one_shot_jobs_separately(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture.__new__(Fixture)
@@ -180,6 +253,29 @@ class FixtureAPIContractTests(unittest.TestCase):
 
 
 class RuntimeRepairEvidenceTests(unittest.TestCase):
+    def test_local_target_discovery_requires_unique_canonical_wire_target(self):
+        fixture = Fixture.__new__(Fixture)
+        fixture.api = Mock(return_value=(200, {"data": {"items": [{
+            "id": 7, "runtime": {"provider": "docker"}, "connection": {"kind": "unix_socket"}}]}}))
+        self.assertEqual(fixture.local_target_id(), 7)
+        fixture.api.return_value = (200, {"data": {"items": []}})
+        with self.assertRaisesRegex(RuntimeError, "uniquely discovered"):
+            fixture.local_target_id()
+
+    def test_local_interruption_requires_unknown_task_and_preserved_engine_effect(self):
+        for status, expected in (("needs_attention", "passed"), ("success", "failed")):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                fixture.state["execution_mode"] = "local"
+                fixture.api = Mock(side_effect=[(201, {"data": {"application_id": "app-fixture"}}),
+                    (202, {"data": {"task_id": 1}})])
+                fixture.wait_task = Mock(return_value={"status": status})
+                fixture.engine = Mock(side_effect=["graft-interruption-probe-test-app", "id started", "id started"])
+                with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                    fixture.interruption_probe({}, "services: {}", "original", {})
+                self.assertEqual(fixture.record.call_args.args, ("local-execution-interruption", expected))
+                self.assertIn(unittest.mock.call("kill", "--signal", "SIGKILL", "backend"), fixture.compose.call_args_list)
+
     def test_original_runner_reuses_complete_restart_evidence(self):
         runner = Path(__file__).resolve().parents[1] / "tests/conformance/docker-runtime-agent/run.sh"
         script = runner.read_text()

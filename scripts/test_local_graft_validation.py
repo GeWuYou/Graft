@@ -11,6 +11,9 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+import os
+import subprocess
+import yaml
 
 
 SCRIPT_PATH = Path(__file__).with_name("local_graft_validation.py")
@@ -189,6 +192,27 @@ class LocalValidationTests(unittest.TestCase):
         self.assertEqual(MODULE.parse_env(env_path)["POSTGRES_PASSWORD"], original_password)
         self.assertIn("services:", (self.root / "beta" / "compose.yml").read_text(encoding="utf-8"))
 
+    @mock.patch.object(MODULE, "run_compose", return_value=0)
+    @mock.patch.object(MODULE, "published_server_revision", return_value="a" * 40)
+    @mock.patch.object(MODULE, "download_release_file")
+    @mock.patch.object(MODULE, "validate_ports")
+    def test_release_sync_preserves_legacy_agent_mode_and_other_profiles(
+        self, _ports, download, _revision, _compose
+    ) -> None:
+        MODULE.initialise(self.root)
+        path = self.root / "beta" / ".env"
+        values = MODULE.parse_env(path)
+        values.pop("GRAFT_EXECUTION_MODE", None)
+        values["COMPOSE_PROFILES"] = "operator"
+        path.write_text(MODULE.set_env_values("", values), encoding="utf-8")
+        download.side_effect = ["services:\n  server:\n    image: example\n",
+            "GRAFT_EXECUTION_MODE=local\nCOMPOSE_PROFILES=\n"]
+        MODULE.sync_instance_compose(self.root, "beta")
+        preserved = MODULE.parse_env(path)
+        self.assertEqual(preserved["GRAFT_EXECUTION_MODE"], "agent")
+        self.assertEqual(preserved["COMPOSE_PROFILES"], "operator,agent")
+
+
     @mock.patch.object(MODULE, "run_compose", return_value=1)
     @mock.patch.object(MODULE, "published_server_revision", return_value="a" * 40)
     @mock.patch.object(MODULE, "download_release_file")
@@ -229,6 +253,57 @@ class LocalValidationTests(unittest.TestCase):
         self.assertTrue((self.root / "beta" / "data" / "apps").is_dir())
         run_compose.assert_called_once_with(self.root, "beta", "down", "--volumes")
         run.assert_called_once_with(["docker", "volume", "rm", MODULE.update_volume_name("beta")], check=False)
+
+
+class OfficialComposeExecutionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        root = SCRIPT_PATH.parents[1]
+        self.compose = yaml.safe_load((root / "compose.yml").read_text(encoding="utf-8"))
+
+    def run_preflight(self, mode, profiles="", host_root="/opt/graft/apps", container_root="/opt/graft/apps"):
+        script = self.compose["services"]["config-validate"]["command"][0]
+        script = script.split("exec /app/graft", 1)[0].replace("$$", "$")
+        return subprocess.run(["sh", "-ec", script], capture_output=True, text=True, env={**os.environ,
+            "GRAFT_EXECUTION_MODE": mode, "COMPOSE_PROFILES": profiles,
+            "GRAFT_APPLICATION_ROOT_HOST_PATH": host_root,
+            "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": container_root})
+
+    def test_local_profile_accepts_same_absolute_workspace_without_agent(self):
+        self.assertEqual(self.run_preflight("local").returncode, 0)
+        self.assertEqual(self.compose["services"]["docker-runtime-agent"]["profiles"], ["agent"])
+
+    def test_generated_helper_instances_pass_topology_preflight_with_isolated_roots(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            roots = set()
+            for instance in MODULE.INSTANCES:
+                env = MODULE.desired_env(Path(temporary), instance)
+                root = env["GRAFT_APPLICATION_ROOT_HOST_PATH"]
+                self.assertEqual(root, env["GRAFT_APPLICATION_ROOT_CONTAINER_PATH"])
+                self.assertTrue(Path(root).is_absolute())
+                self.assertEqual(self.run_preflight(env["GRAFT_EXECUTION_MODE"], env["COMPOSE_PROFILES"], root, root).returncode, 0)
+                roots.add(root)
+            self.assertEqual(len(roots), len(MODULE.INSTANCES))
+
+    def test_mode_profile_mismatch_reports_actionable_error(self):
+        agent = self.run_preflight("agent")
+        self.assertNotEqual(agent.returncode, 0)
+        self.assertIn("COMPOSE_PROFILES=agent", agent.stderr)
+        self.assertEqual(self.run_preflight("agent", "operator,agent").returncode, 0)
+        self.assertNotEqual(self.run_preflight("local", "agent").returncode, 0)
+
+    def test_local_relative_or_mismatched_roots_are_rejected(self):
+        self.assertIn("absolute", self.run_preflight("local", host_root="./apps").stderr)
+        self.assertIn("matching", self.run_preflight("local", host_root="/srv/apps").stderr)
+        self.assertEqual(self.run_preflight("local", host_root="/srv/apps", container_root="/srv/apps").returncode, 0)
+        self.assertNotEqual(self.run_preflight("local", host_root="/", container_root="/").returncode, 0)
+        self.assertNotEqual(self.run_preflight("local", host_root="/srv/../apps", container_root="/srv/../apps").returncode, 0)
+
+    def test_mode_preflight_runs_after_migrations_before_server(self):
+        services = self.compose["services"]
+        bootstrap = services["bootstrap"]["command"][0]
+        self.assertLess(bootstrap.index("/app/graft migrate up"), bootstrap.index("runtime mode preflight"))
+        self.assertEqual(services["server"]["depends_on"]["bootstrap"]["condition"], "service_completed_successfully")
+        self.assertEqual(services["runtime-mode-preflight"]["image"], services["server"]["image"])
 
 
 if __name__ == "__main__":

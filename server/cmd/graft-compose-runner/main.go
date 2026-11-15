@@ -27,6 +27,7 @@ import (
 	compose "github.com/docker/compose/v5/pkg/compose"
 	dockerclient "github.com/moby/moby/client"
 
+	"graft/server/internal/dockerexecution"
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
 )
@@ -139,16 +140,26 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 	if input.State == nil {
 		persisted = update.RunnerState{}
 	}
+	mode := input.ExecutionMode
+	if input.State != nil {
+		if mode != "" && (update.RunnerInput{ExecutionMode: mode}).EffectiveExecutionMode() != (update.RunnerInput{ExecutionMode: persisted.ExecutionMode}).EffectiveExecutionMode() {
+			return errors.New("recovery runner execution mode binding changed")
+		}
+		mode = persisted.ExecutionMode
+	}
+	if mode != "" && mode != "agent" && mode != "local" {
+		return errors.New("recovery runner execution mode is invalid")
+	}
 	recoveryRunnerID, err := newRunnerID()
 	if err != nil {
 		return err
 	}
-	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
+	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, ExecutionMode: mode, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
 	failureCode, failureDetail := update.RunnerFailureCodeInvalidInput, "interrupted_before_migration"
 	if input.Corrupt {
 		failureCode, failureDetail = update.RunnerFailureCodeStateCorrupt, "state_snapshot_quarantined"
 	}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, ExecutionMode: mode, FailureCode: failureCode, FailureStage: "runner_recovery", FailureDetail: failureDetail}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}
@@ -481,14 +492,14 @@ func backupFailure(stage update.RunnerBackupFailureStage, err error) error {
 }
 func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
 func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
-	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight); err != nil {
-		return err
-	}
 	runtime, err := newComposeRuntime(ctx, in, os.Stdout, os.Stderr)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = runtime.Close() }()
+	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight); err != nil {
+		return err
+	}
 	return runtime.pull(ctx)
 }
 func (a *actions) StopServices(ctx context.Context, in update.RunnerInput) error {
@@ -534,10 +545,15 @@ func (a *actions) DockerHealth(ctx context.Context, in update.RunnerInput) error
 	if err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for _, item := range items {
 		if item.State != "running" {
 			return fmt.Errorf("compose service %s is not running", item.Service)
 		}
+		seen[item.Service] = true
+	}
+	if !seen["server"] || !seen["web"] {
+		return errors.New("updated server and web containers were not both found")
 	}
 	return nil
 }
@@ -555,6 +571,19 @@ func (a *actions) Healthz(ctx context.Context, in update.RunnerInput) error {
 		return fmt.Errorf("server health endpoint exited with status %d", code)
 	}
 	return nil
+}
+
+// LocalExecutionReadiness 验证新 server 的执行归属和 Docker 通道，完成后才允许 Controller 发布成功回执。
+func (a *actions) LocalExecutionReadiness(ctx context.Context, in update.RunnerInput) error {
+	runtime, err := newComposeRuntime(ctx, in, io.Discard, io.Discard)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = runtime.Close() }()
+	if err := runtime.execFixed(ctx, "server", []string{"/app/graft", "runtime", "mode", "preflight", "--mode", "local", "--format", "json"}, "graft"); err != nil {
+		return errors.New("local execution ownership verification failed")
+	}
+	return runtime.execFixed(ctx, "server", []string{"curl", "--fail", "--silent", "--max-time", healthzCurlTimeoutSeconds, "--unix-socket", "/var/run/docker.sock", "http://localhost/_ping"}, "graft")
 }
 
 //nolint:unused // 保留为协议测试使用的固定命令 seam。
@@ -597,7 +626,7 @@ func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stder
 	if err := cli.Initialize(options); err != nil {
 		return nil, err
 	}
-	projectOptions, err := composecli.NewProjectOptions(in.Preflight.ComposeFiles, composecli.WithWorkingDirectory(in.Preflight.ComposeRoot), composecli.WithEnv([]string{"GRAFT_IMAGE_TAG=" + tag}), composecli.WithEnvFiles(filepath.Join(in.Preflight.ComposeRoot, ".env")), composecli.WithDotEnv)
+	projectOptions, err := composecli.NewProjectOptions(in.Preflight.ComposeFiles, composecli.WithWorkingDirectory(in.Preflight.ComposeRoot), composecli.WithEnv([]string{"GRAFT_IMAGE_TAG=" + tag}), composecli.WithEnvFiles(filepath.Join(in.Preflight.ComposeRoot, ".env")), composecli.WithDotEnv, composecli.WithDefaultProfiles())
 	if err != nil {
 		_ = cli.Client().Close()
 		return nil, err
@@ -607,12 +636,35 @@ func newComposeRuntime(ctx context.Context, in update.RunnerInput, stdout, stder
 		_ = cli.Client().Close()
 		return nil, err
 	}
+	if err := validateProjectExecutionMode(project, in); err != nil {
+		_ = cli.Client().Close()
+		return nil, err
+	}
+	dockerexecution.PrepareComposeProjectLabels(project, []string{filepath.Join(in.Preflight.ComposeRoot, ".env")})
 	service, err := compose.NewComposeService(cli)
 	if err != nil {
 		_ = cli.Client().Close()
 		return nil, err
 	}
 	return &composeRuntime{project: project, service: service, cli: cli}, nil
+}
+
+func validateProjectExecutionMode(project *composetypes.Project, in update.RunnerInput) error {
+	mode := project.Environment["GRAFT_EXECUTION_MODE"]
+	if mode == "" {
+		mode = "agent"
+	}
+	if mode != in.EffectiveExecutionMode() {
+		return errors.New("deployment execution mode no longer matches the frozen update")
+	}
+	if mode == "local" {
+		if _, active := project.Services["docker-runtime-agent"]; active {
+			return errors.New("local update topology includes an active Agent service")
+		}
+	} else if _, active := project.Services["docker-runtime-agent"]; !active {
+		return errors.New("Agent update topology requires an active docker-runtime-agent service and its configured profile")
+	}
+	return nil
 }
 
 func (r *composeRuntime) Close() error {
@@ -636,7 +688,7 @@ func (r *composeRuntime) up(ctx context.Context, services []string) error {
 	if err != nil {
 		return err
 	}
-	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services}})
+	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services, Wait: true, WaitTimeout: 60}})
 }
 func (r *composeRuntime) run(ctx context.Context, serviceName string) error {
 	code, err := r.service.RunOneOffContainer(ctx, r.project, composeapi.RunOptions{Project: r.project, Service: serviceName, AutoRemove: true, Tty: false, Interactive: false})

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing Agent fixture with a task-owned Docker daemon and API evidence."""
+"""Verify local or Agent execution against a task-owned Docker daemon."""
 from __future__ import annotations
 
 import argparse
@@ -19,6 +19,40 @@ from urllib import error, request
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/conformance/docker-runtime-agent"
 TERMINAL = {"success", "failed", "cancelled", "needs_attention"}
+LOCAL_REQUIRED_SCENARIOS = frozenset({
+    "enable-ops.container.runtime.enabled", "enable-ops.container.actions.dangerous_enabled",
+    "enable-ops.container.shell.enabled", "image-pull", "container-list", "container-logs",
+    "container-stop", "container-start", "container-restart", "shell-ticket", "shell-command-output",
+    "compose-managed-create", "compose-up", "compose-relative-bind", "compose-stop", "compose-material-missing",
+    "compose-import", "compose-import-readback", "compose-reimport-conflict", "local-execution-interruption",
+    "backend-socket-permission-denied", "local-mode-preflight", "image-pull-unreachable",
+})
+
+
+def require_local_acceptance(results: list[dict]) -> None:
+    observed = {item["scenario"]: item["status"] for item in results}
+    incomplete = sorted(scenario for scenario in LOCAL_REQUIRED_SCENARIOS if observed.get(scenario) != "passed")
+    if incomplete:
+        raise RuntimeError("Required local acceptance scenarios incomplete: " + ", ".join(incomplete))
+
+
+def controller_receipt(output: str, operation: str, runner: str) -> dict:
+    marker = "GRAFT_UPDATE_RECEIPT:"
+    encoded = next((line[len(marker):] for line in reversed(output.splitlines()) if line.startswith(marker)), "")
+    if not encoded or len(encoded) > 65536:
+        raise RuntimeError("Controller did not produce a bounded receipt")
+    receipt = json.loads(base64.b64decode(encoded + "=" * (-len(encoded) % 4), validate=True))
+    backup = receipt.get("backup_completion") or {}
+    valid = (receipt.get("protocol_version") == 2 and receipt.get("operation_id") == operation
+             and receipt.get("runner_id") == runner and receipt.get("execution_mode") == "local"
+             and receipt.get("succeeded") is True and receipt.get("migration_started") is True
+             and backup.get("OperationID") == operation and backup.get("TaskID") == 1)
+    for prefix in ("ConfigSnapshot", "DatabaseDump"):
+        valid = valid and bool(re.fullmatch(r"[a-f0-9]{64}", str(backup.get(prefix + "SHA256", ""))))
+        valid = valid and isinstance(backup.get(prefix + "Bytes"), int) and backup[prefix + "Bytes"] > 0
+    if not valid:
+        raise RuntimeError("Controller receipt failed identity, local mode, success or backup evidence checks")
+    return receipt
 
 
 def save(path: Path, value: dict) -> None:
@@ -31,11 +65,21 @@ class Fixture:
         self.directory = directory
         self.state = json.loads((directory / "instance.json").read_text())
         self.environment = {**os.environ, **self.state["environment"]}
-        self.prefix = ["docker", "compose", "--project-name", self.state["project"],
-                       "--profile", "conformance", "-f", str(FIXTURE / "compose.yml"),
-                       "-f", str(FIXTURE / "compose.isolated.yml")]
+        self.prefix = ["docker", "compose", "--project-name", self.state["project"]]
+        fixture_source = self.directory / "source-assets" / "fixture"
+        if not fixture_source.is_dir():
+            fixture_source = FIXTURE
+        if self.execution_mode == "local":
+            self.prefix.extend(["-f", str(fixture_source / "compose.local.yml")])
+        else:
+            self.prefix.extend(["--profile", "conformance", "-f", str(fixture_source / "compose.yml"),
+                                "-f", str(fixture_source / "compose.isolated.yml")])
         self.token = ""
         self.results: list[dict] = []
+
+    @property
+    def execution_mode(self) -> str:
+        return getattr(self, "state", {}).get("execution_mode", "agent")
 
     def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
         result = subprocess.run(self.prefix + list(arguments), cwd=ROOT,
@@ -91,7 +135,8 @@ class Fixture:
     def record(self, scenario: str, status: str, **facts) -> None:
         self.results.append({"scenario": scenario, "status": status, **facts})
         save(self.directory / "api-evidence.json", {"project": self.state["project"],
-             "source_revision": self.state["source_revision"], "results": self.results})
+             "source_revision": self.state["source_revision"], "execution_mode": self.execution_mode,
+             "results": self.results})
         print(f"{scenario}: {status}", flush=True)
 
     def verify_vault_authority(self) -> dict:
@@ -121,11 +166,23 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         workloads = [service for service in services if service != "vault"]
         if workloads:
             self.compose("stop", *workloads)
-        print("Fixture workloads stopped, Vault authority retained until destroy", flush=True)
+        print("Fixture workloads stopped" + (", Vault authority retained until destroy" if "vault" in services else ""), flush=True)
 
     def up(self) -> None:
         rendered = json.loads(self.compose("config", "--format", "json"))
-        validate_topology(rendered)
+        validate_topology(rendered, self.execution_mode)
+        if self.execution_mode == "local":
+            self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis")
+            self.compose("up", "-d", "--no-deps", "workspace-init")
+            self.compose("wait", "workspace-init")
+            self.compose("up", "-d", "--no-deps", "migrate")
+            self.compose("wait", "migrate")
+            self.compose("up", "-d", "--no-deps", "--wait", "backend")
+            save(self.directory / "local-readiness-evidence.json", {
+                "execution_mode": "local", "engine_id": self.engine("info", "--format", "{{.ID}}").strip(),
+                "agent_required": False, "vault_required": False})
+            print("Private daemon and local Backend ready", flush=True)
+            return
         self.compose("up", "-d", "--wait", "docker-daemon", "postgres", "redis", "vault")
         self.compose("up", "-d", "--no-deps", "workspace-init", "vault-init")
         self.compose("wait", "workspace-init", "vault-init")
@@ -242,7 +299,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                   "pull_before_redeploy": False, "build_before_up": False, "force_recreate": False,
                   "remove_orphans": True, "wait_after_up": False, "wait_timeout_seconds": 60,
                   "renew_anon_volumes": False, "prune_images_after_redeploy": False, "managed_service_names": []}
-        target = json.loads((self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
+        target = self.local_target_id() if self.execution_mode == "local" else json.loads(
+            (self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
         body = {"display_name": name, "runtime_target_id": target, "application_name": name,
                 "compose_file_path": "compose.yml", "lifecycle_configuration": policy,
                 "workspace_entries": [{"path": "compose.yml", "node_type": "file", "content": definition},
@@ -275,12 +333,26 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         try:
             status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
             task = self.wait_task(response["data"]["task_id"], timeout=30) if status == 202 else {}
-            self.record("compose-material-missing", "observed", http_status=status, task=task,
+            rejected = status == 409 or (task.get("status") == "failed" and bool(task.get("failure_code")))
+            self.record("compose-material-missing", "passed" if rejected else "failed", http_status=status, task=task,
                         error_code=response.get("code"))
         finally:
             self.compose("exec", "-T", "backend", "mv", workspace + "/compose.missing", workspace + "/compose.yml")
         self.import_probe(workspace, definition, container, target, policy)
 
+        self.interruption_probe(body, definition, container, policy)
+
+    def local_target_id(self) -> int:
+        status, response = self.api("GET", "/api/runtime-targets")
+        targets = (response.get("data") or {}).get("items", [])
+        local = [item for item in targets if (item.get("runtime") or {}).get("provider") == "docker"
+                 and (item.get("connection") or {}).get("kind") == "unix_socket"]
+        if status != 200 or len(local) != 1:
+            raise RuntimeError("Local runtime target could not be uniquely discovered")
+        return int(local[0]["id"])
+
+    def interruption_probe(self, body: dict, definition: str, container: str, policy: dict) -> None:
+        scenario = "local-execution-interruption" if self.execution_mode == "local" else "agent-execution-interruption"
         interrupted_name = "graft-interruption-probe-" + secrets.token_hex(3)
         interrupted_container = interrupted_name + "-app"
         interrupted_definition = definition.replace(container, interrupted_container) + (
@@ -292,12 +364,12 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                                   {"path": "probe.txt", "node_type": "file", "content": "interruption-probe"}]}
         status, response = self.api("POST", "/api/ops/applications/create/managed", interrupted_body)
         if status not in (200, 201):
-            self.record("agent-execution-interruption", "failed", http_status=status, scope="Scenario creation failed")
+            self.record(scenario, "failed", http_status=status, scope="Scenario creation failed")
             return
         interrupted_application = response["data"]["application_id"]
         status, response = self.api("POST", f"/api/ops/applications/{interrupted_application}/up", {})
         if status != 202:
-            self.record("agent-execution-interruption", "failed", http_status=status, scope="Task admission failed")
+            self.record(scenario, "failed", http_status=status, scope="Task admission failed")
             return
         task_id = response["data"]["task_id"]
         deadline = time.monotonic() + 30
@@ -308,17 +380,19 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 break
             time.sleep(1)
         if not started:
-            self.record("agent-execution-interruption", "unverified", task=self.wait_task(task_id, timeout=5),
+            self.record(scenario, "unverified", task=self.wait_task(task_id, timeout=5),
                         scope="Provider did not reach an observable side effect before the bounded deadline")
             return
         before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", interrupted_container).strip()
-        self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
-        self.compose("up", "-d", "docker-runtime-agent")
+        executor = "backend" if self.execution_mode == "local" else "docker-runtime-agent"
+        self.compose("kill", "--signal", "SIGKILL", executor)
+        self.compose("up", "-d", "--wait", executor)
         task = self.wait_task(task_id, timeout=120)
         after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", interrupted_container).strip()
-        self.record("agent-execution-interruption", "observed", task=task,
+        expected = task.get("status") == "needs_attention" and before == after
+        self.record(scenario, "passed" if expected else "failed", task=task,
                     same_container_and_started_at=before == after,
-                    scope="Observed Task settlement and container identity after killing the executing Agent")
+                    scope="Task settlement and container identity after killing the executing process")
 
     def persisted_application(self, identifier: str) -> dict:
         if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
@@ -421,7 +495,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
 
     def probe(self) -> None:
         self.authenticate()
-        self.once_probe()
+        if self.execution_mode == "agent":
+            self.once_probe()
         for key in ("ops.container.runtime.enabled", "ops.container.actions.dangerous_enabled", "ops.container.shell.enabled"):
             status, _ = self.api("PUT", "/api/system-configs/" + key, {"value": True})
             if status != 200:
@@ -466,6 +541,11 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         scope="Fresh non-root Backend socket connection, existing API keepalive may remain usable")
         finally:
             self.compose("exec", "-T", "docker-daemon", "chmod", "660", "/run/graft-docker/docker.sock")
+        if self.execution_mode == "local":
+            self.local_mode_preflight_probe()
+            self.failed_pull_probe()
+            print("Local API evidence saved; stop/destroy use the registered task identity", flush=True)
+            return
         offline_before = self.engine("inspect", "--format", "{{.State.StartedAt}}", name).strip()
         self.compose("stop", "docker-runtime-agent")
         try:
@@ -481,9 +561,202 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.compose("up", "-d", "docker-runtime-agent")
         print("API evidence saved, repeat-safe task cleanup is available through stop/destroy", flush=True)
 
+    def local_mode_preflight_probe(self) -> None:
+        evidence = self.compose("exec", "-T", "backend", "/app/graft", "runtime", "mode", "preflight",
+                                "--mode", "local", "--format", "json", check=False)
+        success = self.last_command_returncode == 0
+        self.record("local-mode-preflight", "passed" if success else "failed",
+                    exit_code=self.last_command_returncode)
+        if success:
+            save(self.directory / "mode-preflight-evidence.json", json.loads(evidence))
 
-def validate_topology(configuration: dict) -> None:
-    for service in ("backend", "conformance-driver", "docker-runtime-agent"):
+    def failed_pull_probe(self) -> None:
+        status, response = self.api("POST", "/api/ops/docker/images/pull", {
+            "reference": "127.0.0.1:1/graft-fixture-unreachable:probe"})
+        task = self.wait_task(response["data"]["task_id"], timeout=90) if status == 202 else {}
+        passed = task.get("status") == "failed" and bool(task.get("failure_code"))
+        self.record("image-pull-unreachable", "passed" if passed else "failed", http_status=status, task=task)
+
+    def import_image(self, image: str) -> None:
+        # 镜像字节只流入任务私有 daemon，避免把主机标签或全局 Docker 资源变成验收目标。
+        with subprocess.Popen(["docker", "image", "save", image], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, cwd=ROOT, env=self.environment) as exporter:
+            try:
+                loaded = subprocess.run(self.prefix + ["exec", "-T", "docker-daemon", "docker",
+                    "--host=unix:///run/graft-docker/docker.sock", "image", "load"], stdin=exporter.stdout,
+                    capture_output=True, cwd=ROOT, env=self.environment, timeout=600)
+            finally:
+                exporter.stdout.close()
+                exporter.stdout = None
+            _, diagnostics = exporter.communicate(timeout=30)
+            if exporter.returncode != 0 or loaded.returncode != 0:
+                (self.directory / "image-import-error.log").write_bytes(diagnostics + loaded.stderr)
+                (self.directory / "image-import-error.log").chmod(0o600)
+                raise RuntimeError("Private daemon image import failed; restricted diagnostics retained")
+
+    def official_install(self) -> None:
+        if self.execution_mode != "local" or not self.environment.get("GRAFT_WEB_IMAGE"):
+            raise RuntimeError("official-install requires a local registration with --web-image from the same source")
+        source = self.directory / "source-assets" / "root"
+        if not (source / "compose.yml").is_file():
+            raise RuntimeError("Official Compose source was not frozen at registration; initialize a new task")
+        for role in ("BACKEND", "WEB"):
+            self.import_image(self.environment[f"GRAFT_{role}_IMAGE"])
+        tag = "v0.0.0-beta.1"
+        self.engine("tag", self.environment["GRAFT_BACKEND_IMAGE"], "ghcr.io/gewuyou/graft-server:" + tag)
+        self.engine("tag", self.environment["GRAFT_WEB_IMAGE"], "ghcr.io/gewuyou/graft-web:" + tag)
+        root = "/opt/graft-official"
+        self.compose("exec", "-T", "docker-daemon", "sh", "-ec",
+                     "mkdir -p /opt/graft-official; ln -sf /run/graft-docker/docker.sock /var/run/docker.sock")
+        directory = self.directory / "official"
+        directory.mkdir(mode=0o700, exist_ok=True)
+        env_path = directory / ".env"
+        if not env_path.exists():
+            values = {"GRAFT_IMAGE_TAG": tag, "GRAFT_EXECUTION_MODE": "local", "COMPOSE_PROFILES": "",
+                "POSTGRES_PASSWORD": secrets.token_urlsafe(24), "GRAFT_AUTH_JWT_SECRET": secrets.token_urlsafe(32),
+                "GRAFT_REDIS_PASSWORD": secrets.token_urlsafe(24), "GRAFT_APPLICATION_ROOT_HOST_PATH": "/opt/graft/apps",
+                "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": "/opt/graft/apps", "GRAFT_WEB_HOST_PORT": "3000",
+                "GRAFT_UPDATE_STATE_VOLUME": self.state["project"] + "-official-update-state",
+                "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS": "http://127.0.0.1:" + self.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
+            template = (source / "compose.env.example").read_text()
+            lines = []
+            for line in template.splitlines():
+                key = line.split("=", 1)[0]
+                lines.append(key + "=" + values.pop(key) if key in values else line)
+            lines.extend(key + "=" + value for key, value in values.items())
+            env_path.write_text("\n".join(lines) + "\n")
+            env_path.chmod(0o600)
+        self.compose("cp", str(source / "compose.yml"), "docker-daemon:" + root + "/compose.yml")
+        self.compose("exec", "-T", "docker-daemon", "test", "-f", root + "/.env", check=False)
+        if self.last_command_returncode != 0:
+            if (directory / "installation-evidence.json").exists():
+                raise RuntimeError("Registered official root was lost; preserve evidence and initialize a fresh fixture")
+            self.compose("cp", str(env_path), "docker-daemon:" + root + "/.env")
+        nested = OfficialFixture(self, directory, root)
+        nested.compose("up", "-d", "--wait", timeout=600)
+        for service, role in (("server", "BACKEND"), ("web", "WEB")):
+            identifier = nested.compose("ps", "-q", service).strip()
+            actual = self.engine("inspect", "--format", "{{.Image}}", identifier).strip()
+            if actual != self.environment[f"GRAFT_{role}_IMAGE"]:
+                raise RuntimeError("Official installation image no longer matches its registered source")
+        save(directory / "installation-evidence.json", {"source_revision": self.state["source_revision"],
+            "execution_mode": "local", "official_compose": True,
+            "backend_image": self.environment["GRAFT_BACKEND_IMAGE"], "web_image": self.environment["GRAFT_WEB_IMAGE"]})
+        nested.probe()
+        require_local_acceptance(nested.results)
+
+    def controller_smoke(self) -> None:
+        if not self.environment.get("GRAFT_RUNNER_IMAGE"):
+            raise RuntimeError("controller-smoke requires registration with --runner-image from the same source")
+        directory = self.directory / "official"
+        if not (directory / "installation-evidence.json").exists():
+            raise RuntimeError("controller-smoke requires a successful official-install first")
+        self.import_image(self.environment["GRAFT_RUNNER_IMAGE"])
+        registry_name = self.state["project"] + "-controller-registry"
+        if registry_name in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
+            self.engine("start", registry_name)
+        else:
+            self.engine("run", "-d", "--name", registry_name, "--network", "host", "registry:3.0.0")
+        deadline = time.monotonic() + 30
+        while True:
+            self.compose("exec", "-T", "docker-daemon", "wget", "-q", "-O", "/dev/null",
+                         "http://127.0.0.1:5000/v2/", check=False)
+            if self.last_command_returncode == 0:
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Private Controller registry did not become ready")
+            time.sleep(1)
+        registry = "127.0.0.1:5000"
+        tag = "v0.0.0-beta.2"
+        images = {}
+        for service, role in (("server", "BACKEND"), ("web", "WEB"), ("compose-runner", "RUNNER")):
+            repository = registry + "/graft-" + service
+            reference = repository + ":" + tag
+            self.engine("tag", self.environment[f"GRAFT_{role}_IMAGE"], reference)
+            self.engine("push", reference)
+            digests = json.loads(self.engine("image", "inspect", "--format", "{{json .RepoDigests}}", reference))
+            digest_reference = next((value for value in digests if value.startswith(repository + "@sha256:")), "")
+            if not re.fullmatch(re.escape(repository) + r"@sha256:[a-f0-9]{64}", digest_reference):
+                raise RuntimeError("Private registry returned no verified image digest")
+            images[service] = {"repository": repository, "reference": reference,
+                               "digest": digest_reference.split("@", 1)[1], "immutable": digest_reference}
+        root = "/opt/graft-official"
+        overlay = directory / "compose.registry.yml"
+        server_services = ("server", "bootstrap", "config-validate", "application-root-init",
+                           "backup-root-init", "migration-preflight", "runtime-mode-preflight")
+        services = {name: {"image": images["server"]["repository"] + ":${GRAFT_IMAGE_TAG}"} for name in server_services}
+        services["web"] = {"image": images["web"]["repository"] + ":${GRAFT_IMAGE_TAG}"}
+        overlay.write_text(json.dumps({"services": services}, indent=2) + "\n")
+        self.compose("cp", str(overlay), "docker-daemon:" + root + "/compose.registry.yml")
+        nested = OfficialFixture(self, directory, root)
+        before = nested.compose("ps", "-q", "server").strip()
+        operation = "controller-fixture-" + secrets.token_hex(6)
+        runner = "runner-" + secrets.token_hex(6)
+        payload = {"protocol_version": 2, "operation_id": operation, "runner_id": runner,
+            "source_version": "0.0.0-beta.1", "target_version": "0.0.0-beta.2", "task_id": 1,
+            "execution_mode": "local", "backup_artifact_root": "/var/lib/graft/backups/" + operation,
+            "preflight": {"declared_mode": "compose", "detected_mode": "compose", "deployment_strategy": "pinned_beta",
+                "image_tag": "v0.0.0-beta.1", "compose_root": root, "platform": "linux/amd64",
+                "docker_socket": "/var/run/docker.sock", "compose_files": [root + "/compose.yml", root + "/compose.registry.yml"],
+                "bundled_postgres": True, "server_reference": images["server"]["reference"],
+                "web_reference": images["web"]["reference"], "runner_reference": images["compose-runner"]["immutable"],
+                "server_digest": images["server"]["digest"], "web_digest": images["web"]["digest"],
+                "runner_digest": images["compose-runner"]["digest"], "official_server_image": images["server"]["repository"],
+                "official_web_image": images["web"]["repository"], "official_runner_image": images["compose-runner"]["repository"]}}
+        encoded = base64.b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+        state_volume = self.state["project"] + "-official-update-state"
+        output = self.engine("run", "--name", runner, "--user", "0:0", "--network", "none", "--read-only",
+            "--cap-drop", "ALL", "--cap-add", "CHOWN", "--security-opt", "no-new-privileges:true",
+            "--label", "io.graft.update.protocol=compose-runner/v2", "--label", "io.graft.update.operation=" + operation,
+            "-e", "GRAFT_UPDATE_RUNNER_INPUT_B64=" + encoded, "-v", root + ":" + root + ":rw",
+            "-v", "/var/run/docker.sock:/var/run/docker.sock:rw",
+            "-v", state_volume + ":/var/lib/graft/update-state:rw", images["compose-runner"]["immutable"])
+        receipt = controller_receipt(output, operation, runner)
+        after = nested.compose("ps", "-q", "server").strip()
+        state = json.loads(nested.compose("exec", "-T", "backend", "cat", "/var/lib/graft/update-state/current.json"))
+        if not before or not after or before == after or state.get("phase") != "SUCCESS" or state.get("receipt") != receipt:
+            raise RuntimeError("Controller did not preserve successful durable evidence across server replacement")
+        save(directory / "controller-evidence.json", {"source_revision": self.state["source_revision"],
+            "server_container_replaced": True, "execution_mode": "local", "receipt": receipt,
+            "scope": "Production Controller protocol with same-source image retags; public Update API and Task settlement are separate acceptance"})
+        print("Production local Controller replaced the server and persisted verified backup/receipt evidence", flush=True)
+
+
+class OfficialFixture(Fixture):
+    def __init__(self, parent: Fixture, directory: Path, root: str):
+        self.parent = parent
+        self.directory = directory
+        self.root = root
+        self.state = {**parent.state, "project": parent.state["project"] + "-official"}
+        self.environment = {**parent.environment,
+            "GRAFT_CONFORMANCE_BACKEND_PORT": parent.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
+        self.token = ""
+        self.results = []
+
+    def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
+        if arguments[:3] == ("exec", "-T", "docker-daemon"):
+            output = self.parent.compose(*arguments, check=check, timeout=timeout)
+            self.last_command_returncode = self.parent.last_command_returncode
+            return output
+        if arguments[:3] == ("exec", "-T", "backend"):
+            arguments = ("exec", "-T", "--user", "graft", "server", *arguments[3:])
+        arguments = tuple("server" if value == "backend" else value for value in arguments)
+        output = self.parent.compose("exec", "-T", "docker-daemon", "docker",
+            "--host=unix:///run/graft-docker/docker.sock", "compose", "--project-name", self.state["project"],
+            "--project-directory", self.root, "--env-file", self.root + "/.env", "-f", self.root + "/compose.yml",
+            *arguments, check=check, timeout=timeout)
+        self.last_command_returncode = self.parent.last_command_returncode
+        return output
+
+    def engine(self, *arguments: str) -> str:
+        return self.parent.engine(*arguments)
+
+
+def validate_topology(configuration: dict, execution_mode: str = "agent") -> None:
+    consumers = ("backend",) if execution_mode == "local" else ("backend", "conformance-driver", "docker-runtime-agent")
+    if execution_mode == "local" and any(name in configuration["services"] for name in ("vault", "vault-init", "docker-runtime-agent")):
+        raise RuntimeError("Local fixture must be independently executable without Vault or Agent services")
+    for service in consumers:
         volumes = configuration["services"][service]["volumes"]
         if any(v.get("type") == "bind" and "docker.sock" in v.get("source", "") for v in volumes):
             raise RuntimeError(f"{service} inherited a host Docker socket")
@@ -493,7 +766,8 @@ def validate_topology(configuration: dict) -> None:
             raise RuntimeError(f"{service} has no private daemon socket")
         if socket_mount.get("read_only"):
             raise RuntimeError(f"{service} cannot prepare nested secret mountpoints in a read-only run volume")
-    for service in ("docker-daemon", "backend", "docker-runtime-agent"):
+    workspace_consumers = ("docker-daemon", "backend") if execution_mode == "local" else ("docker-daemon", "backend", "docker-runtime-agent")
+    for service in workspace_consumers:
         if not any(v.get("source") == "application-workspaces" and v["target"] == "/opt/graft/apps" for v in configuration["services"][service]["volumes"]):
             raise RuntimeError(f"{service} has inconsistent application workspace mapping")
 
@@ -502,13 +776,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, epilog=(
         "stop pauses fixture workloads and retains the running development Vault authority. "
         "destroy removes every registered fixture service and volume."))
-    parser.add_argument("action", choices=("init", "up", "probe", "status", "stop", "destroy"))
+    parser.add_argument("action", choices=("init", "up", "probe", "official-install", "controller-smoke", "status", "stop", "destroy"))
     parser.add_argument("--directory", type=Path, required=True, help="Task-owned ignored evidence and secret directory")
     parser.add_argument("--project")
     parser.add_argument("--source-revision")
     parser.add_argument("--backend-image")
     parser.add_argument("--agent-image")
     parser.add_argument("--driver-image")
+    parser.add_argument("--web-image", help="Same-source web image required for official-install")
+    parser.add_argument("--runner-image", help="Same-source Controller image required for controller-smoke")
+    parser.add_argument("--execution-mode", choices=("local", "agent"), default="agent")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--confirm-project")
     args = parser.parse_args()
@@ -516,11 +793,19 @@ def main() -> None:
     if args.action == "init":
         if not args.project or not re.fullmatch(r"graft-isolated-[a-z0-9-]+", args.project):
             parser.error("--project must use the task-specific graft-isolated- prefix")
-        if not all((args.source_revision, args.backend_image, args.agent_image, args.driver_image)):
-            parser.error("init requires source revision and all three immutable fixture images")
-        if not 1024 <= args.port <= 65533:
-            parser.error("--port must leave room for three unprivileged consecutive ports")
-        for port in range(args.port, args.port + 3):
+        required_images = {"backend": args.backend_image}
+        if args.web_image:
+            required_images["web"] = args.web_image
+        if args.runner_image:
+            required_images["runner"] = args.runner_image
+        if args.execution_mode == "agent":
+            required_images.update(agent=args.agent_image, driver=args.driver_image)
+        if not args.source_revision or not all(required_images.values()):
+            parser.error("init requires source revision and every image used by the selected execution mode")
+        port_count = 2 if args.execution_mode == "local" else 3
+        if not 1024 <= args.port <= 65536 - port_count:
+            parser.error("--port must leave room for the selected mode's unprivileged loopback listeners")
+        for port in range(args.port, args.port + port_count):
             try:
                 with socket.socket() as probe:
                     probe.bind(("127.0.0.1", port))
@@ -532,19 +817,38 @@ def main() -> None:
         if not re.fullmatch(r"[a-f0-9]{40}", args.source_revision):
             parser.error("source revision must be an exact Git commit")
         images = {}
-        for key, value in (("backend", args.backend_image), ("agent", args.agent_image), ("driver", args.driver_image)):
+        for key, value in required_images.items():
             image = json.loads(subprocess.check_output(["docker", "image", "inspect", value], text=True))[0]
             revision = (image["Config"].get("Labels") or {}).get("org.opencontainers.image.revision")
             if revision != args.source_revision:
                 parser.error(f"{key} image source revision does not match the requested commit")
             images[key] = image["Id"]
-        digest = images["agent"]
-        env = {"GRAFT_BACKEND_IMAGE": images["backend"], "GRAFT_AGENT_IMAGE": images["agent"],
-               "GRAFT_CONFORMANCE_DRIVER_IMAGE": images["driver"], "GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST": digest,
+        env = {"GRAFT_BACKEND_IMAGE": images["backend"],
                "GRAFT_CONFORMANCE_POSTGRES_PASSWORD": secrets.token_urlsafe(24), "VAULT_DEV_ROOT_TOKEN": secrets.token_urlsafe(24),
                "GRAFT_FIXTURE_ADMIN_PASSWORD": secrets.token_urlsafe(24), "GRAFT_CONFORMANCE_BACKEND_PORT": str(args.port),
+               "GRAFT_CONFORMANCE_OFFICIAL_PORT": str(args.port + 1),
                "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": str(args.port + 1), "GRAFT_CONFORMANCE_AGENT_PORT": str(args.port + 2)}
-        save(directory / "instance.json", {"project": args.project, "source_revision": args.source_revision, "environment": env})
+        if args.web_image:
+            env["GRAFT_WEB_IMAGE"] = images["web"]
+        if args.runner_image:
+            env["GRAFT_RUNNER_IMAGE"] = images["runner"]
+        if args.execution_mode == "agent":
+            env.update(GRAFT_AGENT_IMAGE=images["agent"], GRAFT_CONFORMANCE_DRIVER_IMAGE=images["driver"],
+                       GRAFT_CONFORMANCE_AGENT_IMAGE_DIGEST=images["agent"])
+        assets = {"root/compose.yml": "compose.yml", "root/compose.env.example": "compose.env.example"}
+        fixture_files = ("compose.local.yml",) if args.execution_mode == "local" else (
+            "compose.yml", "compose.isolated.yml", "vault-init.sh")
+        assets.update({"fixture/" + name: "tests/conformance/docker-runtime-agent/" + name for name in fixture_files})
+        fingerprints = {}
+        for destination, repository_path in assets.items():
+            content = subprocess.check_output(["git", "show", args.source_revision + ":" + repository_path], cwd=ROOT)
+            target = directory / "source-assets" / destination
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+            fingerprints[repository_path] = hashlib.sha256(content).hexdigest()
+        save(directory / "source-assets.json", {"source_revision": args.source_revision, "sha256": fingerprints})
+        save(directory / "instance.json", {"project": args.project, "source_revision": args.source_revision,
+             "execution_mode": args.execution_mode, "environment": env})
         print("Isolated task registered", flush=True)
         return
     fixture = Fixture(directory)
@@ -557,8 +861,17 @@ def main() -> None:
         save(directory / "cleanup.json", {"project": fixture.state["project"], "resources_removed": True})
     elif args.action == "stop":
         fixture.stop()
+    elif args.action == "official-install":
+        fixture.official_install()
+    elif args.action == "controller-smoke":
+        fixture.controller_smoke()
     else:
         getattr(fixture, args.action)()
+        if args.action == "probe":
+            if fixture.execution_mode == "local":
+                require_local_acceptance(fixture.results)
+            if any(item["status"] == "failed" for item in fixture.results):
+                raise RuntimeError("Runtime acceptance failed; inspect the registered api-evidence.json")
 
 
 if __name__ == "__main__":
