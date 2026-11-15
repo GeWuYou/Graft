@@ -42,7 +42,7 @@ const (
 	runnerLeaseHeartbeatInterval                      = 30 * time.Second
 	runnerLeaseHeartbeatFailureLimit                  = 3
 	healthzCurlTimeoutSeconds                         = "30"
-	composeServiceWaitTimeoutSeconds                  = 60
+	composeServiceWaitTimeout                         = time.Minute
 	runnerIDRandomBytes                               = 12
 	runnerProtocolVersion                             = 2
 )
@@ -728,7 +728,7 @@ func (r *composeRuntime) up(ctx context.Context, services []string) error {
 	if err != nil {
 		return err
 	}
-	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services, Wait: true, WaitTimeout: composeServiceWaitTimeoutSeconds}})
+	return r.service.Up(ctx, selected, composeapi.UpOptions{Create: composeapi.CreateOptions{Services: services, Recreate: composeapi.RecreateForce, Inherit: true}, Start: composeapi.StartOptions{Project: selected, Services: services, Wait: true, WaitTimeout: composeServiceWaitTimeout}})
 }
 func (r *composeRuntime) run(ctx context.Context, serviceName string) error {
 	code, err := r.service.RunOneOffContainer(ctx, r.project, composeapi.RunOptions{Project: r.project, Service: serviceName, AutoRemove: true, Tty: false, Interactive: false})
