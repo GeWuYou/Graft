@@ -41,7 +41,7 @@ PR [#351](https://github.com/GeWuYou/Graft/pull/351) 由负责会话继续合并
 
 ## Runtime Evidence
 
-- 本地生产源码 976144490bf02ccfab35d7d8092881a4d9238350 的私有 Docker daemon 与全新官方 Compose 安装分别通过 24 项必需 API 与实际引擎场景。
+- 本地生产源码 976144490bf02ccfab35d7d8092881a4d9238350 的全新官方 Compose 安装通过 24 项必需 API 与实际引擎场景。head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的完整 CI 对私有 daemon 与官方安装分别执行并通过 24 项场景。
 - Build Task 10 成功，认证 Registry 的匿名 401、认证 200、上传快照、公开 OCI artifact 与 publication 均完成。
   采用 1d9703272 的契约消费修正读取真实 manifest config digest，绑定 Engine Image ID，提取上传 context 的 /probe 并核对内容摘要。
 - 更新故障场景验证配置快照失败的负回执，正常 Update API 使 Task 12 成功、Backup 1 AVAILABLE，server 从 beta.1 替换为 beta.2。
@@ -53,7 +53,7 @@ PR [#351](https://github.com/GeWuYou/Graft/pull/351) 由负责会话继续合并
 
 - 每个数据库由一个活跃 Task Runtime 持有数据库会话执行锁，执行所有权失效会停止 admission。
 - Controller 使用短生命周期 digest-pinned 镜像，root 身份仅增加 CHOWN、DAC_OVERRIDE，根文件系统只读、网络关闭、禁止提权，其余 capability 全部删除。
-- 两个测试版本来自同一 Git revision，更新证据覆盖现有迁移图入口调用。新增 DDL 的跨版本升级场景由独立迁移证据覆盖。
+- 两个测试版本来自同一 Git revision，更新证据覆盖现有迁移图入口调用。PostgreSQL 迁移门禁已通过。含新 DDL 的跨版本平台更新需独立版本场景验收。
 - Secret Scan 保留完整提交历史扫描。唯一精确例外绑定 Postgres 检测器、合成 URI 规范化 Raw SHA-256、引入提交 d8172f6eafac645051c832e81e8b0ba22d153bb6、文件与第 45 行。
   该已知测试值可有 DNS 验证错误，Verified=true 及其他身份的结果继续阻断；当前测试在运行时组合该值。
 - 应用数据备份、域名 HTTPS、宿主机管理等后续能力继续由独立路线推进。

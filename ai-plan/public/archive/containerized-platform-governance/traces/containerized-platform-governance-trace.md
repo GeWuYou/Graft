@@ -32,8 +32,8 @@
 ## 2026-11-16 Closeout
 
 - 完成前四批实现并修复实际运行暴露的注册、公开响应投影、Build 计划校验、Controller 意图与文件权限、持久化 catalog 和恢复状态边界。
-- 生产源码 976144490 配合验收读取修正 1d9703272，实际通过两组 24 场景、Build Task 10、Update Task 12 与 Backup 1 的内容及身份核对。
+- 本地生产源码 976144490 配合验收读取修正 1d9703272，实际通过官方 Compose 的 24 项场景、Build Task 10、Update Task 12 与 Backup 1 的内容及身份核对。
 - 新私有 PostgreSQL 数据库恢复 dump 后，users=1、roles=8、runtime_targets=1、applications=3、build_v2_artifacts=1、workspace snapshots=1、migration revisions=151。恢复验证数据库已删除。
-- head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的完整 CI run 43794608388 成功，运行验收、清理和 Required checks 均为 success。
+- head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的完整 CI run 43794608388 成功，其中私有 daemon 与官方安装各通过 24 项场景，运行验收、清理和 Required checks 均为 success。同源双版本的迁移证明覆盖现有迁移图调用，含新 DDL 的跨版本平台更新需独立版本场景验收。
 - 本轮 lessons review 新增 L1 LESSON-BACKEND-ENTRYPOINT-EVIDENCE-001，记录正常用户入口、实际 PostgreSQL/SDK 效果、公开消费契约与 owner 历史编码夹具的验证方法，并同步 lessons index。治理级别保持 L1。
 - 按原 Work Contract archive=true 移入 public/archive，并移除 active router。源码已实现、运行与 CI 已验收，PR #351 的合并和资源释放继续由负责会话执行。

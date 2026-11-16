@@ -124,9 +124,9 @@ migration_started=false 和绑定操作的失败回执。同一源码的 beta.1/
 
 2026-11-16，head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的
 [完整 CI](https://github.com/GeWuYou/Graft/actions/runs/43794608388) 通过全部源码、PostgreSQL 迁移与实际运行门禁。
-私有引擎及全新官方安装各通过 24 项场景，认证 Build 的 manifest、Engine image 与上传内容逐项核对。
+该 CI 中的私有引擎及全新官方安装各通过 24 项场景，认证 Build 的 manifest、Engine image 与上传内容逐项核对。
 完整 Update API 验证失败备份边界、成功替换、版本、Task、Backup 和 Controller 回执。
-同源 beta.1/beta.2 的迁移范围为现有迁移图调用，跨版本新增 DDL 保持独立验收范围。
+同源 beta.1/beta.2 的迁移范围为现有迁移图调用。PostgreSQL 迁移门禁已通过，含新 DDL 的跨版本平台更新需独立版本场景验收。
 
 另将本机实际更新生成的 PostgreSQL dump 恢复到新的私有数据库，核对用户、角色、运行目标、应用、Build artifact、
 工作区 snapshot 及 151 个迁移版本后删除该演练库。平台恢复证明与应用数据备份路线分别记录。
