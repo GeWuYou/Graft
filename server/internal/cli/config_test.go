@@ -101,3 +101,34 @@ func TestConfigValidateCommandWritesPatch(t *testing.T) {
 		t.Fatalf("expected patch output, got %s", output.String())
 	}
 }
+
+func TestConfigValidationAcceptsExistingEnvironmentWithoutVersionPin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	contents := "GRAFT_AUTH_JWT_SECRET=upgrade-configuration-test\nGRAFT_HTTP_ADDR=:19090\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GRAFT_ENV_FILE", path)
+	t.Setenv("GRAFT_CONFIG_SCHEMA_VERSION", "")
+	if err := os.Unsetenv("GRAFT_CONFIG_SCHEMA_VERSION"); err != nil {
+		t.Fatal(err)
+	}
+	command := NewRootCommand()
+	output := &bytes.Buffer{}
+	command.SetOut(output)
+	command.SetErr(output)
+	command.SetArgs([]string{"config", "validate"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("existing configuration was rejected by the public command: %v", err)
+	}
+	if output.String() != "Configuration valid.\n" {
+		t.Fatalf("unexpected configuration report: %q", output.String())
+	}
+	output.Reset()
+	if err := validateStartupConfiguration(command); err != nil {
+		t.Fatalf("existing configuration was rejected by startup preflight: %v", err)
+	}
+	if output.String() != "Configuration valid.\n" {
+		t.Fatalf("unexpected startup report: %q", output.String())
+	}
+}

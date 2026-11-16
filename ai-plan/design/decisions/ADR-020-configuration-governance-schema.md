@@ -13,9 +13,13 @@
 ## Decision
 
 采用嵌入 `server` 二进制的版本化 YAML Configuration Schema 作为部署配置生命周期的唯一 authority。每个
-`vN.yaml` 是完整不可变快照，声明环境项的类型、必填性、默认值、说明、引入版本、废弃/删除状态、替代项和
-约束，并声明官方 Compose 所需服务拓扑。最新被二进制支持的 Schema 是校验目标；`GRAFT_CONFIG_SCHEMA_VERSION`
-声明 operator 的 `.env` 模板版本。
+`vN.yaml` 声明一个配置格式兼容代际，包含环境项的类型、必填性、默认值、说明、引入版本、废弃/删除状态、
+替代项和约束，并声明官方 Compose 所需服务拓扑。每次发布的 Git revision 保留该代际的完整快照。最新被二进制
+支持的 Schema 是校验目标。`GRAFT_CONFIG_SCHEMA_VERSION` 是可选的兼容代际声明，省略时采用 Schema 默认值。
+
+2026-11-16 补充兼容演进规则。新增可选配置提供保持既有行为的默认值，在同一兼容代际内演进，既有 `.env`
+直接复用。进程环境和 `.env` 中的有效显式值按既定优先级覆盖默认值。数据库密码、签名材料和启用外部集成所需
+的条件配置继续在使用边界校验。配置格式或语义的破坏性变化走显式迁移，并在迁移和运行时初始化前完成预检。
 
 所有启动命令通过同一 source-aware resolver 按 `CLI > process environment > .env > Schema default` 得到最终值。
 每个值携带不暴露 secret 的 provenance。`serve` 与 `migrate up` 都在数据库、migration executor、runtime、业务
@@ -31,7 +35,7 @@ deprecated/removed 生命周期和 replacement 建议治理，不引入 alias、
 
 ## Consequences
 
-新增 required 配置成为可验证的 release contract，已部署实例能在不可逆操作前收到完整、来源明确且秘密安全的错误。
+新增可选配置通过默认值承接既有安装，条件必填配置成为可验证的 release contract，实例在不可逆操作前获得完整、来源明确且秘密安全的诊断。
 官方 Compose 和 CLI 共享一个判断面，CI 能在 release 前发现模板漂移。Schema 版本快照和变更记录为未来受控的
 配置迁移提供基础，但初期仍要求 operator 审阅并应用建议。
 
