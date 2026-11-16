@@ -17,7 +17,7 @@ func ResolveResources(ctx context.Context, environment Environment, request Requ
 		return request, nil, errors.New("container coordination input is invalid")
 	}
 	if request.OperationID == "container.image.pull.v1" {
-		return request, []string{imageResourceKey(intent.ImageRef)}, nil
+		return request, []string{ImageResourceKey(intent.ImageRef)}, nil
 	}
 	if request.OperationID == "container.network.create.v1" {
 		return request, []string{"network:" + intent.Name}, nil
@@ -72,13 +72,13 @@ func resolveImageIdentity(ctx context.Context, docker *mobyclient.Client, intent
 	if err != nil {
 		return intent, nil, err
 	}
-	keys := []string{imageResourceKey(intent.ImageRef), "image:" + inspected.ID}
+	keys := []string{ImageResourceKey(intent.ImageRef), "image:" + inspected.ID}
 	intent.ImageRef = inspected.ID
 	if intent.TargetRef != "" {
-		keys = append(keys, imageResourceKey(intent.TargetRef))
+		keys = append(keys, ImageResourceKey(intent.TargetRef))
 	}
 	if intent.TagRef != "" {
-		keys = append(keys, imageResourceKey(intent.TagRef))
+		keys = append(keys, ImageResourceKey(intent.TagRef))
 	}
 	return intent, keys, nil
 }
@@ -109,7 +109,8 @@ func withComposeResource(keys []string, labels map[string]string) []string {
 	return keys
 }
 
-func imageResourceKey(reference string) string {
+// ImageResourceKey 规范化 Docker 镜像名，供构建和容器操作协调同一可变标签。
+func ImageResourceKey(reference string) string {
 	named, err := distributionref.ParseNormalizedNamed(reference)
 	if err == nil {
 		return "image:" + distributionref.TagNameOnly(named).String()

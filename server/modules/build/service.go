@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"graft/server/internal/dockerexecution"
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
@@ -429,7 +430,7 @@ func buildExecutionResourceKeys(input json.RawMessage) []string {
 	}
 	var legacy moduleapi.BuildTaskInput
 	if json.Unmarshal(input, &legacy) == nil && legacy.ImageRepository != "" {
-		return []string{"image:" + legacy.ImageRepository + ":" + legacy.ImageTag}
+		return []string{dockerexecution.ImageResourceKey(legacy.ImageRepository + ":" + legacy.ImageTag)}
 	}
 	return nil
 }
