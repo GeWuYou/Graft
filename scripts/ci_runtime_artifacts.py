@@ -121,12 +121,13 @@ def verify_build_acceptance(root: Path, directory: Path) -> None:
     digest = artifact.get("digest", "")
     image = evidence.get("engine_image_id", "")
     publications = evidence.get("publications") or []
+    requested = evidence.get("requested_destination") or {}
     matching_publication = any(
         item.get("publication_id")
         and item.get("artifact_id") == artifact.get("artifact_id")
         and item.get("digest") == digest
-        and (item.get("destination") or {}).get("kind") == "oci_registry"
-        and (item.get("destination") or {}).get("reference") == artifact.get("tag")
+        and all((item.get("destination") or {}).get(key) == requested.get(key)
+                for key in ("kind", "connection_ref", "repository_ref", "reference"))
         for item in publications
     )
     valid = (
@@ -138,10 +139,11 @@ def verify_build_acceptance(root: Path, directory: Path) -> None:
         and evidence.get("registry_verified") is True
         and evidence.get("credential_absent_from_task_and_logs") is True
         and bool(artifact.get("artifact_id"))
-        and bool(artifact.get("tag"))
+        and requested.get("kind") == "oci_registry"
+        and all(isinstance(requested.get(key), str) and requested[key].strip()
+                for key in ("connection_ref", "repository_ref", "reference"))
         and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", digest))
         and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", image))
-        and artifact.get("image_id") == image
         and evidence.get("remote_manifest_digest") == digest
         and evidence.get("manifest_config_digest") == image
         and evidence.get("probe_verified") is True
