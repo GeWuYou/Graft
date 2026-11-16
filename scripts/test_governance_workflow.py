@@ -67,6 +67,19 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertNotEqual(self.aggregate({"secret-scan": "skipped"}).returncode, 0)
         self.assertNotEqual(self.aggregate({"web-check": "skipped"}, "push").returncode, 0)
 
+    def test_release_smoke_declares_local_execution_and_isolated_storage(self):
+        script = (ROOT / "scripts/smoke_release_compose.sh").read_text()
+        fixture = script.split('cat > "${workspace}/.env" <<EOF\n', 1)[1].split("\nEOF", 1)[0]
+        environment = dict(line.split("=", 1) for line in fixture.splitlines()
+                           if line and not line.startswith("#"))
+        self.assertEqual(environment["GRAFT_EXECUTION_MODE"], "local")
+        self.assertEqual(environment["COMPOSE_PROFILES"], "")
+        self.assertEqual(environment["GRAFT_APPLICATION_ROOT_HOST_PATH"], "${workspace}/apps")
+        self.assertEqual(environment["GRAFT_APPLICATION_ROOT_CONTAINER_PATH"],
+                         environment["GRAFT_APPLICATION_ROOT_HOST_PATH"])
+        self.assertEqual(environment["GRAFT_UPDATE_STATE_VOLUME"], "${project}-update-state")
+        self.assertEqual(environment["GRAFT_BUILD_SNAPSHOT_VOLUME"], "${project}-build-snapshots")
+
     def test_workspace_install_uses_root_lock(self):
         for workflow in ["pull-request-validation.yml", "publish.yml"]:
             jobs = yaml.safe_load((ROOT / ".github/workflows" / workflow).read_text())["jobs"]
