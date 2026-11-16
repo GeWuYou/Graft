@@ -4,6 +4,7 @@
 
 | ID                                     | Title                                          | Area       | Level | Status | Location                        | Promoted                                                                  |
 | -------------------------------------- | ---------------------------------------------- | ---------- | ----: | ------ | ------------------------------- | ------------------------------------------------------------------------- |
+| LESSON-BACKEND-ENTRYPOINT-EVIDENCE-001 | 集成验收应连接正常入口与真实持久化及副作用 | backend | L1 | active | `ai-plan/lessons/backend.md` | - |
 | LESSON-BACKEND-CAPABILITY-AUTHORITY-001 | 能力健康必须与平台可达性分层                  | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-AGENT-EXECUTION-AUTHORITY-001 | 特权 Agent 执行必须同时冻结意图、世代能力与瞬时材料边界 | backend | L2 | active | `ai-plan/lessons/backend.md` | `ADR-026`, Agent 协议与 Task Runtime 设计 |
 | LESSON-BACKEND-DESTRUCTIVE-CONTRACT-001 | 删除资源与执行销毁命令必须分型治理           | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`       |

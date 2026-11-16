@@ -80,7 +80,7 @@ Dockerfile。Controller 与 fixture 的 build 命名上下文指向已验证的 
 [Docker 命名上下文](https://docs.docker.com/reference/cli/docker/buildx/build/#additional-build-contexts---build-context)
 
 全新注册包含 source server、target server、web、runner 与 release fixture 的同源码镜像身份。
-顺序为 up、probe、official-install、update-api。最后一项通过生产发布解析、摘要验证与 Update API
+顺序为 up、probe、official-install、build-api、update-api。最后一项通过生产发布解析、摘要验证与 Update API
 完成备份失败注入、正常更新、server 替换以及 Task/Backup/Controller 回执结算。
 独立校验器再比对 source/target 二进制摘要、版本、迁移和备份证据。缺失或不一致的证明使门禁失败。
 
@@ -118,3 +118,20 @@ Build 证明还要求远端 manifest 的 config digest 指向实际 Engine Image
 更新成功必须有 migration_started=true 及 bootstrap 调用证明，配置快照失败场景则要求
 migration_started=false 和绑定操作的失败回执。同一源码的 beta.1/beta.2 验收覆盖现有迁移图的调用，
 具体范围为相同 Git revision 的迁移图，新增 DDL 的升级路径需要独立迁移证据。
+
+
+## 首轮集成验收完成记录
+
+2026-11-16，head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的
+[完整 CI](https://github.com/GeWuYou/Graft/actions/runs/43794608388) 通过全部源码、PostgreSQL 迁移与实际运行门禁。
+私有引擎及全新官方安装各通过 24 项场景，认证 Build 的 manifest、Engine image 与上传内容逐项核对。
+完整 Update API 验证失败备份边界、成功替换、版本、Task、Backup 和 Controller 回执。
+同源 beta.1/beta.2 的迁移范围为现有迁移图调用，跨版本新增 DDL 保持独立验收范围。
+
+另将本机实际更新生成的 PostgreSQL dump 恢复到新的私有数据库，核对用户、角色、运行目标、应用、Build artifact、
+工作区 snapshot 及 151 个迁移版本后删除该演练库。平台恢复证明与应用数据备份路线分别记录。
+
+执行约束为单数据库一个活跃 Task Runtime。Controller 的跨 UID 文件访问使用 root、CHOWN 与 DAC_OVERRIDE，
+其余 capability 删除，网络关闭，根文件系统只读并启用 no-new-privileges。
+Secret Scan 的唯一历史合成值例外绑定规范化摘要、检测器、引入提交、文件与行号，完整扫描和其他结果阻断继续生效。
+本轮实现及验收历史见[主题归档](../../ai-plan/public/archive/containerized-platform-governance/README.md)。
