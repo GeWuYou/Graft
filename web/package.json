@@ -39,7 +39,10 @@
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bun x openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bun x prettier --write src/contracts/openapi/generated/schema.ts",
     "openapi:types:check": "sh -c 'tmp=openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bun x openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bun x prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
     "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
-    "check": "bun run --parallel --no-exit-on-error format:check typecheck typecheck:ts7:node openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check pagination:governance:check && bun run --parallel --no-exit-on-error test:run build:release"
+    "check": "bun run check:source && bun run --parallel --no-exit-on-error check:tests build:release",
+    "check:source": "bun run --parallel --no-exit-on-error format:check typecheck typecheck:ts7:node openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check pagination:governance:check",
+    "check:tests": "bun run test:run",
+    "check:build": "node -e \"if (!require('node:fs').existsSync('dist/index.html')) process.exit(1)\""
   },
   "dependencies": {
     "@iconify-icons/lucide": "^2.0.31",
@@ -72,9 +75,6 @@
     "vue": "^3.5.45",
     "vue-i18n": "^11.4.20",
     "vue-router": "^5.5.1"
-  },
-  "overrides": {
-    "@babel/runtime-corejs3": "^7.29.14"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",
@@ -121,7 +121,8 @@
     "vite-svg-loader": "^5.1.3",
     "vitest": "^5.1.0",
     "vue-eslint-parser": "^10.4.2",
-    "vue-tsc": "3.3.14"
+    "vue-tsc": "3.3.14",
+    "yaml": "2.9.1"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}": [

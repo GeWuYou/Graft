@@ -148,6 +148,7 @@ type Config struct {
 	Redis               RedisConfig
 	Log                 LogConfig
 	Runtime             RuntimeConfig
+	Execution           ExecutionConfig
 	I18n                I18nConfig
 	Auth                AuthConfig
 	MCP                 MCPConfig
@@ -157,6 +158,17 @@ type Config struct {
 	Backup              BackupConfig
 	Project             ProjectConfig
 }
+
+// ExecutionConfig 选择有限副作用的执行归属，历史配置默认使用 Agent。
+type ExecutionConfig struct {
+	Mode string
+}
+
+// ExecutionModeLocal 标识由本机 Task worker 执行 SDK 操作。
+const ExecutionModeLocal = "local"
+
+// ExecutionModeAgent 标识由独立 Runtime Agent 认领执行。
+const ExecutionModeAgent = "agent"
 
 // AppConfig 描述进程级应用标识配置。
 type AppConfig struct {
@@ -417,6 +429,7 @@ func (c *Config) Validate() error {
 		validateAuthConfig,
 		validateMCPConfig,
 		validateContainerConfig,
+		validateExecutionConfig,
 		validateRegistryCredentialSourceConfig,
 		validateEnrollmentSecurityConfig,
 		validateBackupConfig,
@@ -1033,4 +1046,15 @@ func normalizeStringEnum[T ~string](raw T, fallback T, allowed ...T) T {
 		}
 	}
 	return fallback
+}
+
+func validateExecutionConfig(c *Config) error {
+	c.Execution.Mode = strings.TrimSpace(c.Execution.Mode)
+	if c.Execution.Mode == "" {
+		c.Execution.Mode = ExecutionModeAgent
+	}
+	if c.Execution.Mode != ExecutionModeAgent && c.Execution.Mode != ExecutionModeLocal {
+		return errors.New("GRAFT_EXECUTION_MODE must be local or agent")
+	}
+	return nil
 }

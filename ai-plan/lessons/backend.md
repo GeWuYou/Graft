@@ -200,3 +200,36 @@
   - `server/modules/runtime-target/**`
 - Updated at:
   2026-08-21
+
+
+## LESSON-BACKEND-ENTRYPOINT-EVIDENCE-001：集成验收应连接正常入口与真实持久化及副作用
+
+- Status: active
+- Level: L1
+- Applies to:
+  - 跨模块注册、公开 API 到 Task、PostgreSQL repository 与 Docker/Compose SDK 的能力闭环
+  - 消费公开契约或验证历史序列化兼容的测试与验收 fixture
+- Source:
+  - 2026-11-16 本机运维平台收拢中，mock writer 与自行构造的响应掩盖了装配缺失、真实 SQL 计划校验和公开 OCI/Update 投影差异。
+  - [PR #351 完整集成验收](https://github.com/GeWuYou/Graft/actions/runs/43794608388)
+- Problem:
+  局部测试把准备步骤与持久化直接替换为成功，fixture 又复用相同假设，会让 API、任务和报告彼此一致，实际用户操作仍在正常入口、真实数据库或 SDK 侧失败。
+- Correct pattern:
+  从公开契约及实际 handler/mapper 读取消费字段，覆盖正常模块注册后的用户入口。对当前风险使用真实 repository 与隔离 PostgreSQL、实际 SDK 请求或私有引擎，核对 Task 终态、持久化事实、资源身份和内容。
+  历史兼容夹具从对应版本的 owner 编码入口生成，保留冻结输入和原始指纹。当前编码器用于验证消费结果。
+- Anti-pattern:
+  用 mock writer 返回成功代替事务路径，按私有存储字段拼造公开响应，或仅凭 Task success 与镜像存在便认定部署及构建内容已生效。
+- Enforcement:
+  审阅受影响路径的 provider、公开投影和实际消费者，选择能区分失败机制的既有单测、repository 或运行探针。
+  运维操作通过公共 API 触发后，对照实际 Engine 状态、manifest config digest、上传内容摘要和备份恢复结果。验证缺口随当前任务记录。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `ai-plan/public/archive/containerized-platform-governance/README.md`
+  - `server/modules/build/module_submission_test.go`
+  - `server/modules/build/store/execution_plan_test.go`
+  - `server/modules/task/testdata/legacy-agent-submission-346854ff5.json`
+  - `tests/conformance/docker-runtime-agent/build_api.py`
+- Updated at:
+  2026-11-16

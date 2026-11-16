@@ -1636,3 +1636,58 @@ func TestNewRootCommandRegistersValidateCommands(t *testing.T) {
 		t.Fatalf("expected release command, got %#v", foundRelease)
 	}
 }
+
+// TestBackendReportUsesSingleTestStream 验证报告参数替换普通测试调用并继续执行同一构建入口。
+func TestBackendReportUsesSingleTestStream(t *testing.T) {
+	originalCommandRunner := backendCommandRunner
+	originalGoTestRunner := backendGoTestRunner
+	originalGoBuildRunner := backendGoBuildRunner
+	defer func() {
+		backendCommandRunner = originalCommandRunner
+		backendGoTestRunner = originalGoTestRunner
+		backendGoBuildRunner = originalGoBuildRunner
+	}()
+	var calls int
+	backendCommandRunner = func(_ *cobra.Command, command string, args ...string) error {
+		calls++
+		if command != "python3" || len(args) != 5 || !strings.HasSuffix(args[0], "run_server_ctrf_report.py") ||
+			args[1] != "--output" || args[2] != ".tmp/tests.json" || args[3] != "--test-target" || args[4] != "./modules/task" {
+			t.Fatalf("unexpected report command: %s %v", command, args)
+		}
+		return nil
+	}
+	backendGoTestRunner = func(_ *cobra.Command, _ []string) error {
+		t.Fatal("reporting must consume the only test stream")
+		return nil
+	}
+	built := false
+	backendGoBuildRunner = func(_ *cobra.Command) error { built = true; return nil }
+	if err := runValidateBackend(&cobra.Command{}, backendValidateOptions{stage: "buildtest", testReport: ".tmp/tests.json", testTargets: []string{"./modules/task"}}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || !built {
+		t.Fatalf("report calls=%d built=%v", calls, built)
+	}
+}
+
+// TestBackendReportFailureBlocksBuild 验证测试或报告失败时构建不会掩盖原始失败。
+func TestBackendReportFailureBlocksBuild(t *testing.T) {
+	originalCommandRunner := backendCommandRunner
+	originalGoBuildRunner := backendGoBuildRunner
+	defer func() { backendCommandRunner = originalCommandRunner; backendGoBuildRunner = originalGoBuildRunner }()
+	failure := errors.New("test stream failed")
+	backendCommandRunner = func(_ *cobra.Command, _ string, _ ...string) error { return failure }
+	backendGoBuildRunner = func(_ *cobra.Command) error { t.Fatal("build after failed test stream"); return nil }
+	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{stage: "buildtest", testReport: ".tmp/tests.json"})
+	if !errors.Is(err, failure) {
+		t.Fatalf("failure = %v", err)
+	}
+}
+
+// TestBackendReportRequiresTestStage 验证无测试阶段明确拒绝报告输出参数。
+func TestBackendReportRequiresTestStage(t *testing.T) {
+	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{stage: "lint", testReport: ".tmp/tests.json"})
+	if err == nil || !strings.Contains(err.Error(), "--test-report") {
+		t.Fatalf("expected stage mismatch, got %v", err)
+	}
+}

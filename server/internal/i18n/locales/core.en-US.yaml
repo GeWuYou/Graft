@@ -31,3 +31,5 @@ menu.domain.observability.title: Observability
 menu.domain.security.title: Security
 menu.section.access_control: Access Control
 menu.domain.platform.title: Platform
+common.task_execution_unavailable: Execution is unavailable. Check the runtime target execution status before retrying.
+common.task_resource_busy: This resource has an unfinished operation. Review the related task before retrying.

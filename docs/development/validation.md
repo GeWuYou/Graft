@@ -1,0 +1,137 @@
+# 开发验证阶段
+
+根 AGENTS.md 持有验证阶段，server/web 领域命令持有检查实现。
+
+## 日常迭代与提交准备
+
+迭代运行必要编译和能够诊断当前问题的最小检查。提交准备审阅完整任务 diff 与消费者，选择有意义的回归测试。
+
+`just check-local-plan` 显示当前 worktree 变更的检查计划。`just check-local` 执行同一计划。
+可以重复传入 `--file <仓库相对路径>` 与 `--test <消费者测试路径>`。
+显式消费者必须存在且属于对应语言测试族；删除整个 Go 包或最后一份测试时选择现存消费者，未覆盖删除项会报告缺口。
+默认选择 HEAD 与 worktree 的差异及未跟踪文件，删除项保留在影响分析中。
+检查目标是当前 worktree；所选文件存在 staged/worktree 内容分歧时执行入口返回缺口，提交前须使验证内容与暂存内容一致。
+
+Go 按直接及显式消费者包测试，Web 按文件格式、lint、样式和选定测试检查。OpenAPI 变更另执行
+`just openapi-check` 并选择两端消费者测试。治理变更执行对应结构校验。
+空范围、未知影响、缺少测试和缺少工具均明确报告，执行过程收集独立失败，缺口返回非零状态。
+依赖使用 `just setup` 显式准备，定向检查仅消费已安装工具。
+
+`just check-changed` 是 `check-local` 的兼容入口。完整领域检查由 `just check-server`、
+`just check-web` 和 `just check` 显式调用。检查成功、完成提交准备、通过 CI 和完成运行验收分别记录。
+
+## Bun workspace 与 Turbo
+
+根 `package.json`、`bun.lock` 统一管理 JavaScript 依赖，`bun install --frozen-lockfile` 在根目录执行。
+server 的 `package.json` 仅暴露 Go 命令，Go module 持有 Go 依赖。
+Just 包装开发、生成和运维命令，`bun run build`、`bun run test`、`bun run check:code` 通过
+`scripts/turbo.mjs` 编排代码任务，领域命令可独立使用。
+
+只有前端生产构建使用当前检出的 .turbo/cache 本地结果缓存。缓存输入包括源码、生成客户端、配置、OpenAPI 源、锁文件、
+前端环境文件、构建变量以及 OS/架构/Bun/Node 身份。构建命中恢复完整 dist。
+测试、检查、生成新鲜度与迁移历史每次执行。共享包或构建输入改变时同步修改任务输入并验证失效。
+`--force` 强制执行并更新本地缓存。数据库、Docker、浏览器和发布验收分别提供真实环境证据。
+
+## CI 与独立工具
+
+CI 分别执行治理、契约、迁移、server 和 web 检查，并在汇总 job 收集独立结果。
+后端 buildtest 的 `--test-report <path>` 将同一次 Go 测试流交给报告生成器，再继续构建。
+测试失败和报告生成失败分别传播到门禁。报告呈现消费已有结果。
+
+项目命令、CI 和领域规范可独立于个人 harness 使用。个人启动、任务池和交付编排可以通过外部 adapter
+映射已有命令，仓库技能引用产品权威，避免重复定义阶段与权限。
+
+
+## 首轮测量记录
+
+2026-11-15 在原生产源码 346854ff5daae3f804f8fad706202c9e983d2067 的任务检出上，
+使用 Linux x64、Bun 1.3.14、Node 24.19.0 与原前端锁定依赖进行测量。
+直接前端构建为 81.28 秒，首次 Turbo 构建为 83.39 秒，输入稳定后的缓存命中为 0.16 秒。
+命中恢复 dist 的行为另由临时仓库实测。该结果衡量本机重复构建，完整 CI 耗时需要独立比较。
+
+旧池中的 node_modules 与锁文件版本存在分歧，先通过任务目录中的干净冻结安装修复依赖条件。
+workspace 合并时，相同包版本节点的原传递依赖发生去重，fast-uri 从原根工具链的 3.1.2 统一到前端已有
+3.1.3，brace-expansion 从原根工具链的 5.0.6 统一到前端已有 5.0.7，其余既有版本集合保留。
+OpenAPI bundler 使用的 @redocly/openapi-core 显式声明为既有锁定版本 1.34.17。
+
+## 本机运行时 CI
+
+独立的 Local runtime acceptance job 消费 server-build-test 的已验证 Linux/amd64 二进制及 web-check 的生产 dist。
+产物携带实际 checkout commit 与文件 SHA-256，消费端先核对来源和字节，再构建带同一 revision 标签的运行时镜像。
+后端与 Web 测试各执行一次，运行验收复用其构建产物。
+
+验收在任务私有 Docker daemon 中执行核心 API 与实际引擎核对，再用冻结的官方根 Compose 从空目录安装并执行同组操作。
+两组证据都必须覆盖 canonical 必需场景集合且状态为 passed，未验证和缺失场景使 job 失败。
+Required checks passed 将该 job 纳入结果汇总，跳过结果保持失败。
+
+收尾始终按已注册 project 身份销毁任务资源。上传范围采用精确文件白名单，包含 API 场景、
+源码指纹、官方安装、清理与构建来源证明。instance.json、环境文件和原始错误日志保留在 runner 的本地目录。
+镜像构建与平台自更新的完整运行场景由各自验收驱动提供证据，核心操作 CI 与它们分别记录。
+
+## 版本化平台更新验收
+
+`bash scripts/build_runtime_acceptance.sh` 在干净源码上链接同一 Git commit 的两个 server，
+版本分别为 0.0.0-beta.1 和 0.0.0-beta.2，同时构建生产 Controller 与标准 Go TLS release fixture。
+构建身份通过既有 buildinfo 链接字段注入，源码 commit 与提交时间冻结，CGO_ENABLED=0、linux/amd64。
+产物目录位于忽略的 .tmp/compiled，测试继续使用统一 backend 入口的一次执行。
+
+运行时 job 先核对二进制内版本与 commit，再核对文件摘要，消费既有 server、web、Controller 和 release fixture
+Dockerfile。Controller 与 fixture 的 build 命名上下文指向已验证的 out 产物，从而复用这些二进制。
+[Docker 命名上下文](https://docs.docker.com/reference/cli/docker/buildx/build/#additional-build-contexts---build-context)
+
+全新注册包含 source server、target server、web、runner 与 release fixture 的同源码镜像身份。
+顺序为 up、probe、official-install、build-api、update-api。最后一项通过生产发布解析、摘要验证与 Update API
+完成备份失败注入、正常更新、server 替换以及 Task/Backup/Controller 回执结算。
+独立校验器再比对 source/target 二进制摘要、版本、迁移和备份证据。缺失或不一致的证明使门禁失败。
+
+同源镜像重标记的 controller-smoke 仍是独立协议探针，运行时使用另一全新注册，避免改动 Update API
+验收要求的初始版本与 tag。CI 的版本化更新路径直接执行生产 Controller。
+仅将 release-api/update-api-evidence.json 作为新增证明文件上传，私有 CA 密钥、证书材料、环境和原始日志保留在 runner。
+
+## 工具依赖归属复验
+
+OpenAPI bundle 的实际消费者位于根 scripts，@redocly/openapi-core 1.34.17 由根工具包显式声明，
+bundler 从根 package.json 解析它。Web i18n 检查直接导入 yaml，由 Web 工具依赖显式声明既有 2.9.1。
+两者经过完整锁版本集合核对，声明调整没有新增或移除上游包版本。
+
+2026-11-16 在隔离任务检出中重新创建依赖链接并执行根 frozen install，随后直接生成 OpenAPI bundle，
+运行完整 Web check。源码检查、生产构建与 312 个测试文件的 2175 项测试通过。
+本轮 Web 源码为治理切片，运行时诊断 UI 的独立切片由其 scoped 测试和后续组合 CI 提供证据。
+
+## 认证 Registry 的 Build 验收
+
+同一构建脚本追加构建既有 Go module 锁定的 bcrypt fixture helper，产物与运行镜像继续绑定源码和文件摘要。
+CI 注册传入 build-registry-image，在 official-install 后执行 build-api，再执行 update-api。
+独立 Build 证明要求真实匿名 401、认证 200、Registry 验证、成功 Task、artifact/publication 关联、
+Docker Image ID 和远端 manifest digest 一致，并要求任务与日志中的秘密检查通过。
+更新证明同时要求前序 Build 证明存在且完整。
+
+新增上传文件限定为 build-api/build-api-evidence.json 与辅助二进制 provenance。
+私有 TLS、认证文件及其生成秘密受 fixture 本地生命周期管理，CI 消费正常 Registry/Build API 与 SDK 执行入口。
+
+## 完整安装与镜像内容证明
+
+官方安装记录仅在所有必需场景通过后设置 complete=true，后续 CI 验收要求该完成标记。
+Build 证明还要求远端 manifest 的 config digest 指向实际 Engine Image ID，
+并从未启动的私有镜像容器提取 /probe，核对上传 context 的预期 SHA-256 和实际内容摘要。
+
+更新成功必须有 migration_started=true 及 bootstrap 调用证明，配置快照失败场景则要求
+migration_started=false 和绑定操作的失败回执。同一源码的 beta.1/beta.2 验收覆盖现有迁移图的调用，
+具体范围为相同 Git revision 的迁移图，新增 DDL 的升级路径需要独立迁移证据。
+
+
+## 首轮集成验收完成记录
+
+2026-11-16，head 795c9a8345720679bc0d9c8cdd0b09b662ae6184 的
+[完整 CI](https://github.com/GeWuYou/Graft/actions/runs/43794608388) 通过全部源码、PostgreSQL 迁移与实际运行门禁。
+该 CI 中的私有引擎及全新官方安装各通过 24 项场景，认证 Build 的 manifest、Engine image 与上传内容逐项核对。
+完整 Update API 验证失败备份边界、成功替换、版本、Task、Backup 和 Controller 回执。
+同源 beta.1/beta.2 的迁移范围为现有迁移图调用。PostgreSQL 迁移门禁已通过，含新 DDL 的跨版本平台更新需独立版本场景验收。
+
+另将本机实际更新生成的 PostgreSQL dump 恢复到新的私有数据库，核对用户、角色、运行目标、应用、Build artifact、
+工作区 snapshot 及 151 个迁移版本后删除该演练库。平台恢复证明与应用数据备份路线分别记录。
+
+执行约束为单数据库一个活跃 Task Runtime。Controller 的跨 UID 文件访问使用 root、CHOWN 与 DAC_OVERRIDE，
+其余 capability 删除，网络关闭，根文件系统只读并启用 no-new-privileges。
+Secret Scan 的唯一历史合成值例外绑定规范化摘要、检测器、引入提交、文件与行号，完整扫描和其他结果阻断继续生效。
+本轮实现及验收历史见[主题归档](../../ai-plan/public/archive/containerized-platform-governance/README.md)。

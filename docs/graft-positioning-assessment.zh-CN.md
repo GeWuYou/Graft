@@ -2,6 +2,15 @@
 
 评估日期为 2026-11-15。Graft 的调查基线为 `3989727b06bf446a03bcabceba0246c43bf3f181`，升级运行镜像源码为 `c274ac9236a240cf209638434fd370692e204a2d`，Arcane 固定比较版本为 `v3.0.0`。目标用户为个人与小团队的 Docker/Compose 运维人员。本报告提出后续产品取舍，并保留依赖升级阶段的历史隔离证据。三项既有断点及复验中发现的 Compose 标签缺口的最终修复复验源码为 `fbe7b39e225d45fb834d81b4b738602ebc604355`，最新运行结论见“既有断点修复复验”。
 
+## 后续批准的实施方向
+
+用户于 2026-11-15 批准单机 Docker/Compose 优先、后续容器化建站的演进方案。
+工程治理与本机执行迁移覆盖 Build 和平台自更新，决策见
+[ADR-029](../ai-plan/design/decisions/ADR-029-local-application-operations.md)，
+阶段与实际进度分别见[路线](../ai-plan/roadmap/MVP实施计划.md)和
+[主题归档](../ai-plan/public/archive/containerized-platform-governance/README.md)。
+以下隔离复验是所列历史源码的运行证据，新执行边界的验收另行绑定交付 revision。
+
 ## 当前判断
 
 Graft 已拥有应用工作区、Compose 生命周期、Docker 资源清单、日志、终端、权限、任务与审计等实现。依赖升级阶段的隔离基线复现了 Agent 健康、读取和 Shell 正常、写操作 Task 停在 ready 的问题，真实 mTLS 请求与源码将原因定位到执行入口的身份字段不匹配。该边界、Compose 导入的 SQL 参数顺序和 Agent `--once` 成功后退出的行为现已修复。复验进一步发现直接使用 Compose SDK 时遗漏 CLI 准备的归属标签，导致 stop Task 成功而容器仍运行，该缺口也已修复。相同私有引擎中的镜像拉取、容器启停重启、Compose 部署和相对挂载均通过，导入的四项身份字段经 API 与 PostgreSQL 读回一致。执行中断后 Task 收敛为 `needs_attention`，标记 `agent_execution_interrupted`，已产生的应用容器保留且没有重复启动，完整自动恢复仍需独立验收。现有能力覆盖面可以支撑一个单机 Docker/Compose 运维工具，后续功能收拢应依据安装成本、诊断和恢复证据推进。实现证据见 [应用模块](../server/modules/project)、[容器模块](../server/modules/container) 和 [任务模块](../server/modules/task)。

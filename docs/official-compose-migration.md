@@ -11,6 +11,33 @@ it does not make the Update Center a generic host command runner.
 - Run these commands on the Docker daemon host. Do not use a container-only path, a Windows/WSL translated path, or a path from another Docker host.
 - The controlled Compose runner currently supports Linux `amd64` hosts only.
 
+## Select the Execution Mode
+
+New installations use `GRAFT_EXECUTION_MODE=local` with an empty `COMPOSE_PROFILES`. The server's Task Runtime executes Docker/Compose and Build operations and launches the independent platform update controller. PostgreSQL, Redis, server and web form the default long-running topology.
+
+Existing installations with no execution-mode key retain Agent execution. Before adopting the current Compose file, make the existing choice explicit in `.env`:
+
+```dotenv
+GRAFT_EXECUTION_MODE=agent
+COMPOSE_PROFILES=agent
+```
+
+Agent mode requires its existing Vault PKI, TLS listeners and delivered Agent identity. The Compose configuration check rejects a mode/profile mismatch before bootstrap. Keep any other required profiles in the comma-separated `COMPOSE_PROFILES` value.
+
+To move an existing installation to local execution, select a verified release that provides `graft runtime mode preflight`, retain its matching server image and Compose assets, then schedule a maintenance window. Complete or explicitly cancel outstanding operations, investigate `needs_attention` effects and stop the task producers. Keep the database, application identities, task history, audit data and mounted workspace files together.
+
+Run the read-only preflight with the target release's server image after its forward migrations have completed:
+
+```bash
+docker compose --profile runtime-mode-preflight run --rm runtime-mode-preflight
+```
+
+The service uses the same server image as bootstrap and requests `--mode local --format json`. Resolve every reported task, lease or execution-ownership issue before changing `.env`. Startup repeats the ownership guard so a preflight result cannot authorize a conflicting execution attempt.
+
+Set `GRAFT_EXECUTION_MODE=local`, remove `agent` from `COMPOSE_PROFILES` and start the official topology. Preserve a backup of the prior environment and verified image references for an operator-led recovery.
+
+Local Compose relative bind mounts require identical absolute application paths on the Docker daemon host and inside server. The new-install default sets both `GRAFT_APPLICATION_ROOT_HOST_PATH` and `GRAFT_APPLICATION_ROOT_CONTAINER_PATH` to `/opt/graft/apps`. For a custom absolute root, set both values identically and align **Application Root Directory** in application settings. Verify existing data and permissions at that root before cutover. The deployment check reports mismatched or relative roots, leaving data relocation to the operator.
+
 ## 1. Prepare an Official Compose Root
 
 Choose an absolute Docker daemon host directory, for example `/opt/graft`. Its top level must contain the official `compose.yml` (or `compose.yaml`) and the Compose project's `.env` file.
@@ -23,7 +50,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server socket mount is retained only for Runtime Target discovery/summary, Container snapshot/resource/log/stream/event/stats and interactive reads, Deployment Runtime's current-server Docker facts, and bounded Update observation/recovery. The Docker Runtime Agent owns Update Controller launch and other Docker side effects.
+Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`. Local mode uses the server socket for authorized execution and observation. Agent mode adds the explicit `agent` profile and delegates finite Docker side effects to that Agent.
 
 ## 2. Preserve Existing Data
 
@@ -69,7 +96,7 @@ docker compose ps
 
 Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Official Compose bootstrap is the retained cutover authority: it runs `graft update cutover-v1` once before `graft migrate up`; the cutover command only handles legacy update-state cleanup and is not a second runtime execution path. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
 
-For a confirmed upgrade, keep the controller's order observable and intact: update `server` and `web`, verify the new server health, replace the Docker Runtime Agent last, then verify the replacement Agent's mTLS identity, active generation, and declared capability readiness. Do not replace the Agent first or treat a healthy container alone as readiness.
+For a confirmed upgrade, keep the controller's order observable and intact. Update `server` and `web`, then verify the new server health. Local mode also verifies local execution ownership and Docker access. The independent controller retains backup evidence and its durable receipt across server replacement. The existing Agent path upgrades server/web and requires separately maintained Agent delivery and capability compatibility. Agent image replacement and mTLS readiness need their own verified rollout evidence.
 
 Before applying a release that contains an L2-or-higher migration sidecar, run its declared target-data checks with the same official server image and production configuration that will apply the migration. The official Compose file provides a profile-gated `migration-preflight` one-shot service that shares the same `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` image reference and runtime environment as `bootstrap`; `bootstrap` then applies migrations from the embedded migration registry in that same server binary.
 

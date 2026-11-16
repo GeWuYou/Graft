@@ -4689,6 +4689,78 @@ func (e RuntimeTargetAssignmentBatchRequestAction) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeTargetExecutionCapabilities.
+const (
+	ComposeExecution   RuntimeTargetExecutionCapabilities = "compose_execution"
+	ContainerExecution RuntimeTargetExecutionCapabilities = "container_execution"
+	OciBuild           RuntimeTargetExecutionCapabilities = "oci-build"
+	UpdateController   RuntimeTargetExecutionCapabilities = "update_controller"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetExecutionCapabilities enum.
+func (e RuntimeTargetExecutionCapabilities) Valid() bool {
+	switch e {
+	case ComposeExecution:
+		return true
+	case ContainerExecution:
+		return true
+	case OciBuild:
+		return true
+	case UpdateController:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetExecutionDiagnosticCode.
+const (
+	AgentUnavailable        RuntimeTargetExecutionDiagnosticCode = "agent_unavailable"
+	DockerUnavailable       RuntimeTargetExecutionDiagnosticCode = "docker_unavailable"
+	ExecutionModeMismatch   RuntimeTargetExecutionDiagnosticCode = "execution_mode_mismatch"
+	ExecutionOwnershipLost  RuntimeTargetExecutionDiagnosticCode = "execution_ownership_lost"
+	ExecutionReady          RuntimeTargetExecutionDiagnosticCode = "execution_ready"
+	ExecutionRuntimeStopped RuntimeTargetExecutionDiagnosticCode = "execution_runtime_stopped"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetExecutionDiagnosticCode enum.
+func (e RuntimeTargetExecutionDiagnosticCode) Valid() bool {
+	switch e {
+	case AgentUnavailable:
+		return true
+	case DockerUnavailable:
+		return true
+	case ExecutionModeMismatch:
+		return true
+	case ExecutionOwnershipLost:
+		return true
+	case ExecutionReady:
+		return true
+	case ExecutionRuntimeStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetExecutionMode.
+const (
+	RuntimeTargetExecutionModeAgent RuntimeTargetExecutionMode = "agent"
+	RuntimeTargetExecutionModeLocal RuntimeTargetExecutionMode = "local"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetExecutionMode enum.
+func (e RuntimeTargetExecutionMode) Valid() bool {
+	switch e {
+	case RuntimeTargetExecutionModeAgent:
+		return true
+	case RuntimeTargetExecutionModeLocal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeTargetSummaryConnectionKind.
 const (
 	RuntimeTargetSummaryConnectionKindUnixSocket RuntimeTargetSummaryConnectionKind = "unix_socket"
@@ -5496,6 +5568,30 @@ func (e TaskLogEntryStream) Valid() bool {
 	case TaskLogEntryStreamStdout:
 		return true
 	case TaskLogEntryStreamSystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskStageExecutionMode.
+const (
+	TaskStageExecutionModeAgent      TaskStageExecutionMode = "agent"
+	TaskStageExecutionModeController TaskStageExecutionMode = "controller"
+	TaskStageExecutionModeLocal      TaskStageExecutionMode = "local"
+	TaskStageExecutionModeServer     TaskStageExecutionMode = "server"
+)
+
+// Valid indicates whether the value is a known member of the TaskStageExecutionMode enum.
+func (e TaskStageExecutionMode) Valid() bool {
+	switch e {
+	case TaskStageExecutionModeAgent:
+		return true
+	case TaskStageExecutionModeController:
+		return true
+	case TaskStageExecutionModeLocal:
+		return true
+	case TaskStageExecutionModeServer:
 		return true
 	default:
 		return false
@@ -10991,12 +11087,42 @@ type EnvelopedBuildArtifactPublicationList struct {
 
 // EnvelopedBuildInputSnapshot defines model for enveloped-build-input-snapshot.
 type EnvelopedBuildInputSnapshot struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
 	Data BuildInputSnapshot `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedBuildInputSnapshotList defines model for enveloped-build-input-snapshot-list.
 type EnvelopedBuildInputSnapshotList struct {
+	// Code Existing canonical response code.
+	Code string                 `json:"code"`
 	Data BuildInputSnapshotList `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedBuildJobDetail defines model for enveloped-build-job-detail.
@@ -13561,7 +13687,7 @@ type PlatformUpdateOperation struct {
 	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_state_corrupt and runner_lost are explicitly unavailable.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
+	// StateSource Authority that produced this projection. task_recovery is Task Runtime's terminal or recovery projection and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -13573,7 +13699,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. task_recovery is Task Runtime's historical attention outcome and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
+// PlatformUpdateOperationStateSource Authority that produced this projection. task_recovery is Task Runtime's terminal or recovery projection and never represents live runner progress. runner_state_unavailable, runner_state_corrupt, and runner_lost also never represent live runner progress; corrupt state is quarantined only through protected recovery.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.
@@ -14329,7 +14455,8 @@ type RuntimeTarget struct {
 		Endpoint string                      `json:"endpoint"`
 		Kind     RuntimeTargetConnectionKind `json:"kind"`
 	} `json:"connection"`
-	DisplayName string `json:"displayName"`
+	DisplayName string                  `json:"displayName"`
+	Execution   *RuntimeTargetExecution `json:"execution,omitempty"`
 	Health      struct {
 		// Diagnostic Sanitized connection diagnostic; empty when healthy.
 		Diagnostic    string                    `json:"diagnostic"`
@@ -14455,6 +14582,23 @@ type RuntimeTargetCountMetric struct {
 	UnavailableReason string `json:"unavailableReason"`
 }
 
+// RuntimeTargetExecution defines model for runtime-target-execution.
+type RuntimeTargetExecution struct {
+	Capabilities   []RuntimeTargetExecutionCapabilities `json:"capabilities"`
+	DiagnosticCode RuntimeTargetExecutionDiagnosticCode `json:"diagnostic_code"`
+	Mode           RuntimeTargetExecutionMode           `json:"mode"`
+	Ready          bool                                 `json:"ready"`
+}
+
+// RuntimeTargetExecutionCapabilities defines model for RuntimeTargetExecution.Capabilities.
+type RuntimeTargetExecutionCapabilities string
+
+// RuntimeTargetExecutionDiagnosticCode defines model for RuntimeTargetExecution.DiagnosticCode.
+type RuntimeTargetExecutionDiagnosticCode string
+
+// RuntimeTargetExecutionMode defines model for RuntimeTargetExecution.Mode.
+type RuntimeTargetExecutionMode string
+
 // RuntimeTargetImageMetric defines model for runtime-target-image-metric.
 type RuntimeTargetImageMetric struct {
 	Available         bool   `json:"available"`
@@ -14482,7 +14626,8 @@ type RuntimeTargetSummary struct {
 		Endpoint string                             `json:"endpoint"`
 		Kind     RuntimeTargetSummaryConnectionKind `json:"kind"`
 	} `json:"connection"`
-	DisplayName string `json:"displayName"`
+	DisplayName string                  `json:"displayName"`
+	Execution   *RuntimeTargetExecution `json:"execution,omitempty"`
 	Health      struct {
 		// Diagnostic Sanitized connection diagnostic; empty when healthy.
 		Diagnostic    string                           `json:"diagnostic"`
@@ -15587,6 +15732,12 @@ type TaskStage struct {
 	Attempt    int    `json:"attempt"`
 	DurationMs *int64 `json:"duration_ms,omitempty"`
 
+	// ExecutionMode Execution owner frozen in the task plan.
+	ExecutionMode *TaskStageExecutionMode `json:"execution_mode,omitempty"`
+
+	// ExecutionVersion Frozen SDK, capability, or Controller protocol version.
+	ExecutionVersion *string `json:"execution_version,omitempty"`
+
 	// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
 	ExecutorType   string     `json:"executor_type"`
 	FailureCode    *string    `json:"failure_code,omitempty"`
@@ -15604,6 +15755,9 @@ type TaskStage struct {
 	// Status Canonical persisted Stage state-machine state.
 	Status TaskStageStatus `json:"status"`
 }
+
+// TaskStageExecutionMode Execution owner frozen in the task plan.
+type TaskStageExecutionMode string
 
 // TaskStageRecoveryPolicy defines model for TaskStage.RecoveryPolicy.
 type TaskStageRecoveryPolicy string
@@ -16037,6 +16191,9 @@ type PreconditionFailed = ErrorResponse
 
 // PreconditionRequired defines model for precondition-required.
 type PreconditionRequired = ErrorResponse
+
+// ServiceUnavailable defines model for service-unavailable.
+type ServiceUnavailable = ErrorResponse
 
 // Unauthorized defines model for unauthorized.
 type Unauthorized = ErrorResponse

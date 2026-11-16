@@ -2,7 +2,7 @@ post:
   tags: [container]
   summary: Remove Docker images in batch
   operationId: postDockerImageBatchRemove
-  description: Submits one Task with ordered per-image external stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
+  description: Submits one Task with ordered per-image execution stages. Execution is fail-fast; a failed stage stops later stages, and every uncertain side effect requires manual reconciliation. The operation does not remove individual tags or automatically force removal.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -39,5 +39,6 @@ post:
     '403':
       $ref: ../components/responses/forbidden.yaml
     '409': { description: Idempotency-Key conflicts with a different submission. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

@@ -1,0 +1,53 @@
+{
+  "source_revision": "868718f8391c34aa6346fa1bb70d8a65f42743d0",
+  "payloads": {
+    "corrupt": {
+      "operation_id": "update-42",
+      "runner_id": "runner-recovery-42",
+      "source_version": "1.0.0",
+      "target_version": "1.1.0",
+      "deployment_strategy": "beta_tracking",
+      "execution_mode": "local",
+      "launch_stage_id": 42,
+      "launch_attempt": 2,
+      "corrupt": true
+    },
+    "legacy": {
+      "operation_id": "update-42",
+      "runner_id": "runner-recovery-42",
+      "source_version": "1.0.0",
+      "target_version": "1.1.0",
+      "deployment_strategy": "beta_tracking"
+    },
+    "with_state": {
+      "operation_id": "update-42",
+      "runner_id": "runner-recovery-42",
+      "source_version": "1.0.0",
+      "target_version": "1.1.0",
+      "deployment_strategy": "beta_tracking",
+      "execution_mode": "local",
+      "launch_stage_id": 42,
+      "launch_attempt": 2,
+      "state": {
+        "schema_version": 2,
+        "operation_id": "update-42",
+        "operation": "self_update",
+        "runner_id": "runner-recovery-42",
+        "source_version": "1.0.0",
+        "target_version": "1.1.0",
+        "deployment_strategy": "beta_tracking",
+        "execution_mode": "local",
+        "phase": "READY",
+        "progress": 0,
+        "message": "runner_accepted",
+        "started_at": "2026-11-16T02:34:15.49809466Z",
+        "updated_at": "2026-11-16T02:34:15.49809466Z",
+        "lease_epoch": 1,
+        "lease_heartbeat_at": "2026-11-16T02:34:15.49809466Z",
+        "lease_expires_at": "2026-11-16T02:39:15.49809466Z",
+        "revision": 1,
+        "digest": "5ad504e3439a95b00e9c46abdc8ef1b2960add6a102d2c1f7bb9dc3262b760e2"
+      }
+    }
+  }
+}

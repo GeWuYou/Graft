@@ -53,6 +53,7 @@ type smokeValidateOptions struct {
 
 // backendValidateOptions 封装后端统一质量链的显式输入。
 type backendValidateOptions struct {
+	testReport                       string
 	stage                            string
 	lintConfig                       string
 	testLintConfig                   string
@@ -145,6 +146,7 @@ func newValidateBackendCommand() *cobra.Command {
 	command.Flags().StringVar(&opts.stage, "stage", defaultBackendStage, "validation stage: openapi, lint, buildtest, or full")
 	command.Flags().StringVar(&opts.lintConfig, "lint-config", defaultBackendLintConfig, "golangci-lint config for non-test code")
 	command.Flags().StringVar(&opts.testLintConfig, "test-lint-config", defaultBackendTestLintConfig, "golangci-lint config for test code")
+	command.Flags().StringVar(&opts.testReport, "test-report", "", "write CTRF from the same Go test stream; path relative to repository root")
 	command.Flags().StringArrayVar(&opts.testTargets, "test-target", nil, "go test package target to validate; repeatable, defaults to ./...")
 	command.Flags().BoolVar(&opts.smoke, "smoke", false, "append `graft validate smoke` after lint, test, and build")
 	command.Flags().StringVar(&opts.openapiSpec, "openapi-spec", defaultOpenAPIRootSpec, "root OpenAPI spec path relative to repository root")
@@ -228,10 +230,9 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	if strings.TrimSpace(opts.openapiSpec) == "" {
 		opts.openapiSpec = defaultOpenAPIRootSpec
 	}
-	if err := validateBackendStageOptions(stage, opts.smoke); err != nil {
+	if err := validateBackendStageOptions(stage, opts.smoke, opts.testReport); err != nil {
 		return err
 	}
-
 	switch stage {
 	case defaultOpenAPIStage:
 		return backendOpenAPIRunner(cmd, opts.openapiSpec)
@@ -241,7 +242,7 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 		}
 		return backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig)
 	case "buildtest":
-		return runBackendBuildTest(cmd, opts.testTargets)
+		return runBackendBuildTest(cmd, opts.testTargets, opts.testReport)
 	case "full":
 		return runFullBackendValidation(cmd, opts)
 	default:
@@ -290,12 +291,14 @@ func runBackendLintGuards(cmd *cobra.Command) error {
 	return nil
 }
 
-func validateBackendStageOptions(stage string, smoke bool) error {
-	if !smoke || stage == "full" {
-		return nil
+func validateBackendStageOptions(stage string, smoke bool, testReport string) error {
+	if smoke && stage != "full" {
+		return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
 	}
-
-	return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
+	if strings.TrimSpace(testReport) != "" && stage != "full" && stage != "buildtest" {
+		return errors.New("--test-report requires full or buildtest stage")
+	}
+	return nil
 }
 
 // runFullBackendValidation 按顺序执行完整的后端校验链。
@@ -324,7 +327,7 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 	if err := backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig); err != nil {
 		return err
 	}
-	if err := runBackendBuildTest(cmd, opts.testTargets); err != nil {
+	if err := runBackendBuildTest(cmd, opts.testTargets, opts.testReport); err != nil {
 		return err
 	}
 	if !opts.smoke {
@@ -345,19 +348,35 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 // 若未提供测试目标，则默认对 `./...` 运行测试。
 //
 // testTargets 指定要运行 `go test` 的目标列表。
-func runBackendBuildTest(cmd *cobra.Command, testTargets []string) error {
+func runBackendBuildTest(cmd *cobra.Command, testTargets []string, testReport string) error {
 	targets := append([]string(nil), testTargets...)
 	if len(targets) == 0 {
 		targets = []string{"./..."}
 	}
 
-	if err := backendGoTestRunner(cmd, targets); err != nil {
+	if err := runBackendTests(cmd, targets, testReport); err != nil {
 		return err
 	}
 	if err := backendGoBuildRunner(cmd); err != nil {
 		return err
 	}
 	return nil
+}
+
+// runBackendTests 将同一次测试流交给报告器，失败仍由统一后端入口传播。
+func runBackendTests(cmd *cobra.Command, targets []string, report string) error {
+	if strings.TrimSpace(report) == "" {
+		return backendGoTestRunner(cmd, targets)
+	}
+	serverRoot, err := resolveBackendModuleRoot()
+	if err != nil {
+		return err
+	}
+	args := []string{filepath.Join(filepath.Dir(serverRoot), "scripts", "test-reporting", "run_server_ctrf_report.py"), "--output", report}
+	for _, target := range targets {
+		args = append(args, "--test-target", target)
+	}
+	return backendCommandRunner(cmd, "python3", args...)
 }
 
 // targets 为空时，由调用方决定测试范围。

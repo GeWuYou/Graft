@@ -363,7 +363,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "Use jq for JSON inspection; fall back to python3 if jq is unavailable.",
             "Prefer gh-authenticated access for GitHub PR automation when gh is installed and logged in.",
             "Prefer python3 over complex bash for non-trivial scripting when python3 is available.",
-            "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm.",
+            "Use Bun for the root workspace when bun.lock exists; legacy nested lock detection remains supported.",
             "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint.",
             "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence.",
             "Use Context7 MCP for current third-party library documentation when repository truth is insufficient.",

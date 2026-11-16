@@ -54,11 +54,9 @@ This skill has two explicit stages:
    - verify `source -> sink` for code scanning alerts
    - verify direct vs indirect usage and patched version reality for dependency alerts
    - do not add suppressions, aliases, or compatibility layers unless root [AGENTS.md](../../../AGENTS.md) exception rules are satisfied
-7. Use `graft-validation-runner` and complete the full entrypoint for the touched runtime scope:
-   - `server`: focused `go test` during iteration, then `graft validate backend`
-   - `web`: `bun run check`
-   - `cross-boundary`: validate both sides
-   Focused tests and lint stages are supplemental; they do not replace a full completion entrypoint.
+7. Use `graft-validation-runner` under root validation phases. Select source-to-sink and affected-consumer regressions
+   for preparation, then require full domain CI for the touched scope. Security-specific rechecks remain applicable.
+
 8. Recheck after local validation. Read [references/recheck.md](references/recheck.md) when you need the standard
    evidence checklist or post-push expectations.
 

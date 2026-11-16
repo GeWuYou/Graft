@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -112,7 +113,8 @@ func TestCreateRepositoryGrantsCreatorUseWhenRequested(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT EXISTS \(SELECT 1 FROM users WHERE id = \$1\)`).WithArgs(uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 	mock.ExpectQuery(`INSERT INTO artifact_repositories`).WithArgs("registry:primary", "team/created", "Created", true, true, uint64(7)).WillReturnRows(sqlmock.NewRows([]string{"id", "repository_ref", "display_name", "allow_pull", "allow_push", "created_at", "updated_at"}).AddRow(1, "team/created", "Created", true, true, time.Now(), time.Now()))
-	mock.ExpectExec(`INSERT INTO artifact_repository_user_assignments`).WithArgs(uint64(1), uint64(7)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
+VALUES ($1, $2, $2, $2)`)).WithArgs(uint64(1), uint64(7)).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	repository, err := registrystore.NewSQLRepository(db)
 	if err != nil {

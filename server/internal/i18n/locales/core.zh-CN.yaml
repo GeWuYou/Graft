@@ -31,3 +31,5 @@ menu.domain.observability.title: 可观测性
 menu.domain.security.title: 安全
 menu.section.access_control: 访问控制
 menu.domain.platform.title: 平台
+common.task_execution_unavailable: 执行器当前不可用，请检查运行目标的执行状态后重试
+common.task_resource_busy: 此资源已有未完成或待核对的操作，请先查看相关任务

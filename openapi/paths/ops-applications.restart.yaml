@@ -2,7 +2,7 @@ post:
   tags: [application]
   summary: Restart a registered application
   operationId: postApplicationRestart
-  description: Submits the saved application restart policy for external execution.
+  description: Submits the saved application restart policy for configured execution.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -50,5 +50,6 @@ post:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

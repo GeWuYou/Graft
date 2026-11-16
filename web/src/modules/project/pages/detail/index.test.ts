@@ -155,7 +155,7 @@ const detailMessages = {
   'project.detail.overview.runtimeTargetUnavailable': 'No bound runtime target found',
   'project.detail.overview.runtimeTargetValueUnavailable': 'Unavailable',
   'project.detail.overview.runtimeTargetVersion': 'Version',
-  'project.detail.runtimeTargetCapabilityUnavailable': 'Runtime Agent capability unavailable',
+  'project.detail.runtimeTargetCapabilityUnavailable': 'Runtime execution capability unavailable',
   'project.detail.overview.serviceHealthAttention': 'Attention',
   'project.detail.overview.serviceHealthHealthy': 'Healthy',
   'project.detail.overview.serviceHealthUnknown': 'Unknown',
@@ -1652,6 +1652,63 @@ describe('Application detail service tab', () => {
     expect(wrapper.find('[data-row="worker"] [data-action="stop"]').exists()).toBe(false);
     expect(wrapper.find('[data-row="worker"] [data-action="restart"]').exists()).toBe(false);
   });
+
+  it.each([
+    { ready: true, diagnostic: 'execution_ready', disabled: false },
+    { ready: false, diagnostic: 'execution_ownership_lost', disabled: true },
+  ])(
+    'uses authoritative local execution readiness for service controls ($diagnostic)',
+    async ({ ready, diagnostic, disabled }) => {
+      runtimeTargetContractMocks.getApplicationRuntimeTargetDetail.mockResolvedValueOnce({
+        displayName: 'Local Docker',
+        endpoint: 'unix:///var/run/docker.sock',
+        healthStatus: 'healthy',
+        hostName: 'host',
+        operatingSystem: 'Linux',
+        provider: 'docker',
+        runtimeType: 'container_runtime',
+        version: '29.9.3',
+        agent: {
+          status: ready ? 'not_enrolled' : 'ready',
+          capabilities: ready
+            ? []
+            : [
+                { name: 'container_execution', status: 'ready' },
+                { name: 'compose_execution', status: 'ready' },
+              ],
+        },
+        execution: {
+          mode: 'local',
+          ready,
+          diagnostic_code: diagnostic,
+          capabilities: ['compose_execution', 'container_execution'],
+        },
+      });
+      const wrapper = mountPage();
+      await flushPromises();
+      for (const selector of [
+        '[data-row="app"] [data-action="stop"]',
+        '[data-row="app"] [data-action="restart"]',
+        '[data-row="worker"] [data-action="start"]',
+      ]) {
+        expect(wrapper.get(selector).attributes('disabled') !== undefined).toBe(disabled);
+      }
+      await wrapper.get('[data-select-row="app"]').trigger('click');
+      await flushPromises();
+      expect(
+        wrapper.get('.project-service-selection-toolbar [data-dropdown-action="restart"]').attributes('disabled') !==
+          undefined,
+      ).toBe(disabled);
+      if (!disabled) {
+        await wrapper.get('[data-row="app"] [data-action="stop"]').trigger('click');
+        await flushPromises();
+        expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith(
+          { action: 'stop', force: false, ids: ['container-1', 'container-2'] },
+          expect.any(String),
+        );
+      }
+    },
+  );
 
   it('runs service actions against all container members and refreshes detail state', async () => {
     const wrapper = mountPage();

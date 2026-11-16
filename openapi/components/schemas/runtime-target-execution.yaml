@@ -1,0 +1,16 @@
+type: object
+required: [mode, ready, diagnostic_code, capabilities]
+properties:
+  mode:
+    type: string
+    enum: [local, agent]
+  ready:
+    type: boolean
+  diagnostic_code:
+    type: string
+    enum: [execution_ready, docker_unavailable, agent_unavailable, execution_mode_mismatch, execution_runtime_stopped, execution_ownership_lost]
+  capabilities:
+    type: array
+    items:
+      type: string
+      enum: [container_execution, compose_execution, oci-build, update_controller]

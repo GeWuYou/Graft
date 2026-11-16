@@ -97,6 +97,80 @@ Agent Vault credentials or a database connection.
 
 ## Dedicated Docker daemon verification
 
+### Local Task execution
+
+`compose.local.yml` is a standalone private-engine fixture for local execution. It runs PostgreSQL, Redis, a private Docker daemon, workspace initialization, migrations and the backend. Its server image is the sole application image required for registration, with an exact source-revision label verified by the same runner.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --execution-mode local \
+  --directory .local/docker-isolated/local \
+  --project graft-isolated-local \
+  --source-revision <full-commit> \
+  --backend-image <backend-image> \
+  --port 28080
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/local
+python3 scripts/validate_docker_isolated.py probe --directory .local/docker-isolated/local
+python3 scripts/validate_docker_isolated.py stop --directory .local/docker-isolated/local
+```
+
+The local probe discovers the canonical Docker target through the public API, exercises the same container and Compose operations, checks import persistence, and kills the backend after an observable application side effect. It requires the restarted Task to enter `needs_attention` while preserving the container identity and start time. It also verifies read-only mode preflight and a failed image pull against a closed loopback registry port. Failed required assertions return a nonzero exit code and retain scoped evidence for diagnosis.
+
+For the full fresh-install path, supply `--web-image <same-source-web-image>` during registration and run `official-install` after `up`. Registration freezes the official Compose file, environment template and fixture files directly from the declared Git commit, recording their SHA-256. The action imports the verified immutable server/web images into the private daemon, stages the official root there and runs its configuration check, migrations, root initialization and complete server/web topology. It then repeats the API and engine probes through the nested web service on `--port + 1`. Restricted synthetic environment files stay under the registered evidence directory. Repeated execution preserves the fixture's existing environment and data.
+
+Image import verifies the exported content-addressed graph, selects its Linux/amd64 runtime configuration and checks the loaded configuration digest, source revision and filesystem layer identities. `image-import-evidence.json` records the outer registered image, archive hash and canonical private-engine configuration ID. This supports Docker image stores that identify an OCI index and stores that identify its runtime configuration.
+
+The installation proof records `complete=true` only after every required probe passes. Failed startup, probe or strict-gate attempts retain incomplete evidence. Build, Controller and Update API actions require the completed proof.
+
+```sh
+python3 scripts/validate_docker_isolated.py official-install --directory .local/docker-isolated/local
+```
+
+For the real Controller restart boundary, also register a same-source `--runner-image` and run `controller-smoke` after `official-install`. This action imports the Controller into the private daemon, publishes the actual image bytes to its task-private registry, obtains real repository digests and runs the production Controller with a test-only image-reference overlay. It requires a successful local-mode receipt bound to the operation and runner, backup hashes and nonempty dumps, a changed server container identity and matching durable state after replacement. Its evidence explicitly covers the Controller protocol with same-source image retags. Public Update API submission, release discovery and Task settlement have a separate end-to-end acceptance boundary.
+
+```sh
+python3 scripts/validate_docker_isolated.py controller-smoke --directory .local/docker-isolated/local
+```
+
+### Authenticated Build API publication
+
+`build-api` runs after a successful `official-install`. Build `Dockerfile.build-registry` using the repository root as its context and the same source-revision label. Its bcrypt helper compiles against the existing locked server module. Register that image with `--build-registry-image` together with the web and release-fixture images.
+
+The action starts a separate task-private TLS Registry with bcrypt-backed Basic authentication, requiring anonymous HTTP 401 and authenticated HTTP 200. A restricted synthetic credential file is mounted read-only through the existing `GRAFT_REGISTRY_CREDENTIALS_FILE` boundary. It then authorizes the runtime target and repository through public APIs, verifies the Registry connection, uploads a scratch Dockerfile archive, submits a real Build Task and checks the resulting artifact, publication, Docker image ID and remote manifest digest. The published manifest's config digest must identify that exact image. A stopped proof container supplies `/probe` for hash-and-size comparison with the uploaded context and is removed by its exact ID. Task, job, publication and log responses must exclude the synthetic password. Inspect `build-api/build-api-evidence.json` before guarded teardown.
+
+```sh
+python3 scripts/validate_docker_isolated.py build-api --directory .local/docker-isolated/local
+```
+
+### Public Update API through server replacement
+
+`update-api` uses a separate fresh local registration. Build source and target server images from the same frozen commit with build versions `0.0.0-beta.1` and `0.0.0-beta.2`, and record both binary hashes. Build `Dockerfile.release-source` from this directory with the same revision label as the server, web and Controller images. Register the source server, target server, web, Controller and release-fixture image IDs, then run `up`, `official-install` and `update-api`.
+
+```sh
+python3 scripts/validate_docker_isolated.py init \
+  --execution-mode local \
+  --directory .local/docker-isolated/update-api \
+  --project graft-isolated-update-api \
+  --source-revision <full-commit> \
+  --backend-image <source-server-image> \
+  --target-backend-image <target-server-image> \
+  --web-image <web-image> \
+  --runner-image <controller-image> \
+  --release-fixture-image <release-source-image> \
+  --port 28180
+python3 scripts/validate_docker_isolated.py up --directory .local/docker-isolated/update-api
+python3 scripts/validate_docker_isolated.py official-install --directory .local/docker-isolated/update-api
+python3 scripts/validate_docker_isolated.py update-api --directory .local/docker-isolated/update-api
+```
+
+The fixture creates an ephemeral CA and HTTPS endpoints for the standard GitHub release URLs inside its private Docker network. A TLS registry inside that daemon serves the real official `ghcr.io` image names and repository digests. Only the registered daemon's hosts/certificate directory and nested server's standard `SSL_CERT_FILE` mount receive fixture trust. Production release parsing, manifest checksum verification, image digest validation, Update API, Task execution, Backup and Controller code run through their normal entrypoints.
+
+The source image version and original image tag are required before any fixture trust is installed. A missing deployment-environment snapshot is then injected and restored to verify a failed Backup and Task with the server retained. The normal update must settle both launch and final Task stages, retain attempt-bound receipts, replace the server with the registered target image, report the target build version and expose persisted backup bytes matching the receipt hashes and sizes. The receipt must confirm the bootstrap migration invocation. Both version-stamped images share the frozen migration graph, so the recorded migration scope has no newly pending DDL. Evidence under `release-api/update-api-evidence.json` explicitly identifies the synthetic release source and its source/target binary hashes, CA, overlay and manifest fingerprints. Run guarded outer `destroy` with the registered project identity after inspection to remove every nested resource.
+
+Local fixture stop pauses all registered services. Guarded destroy removes only that instance's project and named volumes. Agent-mode registrations keep the existing Vault-retention lifecycle described below. Build publication and full platform self-update have separate acceptance boundaries, because this API fixture's backend runs outside its private daemon's managed topology. A full self-update exercise must install the official Compose topology inside that daemon and provide verified release images and controller artifacts from the tested commit.
+
+### Agent execution
+
 `compose.isolated.yml` overlays this fixture with a private Docker Engine. The Backend, Agent and fixture driver share only its named socket volume mounted at canonical `/run`. Alpine resolves `/var/run` through a symlink, so mounting `/run` lets the runtime order the parent volume before nested secret mounts. This private parent volume remains writable so the OCI runtime can create nested mountpoints, while the nested certificate and bootstrap volumes remain read-only. The daemon and application consumers use the same `/opt/graft/apps` volume path, so relative Compose bind mounts resolve against the daemon's actual filesystem. The Backend receives the private socket group explicitly.
 
 `python3 scripts/validate_docker_isolated.py --help` exposes `init`, `up`, `probe`, `status`, `stop` and guarded `destroy`. Run orchestration from the stable checkout with Docker available. Build the three fixture images from the same exact commit and label each image with `org.opencontainers.image.revision=<commit>`. `init` verifies that label and saves immutable local image IDs. Supply an ignored task evidence directory, a unique `graft-isolated-<task>` project, and three unused loopback ports starting at `--port`.

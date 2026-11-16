@@ -69,7 +69,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	configureBuildV2Submission(ctx, service)
-	if reader, readerErr := module.ResolveService[moduleapi.BuildInputSnapshotReader](ctx.Services, (*moduleapi.BuildInputSnapshotReader)(nil)); readerErr == nil {
+	if reader, ok := m.repository.(moduleapi.BuildInputSnapshotReader); ok {
 		service.ConfigureInputSnapshotReader(reader)
 	}
 	configureArtifactPromotion(ctx, service)

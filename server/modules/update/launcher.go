@@ -16,7 +16,7 @@ import (
 )
 
 // ComposeRunnerLauncher 保留更新终态观察与受控恢复所需的 Docker 边界。
-// 正常 Update Controller 启动不再经过该边界，而由 Runtime Agent 外部执行 lease 负责。
+// 正常 Update Controller 启动通过 Task 已冻结的本机或 Agent 执行器完成。
 type ComposeRunnerLauncher interface {
 	Close() error
 }
@@ -114,7 +114,7 @@ func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
 		return RunnerReceipt{}, false
 	}
 	var receipt RunnerReceipt
-	if err := json.Unmarshal(contents, &receipt); err != nil || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || !runnerOperationID.MatchString(receipt.OperationID) {
+	if err := json.Unmarshal(contents, &receipt); err != nil || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || !runnerOperationID.MatchString(receipt.OperationID) || !validRunnerExecutionMode(receipt.ExecutionMode) {
 		return RunnerReceipt{}, false
 	}
 	return receipt, true

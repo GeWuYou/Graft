@@ -475,7 +475,7 @@ func grantRepositoryCreatorUse(ctx context.Context, tx *sql.Tx, grantCreatorUse 
 		return nil
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO artifact_repository_user_assignments (repository_id, user_id, created_by, updated_by)
-VALUES ($1, $2, $3, $3)`, repositoryID, actorID); err != nil {
+VALUES ($1, $2, $2, $2)`, repositoryID, actorID); err != nil {
 		return fmt.Errorf("grant creator artifact repository assignment: %w", registryWriteError(err))
 	}
 	return nil

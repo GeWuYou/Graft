@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	// composeUpdateLaunchExecutor 是 Task-owned 启动 Stage；Runtime Agent 拥有 Docker
-	// 副作用，Update 只解析一次 fenced transient payload。
+	// composeUpdateLaunchExecutor 是 Task-owned 启动 Stage；已冻结的执行器负责副作用，Update 解析瞬时材料。
 	composeUpdateLaunchExecutor         moduleapi.StageExecutorType = "platform.update.controller.launch"
 	composeUpdateLaunchOperation        string                      = "platform.update.controller.launch.v1"
 	composeUpdateCapability             string                      = "update_controller"
@@ -96,7 +95,9 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller state volume is invalid")
 	}
 	if recovery != nil {
-		encoded, err := encodeRunnerRecoveryInput(*recovery)
+		frozenRecovery := *recovery
+		frozenRecovery.LaunchStageID, frozenRecovery.LaunchAttempt = request.StageID, request.Attempt
+		encoded, err := encodeRunnerRecoveryInput(frozenRecovery)
 		if err != nil {
 			return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller recovery material encoding failed")
 		}
@@ -109,6 +110,7 @@ func (s *RolloutService) ResolveExternalExecutionMaterial(ctx context.Context, r
 	if failed || input.TaskID != request.TaskID || input.OperationID != intent.OperationID || input.SourceVersion != intent.SourceVersion || input.TargetVersion != intent.TargetVersion {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material is unavailable")
 	}
+	input.LaunchStageID, input.LaunchAttempt = request.StageID, request.Attempt
 	if err := ValidateRunnerInput(input); err != nil {
 		return moduleapi.ExternalExecutionMaterial{}, errors.New("update controller material is invalid")
 	}
@@ -206,18 +208,13 @@ func (s *RolloutService) failExternalLaunch(operationID string) {
 	delete(s.externalLaunches, operationID)
 }
 
-func (s *RolloutService) clearExternalLaunch(operationID string) {
-	s.externalInputMu.Lock()
-	delete(s.externalLaunches, operationID)
-	s.externalInputMu.Unlock()
-}
-
 func updateControllerExecutionExpectation(targetID int64, payloadSHA string) *moduleapi.ExternalExecutionExpectation {
 	return &moduleapi.ExternalExecutionExpectation{
 		RuntimeTargetID: targetID, ProviderID: "docker", Capability: composeUpdateCapability,
 		CapabilityVersion: composeUpdateCapabilityVersion, Protocol: composeUpdateLaunchProtocol,
 		OperationID: composeUpdateLaunchOperation, PayloadSHA256: payloadSHA,
 		LeaseTTL: composeUpdateLeaseTTL, AbsoluteDeadline: composeUpdateLeaseDeadline,
+		ResourceKeys: []string{"platform-update"},
 	}
 }
 

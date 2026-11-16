@@ -2,7 +2,7 @@ post:
   tags: [application]
   summary: Start a registered application
   operationId: postApplicationUp
-  description: Submits the saved application bring-up policy for external execution.
+  description: Submits the saved application bring-up policy for configured execution.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -50,5 +50,6 @@ post:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

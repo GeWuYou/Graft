@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"mime/multipart"
 	"net/http"
@@ -60,6 +61,7 @@ func TestBuildInputSnapshotUploadRoute(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("expected successful snapshot upload, got %d: %s", response.Code, response.Body.String())
 	}
+	assertBuildSuccessPayload(t, response, "snapshot_id", "source_kind", "content_digest", "lifecycle_state")
 	invalidBody, invalidType := buildSnapshotMultipart(t, []byte("not an archive"))
 	invalidRequest := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", invalidBody)
 	invalidRequest.Header.Set("Authorization", "Bearer route-test-token")
@@ -82,6 +84,7 @@ func TestBuildInputSnapshotListRoutePaginationAndValidation(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected snapshot list to succeed, got %d: %s", response.Code, response.Body.String())
 	}
+	assertBuildSuccessPayload(t, response, "items", "total", "limit", "offset")
 	body := response.Body.String()
 	for _, expected := range []string{`"snapshot-1"`, `"total":3`, `"limit":2`, `"offset":1`} {
 		if !strings.Contains(body, expected) {
@@ -93,6 +96,37 @@ func TestBuildInputSnapshotListRoutePaginationAndValidation(t *testing.T) {
 		engine.ServeHTTP(invalid, buildAuthorizedRequest(http.MethodGet, path, ""))
 		if invalid.Code != http.StatusBadRequest {
 			t.Fatalf("expected invalid snapshot query %s to return 400, got %d", path, invalid.Code)
+		}
+	}
+}
+
+func TestBuildWorkspaceAndPublicationListsUseSingleSuccessEnvelope(t *testing.T) {
+	engine := newBuildRouteTestEngine(t, &recordingBuildTasks{}, &recordingBuildRepository{})
+	for _, path := range []string{"/api/build/workspaces", "/api/build/artifacts/artifact-1/publications"} {
+		response := httptest.NewRecorder()
+		engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodGet, path, ""))
+		if response.Code != http.StatusOK {
+			t.Fatalf("list %s status = %d, body=%s", path, response.Code, response.Body.String())
+		}
+		assertBuildSuccessPayload(t, response, "items", "total", "limit", "offset")
+	}
+}
+
+func assertBuildSuccessPayload(t *testing.T, response *httptest.ResponseRecorder, expectedKeys ...string) {
+	t.Helper()
+	var envelope struct {
+		Success bool                       `json:"success"`
+		Data    map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode Build response: %v", err)
+	}
+	if !envelope.Success || len(envelope.Data) != len(expectedKeys) {
+		t.Fatalf("unexpected Build response shape: %s", response.Body.String())
+	}
+	for _, key := range expectedKeys {
+		if _, exists := envelope.Data[key]; !exists {
+			t.Fatalf("Build response payload missing %s: %s", key, response.Body.String())
 		}
 	}
 }
@@ -305,15 +339,28 @@ func TestBuildArtifactPromotionRouteRejectsMalformedInput(t *testing.T) {
 }
 
 func TestBuildArtifactPromotionRouteMapsTaskConflict(t *testing.T) {
-	digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	tasks := &recordingBuildTasks{err: moduleapi.ErrTaskSubmissionConflict}
-	repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
-	engine := newBuildRouteTestEngine(t, tasks, repository)
+	for _, testCase := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"idempotency", moduleapi.ErrTaskSubmissionConflict, http.StatusConflict},
+		{"resource", moduleapi.ErrTaskOwnerBusy, http.StatusConflict},
+		{"admission", moduleapi.ErrTaskExecutionUnavailable, http.StatusServiceUnavailable},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			digest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+			tasks := &recordingBuildTasks{err: testCase.err}
+			repository := &recordingBuildRepository{publicationSources: []moduleapi.ArtifactPublicationSource{{ArtifactID: "artifact_1", PublicationID: "publication_1", Digest: digest, MediaType: "application/vnd.oci.image.manifest.v1+json", DestinationKind: "oci_registry", ConnectionRef: "registry:source", RepositoryRef: "team/source"}}}
+			engine := newBuildRouteTestEngine(t, tasks, repository)
 
-	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
-	if response.Code != http.StatusConflict {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, buildAuthorizedRequest(http.MethodPost, "/api/build/artifact-promotions", `{"artifact_id":"artifact_1","publication_id":"publication_1","runtime_target_id":4,"destination":{"kind":"oci_registry","connection_ref":"registry:destination","repository_ref":"team/destination","reference":"stable"}}`))
+			if response.Code != testCase.status {
+				t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			}
+
+		})
 	}
 }
 

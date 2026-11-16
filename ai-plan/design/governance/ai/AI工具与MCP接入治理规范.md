@@ -381,3 +381,11 @@ AI tooling evidence:
 可见统计。loop 状态机、DAG、worker/controller 权限和 JSON 契约继续由原测试保护，移动文档不删除行为断言。
 语义由独立场景审查：记录加载量、技能选择、确认/继续决策及风险遗漏，不用长度或单次场景声称模型性能改善。
 评估材料不向评估者透露预期答案，旧版/新版使用相同配置、隔离上下文。工具采纳状态没变时不刷新生成 inventory。
+
+## 开发验证接口
+
+根 AGENTS.md 的验证阶段由 [开发验证](../../../../docs/development/validation.md) 展开。
+`graft-validation-runner` 在提交准备时选择 `just check-local-plan` / `just check-local` 的文件与消费者测试，
+完整 CI 继续消费领域入口。个人 harness 可以映射这些项目命令；项目安装、CI 和领域检查独立可用。
+
+共享资产、安全修复与配置渲染器技能复用上述阶段，只补充各自的消费者和风险检查。

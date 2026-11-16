@@ -6,8 +6,8 @@ const repositoryRoot = resolve(import.meta.dirname, '..');
 const sourceSpecPath = resolve(repositoryRoot, 'openapi/openapi.yaml');
 const bundleSpecPath = resolve(repositoryRoot, 'openapi/dist/openapi.bundle.json');
 
-const requireFromWeb = createRequire(resolve(repositoryRoot, 'web/package.json'));
-const { bundle, createConfig } = requireFromWeb('@redocly/openapi-core');
+const requireFromRoot = createRequire(resolve(repositoryRoot, 'package.json'));
+const { bundle, createConfig } = requireFromRoot('@redocly/openapi-core');
 
 const config = await createConfig({}, { extends: ['minimal'] });
 const result = await bundle({

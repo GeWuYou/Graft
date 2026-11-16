@@ -160,6 +160,8 @@ func fixtureRunnerInput(root string) RunnerInput {
 type tracingRunnerActions struct {
 	trace             []string
 	failAt            string
+	failWith          error
+	onFailure         func()
 	backupErr         error
 	recover           bool
 	omitBackupReceipt bool
@@ -185,8 +187,14 @@ func (runnerActionsWithoutReporter) BootstrapMigrate(context.Context, RunnerInpu
 func (runnerActionsWithoutReporter) Recreate(context.Context, RunnerInput) error         { return nil }
 func (runnerActionsWithoutReporter) DockerHealth(context.Context, RunnerInput) error     { return nil }
 func (runnerActionsWithoutReporter) Healthz(context.Context, RunnerInput) error          { return nil }
+func (runnerActionsWithoutReporter) LocalExecutionReadiness(context.Context, RunnerInput) error {
+	return nil
+}
 
-func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
+func (actions *tracingRunnerActions) RecoverPreMigration(ctx context.Context, _ RunnerInput) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !actions.recover {
 		return errors.New("fixture recovery unavailable")
 	}
@@ -252,9 +260,19 @@ func (actions *tracingRunnerActions) Healthz(context.Context, RunnerInput) error
 	return actions.run("healthz")
 }
 
+func (actions *tracingRunnerActions) LocalExecutionReadiness(context.Context, RunnerInput) error {
+	return actions.run("local execution readiness")
+}
+
 func (actions *tracingRunnerActions) run(stage string) error {
 	actions.trace = append(actions.trace, stage)
 	if actions.failAt == stage {
+		if actions.onFailure != nil {
+			actions.onFailure()
+		}
+		if actions.failWith != nil {
+			return actions.failWith
+		}
 		return errors.New("fixture stage failure")
 	}
 	return nil

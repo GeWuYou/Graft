@@ -5,9 +5,23 @@
     "quality:eff-u-code": "python3 scripts/run_eff_u_code.py",
     "quality:eff-u-code:score:changed": "python3 scripts/run_eff_u_code.py all",
     "quality:eff-u-code:score:server": "python3 scripts/run_eff_u_code.py server",
-    "quality:eff-u-code:score:web": "python3 scripts/run_eff_u_code.py web"
+    "quality:eff-u-code:score:web": "python3 scripts/run_eff_u_code.py web",
+    "build": "bun scripts/turbo.mjs build",
+    "test": "bun scripts/turbo.mjs test",
+    "check:code": "bun scripts/turbo.mjs check:code"
   },
   "devDependencies": {
-    "eff-u-code": "2.2.2"
+    "eff-u-code": "2.2.2",
+    "turbo": "2.11.4",
+    "@redocly/openapi-core": "1.34.17"
+  },
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "web",
+    "server"
+  ],
+  "overrides": {
+    "@babel/runtime-corejs3": "^7.29.14"
   }
 }

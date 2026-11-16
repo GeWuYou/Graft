@@ -1301,7 +1301,7 @@
       },
       "eyebrow": "Compose 应用",
       "description": "应用摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
-      "runtimeTargetCapabilityUnavailable": "运行时 Agent 能力不可用，应用与容器操作已禁用。",
+      "runtimeTargetCapabilityUnavailable": "执行通道或所需能力尚未就绪，请查看运行目标详情。",
       "openWorkingDirectory": "工作区路径",
       "titleFallback": "应用详情",
       "sections": {

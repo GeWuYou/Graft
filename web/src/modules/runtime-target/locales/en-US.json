@@ -59,6 +59,9 @@
       "resourceOverview": "Resource Overview",
       "providerDetails": "Provider Details",
       "agentStatus": "Runtime Agent",
+      "execution": "Execution channel",
+      "executionMode": "Execution mode",
+      "executionReadiness": "Execution status",
       "agentState": "Agent Status",
       "agentId": "Agent ID",
       "agentVersion": "Agent Version",
@@ -111,6 +114,23 @@
       "apiVersion": "API Version",
       "health": "Health",
       "lastCheckedAt": "Last Checked"
+    },
+    "executionModes": { "local": "Local execution", "agent": "Agent execution" },
+    "executionReady": "Ready",
+    "executionUnavailable": "Execution unavailable",
+    "executionDiagnostics": {
+      "execution_ready": "The execution channel is ready.",
+      "docker_unavailable": "Docker is unavailable. Check the socket mount and runtime user permissions.",
+      "agent_unavailable": "The Agent is not ready. Check its delivery, certificates and connection.",
+      "execution_mode_mismatch": "The runtime target does not match the execution mode. Check the deployment configuration.",
+      "execution_runtime_stopped": "The execution service is not running. Retry after startup completes.",
+      "execution_ownership_lost": "Execution ownership has changed. Check the running instance and deployment mode before retrying."
+    },
+    "executionCapabilities": {
+      "container_execution": "Docker resource operations",
+      "compose_execution": "Compose application operations",
+      "oci-build": "Image builds and publishing",
+      "update_controller": "Platform updates"
     },
     "columns": { "name": "Name", "provider": "Provider", "health": "Health" },
     "filters": { "provider": "Provider", "connectionKind": "Connection" },

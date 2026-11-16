@@ -47,20 +47,24 @@ type Runtime struct {
 	workers    int
 	pollEvery  time.Duration
 
-	mu                sync.RWMutex
-	eventMu           sync.Mutex
-	executors         map[moduleapi.StageExecutorType]moduleapi.StageExecutor
-	materialResolvers map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver
-	resultRecorders   map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionResultRecorder
-	authorizers       map[string]moduleapi.TaskOwnerAuthorizer
-	running           map[uint64]runningStage
-	cancel            context.CancelFunc
-	wake              chan struct{}
-	waitGroup         sync.WaitGroup
-	realtimeTickets   realtimeauth.Service
-	realtimeHub       realtime.Hub
-	topicIssuers      realtime.TopicIssuerRegistry
-	logger            logger.AppLogger
+	mu                      sync.RWMutex
+	eventMu                 sync.Mutex
+	executors               map[moduleapi.StageExecutorType]moduleapi.StageExecutor
+	materialResolvers       map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionMaterialResolver
+	resultRecorders         map[moduleapi.StageExecutorType]moduleapi.ExternalExecutionResultRecorder
+	authorizers             map[string]moduleapi.TaskOwnerAuthorizer
+	running                 map[uint64]runningStage
+	cancel                  context.CancelFunc
+	wake                    chan struct{}
+	waitGroup               sync.WaitGroup
+	realtimeTickets         realtimeauth.Service
+	realtimeHub             realtime.Hub
+	topicIssuers            realtime.TopicIssuerRegistry
+	logger                  logger.AppLogger
+	localExecution          *localExecutionRuntime
+	ownershipLost           <-chan struct{}
+	executionAdmissionReady bool
+	ownershipRelease        func() error
 }
 
 var _ moduleapi.CoordinatedTaskService = (*Runtime)(nil)
@@ -192,10 +196,13 @@ func (r *Runtime) BeginSubmission(ctx context.Context, input moduleapi.BeginTask
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskSubmissionHandle{}, errors.New("task runtime repository is unavailable")
 	}
+	if err := r.requireExecutionAdmission(); err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
+	}
 	if err := validateSubmissionPolicy(input.Policy); err != nil {
 		return moduleapi.TaskSubmissionHandle{}, err
 	}
-	frozenPlan, err := freezeExternalExecutionPayloads(input.Task.Plan)
+	frozenPlan, err := r.submissionIntentPlan(input.Task.Plan)
 	if err != nil {
 		return moduleapi.TaskSubmissionHandle{}, err
 	}
@@ -220,7 +227,7 @@ func (r *Runtime) BeginSubmission(ctx context.Context, input moduleapi.BeginTask
 		}
 	}
 	now := time.Now().UTC()
-	submission, replayed, err := r.repository.CreateSubmission(ctx, taskstore.CreateSubmissionInput{Submission: taskmodel.Submission{
+	submission, replayed, err := r.repository.CreateSubmission(ctx, taskstore.CreateSubmissionInput{ExecutionMode: r.configuredExecutionMode(), Submission: taskmodel.Submission{
 		ID: id, Type: input.Task.Type, Owner: input.Task.Owner, RequestedBy: nullableRequestedBy(input.Task.RequestedBy), IdempotencyKeyHash: keyHash, SubmissionFingerprint: fingerprint,
 		State: moduleapi.TaskSubmissionStateReserved, Version: 1, LeaseTTL: input.Policy.LeaseTTL, LeaseRenewable: input.Policy.AllowRenew, LeaseTokenHash: hashSubmissionSecret(token), LeaseExpiresAt: now.Add(input.Policy.LeaseTTL), AbsoluteDeadlineAt: now.Add(input.Policy.AbsoluteDeadline), PrerequisiteKind: input.Policy.PrerequisiteKind,
 	}})
@@ -237,8 +244,11 @@ func (r *Runtime) BeginSubmission(ctx context.Context, input moduleapi.BeginTask
 //
 //nolint:cyclop // 续租同时校验状态、绝对截止时间和当前 lease fencing 条件。
 func (r *Runtime) RenewSubmissionLease(ctx context.Context, handle moduleapi.TaskSubmissionHandle) (moduleapi.TaskSubmissionHandle, error) {
-	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+	if !r.available() || handle.LeaseToken == "" {
 		return moduleapi.TaskSubmissionHandle{}, errors.New("task submission handle is unavailable")
+	}
+	if err := r.requireExecutionAdmission(); err != nil {
+		return moduleapi.TaskSubmissionHandle{}, err
 	}
 	current := handle.Submission
 	if current.State != moduleapi.TaskSubmissionStateReserved {
@@ -264,13 +274,16 @@ func (r *Runtime) RenewSubmissionLease(ctx context.Context, handle moduleapi.Tas
 
 // MaterializeSubmission 在同一数据库事务中写入模块前置条件和可领取的 Task。
 func (r *Runtime) MaterializeSubmission(ctx context.Context, handle moduleapi.TaskSubmissionHandle, input moduleapi.SubmitTaskInput, writer moduleapi.TaskSubmissionWriter) (moduleapi.TaskReceipt, error) {
-	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+	if !r.available() || handle.LeaseToken == "" {
 		return moduleapi.TaskReceipt{}, errors.New("task submission handle is unavailable")
+	}
+	if err := r.requireExecutionAdmission(); err != nil {
+		return moduleapi.TaskReceipt{}, err
 	}
 	if input.Type != handle.Submission.TaskType || input.Owner != handle.Submission.Owner || requestedByValue(input.RequestedBy) != requestedByPointerValue(handle.Submission.RequestedBy) {
 		return moduleapi.TaskReceipt{}, taskstore.ErrInvalidInput
 	}
-	task, stages, err := r.buildTaskRecord(input, false)
+	task, stages, err := r.buildTaskRecord(ctx, input, false)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
@@ -287,7 +300,7 @@ func (r *Runtime) MaterializeSubmission(ctx context.Context, handle moduleapi.Ta
 
 // DiscardSubmission 幂等终结仍处于 reserved 的提交，不删除其审计事实。
 func (r *Runtime) DiscardSubmission(ctx context.Context, handle moduleapi.TaskSubmissionHandle, reason string) error {
-	if r == nil || r.repository == nil || handle.LeaseToken == "" {
+	if !r.available() || handle.LeaseToken == "" {
 		return errors.New("task submission handle is unavailable")
 	}
 	return r.repository.DiscardSubmission(ctx, taskstore.TerminalizeSubmissionInput{ID: handle.Submission.ID, LeaseTokenHash: hashSubmissionSecret(handle.LeaseToken), Version: handle.Submission.SubmissionVersion, Reason: reason})
@@ -348,7 +361,13 @@ func (r *Runtime) submit(ctx context.Context, input moduleapi.SubmitTaskInput, a
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
 	}
-	task, stages, err := r.buildTaskRecord(input, activationRequired)
+	if err := r.requireExecutionAdmission(); err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
+	if receipt, replayed, err := r.replaySubmission(ctx, input); err != nil || replayed {
+		return receipt, err
+	}
+	task, stages, err := r.buildTaskRecord(ctx, input, activationRequired)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
@@ -364,26 +383,17 @@ func (r *Runtime) submit(ctx context.Context, input moduleapi.SubmitTaskInput, a
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
 }
 
-func (r *Runtime) buildTaskRecord(input moduleapi.SubmitTaskInput, activationRequired bool) (taskmodel.Task, []taskmodel.Stage, error) {
-	planInput, err := expandCoordinatedPlan(input.Plan)
+func (r *Runtime) buildTaskRecord(ctx context.Context, input moduleapi.SubmitTaskInput, activationRequired bool) (taskmodel.Task, []taskmodel.Stage, error) {
+	prepared, err := r.prepareTaskPlan(ctx, input.Plan)
 	if err != nil {
 		return taskmodel.Task{}, nil, err
 	}
-	planInput, err = freezeExternalExecutionPayloads(planInput)
+	planInput, plan := prepared.plan, prepared.encoded
+	keyHash, fingerprint, err := submissionIdentity(input, prepared.intent)
 	if err != nil {
 		return taskmodel.Task{}, nil, err
 	}
-	if err := r.validatePlan(planInput); err != nil {
-		return taskmodel.Task{}, nil, err
-	}
-	plan, err := json.Marshal(planInput)
-	if err != nil {
-		return taskmodel.Task{}, nil, fmt.Errorf("marshal task plan: %w", err)
-	}
-	keyHash, fingerprint, err := submissionIdentity(input, plan)
-	if err != nil {
-		return taskmodel.Task{}, nil, err
-	}
+
 	status := moduleapi.TaskStatusReady
 	if input.ScheduledAt != nil && input.ScheduledAt.After(time.Now().UTC()) {
 		status = moduleapi.TaskStatusScheduled
@@ -457,7 +467,7 @@ func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: canonicalize task metadata: %v", taskstore.ErrInvalidInput, err)
 	}
-	canonicalPlan, err := canonicalSubmissionJSON(plan)
+	canonicalPlan, err := canonicalSubmissionPlan(plan)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: canonicalize task plan: %v", taskstore.ErrInvalidInput, err)
 	}
@@ -482,6 +492,31 @@ func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (
 	keyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte(input.IdempotencyKey)))
 	fingerprint := fmt.Sprintf("%x", sha256.Sum256(encoded))
 	return &keyDigest, &fingerprint, nil
+}
+
+func canonicalSubmissionPlan(raw json.RawMessage) (json.RawMessage, error) {
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(raw, &plan); err != nil {
+		return nil, err
+	}
+	// 协调键和启动阶段引用由运行时派生；历史客户端请求的身份沿用原始意图。
+	for index := range plan.Stages {
+		stage := &plan.Stages[index]
+		if stage.ExternalExecution != nil {
+			stage.ExternalExecution.ResourceKeys = nil
+		}
+		if stage.LocalExecution != nil {
+			stage.LocalExecution.Operation.ResourceKeys = nil
+		}
+		if stage.ExternalReceipt != nil {
+			stage.ExternalReceipt.LaunchStageKey = ""
+		}
+	}
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		return nil, err
+	}
+	return canonicalSubmissionJSON(encoded)
 }
 
 func canonicalSubmissionJSON(raw json.RawMessage) (json.RawMessage, error) {
@@ -538,6 +573,7 @@ func (r *Runtime) SettleExternalReceipt(ctx context.Context, receipt moduleapi.E
 	}
 	settlement, err := r.repository.SettleExternalReceipt(ctx, taskstore.ExternalReceiptSettlementInput{
 		TaskID: receipt.TaskID, StageID: stage.ID, ExecutorType: receipt.ExecutorType, Protocol: expectation.Protocol,
+		LaunchStageID: receipt.LaunchStageID, LaunchAttempt: receipt.LaunchAttempt,
 		OperationID: expectation.OperationID, Outcome: receipt.Outcome, FailureCode: receipt.FailureCode, IntegritySHA256: receipt.IntegritySHA256,
 	})
 	if err != nil {
@@ -563,7 +599,14 @@ func (r *Runtime) boundExternalReceipt(ctx context.Context, receipt moduleapi.Ex
 	if err != nil {
 		return taskmodel.Stage{}, nil, err
 	}
-	return externalReceiptBinding(plan, stages, receipt)
+	stage, expectation, err := externalReceiptBinding(plan, stages, receipt)
+	if err != nil {
+		return taskmodel.Stage{}, nil, err
+	}
+	if err := validateReceiptLaunchProof(plan, stages, receipt, expectation); err != nil {
+		return taskmodel.Stage{}, nil, err
+	}
+	return stage, expectation, nil
 }
 
 func (r *Runtime) publishExternalReceiptSettlement(receipt moduleapi.ExternalTaskReceipt, settlement taskstore.ExternalReceiptSettlement) {
@@ -714,9 +757,16 @@ func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleap
 	if err != nil {
 		return nil, err
 	}
+	task, err := r.repository.Get(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	var plan moduleapi.TaskPlan
+	_ = json.Unmarshal(task.Plan, &plan)
 	items := make([]moduleapi.TaskStageView, 0, len(stages))
 	for _, stage := range stages {
-		items = append(items, moduleapi.TaskStageView{ID: stage.ID, Key: stage.Key, Sequence: stage.Sequence, ExecutorType: stage.ExecutorType, Status: stage.Status, Attempt: stage.Attempt, MaxAttempts: stage.MaxAttempts, RecoveryPolicy: stage.RecoveryPolicy, StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt, DurationMS: stage.DurationMS, FailureCode: stage.FailureCode, FailureMessage: stage.FailureMessage})
+		mode, version := stageExecutionIdentity(plan, stage)
+		items = append(items, moduleapi.TaskStageView{ExecutionMode: mode, ExecutionVersion: version, ID: stage.ID, Key: stage.Key, Sequence: stage.Sequence, ExecutorType: stage.ExecutorType, Status: stage.Status, Attempt: stage.Attempt, MaxAttempts: stage.MaxAttempts, RecoveryPolicy: stage.RecoveryPolicy, StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt, DurationMS: stage.DurationMS, FailureCode: stage.FailureCode, FailureMessage: stage.FailureMessage})
 	}
 	return items, nil
 }
@@ -951,17 +1001,17 @@ func (r *Runtime) Start(ctx context.Context) error {
 	if r == nil || r.repository == nil || ctx == nil {
 		return errors.New("task runtime start dependencies are unavailable")
 	}
-	if _, err := r.repository.ExpireExternalExecutionLeases(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
-		return fmt.Errorf("expire external execution leases at startup: %w", err)
-	}
-	if _, err := r.repository.RecoverInterruptedStages(ctx, time.Now().UTC()); err != nil {
+	if err := r.acquireExecutionOwnership(ctx); err != nil {
 		return err
 	}
-	if _, err := r.repository.ExpireSubmissions(ctx, defaultSubmissionExpiryBatch); err != nil {
-		return fmt.Errorf("expire task submissions at startup: %w", err)
-	}
-	if _, err := r.repository.PromoteScheduledTasks(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
-		return fmt.Errorf("promote scheduled tasks at startup: %w", err)
+	started := false
+	defer func() {
+		if !started {
+			_ = r.releaseExecutionOwnership()
+		}
+	}()
+	if err := r.recoverExecutionState(ctx); err != nil {
+		return err
 	}
 	r.mu.Lock()
 	if r.cancel != nil {
@@ -970,6 +1020,8 @@ func (r *Runtime) Start(ctx context.Context) error {
 	}
 	workerContext, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
+	r.executionAdmissionReady = true
+	r.watchExecutionOwnership(workerContext, cancel)
 	workers := r.workers
 	r.mu.Unlock()
 	for index := 0; index < workers; index++ {
@@ -979,6 +1031,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 	r.waitGroup.Add(1)
 	go r.expireSubmissions(workerContext)
 	r.signalWake()
+	started = true
 	return nil
 }
 
@@ -1017,6 +1070,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 	r.mu.Lock()
 	cancel := r.cancel
 	r.cancel = nil
+	r.executionAdmissionReady = false
 	running := make([]runningStage, 0, len(r.running))
 	for _, current := range r.running {
 		running = append(running, current)
@@ -1034,7 +1088,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 	go func() { r.waitGroup.Wait(); close(done) }()
 	select {
 	case <-done:
-		return nil
+		return r.releaseExecutionOwnership()
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -1085,7 +1139,7 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	if r.claimedStageWaitsForExternalReceipt(claim) {
 		return nil
 	}
-	executor, ok := r.executorFor(claim.Stage.ExecutorType)
+	executor, ok := r.executorForClaim(claim)
 	if !ok {
 		return r.failClaim(ctx, claim, errorCodeMissingExec, "no executor registered for stage")
 	}
@@ -1107,6 +1161,10 @@ func (r *Runtime) runOne(ctx context.Context) error {
 }
 
 func (r *Runtime) finishClaim(ctx context.Context, claim taskstore.StageClaim, executeErr error) error {
+	var localFailureResult *moduleapi.ExecutionFailure
+	if _, local := localStage(claim.Task, claim.Stage); local && errors.As(executeErr, &localFailureResult) && localFailureResult.Disposition == moduleapi.RecoveryDispositionNeedsAttention {
+		return r.settleExecutionFailure(ctx, claim, localFailureResult)
+	}
 	if task, err := r.repository.Get(ctx, claim.Task.ID); err == nil && task.CancelRequestedAt != nil {
 		return r.cancelClaim(ctx, claim)
 	}
@@ -1333,6 +1391,12 @@ func (r *Runtime) validateStagePlan(stage moduleapi.StagePlan, index int, total 
 }
 
 func (r *Runtime) validateStageExecutionBinding(stage moduleapi.StagePlan, index int, total int) error {
+	if stage.LocalExecution != nil {
+		if !validLocalExecutionBinding(stage) {
+			return errors.New("local execution binding is invalid")
+		}
+		return nil
+	}
 	if stage.ExternalExecution != nil && stage.ExternalReceipt != nil {
 		return errors.New("task plan stage cannot declare both external execution and legacy receipt")
 	}
@@ -1510,4 +1574,131 @@ func (r *stageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) 
 		r.runtime.publishTask(r.task.ID, taskcontract.TaskRealtimeEventLogAppended)
 	}
 	return err
+}
+
+func stageExecutionIdentity(plan moduleapi.TaskPlan, stage taskmodel.Stage) (string, string) {
+	mode, version := "server", ""
+	if stage.ExternalExecution {
+		mode = "agent"
+	}
+	index := stage.Sequence - 1
+	if index < 0 || index >= len(plan.Stages) {
+		return mode, version
+	}
+	frozen := plan.Stages[index]
+	if frozen.Key != stage.Key {
+		return mode, version
+	}
+	if frozen.LocalExecution != nil {
+		return "local", frozen.LocalExecution.Version
+	}
+	if frozen.ExternalExecution != nil {
+		return "agent", frozen.ExternalExecution.CapabilityVersion
+	}
+	if frozen.ExternalReceipt != nil {
+		return "controller", frozen.ExternalReceipt.Protocol
+	}
+	return mode, version
+}
+
+func (r *Runtime) available() bool { return r != nil && r.repository != nil }
+
+type preparedTaskPlan struct {
+	plan    moduleapi.TaskPlan
+	encoded []byte
+	intent  []byte
+}
+
+func (r *Runtime) prepareTaskPlan(ctx context.Context, source moduleapi.TaskPlan) (preparedTaskPlan, error) {
+	plan, err := expandCoordinatedPlan(source)
+	if err != nil {
+		return preparedTaskPlan{}, err
+	}
+	plan, err = freezeExternalExecutionPayloads(plan)
+	if err != nil {
+		return preparedTaskPlan{}, err
+	}
+	intent, err := r.submissionIntentPlan(plan)
+	if err != nil {
+		return preparedTaskPlan{}, err
+	}
+	intentJSON, err := json.Marshal(intent)
+	if err != nil {
+		return preparedTaskPlan{}, err
+	}
+	plan, err = r.freezeLocalExecution(ctx, plan)
+	if err != nil {
+		return preparedTaskPlan{}, err
+	}
+	if err := r.validatePlan(plan); err != nil {
+		return preparedTaskPlan{}, err
+	}
+	encoded, err := json.Marshal(plan)
+	return preparedTaskPlan{plan: plan, encoded: encoded, intent: intentJSON}, err
+}
+
+func (r *Runtime) recoverExecutionState(ctx context.Context) error {
+	if _, err := r.repository.ExpireExternalExecutionLeases(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("expire external execution leases at startup: %w", err)
+	}
+	if _, err := r.repository.RecoverInterruptedStages(ctx, time.Now().UTC()); err != nil {
+		return err
+	}
+	if _, err := r.repository.ExpireSubmissions(ctx, defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("expire task submissions at startup: %w", err)
+	}
+	if _, err := r.repository.PromoteScheduledTasks(ctx, time.Now().UTC(), defaultSubmissionExpiryBatch); err != nil {
+		return fmt.Errorf("promote scheduled tasks at startup: %w", err)
+	}
+	return nil
+}
+
+func (r *Runtime) watchExecutionOwnership(workerContext context.Context, cancel context.CancelFunc) {
+	if r.ownershipLost != nil {
+		r.waitGroup.Add(1)
+		go func() {
+			defer r.waitGroup.Done()
+			select {
+			case <-r.ownershipLost:
+				r.mu.Lock()
+				r.executionAdmissionReady = false
+				r.mu.Unlock()
+				cancel()
+			case <-workerContext.Done():
+			}
+		}()
+	}
+}
+
+func validLocalExecutionBinding(stage moduleapi.StagePlan) bool {
+	return stage.ExternalExecution == nil && stage.ExternalReceipt == nil && stage.LocalExecution.Version == localExecutionVersion && externalExecutionExpectationValid(&stage.LocalExecution.Operation)
+}
+
+func validateReceiptLaunchProof(plan moduleapi.TaskPlan, stages []taskmodel.Stage, receipt moduleapi.ExternalTaskReceipt, expectation *moduleapi.ExternalReceiptExpectation) error {
+	if expectation.LaunchStageKey == "" {
+		if receipt.LaunchStageID != 0 || receipt.LaunchAttempt != 0 {
+			return errors.New("legacy receipt cannot declare a launch proof")
+		}
+		return nil
+	}
+	for index, frozen := range plan.Stages {
+		if frozen.Key == expectation.LaunchStageKey {
+			return validateStartedReceiptLaunch(frozen, stages[index], receipt)
+		}
+	}
+	return errors.New("receipt launching stage is missing from the frozen task")
+}
+
+func validateStartedReceiptLaunch(frozen moduleapi.StagePlan, stage taskmodel.Stage, receipt moduleapi.ExternalTaskReceipt) error {
+	if frozen.ExternalExecution == nil && frozen.LocalExecution == nil {
+		return errors.New("receipt launch must bind a finite execution stage")
+	}
+	if stage.ID != receipt.LaunchStageID || stage.Attempt != receipt.LaunchAttempt || stage.Attempt < 1 {
+		return errors.New("receipt launch attempt does not match the frozen task")
+	}
+	switch stage.Status {
+	case moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown, moduleapi.StageStatusSuccess:
+		return nil
+	}
+	return errors.New("receipt launching stage was not admitted")
 }

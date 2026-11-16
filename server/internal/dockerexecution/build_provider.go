@@ -1,4 +1,4 @@
-package agent
+package dockerexecution
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -104,13 +103,13 @@ type buildPaths struct {
 	dockerfileInContext string
 }
 
-func executeBuildOperation(ctx context.Context, transport *http.Client, c config, lease executionLease) executionResult {
+func executeBuildOperation(ctx context.Context, c Environment, lease Request) Result {
 	if lease.Protocol != buildExecutionProtocol || !validBuildLeaseInput(lease.Input) {
 		return failedExecution(failureInvalidIntent)
 	}
-	material, err := resolveExecutionMaterial(ctx, transport, c.AgentURL, lease)
+	material, err := c.ResolveMaterial(ctx, lease)
 	if err != nil || material.Protocol != buildExecutionMaterialProtocol {
-		return failedExecution(failureProviderOperation)
+		return failedExecutionAt(failureProviderOperation, "material_resolve")
 	}
 	var resolved buildExecutionMaterial
 	if strictDecode(material.Payload, &resolved) != nil || !validBuildMaterial(lease.OperationID, resolved) {
@@ -118,7 +117,7 @@ func executeBuildOperation(ctx context.Context, transport *http.Client, c config
 	}
 	payload, failureCode := dispatchBuildOperation(ctx, c, lease.OperationID, resolved)
 	if failureCode != "" {
-		return failedExecution(failureCode)
+		return failedExecutionAt(failureCode, "build_execute")
 	}
 	if !validBuildResult(lease.OperationID, payload) {
 		return failedExecution(failureProviderOperation)
@@ -127,10 +126,10 @@ func executeBuildOperation(ctx context.Context, transport *http.Client, c config
 	if err != nil {
 		return failedExecution(failureProviderOperation)
 	}
-	return executionResult{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: encoded}
+	return Result{Outcome: "success", Protocol: buildExecutionResultProtocol, Payload: encoded}
 }
 
-func dispatchBuildOperation(ctx context.Context, c config, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
+func dispatchBuildOperation(ctx context.Context, c Environment, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
 	switch operation {
 	case buildImageLocalOperation, buildImagePublishOperation:
 		return executeBuildImage(ctx, c, operation, material)
@@ -152,7 +151,7 @@ func dispatchBuildOperation(ctx context.Context, c config, operation string, mat
 }
 
 //nolint:gocognit,gocyclo,cyclop,funlen // Build SDK orchestration keeps build, inspect, publish and digest verification in one fenced operation.
-func executeBuildImage(ctx context.Context, c config, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
+func executeBuildImage(ctx context.Context, c Environment, operation string, material buildExecutionMaterial) (buildExecutionResultPayload, string) {
 	paths, err := normalizeBuildPaths(*material.Context)
 	if err != nil {
 		return buildExecutionResultPayload{}, failureInvalidIntent
@@ -188,7 +187,7 @@ func executeBuildImage(ctx context.Context, c config, operation string, material
 	if err != nil {
 		return buildExecutionResultPayload{}, mapProviderFailure(err)
 	}
-	if err := consumeBuildResponse(response.Body); err != nil {
+	if err := consumeDockerProgress(response.Body); err != nil {
 		return buildExecutionResultPayload{}, failureProviderOperation
 	}
 	inspect, err := docker.ImageInspect(ctx, localReference)
@@ -238,21 +237,29 @@ func executeBuildImage(ctx context.Context, c config, operation string, material
 	return result, ""
 }
 
-func consumeBuildResponse(body io.ReadCloser) error {
+// consumeDockerProgress 同时消费构建与拉取的 JSON 进度流，HTTP 成功不能覆盖流内失败。
+func consumeDockerProgress(body io.ReadCloser) (result error) {
 	if body == nil {
-		return errors.New("provider build response is unavailable")
+		return errors.New("provider progress stream is unavailable")
 	}
-	defer func() { _ = body.Close() }()
+	defer func() {
+		if err := body.Close(); err != nil {
+			result = errors.Join(result, errors.New("close provider progress stream"))
+		}
+	}()
 	decoder := json.NewDecoder(body)
 	for {
-		var message jsonstream.Message
+		var message struct {
+			jsonstream.Message
+			LegacyError string `json:"error"`
+		}
 		if err := decoder.Decode(&message); errors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
-			return errors.New("decode provider build response")
+			return errors.New("decode provider progress stream")
 		}
-		if message.Error != nil {
-			return errors.New("provider build failed")
+		if message.Error != nil || message.LegacyError != "" {
+			return errors.New("provider operation failed")
 		}
 	}
 }

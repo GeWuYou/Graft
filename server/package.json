@@ -1,0 +1,9 @@
+{
+  "name": "graft-server",
+  "private": true,
+  "scripts": {
+    "build": "go build ./cmd/graft",
+    "test": "go test ./...",
+    "check:code": "go run ./cmd/graft validate backend"
+  }
+}

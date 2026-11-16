@@ -9,6 +9,8 @@ import (
 // CreateSQLite 创建 SQLite 单元测试使用的 Task Runtime schema；该 schema 不是生产迁移来源。
 func CreateSQLite(db *sql.DB) error {
 	for _, statement := range []string{
+		`CREATE TABLE task_runtime_execution_mode (id INTEGER PRIMARY KEY, mode TEXT NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+		`INSERT INTO task_runtime_execution_mode (id,mode) VALUES (1, 'agent')`,
 		`CREATE TABLE tasks (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL,
 			status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL, activation_required BOOLEAN NOT NULL DEFAULT FALSE,

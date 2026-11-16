@@ -39,6 +39,7 @@ type RolloutService struct {
 	appLogger          logger.AppLogger
 	realtime           realtime.Publisher
 	backupArtifactRoot string
+	executionMode      string
 	stateStore         RunnerStateStore
 	startMu            sync.Mutex
 	statePollMu        sync.Mutex
@@ -118,7 +119,16 @@ func newOperationID() string { return fmt.Sprintf("update-%d", time.Now().UTC().
 // NewRolloutService 组合 Update 领域 capability、Task/Backup 能力与终态观察边界。
 func NewRolloutService(discovery *Service, operations OperationStore, tasks moduleapi.TaskService, backups moduleapi.BackupService, launcher ComposeRunnerLauncher) *RolloutService {
 	stateStore, _ := NewFileRunnerStateStore(RunnerStateRoot)
-	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore, externalLaunches: make(map[string]*updateControllerLaunchSlot)}
+	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore, executionMode: "agent", externalLaunches: make(map[string]*updateControllerLaunchSlot)}
+}
+
+// SetExecutionMode 注入启动时确定的执行归属，随后冻结到独立 Controller 输入。
+func (s *RolloutService) SetExecutionMode(mode string) error {
+	if s == nil || !validRunnerExecutionMode(mode) {
+		return errors.New("platform update execution mode is invalid")
+	}
+	s.executionMode = effectiveRunnerExecutionMode(mode)
+	return nil
 }
 
 // SetRuntimeTargetReader 注入 Runtime Target authority，在提交外部启动 Stage 前冻结 generation-scoped target identity。
@@ -212,6 +222,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	}
 	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePlanning
 	runnerInput.Preflight = preflight
+	runnerInput.ExecutionMode = s.executionMode
 	if !filepath.IsAbs(runnerInput.BackupArtifactRoot) {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("prepared backup artifact root is unavailable"))
 	}
@@ -407,14 +418,17 @@ func (s *RolloutService) taskTerminalOperationView(ctx context.Context, operatio
 		return OperationView{}, false, nil
 	case moduleapi.TaskStatusNeedsAttention:
 		return updateOperationViewFromTaskRecovery(operation), true, nil
-	case moduleapi.TaskStatusSuccess:
-		s.clearExternalLaunch(operation.OperationID)
-		operation.Outcome = ExecutionOutcomeSuccess
-		return updateOperationViewFromHistory(operation), true, nil
-	case moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
-		s.clearExternalLaunch(operation.OperationID)
+	case moduleapi.TaskStatusSuccess, moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled:
 		operation.Outcome = ExecutionOutcomeFailed
-		return updateOperationViewFromHistory(operation), true, nil
+		if task.Status == moduleapi.TaskStatusSuccess {
+			operation.Outcome = ExecutionOutcomeSuccess
+		}
+		if task.FailureCode != nil {
+			operation.FailureCode = *task.FailureCode
+		}
+		view := updateOperationViewFromHistory(operation)
+		view.StateSource = "task_recovery"
+		return view, true, nil
 	default:
 		return OperationView{}, false, fmt.Errorf("update operation task has unsupported status %q", task.Status)
 	}
@@ -489,9 +503,10 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 			}
 		}
 	}()
-	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy)}
+	recoveryInput := RunnerRecoveryInput{OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, Strategy: string(operation.DeploymentStrategy), ExecutionMode: s.executionMode}
 	if stateErr == nil {
 		recoveryInput.State = &state
+		recoveryInput.ExecutionMode = state.ExecutionMode
 	} else if errors.Is(stateErr, ErrRunnerStateCorrupt) {
 		recoveryInput.Corrupt = true
 	}
@@ -580,7 +595,7 @@ func (s *RolloutService) GetOperationEvents(ctx context.Context, operationID str
 	return reader.ReadEvents(operationID, afterRevision, limit)
 }
 
-// ListOperations 返回数据库中的终态业务历史，活动操作只能通过 GetOperation 读取状态卷快照。
+// ListOperations 返回已结算历史及 Task 确认的启动前失败；未结算操作仍保留其恢复归属。
 func (s *RolloutService) ListOperations(ctx context.Context, limit int) ([]OperationView, error) {
 	if s == nil || s.operations == nil {
 		return nil, errors.New("update operation store is unavailable")
@@ -593,6 +608,14 @@ func (s *RolloutService) ListOperations(ctx context.Context, limit int) ([]Opera
 	for _, item := range items {
 		if isTerminalOutcome(item.Outcome) {
 			views = append(views, updateOperationViewFromHistory(item))
+			continue
+		}
+		view, visible, err := s.failedLaunchOperationView(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			views = append(views, view)
 		}
 	}
 	return views, nil
@@ -881,8 +904,7 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 	if err := s.operations.Create(ctx, operation); err != nil {
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "operation_persist", operation.OperationID, fmt.Errorf("persist update operation: %w", err))
 	}
-	// Runtime Agent 负责领取启动 Stage；宿主机路径、socket、镜像与编码输入只在
-	// 有效 fenced material 请求到达前保留于当前进程，不进入 Task 或 Agent journal。
+	// 启动 Stage 由冻结的本机或 Agent 执行器领取；瞬时材料只在有效执行 attempt 内解析。
 	if err := s.completeExternalLaunch(operation.OperationID, targetID, input); err != nil {
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, err)
 	}
@@ -1112,6 +1134,7 @@ func composePreflight(snapshot moduleapi.DeploymentSnapshot, release Release, st
 		return ComposePreflight{}, fmt.Errorf("%w: frozen compose candidate is incomplete", errRolloutComposeCandidateInvalid)
 	}
 	value := ComposePreflight{DeclaredMode: snapshot.Context().Mode(), DeploymentStrategy: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: snapshot.Context().Mode(), ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
+	value.ProjectName = candidate.ProjectName()
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}

@@ -276,6 +276,15 @@ func (h updateRouteHandlers) recover(c *gin.Context) {
 func (h updateRouteHandlers) writeStartFailure(c *gin.Context, actorID uint64, targetVersion, _ string, err error) {
 	code, stage, operationID := rolloutFailureDetails(err)
 	status := rolloutFailureHTTPStatus(code)
+	messageKey := rolloutFailureMessageKey(code)
+	switch {
+	case errors.Is(err, moduleapi.ErrTaskExecutionUnavailable):
+		status, code, stage = http.StatusServiceUnavailable, messagecontract.CommonTaskExecutionUnavailable.String(), "execution_admission"
+		messageKey = code
+	case errors.Is(err, moduleapi.ErrTaskOwnerBusy):
+		status, code, stage = http.StatusConflict, messagecontract.CommonTaskResourceBusy.String(), "execution_admission"
+		messageKey = code
+	}
 	requestID := httpx.EnsureRequestID(c)
 	diagnostic := newFailureDiagnostic(requestID, operationID, targetVersion, code, stage, err)
 	if operationID != "" && h.rollout != nil && h.rollout.operations != nil {
@@ -290,7 +299,7 @@ func (h updateRouteHandlers) writeStartFailure(c *gin.Context, actorID uint64, t
 	}
 	h.logStartFailure(c.Request.Context(), actorID, status, diagnostic)
 	h.publishStartFailureAudit(c.Request.Context(), actorID, status, diagnostic)
-	httpx.WriteLocalizedErrorCode(c, h.localizer, status, code, rolloutFailureMessageKey(code), rolloutFailureResponseData(code))
+	httpx.WriteLocalizedErrorCode(c, h.localizer, status, code, messageKey, rolloutFailureResponseData(code))
 }
 
 func (h updateRouteHandlers) logStartFailure(ctx context.Context, actorID uint64, status int, diagnostic FailureDiagnostic) {
