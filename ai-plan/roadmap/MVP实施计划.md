@@ -15,7 +15,7 @@ Graft 首先服务个人与小团队的单机 Docker/Compose 运维，随后覆�
 4. 迁移与诊断。明确 local/agent 模式切换条件，保留历史记录，执行失败具有稳定诊断与恢复入口。
 
 架构依据为 [ADR-029](../design/decisions/ADR-029-local-application-operations.md)。
-当前批次与复验证据见 [治理主题](../public/containerized-platform-governance/README.md)。
+本轮实现与复验证据见 [治理归档](../public/archive/containerized-platform-governance/README.md)。
 
 ## 验收依据
 
