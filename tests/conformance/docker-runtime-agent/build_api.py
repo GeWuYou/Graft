@@ -88,6 +88,21 @@ def verify_image_probe(fixture, image_id: str) -> dict:
     return {"probe_sha256": actual, "expected_probe_sha256": expected, "probe_size_bytes": size, "probe_verified": True}
 
 
+def verify_artifact_image(fixture, nested, curl: tuple, artifact: dict, reference: str) -> dict:
+    headers = nested.compose(*curl, "--fail", "--head", "--netrc-file", "/run/graft/registry.netrc", "-H",
+        MANIFEST_ACCEPT, ENDPOINT + "/v2/" + REPOSITORY + "/manifests/" + reference)
+    remote_digest = next((line.split(":", 1)[1].strip() for line in headers.splitlines()
+                          if line.lower().startswith("docker-content-digest:")), "")
+    if remote_digest != artifact["digest"]:
+        raise RuntimeError("Registry manifest does not match the Build artifact")
+    config_digest = manifest_config_digest(nested, curl, reference, artifact["digest"])
+    image_id = fixture.engine("image", "inspect", "--format", "{{.Id}}", config_digest).strip()
+    if config_digest != image_id:
+        raise RuntimeError("Published manifest config does not identify the actual built Docker image")
+    return {"engine_image_id": image_id, "remote_manifest_digest": remote_digest,
+            "manifest_config_digest": config_digest, **verify_image_probe(fixture, image_id)}
+
+
 def prepare_registry(fixture, nested, directory):
     images = dict(fixture.environment)
     if not images.get("GRAFT_BUILD_REGISTRY_IMAGE") or not images.get("GRAFT_RELEASE_FIXTURE_IMAGE"):
@@ -173,9 +188,10 @@ def run_build_api(fixture, nested):
         raise RuntimeError("Registry verification did not accept the scoped synthetic credential")
     snapshot = upload_snapshot(nested)
     reference = "probe-" + secrets.token_hex(6)
+    destination = {"kind": "oci_registry", "connection_ref": connection, "repository_ref": REPOSITORY, "reference": reference}
     status, response = nested.api("POST", "/api/build/jobs", {"input_snapshot_id": snapshot, "runtime_target_id": target,
         "template_ref": "oci-dockerfile/default@v1", "driver": "docker-engine@v1", "platforms": ["linux/amd64"],
-        "destination": {"kind": "oci_registry", "connection_ref": connection, "repository_ref": REPOSITORY, "reference": reference}},
+        "destination": destination},
         idempotency_key="graft-build-" + secrets.token_hex(12))
     require_response(status, (202,), "Task submission")
     task_id = response["data"]["task_id"]
@@ -191,28 +207,17 @@ def run_build_api(fixture, nested):
     status, response = nested.api("GET", "/api/build/artifacts/" + artifact["artifact_id"] + "/publications")
     require_response(status, (200,), "artifact publication")
     publications = (response.get("data") or {}).get("items", [])
-    if not any(item.get("digest") == artifact["digest"] and (item.get("destination") or {}).get("reference") == reference for item in publications):
+    if not any(item.get("digest") == artifact["digest"] and
+               all((item.get("destination") or {}).get(key) == value for key, value in destination.items()) for item in publications):
         raise RuntimeError("Artifact publication does not match the successful Build")
-    image_id = fixture.engine("image", "inspect", "--format", "{{.Id}}", artifact["image_id"]).strip()
-    headers = nested.compose(*curl, "--fail", "--head", "--netrc-file", "/run/graft/registry.netrc", "-H",
-        MANIFEST_ACCEPT,
-        ENDPOINT + "/v2/" + REPOSITORY + "/manifests/" + reference)
-    remote_digest = next((line.split(":", 1)[1].strip() for line in headers.splitlines()
-                          if line.lower().startswith("docker-content-digest:")), "")
-    if remote_digest != artifact["digest"] or not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
-        raise RuntimeError("Actual Docker image or registry manifest does not match the Build artifact")
-    config_digest = manifest_config_digest(nested, curl, reference, artifact["digest"])
-    if config_digest != image_id:
-        raise RuntimeError("Published manifest config does not identify the actual built Docker image")
-    probe = verify_image_probe(fixture, image_id)
+    image_proof = verify_artifact_image(fixture, nested, curl, artifact, reference)
     status, logs = nested.api("GET", f"/api/tasks/{task_id}/logs")
     require_response(status, (200,), "Task log readback")
     if password in json.dumps({"task": task, "job": job, "publications": publications, "logs": logs}):
         raise RuntimeError("Build credential escaped its transient execution boundary")
     evidence = {"source_revision": fixture.state["source_revision"], "task_id": task_id, "task_status": "success",
         "registry_anonymous_status": 401, "registry_authenticated_status": 200, "registry_verified": True,
-        "artifact": artifact, "publications": publications, "engine_image_id": image_id,
-        "remote_manifest_digest": remote_digest, "manifest_config_digest": config_digest, **probe,
+        "artifact": artifact, "publications": publications, "requested_destination": destination, **image_proof,
         "credential_absent_from_task_and_logs": True}
     path = directory / "build-api-evidence.json"
     path.write_text(json.dumps(evidence, indent=2) + "\n")
