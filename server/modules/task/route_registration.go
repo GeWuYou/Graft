@@ -374,6 +374,14 @@ func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
 		}
 	case http.StatusConflict:
 		descriptor.Kind = apperror.KindConflict
+		if errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
+			descriptor.Code = errorcode.FromMessageKey(messagecontract.CommonTaskResourceBusy)
+			descriptor.MessageKey = messagecontract.CommonTaskResourceBusy
+		}
+		if errors.Is(err, moduleapi.ErrTaskExecutionUnavailable) {
+			descriptor.Code = errorcode.FromMessageKey(messagecontract.CommonTaskExecutionUnavailable)
+			descriptor.MessageKey = messagecontract.CommonTaskExecutionUnavailable
+		}
 	}
 	httpx.AbortAppError(c, r.ctx.I18n, r.ctx.Logger, apperror.Wrap(err, descriptor))
 }
@@ -413,7 +421,7 @@ func taskHTTPStatus(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, taskstore.ErrInvalidInput):
 		return http.StatusBadRequest
-	case errors.Is(err, taskstore.ErrStateConflict):
+	case errors.Is(err, taskstore.ErrStateConflict), errors.Is(err, moduleapi.ErrTaskOwnerBusy), errors.Is(err, moduleapi.ErrTaskExecutionUnavailable):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
