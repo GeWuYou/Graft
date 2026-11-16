@@ -14,18 +14,21 @@ it does not make the Update Center a generic host command runner.
 ## Configuration Defaults and Compatible Upgrades
 
 Reuse the existing `.env` for compatible upgrades. Optional settings inherit application and Compose defaults, while
-explicit process environment and `.env` values override them. Database name and user default to `graft` throughout
-PostgreSQL initialization, its health check and the server connection. Keep the existing instance password, signing
+explicit process environment and `.env` values override them. PostgreSQL user defaults to `postgres`, and database name
+defaults to the selected user throughout initialization, health checks and server connections. An explicit external
+database URL retains precedence. Keep the existing instance password, signing
 material, database identity and data paths during an upgrade.
 
 `GRAFT_CONFIG_SCHEMA_VERSION` is optional compatibility-generation metadata. Omitted values use the embedded default.
 Compatible optional additions retain the same generation and arrive with defaults. Explicit unsupported generations,
-invalid values and missing instance credentials fail preflight before initialization. Changes to execution ownership,
+invalid values and missing signing material fail preflight before initialization. Fresh PostgreSQL data directories
+use the official image credential checks. Changes to execution ownership,
 external integrations or configuration format follow their declared migration procedure.
 
 The configuration layering follows the established externalized-configuration model and Compose interpolation rules.
 [Spring Boot externalized configuration](https://docs.spring.io/spring-boot/reference/features/external-config.html),
-[Compose interpolation](https://docs.docker.com/reference/compose-file/interpolation/).
+[Compose interpolation](https://docs.docker.com/reference/compose-file/interpolation/),
+[PostgreSQL image configuration](https://hub.docker.com/_/postgres).
 
 ## Select the Execution Mode
 

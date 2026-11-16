@@ -19,8 +19,10 @@ func TestOfficialComposeConfigurationDefaultsAndOverrides(t *testing.T) {
 		database    string
 		user        string
 	}{
-		{name: "minimal existing file", database: "graft", user: "graft"},
-		{name: "empty optional values", overrides: "POSTGRES_DB=\nPOSTGRES_USER=\n", database: "graft", user: "graft"},
+		{name: "minimal existing file", database: "postgres", user: "postgres"},
+		{name: "empty optional values", overrides: "POSTGRES_DB=\nPOSTGRES_USER=\n", database: "postgres", user: "postgres"},
+		{name: "only user overridden", overrides: "POSTGRES_USER=existing_user\n", database: "existing_user", user: "existing_user"},
+		{name: "only database overridden", overrides: "POSTGRES_DB=existing_database\n", database: "existing_database", user: "postgres"},
 		{name: "file overrides", overrides: "POSTGRES_DB=custom_database\nPOSTGRES_USER=custom_user\n", database: "custom_database", user: "custom_user"},
 		{name: "environment overrides file", overrides: "POSTGRES_DB=file_database\nPOSTGRES_USER=file_user\n",
 			environment: []string{"POSTGRES_DB=process_database", "POSTGRES_USER=process_user"}, database: "process_database", user: "process_user"},
@@ -49,11 +51,19 @@ func TestOfficialComposeConfigurationDefaultsAndOverrides(t *testing.T) {
 	}
 }
 
-func TestOfficialComposeRequiresInstanceDatabasePassword(t *testing.T) {
+func TestOfficialComposePreservesExternalDatabaseConnection(t *testing.T) {
+	connection := "host=existing-postgres dbname=managed user=managed sslmode=verify-full"
 	options, _ := composeDefaultsOptions(t,
-		"GRAFT_IMAGE_TAG=v0.12.0-beta.2\nGRAFT_AUTH_JWT_SECRET=configuration-test-signing-material\n", nil)
-	if _, err := options.LoadProject(context.Background()); err == nil || !strings.Contains(err.Error(), "POSTGRES_PASSWORD") {
-		t.Fatalf("expected missing instance password to fail before startup, got %v", err)
+		"GRAFT_IMAGE_TAG=v0.12.0-beta.2\nGRAFT_AUTH_JWT_SECRET=configuration-test-signing-material\nGRAFT_DATABASE_URL="+connection+"\n", nil)
+	project, err := options.LoadProject(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"bootstrap", "server"} {
+		actual := project.Services[name].Environment["GRAFT_DATABASE_URL"]
+		if actual == nil || *actual != connection {
+			t.Fatalf("%s lost the existing external database connection", name)
+		}
 	}
 }
 
