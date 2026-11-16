@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -232,12 +233,22 @@ func TestSubmitExecutionPlanReusesAuthorizedInputSnapshot(t *testing.T) {
 		v2RegistryResolver{},
 	)
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}})
-	receipt, err := service.SubmitExecutionPlan(ctx, ExecutionPlanRequest{InputSnapshotID: "snapshot_1", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Platforms: []string{"linux/amd64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry:primary", RepositoryRef: "team/app", Reference: "v1"}, IdempotencyKey: "snapshot-key"})
+	request := ExecutionPlanRequest{InputSnapshotID: "snapshot_1", RuntimeTargetID: 4, TemplateRef: v2DockerfileTemplate, Driver: v2DockerEngineDriver, Platforms: []string{"linux/amd64"}, Destination: moduleapi.BuildDestination{Kind: v2OCIDestination, ConnectionRef: "registry:primary", RepositoryRef: "team/app", Reference: "v1"}, IdempotencyKey: "snapshot-key"}
+	receipt, err := service.SubmitExecutionPlan(ctx, request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if receipt.TaskID != 42 || repository.v2Plan.Workspace.ID != "snapshot_1" || repository.v2Plan.Workspace.MaterializationRef == "" {
 		t.Fatalf("input snapshot was not reused: receipt=%#v plan=%#v", receipt, repository.v2Plan)
+	}
+	firstKeys := tasks.input.Plan.Stages[0].ExternalExecution.ResourceKeys
+	request.Destination.ConnectionRef, request.IdempotencyKey = "registry:secondary", "snapshot-secondary"
+	if _, err := service.SubmitExecutionPlan(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	secondKeys := tasks.input.Plan.Stages[0].ExternalExecution.ResourceKeys
+	if !slices.Contains(firstKeys, "image:docker.io/team/app:v1") || !slices.Contains(secondKeys, "image:docker.io/team/app:v1") {
+		t.Fatalf("distinct remote registries omitted their shared local tag claim: %v / %v", firstKeys, secondKeys)
 	}
 }
 

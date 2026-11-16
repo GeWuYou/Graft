@@ -467,7 +467,7 @@ func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: canonicalize task metadata: %v", taskstore.ErrInvalidInput, err)
 	}
-	canonicalPlan, err := canonicalSubmissionJSON(plan)
+	canonicalPlan, err := canonicalSubmissionPlan(plan)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: canonicalize task plan: %v", taskstore.ErrInvalidInput, err)
 	}
@@ -492,6 +492,31 @@ func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (
 	keyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte(input.IdempotencyKey)))
 	fingerprint := fmt.Sprintf("%x", sha256.Sum256(encoded))
 	return &keyDigest, &fingerprint, nil
+}
+
+func canonicalSubmissionPlan(raw json.RawMessage) (json.RawMessage, error) {
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(raw, &plan); err != nil {
+		return nil, err
+	}
+	// 协调键和启动阶段引用由运行时派生；历史客户端请求的身份沿用原始意图。
+	for index := range plan.Stages {
+		stage := &plan.Stages[index]
+		if stage.ExternalExecution != nil {
+			stage.ExternalExecution.ResourceKeys = nil
+		}
+		if stage.LocalExecution != nil {
+			stage.LocalExecution.Operation.ResourceKeys = nil
+		}
+		if stage.ExternalReceipt != nil {
+			stage.ExternalReceipt.LaunchStageKey = ""
+		}
+	}
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		return nil, err
+	}
+	return canonicalSubmissionJSON(encoded)
 }
 
 func canonicalSubmissionJSON(raw json.RawMessage) (json.RawMessage, error) {

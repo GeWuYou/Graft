@@ -239,7 +239,7 @@ func (r *SQLRepository) guardExecutionResources(ctx context.Context, tx *sql.Tx,
 		return err
 	}
 	if current != mode {
-		return errors.New("task execution mode differs from the active runtime binding")
+		return moduleapi.ErrTaskExecutionUnavailable
 	}
 	if mode != "local" {
 		return nil
@@ -247,11 +247,11 @@ func (r *SQLRepository) guardExecutionResources(ctx context.Context, tx *sql.Tx,
 	if err := r.lockExecutionResources(ctx, tx, resources); err != nil {
 		return err
 	}
-	return r.checkExecutionResourceConflicts(ctx, tx, resources)
+	return r.checkExecutionResourceConflicts(ctx, tx, resources, task.ID)
 }
 
-func (r *SQLRepository) checkExecutionResourceConflicts(ctx context.Context, tx *sql.Tx, resources []executionResource) error {
-	rows, err := tx.QueryContext(ctx, "SELECT plan_json FROM tasks WHERE status IN ('pending','ready','scheduled','running','needs_attention')")
+func (r *SQLRepository) checkExecutionResourceConflicts(ctx context.Context, tx *sql.Tx, resources []executionResource, ownTaskID uint64) error {
+	rows, err := tx.QueryContext(ctx, r.placeholder.rebind("SELECT plan_json FROM tasks WHERE id <> ? AND status IN ('pending','ready','scheduled','running','needs_attention')"), ownTaskID)
 	if err != nil {
 		return err
 	}

@@ -38,7 +38,7 @@ func TestResourceResolutionFreezesCanonicalContainerAndComposeProject(t *testing
 }
 
 func TestImageResourceKeysNormalizeTagAliases(t *testing.T) {
-	if imageResourceKey("nginx") != imageResourceKey("docker.io/library/nginx:latest") {
+	if ImageResourceKey("nginx") != ImageResourceKey("docker.io/library/nginx:latest") {
 		t.Fatal("equivalent tag aliases escaped coordination")
 	}
 }

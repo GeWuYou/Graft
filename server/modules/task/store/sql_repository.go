@@ -828,6 +828,9 @@ func (r *SQLRepository) resumeRetryableTask(ctx context.Context, tx *sql.Tx, tas
 	if task.Status != moduleapi.TaskStatusNeedsAttention && task.Status != moduleapi.TaskStatusFailed {
 		return ErrStateConflict
 	}
+	if err := r.guardExecutionResources(ctx, tx, task); err != nil {
+		return err
+	}
 	if err := r.transitionTaskWith(ctx, tx, TaskTransitionInput{TaskID: taskID, From: task.Status, To: moduleapi.TaskStatusRunning}); err != nil {
 		return fmt.Errorf("resume task for stage retry: %w", err)
 	}
