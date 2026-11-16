@@ -127,6 +127,19 @@ type updateControllerMaterial struct {
 	OperationID         string `json:"operation_id"`
 }
 
+type updateControllerRecoveryInput struct {
+	OperationID   string          `json:"operation_id"`
+	RunnerID      string          `json:"runner_id"`
+	SourceVersion string          `json:"source_version"`
+	TargetVersion string          `json:"target_version"`
+	Strategy      string          `json:"deployment_strategy"`
+	ExecutionMode string          `json:"execution_mode,omitempty"`
+	LaunchStageID uint64          `json:"launch_stage_id,omitempty"`
+	LaunchAttempt int             `json:"launch_attempt,omitempty"`
+	State         json.RawMessage `json:"state,omitempty"`
+	Corrupt       bool            `json:"corrupt,omitempty"`
+}
+
 // executeUpdateControllerOperation 是调用方授权后的有界 Controller 启动边界。
 // 材料由调用方按当前 attempt 解析，SDK 仅返回受限操作结果。
 //
@@ -192,25 +205,56 @@ func validUpdateControllerMaterial(material updateControllerMaterial, lease Requ
 		if strings.TrimSpace(material.InputBase64) != "" || strings.TrimSpace(material.ComposeRoot) != "" || strings.TrimSpace(material.DockerSocket) != "" || !validRecoveryClaimID(material.RecoveryClaimID) {
 			return false
 		}
-		decoded, err := base64.RawStdEncoding.DecodeString(material.RecoveryStateBase64)
-		if err != nil || len(decoded) == 0 {
-			return false
-		}
-		var recovery struct {
-			OperationID string `json:"operation_id"`
-			RunnerID    string `json:"runner_id"`
-			Source      string `json:"source_version"`
-			Target      string `json:"target_version"`
-			Strategy    string `json:"deployment_strategy"`
-		}
-		if strictDecode(decoded, &recovery) != nil || recovery.OperationID != material.OperationID || !validRecoveryRunnerID(recovery.RunnerID) || recovery.Source != intent.SourceVersion || recovery.Target != intent.TargetVersion || strings.TrimSpace(recovery.Strategy) == "" {
-			return false
-		}
-		return true
+		return validRecoveryControllerInput(material.RecoveryStateBase64, intent)
 	}
 	return strings.TrimSpace(material.InputBase64) != "" && filepath.IsAbs(material.ComposeRoot) && material.ComposeRoot != string(filepath.Separator) &&
 		material.DockerSocket == "/var/run/docker.sock" &&
 		material.OperationID == intent.OperationID
+}
+
+func validRecoveryControllerInput(encoded string, intent updateControllerIntent) bool {
+	decoded, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil || len(decoded) == 0 {
+		return false
+	}
+	var recovery updateControllerRecoveryInput
+	if strictDecode(decoded, &recovery) != nil || !recovery.matchesIntent(intent) {
+		return false
+	}
+	if !validRecoveryExecutionMode(recovery.ExecutionMode) || recovery.LaunchAttempt < 0 || (recovery.LaunchStageID == 0) != (recovery.LaunchAttempt == 0) {
+		return false
+	}
+	return validRecoveryControllerState(recovery)
+}
+
+func (recovery updateControllerRecoveryInput) matchesIntent(intent updateControllerIntent) bool {
+	return recovery.OperationID == intent.OperationID && validRecoveryRunnerID(recovery.RunnerID) &&
+		recovery.SourceVersion == intent.SourceVersion && recovery.TargetVersion == intent.TargetVersion &&
+		strings.TrimSpace(recovery.Strategy) != ""
+}
+
+func validRecoveryControllerState(recovery updateControllerRecoveryInput) bool {
+	if len(recovery.State) == 0 || bytes.Equal(bytes.TrimSpace(recovery.State), []byte("null")) {
+		return true
+	}
+	// 完整状态及其摘要由 Controller 校验，SDK 只复核外层恢复授权绑定。
+	var state struct {
+		OperationID   string `json:"operation_id"`
+		RunnerID      string `json:"runner_id"`
+		ExecutionMode string `json:"execution_mode"`
+	}
+	if json.Unmarshal(recovery.State, &state) != nil || state.OperationID != recovery.OperationID || state.RunnerID != recovery.RunnerID || !validRecoveryExecutionMode(state.ExecutionMode) {
+		return false
+	}
+	stateMode := state.ExecutionMode
+	if stateMode == "" {
+		stateMode = "agent"
+	}
+	return recovery.ExecutionMode == "" || recovery.ExecutionMode == stateMode
+}
+
+func validRecoveryExecutionMode(mode string) bool {
+	return mode == "" || mode == "agent" || mode == "local"
 }
 
 func validRecoveryClaimID(value string) bool {
