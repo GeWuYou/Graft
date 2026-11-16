@@ -3,9 +3,9 @@ x-graft-server-image: &graft-server-image ghcr.io/gewuyou/graft-server:${GRAFT_I
 x-graft-server-runtime-env: &graft-server-runtime-env
   GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
   GRAFT_EXECUTION_MODE: ${GRAFT_EXECUTION_MODE:-agent}
-  GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
+  GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB:-graft} user=${POSTGRES_USER:-graft} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} sslmode=disable}
   GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
-  GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
+  GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET:-}
   # Keep deployment identity and image strategy explicit in every official server-image container.
   GRAFT_DEPLOYMENT_RUNTIME: ${GRAFT_DEPLOYMENT_RUNTIME:-compose}
   GRAFT_IMAGE_TAG: ${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
@@ -17,13 +17,13 @@ services:
     image: postgres:16.16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-graft}
+      POSTGRES_USER: ${POSTGRES_USER:-graft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - ${COMPOSE_FILE_DIR:-.}/.data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-graft} -d ${POSTGRES_DB:-graft}"]
       interval: 5s
       timeout: 5s
       retries: 10
