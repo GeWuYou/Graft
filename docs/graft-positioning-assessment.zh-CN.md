@@ -8,7 +8,7 @@
 工程治理与本机执行迁移覆盖 Build 和平台自更新，决策见
 [ADR-029](../ai-plan/design/decisions/ADR-029-local-application-operations.md)，
 阶段与实际进度分别见[路线](../ai-plan/roadmap/MVP实施计划.md)和
-[当前主题](../ai-plan/public/containerized-platform-governance/README.md)。
+[主题归档](../ai-plan/public/archive/containerized-platform-governance/README.md)。
 以下隔离复验是所列历史源码的运行证据，新执行边界的验收另行绑定交付 revision。
 
 ## 当前判断
