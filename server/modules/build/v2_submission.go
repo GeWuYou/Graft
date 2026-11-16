@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"graft/server/internal/dockerexecution"
 	"graft/server/internal/moduleapi"
 	buildstore "graft/server/modules/build/store"
 )
@@ -631,6 +632,18 @@ func (s *Service) SubmitExecutionPlan(ctx context.Context, request ExecutionPlan
 		taskPlan.Coordination = &moduleapi.CoordinatedTaskPlan{Version: "build-legs/v1", AggregateStageKey: "build-platforms", Legs: legs}
 		stages = append(stages, moduleapi.StagePlan{Key: "build-platforms", ExecutorType: v2BuildStageExecutor, Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: buildExternalExecution(placement.RuntimeTargetID, buildManifestOperation, input)})
 		taskPlan.Stages = stages
+	}
+	for index := range taskPlan.Stages {
+		stage := &taskPlan.Stages[index]
+		keys := []string{"registry:" + plan.Destination.ConnectionRef + ":" + plan.Destination.RepositoryRef + ":" + plan.Destination.Reference}
+		if stage.ExternalExecution.OperationID == buildImagePublishOperation {
+			reference := plan.Destination.Reference
+			if stage.LegID != "" {
+				reference = temporaryPlatformTag(reference, stage.LegID)
+			}
+			keys = append(keys, dockerexecution.ImageResourceKey(plan.Destination.RepositoryRef+":"+reference))
+		}
+		stage.ExternalExecution.ResourceKeys = keys
 	}
 	task := moduleapi.SubmitTaskInput{
 		Type:           v2BuildTaskType,

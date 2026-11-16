@@ -1,0 +1,46 @@
+migration:
+  path: server/modules/update/migrations/202611160001_update_discovery_catalog.sql
+  version: '202611160001'
+owner: update
+risk_level: L1
+affected_tables:
+- update_discovery_cache
+referenced_tables:
+- update_discovery_cache
+operation_categories:
+- additive-column
+historical_data_assumptions:
+- Previously executed discovery cache rows retain their latest_release_json projection.
+- A null catalog_json keeps the existing latest-only fallback until the next verified
+  release check.
+planned_upgrade_order:
+- Apply the forward-only nullable catalog column before starting a server that reads
+  the complete release catalog.
+- Existing server versions continue using the unchanged latest-release and timestamp
+  fields.
+safety_strategy:
+  additive_only: Add one nullable JSONB column without rewriting existing snapshots
+    or release identities.
+  post_migration_invariant: The complete verified catalog can be loaded and saved
+    while legacy latest-only snapshots remain readable.
+  reconcile_or_abort: A manually modified incompatible schema fails migration and
+    must be inspected before application startup.
+validation_scenarios:
+- Apply the migration to the original cache table containing an existing latest-only
+  row and verify its data survives.
+- Create a fresh cache schema and round-trip the full catalog and check timestamps
+  through the repository.
+preflight_checks:
+- name: update-cache-owner-table-present
+  query: SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema()
+    AND table_name = 'update_discovery_cache'
+  must_equal: 1
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+  - MIG-002

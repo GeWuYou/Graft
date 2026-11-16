@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	messagecontract "graft/server/internal/contract/message"
 	openapigen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -76,7 +77,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusCreated, openapigen.EnvelopedBuildInputSnapshot{Data: openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")}})
+		httpx.WriteSuccess(c, http.StatusCreated, openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")})
 	})
 	group.GET("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildPaginationQuery(c)
@@ -93,7 +94,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		for _, snapshot := range result.Items {
 			items = append(items, openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")})
 		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildInputSnapshotList{Data: openapigen.BuildInputSnapshotList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset}})
+		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildInputSnapshotList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset})
 	})
 	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		pagination, ok := buildPaginationQuery(c)
@@ -111,7 +112,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildWorkspaceList{Data: toBuildWorkspaceList(result, buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset})})
+		httpx.WriteSuccess(c, http.StatusOK, toBuildWorkspaceList(result, buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset}))
 	})
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
@@ -162,7 +163,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, openapigen.EnvelopedBuildArtifactPublicationList{Data: toBuildArtifactPublicationList(result, query.Limit, query.Offset)})
+		httpx.WriteSuccess(c, http.StatusOK, toBuildArtifactPublicationList(result, query.Limit, query.Offset))
 	})
 	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
 		query, ok := buildListQuery(c)
@@ -234,14 +235,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		}
 		receipt, submitErr := service.SubmitExecutionPlan(c.Request.Context(), ExecutionPlanRequest{InputSnapshotID: inputSnapshotID, WorkspaceID: workspaceID, BuilderPoolID: builderPoolID, RuntimeTargetID: runtimeTargetID, TemplateRef: string(request.TemplateRef), Driver: string(request.Driver), Platforms: platforms, Destination: moduleapi.BuildDestination{Kind: string(request.Destination.Kind), ConnectionRef: request.Destination.ConnectionRef, RepositoryRef: request.Destination.RepositoryRef, Reference: request.Destination.Reference}, RequestedBy: requestedBy, IdempotencyKey: key})
 		if submitErr != nil {
-			status, key := http.StatusInternalServerError, "common.internalError"
-			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) {
-				status, key = http.StatusConflict, "common.invalidArgument"
-			} else if errors.Is(submitErr, buildstore.ErrConflict) {
-				status, key = http.StatusConflict, "common.invalidArgument"
-			} else if errors.Is(submitErr, errInvalidBuildRequest) {
-				status, key = http.StatusBadRequest, "common.invalidArgument"
-			}
+			status, key := buildSubmissionFailure(submitErr)
 			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return
 		}
@@ -276,11 +270,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			IdempotencyKey: key,
 		})
 		if submitErr != nil {
-			status, errorKey := http.StatusInternalServerError, "common.internalError"
-			if errors.Is(submitErr, moduleapi.ErrTaskSubmissionConflict) || errors.Is(submitErr, buildstore.ErrConflict) {
-				status, errorKey = http.StatusConflict, "common.invalidArgument"
-			}
-			httpx.WriteLocalizedError(c, ctx.I18n, status, errorKey, nil)
+			status, key := buildSubmissionFailure(submitErr)
+			httpx.WriteLocalizedError(c, ctx.I18n, status, key, nil)
 			return
 		}
 		if receipt.TaskID > math.MaxInt64 {
@@ -429,4 +420,19 @@ func buildTimeQuery(c *gin.Context, key string) (*time.Time, bool) {
 		return nil, false
 	}
 	return &value, true
+}
+
+func buildSubmissionFailure(err error) (int, string) {
+	switch {
+	case errors.Is(err, moduleapi.ErrTaskOwnerBusy):
+		return http.StatusConflict, messagecontract.CommonTaskResourceBusy.String()
+	case errors.Is(err, moduleapi.ErrTaskExecutionUnavailable):
+		return http.StatusServiceUnavailable, messagecontract.CommonTaskExecutionUnavailable.String()
+	case errors.Is(err, moduleapi.ErrTaskSubmissionConflict), errors.Is(err, buildstore.ErrConflict):
+		return http.StatusConflict, "common.invalidArgument"
+	case errors.Is(err, errInvalidBuildRequest):
+		return http.StatusBadRequest, "common.invalidArgument"
+	default:
+		return http.StatusInternalServerError, "common.internalError"
+	}
 }

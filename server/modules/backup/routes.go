@@ -142,7 +142,9 @@ func backupHTTPStatus(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, moduleapi.ErrBackupInvalidInput):
 		return http.StatusBadRequest
-	case errors.Is(err, moduleapi.ErrTaskSubmissionConflict):
+	case errors.Is(err, moduleapi.ErrTaskExecutionUnavailable):
+		return http.StatusServiceUnavailable
+	case errors.Is(err, moduleapi.ErrTaskOwnerBusy), errors.Is(err, moduleapi.ErrTaskSubmissionConflict):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -160,6 +162,8 @@ func (h backupRouteHandlers) writeError(c *gin.Context, status int, err error) {
 		messageKey = "auth.unauthenticated"
 	case http.StatusConflict:
 		messageKey = messagecontract.CommonInvalidArgument.String()
+	case http.StatusServiceUnavailable:
+		messageKey = messagecontract.CommonTaskExecutionUnavailable.String()
 	case http.StatusInternalServerError:
 		logsafe.Error(h.logger, "backup request failed", zap.Error(err))
 	}

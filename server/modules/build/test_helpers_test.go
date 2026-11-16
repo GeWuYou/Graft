@@ -33,7 +33,10 @@ type recordingBuildRepository struct {
 }
 
 func (r *recordingBuildRepository) CreateBuildInputSnapshot(_ context.Context, snapshotID, sourceReference, contentDigest, materializationRef string, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
-	return moduleapi.WorkspaceSnapshot{ID: snapshotID, SourceKind: moduleapi.WorkspaceSourceArchive, SourceReference: sourceReference, ContentDigest: contentDigest, MaterializationRef: materializationRef}, nil
+	snapshot := moduleapi.WorkspaceSnapshot{ID: snapshotID, SourceKind: moduleapi.WorkspaceSourceArchive, SourceReference: sourceReference, ContentDigest: contentDigest, MaterializationRef: materializationRef}
+	r.inputSnapshots.Items = append(r.inputSnapshots.Items, snapshot)
+	r.inputSnapshots.Total++
+	return snapshot, nil
 }
 func (r *recordingBuildRepository) GetBuildInputSnapshot(_ context.Context, snapshotID string, _ uint64) (moduleapi.WorkspaceSnapshot, error) {
 	for _, snapshot := range r.inputSnapshots.Items {
@@ -45,6 +48,10 @@ func (r *recordingBuildRepository) GetBuildInputSnapshot(_ context.Context, snap
 }
 func (r *recordingBuildRepository) ListBuildInputSnapshots(_ context.Context, _ uint64, _ int, _ int) (buildstore.InputSnapshotListResult, error) {
 	return r.inputSnapshots, nil
+}
+
+func (*recordingBuildRepository) ListArtifactPublications(context.Context, string, int, int) (buildstore.ArtifactPublicationListResult, error) {
+	return buildstore.ArtifactPublicationListResult{}, nil
 }
 
 func (r *recordingBuildRepository) RecordPlatformArtifact(_ context.Context, _ uint64, _ moduleapi.BuildExecutionPlan, artifact moduleapi.PlatformArtifact) error {

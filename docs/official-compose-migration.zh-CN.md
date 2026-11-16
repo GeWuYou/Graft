@@ -9,6 +9,31 @@
 - 以下命令必须在运行 Graft 的 Docker daemon 宿主机上执行。不要使用容器内路径、Windows/WSL 映射路径，或另一台 Docker 主机的路径。
 - 当前受控 Compose runner 只支持 Linux `amd64` 主机。
 
+## 选择执行模式
+
+全新安装使用 `GRAFT_EXECUTION_MODE=local`，`COMPOSE_PROFILES` 留空。服务端 Task Runtime 执行 Docker/Compose 和镜像构建，并启动独立的平台更新 Controller。默认常驻服务为 PostgreSQL、Redis、server 和 web。
+
+既有配置缺少执行模式键时保持 Agent 执行。采用当前 Compose 文件前，在 `.env` 中明确既有选择，并保留其他需要的 profile。
+
+```dotenv
+GRAFT_EXECUTION_MODE=agent
+COMPOSE_PROFILES=agent
+```
+
+Agent 模式需要既有 Vault PKI、TLS listener 与已交付 Agent 身份。Compose 配置检查在 bootstrap 前拒绝模式与 profile 不匹配的配置。
+
+迁移到本机执行时，选择包含 `graft runtime mode preflight` 的已验证发行版，并使用该版本匹配的 server 镜像与 Compose 文件。安排维护窗口，先完成或显式取消待处理操作，核对 `needs_attention` 的已有副作用，再停止任务提交来源。数据库、应用标识、Task 历史、审计和工作区文件作为同一安装保留。
+
+目标镜像完成前向迁移后，通过同版本的一次性服务运行只读预检。
+
+```bash
+docker compose --profile runtime-mode-preflight run --rm runtime-mode-preflight
+```
+
+该服务使用与 bootstrap 相同的 server 镜像，执行 `--mode local --format json`。处理所有 Task、租约和执行归属问题后，再将 `.env` 中的模式改为 `local`，从 `COMPOSE_PROFILES` 移除 `agent` 并启动官方拓扑。服务启动时再次核对执行归属。保留原环境文件和已核验镜像引用，供人工恢复使用。
+
+本机 Compose 的相对 bind mount 要求 Docker daemon 宿主机与 server 容器使用同一绝对应用目录。全新安装的 `GRAFT_APPLICATION_ROOT_HOST_PATH` 和 `GRAFT_APPLICATION_ROOT_CONTAINER_PATH` 均为 `/opt/graft/apps`。自定义目录时，两项填同一绝对路径，并同步应用设置中的“应用根目录”。切换前验证原有文件及权限，部署预检会提示相对路径和路径不匹配，数据迁移由操作人员明确执行。
+
 ## 1. 准备官方 Compose 根目录
 
 选择 Docker daemon 宿主机上的绝对目录，例如 `/opt/graft`。目录顶层必须包含官方 `compose.yml`（或 `compose.yaml`）及该 Compose 项目使用的 `.env` 文件。
@@ -21,7 +46,7 @@ cd /opt/graft
 cp compose.env.example .env
 ```
 
-不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 的 socket 挂载仅保留给 Runtime Target 发现/摘要、Container snapshot/resource/log/stream/event/stats 与 interactive 读取、Deployment Runtime 当前 server Docker facts，以及受限的 Update 观测/恢复。Update Controller 启动和其他 Docker 副作用由 Docker Runtime Agent 拥有。
+不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`。本机模式通过 server socket 进行授权后的执行和观测，Agent 模式通过显式 `agent` profile 将有限 Docker 副作用交给 Agent 执行。
 
 ## 2. 保留已有数据
 
@@ -67,7 +92,7 @@ docker compose ps
 
 确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。官方 Compose bootstrap 是保留的 cutover authority：它在 `graft migrate up` 前一次性运行 `graft update cutover-v1`；该命令只清理旧的更新状态，不是第二条运行时执行路径。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
 
-确认升级必须保持 controller 的顺序：先更新 `server`/`web`，验证新 server 健康，再最后替换 Docker Runtime Agent，随后验证新 Agent 的 mTLS 身份、活动 generation 和声明的 capability readiness。不要先替换 Agent，也不要把容器处于 healthy 视为就绪。
+确认升级必须保持 Controller 的顺序。先更新 `server`/`web` 并验证新 server 健康，本机模式继续验证执行归属和 Docker 访问。独立 Controller 在 server 替换期间保留备份证据和 durable receipt。既有 Agent 路径升级 server/web，Agent delivery 和能力兼容由单独的维护流程保证，Agent 镜像替换与 mTLS 就绪仍需要独立的发布验收证据。
 
 在应用包含 L2 或更高风险 migration sidecar 的发行版之前，使用将实际执行 migration 的同一官方 server 镜像和生产配置运行目标数据预检。官方 Compose 提供了带 profile 的一次性 `migration-preflight` 服务，它与 `bootstrap` 共享同一个 `ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG}` 镜像引用和运行时环境；随后 `bootstrap` 会使用同一个 server binary 内嵌的 migration registry 执行实际迁移。
 

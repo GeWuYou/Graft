@@ -25,5 +25,6 @@ post:
       $ref: ../components/responses/forbidden.yaml
     '404': { description: Image not found }
     '409': { description: Idempotency-Key conflicts with a different submission. }
+    '503': { $ref: ../components/responses/service-unavailable.yaml }
     '500':
       $ref: ../components/responses/internal-server-error.yaml

@@ -99,15 +99,15 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/announcement/migrations",
 		"modules/audit/migrations",
 		"modules/notification/migrations",
-		"modules/runtime-target/migrations",
-		"modules/registry/migrations",
 		"modules/system-config/migrations",
 		"modules/network/migrations",
 		"modules/scheduler/migrations",
 		"modules/task/migrations",
 		"modules/backup/migrations",
+		"modules/runtime-target/migrations",
 		"modules/update/migrations",
 		"modules/project/migrations",
+		"modules/registry/migrations",
 		"modules/build/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {

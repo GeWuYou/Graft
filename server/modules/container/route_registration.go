@@ -756,6 +756,14 @@ func readRef(ginCtx *gin.Context, r routeRuntime) (Ref, bool) {
 }
 
 func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
+	if errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonTaskResourceBusy.String(), nil)
+		return
+	}
+	if errors.Is(err, moduleapi.ErrTaskExecutionUnavailable) {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusServiceUnavailable, messagecontract.CommonTaskExecutionUnavailable.String(), nil)
+		return
+	}
 	if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
 		return

@@ -47,6 +47,11 @@ const (
 	// AuthTokenMissing 表示请求缺少访问令牌。
 	AuthTokenMissing Key = "auth.token_missing"
 
+	// CommonTaskExecutionUnavailable 表示执行器暂停或失去运行时所有权。
+	CommonTaskExecutionUnavailable Key = "common.task_execution_unavailable"
+	// CommonTaskResourceBusy 表示相同资源已有未完成或待核对操作。
+	CommonTaskResourceBusy Key = "common.task_resource_busy"
+
 	// CommonInternalError 表示通过统一响应封装返回的服务端内部错误。
 	CommonInternalError Key = "common.internal_error"
 

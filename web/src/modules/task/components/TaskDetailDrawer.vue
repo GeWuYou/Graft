@@ -114,7 +114,7 @@ import {
   parseTaskRealtimeNotification,
 } from '../contract/realtime';
 import { resolveTaskFailureMessage } from '../shared/failure-copy';
-import { taskStatusTheme } from '../shared/presentation';
+import { taskStageExecutionLabel, taskStatusTheme } from '../shared/presentation';
 import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
 import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
 import { type TaskDetail, type TaskStage, type TaskStageStatus } from '../types/task';
@@ -159,7 +159,7 @@ const taskLogRealtimeBatcher = new TaskLogRealtimeBatcher({
 });
 const stageOptions = computed<StepItemProps[]>(() =>
   (task.value?.stages ?? []).map((stage) => ({
-    content: stageDescription(stage),
+    content: [taskStageExecutionLabel(stage, t), stageDescription(stage)].filter(Boolean).join(' · '),
     status: stageStepStatus(stage.status),
     title: stage.key,
     value: stage.id,

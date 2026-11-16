@@ -1,4 +1,4 @@
-h1:jTxT0RAnuJS7W1izdWj1+Qz55xbZ7n8k9M/WgP7BeBA=
+h1:UjR596BqYbW6DO8m2WSrdM1PAN0k+cNtYdJe341/ueQ=
 202607220004_update_operations.sql h1:kJkxHi56/Wb+tZG4u8CHHBaAPIzXB3g8G0wOMeSDPHE=
 202607230001_update_discovery_cache.sql h1:v3WS3BxynKEFAy0Qj8I/O0JRoARNwuESJUJj2HsyWHk=
 202607230002_update_operation_lifecycle.sql h1:hdql7ryIO7DImtQGjPlnE5lJNEFEbHMUbXIkA1+Bl2Y=
@@ -11,3 +11,4 @@ h1:jTxT0RAnuJS7W1izdWj1+Qz55xbZ7n8k9M/WgP7BeBA=
 202608010002_update_operations_table_comment.sql h1:3x4QEg1DmapkdNKzJII7Wy1D6JUpADvSofnXeF42o5k=
 202608030001_update_operation_recovery_claim.sql h1:ewKtxXzpUWUG9r3S/3fZkm55uk9iz2t6Xx5FLKS+88o=
 202608040002_purge_legacy_cutover.sql h1:lf+FOM+lqgCLlwQS0Chjbog7qoR5VXt5qIWSxQXl24k=
+202611160001_update_discovery_catalog.sql h1:njGQCya2ltXUaa2HFLHePZSnBuAZCn9RTydYxRmbYlc=

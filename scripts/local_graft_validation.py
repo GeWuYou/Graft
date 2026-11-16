@@ -101,9 +101,12 @@ def desired_env(local_root: Path, instance: str, existing: dict[str, str] | None
     return {
         "GRAFT_IMAGE_TAG": prior.get("GRAFT_IMAGE_TAG", defaults["tag"]),
         "GRAFT_APP_ENV": "production",
+        "GRAFT_EXECUTION_MODE": prior.get("GRAFT_EXECUTION_MODE", "local"),
+        "COMPOSE_PROFILES": prior.get("COMPOSE_PROFILES", ""),
         "GRAFT_DEPLOYMENT_RUNTIME": "compose",
         "GRAFT_DEPLOYMENT_COMPOSE_ROOT": str(root),
         "GRAFT_UPDATE_STATE_VOLUME": update_volume_name(instance),
+        "GRAFT_BUILD_SNAPSHOT_VOLUME": f"{compose_project_name(instance)}-build-snapshots",
         "POSTGRES_DB": prior.get("POSTGRES_DB", f"graft_{instance}"),
         "POSTGRES_USER": prior.get("POSTGRES_USER", f"graft_{instance}"),
         "POSTGRES_PASSWORD": prior.get("POSTGRES_PASSWORD", random_secret()),
@@ -114,7 +117,8 @@ def desired_env(local_root: Path, instance: str, existing: dict[str, str] | None
             f"http://127.0.0.1:{port},http://localhost:{port}"
         ),
         "GRAFT_PROJECT_IMPORT_HOST_PATH": "./data/imports",
-        "GRAFT_APPLICATION_ROOT_HOST_PATH": "./data/apps",
+        "GRAFT_APPLICATION_ROOT_HOST_PATH": str(root / "data" / "apps"),
+        "GRAFT_APPLICATION_ROOT_CONTAINER_PATH": str(root / "data" / "apps"),
         "GRAFT_BACKUP_ARTIFACT_HOST_PATH": "./data/backups",
         "GRAFT_MODULES_ENABLED": "",
     }
@@ -257,6 +261,13 @@ def sync_instance_compose(root: Path, instance: str) -> str:
     env_path = directory / ".env"
     compose_path = directory / "compose.yml"
     env_values = parse_env(env_path)
+    # 旧安装缺少模式键时保持 Agent 执行归属，不能被新模板的 local 默认值悄悄切换。
+    env_values.setdefault("GRAFT_EXECUTION_MODE", "agent")
+    if env_values["GRAFT_EXECUTION_MODE"] == "agent":
+        profiles = [value for value in env_values.get("COMPOSE_PROFILES", "").split(",") if value]
+        if "agent" not in profiles:
+            profiles.append("agent")
+        env_values["COMPOSE_PROFILES"] = ",".join(profiles)
     tag = env_values["GRAFT_IMAGE_TAG"]
     revision = published_server_revision(tag)
     release_compose = download_release_file(revision, "compose.yml")
@@ -309,6 +320,15 @@ def render_readme(local_root: Path) -> str:
         "Use `python3 scripts/local_graft_validation.py status all`, `logs beta`, or `doctor all` from the repository root.",
         "Use `record-access <instance> --note '...'` to append a local operator access note below this managed block.",
         "Health evidence: `doctor` runs Compose config validation, reports the current Compose service state, and probes the Web `/healthz` endpoint.",
+        "",
+        "## Application workspace setup",
+        "",
+        "Each local validation instance mounts its own absolute application directory at that same container path.",
+        "After first sign-in, set **Application Root Directory** (`ops.application.root_directory`) in application settings to the matching path below.",
+        "The authenticated System Config API also supports `PUT /api/system-configs/ops.application.root_directory` with an object containing `value` set to that path.",
+        "Managed application readiness requires this policy setup and a successful create/deploy operation; Web health covers the HTTP service only.",
+        "",
+        *[f"- `{instance}` uses `{instance_root(local_root, instance).resolve() / 'data' / 'apps'}`." for instance in INSTANCES],
         "",
         "The server containers share the host Docker socket. Docker operations performed through a local instance can affect other containers on this machine.",
         f"The fixed instance is pinned to `{fixed_tag}`. If the image is not published yet, `pull` and `up` report it as pending and never fall back to another tag.",

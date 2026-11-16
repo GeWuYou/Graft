@@ -17,7 +17,7 @@ const moduleID = "runtime-target"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "auth", "rbac", "saved-view", credentialvaultcontract.ModuleID},
+		Dependencies:  []string{"user", "auth", "rbac", "saved-view", "task", credentialvaultcontract.ModuleID},
 		MigrationPath: []string{"modules/runtime-target/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
@@ -27,6 +27,10 @@ func NewModuleSpec() module.Spec {
 			runtimeConfig, err := module.ResolveService[*config.Config](ctx.Services, (*config.Config)(nil))
 			if err != nil {
 				return nil, fmt.Errorf("resolve runtime config: %w", err)
+			}
+			// 本机执行不激活 Agent enrollment，也不读取可选 Agent 部署留下的 secret 路径。
+			if runtimeConfig.Execution.Mode == config.ExecutionModeLocal {
+				return NewModule(store.NewSQLRepository(db)), nil
 			}
 			enrollmentSecurity := runtimeConfig.EnrollmentSecurity
 			pepper, err := config.NewEnrollmentPepperProvider(enrollmentSecurity)

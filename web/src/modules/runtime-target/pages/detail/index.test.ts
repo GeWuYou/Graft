@@ -135,6 +135,47 @@ describe('RuntimeTargetDetailPage', () => {
     apiMocks.replaceRuntimeTargetAssignments.mockReset();
     messageMocks.success.mockReset();
   });
+  it('renders local execution readiness without an Agent enrollment warning', async () => {
+    apiMocks.getRuntimeTarget.mockResolvedValue({
+      ...targetDetail(),
+      execution: {
+        mode: 'local',
+        ready: true,
+        diagnostic_code: 'execution_ready',
+        capabilities: ['compose_execution'],
+      },
+    });
+    const wrapper = mount(RuntimeTargetDetailPage, { global: { stubs: baseStubs() } });
+    await flushPromises();
+    expect(wrapper.text()).toContain('runtimeTarget.executionModes.local');
+    expect(wrapper.text()).toContain('runtimeTarget.executionReady');
+    expect(wrapper.text()).toContain('runtimeTarget.executionCapabilities.compose_execution');
+    expect(wrapper.text()).not.toContain('agent-local');
+  });
+
+  it.each([
+    'docker_unavailable',
+    'agent_unavailable',
+    'execution_mode_mismatch',
+    'execution_runtime_stopped',
+    'execution_ownership_lost',
+  ])('renders the server-owned %s execution diagnostic', async (diagnostic) => {
+    apiMocks.getRuntimeTarget.mockResolvedValue({
+      ...targetDetail(),
+      execution: { mode: 'local', ready: false, diagnostic_code: diagnostic, capabilities: [] },
+    });
+    const wrapper = mount(RuntimeTargetDetailPage, { global: { stubs: baseStubs() } });
+    await flushPromises();
+    expect(wrapper.text()).toContain(`runtimeTarget.executionDiagnostics.${diagnostic}`);
+  });
+
+  it('retains the Agent projection for older API responses without execution metadata', async () => {
+    apiMocks.getRuntimeTarget.mockResolvedValue(targetDetail());
+    const wrapper = mount(RuntimeTargetDetailPage, { global: { stubs: baseStubs() } });
+    await flushPromises();
+    expect(wrapper.text()).toContain('agent-local');
+    expect(wrapper.text()).not.toContain('runtimeTarget.executionModes.local');
+  });
   it('renders Docker provider details separately from neutral runtime resources', async () => {
     apiMocks.getRuntimeTarget.mockResolvedValue({
       id: 7,

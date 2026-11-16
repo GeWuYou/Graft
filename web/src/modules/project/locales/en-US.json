@@ -1301,7 +1301,7 @@
       },
       "eyebrow": "Compose Application",
       "description": "Application Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
-      "runtimeTargetCapabilityUnavailable": "Runtime Agent capability is unavailable; application and container actions are disabled.",
+      "runtimeTargetCapabilityUnavailable": "The execution channel or required capability is unavailable. Review the runtime target details.",
       "openWorkingDirectory": "Workspace Path",
       "titleFallback": "Application Detail",
       "sections": {

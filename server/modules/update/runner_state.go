@@ -62,6 +62,7 @@ type RunnerState struct {
 	SourceVersion string      `json:"source_version"`
 	TargetVersion string      `json:"target_version"`
 	Strategy      string      `json:"deployment_strategy"`
+	ExecutionMode string      `json:"execution_mode,omitempty"`
 	Phase         RunnerPhase `json:"phase"`
 	Progress      int         `json:"progress"`
 	Message       string      `json:"message"`
@@ -78,6 +79,26 @@ type RunnerState struct {
 	Receipt          *RunnerReceipt `json:"receipt,omitempty"`
 }
 
+// MigrationStarted 保留受信快照中的前向迁移边界，避免中断恢复将迁移后的失败归为可回退状态。
+func (state RunnerState) MigrationStarted() bool {
+	if state.Receipt != nil && state.Receipt.MigrationStarted {
+		return true
+	}
+	switch state.Phase {
+	case RunnerPhaseMigration, RunnerPhaseStartServices, RunnerPhaseHealthCheck, RunnerPhaseSuccess:
+		return true
+	case RunnerPhaseFailed:
+		switch state.Error {
+		case RunnerFailureCodeInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices:
+			return false
+		default:
+			return true
+		}
+	default:
+		return false
+	}
+}
+
 // RunnerRecoveryInput 绑定受控恢复 runner 的授权身份；缺失快照时 State 为 nil，恢复 runner 只能写入终态。
 type RunnerRecoveryInput struct {
 	OperationID   string       `json:"operation_id"`
@@ -85,6 +106,9 @@ type RunnerRecoveryInput struct {
 	SourceVersion string       `json:"source_version"`
 	TargetVersion string       `json:"target_version"`
 	Strategy      string       `json:"deployment_strategy"`
+	ExecutionMode string       `json:"execution_mode,omitempty"`
+	LaunchStageID uint64       `json:"launch_stage_id,omitempty"`
+	LaunchAttempt int          `json:"launch_attempt,omitempty"`
 	State         *RunnerState `json:"state,omitempty"`
 	Corrupt       bool         `json:"corrupt,omitempty"`
 }
@@ -278,6 +302,9 @@ func (s *FileRunnerStateStore) write(next RunnerState, appendEvent bool) error {
 			return errors.New("another runner operation is active")
 		}
 		if previous.OperationID == next.OperationID {
+			if effectiveRunnerExecutionMode(previous.ExecutionMode) != effectiveRunnerExecutionMode(next.ExecutionMode) {
+				return errors.New("runner execution mode is immutable")
+			}
 			if next.Revision <= previous.Revision || phaseOrdinal(next.Phase) < phaseOrdinal(previous.Phase) {
 				return errors.New("runner state transition is invalid")
 			}
@@ -476,10 +503,11 @@ func parseRunnerStateEventRevision(name string) (uint64, bool) {
 //nolint:revive // 状态转换同时需要冻结输入、执行器身份、阶段、进度、受控消息、错误和上一个快照。
 func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progress int, message, failure string, previous RunnerState) RunnerState {
 	now := time.Now().UTC()
-	state := RunnerState{SchemaVersion: runnerStateSchemaVersion, OperationID: input.OperationID, Operation: "self_update", RunnerID: runnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Strategy: string(input.Preflight.DeploymentStrategy), Phase: phase, Progress: progress, Message: message, Error: failure, StartedAt: now, UpdatedAt: now, Revision: 1, LeaseEpoch: 1, LeaseHeartbeatAt: now, LeaseExpiresAt: now.Add(runnerLeaseDuration)}
+	state := RunnerState{SchemaVersion: runnerStateSchemaVersion, OperationID: input.OperationID, Operation: "self_update", RunnerID: runnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Strategy: string(input.Preflight.DeploymentStrategy), ExecutionMode: input.ExecutionMode, Phase: phase, Progress: progress, Message: message, Error: failure, StartedAt: now, UpdatedAt: now, Revision: 1, LeaseEpoch: 1, LeaseHeartbeatAt: now, LeaseExpiresAt: now.Add(runnerLeaseDuration)}
 	if previous.OperationID == input.OperationID {
 		state.StartedAt, state.Revision = previous.StartedAt, previous.Revision+1
 		state.SourceVersion, state.TargetVersion, state.Strategy = previous.SourceVersion, previous.TargetVersion, previous.Strategy
+		state.ExecutionMode = previous.ExecutionMode
 		state.LeaseEpoch = previous.LeaseEpoch
 		if runnerID != previous.RunnerID {
 			state.LeaseEpoch++
@@ -493,6 +521,12 @@ func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progr
 
 //nolint:cyclop,gocyclo // 单个快照的全部不变量必须在读取边界一次性验证。
 func validateRunnerState(value RunnerState) error {
+	if !validRunnerExecutionMode(value.ExecutionMode) {
+		return errors.New("runner state execution mode is invalid")
+	}
+	if value.Receipt != nil && effectiveRunnerExecutionMode(value.Receipt.ExecutionMode) != effectiveRunnerExecutionMode(value.ExecutionMode) {
+		return errors.New("runner receipt execution mode does not match its state")
+	}
 	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || !validRunnerStateMessage(value.Message) || !validRunnerStateFailure(value.Error) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
 		return errors.New("runner state is invalid")
 	}
@@ -516,7 +550,7 @@ func validRunnerStateMessage(message string) bool {
 
 func validRunnerStateFailure(failure string) bool {
 	switch failure {
-	case "", RunnerFailureCodeInvalidInput, RunnerFailureCodeStateCorrupt, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
+	case "", RunnerFailureCodeInvalidInput, RunnerFailureCodeStateCorrupt, RunnerFailureCodeStateWriteFailed, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz, runnerFailureExecutionReady:
 		return true
 	default:
 		return false

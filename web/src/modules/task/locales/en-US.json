@@ -33,6 +33,15 @@
         "providerOperationFailed": "The runtime provider could not complete this operation.",
         "agentExecutionInterrupted": "The Runtime Agent interrupted the external execution.",
         "externalExecutionUncertain": "External execution status is uncertain; verify the runtime before retrying.",
+        "localMaterialResolveFailed": "Execution materials could not be resolved. Check configuration, workspaces and credentials.",
+        "localComposeLoadFailed": "Compose configuration could not be loaded. Check its files and environment values.",
+        "localComposeApplyFailed": "The Compose operation failed. Check images, mounts and service state.",
+        "localContainerApplyFailed": "The Docker resource operation failed. Check resource state and permissions.",
+        "localBuildExecuteFailed": "Image build or publishing failed. Check build files and the registry connection.",
+        "localExecutionResultUnconfirmed": "The execution result is unconfirmed. Inspect the actual resources before retrying.",
+        "localExecutionInterrupted": "Execution was interrupted. Inspect the actual resources before resolving this task.",
+        "localExecutionNotReady": "Local execution is not ready after the update. Check execution mode and Docker permissions.",
+        "localControllerPullFailed": "The update controller image could not be pulled. Check the registry and network connection.",
         "unknown": "The task failed. Review task logs for sanitized diagnostic details."
       },
       "identifier": "Task #{id}",
@@ -113,6 +122,12 @@
       "skipped": "Skipped",
       "success": "Succeeded",
       "unknown": "Needs Reconciliation"
+    },
+    "executionModes": {
+      "local": "Local execution",
+      "agent": "Agent execution",
+      "controller": "Independent update Controller",
+      "server": "Server execution"
     },
     "status": {
       "cancelled": "Cancelled",

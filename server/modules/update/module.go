@@ -183,6 +183,9 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	if ctx.Config == nil {
 		return errors.New("platform-update config is unavailable")
 	}
+	if err := m.rollout.SetExecutionMode(ctx.Config.Execution.Mode); err != nil {
+		return err
+	}
 	m.rollout.SetBackupArtifactRoot(ctx.Config.Backup.ArtifactRoot)
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)

@@ -33,6 +33,15 @@
         "providerOperationFailed": "运行时提供方未能完成此操作。",
         "agentExecutionInterrupted": "运行时 Agent 中断了外部执行。",
         "externalExecutionUncertain": "外部执行状态不确定，请确认运行时状态后再重试。",
+        "localMaterialResolveFailed": "执行材料无法解析，请检查配置、工作区与凭据。",
+        "localComposeLoadFailed": "Compose 配置加载失败，请检查文件与环境变量。",
+        "localComposeApplyFailed": "Compose 操作失败，请检查镜像、挂载和服务状态。",
+        "localContainerApplyFailed": "Docker 资源操作失败，请检查资源状态与权限。",
+        "localBuildExecuteFailed": "镜像构建或推送失败，请检查构建文件和仓库连接。",
+        "localExecutionResultUnconfirmed": "执行结果尚未确认，请核对实际资源后再决定重试。",
+        "localExecutionInterrupted": "执行已中断，请核对实际资源后处理该任务。",
+        "localExecutionNotReady": "更新后的本机执行通道尚未就绪，请检查执行模式和 Docker 权限。",
+        "localControllerPullFailed": "更新执行镜像拉取失败，请检查镜像仓库和网络连接。",
         "unknown": "任务执行失败，请查看任务日志中的脱敏诊断信息。"
       },
       "identifier": "任务 #{id}",
@@ -113,6 +122,12 @@
       "skipped": "已跳过",
       "success": "成功",
       "unknown": "需要人工确认"
+    },
+    "executionModes": {
+      "local": "本机执行",
+      "agent": "Agent 执行",
+      "controller": "独立更新 Controller",
+      "server": "服务端执行"
     },
     "status": {
       "cancelled": "已取消",

@@ -356,14 +356,19 @@ func appendExternalTaskStage(stages *[]moduleapi.StagePlan, aggregate projectsto
 	if err != nil {
 		return err
 	}
+	resourceKeys := []string{"compose:" + lifecycleConfigurationFromAggregate(aggregate).ApplicationName}
+	if action == "image-prune" {
+		resourceKeys = []string{"*"}
+	}
 	*stages = append(*stages, moduleapi.StagePlan{
 		Key: action, ExecutorType: moduleapi.StageExecutorType(composeStagePrefix + action), Input: input,
 		RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
 		ExternalExecution: &moduleapi.ExternalExecutionExpectation{
 			RuntimeTargetID: target.ID, ProviderID: target.Provider, Capability: composeExecutionCapability,
 			CapabilityVersion: composeExecutionCapabilityVersion, Protocol: composeExecutionProtocol,
-			OperationID: "application.compose." + action + ".v1",
-			LeaseTTL:    time.Minute, AbsoluteDeadline: projectExternalExecutionDeadline,
+			OperationID:  "application.compose." + action + ".v1",
+			ResourceKeys: resourceKeys,
+			LeaseTTL:     time.Minute, AbsoluteDeadline: projectExternalExecutionDeadline,
 		},
 	})
 	return nil

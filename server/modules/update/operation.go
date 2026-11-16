@@ -68,7 +68,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: platformUpdateTaskOwnerType, ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
 		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{
 			{Key: "controller_launch", ExecutorType: composeUpdateLaunchExecutor, Input: input, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalExecution: updateControllerExecutionExpectation(runtimeTargetID, fmt.Sprintf("%x", digest))},
-			{Key: "controller_result", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID}},
+			{Key: "controller_result", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID, LaunchStageKey: "controller_launch"}},
 		}},
 	})
 	if err != nil {
@@ -121,19 +121,37 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 		return ComposeUpdateOperation{}, err
 	}
 	protocol, _ := runnerProtocolForVersion(receipt.ProtocolVersion)
-	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: protocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
+	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: protocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity, LaunchStageID: receipt.LaunchStageID, LaunchAttempt: receipt.LaunchAttempt})
 	if err != nil {
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
+	}
+	if settlement.TaskID != operation.TaskID {
+		return ComposeUpdateOperation{}, errors.New("settled task does not match update operation")
+	}
+	if err := c.cancelFailedBackupHandoff(ctx, operation, receipt); err != nil {
+		return ComposeUpdateOperation{}, err
 	}
 	operation.Outcome = outcome
 	operation.RunnerID = settledRunnerID(operation.RunnerID, receipt.RunnerID)
 	operation.ReceiptIntegritySHA256 = integrity
 	operation.FailureCode = receipt.FailureCode
 	operation.RecoveryCompleted = receipt.RecoveryCompleted
-	if settlement.TaskID != operation.TaskID {
-		return ComposeUpdateOperation{}, errors.New("settled task does not match update operation")
-	}
 	return operation, nil
+}
+
+// cancelFailedBackupHandoff 仅在 Task 已验证回执 attempt 后撤销已明确失败的备份准备。
+// 撤销失败保留未完成的 Update 结算，后续使用同一回执重试两个 owner 的幂等操作。
+func (c *ComposeExecutionCoordinator) cancelFailedBackupHandoff(ctx context.Context, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
+	knownFailure := receipt.FailureCode == runnerFailureBackup &&
+		validRunnerBackupFailureStage(RunnerBackupFailureStage(receipt.FailureStage)) &&
+		validRunnerBackupFailureDetail(RunnerBackupFailureDetail(receipt.FailureDetail))
+	if receipt.Succeeded || receipt.MigrationStarted || receipt.BackupCompletion != nil || operation.BackupID != 0 || !knownFailure {
+		return nil
+	}
+	if err := c.backups.CancelRunnerHandoff(ctx, operation.OperationID, operation.TaskID); err != nil {
+		return fmt.Errorf("cancel failed update backup handoff: %w", err)
+	}
+	return nil
 }
 
 func validateReceiptSettlement(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
@@ -150,6 +168,7 @@ func validReceiptSettlementDependencies(c *ComposeExecutionCoordinator, operatio
 
 func validReceiptIdentity(operation ComposeUpdateOperation, receipt RunnerReceipt, verifiedRunnerID string) bool {
 	return supportedRunnerProtocolVersion(receipt.ProtocolVersion) &&
+		validRunnerExecutionMode(receipt.ExecutionMode) &&
 		receipt.OperationID == operation.OperationID &&
 		(verifiedRunnerID == "" || runnerOperationID.MatchString(verifiedRunnerID)) &&
 		(operation.RunnerID == "" || receipt.RunnerID == "" || operation.RunnerID == receipt.RunnerID)

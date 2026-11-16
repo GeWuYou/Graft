@@ -1816,10 +1816,11 @@ function canRunServiceContainerAction(
 }
 
 function runtimeTargetCapabilityAvailable(capability: string) {
-  return (
-    runtimeTargetDetail.value?.agent.capabilities.some((item) => item.name === capability && item.status === 'ready') ??
-    false
-  );
+  const target = runtimeTargetDetail.value;
+  if (target?.execution) {
+    return target.execution.ready && target.execution.capabilities.some((item) => item === capability);
+  }
+  return target?.agent?.capabilities.some((item) => item.name === capability && item.status === 'ready') ?? false;
 }
 
 function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {

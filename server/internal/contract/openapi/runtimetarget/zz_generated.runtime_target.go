@@ -213,6 +213,78 @@ func (e GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind) Valid() boo
 	}
 }
 
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesComposeExecution   GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities = "compose_execution"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesContainerExecution GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities = "container_execution"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesOciBuild           GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities = "oci-build"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesUpdateController   GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities = "update_controller"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesComposeExecution:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesContainerExecution:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesOciBuild:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilitiesUpdateController:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeAgentUnavailable        GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "agent_unavailable"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeDockerUnavailable       GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "docker_unavailable"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionModeMismatch   GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "execution_mode_mismatch"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionOwnershipLost  GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "execution_ownership_lost"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionReady          GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "execution_ready"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionRuntimeStopped GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode = "execution_runtime_stopped"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeAgentUnavailable:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeDockerUnavailable:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionModeMismatch:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionOwnershipLost:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionReady:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCodeExecutionRuntimeStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionModeAgent GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode = "agent"
+	GetRuntimeTargets200JSONResponseBodyDataItemsExecutionModeLocal GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode = "local"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionModeAgent:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsExecutionModeLocal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus.
 const (
 	RuntimeTargetSummaryHealthStatusHealthy     GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "healthy"
@@ -408,6 +480,78 @@ const (
 func (e GetRuntimeTarget200JSONResponseBodyDataConnectionKind) Valid() bool {
 	switch e {
 	case GetRuntimeTarget200JSONResponseBodyDataConnectionKindUnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesComposeExecution   GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities = "compose_execution"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesContainerExecution GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities = "container_execution"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesOciBuild           GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities = "oci-build"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesUpdateController   GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities = "update_controller"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesComposeExecution:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesContainerExecution:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesOciBuild:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilitiesUpdateController:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeAgentUnavailable        GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "agent_unavailable"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeDockerUnavailable       GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "docker_unavailable"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionModeMismatch   GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "execution_mode_mismatch"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionOwnershipLost  GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "execution_ownership_lost"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionReady          GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "execution_ready"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionRuntimeStopped GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode = "execution_runtime_stopped"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeAgentUnavailable:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeDockerUnavailable:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionModeMismatch:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionOwnershipLost:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionReady:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCodeExecutionRuntimeStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataExecutionMode.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataExecutionModeAgent GetRuntimeTarget200JSONResponseBodyDataExecutionMode = "agent"
+	GetRuntimeTarget200JSONResponseBodyDataExecutionModeLocal GetRuntimeTarget200JSONResponseBodyDataExecutionMode = "local"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataExecutionMode enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataExecutionMode) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionModeAgent:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataExecutionModeLocal:
 		return true
 	default:
 		return false
@@ -630,6 +774,78 @@ func (e PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind) Valid() b
 	}
 }
 
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesComposeExecution   PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities = "compose_execution"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesContainerExecution PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities = "container_execution"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesOciBuild           PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities = "oci-build"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesUpdateController   PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities = "update_controller"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesComposeExecution:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesContainerExecution:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesOciBuild:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilitiesUpdateController:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeAgentUnavailable        PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "agent_unavailable"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeDockerUnavailable       PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "docker_unavailable"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionModeMismatch   PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "execution_mode_mismatch"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionOwnershipLost  PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "execution_ownership_lost"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionReady          PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "execution_ready"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionRuntimeStopped PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode = "execution_runtime_stopped"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeAgentUnavailable:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeDockerUnavailable:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionModeMismatch:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionOwnershipLost:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionReady:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCodeExecutionRuntimeStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionModeAgent PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode = "agent"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionModeLocal PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode = "local"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionModeAgent:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionModeLocal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus.
 const (
 	PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusHealthy     PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "healthy"
@@ -799,6 +1015,15 @@ type GetRuntimeTargetsParamsSort string
 // GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind string
 
+// GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsExecutionCapabilities string
+
+// GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsExecutionDiagnosticCode string
+
+// GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsExecutionMode string
+
 // GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus string
 
@@ -841,6 +1066,15 @@ type GetRuntimeTarget200JSONResponseBodyDataAgentStatus string
 
 // GetRuntimeTarget200JSONResponseBodyDataConnectionKind defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget200JSONResponseBodyDataConnectionKind string
+
+// GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataExecutionCapabilities string
+
+// GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataExecutionDiagnosticCode string
+
+// GetRuntimeTarget200JSONResponseBodyDataExecutionMode defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataExecutionMode string
 
 // GetRuntimeTarget200JSONResponseBodyDataHealthStatus defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget200JSONResponseBodyDataHealthStatus string
@@ -887,6 +1121,15 @@ type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus string
 
 // PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionCapabilities string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionDiagnosticCode string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataExecutionMode string
 
 // PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus string
