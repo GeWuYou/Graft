@@ -1,0 +1,136 @@
+{
+  "source_revision": "346854ff5daae3f804f8fad706202c9e983d2067",
+  "input": {
+    "Type": "test.runtime",
+    "Owner": {
+      "Type": "test",
+      "ID": "legacy-agent-owner"
+    },
+    "RequestedBy": 42,
+    "IdempotencyKey": "legacy-agent-idempotency-key",
+    "Input": {
+      "application_id": "app_legacy"
+    },
+    "Metadata": null,
+    "Plan": {
+      "Stages": [
+        {
+          "Key": "stage-1",
+          "ExecutorType": "test.executor",
+          "CoordinationGroup": "",
+          "LegID": "",
+          "Input": {
+            "application_id": "app_legacy"
+          },
+          "RetryPolicy": {
+            "MaxAttempts": 1,
+            "Backoff": 0
+          },
+          "RecoveryPolicy": "manual_reconcile",
+          "ExternalExecution": {
+            "RuntimeTargetID": 42,
+            "ProviderID": "docker",
+            "Capability": "compose_execution",
+            "CapabilityVersion": "docker/v1",
+            "Protocol": "runtime-agent/v1",
+            "OperationID": "legacy-operation",
+            "PayloadSHA256": "",
+            "LeaseTTL": 60000000000,
+            "AbsoluteDeadline": 600000000000
+          },
+          "ExternalReceipt": null
+        }
+      ],
+      "Coordination": null
+    },
+    "ScheduledAt": null
+  },
+  "task": {
+    "ID": 0,
+    "Type": "test.runtime",
+    "Owner": {
+      "Type": "test",
+      "ID": "legacy-agent-owner"
+    },
+    "Status": "ready",
+    "Input": {
+      "application_id": "app_legacy"
+    },
+    "Metadata": null,
+    "Plan": {
+      "Stages": [
+        {
+          "Key": "stage-1",
+          "ExecutorType": "test.executor",
+          "CoordinationGroup": "",
+          "LegID": "",
+          "Input": {
+            "application_id": "app_legacy"
+          },
+          "RetryPolicy": {
+            "MaxAttempts": 1,
+            "Backoff": 0
+          },
+          "RecoveryPolicy": "manual_reconcile",
+          "ExternalExecution": {
+            "RuntimeTargetID": 42,
+            "ProviderID": "docker",
+            "Capability": "compose_execution",
+            "CapabilityVersion": "docker/v1",
+            "Protocol": "runtime-agent/v1",
+            "OperationID": "legacy-operation",
+            "PayloadSHA256": "f6e798d862eb68ef4a4b931386251d6cb08bc660b88f3dcd3b75b4329160f0c7",
+            "LeaseTTL": 60000000000,
+            "AbsoluteDeadline": 600000000000
+          },
+          "ExternalReceipt": null
+        }
+      ],
+      "Coordination": null
+    },
+    "State": {},
+    "CurrentStageKey": null,
+    "CreatedBy": 42,
+    "IdempotencyKeyHash": "41e48a347e5291a2798dd0ccb50be882a995ea275844a14b4fd09914f46ee46a",
+    "SubmissionFingerprint": "93a3728f6e83627338888451cfa5a28464dd08c16ac124091a8b92565db5f818",
+    "ActivationRequired": false,
+    "ScheduledAt": null,
+    "CancelRequestedAt": null,
+    "StartedAt": null,
+    "FinishedAt": null,
+    "DurationMS": null,
+    "FailureCode": null,
+    "FailureMessage": null,
+    "CreatedAt": "0001-01-01T00:00:00Z",
+    "UpdatedAt": "0001-01-01T00:00:00Z"
+  },
+  "stages": [
+    {
+      "ID": 0,
+      "TaskID": 0,
+      "Key": "stage-1",
+      "Sequence": 1,
+      "ExecutorType": "test.executor",
+      "ExternalExecution": true,
+      "CoordinationGroup": "",
+      "LegID": "",
+      "Status": "pending",
+      "Attempt": 0,
+      "MaxAttempts": 1,
+      "RetryBackoffMS": 0,
+      "NextRetryAt": null,
+      "Input": {
+        "application_id": "app_legacy"
+      },
+      "RecoveryPolicy": "manual_reconcile",
+      "Result": {},
+      "FailureCode": null,
+      "FailureMessage": null,
+      "StartedAt": null,
+      "FinishedAt": null,
+      "DurationMS": null,
+      "CreatedAt": "0001-01-01T00:00:00Z",
+      "UpdatedAt": "0001-01-01T00:00:00Z"
+    }
+  ]
+}

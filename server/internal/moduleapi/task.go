@@ -242,7 +242,7 @@ type StagePlan struct {
 	RecoveryPolicy    StageRecoveryPolicy
 	ExternalExecution *ExternalExecutionExpectation
 	// LocalExecution 冻结本机 SDK 执行版本与资源协调键，历史 ExternalExecution 继续由 Agent 消费。
-	LocalExecution *LocalExecutionExpectation
+	LocalExecution *LocalExecutionExpectation `json:",omitempty"`
 	// ExternalReceipt 是 Update Controller 终态状态卷仍需使用的 final-stage handshake；新的启动动作必须使用 ExternalExecution。
 	ExternalReceipt *ExternalReceiptExpectation
 }
@@ -295,7 +295,7 @@ func ValidateCoordinatedTaskPlan(plan *CoordinatedTaskPlan) error {
 // ExternalReceiptExpectation 冻结短生命周期外部执行器结算最终 Stage 时必须匹配的身份；它不包含凭据，认证由部署侧文件与进程边界承担。
 type ExternalReceiptExpectation struct {
 	// LaunchStageKey 允许可信终态回执核对同一 Task 内已开始的启动阶段。
-	LaunchStageKey string
+	LaunchStageKey string `json:",omitempty"`
 	Protocol       string
 	OperationID    string
 }
@@ -312,7 +312,7 @@ type ExternalExecutionExpectation struct {
 	LeaseTTL          time.Duration
 	AbsoluteDeadline  time.Duration
 	// ResourceKeys 由领域 owner 冻结，用于跨 Task 协调相同资源的副作用。
-	ResourceKeys []string
+	ResourceKeys []string `json:",omitempty"`
 }
 
 // LocalExecutionExpectation 是只由 Task Runtime 生成的本机执行绑定。
