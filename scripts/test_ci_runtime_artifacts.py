@@ -189,12 +189,14 @@ class RuntimeArtifactTests(unittest.TestCase):
             "source_revision": "a" * 40, "task_id": 7, "task_status": "success",
             "registry_anonymous_status": 401, "registry_authenticated_status": 200,
             "registry_verified": True, "credential_absent_from_task_and_logs": True,
-            "artifact": {"artifact_id": "artifact-fixture", "digest": digest, "image_id": image, "tag": "probe"},
+            "artifact": {"artifact_id": "artifact-fixture", "digest": digest, "media_type": "application/vnd.oci.image.manifest.v1+json",
+                         "platforms": ["linux/amd64"], "size_bytes": 20, "created_at": "2026-11-16T00:00:00Z"},
+            "requested_destination": {"kind": "oci_registry", "connection_ref": "fixture", "repository_ref": "probe/build", "reference": "probe"},
             "engine_image_id": image, "remote_manifest_digest": digest,
             "manifest_config_digest": image, "probe_verified": True,
             "probe_sha256": "5" * 64, "expected_probe_sha256": "5" * 64, "probe_size_bytes": 20,
             "publications": [{"publication_id": "publication-fixture", "artifact_id": "artifact-fixture",
-                              "digest": digest, "destination": {"kind": "oci_registry", "reference": "probe"}}],
+                              "digest": digest, "destination": {"kind": "oci_registry", "connection_ref": "fixture", "repository_ref": "probe/build", "reference": "probe"}}],
         }
         path = self.write("fixture/build-api/build-api-evidence.json", json.dumps(evidence))
         verify_build_acceptance(self.root, self.root / "fixture")
@@ -211,6 +213,18 @@ class RuntimeArtifactTests(unittest.TestCase):
                 path.write_text(json.dumps({**evidence, field: value}))
                 with self.assertRaisesRegex(ValueError, "incomplete"):
                     verify_build_acceptance(self.root, self.root / "fixture")
+        for key in ("kind", "connection_ref", "repository_ref", "reference"):
+            with self.subTest(destination_key=key):
+                broken = deepcopy(evidence)
+                broken["publications"][0]["destination"][key] = "different"
+                path.write_text(json.dumps(broken))
+                with self.assertRaisesRegex(ValueError, "incomplete"):
+                    verify_build_acceptance(self.root, self.root / "fixture")
+        broken = deepcopy(evidence)
+        del broken["requested_destination"]
+        path.write_text(json.dumps(broken))
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            verify_build_acceptance(self.root, self.root / "fixture")
         broken = deepcopy(evidence)
         broken["publications"][0]["artifact_id"] = "different-artifact"
         path.write_text(json.dumps(broken))
