@@ -131,14 +131,16 @@ describe('docker image list page', () => {
   });
 
   it('uses the shared server-paged table and summary contract', () => {
-    expect(sourceText).toContain('<management-page-header\n      compact');
+    expect(sourceText).toContain('<management-list-page');
+    expect(sourceText).toContain('\n    compact\n');
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
-    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain(':stats-items="metrics"');
+    expect(sourceText).toContain('stats-layout="chips"');
     expect(sourceText).toContain('<table-view-toolbar');
     expect(sourceText).not.toContain('docker-images-summary');
     expect(sourceText).toContain('summary.value.dangling');

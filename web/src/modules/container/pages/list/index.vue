@@ -1,24 +1,27 @@
 <template>
-  <div class="container-page" data-page-type="list-form-detail">
-    <management-page-header
-      title-key="container.list.title"
-      :title="t('container.list.title')"
-      description-key="container.list.description"
-      :description="t('container.list.description')"
-      :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    />
-
-    <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
-
-    <resource-query-panel
-      v-model="resourceQueryState"
-      :config="queryConfig"
-      :loading="tableLoading"
-      @reset="resetFilters"
-      @search="applyQueryState"
-    >
-      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
-    </resource-query-panel>
+  <management-list-page
+    class="container-page"
+    page-type="list-form-detail"
+    :title="t('container.list.title')"
+    title-key="container.list.title"
+    :description="t('container.list.description')"
+    description-key="container.list.description"
+    :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
+  >
+    <template #statistics>
+      <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
+    </template>
+    <template #filters>
+      <resource-query-panel
+        v-model="resourceQueryState"
+        :config="queryConfig"
+        :loading="tableLoading"
+        @reset="resetFilters"
+        @search="applyQueryState"
+      >
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
 
     <container-list
       :presentation="listPresentation"
@@ -158,44 +161,44 @@
         </t-button>
       </template>
     </container-list>
+  </management-list-page>
 
-    <advanced-query-column-drawer
-      v-model:visible="columnDrawerVisible"
-      v-model:selected-keys="visibleColumnKeys"
-      :columns="columnSettingOptions"
-      :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
-      :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
-      :reset-label="t('container.list.resetColumns')"
-      :title="t('container.list.columnSettings')"
-    />
+  <advanced-query-column-drawer
+    v-model:visible="columnDrawerVisible"
+    v-model:selected-keys="visibleColumnKeys"
+    :columns="columnSettingOptions"
+    :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+    :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
+    :reset-label="t('container.list.resetColumns')"
+    :title="t('container.list.columnSettings')"
+  />
 
-    <task-detail-drawer
-      :visible="lifecycleTaskDrawerVisible"
-      :task-id="lifecycleTaskId"
-      :resolve-task-type="resolveLifecycleTaskType"
-      @update:visible="lifecycleTaskDrawerVisible = $event"
-    />
+  <task-detail-drawer
+    :visible="lifecycleTaskDrawerVisible"
+    :task-id="lifecycleTaskId"
+    :resolve-task-type="resolveLifecycleTaskType"
+    @update:visible="lifecycleTaskDrawerVisible = $event"
+  />
 
-    <t-alert
-      v-if="batchTaskEntries.length"
-      class="container-batch-tasks"
-      theme="info"
-      :title="t('container.list.batch.tasksTitle')"
-    >
-      <div class="container-batch-tasks__list">
-        <t-button
-          v-for="entry in batchTaskEntries"
-          :key="entry.taskId"
-          class="container-batch-tasks__item"
-          variant="text"
-          theme="primary"
-          @click="openLifecycleTask(entry.taskId)"
-        >
-          {{ t('container.list.batch.taskEntry', { action: actionLabel(entry.action), id: entry.containerId }) }}
-        </t-button>
-      </div>
-    </t-alert>
-  </div>
+  <t-alert
+    v-if="batchTaskEntries.length"
+    class="container-batch-tasks"
+    theme="info"
+    :title="t('container.list.batch.tasksTitle')"
+  >
+    <div class="container-batch-tasks__list">
+      <t-button
+        v-for="entry in batchTaskEntries"
+        :key="entry.taskId"
+        class="container-batch-tasks__item"
+        variant="text"
+        theme="primary"
+        @click="openLifecycleTask(entry.taskId)"
+      >
+        {{ t('container.list.batch.taskEntry', { action: actionLabel(entry.action), id: entry.containerId }) }}
+      </t-button>
+    </div>
+  </t-alert>
 </template>
 <script setup lang="ts">
 import type { DialogInstance } from 'tdesign-vue-next';
@@ -214,7 +217,7 @@ import { resolveComposeApplicationReferences } from '@/modules/project/contract/
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
-import { ManagementBatchBar, ManagementPageHeader, TableViewToolbar } from '@/shared/components/management';
+import { ManagementBatchBar, ManagementListPage, TableViewToolbar } from '@/shared/components/management';
 import {
   type ResourceQueryConfig,
   ResourceQueryPanel,
@@ -1585,13 +1588,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 </script>
 <style scoped lang="less">
-.container-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-}
-
 .container-toolbar-row {
   align-items: center;
   display: flex;

@@ -5,7 +5,7 @@ import sourceText from './index.vue?raw';
 
 describe('Docker network management page', () => {
   it('provides list-form-detail controls with confirmed destructive removal', () => {
-    expect(sourceText).toContain('data-page-type="list-form-detail"');
+    expect(sourceText).toContain('page-type="list-form-detail"');
     expect(sourceText).toContain('useDockerNetworkListQuery(networkListQuery)');
     expect(sourceText).toContain('useDockerNetworkDetailQuery(selectedNetworkId)');
     expect(sourceText).toContain('confirm_network_name: removeConfirmation.value');

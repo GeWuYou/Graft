@@ -706,7 +706,11 @@
         "subnet": "IPv4 子网",
         "subnetPlaceholder": "例如 172.28.0.0/16",
         "gateway": "IPv4 网关",
-        "gatewayPlaceholder": "例如 172.28.0.1"
+        "gatewayPlaceholder": "例如 172.28.0.1",
+        "subnetTip": "留空则由 Docker 自动分配子网。",
+        "gatewayTip": "留空则由 Docker 自动分配网关。",
+        "sectionBasic": "基础信息",
+        "sectionIpam": "IPAM 配置"
       }
     },
     "detail": {

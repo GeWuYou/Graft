@@ -17,9 +17,7 @@ describe('docker volume asset management page', () => {
   });
 
   it('uses medium controls for page-level actions while retaining compact row actions', () => {
-    expect(sourceText).toContain(
-      'size="medium"\n          variant="outline"\n          :loading="cleanup.loading.value"',
-    );
+    expect(sourceText).toContain('size="medium" variant="outline" :loading="cleanup.loading.value"');
     expect(sourceText).toContain('button-size="medium"');
     expect(sourceText).toContain('size="medium" theme="danger" variant="outline" @click="handleBatchRemove"');
     expect(sourceText).toContain('size="medium" variant="outline" @click="resetFilters"');
